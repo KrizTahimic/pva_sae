@@ -1,0 +1,41 @@
+2025-05-26 01:10:50,281 - root - INFO - Logging system initialized
+2025-05-26 01:10:50,281 - root - INFO - Loading MBPP dataset...
+2025-05-26 01:11:05,645 - root - INFO - MBPP dataset loaded: 500 examples
+2025-05-26 01:11:05,646 - root - INFO - Testing records 0 to 5
+2025-05-26 01:11:05,647 - root - INFO - Processing record 0 (Task ID: 11)
+2025-05-26 01:11:05,647 - root - INFO - Test 1: PASSED
+2025-05-26 01:11:05,647 - root - INFO - Test 2: PASSED
+2025-05-26 01:11:05,647 - root - INFO - Test 3: PASSED
+2025-05-26 01:11:05,647 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 01:11:05,647 - root - INFO - ----------------------------------------
+2025-05-26 01:11:05,647 - root - INFO - Processing record 1 (Task ID: 12)
+2025-05-26 01:11:05,647 - root - INFO - Test 1: PASSED
+2025-05-26 01:11:05,647 - root - INFO - Test 2: PASSED
+2025-05-26 01:11:05,647 - root - INFO - Test 3: PASSED
+2025-05-26 01:11:05,647 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 01:11:05,648 - root - INFO - ----------------------------------------
+2025-05-26 01:11:05,648 - root - INFO - Processing record 2 (Task ID: 13)
+2025-05-26 01:11:05,648 - root - INFO - Test 1: PASSED
+2025-05-26 01:11:05,648 - root - INFO - Test 2: PASSED
+2025-05-26 01:11:05,648 - root - INFO - Test 3: PASSED
+2025-05-26 01:11:05,648 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 01:11:05,648 - root - INFO - ----------------------------------------
+2025-05-26 01:11:05,648 - root - INFO - Processing record 3 (Task ID: 14)
+2025-05-26 01:11:05,648 - root - INFO - Test 1: PASSED
+2025-05-26 01:11:05,648 - root - INFO - Test 2: PASSED
+2025-05-26 01:11:05,648 - root - INFO - Test 3: PASSED
+2025-05-26 01:11:05,648 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 01:11:05,648 - root - INFO - ----------------------------------------
+2025-05-26 01:11:05,649 - root - INFO - Processing record 4 (Task ID: 15)
+2025-05-26 01:11:05,649 - root - INFO - Test 1: PASSED
+2025-05-26 01:11:05,649 - root - INFO - Test 2: PASSED
+2025-05-26 01:11:05,649 - root - INFO - Test 3: PASSED
+2025-05-26 01:11:05,649 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 01:11:05,649 - root - INFO - ----------------------------------------
+2025-05-26 01:11:05,649 - root - INFO - Processing record 5 (Task ID: 16)
+2025-05-26 01:11:05,649 - root - INFO - Test 1: PASSED
+2025-05-26 01:11:05,649 - root - INFO - Test 2: PASSED
+2025-05-26 01:11:05,649 - root - INFO - Test 3: PASSED
+2025-05-26 01:11:05,649 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 01:11:05,649 - root - INFO - ----------------------------------------
+2025-05-26 01:11:05,650 - root - INFO - FINAL SUMMARY: 18/18 tests passed (100.0%)

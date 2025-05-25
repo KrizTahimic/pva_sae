@@ -1,0 +1,13 @@
+2025-05-26 01:10:32,914 - root - INFO - Logging system initialized
+2025-05-26 01:10:32,924 - root - INFO - Detected MPS (Apple Silicon) device
+2025-05-26 01:10:32,924 - root - INFO - Starting model load: google/gemma-2-2b on mps
+2025-05-26 01:10:32,924 - root - INFO - Loading tokenizer for google/gemma-2-2b
+2025-05-26 01:10:34,472 - root - INFO - Tokenizer loaded successfully
+2025-05-26 01:10:34,472 - root - INFO - Loading model weights for google/gemma-2-2b on mps
+2025-05-26 01:10:44,316 - root - INFO - Model weights loaded successfully
+2025-05-26 01:10:44,317 - root - INFO - Model set to evaluation mode
+2025-05-26 01:10:44,317 - root - INFO - Model pipeline ready on device: mps
+2025-05-26 01:10:44,317 - root - INFO - Running model functionality test...
+2025-05-26 01:10:50,279 - root - INFO - Test successful. Generated: def add(a, b):
+    return a + b
+print(add(1, 2))...
