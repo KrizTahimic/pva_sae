@@ -1,0 +1,26 @@
+# Test dependencies for data_processing.py regression tests
+
+# Core testing framework
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.1
+
+# For better test output
+pytest-sugar>=0.9.7
+pytest-clarity>=1.0.1
+
+# For parallel test execution (optional, speeds up test runs)
+pytest-xdist>=3.3.1
+
+# For test benchmarking (optional)
+pytest-benchmark>=4.0.0
+
+# The main dependencies from data_processing.py
+# (these should match your main requirements.txt)
+torch>=2.0.0
+transformers>=4.30.0
+datasets>=2.14.0
+tqdm>=4.65.0
+
+# For testing with temporary directories
+pytest-tempdir>=2019.10.12

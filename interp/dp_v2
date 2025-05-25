@@ -4,9 +4,16 @@ import os
 from datetime import datetime
 from tqdm import tqdm
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Optional, Any
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer
+
+# ============================================================================
+# Constants
+# ============================================================================
+
+DEFAULT_MODEL_NAME = "google/gemma-2-2b"
+
 
 # ============================================================================
 # Exception Hierarchy
@@ -280,7 +287,7 @@ class CodeGenerator:
                 ModelError, f"Code generation failed: {str(e)}", e
             )
     
-    def _prepare_inputs(self, prompt: str) -> Dict[str, torch.Tensor]:
+    def _prepare_inputs(self, prompt: str) -> dict[str, torch.Tensor]:
         """Tokenize and prepare inputs for generation"""
         inputs = self.tokenizer(
             prompt,
@@ -296,7 +303,7 @@ class CodeGenerator:
         
         return inputs
     
-    def _generate_tokens(self, inputs: Dict[str, torch.Tensor], 
+    def _generate_tokens(self, inputs: dict[str, torch.Tensor], 
                         max_new_tokens: int, stream: bool) -> torch.Tensor:
         """Generate tokens using deterministic settings"""
         streamer = self._setup_streaming(stream)
@@ -346,7 +353,7 @@ class CodeGenerator:
 class ModelManager:
     """Orchestrates model lifecycle and code generation"""
     
-    def __init__(self, model_name: str = "google/gemma-2-2b", device: Optional[str] = None):
+    def __init__(self, model_name: str = DEFAULT_MODEL_NAME, device: Optional[str] = None):
         self.model_name = model_name
         self.device_str = device if device else DeviceManager.detect_best_device()
         self.device = DeviceManager.get_torch_device(self.device_str)
@@ -481,7 +488,7 @@ class TestResult:
     """Encapsulates test execution results"""
     passed: int
     total: int
-    errors: List[str]
+    errors: list[str]
     
     @property
     def success_rate(self) -> float:
@@ -492,6 +499,215 @@ class TestResult:
     def failed(self) -> int:
         """Number of failed tests"""
         return self.total - self.passed
+
+class PromptTemplateBuilder:
+    """Constructs standardized prompt templates from MBPP records"""
+    
+    # Template constants
+    CODE_INITIATOR = "# Your code here"
+    
+    def __init__(self):
+        """Initialize the prompt template builder"""
+        logging.info("PromptTemplateBuilder initialized")
+    
+    def build_prompt(self, record: dict) -> str:
+        """
+        Build standardized prompt from MBPP record
+        
+        Args:
+            record: MBPP dataset record containing 'text' and 'test_list'
+            
+        Returns:
+            str: Formatted prompt template ready for model input
+        """
+        try:
+            self._validate_record(record)
+            
+            # Extract components
+            problem_description = self._extract_problem_description(record['text'])
+            test_cases = self._format_test_cases(record['test_list'])
+            
+            # Construct standardized template
+            prompt = self._construct_template(problem_description, test_cases)
+            
+            task_id = record.get('task_id', 'unknown')
+            logging.debug(f"Built prompt template for task_id: {task_id}")
+            
+            return prompt
+            
+        except Exception as e:
+            ErrorContext.handle_and_raise(
+                DatasetError, f"Failed to build prompt template: {str(e)}", e
+            )
+    
+    def build_batch_prompts(self, records: list[dict]) -> list[str]:
+        """
+        Build prompts for multiple records
+        
+        Args:
+            records: List of MBPP dataset records
+            
+        Returns:
+            list[str]: List of formatted prompt templates
+        """
+        prompts = []
+        failed_records = []
+        
+        for i, record in enumerate(records):
+            try:
+                prompt = self.build_prompt(record)
+                prompts.append(prompt)
+            except Exception as e:
+                task_id = record.get('task_id', f'index_{i}')
+                failed_records.append(task_id)
+                logging.error(f"Failed to build prompt for task_id {task_id}: {str(e)}")
+        
+        if failed_records:
+            logging.warning(f"Failed to build prompts for {len(failed_records)} records: {failed_records}")
+        
+        logging.info(f"Successfully built {len(prompts)} prompts from {len(records)} records")
+        return prompts
+    
+    def preview_template(self, record: dict, max_length: int = 200) -> str:
+        """
+        Generate a preview of the template for debugging
+        
+        Args:
+            record: MBPP dataset record
+            max_length: Maximum length for preview
+            
+        Returns:
+            str: Truncated template preview
+        """
+        prompt = self.build_prompt(record)
+        
+        if len(prompt) <= max_length:
+            return prompt
+        
+        preview = prompt[:max_length] + "..."
+        return preview
+    
+    def get_template_stats(self, record: dict) -> dict[str, Any]:
+        """
+        Get statistics about the generated template
+        
+        Args:
+            record: MBPP dataset record
+            
+        Returns:
+            dict containing template statistics
+        """
+        prompt = self.build_prompt(record)
+        
+        stats = {
+            'total_length': len(prompt),
+            'total_lines': prompt.count('\n') + 1,
+            'problem_description_length': len(record['text'].strip()),
+            'num_test_cases': len(record['test_list']),
+            'test_cases_length': sum(len(test.strip()) for test in record['test_list']),
+            'task_id': record.get('task_id', 'unknown')
+        }
+        
+        return stats
+    
+    def _validate_record(self, record: dict):
+        """
+        Validate MBPP record has required fields
+        
+        Args:
+            record: MBPP dataset record to validate
+            
+        Raises:
+            ValueError: If record is missing required fields or has invalid format
+        """
+        required_fields = ['text', 'test_list']
+        
+        # Check required fields exist
+        for field in required_fields:
+            if field not in record:
+                raise ValueError(f"Missing required field: {field}")
+        
+        # Validate field types and content
+        if not isinstance(record['text'], str):
+            raise ValueError("'text' field must be a string")
+        
+        if not isinstance(record['test_list'], list):
+            raise ValueError("'test_list' field must be a list")
+        
+        if len(record['test_list']) == 0:
+            raise ValueError("'test_list' cannot be empty")
+        
+        # Validate test cases are strings
+        for i, test in enumerate(record['test_list']):
+            if not isinstance(test, str):
+                raise ValueError(f"Test case {i} must be a string")
+            if not test.strip():
+                raise ValueError(f"Test case {i} cannot be empty")
+        
+        # Log successful validation
+        task_id = record.get('task_id', 'unknown')
+        logging.debug(f"Record validation passed for task_id: {task_id}")
+    
+    def _extract_problem_description(self, text: str) -> str:
+        """
+        Extract and clean problem description
+        
+        Args:
+            text: Raw problem description from MBPP record
+            
+        Returns:
+            str: Cleaned problem description
+        """
+        # Clean and normalize the problem description
+        description = text.strip()
+        
+        # Remove any extra whitespace while preserving line breaks
+        lines = [line.strip() for line in description.split('\n')]
+        cleaned_description = '\n'.join(line for line in lines if line)
+        
+        return cleaned_description
+    
+    def _format_test_cases(self, test_list: list[str]) -> str:
+        """
+        Format test cases for template inclusion
+        
+        Args:
+            test_list: List of test case strings from MBPP record
+            
+        Returns:
+            str: Formatted test cases ready for template
+        """
+        formatted_tests = []
+        
+        for test in test_list:
+            # Clean up each test case
+            cleaned_test = test.strip()
+            if cleaned_test:
+                formatted_tests.append(cleaned_test)
+        
+        # Join test cases with newlines
+        return '\n'.join(formatted_tests)
+    
+    def _construct_template(self, problem_description: str, test_cases: str) -> str:
+        """
+        Construct the final standardized template
+        
+        Args:
+            problem_description: Cleaned problem description
+            test_cases: Formatted test cases
+            
+        Returns:
+            str: Complete standardized prompt template
+        """
+        # Construct template with consistent formatting:
+        # 1. Problem description
+        # 2. Empty line
+        # 3. Test cases
+        # 4. Empty line  
+        # 5. Code initiator
+        template = f"{problem_description}\n\n{test_cases}\n\n{self.CODE_INITIATOR}"
+        
+        return template
 
 class DatasetManager:
     """Manages MBPP dataset operations"""
@@ -520,7 +736,7 @@ class DatasetManager:
                 DatasetError, f"Failed to load MBPP dataset: {str(e)}", e
             )
     
-    def get_record(self, idx: int) -> Dict:
+    def get_record(self, idx: int) -> dict:
         """Retrieve record by index with validation"""
         self._ensure_loaded()
         
@@ -546,6 +762,77 @@ class DatasetManager:
         if not self._is_loaded:
             raise DatasetError("Dataset not loaded. Call load_dataset() first.")
 
+class EnhancedDatasetManager(DatasetManager):
+    """Extended DatasetManager with prompt template functionality"""
+    
+    def __init__(self):
+        super().__init__()
+        self.template_builder = PromptTemplateBuilder()
+    
+    def get_prompt_template(self, idx: int) -> str:
+        """
+        Get standardized prompt template for record by index
+        
+        Args:
+            idx: Index of the record in the dataset
+            
+        Returns:
+            str: Standardized prompt template
+        """
+        record = self.get_record(idx)
+        return self.template_builder.build_prompt(record)
+    
+    def get_batch_prompts(self, start_idx: int, end_idx: int) -> list[str]:
+        """
+        Get prompt templates for a range of records
+        
+        Args:
+            start_idx: Starting index (inclusive)
+            end_idx: Ending index (inclusive)
+            
+        Returns:
+            list[str]: List of prompt templates
+        """
+        self._ensure_loaded()
+        
+        # Validate range
+        dataset_size = self.get_size()
+        if start_idx < 0 or start_idx >= dataset_size:
+            raise DatasetError(f"start_idx {start_idx} out of range [0, {dataset_size-1}]")
+        if end_idx < start_idx or end_idx >= dataset_size:
+            raise DatasetError(f"end_idx {end_idx} out of range [{start_idx}, {dataset_size-1}]")
+        
+        # Extract records and build prompts
+        records = [self.test_data[i] for i in range(start_idx, end_idx + 1)]
+        return self.template_builder.build_batch_prompts(records)
+    
+    def preview_prompt_template(self, idx: int, max_length: int = 200) -> str:
+        """
+        Preview prompt template for debugging
+        
+        Args:
+            idx: Index of the record
+            max_length: Maximum length for preview
+            
+        Returns:
+            str: Truncated prompt preview
+        """
+        record = self.get_record(idx)
+        return self.template_builder.preview_template(record, max_length)
+    
+    def get_prompt_stats(self, idx: int) -> dict[str, Any]:
+        """
+        Get statistics for prompt template
+        
+        Args:
+            idx: Index of the record
+            
+        Returns:
+            dict: Template statistics
+        """
+        record = self.get_record(idx)
+        return self.template_builder.get_template_stats(record)
+
 # ============================================================================
 # Test Execution Classes  
 # ============================================================================
@@ -554,7 +841,7 @@ class TestExecutor:
     """Executes code against test cases"""
     
     @staticmethod
-    def run_single_test(test_code: str, namespace: Dict) -> Tuple[bool, Optional[str]]:
+    def run_single_test(test_code: str, namespace: dict) -> tuple[bool, Optional[str]]:
         """Execute single test case and return result"""
         try:
             exec(test_code, namespace)
@@ -565,7 +852,7 @@ class TestExecutor:
             return False, str(e)
     
     @staticmethod
-    def run_code_tests(code: str, test_cases: List[str], task_id: Optional[str] = None) -> TestResult:
+    def run_code_tests(code: str, test_cases: list[str], task_id: Optional[str] = None) -> TestResult:
         """Execute code against multiple test cases"""
         if task_id:
             logging.debug(f"Testing code for task {task_id}")
@@ -585,7 +872,7 @@ class TestExecutor:
         return TestExecutor._execute_test_cases(test_cases, namespace)
     
     @staticmethod
-    def run_record_tests(record: Dict) -> TestResult:
+    def run_record_tests(record: dict) -> TestResult:
         """Execute tests using ground truth code from MBPP record"""
         task_id = record['task_id']
         logging.debug(f"PROBLEM:\n{record['text']}")
@@ -597,7 +884,7 @@ class TestExecutor:
         )
     
     @staticmethod
-    def _log_test_setup(code: str, test_cases: List[str]):
+    def _log_test_setup(code: str, test_cases: list[str]):
         """Log test setup information"""
         logging.debug(f"CODE TO TEST:\n{code}")
         logging.debug("TEST CASES:")
@@ -605,7 +892,7 @@ class TestExecutor:
             logging.debug(f"  Test {i+1}: {test}")
     
     @staticmethod
-    def _execute_test_cases(test_cases: List[str], namespace: Dict) -> TestResult:
+    def _execute_test_cases(test_cases: list[str], namespace: dict) -> TestResult:
         """Execute all test cases and collect results"""
         passed_tests = 0
         total_tests = len(test_cases)
@@ -642,12 +929,12 @@ class MBPPTester:
         
         # Initialize core components
         self.logging_config = LoggingConfiguration(debug, log_dir)
-        self.dataset_manager = DatasetManager()
+        self.dataset_manager = EnhancedDatasetManager()  # Use enhanced version
         
         # Results tracking
         self.total_tests = 0
         self.passed_tests = 0
-        self.record_results: List[TestResult] = []
+        self.record_results: list[TestResult] = []
     
     @property
     def log_file(self) -> Optional[str]:
@@ -681,7 +968,7 @@ class MBPPTester:
                 TestExecutionError, f"Failed to test record {idx}: {str(e)}", e
             )
     
-    def test_range(self, start_idx: int = 0, end_idx: int = 3) -> Dict[str, Any]:
+    def test_range(self, start_idx: int = 0, end_idx: int = 3) -> dict[str, Any]:
         """Test range of MBPP records"""
         try:
             # Ensure prerequisites
@@ -701,7 +988,7 @@ class MBPPTester:
                 TestExecutionError, f"Test range execution failed: {str(e)}", e
             )
     
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get current test results summary"""
         return {
             'passed': self.passed_tests,
@@ -711,7 +998,7 @@ class MBPPTester:
             'log_file': self.log_file
         }
     
-    def get_detailed_results(self) -> List[TestResult]:
+    def get_detailed_results(self) -> list[TestResult]:
         """Get detailed results for each tested record"""
         return self.record_results.copy()
     
@@ -759,7 +1046,7 @@ class MBPPTester:
         """Calculate overall success rate"""
         return (self.passed_tests / self.total_tests * 100) if self.total_tests > 0 else 0.0
     
-    def _create_summary(self) -> Dict[str, Any]:
+    def _create_summary(self) -> dict[str, Any]:
         """Create and log final summary"""
         summary = self.get_summary()
         
@@ -788,6 +1075,33 @@ def test_mbpp_range(start_idx: int = 0, end_idx: int = 3, debug: bool = False) -
     summary = tester.test_range(start_idx, end_idx)
     return summary['log_file']
 
+def create_prompt_from_record(record: dict) -> str:
+    """
+    Convenience function to create prompt from MBPP record
+    
+    Args:
+        record: MBPP dataset record
+        
+    Returns:
+        str: Standardized prompt template
+    """
+    builder = PromptTemplateBuilder()
+    return builder.build_prompt(record)
+
+def preview_mbpp_prompt(idx: int = 0) -> str:
+    """
+    Convenience function to preview prompt for MBPP record
+    
+    Args:
+        idx: Index of record to preview (default: 0)
+        
+    Returns:
+        str: Preview of prompt template
+    """
+    dataset_manager = EnhancedDatasetManager()
+    dataset_manager.load_dataset()
+    return dataset_manager.preview_prompt_template(idx)
+
 # ============================================================================
 # Example Usage
 # ============================================================================
@@ -799,9 +1113,22 @@ if __name__ == "__main__":
         log_file = logging_config.setup_logging()
         ConsoleOutput.info(f"Logging initialized: {log_file}")
         
+        # Test prompt template functionality
+        ConsoleOutput.info("Testing prompt template functionality...")
+        
+        dataset_manager = EnhancedDatasetManager()
+        dataset_manager.load_dataset()
+        
+        # Show sample prompt
+        prompt = dataset_manager.get_prompt_template(0)
+        ConsoleOutput.success("Sample prompt generated!")
+        print(f"\nSample prompt:\n{'-'*50}")
+        print(prompt)
+        print(f"{'-'*50}")
+        
         # Test model loading
-        ConsoleOutput.info("Testing Gemma 2-2B model loading...")
-        model_manager = ModelManager("google/gemma-2-2b")
+        ConsoleOutput.info(f"Testing {DEFAULT_MODEL_NAME} model loading...")
+        model_manager = ModelManager(DEFAULT_MODEL_NAME)
         
         try:
             ConsoleOutput.info("Loading model (this may take several minutes)...")

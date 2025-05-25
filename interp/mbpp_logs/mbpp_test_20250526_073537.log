@@ -1,0 +1,17 @@
+2025-05-26 07:35:37,090 - root - INFO - Logging system initialized
+2025-05-26 07:35:37,090 - root - INFO - PromptTemplateBuilder initialized
+2025-05-26 07:35:37,090 - root - INFO - Loading MBPP dataset...
+2025-05-26 07:35:57,785 - root - INFO - MBPP dataset loaded: 500 examples
+2025-05-26 07:35:57,796 - root - INFO - Detected MPS (Apple Silicon) device
+2025-05-26 07:35:57,796 - root - INFO - Starting model load: google/gemma-2-2b on mps
+2025-05-26 07:35:57,796 - root - INFO - Loading tokenizer for google/gemma-2-2b
+2025-05-26 07:35:59,040 - root - INFO - Tokenizer loaded successfully
+2025-05-26 07:35:59,040 - root - INFO - Loading model weights for google/gemma-2-2b on mps
+2025-05-26 07:36:10,078 - root - INFO - Model weights loaded successfully
+2025-05-26 07:36:10,079 - root - INFO - Model set to evaluation mode
+2025-05-26 07:36:10,079 - root - INFO - Model pipeline ready on device: mps
+2025-05-26 07:36:10,079 - root - INFO - Running model functionality test...
+2025-05-26 07:36:16,382 - root - INFO - Test successful. Generated: def add(a, b):
+    return a + b
+print(add(1, 2))...
+2025-05-26 07:36:16,382 - root - INFO - PromptTemplateBuilder initialized

@@ -9,6 +9,13 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer
 
 # ============================================================================
+# Constants
+# ============================================================================
+
+DEFAULT_MODEL_NAME = "google/gemma-2-2b"
+
+
+# ============================================================================
 # Exception Hierarchy
 # ============================================================================
 
@@ -346,7 +353,7 @@ class CodeGenerator:
 class ModelManager:
     """Orchestrates model lifecycle and code generation"""
     
-    def __init__(self, model_name: str = "google/gemma-2-2b", device: Optional[str] = None):
+    def __init__(self, model_name: str = DEFAULT_MODEL_NAME, device: Optional[str] = None):
         self.model_name = model_name
         self.device_str = device if device else DeviceManager.detect_best_device()
         self.device = DeviceManager.get_torch_device(self.device_str)
@@ -800,8 +807,8 @@ if __name__ == "__main__":
         ConsoleOutput.info(f"Logging initialized: {log_file}")
         
         # Test model loading
-        ConsoleOutput.info("Testing Gemma 2-2B model loading...")
-        model_manager = ModelManager("google/gemma-2-2b")
+        ConsoleOutput.info(f"Testing {DEFAULT_MODEL_NAME} model loading...")
+        model_manager = ModelManager(DEFAULT_MODEL_NAME)
         
         try:
             ConsoleOutput.info("Loading model (this may take several minutes)...")

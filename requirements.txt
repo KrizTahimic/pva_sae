@@ -1,0 +1,7 @@
+datasets
+tqdm
+torch
+transformers
+
+# If cuda
+accelerate
