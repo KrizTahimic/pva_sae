@@ -1,0 +1,40 @@
+2025-05-25 22:27:42,566 - root - INFO - Loading MBPP dataset
+2025-05-25 22:27:56,882 - root - INFO - Dataset loaded with 500 test examples
+2025-05-25 22:27:56,882 - root - INFO - Testing examples from index 0 to 5
+2025-05-25 22:27:56,889 - root - INFO - Processing example 0 (Task ID: 11)
+2025-05-25 22:27:56,889 - root - INFO - Test 1: PASSED
+2025-05-25 22:27:56,889 - root - INFO - Test 2: PASSED
+2025-05-25 22:27:56,889 - root - INFO - Test 3: PASSED
+2025-05-25 22:27:56,889 - root - INFO - Example summary: 3/3 tests passed
+2025-05-25 22:27:56,889 - root - INFO - ----------------------------------------
+2025-05-25 22:27:56,889 - root - INFO - Processing example 1 (Task ID: 12)
+2025-05-25 22:27:56,889 - root - INFO - Test 1: PASSED
+2025-05-25 22:27:56,889 - root - INFO - Test 2: PASSED
+2025-05-25 22:27:56,889 - root - INFO - Test 3: PASSED
+2025-05-25 22:27:56,889 - root - INFO - Example summary: 3/3 tests passed
+2025-05-25 22:27:56,889 - root - INFO - ----------------------------------------
+2025-05-25 22:27:56,890 - root - INFO - Processing example 2 (Task ID: 13)
+2025-05-25 22:27:56,890 - root - INFO - Test 1: PASSED
+2025-05-25 22:27:56,890 - root - INFO - Test 2: PASSED
+2025-05-25 22:27:56,890 - root - INFO - Test 3: PASSED
+2025-05-25 22:27:56,890 - root - INFO - Example summary: 3/3 tests passed
+2025-05-25 22:27:56,890 - root - INFO - ----------------------------------------
+2025-05-25 22:27:56,890 - root - INFO - Processing example 3 (Task ID: 14)
+2025-05-25 22:27:56,890 - root - INFO - Test 1: PASSED
+2025-05-25 22:27:56,890 - root - INFO - Test 2: PASSED
+2025-05-25 22:27:56,890 - root - INFO - Test 3: PASSED
+2025-05-25 22:27:56,890 - root - INFO - Example summary: 3/3 tests passed
+2025-05-25 22:27:56,890 - root - INFO - ----------------------------------------
+2025-05-25 22:27:56,890 - root - INFO - Processing example 4 (Task ID: 15)
+2025-05-25 22:27:56,891 - root - INFO - Test 1: PASSED
+2025-05-25 22:27:56,891 - root - INFO - Test 2: PASSED
+2025-05-25 22:27:56,891 - root - INFO - Test 3: PASSED
+2025-05-25 22:27:56,891 - root - INFO - Example summary: 3/3 tests passed
+2025-05-25 22:27:56,891 - root - INFO - ----------------------------------------
+2025-05-25 22:27:56,891 - root - INFO - Processing example 5 (Task ID: 16)
+2025-05-25 22:27:56,891 - root - INFO - Test 1: PASSED
+2025-05-25 22:27:56,891 - root - INFO - Test 2: PASSED
+2025-05-25 22:27:56,891 - root - INFO - Test 3: PASSED
+2025-05-25 22:27:56,891 - root - INFO - Example summary: 3/3 tests passed
+2025-05-25 22:27:56,891 - root - INFO - ----------------------------------------
+2025-05-25 22:27:56,891 - root - INFO - OVERALL SUMMARY: 18/18 tests passed (100.0%)
