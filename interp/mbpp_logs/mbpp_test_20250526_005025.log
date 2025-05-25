@@ -1,0 +1,49 @@
+2025-05-26 00:50:25,084 - root - INFO - Using MPS (Apple Silicon) device
+2025-05-26 00:50:25,084 - root - INFO - Loading model: google/gemma-2-2b on device: mps
+2025-05-26 00:50:25,084 - root - INFO - Loading tokenizer...
+2025-05-26 00:50:26,851 - root - INFO - Loading model...
+2025-05-26 00:50:36,314 - root - INFO - Model loaded successfully on device: mps
+2025-05-26 00:50:36,314 - root - INFO - Testing model with simple prompt...
+2025-05-26 00:50:42,576 - root - INFO - Model test successful. Generated: def add(a, b):
+    return a + b
+print(add(1, 2))...
+2025-05-26 00:50:42,576 - root - INFO - Loading MBPP dataset
+2025-05-26 00:50:54,883 - root - INFO - Dataset loaded with 500 test examples
+2025-05-26 00:50:54,884 - root - INFO - Testing examples from index 0 to 5
+2025-05-26 00:50:54,884 - root - INFO - Processing example 0 (Task ID: 11)
+2025-05-26 00:50:54,885 - root - INFO - Test 1: PASSED
+2025-05-26 00:50:54,885 - root - INFO - Test 2: PASSED
+2025-05-26 00:50:54,885 - root - INFO - Test 3: PASSED
+2025-05-26 00:50:54,885 - root - INFO - Example summary: 3/3 tests passed
+2025-05-26 00:50:54,885 - root - INFO - ----------------------------------------
+2025-05-26 00:50:54,885 - root - INFO - Processing example 1 (Task ID: 12)
+2025-05-26 00:50:54,885 - root - INFO - Test 1: PASSED
+2025-05-26 00:50:54,885 - root - INFO - Test 2: PASSED
+2025-05-26 00:50:54,885 - root - INFO - Test 3: PASSED
+2025-05-26 00:50:54,885 - root - INFO - Example summary: 3/3 tests passed
+2025-05-26 00:50:54,885 - root - INFO - ----------------------------------------
+2025-05-26 00:50:54,885 - root - INFO - Processing example 2 (Task ID: 13)
+2025-05-26 00:50:54,886 - root - INFO - Test 1: PASSED
+2025-05-26 00:50:54,886 - root - INFO - Test 2: PASSED
+2025-05-26 00:50:54,886 - root - INFO - Test 3: PASSED
+2025-05-26 00:50:54,886 - root - INFO - Example summary: 3/3 tests passed
+2025-05-26 00:50:54,886 - root - INFO - ----------------------------------------
+2025-05-26 00:50:54,886 - root - INFO - Processing example 3 (Task ID: 14)
+2025-05-26 00:50:54,886 - root - INFO - Test 1: PASSED
+2025-05-26 00:50:54,886 - root - INFO - Test 2: PASSED
+2025-05-26 00:50:54,886 - root - INFO - Test 3: PASSED
+2025-05-26 00:50:54,886 - root - INFO - Example summary: 3/3 tests passed
+2025-05-26 00:50:54,886 - root - INFO - ----------------------------------------
+2025-05-26 00:50:54,886 - root - INFO - Processing example 4 (Task ID: 15)
+2025-05-26 00:50:54,887 - root - INFO - Test 1: PASSED
+2025-05-26 00:50:54,887 - root - INFO - Test 2: PASSED
+2025-05-26 00:50:54,887 - root - INFO - Test 3: PASSED
+2025-05-26 00:50:54,887 - root - INFO - Example summary: 3/3 tests passed
+2025-05-26 00:50:54,887 - root - INFO - ----------------------------------------
+2025-05-26 00:50:54,887 - root - INFO - Processing example 5 (Task ID: 16)
+2025-05-26 00:50:54,887 - root - INFO - Test 1: PASSED
+2025-05-26 00:50:54,887 - root - INFO - Test 2: PASSED
+2025-05-26 00:50:54,887 - root - INFO - Test 3: PASSED
+2025-05-26 00:50:54,887 - root - INFO - Example summary: 3/3 tests passed
+2025-05-26 00:50:54,887 - root - INFO - ----------------------------------------
+2025-05-26 00:50:54,887 - root - INFO - OVERALL SUMMARY: 18/18 tests passed (100.0%)

@@ -195,7 +195,13 @@ class ModelManager:
     def unload_model(self):
         """Unload model to free memory"""
         if self.model is not None:
-            logging.info("Unloading model...")
+            # Safe logging - handle case where logging module is cleaned up during shutdown
+            try:
+                logging.info("Unloading model...")
+            except (AttributeError, TypeError):
+                # logging module might be None during Python shutdown
+                pass
+                
             del self.model
             del self.tokenizer
             self.model = None
@@ -205,12 +211,21 @@ class ModelManager:
             if self.device_str == "cuda":
                 torch.cuda.empty_cache()
             
-            logging.info("Model unloaded successfully")
-    
+            # Safe logging
+            try:
+                logging.info("Model unloaded successfully")
+            except (AttributeError, TypeError):
+                # logging module might be None during Python shutdown
+                pass
+
     def __del__(self):
         """Cleanup when object is destroyed"""
-        if hasattr(self, 'model') and self.model is not None:
-            self.unload_model()
+        try:
+            if hasattr(self, 'model') and self.model is not None:
+                self.unload_model()
+        except (AttributeError, TypeError):
+            # Handle case where attributes or modules are cleaned up during shutdown
+            pass
 
 
 @dataclass
@@ -372,10 +387,20 @@ class MBPPTester:
         
         return result
     
+    
     def test_range(self, start_idx: int = 0, end_idx: int = 3) -> Dict:
         """Test a range of MBPP examples"""
-        # Setup
-        self.setup_logging()
+        # Setup logging only if not already configured
+        if not logging.getLogger().handlers:
+            self.setup_logging()
+        elif self.log_file is None:
+            # If logging is already configured but we don't have log_file, 
+            # try to find it from the handlers
+            for handler in logging.getLogger().handlers:
+                if isinstance(handler, logging.FileHandler):
+                    self.log_file = handler.baseFilename
+                    break
+        
         self.load_dataset()
         
         # Validate range
@@ -399,7 +424,8 @@ class MBPPTester:
         summary = self.get_summary()
         logging.info(f"OVERALL SUMMARY: {summary['passed']}/{summary['total']} tests passed ({summary['success_rate']:.1f}%)")
         
-        print(f"Logs saved to: {self.log_file}")
+        if self.log_file:
+            print(f"Logs saved to: {self.log_file}")
         
         return summary
     
@@ -428,20 +454,24 @@ def test_mbpp_range(start_idx: int = 0, end_idx: int = 3, debug: bool = False) -
 
 # Example usage
 if __name__ == "__main__":
+    # SET UP LOGGING FIRST!
+    log_file = LoggingManager.setup_logging(debug=False, log_dir="mbpp_logs")
+    print(f"Logging initialized: {log_file}")
+    
     print("Testing Gemma 2-2B model loading...")
     
-    # Test model loading and generation
+    # Test model loading and generation (now with logging!)
     model_manager = ModelManager("google/gemma-2-2b")
     
     try:
         print("Loading model... (this may take a few minutes)")
         print("📥 Loading tokenizer...")
         print("📥 Loading model weights...")
-        model_manager.load_model()
+        model_manager.load_model()  # Now these logging.info() calls will be captured!
         print(f"✓ Model loaded successfully on {model_manager.get_device_info()}")
         
         # Test generation
-        if model_manager.test_model():
+        if model_manager.test_model():  # This logging will be captured too!
             print("✓ Model is working correctly!")
         else:
             print("✗ Model test failed!")
@@ -458,10 +488,12 @@ if __name__ == "__main__":
     print("\n" + "="*50)
     print("Now running MBPP tests...")
 
-    # Using the class-based approach
+    # Using the class-based approach (logging already set up)
     tester = MBPPTester(debug=False)
+    tester.log_file = log_file  # Set the log file path
     summary = tester.test_range(0, 5)
     print(f"Final Results: {summary}")
+    print(f"All logs saved to: {log_file}")
     
     # Or using the backward compatible function
     # test_mbpp_range(0, 5, debug=False)
