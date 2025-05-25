@@ -4,296 +4,558 @@ import os
 from datetime import datetime
 from tqdm import tqdm
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer
-import sys
 
+# ============================================================================
+# Exception Hierarchy
+# ============================================================================
 
+class MBPPFrameworkError(Exception):
+    """Base exception for MBPP framework"""
+    pass
 
-class DeviceUtils:
-    """Utility class for device detection and management"""
+class ModelError(MBPPFrameworkError):
+    """Model-related errors"""
+    pass
+
+class DatasetError(MBPPFrameworkError):
+    """Dataset-related errors"""  
+    pass
+
+class TestExecutionError(MBPPFrameworkError):
+    """Test execution errors"""
+    pass
+
+class LoggingConfigurationError(MBPPFrameworkError):
+    """Logging setup errors"""
+    pass
+
+# ============================================================================
+# Utility Classes  
+# ============================================================================
+
+class DeviceManager:
+    """Handles device detection and management"""
     
     @staticmethod
     def detect_best_device() -> str:
         """Detect the best available device"""
-        # Check for MPS (Apple Silicon)
         if torch.backends.mps.is_available():
-            logging.info("Using MPS (Apple Silicon) device")
+            logging.info("Detected MPS (Apple Silicon) device")
             return "mps"
-        # Check for CUDA
         elif torch.cuda.is_available():
-            logging.info("Using CUDA device")
+            logging.info("Detected CUDA device")
             return "cuda"
-        # Fallback to CPU
         else:
             logging.info("Using CPU device")
             return "cpu"
-
-
-class ModelManager:
-    """Handles Gemma 2 model loading and code generation"""
     
-    def __init__(self, model_name: str = "google/gemma-2-2b", device: Optional[str] = None):
-        self.model_name = model_name
-        self.device_str = device if device else DeviceUtils.detect_best_device()
-        self.device = torch.device(self.device_str)  # Convert to proper torch device
-        self.model = None
-        self.tokenizer = None
+    @staticmethod
+    def get_torch_device(device_str: str) -> torch.device:
+        """Convert device string to torch.device"""
+        return torch.device(device_str)
     
-    def load_model(self):
-        """Load Gemma 2 model and tokenizer"""
-        if self.model is not None:
-            logging.info("Model already loaded")
-            print("✓ Model already loaded")
-            return
-            
-        logging.info(f"Loading model: {self.model_name} on device: {self.device}")
+    @staticmethod
+    def get_optimal_dtype(device_str: str) -> torch.dtype:
+        """Get optimal dtype for device"""
+        return torch.float16 if device_str == "cuda" else torch.float32
+
+class ConsoleOutput:
+    """Centralized console output with consistent formatting"""
+    
+    @staticmethod
+    def success(message: str):
+        print(f"✓ {message}")
+    
+    @staticmethod  
+    def error(message: str):
+        print(f"✗ {message}")
+    
+    @staticmethod
+    def info(message: str):
+        print(f"ℹ️  {message}")
+    
+    @staticmethod
+    def loading(message: str):
+        print(f"📥 {message}")
+    
+    @staticmethod
+    def working(message: str):
+        print(f"🔧 {message}")
+    
+    @staticmethod
+    def generating(message: str):
+        print(f"🤖 {message}")
+
+class ErrorContext:
+    """Provides consistent error handling patterns"""
+    
+    @staticmethod
+    def handle_and_raise(exception_class: type, message: str, 
+                        original_error: Exception = None, log_error: bool = True):
+        """Handle error with logging and raise appropriate exception"""
+        if log_error:
+            logging.error(message)
+            ConsoleOutput.error(message)
+        
+        if original_error:
+            raise exception_class(message) from original_error
+        else:
+            raise exception_class(message)
+
+# ============================================================================
+# Core Configuration Classes
+# ============================================================================
+
+class LoggingConfiguration:
+    """Manages logging setup and configuration"""
+    
+    def __init__(self, debug: bool = False, log_dir: str = "mbpp_logs"):
+        self.debug = debug
+        self.log_dir = log_dir
+        self.log_file = None
+        self._is_configured = False
+    
+    def setup_logging(self) -> str:
+        """Configure logging system and return log file path"""
+        if self._is_configured:
+            return self.log_file
         
         try:
-            # Disable gradient computation to save memory
-            torch.set_grad_enabled(False)
+            self._ensure_log_directory()
+            self.log_file = self._create_log_filename()
+            self._configure_logging_handlers()
+            self._is_configured = True
             
-            # Load tokenizer
-            print("📥 Loading tokenizer...")
-            logging.info("Loading tokenizer...")
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            print("✓ Tokenizer loaded")
-            
-            # Load model with appropriate device mapping
-            print("📥 Loading model weights (this may take several minutes)...")
-            logging.info("Loading model...")
-            if self.device_str == "cuda":
-                # Use device_map='auto' for multi-GPU or automatic placement
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    self.model_name,
-                    device_map='auto',
-                    trust_remote_code=True,
-                    torch_dtype=torch.float16
-                )
-            else:
-                # For MPS or CPU, load normally then move to device
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    self.model_name,
-                    trust_remote_code=True,
-                    torch_dtype=torch.float32
-                )
-                print(f"📤 Moving model to {self.device}...")
-                self.model = self.model.to(self.device)  # Now using proper torch.device
-            
-            # Set model to evaluation mode
-            self.model.eval()
-            print("🔧 Model set to evaluation mode")
-            
-            logging.info(f"Model loaded successfully on device: {self.device}")
+            logging.info("Logging system initialized")
+            return self.log_file
             
         except Exception as e:
-            logging.error(f"Failed to load model: {str(e)}")
-            print(f"✗ Failed to load model: {str(e)}")
-            raise RuntimeError(f"Model loading failed: {str(e)}")
+            raise LoggingConfigurationError(f"Failed to setup logging: {str(e)}") from e
     
-    def generate_code(self, prompt: str, max_new_tokens: int = 200, stream: bool = True) -> str:
-        """Generate code from problem prompt with deterministic output"""
-        if self.model is None or self.tokenizer is None:
-            raise RuntimeError("Model not loaded. Call load_model() first.")
+    def _ensure_log_directory(self):
+        """Create log directory if it doesn't exist"""
+        os.makedirs(self.log_dir, exist_ok=True)
+    
+    def _create_log_filename(self) -> str:
+        """Generate timestamped log filename"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return os.path.join(self.log_dir, f"mbpp_test_{timestamp}.log")
+    
+    def _configure_logging_handlers(self):
+        """Configure logging handlers and formatters"""
+        # Clear existing handlers to prevent conflicts
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
         
+        logging.basicConfig(
+            level=logging.DEBUG if self.debug else logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[logging.FileHandler(self.log_file)],
+            force=True
+        )
+    
+    @property
+    def is_configured(self) -> bool:
+        """Check if logging is configured"""
+        return self._is_configured
+    
+    @staticmethod
+    def find_existing_log_file() -> Optional[str]:
+        """Find existing log file from configured handlers"""
+        for handler in logging.getLogger().handlers:
+            if isinstance(handler, logging.FileHandler):
+                return handler.baseFilename
+        return None
+
+# ============================================================================
+# Model Management Classes
+# ============================================================================
+
+class ModelLoader:
+    """Handles model and tokenizer loading operations"""
+    
+    def __init__(self, model_name: str, device_str: str):
+        self.model_name = model_name
+        self.device_str = device_str
+        self.device = DeviceManager.get_torch_device(device_str)
+        self.dtype = DeviceManager.get_optimal_dtype(device_str)
+    
+    def load_tokenizer(self) -> AutoTokenizer:
+        """Load and return tokenizer"""
+        try:
+            ConsoleOutput.loading("Loading tokenizer...")
+            logging.info(f"Loading tokenizer for {self.model_name}")
+            
+            tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            
+            ConsoleOutput.success("Tokenizer loaded")
+            logging.info("Tokenizer loaded successfully")
+            return tokenizer
+            
+        except Exception as e:
+            ErrorContext.handle_and_raise(
+                ModelError, f"Tokenizer loading failed: {str(e)}", e
+            )
+    
+    def load_model_weights(self) -> AutoModelForCausalLM:
+        """Load and return model weights"""
+        try:
+            ConsoleOutput.loading("Loading model weights (this may take several minutes)...")
+            logging.info(f"Loading model weights for {self.model_name} on {self.device_str}")
+            
+            # Disable gradients for inference
+            torch.set_grad_enabled(False)
+            
+            if self.device_str == "cuda":
+                model = self._load_cuda_model()
+            else:
+                model = self._load_non_cuda_model()
+            
+            ConsoleOutput.success("Model weights loaded")
+            logging.info("Model weights loaded successfully")
+            return model
+            
+        except Exception as e:
+            ErrorContext.handle_and_raise(
+                ModelError, f"Model weight loading failed: {str(e)}", e
+            )
+    
+    def _load_cuda_model(self) -> AutoModelForCausalLM:
+        """Load model optimized for CUDA"""
+        return AutoModelForCausalLM.from_pretrained(
+            self.model_name,
+            device_map='auto',
+            trust_remote_code=True,
+            torch_dtype=self.dtype
+        )
+    
+    def _load_non_cuda_model(self) -> AutoModelForCausalLM:
+        """Load model for MPS or CPU"""
+        model = AutoModelForCausalLM.from_pretrained(
+            self.model_name,
+            trust_remote_code=True,
+            torch_dtype=self.dtype
+        )
+        ConsoleOutput.info(f"Moving model to {self.device}...")
+        return model.to(self.device)
+    
+    def configure_for_inference(self, model: AutoModelForCausalLM) -> AutoModelForCausalLM:
+        """Configure model for inference mode"""
+        try:
+            model.eval()
+            ConsoleOutput.working("Model configured for inference")
+            logging.info("Model set to evaluation mode")
+            return model
+            
+        except Exception as e:
+            ErrorContext.handle_and_raise(
+                ModelError, f"Model configuration failed: {str(e)}", e
+            )
+
+class CodeGenerator:
+    """Handles deterministic code generation"""
+    
+    def __init__(self, model: AutoModelForCausalLM, tokenizer: AutoTokenizer, device_str: str):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.device_str = device_str
+        self.device = DeviceManager.get_torch_device(device_str)
+    
+    def generate(self, prompt: str, max_new_tokens: int = 200, stream: bool = True) -> str:
+        """Generate code from prompt with deterministic settings"""
         try:
             logging.debug(f"Generating code for prompt: {prompt[:100]}...")
             
-            # Tokenize input with attention mask
-            inputs = self.tokenizer(
-                prompt, 
-                return_tensors="pt", 
-                add_special_tokens=True,
-                padding=True,
-                truncation=True
-            )
-            
-            # Move inputs to the same device as model
-            if self.device_str in ["mps", "cuda"]:
-                inputs = {k: v.to(self.device) for k, v in inputs.items()}  # Using proper torch.device
-            
-            if stream:
-                print("🤖 Generating code (streaming):")
-                print("-" * 50)
-                # Create a text streamer for real-time output
-                streamer = TextStreamer(
-                    self.tokenizer, 
-                    skip_prompt=True,  # Don't repeat the input prompt
-                    skip_special_tokens=True
-                )
-            else:
-                streamer = None
-                print("🤖 Generating code...")
-            
-            # Generate with deterministic settings
-            with torch.no_grad():
-                outputs = self.model.generate(
-                    input_ids=inputs['input_ids'],
-                    attention_mask=inputs['attention_mask'],
-                    max_new_tokens=max_new_tokens,
-                    do_sample=False,  # Greedy decoding (deterministic)
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    repetition_penalty=1.0,
-                    num_return_sequences=1,
-                    streamer=streamer  # This enables token-by-token streaming
-                )
-            
-            if stream:
-                print("\n" + "-" * 50)
-            
-            # Decode the generated text
-            generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            
-            # Remove the input prompt from the generated text
-            prompt_length = len(prompt)
-            generated_code = generated_text[prompt_length:].strip()
-            
-            logging.debug(f"Generated code length: {len(generated_code)} characters")
-            print("✓ Code generation complete")
+            inputs = self._prepare_inputs(prompt)
+            outputs = self._generate_tokens(inputs, max_new_tokens, stream)
+            generated_code = self._extract_code(outputs, prompt)
             
             return generated_code
             
         except Exception as e:
-            logging.error(f"Code generation failed: {str(e)}")
-            print(f"✗ Code generation failed: {str(e)}")
-            raise RuntimeError(f"Code generation failed: {str(e)}")
-        
+            ErrorContext.handle_and_raise(
+                ModelError, f"Code generation failed: {str(e)}", e
+            )
     
-    def test_model(self, stream: bool = True) -> bool:
-        """Simple test to verify model is loaded and working"""
+    def _prepare_inputs(self, prompt: str) -> Dict[str, torch.Tensor]:
+        """Tokenize and prepare inputs for generation"""
+        inputs = self.tokenizer(
+            prompt,
+            return_tensors="pt",
+            add_special_tokens=True,
+            padding=True,
+            truncation=True
+        )
+        
+        # Move to device if needed
+        if self.device_str in ["mps", "cuda"]:
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        
+        return inputs
+    
+    def _generate_tokens(self, inputs: Dict[str, torch.Tensor], 
+                        max_new_tokens: int, stream: bool) -> torch.Tensor:
+        """Generate tokens using deterministic settings"""
+        streamer = self._setup_streaming(stream)
+        
+        with torch.no_grad():
+            outputs = self.model.generate(
+                input_ids=inputs['input_ids'],
+                attention_mask=inputs['attention_mask'],
+                max_new_tokens=max_new_tokens,
+                do_sample=False,  # Deterministic generation
+                pad_token_id=self.tokenizer.eos_token_id,
+                repetition_penalty=1.0,
+                num_return_sequences=1,
+                streamer=streamer
+            )
+        
+        if stream:
+            print("\n" + "-" * 50)
+        
+        return outputs
+    
+    def _setup_streaming(self, stream: bool) -> Optional[TextStreamer]:
+        """Setup streaming output if requested"""
+        if stream:
+            ConsoleOutput.generating("Generating code (streaming):")
+            print("-" * 50)
+            return TextStreamer(
+                self.tokenizer,
+                skip_prompt=True,
+                skip_special_tokens=True
+            )
+        else:
+            ConsoleOutput.generating("Generating code...")
+            return None
+    
+    def _extract_code(self, outputs: torch.Tensor, prompt: str) -> str:
+        """Extract generated code from model outputs"""
+        generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        prompt_length = len(prompt)
+        generated_code = generated_text[prompt_length:].strip()
+        
+        logging.debug(f"Generated code length: {len(generated_code)} characters")
+        ConsoleOutput.success("Code generation complete")
+        
+        return generated_code
+
+class ModelManager:
+    """Orchestrates model lifecycle and code generation"""
+    
+    def __init__(self, model_name: str = "google/gemma-2-2b", device: Optional[str] = None):
+        self.model_name = model_name
+        self.device_str = device if device else DeviceManager.detect_best_device()
+        self.device = DeviceManager.get_torch_device(self.device_str)
+        
+        # Component references
+        self.model = None
+        self.tokenizer = None
+        self.generator = None
+        self._loader = None
+    
+    def load_model(self):
+        """Load model components"""
+        if self.is_loaded():
+            ConsoleOutput.info("Model already loaded")
+            logging.info("Model already loaded")
+            return
+        
+        try:
+            logging.info(f"Starting model load: {self.model_name} on {self.device_str}")
+            
+            self._loader = ModelLoader(self.model_name, self.device_str)
+            
+            # Load components in sequence
+            self.tokenizer = self._loader.load_tokenizer()
+            self.model = self._loader.load_model_weights()
+            self.model = self._loader.configure_for_inference(self.model)
+            
+            # Initialize generator
+            self.generator = CodeGenerator(self.model, self.tokenizer, self.device_str)
+            
+            logging.info(f"Model pipeline ready on device: {self.device}")
+            
+        except Exception as e:
+            self._cleanup_failed_load()
+            raise  # Re-raise the specific exception from loader/generator
+    
+    def generate_code(self, prompt: str, max_new_tokens: int = 200, stream: bool = True) -> str:
+        """Generate code using loaded model"""
         if not self.is_loaded():
-            logging.error("Model not loaded for testing")
+            raise ModelError("Model not loaded. Call load_model() first.")
+        
+        return self.generator.generate(prompt, max_new_tokens, stream)
+    
+    def test_model_functionality(self, stream: bool = True) -> bool:
+        """Test model with simple generation task"""
+        if not self.is_loaded():
+            logging.error("Cannot test: model not loaded")
             return False
         
         try:
             test_prompt = "Write a simple function that adds two numbers:\n# Your code here"
-            logging.info("Testing model with simple prompt...")
-            print("Testing model generation...")
+            logging.info("Running model functionality test...")
+            ConsoleOutput.info("Testing model generation...")
             
             result = self.generate_code(test_prompt, max_new_tokens=100, stream=stream)
             
-            logging.info(f"Model test successful. Generated: {result[:50]}...")
-            print(f"\n✓ Model test passed!")
-            print(f"Full generated code:\n{result}")
+            logging.info(f"Test successful. Generated: {result[:50]}...")
+            ConsoleOutput.success("Model functionality test passed!")
+            print(f"\nGenerated code:\n{result}")
             return True
             
         except Exception as e:
             logging.error(f"Model test failed: {str(e)}")
-            print(f"✗ Model test failed: {str(e)}")
+            ConsoleOutput.error(f"Model test failed: {str(e)}")
             return False
-
     
     def is_loaded(self) -> bool:
-        """Check if model is loaded"""
-        return self.model is not None and self.tokenizer is not None
+        """Check if model pipeline is ready"""
+        return (self.model is not None and 
+                self.tokenizer is not None and 
+                self.generator is not None)
     
     def get_device_info(self) -> str:
-        """Get information about the device being used"""
+        """Get device information"""
         return f"Device: {self.device}"
     
     def unload_model(self):
-        """Unload model to free memory"""
+        """Clean up model resources"""
         if self.model is not None:
-            # Safe logging - handle case where logging module is cleaned up during shutdown
-            try:
-                logging.info("Unloading model...")
-            except (AttributeError, TypeError):
-                # logging module might be None during Python shutdown
-                pass
-                
+            self._safe_log("Unloading model resources...")
+            self._cleanup_all_resources()
+            self._safe_log("Model unloaded successfully")
+    
+    def _cleanup_failed_load(self):
+        """Clean up after failed loading attempt"""
+        self.model = None
+        self.tokenizer = None
+        self.generator = None
+        self._loader = None
+    
+    def _cleanup_all_resources(self):
+        """Clean up all allocated resources"""
+        # Clean up model components
+        if self.model is not None:
             del self.model
+        if self.tokenizer is not None:
             del self.tokenizer
-            self.model = None
-            self.tokenizer = None
-            
-            # Clear CUDA cache if using CUDA
-            if self.device_str == "cuda":
-                torch.cuda.empty_cache()
-            
-            # Safe logging
-            try:
-                logging.info("Model unloaded successfully")
-            except (AttributeError, TypeError):
-                # logging module might be None during Python shutdown
-                pass
-
+        
+        # Reset references
+        self.model = None
+        self.tokenizer = None
+        self.generator = None
+        self._loader = None
+        
+        # Clear GPU cache if applicable
+        if self.device_str == "cuda":
+            torch.cuda.empty_cache()
+    
+    def _safe_log(self, message: str):
+        """Safely log message (handles shutdown scenarios)"""
+        try:
+            logging.info(message)
+        except (AttributeError, TypeError):
+            # Handle case where logging is cleaned up during shutdown
+            pass
+    
     def __del__(self):
-        """Cleanup when object is destroyed"""
+        """Cleanup on object destruction"""
         try:
             if hasattr(self, 'model') and self.model is not None:
                 self.unload_model()
         except (AttributeError, TypeError):
-            # Handle case where attributes or modules are cleaned up during shutdown
+            # Handle cleanup during Python shutdown
             pass
 
+# ============================================================================
+# Data Management Classes
+# ============================================================================
 
 @dataclass
 class TestResult:
-    """Data class to store test execution results"""
+    """Encapsulates test execution results"""
     passed: int
     total: int
     errors: List[str]
     
     @property
     def success_rate(self) -> float:
+        """Calculate success percentage"""
         return (self.passed / self.total * 100) if self.total > 0 else 0.0
-
-
-class LoggingManager:
-    """Handles logging configuration and setup"""
     
-    @staticmethod
-    def setup_logging(debug: bool = False, log_dir: str = "mbpp_logs") -> str:
-        """Configure logging and return log file path"""
-        os.makedirs(log_dir, exist_ok=True)
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = os.path.join(log_dir, f"mbpp_test_{timestamp}.log")
-        
-        logging.basicConfig(
-            level=logging.DEBUG if debug else logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(log_file),
-                # logging.StreamHandler()  # Also output to console
-            ]
-        )
-        
-        return log_file
-
+    @property
+    def failed(self) -> int:
+        """Number of failed tests"""
+        return self.total - self.passed
 
 class DatasetManager:
-    """Handles dataset loading and management"""
+    """Manages MBPP dataset operations"""
     
     def __init__(self):
         self.dataset = None
         self.test_data = None
+        self._is_loaded = False
     
-    def load_mbpp_dataset(self):
-        """Load MBPP dataset"""
-        logging.info("Loading MBPP dataset")
-        self.dataset = load_dataset("mbpp")
-        self.test_data = self.dataset['test']
-        logging.info(f"Dataset loaded with {len(self.test_data)} test examples")
+    def load_dataset(self):
+        """Load MBPP dataset from Hugging Face"""
+        if self._is_loaded:
+            logging.info("MBPP dataset already loaded")
+            return
+        
+        try:
+            logging.info("Loading MBPP dataset...")
+            self.dataset = load_dataset("mbpp")
+            self.test_data = self.dataset['test']
+            self._is_loaded = True
+            
+            logging.info(f"MBPP dataset loaded: {len(self.test_data)} examples")
+            
+        except Exception as e:
+            ErrorContext.handle_and_raise(
+                DatasetError, f"Failed to load MBPP dataset: {str(e)}", e
+            )
     
     def get_record(self, idx: int) -> Dict:
-        """Get a specific record by index"""
-        if self.test_data is None:
-            raise ValueError("Dataset not loaded. Call load_mbpp_dataset() first.")
-        return self.test_data[idx]
+        """Retrieve record by index with validation"""
+        self._ensure_loaded()
+        
+        try:
+            return self.test_data[idx]
+        except IndexError as e:
+            ErrorContext.handle_and_raise(
+                DatasetError, 
+                f"Index {idx} out of range. Dataset has {len(self.test_data)} records.",
+                e
+            )
     
-    def get_dataset_size(self) -> int:
-        """Get total number of records"""
-        return len(self.test_data) if self.test_data else 0
+    def get_size(self) -> int:
+        """Get dataset size"""
+        return len(self.test_data) if self._is_loaded else 0
+    
+    def is_loaded(self) -> bool:
+        """Check if dataset is loaded"""
+        return self._is_loaded
+    
+    def _ensure_loaded(self):
+        """Ensure dataset is loaded before access"""
+        if not self._is_loaded:
+            raise DatasetError("Dataset not loaded. Call load_dataset() first.")
 
+# ============================================================================
+# Test Execution Classes  
+# ============================================================================
 
 class TestExecutor:
-    """Handles test execution for individual records"""
+    """Executes code against test cases"""
     
     @staticmethod
-    def execute_single_test(test_code: str, namespace: Dict) -> Tuple[bool, Optional[str]]:
-        """Execute a single test case and return (success, error_message)"""
+    def run_single_test(test_code: str, namespace: Dict) -> Tuple[bool, Optional[str]]:
+        """Execute single test case and return result"""
         try:
             exec(test_code, namespace)
             return True, None
@@ -303,57 +565,83 @@ class TestExecutor:
             return False, str(e)
     
     @staticmethod
-    def execute_record_tests(record: Dict) -> TestResult:
-        """Execute all tests for a single MBPP record"""
-        task_id = record['task_id']
+    def run_code_tests(code: str, test_cases: List[str], task_id: Optional[str] = None) -> TestResult:
+        """Execute code against multiple test cases"""
+        if task_id:
+            logging.debug(f"Testing code for task {task_id}")
         
-        logging.debug(f"PROBLEM:\n{record['text']}")
-        logging.debug(f"CODE:\n{record['code']}")
-        logging.debug("TEST CASES:")
-        for i, test in enumerate(record['test_list']):
-            logging.debug(f"  Test {i+1}: {test}")
+        TestExecutor._log_test_setup(code, test_cases)
         
-        # Execute the solution code
+        # Prepare execution environment
         namespace = {}
+        try:
+            exec(code, namespace)
+        except Exception as e:
+            error_msg = f"Code execution failed: {str(e)}"
+            logging.error(error_msg)
+            return TestResult(passed=0, total=len(test_cases), errors=[error_msg])
+        
+        # Execute test cases
+        return TestExecutor._execute_test_cases(test_cases, namespace)
+    
+    @staticmethod
+    def run_record_tests(record: Dict) -> TestResult:
+        """Execute tests using ground truth code from MBPP record"""
+        task_id = record['task_id']
+        logging.debug(f"PROBLEM:\n{record['text']}")
+        
+        return TestExecutor.run_code_tests(
+            code=record['code'],
+            test_cases=record['test_list'],
+            task_id=task_id
+        )
+    
+    @staticmethod
+    def _log_test_setup(code: str, test_cases: List[str]):
+        """Log test setup information"""
+        logging.debug(f"CODE TO TEST:\n{code}")
+        logging.debug("TEST CASES:")
+        for i, test in enumerate(test_cases):
+            logging.debug(f"  Test {i+1}: {test}")
+    
+    @staticmethod
+    def _execute_test_cases(test_cases: List[str], namespace: Dict) -> TestResult:
+        """Execute all test cases and collect results"""
+        passed_tests = 0
+        total_tests = len(test_cases)
         errors = []
         
-        try:
-            exec(record['code'], namespace)
-        except Exception as e:
-            error_msg = f"Failed to execute solution code: {str(e)}"
-            logging.error(error_msg)
-            return TestResult(passed=0, total=len(record['test_list']), errors=[error_msg])
-        
-        # Run individual tests
-        passed_tests = 0
-        total_tests = len(record['test_list'])
-        
-        for i, test in enumerate(record['test_list']):
-            success, error_msg = TestExecutor.execute_single_test(test, namespace)
+        for i, test_case in enumerate(test_cases):
+            success, error_msg = TestExecutor.run_single_test(test_case, namespace)
             
             if success:
                 logging.info(f"Test {i+1}: PASSED")
                 passed_tests += 1
             else:
                 status = "FAILED" if error_msg == "Assertion failed" else "ERROR"
-                logging.info(f"Test {i+1}: {status}" + (f" - {error_msg}" if error_msg != "Assertion failed" else ""))
+                log_msg = f"Test {i+1}: {status}"
                 if error_msg != "Assertion failed":
+                    log_msg += f" - {error_msg}"
                     errors.append(f"Test {i+1}: {error_msg}")
+                
+                logging.info(log_msg)
         
-        logging.info(f"Example summary: {passed_tests}/{total_tests} tests passed")
-        
+        logging.info(f"Test summary: {passed_tests}/{total_tests} tests passed")
         return TestResult(passed=passed_tests, total=total_tests, errors=errors)
 
+# ============================================================================
+# Main Orchestration Class
+# ============================================================================
 
 class MBPPTester:
-    """Main class for testing MBPP examples"""
+    """Main orchestrator for MBPP testing workflow"""
     
     def __init__(self, debug: bool = False, log_dir: str = "mbpp_logs"):
         self.debug = debug
         self.log_dir = log_dir
-        self.log_file = None
         
-        # Initialize managers
+        # Initialize core components
+        self.logging_config = LoggingConfiguration(debug, log_dir)
         self.dataset_manager = DatasetManager()
         
         # Results tracking
@@ -361,139 +649,188 @@ class MBPPTester:
         self.passed_tests = 0
         self.record_results: List[TestResult] = []
     
-    def setup_logging(self) -> str:
-        """Setup logging configuration"""
-        self.log_file = LoggingManager.setup_logging(self.debug, self.log_dir)
-        return self.log_file
+    @property
+    def log_file(self) -> Optional[str]:
+        """Get current log file path"""
+        return self.logging_config.log_file
     
-    def load_dataset(self):
-        """Load the MBPP dataset"""
-        self.dataset_manager.load_mbpp_dataset()
+    def setup_logging(self) -> str:
+        """Configure logging system"""
+        return self.logging_config.setup_logging()
+    
+    def ensure_dataset_ready(self):
+        """Ensure dataset is loaded and ready"""
+        if not self.dataset_manager.is_loaded():
+            self.dataset_manager.load_dataset()
     
     def test_single_record(self, idx: int) -> TestResult:
-        """Test a single MBPP record"""
-        record = self.dataset_manager.get_record(idx)
-        
-        logging.info(f"Processing example {idx} (Task ID: {record['task_id']})")
-        
-        result = TestExecutor.execute_record_tests(record)
-        
-        # Update overall statistics
-        self.total_tests += result.total
-        self.passed_tests += result.passed
-        self.record_results.append(result)
-        
-        logging.info("-" * 40)
-        
-        return result
+        """Test single MBPP record by index"""
+        try:
+            record = self.dataset_manager.get_record(idx)
+            
+            logging.info(f"Processing record {idx} (Task ID: {record['task_id']})")
+            
+            result = TestExecutor.run_record_tests(record)
+            self._update_overall_stats(result)
+            
+            logging.info("-" * 40)
+            return result
+            
+        except Exception as e:
+            ErrorContext.handle_and_raise(
+                TestExecutionError, f"Failed to test record {idx}: {str(e)}", e
+            )
     
+    def test_range(self, start_idx: int = 0, end_idx: int = 3) -> Dict[str, Any]:
+        """Test range of MBPP records"""
+        try:
+            # Ensure prerequisites
+            self._ensure_prerequisites()
+            
+            # Validate range
+            validated_end = self._validate_test_range(start_idx, end_idx)
+            
+            # Execute tests
+            self._run_test_sequence(start_idx, validated_end)
+            
+            # Generate final summary
+            return self._create_summary()
+            
+        except Exception as e:
+            ErrorContext.handle_and_raise(
+                TestExecutionError, f"Test range execution failed: {str(e)}", e
+            )
     
-    def test_range(self, start_idx: int = 0, end_idx: int = 3) -> Dict:
-        """Test a range of MBPP examples"""
-        # Setup logging only if not already configured
-        if not logging.getLogger().handlers:
-            self.setup_logging()
-        elif self.log_file is None:
-            # If logging is already configured but we don't have log_file, 
-            # try to find it from the handlers
-            for handler in logging.getLogger().handlers:
-                if isinstance(handler, logging.FileHandler):
-                    self.log_file = handler.baseFilename
-                    break
-        
-        self.load_dataset()
-        
-        # Validate range
-        dataset_size = self.dataset_manager.get_dataset_size()
-        actual_end_idx = min(end_idx, dataset_size - 1)
-        
-        logging.info(f"Testing examples from index {start_idx} to {actual_end_idx}")
-        
-        # Reset results
-        self.total_tests = 0
-        self.passed_tests = 0
-        self.record_results = []
-        
-        # Process each example with progress bar
-        for idx in tqdm(range(start_idx, actual_end_idx + 1), 
-                        desc="Testing MBPP records", 
-                        unit="record"):
-            self.test_single_record(idx)
-        
-        # Log overall summary
-        summary = self.get_summary()
-        logging.info(f"OVERALL SUMMARY: {summary['passed']}/{summary['total']} tests passed ({summary['success_rate']:.1f}%)")
-        
-        if self.log_file:
-            print(f"Logs saved to: {self.log_file}")
-        
-        return summary
-    
-    def get_summary(self) -> Dict:
-        """Get summary of test results"""
+    def get_summary(self) -> Dict[str, Any]:
+        """Get current test results summary"""
         return {
             'passed': self.passed_tests,
             'total': self.total_tests,
-            'success_rate': (self.passed_tests / self.total_tests * 100) if self.total_tests > 0 else 0.0,
+            'success_rate': self._calculate_success_rate(),
             'records_tested': len(self.record_results),
             'log_file': self.log_file
         }
     
     def get_detailed_results(self) -> List[TestResult]:
-        """Get detailed results for each record"""
-        return self.record_results
+        """Get detailed results for each tested record"""
+        return self.record_results.copy()
+    
+    def _ensure_prerequisites(self):
+        """Ensure all prerequisites are met"""
+        if not self.logging_config.is_configured:
+            self.setup_logging()
+        self.ensure_dataset_ready()
+    
+    def _validate_test_range(self, start_idx: int, end_idx: int) -> int:
+        """Validate and adjust test range"""
+        dataset_size = self.dataset_manager.get_size()
+        
+        if start_idx < 0:
+            raise ValueError(f"start_idx must be >= 0, got {start_idx}")
+        if start_idx >= dataset_size:
+            raise ValueError(f"start_idx {start_idx} >= dataset size {dataset_size}")
+        
+        validated_end = min(end_idx, dataset_size - 1)
+        logging.info(f"Testing records {start_idx} to {validated_end}")
+        return validated_end
+    
+    def _run_test_sequence(self, start_idx: int, end_idx: int):
+        """Execute the test sequence with progress tracking"""
+        self._reset_statistics()
+        
+        for idx in tqdm(range(start_idx, end_idx + 1),
+                        desc="Testing MBPP records",
+                        unit="record"):
+            self.test_single_record(idx)
+    
+    def _reset_statistics(self):
+        """Reset test statistics for new run"""
+        self.total_tests = 0
+        self.passed_tests = 0
+        self.record_results = []
+    
+    def _update_overall_stats(self, result: TestResult):
+        """Update overall statistics with new result"""
+        self.total_tests += result.total
+        self.passed_tests += result.passed
+        self.record_results.append(result)
+    
+    def _calculate_success_rate(self) -> float:
+        """Calculate overall success rate"""
+        return (self.passed_tests / self.total_tests * 100) if self.total_tests > 0 else 0.0
+    
+    def _create_summary(self) -> Dict[str, Any]:
+        """Create and log final summary"""
+        summary = self.get_summary()
+        
+        logging.info(
+            f"FINAL SUMMARY: {summary['passed']}/{summary['total']} tests passed "
+            f"({summary['success_rate']:.1f}%)"
+        )
+        
+        if self.log_file:
+            ConsoleOutput.info(f"Results logged to: {self.log_file}")
+        
+        return summary
 
+# ============================================================================
+# Convenience Functions
+# ============================================================================
 
-# Convenience function to maintain backward compatibility
 def test_mbpp_range(start_idx: int = 0, end_idx: int = 3, debug: bool = False) -> str:
-    """Test MBPP examples with proper logging (backward compatible function)"""
+    """
+    Convenience function to test MBPP range with automatic setup
+    
+    Returns:
+        str: Path to log file
+    """
     tester = MBPPTester(debug=debug)
     summary = tester.test_range(start_idx, end_idx)
     return summary['log_file']
 
+# ============================================================================
+# Example Usage
+# ============================================================================
 
-# Example usage
 if __name__ == "__main__":
-    # SET UP LOGGING FIRST!
-    log_file = LoggingManager.setup_logging(debug=False, log_dir="mbpp_logs")
-    print(f"Logging initialized: {log_file}")
-    
-    print("Testing Gemma 2-2B model loading...")
-    
-    # Test model loading and generation (now with logging!)
-    model_manager = ModelManager("google/gemma-2-2b")
-    
     try:
-        print("Loading model... (this may take a few minutes)")
-        print("📥 Loading tokenizer...")
-        print("📥 Loading model weights...")
-        model_manager.load_model()  # Now these logging.info() calls will be captured!
-        print(f"✓ Model loaded successfully on {model_manager.get_device_info()}")
+        # Initialize logging
+        logging_config = LoggingConfiguration(debug=False, log_dir="mbpp_logs")
+        log_file = logging_config.setup_logging()
+        ConsoleOutput.info(f"Logging initialized: {log_file}")
         
-        # Test generation
-        if model_manager.test_model():  # This logging will be captured too!
-            print("✓ Model is working correctly!")
-        else:
-            print("✗ Model test failed!")
+        # Test model loading
+        ConsoleOutput.info("Testing Gemma 2-2B model loading...")
+        model_manager = ModelManager("google/gemma-2-2b")
+        
+        try:
+            ConsoleOutput.info("Loading model (this may take several minutes)...")
+            model_manager.load_model()
+            ConsoleOutput.success(f"Model ready: {model_manager.get_device_info()}")
             
+            # Test model functionality
+            if model_manager.test_model_functionality():
+                ConsoleOutput.success("Model is working correctly!")
+            else:
+                ConsoleOutput.error("Model functionality test failed!")
+                
+        except ModelError as e:
+            ConsoleOutput.error(f"Model error: {e}")
+        except Exception as e:
+            ConsoleOutput.error(f"Unexpected error: {e}")
+            logging.error(f"Unexpected error: {e}", exc_info=True)
+        
+        # Test MBPP examples
+        print("\n" + "="*50)
+        ConsoleOutput.info("Running MBPP tests...")
+        
+        tester = MBPPTester(debug=False)
+        summary = tester.test_range(0, 5)
+        
+        ConsoleOutput.success(f"Testing complete: {summary}")
+        ConsoleOutput.info(f"Full logs: {log_file}")
+        
     except Exception as e:
-        print(f"✗ Failed to load model: {e}")
-
-    # Uncomment to clean up model after testing
-    # finally:
-    #     print("🧹 Cleaning up...")
-    #     model_manager.unload_model()
-    #     print("Model unloaded.")
-    
-    print("\n" + "="*50)
-    print("Now running MBPP tests...")
-
-    # Using the class-based approach (logging already set up)
-    tester = MBPPTester(debug=False)
-    tester.log_file = log_file  # Set the log file path
-    summary = tester.test_range(0, 5)
-    print(f"Final Results: {summary}")
-    print(f"All logs saved to: {log_file}")
-    
-    # Or using the backward compatible function
-    # test_mbpp_range(0, 5, debug=False)
+        ConsoleOutput.error(f"Application failed: {e}")
+        if 'logging' in globals():
+            logging.error(f"Application failed: {e}", exc_info=True)
