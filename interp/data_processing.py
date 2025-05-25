@@ -5,6 +5,212 @@ from datetime import datetime
 from tqdm import tqdm
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer
+import sys
+
+
+
+class DeviceUtils:
+    """Utility class for device detection and management"""
+    
+    @staticmethod
+    def detect_best_device() -> str:
+        """Detect the best available device"""
+        # Check for MPS (Apple Silicon)
+        if torch.backends.mps.is_available():
+            logging.info("Using MPS (Apple Silicon) device")
+            return "mps"
+        # Check for CUDA
+        elif torch.cuda.is_available():
+            logging.info("Using CUDA device")
+            return "cuda"
+        # Fallback to CPU
+        else:
+            logging.info("Using CPU device")
+            return "cpu"
+
+
+class ModelManager:
+    """Handles Gemma 2 model loading and code generation"""
+    
+    def __init__(self, model_name: str = "google/gemma-2-2b", device: Optional[str] = None):
+        self.model_name = model_name
+        self.device_str = device if device else DeviceUtils.detect_best_device()
+        self.device = torch.device(self.device_str)  # Convert to proper torch device
+        self.model = None
+        self.tokenizer = None
+    
+    def load_model(self):
+        """Load Gemma 2 model and tokenizer"""
+        if self.model is not None:
+            logging.info("Model already loaded")
+            print("✓ Model already loaded")
+            return
+            
+        logging.info(f"Loading model: {self.model_name} on device: {self.device}")
+        
+        try:
+            # Disable gradient computation to save memory
+            torch.set_grad_enabled(False)
+            
+            # Load tokenizer
+            print("📥 Loading tokenizer...")
+            logging.info("Loading tokenizer...")
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            print("✓ Tokenizer loaded")
+            
+            # Load model with appropriate device mapping
+            print("📥 Loading model weights (this may take several minutes)...")
+            logging.info("Loading model...")
+            if self.device_str == "cuda":
+                # Use device_map='auto' for multi-GPU or automatic placement
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name,
+                    device_map='auto',
+                    trust_remote_code=True,
+                    torch_dtype=torch.float16
+                )
+            else:
+                # For MPS or CPU, load normally then move to device
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name,
+                    trust_remote_code=True,
+                    torch_dtype=torch.float32
+                )
+                print(f"📤 Moving model to {self.device}...")
+                self.model = self.model.to(self.device)  # Now using proper torch.device
+            
+            # Set model to evaluation mode
+            self.model.eval()
+            print("🔧 Model set to evaluation mode")
+            
+            logging.info(f"Model loaded successfully on device: {self.device}")
+            
+        except Exception as e:
+            logging.error(f"Failed to load model: {str(e)}")
+            print(f"✗ Failed to load model: {str(e)}")
+            raise RuntimeError(f"Model loading failed: {str(e)}")
+    
+    def generate_code(self, prompt: str, max_new_tokens: int = 200, stream: bool = True) -> str:
+        """Generate code from problem prompt with deterministic output"""
+        if self.model is None or self.tokenizer is None:
+            raise RuntimeError("Model not loaded. Call load_model() first.")
+        
+        try:
+            logging.debug(f"Generating code for prompt: {prompt[:100]}...")
+            
+            # Tokenize input with attention mask
+            inputs = self.tokenizer(
+                prompt, 
+                return_tensors="pt", 
+                add_special_tokens=True,
+                padding=True,
+                truncation=True
+            )
+            
+            # Move inputs to the same device as model
+            if self.device_str in ["mps", "cuda"]:
+                inputs = {k: v.to(self.device) for k, v in inputs.items()}  # Using proper torch.device
+            
+            if stream:
+                print("🤖 Generating code (streaming):")
+                print("-" * 50)
+                # Create a text streamer for real-time output
+                streamer = TextStreamer(
+                    self.tokenizer, 
+                    skip_prompt=True,  # Don't repeat the input prompt
+                    skip_special_tokens=True
+                )
+            else:
+                streamer = None
+                print("🤖 Generating code...")
+            
+            # Generate with deterministic settings
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    input_ids=inputs['input_ids'],
+                    attention_mask=inputs['attention_mask'],
+                    max_new_tokens=max_new_tokens,
+                    do_sample=False,  # Greedy decoding (deterministic)
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    repetition_penalty=1.0,
+                    num_return_sequences=1,
+                    streamer=streamer  # This enables token-by-token streaming
+                )
+            
+            if stream:
+                print("\n" + "-" * 50)
+            
+            # Decode the generated text
+            generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            
+            # Remove the input prompt from the generated text
+            prompt_length = len(prompt)
+            generated_code = generated_text[prompt_length:].strip()
+            
+            logging.debug(f"Generated code length: {len(generated_code)} characters")
+            print("✓ Code generation complete")
+            
+            return generated_code
+            
+        except Exception as e:
+            logging.error(f"Code generation failed: {str(e)}")
+            print(f"✗ Code generation failed: {str(e)}")
+            raise RuntimeError(f"Code generation failed: {str(e)}")
+        
+    
+    def test_model(self, stream: bool = True) -> bool:
+        """Simple test to verify model is loaded and working"""
+        if not self.is_loaded():
+            logging.error("Model not loaded for testing")
+            return False
+        
+        try:
+            test_prompt = "Write a simple function that adds two numbers:\n# Your code here"
+            logging.info("Testing model with simple prompt...")
+            print("Testing model generation...")
+            
+            result = self.generate_code(test_prompt, max_new_tokens=100, stream=stream)
+            
+            logging.info(f"Model test successful. Generated: {result[:50]}...")
+            print(f"\n✓ Model test passed!")
+            print(f"Full generated code:\n{result}")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Model test failed: {str(e)}")
+            print(f"✗ Model test failed: {str(e)}")
+            return False
+
+    
+    def is_loaded(self) -> bool:
+        """Check if model is loaded"""
+        return self.model is not None and self.tokenizer is not None
+    
+    def get_device_info(self) -> str:
+        """Get information about the device being used"""
+        return f"Device: {self.device}"
+    
+    def unload_model(self):
+        """Unload model to free memory"""
+        if self.model is not None:
+            logging.info("Unloading model...")
+            del self.model
+            del self.tokenizer
+            self.model = None
+            self.tokenizer = None
+            
+            # Clear CUDA cache if using CUDA
+            if self.device_str == "cuda":
+                torch.cuda.empty_cache()
+            
+            logging.info("Model unloaded successfully")
+    
+    def __del__(self):
+        """Cleanup when object is destroyed"""
+        if hasattr(self, 'model') and self.model is not None:
+            self.unload_model()
 
 
 @dataclass
@@ -222,6 +428,36 @@ def test_mbpp_range(start_idx: int = 0, end_idx: int = 3, debug: bool = False) -
 
 # Example usage
 if __name__ == "__main__":
+    print("Testing Gemma 2-2B model loading...")
+    
+    # Test model loading and generation
+    model_manager = ModelManager("google/gemma-2-2b")
+    
+    try:
+        print("Loading model... (this may take a few minutes)")
+        print("📥 Loading tokenizer...")
+        print("📥 Loading model weights...")
+        model_manager.load_model()
+        print(f"✓ Model loaded successfully on {model_manager.get_device_info()}")
+        
+        # Test generation
+        if model_manager.test_model():
+            print("✓ Model is working correctly!")
+        else:
+            print("✗ Model test failed!")
+            
+    except Exception as e:
+        print(f"✗ Failed to load model: {e}")
+
+    # Uncomment to clean up model after testing
+    # finally:
+    #     print("🧹 Cleaning up...")
+    #     model_manager.unload_model()
+    #     print("Model unloaded.")
+    
+    print("\n" + "="*50)
+    print("Now running MBPP tests...")
+
     # Using the class-based approach
     tester = MBPPTester(debug=False)
     summary = tester.test_range(0, 5)
