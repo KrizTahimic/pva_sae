@@ -1,0 +1,25 @@
+2025-05-26 07:57:06,864 - root - INFO - Logging system initialized
+2025-05-26 07:57:06,864 - root - INFO - Loading MBPP dataset...
+2025-05-26 07:57:16,287 - root - INFO - MBPP dataset loaded: 500 examples
+2025-05-26 07:57:16,287 - root - INFO - Testing records 0 to 2
+2025-05-26 07:57:16,289 - root - INFO - Processing record 0 (Task ID: 11)
+2025-05-26 07:57:16,289 - root - INFO - Test 1: PASSED
+2025-05-26 07:57:16,289 - root - INFO - Test 2: PASSED
+2025-05-26 07:57:16,289 - root - INFO - Test 3: PASSED
+2025-05-26 07:57:16,289 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 07:57:16,289 - root - INFO - ----------------------------------------
+2025-05-26 07:57:16,290 - root - INFO - Processing record 1 (Task ID: 12)
+2025-05-26 07:57:16,290 - root - INFO - Test 1: PASSED
+2025-05-26 07:57:16,290 - root - INFO - Test 2: PASSED
+2025-05-26 07:57:16,290 - root - INFO - Test 3: PASSED
+2025-05-26 07:57:16,290 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 07:57:16,290 - root - INFO - ----------------------------------------
+2025-05-26 07:57:16,290 - root - INFO - Processing record 2 (Task ID: 13)
+2025-05-26 07:57:16,290 - root - INFO - Test 1: PASSED
+2025-05-26 07:57:16,290 - root - INFO - Test 2: PASSED
+2025-05-26 07:57:16,290 - root - INFO - Test 3: PASSED
+2025-05-26 07:57:16,290 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 07:57:16,290 - root - INFO - ----------------------------------------
+2025-05-26 07:57:16,291 - root - INFO - FINAL SUMMARY: 9/9 tests passed (100.0%)
+2025-05-26 07:57:16,291 - root - INFO - PromptTemplateBuilder initialized
+2025-05-26 07:57:16,291 - root - INFO - Detected MPS (Apple Silicon) device

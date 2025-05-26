@@ -1,10 +1,12 @@
 from datasets import load_dataset
 import logging
 import os
+import time
+import json
 from datetime import datetime
 from tqdm import tqdm
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Optional, Any
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer
 
@@ -287,7 +289,7 @@ class CodeGenerator:
                 ModelError, f"Code generation failed: {str(e)}", e
             )
     
-    def _prepare_inputs(self, prompt: str) -> Dict[str, torch.Tensor]:
+    def _prepare_inputs(self, prompt: str) -> dict[str, torch.Tensor]:
         """Tokenize and prepare inputs for generation"""
         inputs = self.tokenizer(
             prompt,
@@ -303,7 +305,7 @@ class CodeGenerator:
         
         return inputs
     
-    def _generate_tokens(self, inputs: Dict[str, torch.Tensor], 
+    def _generate_tokens(self, inputs: dict[str, torch.Tensor], 
                         max_new_tokens: int, stream: bool) -> torch.Tensor:
         """Generate tokens using deterministic settings"""
         streamer = self._setup_streaming(stream)
@@ -488,7 +490,7 @@ class TestResult:
     """Encapsulates test execution results"""
     passed: int
     total: int
-    errors: List[str]
+    errors: list[str]
     
     @property
     def success_rate(self) -> float:
@@ -499,6 +501,248 @@ class TestResult:
     def failed(self) -> int:
         """Number of failed tests"""
         return self.total - self.passed
+
+@dataclass
+class GenerationResult:
+    """Encapsulates code generation and testing results"""
+    task_id: str
+    problem_text: str
+    prompt: str
+    generated_code: str
+    test_result: TestResult
+    is_correct: bool
+    generation_time: float
+    error_type: Optional[str] = None
+    
+    @property
+    def success_rate(self) -> float:
+        """Get test success rate"""
+        return self.test_result.success_rate
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary for serialization"""
+        return {
+            'task_id': self.task_id,
+            'problem_text': self.problem_text,
+            'prompt': self.prompt,
+            'generated_code': self.generated_code,
+            'is_correct': self.is_correct,
+            'passed_tests': self.test_result.passed,
+            'total_tests': self.test_result.total,
+            'success_rate': self.success_rate,
+            'test_errors': self.test_result.errors,
+            'generation_time': self.generation_time,
+            'error_type': self.error_type
+        }
+
+class PromptTemplateBuilder:
+    """Constructs standardized prompt templates from MBPP records"""
+    
+    # Template constants
+    CODE_INITIATOR = "# Your code here"
+    
+    def __init__(self):
+        """Initialize the prompt template builder"""
+        logging.info("PromptTemplateBuilder initialized")
+    
+    def build_prompt(self, record: dict) -> str:
+        """
+        Build standardized prompt from MBPP record
+        
+        Args:
+            record: MBPP dataset record containing 'text' and 'test_list'
+            
+        Returns:
+            str: Formatted prompt template ready for model input
+        """
+        try:
+            self._validate_record(record)
+            
+            # Extract components
+            problem_description = self._extract_problem_description(record['text'])
+            test_cases = self._format_test_cases(record['test_list'])
+            
+            # Construct standardized template
+            prompt = self._construct_template(problem_description, test_cases)
+            
+            task_id = record.get('task_id', 'unknown')
+            logging.debug(f"Built prompt template for task_id: {task_id}")
+            
+            return prompt
+            
+        except Exception as e:
+            ErrorContext.handle_and_raise(
+                DatasetError, f"Failed to build prompt template: {str(e)}", e
+            )
+    
+    def build_batch_prompts(self, records: list[dict]) -> list[str]:
+        """
+        Build prompts for multiple records
+        
+        Args:
+            records: List of MBPP dataset records
+            
+        Returns:
+            list[str]: List of formatted prompt templates
+        """
+        prompts = []
+        failed_records = []
+        
+        for i, record in enumerate(records):
+            try:
+                prompt = self.build_prompt(record)
+                prompts.append(prompt)
+            except Exception as e:
+                task_id = record.get('task_id', f'index_{i}')
+                failed_records.append(task_id)
+                logging.error(f"Failed to build prompt for task_id {task_id}: {str(e)}")
+        
+        if failed_records:
+            logging.warning(f"Failed to build prompts for {len(failed_records)} records: {failed_records}")
+        
+        logging.info(f"Successfully built {len(prompts)} prompts from {len(records)} records")
+        return prompts
+    
+    def preview_template(self, record: dict, max_length: int = 200) -> str:
+        """
+        Generate a preview of the template for debugging
+        
+        Args:
+            record: MBPP dataset record
+            max_length: Maximum length for preview
+            
+        Returns:
+            str: Truncated template preview
+        """
+        prompt = self.build_prompt(record)
+        
+        if len(prompt) <= max_length:
+            return prompt
+        
+        preview = prompt[:max_length] + "..."
+        return preview
+    
+    def get_template_stats(self, record: dict) -> dict[str, Any]:
+        """
+        Get statistics about the generated template
+        
+        Args:
+            record: MBPP dataset record
+            
+        Returns:
+            dict containing template statistics
+        """
+        prompt = self.build_prompt(record)
+        
+        stats = {
+            'total_length': len(prompt),
+            'total_lines': prompt.count('\n') + 1,
+            'problem_description_length': len(record['text'].strip()),
+            'num_test_cases': len(record['test_list']),
+            'test_cases_length': sum(len(test.strip()) for test in record['test_list']),
+            'task_id': record.get('task_id', 'unknown')
+        }
+        
+        return stats
+    
+    def _validate_record(self, record: dict):
+        """
+        Validate MBPP record has required fields
+        
+        Args:
+            record: MBPP dataset record to validate
+            
+        Raises:
+            ValueError: If record is missing required fields or has invalid format
+        """
+        required_fields = ['text', 'test_list']
+        
+        # Check required fields exist
+        for field in required_fields:
+            if field not in record:
+                raise ValueError(f"Missing required field: {field}")
+        
+        # Validate field types and content
+        if not isinstance(record['text'], str):
+            raise ValueError("'text' field must be a string")
+        
+        if not isinstance(record['test_list'], list):
+            raise ValueError("'test_list' field must be a list")
+        
+        if len(record['test_list']) == 0:
+            raise ValueError("'test_list' cannot be empty")
+        
+        # Validate test cases are strings
+        for i, test in enumerate(record['test_list']):
+            if not isinstance(test, str):
+                raise ValueError(f"Test case {i} must be a string")
+            if not test.strip():
+                raise ValueError(f"Test case {i} cannot be empty")
+        
+        # Log successful validation
+        task_id = record.get('task_id', 'unknown')
+        logging.debug(f"Record validation passed for task_id: {task_id}")
+    
+    def _extract_problem_description(self, text: str) -> str:
+        """
+        Extract and clean problem description
+        
+        Args:
+            text: Raw problem description from MBPP record
+            
+        Returns:
+            str: Cleaned problem description
+        """
+        # Clean and normalize the problem description
+        description = text.strip()
+        
+        # Remove any extra whitespace while preserving line breaks
+        lines = [line.strip() for line in description.split('\n')]
+        cleaned_description = '\n'.join(line for line in lines if line)
+        
+        return cleaned_description
+    
+    def _format_test_cases(self, test_list: list[str]) -> str:
+        """
+        Format test cases for template inclusion
+        
+        Args:
+            test_list: List of test case strings from MBPP record
+            
+        Returns:
+            str: Formatted test cases ready for template
+        """
+        formatted_tests = []
+        
+        for test in test_list:
+            # Clean up each test case
+            cleaned_test = test.strip()
+            if cleaned_test:
+                formatted_tests.append(cleaned_test)
+        
+        # Join test cases with newlines
+        return '\n'.join(formatted_tests)
+    
+    def _construct_template(self, problem_description: str, test_cases: str) -> str:
+        """
+        Construct the final standardized template
+        
+        Args:
+            problem_description: Cleaned problem description
+            test_cases: Formatted test cases
+            
+        Returns:
+            str: Complete standardized prompt template
+        """
+        # Construct template with consistent formatting:
+        # 1. Problem description
+        # 2. Empty line
+        # 3. Test cases
+        # 4. Empty line  
+        # 5. Code initiator
+        template = f"{problem_description}\n\n{test_cases}\n\n{self.CODE_INITIATOR}"
+        
+        return template
 
 class DatasetManager:
     """Manages MBPP dataset operations"""
@@ -527,7 +771,7 @@ class DatasetManager:
                 DatasetError, f"Failed to load MBPP dataset: {str(e)}", e
             )
     
-    def get_record(self, idx: int) -> Dict:
+    def get_record(self, idx: int) -> dict:
         """Retrieve record by index with validation"""
         self._ensure_loaded()
         
@@ -553,6 +797,77 @@ class DatasetManager:
         if not self._is_loaded:
             raise DatasetError("Dataset not loaded. Call load_dataset() first.")
 
+class EnhancedDatasetManager(DatasetManager):
+    """Extended DatasetManager with prompt template functionality"""
+    
+    def __init__(self):
+        super().__init__()
+        self.template_builder = PromptTemplateBuilder()
+    
+    def get_prompt_template(self, idx: int) -> str:
+        """
+        Get standardized prompt template for record by index
+        
+        Args:
+            idx: Index of the record in the dataset
+            
+        Returns:
+            str: Standardized prompt template
+        """
+        record = self.get_record(idx)
+        return self.template_builder.build_prompt(record)
+    
+    def get_batch_prompts(self, start_idx: int, end_idx: int) -> list[str]:
+        """
+        Get prompt templates for a range of records
+        
+        Args:
+            start_idx: Starting index (inclusive)
+            end_idx: Ending index (inclusive)
+            
+        Returns:
+            list[str]: List of prompt templates
+        """
+        self._ensure_loaded()
+        
+        # Validate range
+        dataset_size = self.get_size()
+        if start_idx < 0 or start_idx >= dataset_size:
+            raise DatasetError(f"start_idx {start_idx} out of range [0, {dataset_size-1}]")
+        if end_idx < start_idx or end_idx >= dataset_size:
+            raise DatasetError(f"end_idx {end_idx} out of range [{start_idx}, {dataset_size-1}]")
+        
+        # Extract records and build prompts
+        records = [self.test_data[i] for i in range(start_idx, end_idx + 1)]
+        return self.template_builder.build_batch_prompts(records)
+    
+    def preview_prompt_template(self, idx: int, max_length: int = 200) -> str:
+        """
+        Preview prompt template for debugging
+        
+        Args:
+            idx: Index of the record
+            max_length: Maximum length for preview
+            
+        Returns:
+            str: Truncated prompt preview
+        """
+        record = self.get_record(idx)
+        return self.template_builder.preview_template(record, max_length)
+    
+    def get_prompt_stats(self, idx: int) -> dict[str, Any]:
+        """
+        Get statistics for prompt template
+        
+        Args:
+            idx: Index of the record
+            
+        Returns:
+            dict: Template statistics
+        """
+        record = self.get_record(idx)
+        return self.template_builder.get_template_stats(record)
+
 # ============================================================================
 # Test Execution Classes  
 # ============================================================================
@@ -561,7 +876,7 @@ class TestExecutor:
     """Executes code against test cases"""
     
     @staticmethod
-    def run_single_test(test_code: str, namespace: Dict) -> Tuple[bool, Optional[str]]:
+    def run_single_test(test_code: str, namespace: dict) -> tuple[bool, Optional[str]]:
         """Execute single test case and return result"""
         try:
             exec(test_code, namespace)
@@ -572,7 +887,7 @@ class TestExecutor:
             return False, str(e)
     
     @staticmethod
-    def run_code_tests(code: str, test_cases: List[str], task_id: Optional[str] = None) -> TestResult:
+    def run_code_tests(code: str, test_cases: list[str], task_id: Optional[str] = None) -> TestResult:
         """Execute code against multiple test cases"""
         if task_id:
             logging.debug(f"Testing code for task {task_id}")
@@ -592,7 +907,7 @@ class TestExecutor:
         return TestExecutor._execute_test_cases(test_cases, namespace)
     
     @staticmethod
-    def run_record_tests(record: Dict) -> TestResult:
+    def run_record_tests(record: dict) -> TestResult:
         """Execute tests using ground truth code from MBPP record"""
         task_id = record['task_id']
         logging.debug(f"PROBLEM:\n{record['text']}")
@@ -604,7 +919,7 @@ class TestExecutor:
         )
     
     @staticmethod
-    def _log_test_setup(code: str, test_cases: List[str]):
+    def _log_test_setup(code: str, test_cases: list[str]):
         """Log test setup information"""
         logging.debug(f"CODE TO TEST:\n{code}")
         logging.debug("TEST CASES:")
@@ -612,7 +927,7 @@ class TestExecutor:
             logging.debug(f"  Test {i+1}: {test}")
     
     @staticmethod
-    def _execute_test_cases(test_cases: List[str], namespace: Dict) -> TestResult:
+    def _execute_test_cases(test_cases: list[str], namespace: dict) -> TestResult:
         """Execute all test cases and collect results"""
         passed_tests = 0
         total_tests = len(test_cases)
@@ -637,7 +952,318 @@ class TestExecutor:
         return TestResult(passed=passed_tests, total=total_tests, errors=errors)
 
 # ============================================================================
-# Main Orchestration Class
+# Dataset Building Pipeline Classes
+# ============================================================================
+
+class DatasetBuilder:
+    """Builds dataset by generating and classifying code solutions"""
+    
+    def __init__(self, model_manager: ModelManager, dataset_manager: EnhancedDatasetManager,
+                 max_new_tokens: int = 200, stream_output: bool = False):
+        self.model_manager = model_manager
+        self.dataset_manager = dataset_manager
+        self.max_new_tokens = max_new_tokens
+        self.stream_output = stream_output
+        
+        # Results tracking
+        self.generation_results: list[GenerationResult] = []
+        self.total_processed = 0
+        self.correct_solutions = 0
+        self.incorrect_solutions = 0
+    
+    def build_dataset(self, start_idx: int = 0, end_idx: int = 2) -> list[GenerationResult]:
+        """
+        Build dataset by processing MBPP records and generating solutions
+        
+        Args:
+            start_idx: Starting index for MBPP records
+            end_idx: Ending index for MBPP records (inclusive)
+            
+        Returns:
+            list[GenerationResult]: Results for each processed record
+        """
+        try:
+            self._validate_prerequisites()
+            self._validate_range(start_idx, end_idx)
+            
+            logging.info(f"Starting dataset building for records {start_idx} to {end_idx}")
+            ConsoleOutput.info(f"Building dataset for {end_idx - start_idx + 1} records...")
+            
+            # Reset statistics
+            self._reset_statistics()
+            
+            # Process records with progress tracking
+            results = self._process_record_batch(start_idx, end_idx)
+            
+            # Log final statistics
+            self._log_final_statistics()
+            
+            return results
+            
+        except Exception as e:
+            ErrorContext.handle_and_raise(
+                DatasetError, f"Dataset building failed: {str(e)}", e
+            )
+    
+    def process_single_record(self, idx: int) -> GenerationResult:
+        """
+        Process a single MBPP record: generate code and test it
+        
+        Args:
+            idx: Index of MBPP record to process
+            
+        Returns:
+            GenerationResult: Complete result with generation and testing info
+        """
+        try:
+            # Get record and build prompt
+            record = self.dataset_manager.get_record(idx)
+            prompt = self.dataset_manager.get_prompt_template(idx)
+            
+            task_id = record['task_id']
+            logging.info(f"Processing record {idx} (Task ID: {task_id})")
+            
+            if self.stream_output:
+                print(f"\n{'='*60}")
+                print(f"PROCESSING TASK {task_id} (Record {idx})")
+                print(f"{'='*60}")
+                print(f"PROBLEM: {record['text']}")
+                print(f"{'='*60}")
+            
+            # Generate code
+            generation_start = time.time()
+            generated_code = self._generate_code_safely(prompt, task_id)
+            generation_time = time.time() - generation_start
+            
+            # Test generated code
+            test_result = self._test_generated_code(generated_code, record, task_id)
+            
+            # Classify result
+            is_correct, error_type = self._classify_solution(test_result, generated_code)
+            
+            # Create result object
+            result = GenerationResult(
+                task_id=task_id,
+                problem_text=record['text'],
+                prompt=prompt,
+                generated_code=generated_code,
+                test_result=test_result,
+                is_correct=is_correct,
+                generation_time=generation_time,
+                error_type=error_type
+            )
+            
+            # Update statistics
+            self._update_statistics(result)
+            
+            # Log result
+            self._log_single_result(result, idx)
+            
+            return result
+            
+        except Exception as e:
+            # Create failed result for consistency
+            error_msg = str(e)
+            logging.error(f"Failed to process record {idx}: {error_msg}")
+            
+            return GenerationResult(
+                task_id=f"failed_{idx}",
+                problem_text="",
+                prompt="",
+                generated_code="",
+                test_result=TestResult(passed=0, total=0, errors=[error_msg]),
+                is_correct=False,
+                generation_time=0.0,
+                error_type="generation_failed"
+            )
+    
+    def get_statistics(self) -> dict[str, Any]:
+        """Get current dataset building statistics"""
+        return {
+            'total_processed': self.total_processed,
+            'correct_solutions': self.correct_solutions,
+            'incorrect_solutions': self.incorrect_solutions,
+            'correct_rate': (self.correct_solutions / self.total_processed * 100) 
+                           if self.total_processed > 0 else 0.0,
+            'results_count': len(self.generation_results)
+        }
+    
+    def save_results(self, filepath: str = None) -> str:
+        """Save generation results to JSON file"""
+        if filepath is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filepath = f"dataset_building_results_{timestamp}.json"
+        
+        try:
+            results_data = {
+                'metadata': {
+                    'timestamp': datetime.now().isoformat(),
+                    'model_name': self.model_manager.model_name,
+                    'total_processed': self.total_processed,
+                    'statistics': self.get_statistics()
+                },
+                'results': [result.to_dict() for result in self.generation_results]
+            }
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(results_data, f, indent=2, ensure_ascii=False)
+            
+            logging.info(f"Results saved to {filepath}")
+            ConsoleOutput.success(f"Results saved to: {filepath}")
+            return filepath
+            
+        except Exception as e:
+            ErrorContext.handle_and_raise(
+                DatasetError, f"Failed to save results: {str(e)}", e
+            )
+    
+    def _validate_prerequisites(self):
+        """Ensure all components are ready"""
+        if not self.model_manager.is_loaded():
+            raise DatasetError("Model not loaded. Call model_manager.load_model() first.")
+        
+        if not self.dataset_manager.is_loaded():
+            raise DatasetError("Dataset not loaded. Call dataset_manager.load_dataset() first.")
+    
+    def _validate_range(self, start_idx: int, end_idx: int):
+        """Validate processing range"""
+        dataset_size = self.dataset_manager.get_size()
+        
+        if start_idx < 0 or start_idx >= dataset_size:
+            raise ValueError(f"start_idx {start_idx} out of range [0, {dataset_size-1}]")
+        if end_idx < start_idx or end_idx >= dataset_size:
+            raise ValueError(f"end_idx {end_idx} out of range [{start_idx}, {dataset_size-1}]")
+    
+    def _reset_statistics(self):
+        """Reset processing statistics"""
+        self.generation_results = []
+        self.total_processed = 0
+        self.correct_solutions = 0
+        self.incorrect_solutions = 0
+    
+    def _process_record_batch(self, start_idx: int, end_idx: int) -> list[GenerationResult]:
+        """Process batch of records with progress tracking"""
+        results = []
+        
+        for idx in tqdm(range(start_idx, end_idx + 1),
+                       desc="Generating solutions",
+                       unit="problem"):
+            try:
+                result = self.process_single_record(idx)
+                results.append(result)
+                self.generation_results.append(result)
+                
+            except Exception as e:
+                logging.error(f"Failed to process record {idx}: {str(e)}")
+                ConsoleOutput.error(f"Failed to process record {idx}")
+                # Continue with next record
+                continue
+        
+        return results
+    
+    def _generate_code_safely(self, prompt: str, task_id: str) -> str:
+        """Generate code with error handling"""
+        try:
+            generated_code = self.model_manager.generate_code(
+                prompt=prompt,
+                max_new_tokens=self.max_new_tokens,
+                stream=self.stream_output
+            )
+            
+            if not generated_code.strip():
+                raise ModelError("Generated empty code")
+            
+            return generated_code
+            
+        except Exception as e:
+            error_msg = f"Code generation failed for task {task_id}: {str(e)}"
+            logging.error(error_msg)
+            raise ModelError(error_msg) from e
+    
+    def _test_generated_code(self, generated_code: str, record: dict, task_id: str) -> TestResult:
+        """Test generated code against MBPP test cases"""
+        try:
+            test_cases = record['test_list']
+            test_result = TestExecutor.run_code_tests(
+                code=generated_code,
+                test_cases=test_cases,
+                task_id=task_id
+            )
+            
+            return test_result
+            
+        except Exception as e:
+            error_msg = f"Testing failed for task {task_id}: {str(e)}"
+            logging.error(error_msg)
+            # Return failed test result
+            return TestResult(passed=0, total=len(record['test_list']), 
+                            errors=[str(e)])
+    
+    def _classify_solution(self, test_result: TestResult, generated_code: str) -> tuple[bool, Optional[str]]:
+        """
+        Classify solution according to methodology:
+        - Correct: passes all 3 test cases on first attempt (pass@1)
+        - Incorrect: fails any test case, compilation errors, or runtime exceptions
+        """
+        # Check if passes all tests (pass@1 criterion)
+        is_correct = (test_result.passed == test_result.total and test_result.total > 0)
+        
+        # Determine error type if incorrect
+        error_type = None
+        if not is_correct:
+            if test_result.total == 0:
+                error_type = "compilation_error"
+            elif test_result.passed == 0:
+                error_type = "all_tests_failed"
+            elif test_result.passed < test_result.total:
+                error_type = "partial_test_failure"
+            
+            # Check for runtime errors in error messages
+            if any("Error" in error or "Exception" in error for error in test_result.errors):
+                error_type = "runtime_error"
+        
+        return is_correct, error_type
+    
+    def _update_statistics(self, result: GenerationResult):
+        """Update processing statistics"""
+        self.total_processed += 1
+        if result.is_correct:
+            self.correct_solutions += 1
+        else:
+            self.incorrect_solutions += 1
+    
+    def _log_single_result(self, result: GenerationResult, idx: int):
+        """Log result for single record"""
+        status = "CORRECT" if result.is_correct else "INCORRECT"
+        test_summary = f"{result.test_result.passed}/{result.test_result.total}"
+        
+        log_msg = (f"Record {idx} ({result.task_id}): {status} "
+                  f"[Tests: {test_summary}, Time: {result.generation_time:.2f}s]")
+        
+        if result.error_type:
+            log_msg += f" [Error: {result.error_type}]"
+        
+        logging.info(log_msg)
+        
+        if self.stream_output:
+            color = "✓" if result.is_correct else "✗"
+            print(f"\n{color} {status}: {test_summary} tests passed")
+            if result.error_type:
+                print(f"  Error type: {result.error_type}")
+    
+    def _log_final_statistics(self):
+        """Log final dataset building statistics"""
+        stats = self.get_statistics()
+        
+        summary_msg = (f"Dataset building complete: {stats['total_processed']} records processed, "
+                      f"{stats['correct_solutions']} correct ({stats['correct_rate']:.1f}%), "
+                      f"{stats['incorrect_solutions']} incorrect")
+        
+        logging.info(summary_msg)
+        ConsoleOutput.success(summary_msg)
+
+# ============================================================================
+# Main Orchestration Classes
 # ============================================================================
 
 class MBPPTester:
@@ -649,12 +1275,12 @@ class MBPPTester:
         
         # Initialize core components
         self.logging_config = LoggingConfiguration(debug, log_dir)
-        self.dataset_manager = DatasetManager()
+        self.dataset_manager = EnhancedDatasetManager()  # Use enhanced version
         
         # Results tracking
         self.total_tests = 0
         self.passed_tests = 0
-        self.record_results: List[TestResult] = []
+        self.record_results: list[TestResult] = []
     
     @property
     def log_file(self) -> Optional[str]:
@@ -688,7 +1314,7 @@ class MBPPTester:
                 TestExecutionError, f"Failed to test record {idx}: {str(e)}", e
             )
     
-    def test_range(self, start_idx: int = 0, end_idx: int = 3) -> Dict[str, Any]:
+    def test_range(self, start_idx: int = 0, end_idx: int = 3) -> dict[str, Any]:
         """Test range of MBPP records"""
         try:
             # Ensure prerequisites
@@ -708,7 +1334,7 @@ class MBPPTester:
                 TestExecutionError, f"Test range execution failed: {str(e)}", e
             )
     
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get current test results summary"""
         return {
             'passed': self.passed_tests,
@@ -718,7 +1344,7 @@ class MBPPTester:
             'log_file': self.log_file
         }
     
-    def get_detailed_results(self) -> List[TestResult]:
+    def get_detailed_results(self) -> list[TestResult]:
         """Get detailed results for each tested record"""
         return self.record_results.copy()
     
@@ -766,7 +1392,7 @@ class MBPPTester:
         """Calculate overall success rate"""
         return (self.passed_tests / self.total_tests * 100) if self.total_tests > 0 else 0.0
     
-    def _create_summary(self) -> Dict[str, Any]:
+    def _create_summary(self) -> dict[str, Any]:
         """Create and log final summary"""
         summary = self.get_summary()
         
@@ -779,6 +1405,100 @@ class MBPPTester:
             ConsoleOutput.info(f"Results logged to: {self.log_file}")
         
         return summary
+
+class EnhancedMBPPTester(MBPPTester):
+    """Extended MBPPTester with dataset building capabilities"""
+    
+    def __init__(self, model_name: str = DEFAULT_MODEL_NAME, debug: bool = False, 
+                 log_dir: str = "mbpp_logs"):
+        super().__init__(debug, log_dir)
+        self.model_manager = ModelManager(model_name)
+        self.dataset_builder = None
+    
+    def setup_components(self):
+        """Setup all required components"""
+        # Setup logging
+        if not self.logging_config.is_configured:
+            self.setup_logging()
+        
+        # Load dataset
+        self.ensure_dataset_ready()
+        
+        # Load model
+        if not self.model_manager.is_loaded():
+            ConsoleOutput.info("Loading model for dataset building...")
+            self.model_manager.load_model()
+            ConsoleOutput.success("Model loaded successfully!")
+        
+        # Initialize dataset builder
+        self.dataset_builder = DatasetBuilder(
+            model_manager=self.model_manager,
+            dataset_manager=self.dataset_manager,
+            max_new_tokens=200,
+            stream_output=False
+        )
+    
+    def build_dataset_mvp(self, start_idx: int = 0, end_idx: int = 2, 
+                         save_results: bool = True) -> dict[str, Any]:
+        """
+        Build MVP dataset with 3 records (or specified range)
+        
+        Args:
+            start_idx: Starting record index
+            end_idx: Ending record index (inclusive)
+            save_results: Whether to save results to file
+            
+        Returns:
+            dict: Summary of dataset building results
+        """
+        try:
+            # Setup components
+            self.setup_components()
+            
+            ConsoleOutput.info(f"Building MVP dataset for records {start_idx} to {end_idx}")
+            
+            # Build dataset
+            results = self.dataset_builder.build_dataset(start_idx, end_idx)
+            
+            # Save results if requested
+            saved_file = None
+            if save_results and results:
+                saved_file = self.dataset_builder.save_results()
+            
+            # Create summary
+            stats = self.dataset_builder.get_statistics()
+            summary = {
+                **stats,
+                'saved_file': saved_file,
+                'log_file': self.log_file,
+                'results': results
+            }
+            
+            # Display summary
+            self._display_mvp_summary(summary)
+            
+            return summary
+            
+        except Exception as e:
+            ErrorContext.handle_and_raise(
+                DatasetError, f"MVP dataset building failed: {str(e)}", e
+            )
+    
+    def _display_mvp_summary(self, summary: dict):
+        """Display formatted summary of MVP results"""
+        print(f"\n{'='*60}")
+        print("MVP DATASET BUILDING SUMMARY")
+        print(f"{'='*60}")
+        print(f"Records processed: {summary['total_processed']}")
+        print(f"Correct solutions: {summary['correct_solutions']}")
+        print(f"Incorrect solutions: {summary['incorrect_solutions']}")
+        print(f"Success rate: {summary['correct_rate']:.1f}%")
+        
+        if summary['saved_file']:
+            print(f"Results saved to: {summary['saved_file']}")
+        
+        print(f"Logs saved to: {summary['log_file']}")
+        print(f"{'='*60}")
 
 # ============================================================================
 # Convenience Functions
@@ -795,6 +1515,45 @@ def test_mbpp_range(start_idx: int = 0, end_idx: int = 3, debug: bool = False) -
     summary = tester.test_range(start_idx, end_idx)
     return summary['log_file']
 
+def create_prompt_from_record(record: dict) -> str:
+    """
+    Convenience function to create prompt from MBPP record
+    
+    Args:
+        record: MBPP dataset record
+        
+    Returns:
+        str: Standardized prompt template
+    """
+    builder = PromptTemplateBuilder()
+    return builder.build_prompt(record)
+
+def preview_mbpp_prompt(idx: int = 0) -> str:
+    """
+    Convenience function to preview prompt for MBPP record
+    
+    Args:
+        idx: Index of record to preview (default: 0)
+        
+    Returns:
+        str: Preview of prompt template
+    """
+    dataset_manager = EnhancedDatasetManager()
+    dataset_manager.load_dataset()
+    return dataset_manager.preview_prompt_template(idx)
+
+def build_mvp_dataset(start_idx: int = 0, end_idx: int = 2, 
+                     model_name: str = DEFAULT_MODEL_NAME) -> str:
+    """
+    Convenience function to build MVP dataset
+    
+    Returns:
+        str: Path to saved results file
+    """
+    tester = EnhancedMBPPTester(model_name=model_name, debug=False)
+    summary = tester.build_dataset_mvp(start_idx, end_idx)
+    return summary['saved_file']
+
 # ============================================================================
 # Example Usage
 # ============================================================================
@@ -805,6 +1564,19 @@ if __name__ == "__main__":
         logging_config = LoggingConfiguration(debug=False, log_dir="mbpp_logs")
         log_file = logging_config.setup_logging()
         ConsoleOutput.info(f"Logging initialized: {log_file}")
+        
+        # Test prompt template functionality
+        ConsoleOutput.info("Testing prompt template functionality...")
+        
+        dataset_manager = EnhancedDatasetManager()
+        dataset_manager.load_dataset()
+        
+        # Show sample prompt
+        prompt = dataset_manager.get_prompt_template(0)
+        ConsoleOutput.success("Sample prompt generated!")
+        print(f"\nSample prompt:\n{'-'*50}")
+        print(prompt)
+        print(f"{'-'*50}")
         
         # Test model loading
         ConsoleOutput.info(f"Testing {DEFAULT_MODEL_NAME} model loading...")
@@ -827,14 +1599,34 @@ if __name__ == "__main__":
             ConsoleOutput.error(f"Unexpected error: {e}")
             logging.error(f"Unexpected error: {e}", exc_info=True)
         
-        # Test MBPP examples
+        # Test MBPP examples with ground truth
         print("\n" + "="*50)
-        ConsoleOutput.info("Running MBPP tests...")
+        ConsoleOutput.info("Running MBPP ground truth tests...")
         
         tester = MBPPTester(debug=False)
-        summary = tester.test_range(0, 5)
+        summary = tester.test_range(0, 2)
         
-        ConsoleOutput.success(f"Testing complete: {summary}")
+        ConsoleOutput.success(f"Ground truth testing complete: {summary}")
+        
+        # NEW: Test MVP Dataset Building
+        print("\n" + "="*50)
+        ConsoleOutput.info("Building MVP Dataset with Generated Code...")
+        
+        enhanced_tester = EnhancedMBPPTester(model_name=DEFAULT_MODEL_NAME, debug=False)
+        mvp_summary = enhanced_tester.build_dataset_mvp(start_idx=0, end_idx=2, save_results=True)
+        
+        ConsoleOutput.success("MVP dataset building completed!")
+        
+        # Show some results
+        if mvp_summary['results']:
+            print(f"\nSample generated code from first record:")
+            print(f"{'='*50}")
+            first_result = mvp_summary['results'][0]
+            print(f"Task: {first_result.task_id}")
+            print(f"Correct: {first_result.is_correct}")
+            print(f"Generated code preview:\n{first_result.generated_code[:200]}...")
+            print(f"{'='*50}")
+        
         ConsoleOutput.info(f"Full logs: {log_file}")
         
     except Exception as e:

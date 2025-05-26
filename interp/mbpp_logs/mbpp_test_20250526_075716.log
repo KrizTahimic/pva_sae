@@ -1,0 +1,28 @@
+2025-05-26 07:57:16,292 - root - INFO - Logging system initialized
+2025-05-26 07:57:16,292 - root - INFO - Loading MBPP dataset...
+2025-05-26 07:57:25,523 - root - INFO - MBPP dataset loaded: 500 examples
+2025-05-26 07:57:25,523 - root - INFO - Starting model load: google/gemma-2-2b on mps
+2025-05-26 07:57:25,524 - root - INFO - Loading tokenizer for google/gemma-2-2b
+2025-05-26 07:57:26,728 - root - INFO - Tokenizer loaded successfully
+2025-05-26 07:57:26,728 - root - INFO - Loading model weights for google/gemma-2-2b on mps
+2025-05-26 07:57:40,569 - root - INFO - Model weights loaded successfully
+2025-05-26 07:57:40,570 - root - INFO - Model set to evaluation mode
+2025-05-26 07:57:40,570 - root - INFO - Model pipeline ready on device: mps
+2025-05-26 07:57:40,570 - root - INFO - Starting dataset building for records 0 to 2
+2025-05-26 07:57:40,571 - root - INFO - Processing record 0 (Task ID: 11)
+2025-05-26 07:57:59,668 - root - INFO - Test 1: PASSED
+2025-05-26 07:57:59,669 - root - INFO - Test 2: PASSED
+2025-05-26 07:57:59,669 - root - INFO - Test 3: PASSED
+2025-05-26 07:57:59,669 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 07:57:59,669 - root - INFO - Record 0 (11): CORRECT [Tests: 3/3, Time: 19.10s]
+2025-05-26 07:57:59,669 - root - INFO - Processing record 1 (Task ID: 12)
+2025-05-26 07:58:04,761 - root - INFO - Test 1: FAILED
+2025-05-26 07:58:04,762 - root - INFO - Test 2: FAILED
+2025-05-26 07:58:04,762 - root - INFO - Test 3: FAILED
+2025-05-26 07:58:04,762 - root - INFO - Test summary: 0/3 tests passed
+2025-05-26 07:58:04,762 - root - INFO - Record 1 (12): INCORRECT [Tests: 0/3, Time: 5.09s] [Error: all_tests_failed]
+2025-05-26 07:58:04,762 - root - INFO - Processing record 2 (Task ID: 13)
+2025-05-26 07:58:28,307 - root - ERROR - Code execution failed: '[' was never closed (<string>, line 12)
+2025-05-26 07:58:28,308 - root - INFO - Record 2 (13): INCORRECT [Tests: 0/3, Time: 23.54s] [Error: all_tests_failed]
+2025-05-26 07:58:28,308 - root - INFO - Dataset building complete: 3 records processed, 1 correct (33.3%), 2 incorrect
+2025-05-26 07:58:28,308 - root - INFO - Results saved to dataset_building_results_20250526_075828.json
