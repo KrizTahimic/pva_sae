@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Optional, Any, Union
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer
+import glob
 
 # ============================================================================
 # Constants
@@ -18,6 +19,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer
 DEFAULT_MODEL_NAME = "google/gemma-2-2b"
 DEFAULT_LOG_DIR = "mbpp_logs"
 DEFAULT_DATASET_DIR = "mbpp_datasets"
+MAX_NEW_TOKEN = 2000
 
 
 # ============================================================================
@@ -43,6 +45,46 @@ class TestExecutionError(MBPPFrameworkError):
 class LoggingConfigurationError(MBPPFrameworkError):
     """Logging setup errors"""
     pass
+
+# ============================================================================
+# Cleanup Utilities
+# ============================================================================
+
+def cleanup_old_files(directory: str, pattern: str, max_files: int = 3):
+    """Simple cleanup function - keeps only latest 3 files matching pattern"""
+    if not os.path.exists(directory):
+        return
+    
+    files = glob.glob(os.path.join(directory, pattern))
+    if len(files) <= max_files:
+        return
+    
+    # Sort by modification time (newest first)
+    files_with_times = [(f, os.path.getmtime(f)) for f in files]
+    files_with_times.sort(key=lambda x: x[1], reverse=True)
+    
+    # Delete old files
+    for file_path, _ in files_with_times[max_files:]:
+        try:
+            os.remove(file_path)
+            print(f"ℹ️  Cleaned up old file: {os.path.basename(file_path)}")
+            logging.info(f"Cleaned up old file: {os.path.basename(file_path)}")
+        except Exception as e:
+            logging.warning(f"Failed to delete {file_path}: {e}")
+
+def auto_cleanup():
+    """Automatically cleanup logs and datasets"""
+    print("ℹ️  Performing automatic cleanup...")
+    
+    # Cleanup logs
+    cleanup_old_files(DEFAULT_LOG_DIR, "mbpp_test_*.log", 3)
+    
+    # Cleanup datasets  
+    cleanup_old_files(DEFAULT_DATASET_DIR, "mbpp_dataset_*.parquet", 3)
+    cleanup_old_files(DEFAULT_DATASET_DIR, "dataset_results_*.json", 3)
+    cleanup_old_files(DEFAULT_DATASET_DIR, "*_metadata.json", 3)
+    
+    print("✓ Cleanup completed!")
 
 # ============================================================================
 # Utility Classes  
@@ -355,7 +397,6 @@ class CodeGenerator:
             return_tensors="pt",
             add_special_tokens=True,
             padding=True,
-            truncation=True
         )
         
         # Move to device if needed
@@ -469,7 +510,7 @@ class ModelManager:
             logging.info("Running model functionality test...")
             ConsoleOutput.info("Testing model generation...")
             
-            result = self.generate_code(test_prompt, max_new_tokens=100, stream=stream)
+            result = self.generate_code(test_prompt, max_new_tokens=MAX_NEW_TOKEN, stream=stream)
             
             logging.info(f"Test successful. Generated: {result[:50]}...")
             ConsoleOutput.success("Model functionality test passed!")
@@ -565,7 +606,6 @@ class TestResult:
 class GenerationResult:
     """Encapsulates code generation and testing results"""
     task_id: str
-    problem_text: str
     prompt: str
     generated_code: str
     test_result: TestResult
@@ -582,7 +622,6 @@ class GenerationResult:
         """Convert to dictionary for serialization"""
         return {
             'task_id': self.task_id,
-            'problem_text': self.problem_text,
             'prompt': self.prompt,
             'generated_code': self.generated_code,
             'is_correct': self.is_correct,
@@ -598,7 +637,6 @@ class GenerationResult:
         """Convert to flattened dictionary optimized for DataFrame storage"""
         return {
             'task_id': self.task_id,
-            'problem_text': self.problem_text,
             'prompt': self.prompt,
             'generated_code': self.generated_code,
             'is_correct': self.is_correct,
@@ -610,7 +648,6 @@ class GenerationResult:
             'test_errors_json': json.dumps(self.test_result.errors),  # Serialize complex field
             'prompt_length': len(self.prompt),
             'code_length': len(self.generated_code),
-            'problem_length': len(self.problem_text)
         }
 
 class PromptTemplateBuilder:
@@ -1126,7 +1163,6 @@ class DatasetBuilder:
             # Create result object
             result = GenerationResult(
                 task_id=task_id,
-                problem_text=record['text'],
                 prompt=prompt,
                 generated_code=generated_code,
                 test_result=test_result,
@@ -1150,7 +1186,6 @@ class DatasetBuilder:
             
             return GenerationResult(
                 task_id=f"failed_{idx}",
-                problem_text="",
                 prompt="",
                 generated_code="",
                 test_result=TestResult(passed=0, total=0, errors=[error_msg]),
@@ -1668,6 +1703,16 @@ class EnhancedMBPPTester(MBPPTester):
             dataset_dir=self.dataset_dir
         )
     
+    def build_dataset_mvp_with_cleanup(self, start_idx: int = 0, end_idx: int = 2, 
+                                     save_format: str = "both") -> dict[str, Any]:
+        """Build MVP dataset with automatic cleanup"""
+        
+        # Perform cleanup first
+        auto_cleanup()
+        
+        # Call the existing method
+        return self.build_dataset_mvp(start_idx, end_idx, save_format)
+    
     def build_dataset_mvp(self, start_idx: int = 0, end_idx: int = 2, 
                          save_format: str = "both") -> dict[str, Any]:
         """
@@ -1940,7 +1985,7 @@ def build_mvp_dataset(start_idx: int = 0, end_idx: int = 2,
         str or tuple: Path(s) to saved results file(s)
     """
     tester = EnhancedMBPPTester(model_name=model_name, debug=False)
-    summary = tester.build_dataset_mvp(start_idx, end_idx, save_format=save_format)
+    summary = tester.build_dataset_mvp_with_cleanup(start_idx, end_idx, save_format=save_format)
     
     if save_format == "both":
         return summary['saved_files']['json'], summary['saved_files']['parquet']
@@ -1960,6 +2005,9 @@ def quick_analyze(filepath: str) -> dict[str, Any]:
 
 if __name__ == "__main__":
     try:
+        # Perform cleanup before starting
+        auto_cleanup()
+        
         # Initialize logging
         logging_config = LoggingConfiguration(debug=False, log_dir="mbpp_logs")
         log_file = logging_config.setup_logging()
@@ -2008,18 +2056,18 @@ if __name__ == "__main__":
         
         ConsoleOutput.success(f"Ground truth testing complete: {summary}")
         
-        # NEW: Test MVP Dataset Building with DataFrame storage
+        # NEW: Test MVP Dataset Building with DataFrame storage and cleanup
         print("\n" + "="*50)
-        ConsoleOutput.info("Building MVP Dataset with DataFrame Storage...")
+        ConsoleOutput.info("Building MVP Dataset with DataFrame Storage and Cleanup...")
         
         enhanced_tester = EnhancedMBPPTester(model_name=DEFAULT_MODEL_NAME, debug=False)
-        mvp_summary = enhanced_tester.build_dataset_mvp(
+        mvp_summary = enhanced_tester.build_dataset_mvp_with_cleanup(
             start_idx=0, 
-            end_idx=2, 
+            end_idx=9, 
             save_format="both"  # Save in both JSON and Parquet formats
         )
         
-        ConsoleOutput.success("MVP dataset building completed!")
+        ConsoleOutput.success("MVP dataset building with cleanup completed!")
         
         # Show some results
         if mvp_summary['results']:

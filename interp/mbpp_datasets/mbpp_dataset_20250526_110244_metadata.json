@@ -1,7 +1,7 @@
 {
-  "creation_timestamp": "2025-05-26T08:44:47.401817",
+  "creation_timestamp": "2025-05-26T11:02:44.185359",
   "model_name": "google/gemma-2-2b",
-  "total_records": 3,
+  "total_records": 10,
   "columns": [
     "task_id",
     "problem_text",
@@ -22,12 +22,12 @@
     "record_index"
   ],
   "statistics": {
-    "total_processed": 3,
-    "correct_solutions": 1,
-    "incorrect_solutions": 2,
-    "correct_rate": 33.33333333333333,
-    "results_count": 3
+    "total_processed": 10,
+    "correct_solutions": 4,
+    "incorrect_solutions": 6,
+    "correct_rate": 40.0,
+    "results_count": 10
   },
-  "dataframe_file": "mbpp_dataset_20250526_084447.parquet",
+  "dataframe_file": "mbpp_dataset_20250526_110244.parquet",
   "dataset_directory": "mbpp_datasets"
 }

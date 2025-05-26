@@ -19,6 +19,7 @@ import glob
 DEFAULT_MODEL_NAME = "google/gemma-2-2b"
 DEFAULT_LOG_DIR = "mbpp_logs"
 DEFAULT_DATASET_DIR = "mbpp_datasets"
+MAX_NEW_TOKEN = 2000
 
 
 # ============================================================================
@@ -396,7 +397,6 @@ class CodeGenerator:
             return_tensors="pt",
             add_special_tokens=True,
             padding=True,
-            truncation=True
         )
         
         # Move to device if needed
@@ -510,7 +510,7 @@ class ModelManager:
             logging.info("Running model functionality test...")
             ConsoleOutput.info("Testing model generation...")
             
-            result = self.generate_code(test_prompt, max_new_tokens=100, stream=stream)
+            result = self.generate_code(test_prompt, max_new_tokens=MAX_NEW_TOKEN, stream=stream)
             
             logging.info(f"Test successful. Generated: {result[:50]}...")
             ConsoleOutput.success("Model functionality test passed!")
@@ -606,13 +606,11 @@ class TestResult:
 class GenerationResult:
     """Encapsulates code generation and testing results"""
     task_id: str
-    problem_text: str
     prompt: str
     generated_code: str
     test_result: TestResult
     is_correct: bool
     generation_time: float
-    error_type: Optional[str] = None
     
     @property
     def success_rate(self) -> float:
@@ -623,7 +621,6 @@ class GenerationResult:
         """Convert to dictionary for serialization"""
         return {
             'task_id': self.task_id,
-            'problem_text': self.problem_text,
             'prompt': self.prompt,
             'generated_code': self.generated_code,
             'is_correct': self.is_correct,
@@ -632,14 +629,12 @@ class GenerationResult:
             'success_rate': self.success_rate,
             'test_errors': self.test_result.errors,
             'generation_time': self.generation_time,
-            'error_type': self.error_type
         }
     
     def to_dataframe_row(self) -> dict:
         """Convert to flattened dictionary optimized for DataFrame storage"""
         return {
             'task_id': self.task_id,
-            'problem_text': self.problem_text,
             'prompt': self.prompt,
             'generated_code': self.generated_code,
             'is_correct': self.is_correct,
@@ -647,11 +642,9 @@ class GenerationResult:
             'total_tests': self.test_result.total,
             'success_rate': self.success_rate,
             'generation_time': self.generation_time,
-            'error_type': self.error_type if self.error_type else "none",
             'test_errors_json': json.dumps(self.test_result.errors),  # Serialize complex field
             'prompt_length': len(self.prompt),
             'code_length': len(self.generated_code),
-            'problem_length': len(self.problem_text)
         }
 
 class PromptTemplateBuilder:
@@ -1162,18 +1155,16 @@ class DatasetBuilder:
             test_result = self._test_generated_code(generated_code, record, task_id)
             
             # Classify result
-            is_correct, error_type = self._classify_solution(test_result, generated_code)
+            is_correct = self._classify_solution(test_result, generated_code)
             
             # Create result object
             result = GenerationResult(
                 task_id=task_id,
-                problem_text=record['text'],
                 prompt=prompt,
                 generated_code=generated_code,
                 test_result=test_result,
                 is_correct=is_correct,
                 generation_time=generation_time,
-                error_type=error_type
             )
             
             # Update statistics
@@ -1191,13 +1182,11 @@ class DatasetBuilder:
             
             return GenerationResult(
                 task_id=f"failed_{idx}",
-                problem_text="",
                 prompt="",
                 generated_code="",
                 test_result=TestResult(passed=0, total=0, errors=[error_msg]),
                 is_correct=False,
                 generation_time=0.0,
-                error_type="generation_failed"
             )
     
     def get_statistics(self) -> dict[str, Any]:
@@ -1347,7 +1336,6 @@ class DatasetBuilder:
                 'avg_generation_time': df['generation_time'].mean(),
                 'avg_code_length': df['code_length'].mean()
             },
-            'error_analysis': df['error_type'].value_counts().to_dict(),
             'test_performance': {
                 'avg_tests_passed': df['passed_tests'].mean(),
                 'perfect_scores': (df['passed_tests'] == df['total_tests']).sum(),
@@ -1377,12 +1365,6 @@ class DatasetBuilder:
         print(f"  Correct: {df['is_correct'].sum()}")
         print(f"  Incorrect: {(~df['is_correct']).sum()}")
         print(f"  Success Rate: {df['is_correct'].mean()*100:.1f}%")
-        
-        if 'error_type' in df.columns:
-            print(f"\nError Type Distribution:")
-            error_counts = df['error_type'].value_counts()
-            for error_type, count in error_counts.items():
-                print(f"  {error_type}: {count}")
         
         print(f"{'='*50}")
     
@@ -1477,21 +1459,7 @@ class DatasetBuilder:
         # Check if passes all tests (pass@1 criterion)
         is_correct = (test_result.passed == test_result.total and test_result.total > 0)
         
-        # Determine error type if incorrect
-        error_type = None
-        if not is_correct:
-            if test_result.total == 0:
-                error_type = "compilation_error"
-            elif test_result.passed == 0:
-                error_type = "all_tests_failed"
-            elif test_result.passed < test_result.total:
-                error_type = "partial_test_failure"
-            
-            # Check for runtime errors in error messages
-            if any("Error" in error or "Exception" in error for error in test_result.errors):
-                error_type = "runtime_error"
-        
-        return is_correct, error_type
+        return is_correct
     
     def _update_statistics(self, result: GenerationResult):
         """Update processing statistics"""
@@ -1509,16 +1477,11 @@ class DatasetBuilder:
         log_msg = (f"Record {idx} ({result.task_id}): {status} "
                   f"[Tests: {test_summary}, Time: {result.generation_time:.2f}s]")
         
-        if result.error_type:
-            log_msg += f" [Error: {result.error_type}]"
-        
         logging.info(log_msg)
         
         if self.stream_output:
             color = "✓" if result.is_correct else "✗"
             print(f"\n{color} {status}: {test_summary} tests passed")
-            if result.error_type:
-                print(f"  Error type: {result.error_type}")
     
     def _log_final_statistics(self):
         """Log final dataset building statistics"""
@@ -1851,9 +1814,6 @@ def analyze_dataset(df: pd.DataFrame) -> dict[str, Any]:
             'median_time': df['generation_time'].median()
         }
     
-    if 'error_type' in df.columns:
-        analysis['errors'] = df['error_type'].value_counts().to_dict()
-    
     if 'code_length' in df.columns:
         analysis['code_stats'] = {
             'avg_length': df['code_length'].mean(),
@@ -2069,7 +2029,7 @@ if __name__ == "__main__":
         enhanced_tester = EnhancedMBPPTester(model_name=DEFAULT_MODEL_NAME, debug=False)
         mvp_summary = enhanced_tester.build_dataset_mvp_with_cleanup(
             start_idx=0, 
-            end_idx=2, 
+            end_idx=9, 
             save_format="both"  # Save in both JSON and Parquet formats
         )
         
