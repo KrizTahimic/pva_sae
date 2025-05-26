@@ -1,0 +1,73 @@
+2025-05-26 13:40:00,816 - root - INFO - Logging system initialized
+2025-05-26 13:40:00,816 - root - INFO - Loading MBPP dataset...
+2025-05-26 13:40:10,865 - root - INFO - MBPP dataset loaded: 500 examples
+2025-05-26 13:40:10,865 - root - INFO - Starting model load: google/gemma-2-2b on mps
+2025-05-26 13:40:10,865 - root - INFO - Loading tokenizer for google/gemma-2-2b
+2025-05-26 13:40:12,184 - root - INFO - Tokenizer loaded successfully
+2025-05-26 13:40:12,184 - root - INFO - Loading model weights for google/gemma-2-2b on mps
+2025-05-26 13:40:25,441 - root - INFO - Model weights loaded successfully
+2025-05-26 13:40:25,442 - root - INFO - Model set to evaluation mode
+2025-05-26 13:40:25,442 - root - INFO - Model pipeline ready on device: mps
+2025-05-26 13:40:25,442 - root - INFO - Starting dataset building for records 0 to 9
+2025-05-26 13:40:25,443 - root - INFO - Processing record 0 (Task ID: 11)
+2025-05-26 13:40:38,172 - root - INFO - Test 1: PASSED
+2025-05-26 13:40:38,172 - root - INFO - Test 2: PASSED
+2025-05-26 13:40:38,173 - root - INFO - Test 3: PASSED
+2025-05-26 13:40:38,173 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 13:40:38,173 - root - INFO - Record 0 (11): CORRECT [Tests: 3/3, Time: 12.73s]
+2025-05-26 13:40:38,173 - root - INFO - Processing record 1 (Task ID: 12)
+2025-05-26 13:40:42,178 - root - INFO - Test 1: FAILED
+2025-05-26 13:40:42,178 - root - INFO - Test 2: FAILED
+2025-05-26 13:40:42,178 - root - INFO - Test 3: FAILED
+2025-05-26 13:40:42,178 - root - INFO - Test summary: 0/3 tests passed
+2025-05-26 13:40:42,178 - root - INFO - Record 1 (12): INCORRECT [Tests: 0/3, Time: 4.00s]
+2025-05-26 13:40:42,178 - root - INFO - Processing record 2 (Task ID: 13)
+2025-05-26 13:41:04,842 - root - ERROR - Code execution failed: '[' was never closed (<string>, line 12)
+2025-05-26 13:41:04,843 - root - INFO - Record 2 (13): INCORRECT [Tests: 0/3, Time: 22.66s]
+2025-05-26 13:41:04,843 - root - INFO - Processing record 3 (Task ID: 14)
+2025-05-26 13:41:07,240 - root - INFO - Test 1: FAILED
+2025-05-26 13:41:07,240 - root - INFO - Test 2: FAILED
+2025-05-26 13:41:07,240 - root - INFO - Test 3: FAILED
+2025-05-26 13:41:07,240 - root - INFO - Test summary: 0/3 tests passed
+2025-05-26 13:41:07,240 - root - INFO - Record 3 (14): INCORRECT [Tests: 0/3, Time: 2.40s]
+2025-05-26 13:41:07,241 - root - INFO - Processing record 4 (Task ID: 15)
+2025-05-26 13:41:10,522 - root - INFO - Test 1: FAILED
+2025-05-26 13:41:10,522 - root - INFO - Test 2: FAILED
+2025-05-26 13:41:10,522 - root - INFO - Test 3: FAILED
+2025-05-26 13:41:10,522 - root - INFO - Test summary: 0/3 tests passed
+2025-05-26 13:41:10,522 - root - INFO - Record 4 (15): INCORRECT [Tests: 0/3, Time: 3.28s]
+2025-05-26 13:41:10,523 - root - INFO - Processing record 5 (Task ID: 16)
+2025-05-26 13:41:21,488 - root - INFO - Test 1: FAILED
+2025-05-26 13:41:21,488 - root - INFO - Test 2: FAILED
+2025-05-26 13:41:21,488 - root - INFO - Test 3: FAILED
+2025-05-26 13:41:21,488 - root - INFO - Test summary: 0/3 tests passed
+2025-05-26 13:41:21,488 - root - INFO - Record 5 (16): INCORRECT [Tests: 0/3, Time: 10.97s]
+2025-05-26 13:41:21,489 - root - INFO - Processing record 6 (Task ID: 17)
+2025-05-26 13:41:27,768 - root - INFO - Test 1: PASSED
+2025-05-26 13:41:27,768 - root - INFO - Test 2: PASSED
+2025-05-26 13:41:27,768 - root - INFO - Test 3: PASSED
+2025-05-26 13:41:27,768 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 13:41:27,768 - root - INFO - Record 6 (17): CORRECT [Tests: 3/3, Time: 6.28s]
+2025-05-26 13:41:27,768 - root - INFO - Processing record 7 (Task ID: 18)
+2025-05-26 13:41:32,990 - root - INFO - Test 1: PASSED
+2025-05-26 13:41:32,990 - root - INFO - Test 2: PASSED
+2025-05-26 13:41:32,990 - root - INFO - Test 3: PASSED
+2025-05-26 13:41:32,990 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 13:41:32,990 - root - INFO - Record 7 (18): CORRECT [Tests: 3/3, Time: 5.22s]
+2025-05-26 13:41:32,991 - root - INFO - Processing record 8 (Task ID: 19)
+2025-05-26 13:41:38,736 - root - INFO - Test 1: PASSED
+2025-05-26 13:41:38,736 - root - INFO - Test 2: PASSED
+2025-05-26 13:41:38,736 - root - INFO - Test 3: PASSED
+2025-05-26 13:41:38,736 - root - INFO - Test summary: 3/3 tests passed
+2025-05-26 13:41:38,736 - root - INFO - Record 8 (19): CORRECT [Tests: 3/3, Time: 5.75s]
+2025-05-26 13:41:38,737 - root - INFO - Processing record 9 (Task ID: 20)
+2025-05-26 13:41:42,383 - root - INFO - Test 1: FAILED
+2025-05-26 13:41:42,383 - root - INFO - Test 2: PASSED
+2025-05-26 13:41:42,383 - root - INFO - Test 3: FAILED
+2025-05-26 13:41:42,383 - root - INFO - Test summary: 1/3 tests passed
+2025-05-26 13:41:42,383 - root - INFO - Record 9 (20): INCORRECT [Tests: 1/3, Time: 3.65s]
+2025-05-26 13:41:42,384 - root - INFO - Dataset building complete: 10 records processed, 4 correct (40.0%), 6 incorrect
+2025-05-26 13:41:42,384 - root - INFO - Dataset directory ready: mbpp_datasets
+2025-05-26 13:41:42,384 - root - INFO - Results saved to mbpp_datasets/dataset_results_20250526_134142.json
+2025-05-26 13:41:42,423 - root - INFO - DataFrame saved to mbpp_datasets/mbpp_dataset_20250526_134142.parquet
+2025-05-26 13:41:42,423 - root - INFO - Metadata saved to mbpp_datasets/mbpp_dataset_20250526_134142_metadata.json

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2025-05-26T11:26:08.795328",
+    "timestamp": "2025-05-26T13:41:42.384101",
     "model_name": "google/gemma-2-2b",
     "total_processed": 10,
     "statistics": {
@@ -15,7 +15,6 @@
   "results": [
     {
       "task_id": 11,
-      "problem_text": "Write a python function to remove first and last occurrence of a given character from the string.",
       "prompt": "Write a python function to remove first and last occurrence of a given character from the string.\n\nassert remove_Occ(\"hello\",\"l\") == \"heo\"\nassert remove_Occ(\"abcda\",\"a\") == \"bcd\"\nassert remove_Occ(\"PHP\",\"P\") == \"H\"\n\n# Your code here",
       "generated_code": "def remove_Occ(string,char):\n    string = string.replace(char,\"\")\n    return string",
       "is_correct": true,
@@ -23,12 +22,10 @@
       "total_tests": 3,
       "success_rate": 100.0,
       "test_errors": [],
-      "generation_time": 19.650551080703735,
-      "error_type": null
+      "generation_time": 12.729153156280518
     },
     {
       "task_id": 12,
-      "problem_text": "Write a function to sort a given matrix in ascending order according to the sum of its rows.",
       "prompt": "Write a function to sort a given matrix in ascending order according to the sum of its rows.\n\nassert sort_matrix([[1, 2, 3], [2, 4, 5], [1, 1, 1]])==[[1, 1, 1], [1, 2, 3], [2, 4, 5]]\nassert sort_matrix([[1, 2, 3], [-2, 4, -5], [1, -1, 1]])==[[-2, 4, -5], [1, -1, 1], [1, 2, 3]]\nassert sort_matrix([[5,8,9],[6,4,3],[2,1,4]])==[[2, 1, 4], [6, 4, 3], [5, 8, 9]]\n\n# Your code here",
       "generated_code": "def sort_matrix(matrix):\n    for i in range(len(matrix)):\n        matrix[i].sort()\n    return matrix",
       "is_correct": false,
@@ -36,12 +33,10 @@
       "total_tests": 3,
       "success_rate": 0.0,
       "test_errors": [],
-      "generation_time": 4.138216972351074,
-      "error_type": "all_tests_failed"
+      "generation_time": 4.004302740097046
     },
     {
       "task_id": 13,
-      "problem_text": "Write a function to count the most common words in a dictionary.",
       "prompt": "Write a function to count the most common words in a dictionary.\n\nassert count_common(['red','green','black','pink','black','white','black','eyes','white','black','orange','pink','pink','red','red','white','orange','white',\"black\",'pink','green','green','pink','green','pink','white','orange',\"orange\",'red']) == [('pink', 6), ('black', 5), ('white', 5), ('red', 4)]\nassert count_common(['one', 'two', 'three', 'four', 'five', 'one', 'two', 'one', 'three', 'one']) == [('one', 4), ('two', 2), ('three', 2), ('four', 1)]\nassert count_common(['Facebook', 'Apple', 'Amazon', 'Netflix', 'Google', 'Apple', 'Netflix', 'Amazon']) == [('Apple', 2), ('Amazon', 2), ('Netflix', 2), ('Facebook', 1)]\n\n# Your code here",
       "generated_code": "def count_common(dictionary):\n    count = {}\n    for word in dictionary:\n        if word in count:\n            count[word] += 1\n        else:\n            count[word] = 1\n    return count.items()\n\n# Test your code\nassert count_common(['red','green','black','pink','black','white','black','eyes','white','black','orange','pink','pink','red','red','white','orange','white',\"black\",'pink','green','green','pink','green','pink','white','orange',\"orange\",'red']) == [('pink', 6), ('black', 5), ('white', 5), ('red', 4)]\nassert count_common(['one', 'two', 'three', 'four', 'five', 'one', 'two', 'one', 'three', 'one']) == [('one', 4), ('two', 2),",
       "is_correct": false,
@@ -51,12 +46,10 @@
       "test_errors": [
         "Code execution failed: '[' was never closed (<string>, line 12)"
       ],
-      "generation_time": 23.37188410758972,
-      "error_type": "all_tests_failed"
+      "generation_time": 22.663882970809937
     },
     {
       "task_id": 14,
-      "problem_text": "Write a python function to find the volume of a triangular prism.",
       "prompt": "Write a python function to find the volume of a triangular prism.\n\nassert find_Volume(10,8,6) == 240\nassert find_Volume(3,2,2) == 6\nassert find_Volume(1,2,1) == 1\n\n# Your code here",
       "generated_code": "def find_Volume(base, height, width):\n    return base * height * width",
       "is_correct": false,
@@ -64,12 +57,10 @@
       "total_tests": 3,
       "success_rate": 0.0,
       "test_errors": [],
-      "generation_time": 2.4352798461914062,
-      "error_type": "all_tests_failed"
+      "generation_time": 2.39703106880188
     },
     {
       "task_id": 15,
-      "problem_text": "Write a function to split a string at lowercase letters.",
       "prompt": "Write a function to split a string at lowercase letters.\n\nassert split_lowerstring(\"AbCd\")==['bC','d']\nassert split_lowerstring(\"Python\")==['y', 't', 'h', 'o', 'n']\nassert split_lowerstring(\"Programming\")==['r', 'o', 'g', 'r', 'a', 'm', 'm', 'i', 'n', 'g']\n\n# Your code here",
       "generated_code": "def split_lowerstring(string):\n    return [word.lower() for word in string.split()]",
       "is_correct": false,
@@ -77,12 +68,10 @@
       "total_tests": 3,
       "success_rate": 0.0,
       "test_errors": [],
-      "generation_time": 3.3051977157592773,
-      "error_type": "all_tests_failed"
+      "generation_time": 3.280973196029663
     },
     {
       "task_id": 16,
-      "problem_text": "Write a function to find sequences of lowercase letters joined with an underscore.",
       "prompt": "Write a function to find sequences of lowercase letters joined with an underscore.\n\nassert text_lowercase_underscore(\"aab_cbbbc\")==('Found a match!')\nassert text_lowercase_underscore(\"aab_Abbbc\")==('Not matched!')\nassert text_lowercase_underscore(\"Aaab_abbbc\")==('Not matched!')\n\n# Your code here",
       "generated_code": "def text_lowercase_underscore(text):\n    if len(text) == 0:\n        return 'Found a match!'\n    elif len(text) == 1:\n        return 'Not matched!'\n    else:\n        if text[0].islower():\n            return text_lowercase_underscore(text[1:])\n        else:\n            return text_lowercase_underscore(text[1:]) + '_' + text[0]",
       "is_correct": false,
@@ -90,12 +79,10 @@
       "total_tests": 3,
       "success_rate": 0.0,
       "test_errors": [],
-      "generation_time": 10.798544883728027,
-      "error_type": "all_tests_failed"
+      "generation_time": 10.965123891830444
     },
     {
       "task_id": 17,
-      "problem_text": "Write a function to find the perimeter of a square.",
       "prompt": "Write a function to find the perimeter of a square.\n\nassert square_perimeter(10)==40\nassert square_perimeter(5)==20\nassert square_perimeter(4)==16\n\n# Your code here",
       "generated_code": "def square_perimeter(side):\n    return side * 4\n\n# Test your code\nassert square_perimeter(10)==40\nassert square_perimeter(5)==20\nassert square_perimeter(4)==16",
       "is_correct": true,
@@ -103,12 +90,10 @@
       "total_tests": 3,
       "success_rate": 100.0,
       "test_errors": [],
-      "generation_time": 5.865625858306885,
-      "error_type": null
+      "generation_time": 6.278011083602905
     },
     {
       "task_id": 18,
-      "problem_text": "Write a function to remove characters from the first string which are present in the second string.",
       "prompt": "Write a function to remove characters from the first string which are present in the second string.\n\nassert remove_dirty_chars(\"probasscurve\", \"pros\") == 'bacuve'\nassert remove_dirty_chars(\"digitalindia\", \"talent\") == 'digiidi'\nassert remove_dirty_chars(\"exoticmiles\", \"toxic\") == 'emles'\n\n# Your code here",
       "generated_code": "def remove_dirty_chars(s1, s2):\n    for i in s2:\n        if i in s1:\n            s1 = s1.replace(i, '')\n    return s1",
       "is_correct": true,
@@ -116,12 +101,10 @@
       "total_tests": 3,
       "success_rate": 100.0,
       "test_errors": [],
-      "generation_time": 5.073153018951416,
-      "error_type": null
+      "generation_time": 5.221544027328491
     },
     {
       "task_id": 19,
-      "problem_text": "Write a function to find whether a given array of integers contains any duplicate element.",
       "prompt": "Write a function to find whether a given array of integers contains any duplicate element.\n\nassert test_duplicate(([1,2,3,4,5]))==False\nassert test_duplicate(([1,2,3,4, 4]))==True\nassert test_duplicate([1,1,2,2,3,3,4,4,5])==True\n\n# Your code here",
       "generated_code": "def test_duplicate(arr):\n    for i in range(len(arr)):\n        for j in range(i+1, len(arr)):\n            if arr[i] == arr[j]:\n                return True\n    return False",
       "is_correct": true,
@@ -129,12 +112,10 @@
       "total_tests": 3,
       "success_rate": 100.0,
       "test_errors": [],
-      "generation_time": 5.5564751625061035,
-      "error_type": null
+      "generation_time": 5.7452521324157715
     },
     {
       "task_id": 20,
-      "problem_text": "Write a function to check if the given number is woodball or not.",
       "prompt": "Write a function to check if the given number is woodball or not.\n\nassert is_woodall(383) == True\nassert is_woodall(254) == False\nassert is_woodall(200) == False\n\n# Your code here",
       "generated_code": "def is_woodall(num):\n    if num % 10 == 0:\n        return True\n    else:\n        return False",
       "is_correct": false,
@@ -142,8 +123,7 @@
       "total_tests": 3,
       "success_rate": 33.33333333333333,
       "test_errors": [],
-      "generation_time": 3.5853376388549805,
-      "error_type": "partial_test_failure"
+      "generation_time": 3.645716905593872
     }
   ]
 }
