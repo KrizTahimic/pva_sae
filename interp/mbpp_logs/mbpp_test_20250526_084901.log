@@ -1,0 +1,10 @@
+2025-05-26 08:49:01,490 - root - INFO - Logging system initialized
+2025-05-26 08:49:01,490 - root - ERROR - Application failed: name 'glob' is not defined
+Traceback (most recent call last):
+  File "/Users/krizroycetahimic/Documents/Thesis/Code/pva_sae/interp/data_processing.py", line 2020, in <module>
+    auto_cleanup()
+  File "/Users/krizroycetahimic/Documents/Thesis/Code/pva_sae/interp/data_processing.py", line 1988, in auto_cleanup
+    cleanup_old_files(DEFAULT_LOG_DIR, "mbpp_test_*.log", 3)
+  File "/Users/krizroycetahimic/Documents/Thesis/Code/pva_sae/interp/data_processing.py", line 1967, in cleanup_old_files
+    files = glob.glob(os.path.join(directory, pattern))
+NameError: name 'glob' is not defined

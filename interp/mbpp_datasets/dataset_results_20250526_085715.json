@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2025-05-26T07:58:28.308521",
+    "timestamp": "2025-05-26T08:57:15.966973",
     "model_name": "google/gemma-2-2b",
     "total_processed": 3,
     "statistics": {
@@ -9,7 +9,8 @@
       "incorrect_solutions": 2,
       "correct_rate": 33.33333333333333,
       "results_count": 3
-    }
+    },
+    "dataset_directory": "mbpp_datasets"
   },
   "results": [
     {
@@ -22,7 +23,7 @@
       "total_tests": 3,
       "success_rate": 100.0,
       "test_errors": [],
-      "generation_time": 19.096978902816772,
+      "generation_time": 18.654217958450317,
       "error_type": null
     },
     {
@@ -35,7 +36,7 @@
       "total_tests": 3,
       "success_rate": 0.0,
       "test_errors": [],
-      "generation_time": 5.09186577796936,
+      "generation_time": 4.005505084991455,
       "error_type": "all_tests_failed"
     },
     {
@@ -50,7 +51,7 @@
       "test_errors": [
         "Code execution failed: '[' was never closed (<string>, line 12)"
       ],
-      "generation_time": 23.544968843460083,
+      "generation_time": 22.63157296180725,
       "error_type": "all_tests_failed"
     }
   ]

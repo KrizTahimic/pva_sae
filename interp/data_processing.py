@@ -3,18 +3,22 @@ import logging
 import os
 import time
 import json
+import pandas as pd
 from datetime import datetime
 from tqdm import tqdm
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Optional, Any, Union
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer
+import glob
 
 # ============================================================================
 # Constants
 # ============================================================================
 
 DEFAULT_MODEL_NAME = "google/gemma-2-2b"
+DEFAULT_LOG_DIR = "mbpp_logs"
+DEFAULT_DATASET_DIR = "mbpp_datasets"
 
 
 # ============================================================================
@@ -40,6 +44,46 @@ class TestExecutionError(MBPPFrameworkError):
 class LoggingConfigurationError(MBPPFrameworkError):
     """Logging setup errors"""
     pass
+
+# ============================================================================
+# Cleanup Utilities
+# ============================================================================
+
+def cleanup_old_files(directory: str, pattern: str, max_files: int = 3):
+    """Simple cleanup function - keeps only latest 3 files matching pattern"""
+    if not os.path.exists(directory):
+        return
+    
+    files = glob.glob(os.path.join(directory, pattern))
+    if len(files) <= max_files:
+        return
+    
+    # Sort by modification time (newest first)
+    files_with_times = [(f, os.path.getmtime(f)) for f in files]
+    files_with_times.sort(key=lambda x: x[1], reverse=True)
+    
+    # Delete old files
+    for file_path, _ in files_with_times[max_files:]:
+        try:
+            os.remove(file_path)
+            print(f"ℹ️  Cleaned up old file: {os.path.basename(file_path)}")
+            logging.info(f"Cleaned up old file: {os.path.basename(file_path)}")
+        except Exception as e:
+            logging.warning(f"Failed to delete {file_path}: {e}")
+
+def auto_cleanup():
+    """Automatically cleanup logs and datasets"""
+    print("ℹ️  Performing automatic cleanup...")
+    
+    # Cleanup logs
+    cleanup_old_files(DEFAULT_LOG_DIR, "mbpp_test_*.log", 3)
+    
+    # Cleanup datasets  
+    cleanup_old_files(DEFAULT_DATASET_DIR, "mbpp_dataset_*.parquet", 3)
+    cleanup_old_files(DEFAULT_DATASET_DIR, "dataset_results_*.json", 3)
+    cleanup_old_files(DEFAULT_DATASET_DIR, "*_metadata.json", 3)
+    
+    print("✓ Cleanup completed!")
 
 # ============================================================================
 # Utility Classes  
@@ -121,7 +165,7 @@ class ErrorContext:
 class LoggingConfiguration:
     """Manages logging setup and configuration"""
     
-    def __init__(self, debug: bool = False, log_dir: str = "mbpp_logs"):
+    def __init__(self, debug: bool = False, log_dir: str = DEFAULT_LOG_DIR):
         self.debug = debug
         self.log_dir = log_dir
         self.log_file = None
@@ -178,6 +222,62 @@ class LoggingConfiguration:
             if isinstance(handler, logging.FileHandler):
                 return handler.baseFilename
         return None
+
+class DatasetDirectoryManager:
+    """Manages dataset directory structure and file organization"""
+    
+    def __init__(self, dataset_dir: str = DEFAULT_DATASET_DIR):
+        self.dataset_dir = dataset_dir
+        self._is_configured = False
+    
+    def setup_directory(self) -> str:
+        """Create dataset directory and return path"""
+        if self._is_configured:
+            return self.dataset_dir
+        
+        try:
+            self._ensure_dataset_directory()
+            self._is_configured = True
+            
+            logging.info(f"Dataset directory ready: {self.dataset_dir}")
+            return self.dataset_dir
+            
+        except Exception as e:
+            raise DatasetError(f"Failed to setup dataset directory: {str(e)}") from e
+    
+    def _ensure_dataset_directory(self):
+        """Create dataset directory if it doesn't exist"""
+        os.makedirs(self.dataset_dir, exist_ok=True)
+    
+    def get_timestamped_filepath(self, base_name: str, extension: str) -> str:
+        """Generate timestamped filepath in dataset directory"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{base_name}_{timestamp}.{extension}"
+        return os.path.join(self.dataset_dir, filename)
+    
+    def get_filepath(self, filename: str) -> str:
+        """Get full filepath in dataset directory"""
+        return os.path.join(self.dataset_dir, filename)
+    
+    @property
+    def is_configured(self) -> bool:
+        """Check if directory is configured"""
+        return self._is_configured
+    
+    def list_datasets(self) -> dict[str, list[str]]:
+        """List all dataset files by type"""
+        if not os.path.exists(self.dataset_dir):
+            return {'json': [], 'parquet': [], 'other': []}
+        
+        files = os.listdir(self.dataset_dir)
+        datasets = {
+            'json': [f for f in files if f.endswith('.json')],
+            'parquet': [f for f in files if f.endswith('.parquet')],
+            'metadata': [f for f in files if f.endswith('_metadata.json')],
+            'other': [f for f in files if not any(f.endswith(ext) for ext in ['.json', '.parquet'])]
+        }
+        
+        return datasets
 
 # ============================================================================
 # Model Management Classes
@@ -533,6 +633,25 @@ class GenerationResult:
             'test_errors': self.test_result.errors,
             'generation_time': self.generation_time,
             'error_type': self.error_type
+        }
+    
+    def to_dataframe_row(self) -> dict:
+        """Convert to flattened dictionary optimized for DataFrame storage"""
+        return {
+            'task_id': self.task_id,
+            'problem_text': self.problem_text,
+            'prompt': self.prompt,
+            'generated_code': self.generated_code,
+            'is_correct': self.is_correct,
+            'passed_tests': self.test_result.passed,
+            'total_tests': self.test_result.total,
+            'success_rate': self.success_rate,
+            'generation_time': self.generation_time,
+            'error_type': self.error_type if self.error_type else "none",
+            'test_errors_json': json.dumps(self.test_result.errors),  # Serialize complex field
+            'prompt_length': len(self.prompt),
+            'code_length': len(self.generated_code),
+            'problem_length': len(self.problem_text)
         }
 
 class PromptTemplateBuilder:
@@ -959,11 +1078,15 @@ class DatasetBuilder:
     """Builds dataset by generating and classifying code solutions"""
     
     def __init__(self, model_manager: ModelManager, dataset_manager: EnhancedDatasetManager,
-                 max_new_tokens: int = 200, stream_output: bool = False):
+                 max_new_tokens: int = 200, stream_output: bool = False, 
+                 dataset_dir: str = DEFAULT_DATASET_DIR):
         self.model_manager = model_manager
         self.dataset_manager = dataset_manager
         self.max_new_tokens = max_new_tokens
         self.stream_output = stream_output
+        
+        # Directory management
+        self.directory_manager = DatasetDirectoryManager(dataset_dir)
         
         # Results tracking
         self.generation_results: list[GenerationResult] = []
@@ -1090,9 +1213,14 @@ class DatasetBuilder:
     
     def save_results(self, filepath: str = None) -> str:
         """Save generation results to JSON file"""
+        # Setup directory
+        self.directory_manager.setup_directory()
+        
         if filepath is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filepath = f"dataset_building_results_{timestamp}.json"
+            filepath = self.directory_manager.get_timestamped_filepath("dataset_results", "json")
+        elif not os.path.isabs(filepath):
+            # If relative path, put it in dataset directory
+            filepath = self.directory_manager.get_filepath(filepath)
         
         try:
             results_data = {
@@ -1100,7 +1228,8 @@ class DatasetBuilder:
                     'timestamp': datetime.now().isoformat(),
                     'model_name': self.model_manager.model_name,
                     'total_processed': self.total_processed,
-                    'statistics': self.get_statistics()
+                    'statistics': self.get_statistics(),
+                    'dataset_directory': self.directory_manager.dataset_dir
                 },
                 'results': [result.to_dict() for result in self.generation_results]
             }
@@ -1109,13 +1238,153 @@ class DatasetBuilder:
                 json.dump(results_data, f, indent=2, ensure_ascii=False)
             
             logging.info(f"Results saved to {filepath}")
-            ConsoleOutput.success(f"Results saved to: {filepath}")
+            ConsoleOutput.success(f"JSON results saved to: {filepath}")
             return filepath
             
         except Exception as e:
             ErrorContext.handle_and_raise(
                 DatasetError, f"Failed to save results: {str(e)}", e
             )
+    
+    def save_dataframe(self, filepath: str = None) -> str:
+        """Save generation results as DataFrame in Parquet format"""
+        # Setup directory
+        self.directory_manager.setup_directory()
+        
+        if filepath is None:
+            filepath = self.directory_manager.get_timestamped_filepath("mbpp_dataset", "parquet")
+        elif not os.path.isabs(filepath):
+            # If relative path, put it in dataset directory
+            filepath = self.directory_manager.get_filepath(filepath)
+        
+        try:
+            # Convert results to DataFrame-optimized format
+            df_rows = [result.to_dataframe_row() for result in self.generation_results]
+            df = pd.DataFrame(df_rows)
+            
+            # Add metadata columns
+            df['dataset_created'] = datetime.now().isoformat()
+            df['model_name'] = self.model_manager.model_name
+            df['record_index'] = range(len(df))
+            
+            # Save as Parquet (efficient binary format)
+            df.to_parquet(filepath, index=False)
+            
+            # Also save metadata separately
+            metadata = {
+                'creation_timestamp': datetime.now().isoformat(),
+                'model_name': self.model_manager.model_name,
+                'total_records': len(df),
+                'columns': list(df.columns),
+                'statistics': self.get_statistics(),
+                'dataframe_file': os.path.basename(filepath),
+                'dataset_directory': self.directory_manager.dataset_dir
+            }
+            
+            metadata_file = filepath.replace('.parquet', '_metadata.json')
+            with open(metadata_file, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, indent=2, ensure_ascii=False)
+            
+            logging.info(f"DataFrame saved to {filepath}")
+            logging.info(f"Metadata saved to {metadata_file}")
+            ConsoleOutput.success(f"Parquet dataset saved to: {filepath}")
+            ConsoleOutput.info(f"Metadata saved to: {os.path.basename(metadata_file)}")
+            
+            # Display DataFrame info
+            self._display_dataframe_info(df)
+            
+            return filepath
+            
+        except Exception as e:
+            ErrorContext.handle_and_raise(
+                DatasetError, f"Failed to save DataFrame: {str(e)}", e
+            )
+    
+    def save_both_formats(self, base_filepath: str = None) -> tuple[str, str]:
+        """Save results in both JSON and Parquet formats"""
+        # Setup directory
+        self.directory_manager.setup_directory()
+        
+        if base_filepath is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            base_filepath = f"mbpp_dataset_{timestamp}"
+        
+        # Save both formats
+        json_file = self.save_results(f"{base_filepath}.json")
+        parquet_file = self.save_dataframe(f"{base_filepath}.parquet")
+        
+        ConsoleOutput.success("Dataset saved in both formats:")
+        ConsoleOutput.info(f"  📄 JSON: {os.path.basename(json_file)}")
+        ConsoleOutput.info(f"  📊 Parquet: {os.path.basename(parquet_file)}")
+        ConsoleOutput.info(f"  📁 Directory: {self.directory_manager.dataset_dir}")
+        
+        return json_file, parquet_file
+    
+    def get_dataframe(self) -> pd.DataFrame:
+        """Get current results as a pandas DataFrame"""
+        df_rows = [result.to_dataframe_row() for result in self.generation_results]
+        df = pd.DataFrame(df_rows)
+        
+        # Add metadata columns
+        df['dataset_created'] = datetime.now().isoformat()
+        df['model_name'] = self.model_manager.model_name
+        df['record_index'] = range(len(df))
+        
+        return df
+    
+    def analyze_results(self) -> dict[str, Any]:
+        """Analyze current results using pandas operations"""
+        if not self.generation_results:
+            return {'error': 'No results to analyze'}
+        
+        df = self.get_dataframe()
+        
+        analysis = {
+            'overview': {
+                'total_records': len(df),
+                'correct_solutions': df['is_correct'].sum(),
+                'success_rate': df['is_correct'].mean() * 100,
+                'avg_generation_time': df['generation_time'].mean(),
+                'avg_code_length': df['code_length'].mean()
+            },
+            'error_analysis': df['error_type'].value_counts().to_dict(),
+            'test_performance': {
+                'avg_tests_passed': df['passed_tests'].mean(),
+                'perfect_scores': (df['passed_tests'] == df['total_tests']).sum(),
+                'zero_scores': (df['passed_tests'] == 0).sum()
+            },
+            'timing_stats': {
+                'min_time': df['generation_time'].min(),
+                'max_time': df['generation_time'].max(),
+                'median_time': df['generation_time'].median()
+            }
+        }
+        
+        return analysis
+    
+    def _display_dataframe_info(self, df: pd.DataFrame):
+        """Display helpful DataFrame information"""
+        print(f"\n{'='*50}")
+        print("DATAFRAME SUMMARY")
+        print(f"{'='*50}")
+        print(f"Shape: {df.shape}")
+        print(f"Columns: {list(df.columns)}")
+        print(f"\nData types:")
+        for col, dtype in df.dtypes.items():
+            print(f"  {col}: {dtype}")
+        
+        print(f"\nSuccess Rate Analysis:")
+        print(f"  Correct: {df['is_correct'].sum()}")
+        print(f"  Incorrect: {(~df['is_correct']).sum()}")
+        print(f"  Success Rate: {df['is_correct'].mean()*100:.1f}%")
+        
+        if 'error_type' in df.columns:
+            print(f"\nError Type Distribution:")
+            error_counts = df['error_type'].value_counts()
+            for error_type, count in error_counts.items():
+                print(f"  {error_type}: {count}")
+        
+        print(f"{'='*50}")
     
     def _validate_prerequisites(self):
         """Ensure all components are ready"""
@@ -1269,7 +1538,7 @@ class DatasetBuilder:
 class MBPPTester:
     """Main orchestrator for MBPP testing workflow"""
     
-    def __init__(self, debug: bool = False, log_dir: str = "mbpp_logs"):
+    def __init__(self, debug: bool = False, log_dir: str = DEFAULT_LOG_DIR):
         self.debug = debug
         self.log_dir = log_dir
         
@@ -1410,9 +1679,10 @@ class EnhancedMBPPTester(MBPPTester):
     """Extended MBPPTester with dataset building capabilities"""
     
     def __init__(self, model_name: str = DEFAULT_MODEL_NAME, debug: bool = False, 
-                 log_dir: str = "mbpp_logs"):
+                 log_dir: str = DEFAULT_LOG_DIR, dataset_dir: str = DEFAULT_DATASET_DIR):
         super().__init__(debug, log_dir)
         self.model_manager = ModelManager(model_name)
+        self.dataset_dir = dataset_dir
         self.dataset_builder = None
     
     def setup_components(self):
@@ -1430,23 +1700,34 @@ class EnhancedMBPPTester(MBPPTester):
             self.model_manager.load_model()
             ConsoleOutput.success("Model loaded successfully!")
         
-        # Initialize dataset builder
+        # Initialize dataset builder with custom directory
         self.dataset_builder = DatasetBuilder(
             model_manager=self.model_manager,
             dataset_manager=self.dataset_manager,
             max_new_tokens=200,
-            stream_output=False
+            stream_output=False,
+            dataset_dir=self.dataset_dir
         )
     
+    def build_dataset_mvp_with_cleanup(self, start_idx: int = 0, end_idx: int = 2, 
+                                     save_format: str = "both") -> dict[str, Any]:
+        """Build MVP dataset with automatic cleanup"""
+        
+        # Perform cleanup first
+        auto_cleanup()
+        
+        # Call the existing method
+        return self.build_dataset_mvp(start_idx, end_idx, save_format)
+    
     def build_dataset_mvp(self, start_idx: int = 0, end_idx: int = 2, 
-                         save_results: bool = True) -> dict[str, Any]:
+                         save_format: str = "both") -> dict[str, Any]:
         """
         Build MVP dataset with 3 records (or specified range)
         
         Args:
             start_idx: Starting record index
             end_idx: Ending record index (inclusive)
-            save_results: Whether to save results to file
+            save_format: "json", "parquet", or "both"
             
         Returns:
             dict: Summary of dataset building results
@@ -1460,18 +1741,27 @@ class EnhancedMBPPTester(MBPPTester):
             # Build dataset
             results = self.dataset_builder.build_dataset(start_idx, end_idx)
             
-            # Save results if requested
-            saved_file = None
-            if save_results and results:
-                saved_file = self.dataset_builder.save_results()
+            # Save results in requested format
+            saved_files = {}
+            if save_format in ["json", "both"]:
+                saved_files['json'] = self.dataset_builder.save_results()
+            
+            if save_format in ["parquet", "both"]:
+                saved_files['parquet'] = self.dataset_builder.save_dataframe()
+            
+            if save_format == "both":
+                ConsoleOutput.success("Dataset saved in both JSON and Parquet formats!")
             
             # Create summary
             stats = self.dataset_builder.get_statistics()
+            analysis = self.dataset_builder.analyze_results()
+            
             summary = {
                 **stats,
-                'saved_file': saved_file,
+                'saved_files': saved_files,
                 'log_file': self.log_file,
-                'results': results
+                'results': results,
+                'analysis': analysis
             }
             
             # Display summary
@@ -1494,11 +1784,154 @@ class EnhancedMBPPTester(MBPPTester):
         print(f"Incorrect solutions: {summary['incorrect_solutions']}")
         print(f"Success rate: {summary['correct_rate']:.1f}%")
         
-        if summary['saved_file']:
-            print(f"Results saved to: {summary['saved_file']}")
+        if 'saved_files' in summary:
+            print(f"\nSaved files:")
+            for format_type, filepath in summary['saved_files'].items():
+                filename = os.path.basename(filepath)
+                print(f"  📄 {format_type.upper()}: {filename}")
+            
+            # Show directory path
+            if summary['saved_files']:
+                first_file = list(summary['saved_files'].values())[0]
+                directory = os.path.dirname(first_file)
+                print(f"  📁 Directory: {directory}")
         
-        print(f"Logs saved to: {summary['log_file']}")
+        print(f"\nLogs saved to: {summary['log_file']}")
+        
+        # Display analysis if available
+        if 'analysis' in summary and 'overview' in summary['analysis']:
+            analysis = summary['analysis']
+            print(f"\nDetailed Analysis:")
+            print(f"  Avg generation time: {analysis['overview']['avg_generation_time']:.2f}s")
+            print(f"  Avg code length: {analysis['overview']['avg_code_length']:.0f} chars")
+            
+            if 'error_analysis' in analysis:
+                print(f"  Error breakdown: {analysis['error_analysis']}")
+        
         print(f"{'='*60}")
+
+# ============================================================================
+# Data Analysis Utilities
+# ============================================================================
+
+def load_dataset_dataframe(filepath: str) -> pd.DataFrame:
+    """Load MBPP dataset from Parquet file"""
+    try:
+        # Handle both absolute and relative paths
+        if not os.path.isabs(filepath) and not os.path.exists(filepath):
+            # Try looking in default dataset directory
+            full_path = os.path.join(DEFAULT_DATASET_DIR, filepath)
+            if os.path.exists(full_path):
+                filepath = full_path
+        
+        df = pd.read_parquet(filepath)
+        ConsoleOutput.success(f"Loaded dataset: {df.shape[0]} records from {os.path.basename(filepath)}")
+        return df
+    except Exception as e:
+        ErrorContext.handle_and_raise(
+            DatasetError, f"Failed to load dataset from {filepath}: {str(e)}", e
+        )
+
+def analyze_dataset(df: pd.DataFrame) -> dict[str, Any]:
+    """Perform comprehensive analysis of MBPP dataset"""
+    analysis = {
+        'overview': {
+            'total_records': len(df),
+            'correct_solutions': df['is_correct'].sum() if 'is_correct' in df else 0,
+            'success_rate': df['is_correct'].mean() * 100 if 'is_correct' in df else 0,
+        }
+    }
+    
+    # Add detailed analysis if columns exist
+    if 'generation_time' in df.columns:
+        analysis['timing'] = {
+            'avg_time': df['generation_time'].mean(),
+            'min_time': df['generation_time'].min(),
+            'max_time': df['generation_time'].max(),
+            'median_time': df['generation_time'].median()
+        }
+    
+    if 'error_type' in df.columns:
+        analysis['errors'] = df['error_type'].value_counts().to_dict()
+    
+    if 'code_length' in df.columns:
+        analysis['code_stats'] = {
+            'avg_length': df['code_length'].mean(),
+            'min_length': df['code_length'].min(),
+            'max_length': df['code_length'].max()
+        }
+    
+    return analysis
+
+def list_available_datasets(dataset_dir: str = DEFAULT_DATASET_DIR) -> dict[str, list[str]]:
+    """List all available datasets in the dataset directory"""
+    manager = DatasetDirectoryManager(dataset_dir)
+    datasets = manager.list_datasets()
+    
+    if any(datasets.values()):
+        print(f"\n📁 Available datasets in '{dataset_dir}':")
+        print("="*50)
+        
+        if datasets['parquet']:
+            print("📊 Parquet datasets:")
+            for filename in sorted(datasets['parquet']):
+                print(f"  • {filename}")
+        
+        if datasets['json']:
+            print("\n📄 JSON datasets:")
+            for filename in sorted(datasets['json']):
+                if not filename.endswith('_metadata.json'):  # Skip metadata files
+                    print(f"  • {filename}")
+        
+        if datasets['metadata']:
+            print(f"\n📋 Metadata files: {len(datasets['metadata'])}")
+        
+        print("="*50)
+    else:
+        print(f"📁 No datasets found in '{dataset_dir}'")
+    
+    return datasets
+
+def get_dataset_info(filepath: str) -> dict[str, Any]:
+    """Get comprehensive information about a dataset file"""
+    try:
+        # Handle both absolute and relative paths
+        if not os.path.isabs(filepath):
+            full_path = os.path.join(DEFAULT_DATASET_DIR, filepath)
+            if os.path.exists(full_path):
+                filepath = full_path
+        
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Dataset file not found: {filepath}")
+        
+        info = {
+            'filepath': filepath,
+            'filename': os.path.basename(filepath),
+            'size_mb': os.path.getsize(filepath) / (1024 * 1024),
+            'modified': datetime.fromtimestamp(os.path.getmtime(filepath)).isoformat()
+        }
+        
+        # Try to load metadata if it exists
+        metadata_file = filepath.replace('.parquet', '_metadata.json').replace('.json', '_metadata.json')
+        if os.path.exists(metadata_file):
+            with open(metadata_file, 'r') as f:
+                metadata = json.load(f)
+                info['metadata'] = metadata
+        
+        # If it's a parquet file, get basic DataFrame info
+        if filepath.endswith('.parquet'):
+            df = pd.read_parquet(filepath)
+            info['records'] = len(df)
+            info['columns'] = list(df.columns)
+            if 'is_correct' in df.columns:
+                info['success_rate'] = df['is_correct'].mean() * 100
+        
+        return info
+        
+    except Exception as e:
+        ErrorContext.handle_and_raise(
+            DatasetError, f"Failed to get dataset info: {str(e)}", e
+        )
 
 # ============================================================================
 # Convenience Functions
@@ -1543,16 +1976,34 @@ def preview_mbpp_prompt(idx: int = 0) -> str:
     return dataset_manager.preview_prompt_template(idx)
 
 def build_mvp_dataset(start_idx: int = 0, end_idx: int = 2, 
-                     model_name: str = DEFAULT_MODEL_NAME) -> str:
+                     model_name: str = DEFAULT_MODEL_NAME,
+                     save_format: str = "both") -> Union[str, tuple[str, str]]:
     """
     Convenience function to build MVP dataset
     
+    Args:
+        start_idx: Starting record index
+        end_idx: Ending record index  
+        model_name: Model to use for generation
+        save_format: "json", "parquet", or "both"
+    
     Returns:
-        str: Path to saved results file
+        str or tuple: Path(s) to saved results file(s)
     """
     tester = EnhancedMBPPTester(model_name=model_name, debug=False)
-    summary = tester.build_dataset_mvp(start_idx, end_idx)
-    return summary['saved_file']
+    summary = tester.build_dataset_mvp_with_cleanup(start_idx, end_idx, save_format=save_format)
+    
+    if save_format == "both":
+        return summary['saved_files']['json'], summary['saved_files']['parquet']
+    elif save_format == "parquet":
+        return summary['saved_files']['parquet']
+    else:
+        return summary['saved_files']['json']
+
+def quick_analyze(filepath: str) -> dict[str, Any]:
+    """Quick analysis of saved MBPP dataset"""
+    df = load_dataset_dataframe(filepath)
+    return analyze_dataset(df)
 
 # ============================================================================
 # Example Usage
@@ -1560,6 +2011,9 @@ def build_mvp_dataset(start_idx: int = 0, end_idx: int = 2,
 
 if __name__ == "__main__":
     try:
+        # Perform cleanup before starting
+        auto_cleanup()
+        
         # Initialize logging
         logging_config = LoggingConfiguration(debug=False, log_dir="mbpp_logs")
         log_file = logging_config.setup_logging()
@@ -1608,14 +2062,18 @@ if __name__ == "__main__":
         
         ConsoleOutput.success(f"Ground truth testing complete: {summary}")
         
-        # NEW: Test MVP Dataset Building
+        # NEW: Test MVP Dataset Building with DataFrame storage and cleanup
         print("\n" + "="*50)
-        ConsoleOutput.info("Building MVP Dataset with Generated Code...")
+        ConsoleOutput.info("Building MVP Dataset with DataFrame Storage and Cleanup...")
         
         enhanced_tester = EnhancedMBPPTester(model_name=DEFAULT_MODEL_NAME, debug=False)
-        mvp_summary = enhanced_tester.build_dataset_mvp(start_idx=0, end_idx=2, save_results=True)
+        mvp_summary = enhanced_tester.build_dataset_mvp_with_cleanup(
+            start_idx=0, 
+            end_idx=2, 
+            save_format="both"  # Save in both JSON and Parquet formats
+        )
         
-        ConsoleOutput.success("MVP dataset building completed!")
+        ConsoleOutput.success("MVP dataset building with cleanup completed!")
         
         # Show some results
         if mvp_summary['results']:
@@ -1626,6 +2084,13 @@ if __name__ == "__main__":
             print(f"Correct: {first_result.is_correct}")
             print(f"Generated code preview:\n{first_result.generated_code[:200]}...")
             print(f"{'='*50}")
+        
+        # Demonstrate DataFrame analysis
+        if 'parquet' in mvp_summary.get('saved_files', {}):
+            print(f"\nDemonstrating DataFrame analysis...")
+            parquet_file = mvp_summary['saved_files']['parquet']
+            analysis = quick_analyze(parquet_file)
+            print(f"Analysis results: {analysis}")
         
         ConsoleOutput.info(f"Full logs: {log_file}")
         
