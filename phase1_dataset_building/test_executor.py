@@ -8,7 +8,7 @@ to determine correctness according to the pass@1 criterion.
 import logging
 from typing import Optional, Tuple, List, Dict, Any
 
-from .dataset_manager import TestResult
+from phase1_dataset_building.dataset_manager import TestResult
 
 
 class TestExecutor:

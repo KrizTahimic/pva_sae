@@ -6,7 +6,7 @@ Python solutions for MBPP problems and classifying them as correct or incorrect.
 """
 
 # Import dataset management components
-from .dataset_manager import (
+from phase1_dataset_building.dataset_manager import (
     TestResult,
     GenerationResult,
     PromptTemplateBuilder,
@@ -15,13 +15,13 @@ from .dataset_manager import (
 )
 
 # Import test execution components
-from .test_executor import (
+from phase1_dataset_building.test_executor import (
     TestExecutor,
     EnhancedTestExecutor
 )
 
 # Import dataset building components
-from .dataset_builder import (
+from phase1_dataset_building.dataset_builder import (
     CheckpointData,
     CheckpointManager,
     ProgressTracker,
@@ -31,7 +31,7 @@ from .dataset_builder import (
 )
 
 # Import main orchestrators
-from .mbpp_tester import (
+from phase1_dataset_building.mbpp_tester import (
     MBPPTester,
     EnhancedMBPPTester,
     ProductionMBPPTester

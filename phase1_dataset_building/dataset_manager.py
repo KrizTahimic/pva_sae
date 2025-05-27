@@ -12,7 +12,7 @@ from typing import Optional, Any, Dict, List
 from dataclasses import dataclass, asdict
 
 # Import common utilities
-from ..common import DEFAULT_DATASET_DIR
+from common import DEFAULT_DATASET_DIR
 
 
 @dataclass

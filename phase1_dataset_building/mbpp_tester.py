@@ -10,7 +10,7 @@ import os
 from typing import Optional, Any, Dict, List
 from tqdm import tqdm
 
-from ..common import (
+from common import (
     LoggingManager,
     ModelManager,
     ModelConfiguration,
@@ -23,9 +23,9 @@ from ..common import (
     auto_cleanup,
     ensure_directory_exists
 )
-from .dataset_manager import EnhancedDatasetManager, TestResult
-from .test_executor import TestExecutor
-from .dataset_builder import DatasetBuilder, HardenedDatasetBuilder
+from phase1_dataset_building.dataset_manager import EnhancedDatasetManager, TestResult
+from phase1_dataset_building.test_executor import TestExecutor
+from phase1_dataset_building.dataset_builder import DatasetBuilder, HardenedDatasetBuilder
 
 
 class MBPPTester:
@@ -324,7 +324,7 @@ class EnhancedMBPPTester(MBPPTester):
             str: Path to saved dataset
         """
         # Perform cleanup first
-        auto_cleanup()
+        auto_cleanup(self.dataset_dir, self.log_dir)
         
         # Build dataset
         return self.build_dataset_mvp(start_idx, end_idx, stream)
@@ -550,4 +550,4 @@ class ProductionMBPPTester(EnhancedMBPPTester):
 
 # Import time for production tester
 import time
-from ..common import format_duration
+from common import format_duration

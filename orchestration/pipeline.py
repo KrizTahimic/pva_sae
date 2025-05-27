@@ -11,7 +11,7 @@ import logging
 from typing import Optional, Dict, Any, List, Tuple
 from pathlib import Path
 
-from ..common import ExperimentConfig, ExperimentLogger
+from common import ExperimentConfig, ExperimentLogger
 
 
 class ThesisPipeline:

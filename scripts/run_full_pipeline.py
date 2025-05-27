@@ -18,7 +18,7 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from interp.common import (
+from common import (
     ExperimentConfig,
     ModelConfiguration,
     DatasetConfiguration,
@@ -28,8 +28,8 @@ from interp.common import (
     LoggingManager,
     ExperimentLogger
 )
-from interp.phase1_dataset_building import ProductionMBPPTester
-from interp.orchestration.pipeline import ThesisPipeline
+from phase1_dataset_building import ProductionMBPPTester
+from orchestration.pipeline import ThesisPipeline
 
 
 def setup_argument_parser():
@@ -88,7 +88,7 @@ def setup_argument_parser():
     parser.add_argument(
         '--dataset-dir',
         type=str,
-        default='interp/data/datasets',
+        default='data/datasets',
         help='Directory for dataset files'
     )
     
@@ -303,7 +303,7 @@ def main():
     
     # Setup logging
     logging_manager = LoggingManager(
-        log_dir='interp/data/logs',
+        log_dir='data/logs',
         log_level='DEBUG' if args.debug else 'INFO'
     )
     logger = logging_manager.setup_logging('thesis_pipeline')

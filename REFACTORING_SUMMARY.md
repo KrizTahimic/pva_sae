@@ -26,17 +26,19 @@
 ## New File Structure
 
 ```
-interp/
+pva_sae/
 ├── common/                    # Shared utilities
 ├── phase1_dataset_building/   # Dataset generation
 ├── phase2_sae_analysis/       # SAE analysis (TBD)
 ├── phase3_validation/         # Validation methods
 ├── orchestration/             # Pipeline coordination
-└── data/                      # All data outputs
-
-scripts/
-├── run_full_pipeline.py       # Main entry point
-└── run_phase1.py             # Phase 1 only
+├── data/                      # All data outputs
+│   ├── datasets/             # Generated datasets
+│   └── logs/                 # Execution logs
+└── scripts/                   # Entry point scripts
+    ├── run_full_pipeline.py   # Main entry point
+    ├── run_phase1.py         # Phase 1 only
+    └── run_production_build.py # Production build
 ```
 
 ## Key Improvements
@@ -50,13 +52,13 @@ scripts/
 ## Migration Notes
 
 ### Import Changes
-- `from interp.data_processing import X` → `from interp.phase1_dataset_building import X`
-- `from interp.data_processing_hardened import Y` → `from interp.phase1_dataset_building import Y`
-- Common utilities now in `from interp.common import Z`
+- `from interp.data_processing import X` → `from phase1_dataset_building import X`
+- `from interp.data_processing_hardened import Y` → `from phase1_dataset_building import Y`
+- Common utilities now in `from common import Z`
 
 ### Data Locations
-- Logs: `mbpp_logs/` → `interp/data/logs/`
-- Datasets: `mbpp_datasets/` → `interp/data/datasets/`
+- Logs: `mbpp_logs/` → `data/logs/`
+- Datasets: `mbpp_datasets/` → `data/datasets/`
 
 ### Running Code
 - Old: `python3 interp/data_processing.py`

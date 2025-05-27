@@ -26,8 +26,8 @@ from datetime import datetime
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from interp.phase1_dataset_building import ProductionMBPPTester
-from interp.common import HardeningConfig
+from phase1_dataset_building import ProductionMBPPTester
+from common import HardeningConfig
 
 # Helper functions
 def create_production_config(**kwargs):
@@ -123,15 +123,15 @@ Examples:
     parser.add_argument(
         "--dataset-dir",
         type=str,
-        default="interp/data/datasets",
-        help="Directory for saving datasets (default: interp/data/datasets)"
+        default="data/datasets",
+        help="Directory for saving datasets (default: data/datasets)"
     )
     
     parser.add_argument(
         "--log-dir",
         type=str,
-        default="interp/data/logs",
-        help="Directory for saving logs (default: interp/data/logs)"
+        default="data/logs",
+        help="Directory for saving logs (default: data/logs)"
     )
     
     return parser.parse_args()

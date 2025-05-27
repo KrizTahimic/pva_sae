@@ -7,7 +7,7 @@ This package provides high-level coordination between:
 - Phase 3: Validation
 """
 
-from .pipeline import (
+from orchestration.pipeline import (
     ThesisPipeline,
     DatasetSplitter,
     ResultsAggregator

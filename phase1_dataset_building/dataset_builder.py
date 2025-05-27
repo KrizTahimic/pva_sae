@@ -19,7 +19,7 @@ import signal
 import atexit
 from pathlib import Path
 
-from ..common import (
+from common import (
     ModelManager,
     DatasetConfiguration,
     HardeningConfig,
@@ -28,8 +28,8 @@ from ..common import (
     format_duration,
     get_memory_usage
 )
-from .dataset_manager import GenerationResult, TestResult, EnhancedDatasetManager
-from .test_executor import TestExecutor
+from phase1_dataset_building.dataset_manager import GenerationResult, TestResult, EnhancedDatasetManager
+from phase1_dataset_building.test_executor import TestExecutor
 
 
 @dataclass
@@ -989,7 +989,7 @@ class HardenedDatasetBuilder(DatasetBuilder):
             self.logger.info(f"Autosaved {len(df)} results to {autosave_file}")
             
             # Clean up old autosaves
-            from ..common import cleanup_old_files
+            from common import cleanup_old_files
             cleanup_old_files(
                 self.config.dataset_dir,
                 f"autosave_{self.checkpoint_data.config['start_idx']}_*.parquet",

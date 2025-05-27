@@ -13,8 +13,8 @@ import os
 
 # Default values
 DEFAULT_MODEL_NAME = "google/gemma-2-2b"
-DEFAULT_LOG_DIR = "mbpp_logs"
-DEFAULT_DATASET_DIR = "interp/mbpp_datasets" 
+DEFAULT_LOG_DIR = "data/logs"
+DEFAULT_DATASET_DIR = "data/datasets" 
 MAX_NEW_TOKEN = 2000
 
 

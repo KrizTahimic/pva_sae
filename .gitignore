@@ -1,2 +1,35 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Data directories (keep structure but ignore contents)
+data/logs/*
+data/datasets/*
+!data/logs/.gitkeep
+!data/datasets/.gitkeep
+
+# Legacy paths (can be removed later)
 interp/mbpp_logs/*
 interp/mbpp_datasets/*
+mbpp_logs/*
+mbpp_datasets/*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+env/
+.env
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/

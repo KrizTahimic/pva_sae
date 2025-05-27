@@ -12,8 +12,8 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from interp.phase1_dataset_building import EnhancedMBPPTester
-from interp.common import auto_cleanup
+from phase1_dataset_building import EnhancedMBPPTester
+from common import auto_cleanup
 
 
 def main():
@@ -43,7 +43,7 @@ def main():
     parser.add_argument(
         '--dataset-dir',
         type=str,
-        default='interp/data/datasets',
+        default='data/datasets',
         help='Directory for dataset files'
     )
     parser.add_argument(

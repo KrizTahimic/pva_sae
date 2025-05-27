@@ -12,8 +12,8 @@ import logging
 import gc
 from contextlib import contextmanager
 
-from .utils import detect_device, get_optimal_dtype, get_memory_usage
-from .config import ModelConfiguration
+from common.utils import detect_device, get_optimal_dtype, get_memory_usage
+from common.config import ModelConfiguration
 
 
 class ModelManager:

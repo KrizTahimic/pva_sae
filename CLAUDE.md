@@ -50,31 +50,31 @@ python3 scripts/run_phase1.py --model google/gemma-2-9b
 python3 scripts/run_phase1.py --model google/gemma-2-2b --start 0 --end 10
 
 # Production build with hardening
-python3 interp/run_production_build.py --test-run  # Test with 10 records
-python3 interp/run_production_build.py --model google/gemma-2-9b  # Full production run
+python3 scripts/run_production_build.py --test-run  # Test with 10 records
+python3 scripts/run_production_build.py --model google/gemma-2-9b  # Full production run
 ```
 
 ### Testing and Development
 ```bash
 # Build dataset for thesis (Note: default model is gemma-2-2b, thesis uses gemma-2-9b)
 python3 -c "
-from interp.phase1_dataset_building import EnhancedMBPPTester
+from phase1_dataset_building import EnhancedMBPPTester
 tester = EnhancedMBPPTester(model_name='google/gemma-2-9b')
 tester.build_dataset_mvp_with_cleanup(start_idx=0, end_idx=100)
 "
 
 # Quick test with smaller model
 python3 -c "
-from interp.phase1_dataset_building import EnhancedMBPPTester
+from phase1_dataset_building import EnhancedMBPPTester
 tester = EnhancedMBPPTester()  # Uses default gemma-2-2b
 tester.build_dataset_mvp_with_cleanup(start_idx=0, end_idx=2)
 "
 
 # Check logs
-ls -la interp/data/logs/
+ls -la data/logs/
 
 # View generated datasets
-ls -la interp/data/datasets/
+ls -la data/datasets/
 ```
 
 ## New Architecture Overview (Refactored)
@@ -83,47 +83,49 @@ ls -la interp/data/datasets/
 
 ```
 pva_sae/
-├── interp/
-│   ├── common/               # Shared utilities and configurations
-│   │   ├── utils.py         # Device detection, cleanup, helpers
-│   │   ├── config.py        # All configuration classes
-│   │   ├── models.py        # Model management
-│   │   └── logging.py       # Logging utilities
-│   │
-│   ├── phase1_dataset_building/   # Phase 1: Dataset generation
-│   │   ├── dataset_manager.py    # MBPP dataset and prompts
-│   │   ├── test_executor.py      # Code execution and testing
-│   │   ├── dataset_builder.py    # Dataset building logic
-│   │   └── mbpp_tester.py        # Main orchestrators
-│   │
-│   ├── phase2_sae_analysis/       # Phase 2: SAE analysis
-│   │   └── sae_analyzer.py       # (To be implemented)
-│   │
-│   ├── phase3_validation/         # Phase 3: Validation
-│   │   ├── statistical_validator.py  # AUROC/F1 analysis
-│   │   ├── robustness_tester.py     # Temperature testing
-│   │   └── model_steerer.py         # Steering experiments
-│   │
-│   ├── orchestration/         # Pipeline coordination
-│   │   └── pipeline.py       # Three-phase orchestrator
-│   │
-│   └── data/                 # Consolidated data directory
-│       ├── datasets/         # Generated datasets
-│       └── logs/            # Execution logs
+├── common/                        # Shared utilities and configurations
+│   ├── utils.py                  # Device detection, cleanup, helpers
+│   ├── config.py                 # All configuration classes
+│   ├── models.py                 # Model management
+│   └── logging.py                # Logging utilities
 │
-└── scripts/                  # Entry point scripts
-    ├── run_full_pipeline.py  # Complete pipeline
-    └── run_phase1.py        # Phase 1 only
+├── phase1_dataset_building/       # Phase 1: Dataset generation
+│   ├── dataset_manager.py        # MBPP dataset and prompts
+│   ├── test_executor.py          # Code execution and testing
+│   ├── dataset_builder.py        # Dataset building logic
+│   └── mbpp_tester.py            # Main orchestrators
+│
+├── phase2_sae_analysis/           # Phase 2: SAE analysis
+│   └── sae_analyzer.py           # (To be implemented)
+│
+├── phase3_validation/             # Phase 3: Validation
+│   ├── statistical_validator.py  # AUROC/F1 analysis
+│   ├── robustness_tester.py     # Temperature testing
+│   └── model_steerer.py          # Steering experiments
+│
+├── orchestration/                 # Pipeline coordination
+│   └── pipeline.py               # Three-phase orchestrator
+│
+├── data/                          # Consolidated data directory
+│   ├── datasets/                 # Generated datasets
+│   └── logs/                     # Execution logs
+│
+├── scripts/                       # Entry point scripts
+│   ├── run_full_pipeline.py      # Complete pipeline
+│   ├── run_phase1.py             # Phase 1 only
+│   └── run_production_build.py   # Production dataset building
+│
+└── tests/                         # Test files
 ```
 
 ### Core Components
 
-1. **Common Utilities** (`interp/common/`)
+1. **Common Utilities** (`common/`)
    - Shared configurations, utilities, and model management
    - No code duplication across modules
    - Centralized logging and experiment tracking
 
-2. **Phase 1: Dataset Building** (`interp/phase1_dataset_building/`)
+2. **Phase 1: Dataset Building** (`phase1_dataset_building/`)
    - `DatasetManager`: Loads and manages MBPP dataset
    - `PromptTemplateBuilder`: Creates standardized prompts
    - `TestExecutor`: Runs generated code against test cases
@@ -131,12 +133,12 @@ pva_sae/
    - `HardenedDatasetBuilder`: Production-grade with checkpointing
    - `ProductionMBPPTester`: Main entry point for production runs
 
-3. **Phase 2: SAE Analysis** (`interp/phase2_sae_analysis/`)
+3. **Phase 2: SAE Analysis** (`phase2_sae_analysis/`)
    - SAE activation analysis (to be implemented)
    - Latent direction identification
    - Separation score calculation
 
-4. **Phase 3: Validation** (`interp/phase3_validation/`)
+4. **Phase 3: Validation** (`phase3_validation/`)
    - Statistical validation (AUROC, F1)
    - Robustness testing across temperatures
    - Model steering experiments
@@ -159,8 +161,8 @@ pva_sae/
 
 ### File Organization
 
-- `interp/data/logs/`: Timestamped execution logs
-- `interp/data/datasets/`: Generated datasets (JSON/Parquet)
+- `data/logs/`: Timestamped execution logs
+- `data/datasets/`: Generated datasets (JSON/Parquet)
 - Automatic cleanup keeps only latest 2-3 files of each type
 
 ### Hardware Support
