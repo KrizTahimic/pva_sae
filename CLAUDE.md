@@ -30,27 +30,27 @@ pip install accelerate
 ### Running the Data Processing Pipeline
 ```bash
 # Run the main data processing script
-python interp/data_processing.py
+python3 interp/data_processing.py
 
 # Run the enhanced data processing version
-python interp/dp_v2.py
+python3 interp/dp_v2.py
 
 # Run production hardened version (recommended for full dataset)
-python interp/run_production_build.py --test-run  # Test with 10 records
-python interp/run_production_build.py --model google/gemma-2-9b  # Full production run
+python3 interp/run_production_build.py --test-run  # Test with 10 records
+python3 interp/run_production_build.py --model google/gemma-2-9b  # Full production run
 ```
 
 ### Testing and Development
 ```bash
 # Build dataset for thesis (Note: default model is gemma-2-2b, thesis uses gemma-2-9b)
-python -c "
+python3 -c "
 from interp.data_processing import EnhancedMBPPTester
 tester = EnhancedMBPPTester(model_name='google/gemma-2-9b')
 tester.build_dataset_mvp_with_cleanup(start_idx=0, end_idx=100)
 "
 
 # Quick test with smaller model
-python -c "
+python3 -c "
 from interp.data_processing import EnhancedMBPPTester
 tester = EnhancedMBPPTester()  # Uses default gemma-2-2b
 tester.build_dataset_mvp_with_cleanup(start_idx=0, end_idx=2)
