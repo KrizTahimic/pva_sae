@@ -31,7 +31,7 @@ This research analyzes how language models internally represent the concept of c
   - F1 Score: Harmonic mean of precision and recall (optimized on hyperparameter set)
 - **Robustness Analysis**:
   - Temperature Variation: Tests across temperatures (0, 0.5, 1.0, 1.5, 2.0)
-  - Difficulty Variation: Evaluates performance across APPS difficulty levels
+  - Difficulty Variation: Evaluates performance across difficulty levels
 - **Model Steering**: 
   - Manipulates identified latent directions to test causal influence
   - Correction Rate: Proportion of incorrect→correct after steering
@@ -57,7 +57,7 @@ pip install accelerate
 ### Quick Start
 
 ```python
-from interp.data_processing import EnhancedMBPPTester
+from phase1_dataset_building import EnhancedMBPPTester
 
 # Initialize tester with Gemma 2 model
 tester = EnhancedMBPPTester(model_name="google/gemma-2-9b")
@@ -73,7 +73,7 @@ results = tester.build_dataset_mvp_with_cleanup(
 ### Dataset Building Only
 
 ```python
-from interp.data_processing import EnhancedDatasetManager, ModelManager, DatasetBuilder
+from phase1_dataset_building import EnhancedDatasetManager, ModelManager, DatasetBuilder
 
 # Setup components
 dataset_manager = EnhancedDatasetManager()
@@ -92,22 +92,22 @@ builder.save_dataset(format="parquet")
 
 ```
 pva_sae/
-├── interp/                    # Main implementation
-│   ├── data_processing.py     # Core data processing pipeline
-│   ├── dp_v2.py              # Enhanced data processing
-│   ├── sae_analysis.py       # SAE analysis (to be implemented)
-│   ├── steering.py           # Model steering experiments
-│   ├── robustness_analysis.py # Robustness testing
-│   └── statistical_analysis.py # Statistical validation
-├── mbpp_logs/                # Execution logs
-├── interp/mbpp_datasets/     # Generated datasets
+├── common/                        # Shared utilities and configurations
+├── phase1_dataset_building/       # Phase 1: Dataset generation
+├── phase2_sae_analysis/           # Phase 2: SAE analysis
+├── phase3_validation/             # Phase 3: Validation
+├── orchestration/                 # Pipeline coordination
+├── data/                          # Consolidated data directory
+│   ├── datasets/                 # Generated datasets
+│   └── logs/                     # Execution logs
+├── scripts/                       # Entry point scripts
 └── requirements.txt          # Dependencies
 ```
 
 ## Output Files
 
-- **Logs**: Timestamped logs in `mbpp_logs/`
-- **Datasets**: JSON and Parquet files in `interp/mbpp_datasets/`
+- **Logs**: Timestamped logs in `data/logs/`
+- **Datasets**: JSON and Parquet files in `data/datasets/`
 - **Metadata**: Accompanying metadata files with statistics
 
 ## Hardware Requirements

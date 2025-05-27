@@ -37,27 +37,27 @@ The hardened pipeline (`data_processing_hardened.py`) extends the original data 
 
 ### Test Run (10 records)
 ```bash
-python interp/run_production_build.py --test-run
+python scripts/run_production_build.py --test-run
 ```
 
 ### Full Production Run (974 records)
 ```bash
 # With default gemma-2-2b model
-python interp/run_production_build.py
+python scripts/run_production_build.py
 
 # With gemma-2-9b (thesis model)
-python interp/run_production_build.py --model google/gemma-2-9b
+python scripts/run_production_build.py --model google/gemma-2-9b
 ```
 
 ### Resume from Checkpoint
 ```bash
 # Automatically resumes from last checkpoint
-python interp/run_production_build.py --model google/gemma-2-9b
+python scripts/run_production_build.py --model google/gemma-2-9b
 ```
 
 ### Custom Configuration
 ```bash
-python interp/run_production_build.py \
+python scripts/run_production_build.py \
     --start 100 \
     --end 500 \
     --checkpoint 25 \
@@ -133,7 +133,7 @@ mbpp_logs/
 
 ### 2. Start Production Run
 ```bash
-python interp/run_production_build.py --model google/gemma-2-9b
+python scripts/run_production_build.py --model google/gemma-2-9b
 ```
 
 ### 3. Monitor Progress
@@ -157,7 +157,7 @@ python interp/run_production_build.py --model google/gemma-2-9b
 If the process is interrupted:
 ```bash
 # Simply run the same command again
-python interp/run_production_build.py --model google/gemma-2-9b
+python scripts/run_production_build.py --model google/gemma-2-9b
 # It will automatically detect and resume from the last checkpoint
 ```
 
@@ -268,7 +268,7 @@ rm -rf mbpp_datasets/checkpoints/*
 rm -f mbpp_datasets/autosave_*.parquet
 
 # 2. Start production run
-python interp/run_production_build.py \
+python scripts/run_production_build.py \
     --model google/gemma-2-9b \
     --checkpoint 50 \
     --max-memory 100 \
@@ -278,7 +278,7 @@ python interp/run_production_build.py \
 # [Progress bar shows ETA and statistics]
 
 # 4. If interrupted, resume
-python interp/run_production_build.py --model google/gemma-2-9b
+python scripts/run_production_build.py --model google/gemma-2-9b
 
 # 5. Verify results
 ls -la mbpp_datasets/mbpp_dataset_*.parquet

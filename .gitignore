@@ -10,12 +10,6 @@ data/datasets/*
 !data/logs/.gitkeep
 !data/datasets/.gitkeep
 
-# Legacy paths (can be removed later)
-interp/mbpp_logs/*
-interp/mbpp_datasets/*
-mbpp_logs/*
-mbpp_datasets/*
-
 # IDE and editor files
 .vscode/
 .idea/
