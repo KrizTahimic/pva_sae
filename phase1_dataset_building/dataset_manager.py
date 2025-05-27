@@ -7,7 +7,6 @@ loading, prompt template generation, and data validation.
 
 from datasets import load_dataset
 import logging
-import json
 from typing import Optional, Any, Dict, List
 from dataclasses import dataclass, asdict
 
@@ -70,16 +69,8 @@ class GenerationResult:
         """Convert to flattened dictionary optimized for DataFrame storage"""
         return {
             'task_id': self.task_id,
-            'prompt': self.prompt,
             'generated_code': self.generated_code,
-            'is_correct': self.is_correct,
-            'passed_tests': self.test_result.passed,
-            'total_tests': self.test_result.total,
-            'success_rate': self.success_rate,
-            'generation_time': self.generation_time,
-            'test_errors_json': json.dumps(self.test_result.errors),
-            'prompt_length': len(self.prompt),
-            'code_length': len(self.generated_code),
+            'test_passed': self.is_correct,
         }
 
 

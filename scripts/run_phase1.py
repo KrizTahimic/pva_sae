@@ -13,7 +13,6 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from phase1_dataset_building import EnhancedMBPPTester
-from common import auto_cleanup
 
 
 def main():

@@ -556,11 +556,6 @@ class DatasetBuilder:
         df_rows = [result.to_dataframe_row() for result in self.generation_results]
         df = pd.DataFrame(df_rows)
         
-        # Add metadata columns
-        df['dataset_created'] = datetime.now().isoformat()
-        df['model_name'] = self.model_manager.config.model_name
-        df['record_index'] = range(len(df))
-        
         return df
     
     def _save_json(self, filepath: str = None) -> str:
