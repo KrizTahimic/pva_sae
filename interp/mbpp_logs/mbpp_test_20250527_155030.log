@@ -1,0 +1,28 @@
+2025-05-27 15:50:30,712 - root - INFO - Logging system initialized
+2025-05-27 15:50:30,712 - root - INFO - Loading MBPP dataset...
+2025-05-27 15:50:40,659 - root - INFO - MBPP dataset loaded: 500 examples
+2025-05-27 15:50:40,660 - root - INFO - Starting model load: google/gemma-2-2b on mps
+2025-05-27 15:50:40,660 - root - INFO - Loading tokenizer for google/gemma-2-2b
+2025-05-27 15:50:42,004 - root - INFO - Tokenizer loaded successfully
+2025-05-27 15:50:42,004 - root - INFO - Loading model weights for google/gemma-2-2b on mps
+2025-05-27 15:50:55,360 - root - INFO - Model set to evaluation mode
+2025-05-27 15:50:55,360 - root - INFO - Model weights loaded successfully
+2025-05-27 15:50:55,360 - root - INFO - Model pipeline ready on device: mps
+2025-05-27 15:50:55,360 - root - INFO - Starting dataset building for records 0 to 1
+2025-05-27 15:50:55,361 - root - INFO - Processing record 0 (Task ID: 11)
+2025-05-27 15:51:10,785 - root - INFO - Test 1: PASSED
+2025-05-27 15:51:10,785 - root - INFO - Test 2: PASSED
+2025-05-27 15:51:10,785 - root - INFO - Test 3: PASSED
+2025-05-27 15:51:10,785 - root - INFO - Test summary: 3/3 tests passed
+2025-05-27 15:51:10,786 - root - INFO - Record 0 (11): CORRECT [Tests: 3/3, Time: 15.42s]
+2025-05-27 15:51:10,786 - root - INFO - Processing record 1 (Task ID: 12)
+2025-05-27 15:51:14,980 - root - INFO - Test 1: FAILED
+2025-05-27 15:51:14,980 - root - INFO - Test 2: FAILED
+2025-05-27 15:51:14,980 - root - INFO - Test 3: FAILED
+2025-05-27 15:51:14,980 - root - INFO - Test summary: 0/3 tests passed
+2025-05-27 15:51:14,980 - root - INFO - Record 1 (12): INCORRECT [Tests: 0/3, Time: 4.19s]
+2025-05-27 15:51:14,980 - root - INFO - Dataset building complete: 2 records processed, 1 correct (50.0%), 1 incorrect
+2025-05-27 15:51:14,980 - root - INFO - Dataset directory ready: mbpp_datasets
+2025-05-27 15:51:14,981 - root - INFO - JSON results saved to mbpp_datasets/mbpp_dataset_20250527_155114.json
+2025-05-27 15:51:15,013 - root - INFO - Parquet dataset saved to mbpp_datasets/mbpp_dataset_20250527_155114.parquet
+2025-05-27 15:51:15,013 - root - INFO - Metadata saved to mbpp_datasets/mbpp_dataset_20250527_155114_metadata.json

@@ -1,7 +1,7 @@
 {
-  "creation_timestamp": "2025-05-26T11:41:46.084940",
+  "creation_timestamp": "2025-05-27T15:45:41.105116",
   "model_name": "google/gemma-2-2b",
-  "total_records": 10,
+  "total_records": 2,
   "columns": [
     "task_id",
     "prompt",
@@ -11,7 +11,6 @@
     "total_tests",
     "success_rate",
     "generation_time",
-    "error_type",
     "test_errors_json",
     "prompt_length",
     "code_length",
@@ -20,12 +19,12 @@
     "record_index"
   ],
   "statistics": {
-    "total_processed": 10,
-    "correct_solutions": 4,
-    "incorrect_solutions": 6,
-    "correct_rate": 40.0,
-    "results_count": 10
+    "total_processed": 2,
+    "correct_solutions": 1,
+    "incorrect_solutions": 1,
+    "correct_rate": 50.0,
+    "results_count": 2
   },
-  "dataframe_file": "mbpp_dataset_20250526_114146.parquet",
+  "dataframe_file": "mbpp_dataset_20250527_154541.parquet",
   "dataset_directory": "mbpp_datasets"
 }

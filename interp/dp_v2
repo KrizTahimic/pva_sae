@@ -22,30 +22,6 @@ DEFAULT_DATASET_DIR = "mbpp_datasets"
 MAX_NEW_TOKEN = 2000
 
 # ============================================================================
-# Exception Hierarchy (Simplified)
-# ============================================================================
-
-class MBPPFrameworkError(Exception):
-    """Base exception for MBPP framework"""
-    pass
-
-class ModelError(MBPPFrameworkError):
-    """Model-related errors"""
-    pass
-
-class DatasetError(MBPPFrameworkError):
-    """Dataset-related errors"""  
-    pass
-
-class TestExecutionError(MBPPFrameworkError):
-    """Test execution errors"""
-    pass
-
-class LoggingConfigurationError(MBPPFrameworkError):
-    """Logging setup errors"""
-    pass
-
-# ============================================================================
 # Simplified Device Management
 # ============================================================================
 
@@ -96,12 +72,12 @@ def auto_cleanup():
     print("ℹ️  Performing automatic cleanup...")
     
     # Cleanup logs
-    cleanup_old_files(DEFAULT_LOG_DIR, "mbpp_test_*.log", 3)
+    cleanup_old_files(DEFAULT_LOG_DIR, "mbpp_test_*.log", 2)
     
     # Cleanup datasets  
-    cleanup_old_files(DEFAULT_DATASET_DIR, "mbpp_dataset_*.parquet", 3)
-    cleanup_old_files(DEFAULT_DATASET_DIR, "dataset_results_*.json", 3)
-    cleanup_old_files(DEFAULT_DATASET_DIR, "*_metadata.json", 3)
+    cleanup_old_files(DEFAULT_DATASET_DIR, "mbpp_dataset_*.parquet", 2)
+    cleanup_old_files(DEFAULT_DATASET_DIR, "dataset_results_*.json", 2)
+    cleanup_old_files(DEFAULT_DATASET_DIR, "*_metadata.json", 2)
     
     print("✓ Cleanup completed!")
 
@@ -134,7 +110,7 @@ class LoggingConfiguration:
             
         except Exception as e:
             logging.error(f"Failed to setup logging: {str(e)}")
-            raise LoggingConfigurationError(f"Failed to setup logging: {str(e)}") from e
+            raise RuntimeError(f"Failed to setup logging: {str(e)}") from e
     
     def _ensure_log_directory(self):
         """Create log directory if it doesn't exist"""
@@ -192,7 +168,7 @@ class DatasetDirectoryManager:
             
         except Exception as e:
             logging.error(f"Failed to setup dataset directory: {str(e)}")
-            raise DatasetError(f"Failed to setup dataset directory: {str(e)}") from e
+            raise RuntimeError(f"Failed to setup dataset directory: {str(e)}") from e
     
     def _ensure_dataset_directory(self):
         """Create dataset directory if it doesn't exist"""
@@ -229,38 +205,40 @@ class DatasetDirectoryManager:
         return datasets
 
 # ============================================================================
-# Model Management Classes
+# Simplified Model Management
 # ============================================================================
 
-class ModelLoader:
-    """Handles model and tokenizer loading operations"""
+class ModelManager:
+    """Simplified model management for loading and code generation"""
     
-    def __init__(self, model_name: str, device_str: str):
+    def __init__(self, model_name: str = DEFAULT_MODEL_NAME, device: Optional[str] = None):
         self.model_name = model_name
-        self.device_str = device_str
-        self.device = torch.device(device_str)
-        self.dtype = get_optimal_dtype(device_str)
+        self.device_str = device if device else detect_device()
+        self.device = torch.device(self.device_str)
+        self.dtype = get_optimal_dtype(self.device_str)
+        
+        # Model components
+        self.model = None
+        self.tokenizer = None
     
-    def load_tokenizer(self) -> AutoTokenizer:
-        """Load and return tokenizer"""
+    def load_model(self):
+        """Load model and tokenizer"""
+        if self.is_loaded():
+            print("ℹ️  Model already loaded")
+            logging.info("Model already loaded")
+            return
+        
         try:
+            logging.info(f"Starting model load: {self.model_name} on {self.device_str}")
+            
+            # Load tokenizer
             print("📥 Loading tokenizer...")
             logging.info(f"Loading tokenizer for {self.model_name}")
-            
-            tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
             print("✓ Tokenizer loaded")
             logging.info("Tokenizer loaded successfully")
-            return tokenizer
             
-        except Exception as e:
-            logging.error(f"Tokenizer loading failed: {str(e)}")
-            print(f"✗ Tokenizer loading failed: {str(e)}")
-            raise ModelError(f"Tokenizer loading failed: {str(e)}") from e
-    
-    def load_model_weights(self) -> AutoModelForCausalLM:
-        """Load and return model weights"""
-        try:
+            # Load model weights
             print("📥 Loading model weights (this may take several minutes)...")
             logging.info(f"Loading model weights for {self.model_name} on {self.device_str}")
             
@@ -268,18 +246,86 @@ class ModelLoader:
             torch.set_grad_enabled(False)
             
             if self.device_str == "cuda":
-                model = self._load_cuda_model()
+                self.model = self._load_cuda_model()
             else:
-                model = self._load_non_cuda_model()
+                self.model = self._load_non_cuda_model()
+            
+            # Configure for inference
+            self.model.eval()
+            print("🔧 Model configured for inference")
+            logging.info("Model set to evaluation mode")
             
             print("✓ Model weights loaded")
             logging.info("Model weights loaded successfully")
-            return model
+            logging.info(f"Model pipeline ready on device: {self.device}")
             
         except Exception as e:
-            logging.error(f"Model weight loading failed: {str(e)}")
-            print(f"✗ Model weight loading failed: {str(e)}")
-            raise ModelError(f"Model weight loading failed: {str(e)}") from e
+            self._cleanup_failed_load()
+            logging.error(f"Model loading failed: {str(e)}")
+            print(f"✗ Model loading failed: {str(e)}")
+            raise RuntimeError(f"Model loading failed: {str(e)}") from e
+    
+    def generate_code(self, prompt: str, max_new_tokens: int = 200, stream: bool = True) -> str:
+        """Generate code from prompt with deterministic settings"""
+        if not self.is_loaded():
+            raise RuntimeError("Model not loaded. Call load_model() first.")
+        
+        try:
+            logging.debug(f"Generating code for prompt: {prompt[:100]}...")
+            
+            # Prepare inputs
+            inputs = self._prepare_inputs(prompt)
+            
+            # Generate tokens
+            outputs = self._generate_tokens(inputs, max_new_tokens, stream)
+            
+            # Extract generated code
+            generated_code = self._extract_code(outputs, prompt)
+            
+            return generated_code
+            
+        except Exception as e:
+            logging.error(f"Code generation failed: {str(e)}")
+            print(f"✗ Code generation failed: {str(e)}")
+            raise RuntimeError(f"Code generation failed: {str(e)}") from e
+    
+    def test_model_functionality(self, stream: bool = True) -> bool:
+        """Test model with simple generation task"""
+        if not self.is_loaded():
+            logging.error("Cannot test: model not loaded")
+            return False
+        
+        try:
+            test_prompt = "Write a simple function that adds two numbers:\n# Your code here"
+            logging.info("Running model functionality test...")
+            print("ℹ️  Testing model generation...")
+            
+            result = self.generate_code(test_prompt, max_new_tokens=MAX_NEW_TOKEN, stream=stream)
+            
+            logging.info(f"Test successful. Generated: {result[:50]}...")
+            print("✓ Model functionality test passed!")
+            print(f"\nGenerated code:\n{result}")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Model test failed: {str(e)}")
+            print(f"✗ Model test failed: {str(e)}")
+            return False
+    
+    def is_loaded(self) -> bool:
+        """Check if model pipeline is ready"""
+        return self.model is not None and self.tokenizer is not None
+    
+    def get_device_info(self) -> str:
+        """Get device information"""
+        return f"Device: {self.device}"
+    
+    def unload_model(self):
+        """Clean up model resources"""
+        if self.model is not None:
+            self._safe_log("Unloading model resources...")
+            self._cleanup_all_resources()
+            self._safe_log("Model unloaded successfully")
     
     def _load_cuda_model(self) -> AutoModelForCausalLM:
         """Load model optimized for CUDA"""
@@ -299,44 +345,6 @@ class ModelLoader:
         )
         print(f"ℹ️  Moving model to {self.device}...")
         return model.to(self.device)
-    
-    def configure_for_inference(self, model: AutoModelForCausalLM) -> AutoModelForCausalLM:
-        """Configure model for inference mode"""
-        try:
-            model.eval()
-            print("🔧 Model configured for inference")
-            logging.info("Model set to evaluation mode")
-            return model
-            
-        except Exception as e:
-            logging.error(f"Model configuration failed: {str(e)}")
-            print(f"✗ Model configuration failed: {str(e)}")
-            raise ModelError(f"Model configuration failed: {str(e)}") from e
-
-class CodeGenerator:
-    """Handles deterministic code generation"""
-    
-    def __init__(self, model: AutoModelForCausalLM, tokenizer: AutoTokenizer, device_str: str):
-        self.model = model
-        self.tokenizer = tokenizer
-        self.device_str = device_str
-        self.device = torch.device(device_str)
-    
-    def generate(self, prompt: str, max_new_tokens: int = 200, stream: bool = True) -> str:
-        """Generate code from prompt with deterministic settings"""
-        try:
-            logging.debug(f"Generating code for prompt: {prompt[:100]}...")
-            
-            inputs = self._prepare_inputs(prompt)
-            outputs = self._generate_tokens(inputs, max_new_tokens, stream)
-            generated_code = self._extract_code(outputs, prompt)
-            
-            return generated_code
-            
-        except Exception as e:
-            logging.error(f"Code generation failed: {str(e)}")
-            print(f"✗ Code generation failed: {str(e)}")
-            raise ModelError(f"Code generation failed: {str(e)}") from e
     
     def _prepare_inputs(self, prompt: str) -> dict[str, torch.Tensor]:
         """Tokenize and prepare inputs for generation"""
@@ -399,114 +407,21 @@ class CodeGenerator:
         print("✓ Code generation complete")
         
         return generated_code
-
-class ModelManager:
-    """Orchestrates model lifecycle and code generation"""
-    
-    def __init__(self, model_name: str = DEFAULT_MODEL_NAME, device: Optional[str] = None):
-        self.model_name = model_name
-        self.device_str = device if device else detect_device()
-        self.device = torch.device(self.device_str)
-        
-        # Component references
-        self.model = None
-        self.tokenizer = None
-        self.generator = None
-        self._loader = None
-    
-    def load_model(self):
-        """Load model components"""
-        if self.is_loaded():
-            print("ℹ️  Model already loaded")
-            logging.info("Model already loaded")
-            return
-        
-        try:
-            logging.info(f"Starting model load: {self.model_name} on {self.device_str}")
-            
-            self._loader = ModelLoader(self.model_name, self.device_str)
-            
-            # Load components in sequence
-            self.tokenizer = self._loader.load_tokenizer()
-            self.model = self._loader.load_model_weights()
-            self.model = self._loader.configure_for_inference(self.model)
-            
-            # Initialize generator
-            self.generator = CodeGenerator(self.model, self.tokenizer, self.device_str)
-            
-            logging.info(f"Model pipeline ready on device: {self.device}")
-            
-        except Exception as e:
-            self._cleanup_failed_load()
-            raise  # Re-raise the specific exception from loader/generator
-    
-    def generate_code(self, prompt: str, max_new_tokens: int = 200, stream: bool = True) -> str:
-        """Generate code using loaded model"""
-        if not self.is_loaded():
-            raise ModelError("Model not loaded. Call load_model() first.")
-        
-        return self.generator.generate(prompt, max_new_tokens, stream)
-    
-    def test_model_functionality(self, stream: bool = True) -> bool:
-        """Test model with simple generation task"""
-        if not self.is_loaded():
-            logging.error("Cannot test: model not loaded")
-            return False
-        
-        try:
-            test_prompt = "Write a simple function that adds two numbers:\n# Your code here"
-            logging.info("Running model functionality test...")
-            print("ℹ️  Testing model generation...")
-            
-            result = self.generate_code(test_prompt, max_new_tokens=MAX_NEW_TOKEN, stream=stream)
-            
-            logging.info(f"Test successful. Generated: {result[:50]}...")
-            print("✓ Model functionality test passed!")
-            print(f"\nGenerated code:\n{result}")
-            return True
-            
-        except Exception as e:
-            logging.error(f"Model test failed: {str(e)}")
-            print(f"✗ Model test failed: {str(e)}")
-            return False
-    
-    def is_loaded(self) -> bool:
-        """Check if model pipeline is ready"""
-        return (self.model is not None and 
-                self.tokenizer is not None and 
-                self.generator is not None)
-    
-    def get_device_info(self) -> str:
-        """Get device information"""
-        return f"Device: {self.device}"
-    
-    def unload_model(self):
-        """Clean up model resources"""
-        if self.model is not None:
-            self._safe_log("Unloading model resources...")
-            self._cleanup_all_resources()
-            self._safe_log("Model unloaded successfully")
     
     def _cleanup_failed_load(self):
         """Clean up after failed loading attempt"""
         self.model = None
         self.tokenizer = None
-        self.generator = None
-        self._loader = None
     
     def _cleanup_all_resources(self):
         """Clean up all allocated resources"""
-        # Clean up model components
         if self.model is not None:
             del self.model
         if self.tokenizer is not None:
             del self.tokenizer
         
-        # Reset references
         self.model = None
         self.tokenizer = None
-        self.generator = None
-        self._loader = None
         
         # Clear GPU cache if applicable
         if self.device_str == "cuda":
@@ -632,7 +547,7 @@ class PromptTemplateBuilder:
             
         except Exception as e:
             logging.error(f"Failed to build prompt template: {str(e)}")
-            raise DatasetError(f"Failed to build prompt template: {str(e)}") from e
+            raise ValueError(f"Failed to build prompt template: {str(e)}") from e
     
     def build_batch_prompts(self, records: list[dict]) -> list[str]:
         """
@@ -804,13 +719,12 @@ class PromptTemplateBuilder:
         return template
 
 class DatasetManager:
-    """Consolidated dataset manager with full MBPP functionality and prompt templates"""
+    """Manages MBPP dataset operations"""
     
     def __init__(self):
         self.dataset = None
         self.test_data = None
         self._is_loaded = False
-        self.template_builder = PromptTemplateBuilder()
     
     def load_dataset(self):
         """Load MBPP dataset from Hugging Face"""
@@ -828,7 +742,7 @@ class DatasetManager:
             
         except Exception as e:
             logging.error(f"Failed to load MBPP dataset: {str(e)}")
-            raise DatasetError(f"Failed to load MBPP dataset: {str(e)}") from e
+            raise RuntimeError(f"Failed to load MBPP dataset: {str(e)}") from e
     
     def get_record(self, idx: int) -> dict:
         """Retrieve record by index with validation"""
@@ -838,7 +752,7 @@ class DatasetManager:
             return self.test_data[idx]
         except IndexError as e:
             logging.error(f"Index {idx} out of range. Dataset has {len(self.test_data)} records.")
-            raise DatasetError(
+            raise ValueError(
                 f"Index {idx} out of range. Dataset has {len(self.test_data)} records."
             ) from e
     
@@ -849,6 +763,18 @@ class DatasetManager:
     def is_loaded(self) -> bool:
         """Check if dataset is loaded"""
         return self._is_loaded
+    
+    def _ensure_loaded(self):
+        """Ensure dataset is loaded before access"""
+        if not self._is_loaded:
+            raise RuntimeError("Dataset not loaded. Call load_dataset() first.")
+
+class EnhancedDatasetManager(DatasetManager):
+    """Extended DatasetManager with prompt template functionality"""
+    
+    def __init__(self):
+        super().__init__()
+        self.template_builder = PromptTemplateBuilder()
     
     def get_prompt_template(self, idx: int) -> str:
         """
@@ -879,9 +805,9 @@ class DatasetManager:
         # Validate range
         dataset_size = self.get_size()
         if start_idx < 0 or start_idx >= dataset_size:
-            raise DatasetError(f"start_idx {start_idx} out of range [0, {dataset_size-1}]")
+            raise ValueError(f"start_idx {start_idx} out of range [0, {dataset_size-1}]")
         if end_idx < start_idx or end_idx >= dataset_size:
-            raise DatasetError(f"end_idx {end_idx} out of range [{start_idx}, {dataset_size-1}]")
+            raise ValueError(f"end_idx {end_idx} out of range [{start_idx}, {dataset_size-1}]")
         
         # Extract records and build prompts
         records = [self.test_data[i] for i in range(start_idx, end_idx + 1)]
@@ -913,11 +839,6 @@ class DatasetManager:
         """
         record = self.get_record(idx)
         return self.template_builder.get_template_stats(record)
-    
-    def _ensure_loaded(self):
-        """Ensure dataset is loaded before access"""
-        if not self._is_loaded:
-            raise DatasetError("Dataset not loaded. Call load_dataset() first.")
 
 # ============================================================================
 # Test Execution Classes  
@@ -1009,7 +930,7 @@ class TestExecutor:
 class DatasetBuilder:
     """Builds dataset by generating and classifying code solutions"""
     
-    def __init__(self, model_manager: ModelManager, dataset_manager: DatasetManager,
+    def __init__(self, model_manager: ModelManager, dataset_manager: EnhancedDatasetManager,
                  max_new_tokens: int = 200, stream_output: bool = False, 
                  dataset_dir: str = DEFAULT_DATASET_DIR):
         self.model_manager = model_manager
@@ -1057,7 +978,7 @@ class DatasetBuilder:
             
         except Exception as e:
             logging.error(f"Dataset building failed: {str(e)}")
-            raise DatasetError(f"Dataset building failed: {str(e)}") from e
+            raise RuntimeError(f"Dataset building failed: {str(e)}") from e
     
     def process_single_record(self, idx: int) -> GenerationResult:
         """
@@ -1138,112 +1059,41 @@ class DatasetBuilder:
             'results_count': len(self.generation_results)
         }
     
-    def save_results(self, filepath: str = None) -> str:
-        """Save generation results to JSON file"""
+    def save_dataset(self, 
+                    format: str = "both",
+                    filepath: str = None,
+                    base_name: str = None) -> Union[str, tuple[str, str]]:
+        """
+        Unified method to save dataset in multiple formats
+        
+        Args:
+            format: Save format - "json", "parquet", or "both"
+            filepath: Custom filepath (for single format saves)
+            base_name: Base name for timestamped files (for "both" format)
+            
+        Returns:
+            str: Single filepath for "json"/"parquet"
+            tuple[str, str]: (json_path, parquet_path) for "both"
+        """
+        # Validate format
+        valid_formats = {"json", "parquet", "both"}
+        if format not in valid_formats:
+            raise ValueError(f"Invalid format '{format}'. Must be one of: {valid_formats}")
+        
         # Setup directory
         self.directory_manager.setup_directory()
-        
-        if filepath is None:
-            filepath = self.directory_manager.get_timestamped_filepath("dataset_results", "json")
-        elif not os.path.isabs(filepath):
-            # If relative path, put it in dataset directory
-            filepath = self.directory_manager.get_filepath(filepath)
         
         try:
-            results_data = {
-                'metadata': {
-                    'timestamp': datetime.now().isoformat(),
-                    'model_name': self.model_manager.model_name,
-                    'total_processed': self.total_processed,
-                    'statistics': self.get_statistics(),
-                    'dataset_directory': self.directory_manager.dataset_dir
-                },
-                'results': [result.to_dict() for result in self.generation_results]
-            }
-            
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(results_data, f, indent=2, ensure_ascii=False)
-            
-            logging.info(f"Results saved to {filepath}")
-            print(f"✓ JSON results saved to: {filepath}")
-            return filepath
-            
+            if format == "json":
+                return self._save_json(filepath)
+            elif format == "parquet":
+                return self._save_parquet(filepath)
+            else:  # format == "both"
+                return self._save_both(base_name)
+                
         except Exception as e:
-            logging.error(f"Failed to save results: {str(e)}")
-            raise DatasetError(f"Failed to save results: {str(e)}") from e
-    
-    def save_dataframe(self, filepath: str = None) -> str:
-        """Save generation results as DataFrame in Parquet format"""
-        # Setup directory
-        self.directory_manager.setup_directory()
-        
-        if filepath is None:
-            filepath = self.directory_manager.get_timestamped_filepath("mbpp_dataset", "parquet")
-        elif not os.path.isabs(filepath):
-            # If relative path, put it in dataset directory
-            filepath = self.directory_manager.get_filepath(filepath)
-        
-        try:
-            # Convert results to DataFrame-optimized format
-            df_rows = [result.to_dataframe_row() for result in self.generation_results]
-            df = pd.DataFrame(df_rows)
-            
-            # Add metadata columns
-            df['dataset_created'] = datetime.now().isoformat()
-            df['model_name'] = self.model_manager.model_name
-            df['record_index'] = range(len(df))
-            
-            # Save as Parquet (efficient binary format)
-            df.to_parquet(filepath, index=False)
-            
-            # Also save metadata separately
-            metadata = {
-                'creation_timestamp': datetime.now().isoformat(),
-                'model_name': self.model_manager.model_name,
-                'total_records': len(df),
-                'columns': list(df.columns),
-                'statistics': self.get_statistics(),
-                'dataframe_file': os.path.basename(filepath),
-                'dataset_directory': self.directory_manager.dataset_dir
-            }
-            
-            metadata_file = filepath.replace('.parquet', '_metadata.json')
-            with open(metadata_file, 'w', encoding='utf-8') as f:
-                json.dump(metadata, f, indent=2, ensure_ascii=False)
-            
-            logging.info(f"DataFrame saved to {filepath}")
-            logging.info(f"Metadata saved to {metadata_file}")
-            print(f"✓ Parquet dataset saved to: {filepath}")
-            print(f"ℹ️  Metadata saved to: {os.path.basename(metadata_file)}")
-            
-            # Display DataFrame info
-            self._display_dataframe_info(df)
-            
-            return filepath
-            
-        except Exception as e:
-            logging.error(f"Failed to save DataFrame: {str(e)}")
-            raise DatasetError(f"Failed to save DataFrame: {str(e)}") from e
-    
-    def save_both_formats(self, base_filepath: str = None) -> tuple[str, str]:
-        """Save results in both JSON and Parquet formats"""
-        # Setup directory
-        self.directory_manager.setup_directory()
-        
-        if base_filepath is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            base_filepath = f"mbpp_dataset_{timestamp}"
-        
-        # Save both formats
-        json_file = self.save_results(f"{base_filepath}.json")
-        parquet_file = self.save_dataframe(f"{base_filepath}.parquet")
-        
-        print("✓ Dataset saved in both formats:")
-        print(f"ℹ️    📄 JSON: {os.path.basename(json_file)}")
-        print(f"ℹ️    📊 Parquet: {os.path.basename(parquet_file)}")
-        print(f"ℹ️    📁 Directory: {self.directory_manager.dataset_dir}")
-        
-        return json_file, parquet_file
+            logging.error(f"Failed to save dataset: {str(e)}")
+            raise RuntimeError(f"Failed to save dataset: {str(e)}") from e
     
     def get_dataframe(self) -> pd.DataFrame:
         """Get current results as a pandas DataFrame"""
@@ -1286,6 +1136,84 @@ class DatasetBuilder:
         
         return analysis
     
+    def _save_json(self, filepath: str = None) -> str:
+        """Save results to JSON format"""
+        if filepath is None:
+            filepath = self.directory_manager.get_timestamped_filepath("dataset_results", "json")
+        elif not os.path.isabs(filepath):
+            filepath = self.directory_manager.get_filepath(filepath)
+        
+        results_data = {
+            'metadata': {
+                'timestamp': datetime.now().isoformat(),
+                'model_name': self.model_manager.model_name,
+                'total_processed': self.total_processed,
+                'statistics': self.get_statistics(),
+                'dataset_directory': self.directory_manager.dataset_dir
+            },
+            'results': [result.to_dict() for result in self.generation_results]
+        }
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(results_data, f, indent=2, ensure_ascii=False)
+        
+        logging.info(f"JSON results saved to {filepath}")
+        print(f"✓ JSON results saved to: {filepath}")
+        return filepath
+    
+    def _save_parquet(self, filepath: str = None) -> str:
+        """Save results to Parquet format with metadata"""
+        if filepath is None:
+            filepath = self.directory_manager.get_timestamped_filepath("mbpp_dataset", "parquet")
+        elif not os.path.isabs(filepath):
+            filepath = self.directory_manager.get_filepath(filepath)
+        
+        # Convert to DataFrame and save
+        df = self.get_dataframe()
+        df.to_parquet(filepath, index=False)
+        
+        # Save metadata separately
+        metadata = {
+            'creation_timestamp': datetime.now().isoformat(),
+            'model_name': self.model_manager.model_name,
+            'total_records': len(df),
+            'columns': list(df.columns),
+            'statistics': self.get_statistics(),
+            'dataframe_file': os.path.basename(filepath),
+            'dataset_directory': self.directory_manager.dataset_dir
+        }
+        
+        metadata_file = filepath.replace('.parquet', '_metadata.json')
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=2, ensure_ascii=False)
+        
+        logging.info(f"Parquet dataset saved to {filepath}")
+        logging.info(f"Metadata saved to {metadata_file}")
+        print(f"✓ Parquet dataset saved to: {filepath}")
+        print(f"ℹ️  Metadata saved to: {os.path.basename(metadata_file)}")
+        
+        # Display DataFrame info
+        self._display_dataframe_info(df)
+        
+        return filepath
+    
+    def _save_both(self, base_name: str = None) -> tuple[str, str]:
+        """Save in both JSON and Parquet formats"""
+        if base_name is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            base_name = f"mbpp_dataset_{timestamp}"
+        
+        # Save both formats
+        json_file = self._save_json(f"{base_name}.json")
+        parquet_file = self._save_parquet(f"{base_name}.parquet")
+        
+        print("✓ Dataset saved in both formats:")
+        print(f"ℹ️    📄 JSON: {os.path.basename(json_file)}")
+        print(f"ℹ️    📊 Parquet: {os.path.basename(parquet_file)}")
+        print(f"ℹ️    📁 Directory: {self.directory_manager.dataset_dir}")
+        
+        return json_file, parquet_file
+    
     def _display_dataframe_info(self, df: pd.DataFrame):
         """Display helpful DataFrame information"""
         print(f"\n{'='*50}")
@@ -1307,10 +1235,10 @@ class DatasetBuilder:
     def _validate_prerequisites(self):
         """Ensure all components are ready"""
         if not self.model_manager.is_loaded():
-            raise DatasetError("Model not loaded. Call model_manager.load_model() first.")
+            raise RuntimeError("Model not loaded. Call model_manager.load_model() first.")
         
         if not self.dataset_manager.is_loaded():
-            raise DatasetError("Dataset not loaded. Call dataset_manager.load_dataset() first.")
+            raise RuntimeError("Dataset not loaded. Call dataset_manager.load_dataset() first.")
     
     def _validate_range(self, start_idx: int, end_idx: int):
         """Validate processing range"""
@@ -1358,14 +1286,14 @@ class DatasetBuilder:
             )
             
             if not generated_code.strip():
-                raise ModelError("Generated empty code")
+                raise RuntimeError("Generated empty code")
             
             return generated_code
             
         except Exception as e:
             error_msg = f"Code generation failed for task {task_id}: {str(e)}"
             logging.error(error_msg)
-            raise ModelError(error_msg) from e
+            raise RuntimeError(error_msg) from e
     
     def _test_generated_code(self, generated_code: str, record: dict, task_id: str) -> TestResult:
         """Test generated code against MBPP test cases"""
@@ -1435,19 +1363,15 @@ class DatasetBuilder:
 # ============================================================================
 
 class MBPPTester:
-    """Consolidated MBPP tester with full testing and dataset building capabilities"""
+    """Main orchestrator for MBPP testing workflow"""
     
-    def __init__(self, model_name: str = DEFAULT_MODEL_NAME, debug: bool = False, 
-                 log_dir: str = DEFAULT_LOG_DIR, dataset_dir: str = DEFAULT_DATASET_DIR):
+    def __init__(self, debug: bool = False, log_dir: str = DEFAULT_LOG_DIR):
         self.debug = debug
         self.log_dir = log_dir
-        self.dataset_dir = dataset_dir
         
         # Initialize core components
         self.logging_config = LoggingConfiguration(debug, log_dir)
-        self.dataset_manager = DatasetManager()
-        self.model_manager = ModelManager(model_name)
-        self.dataset_builder = None
+        self.dataset_manager = EnhancedDatasetManager()  # Use enhanced version
         
         # Results tracking
         self.total_tests = 0
@@ -1468,30 +1392,6 @@ class MBPPTester:
         if not self.dataset_manager.is_loaded():
             self.dataset_manager.load_dataset()
     
-    def setup_components(self):
-        """Setup all required components"""
-        # Setup logging
-        if not self.logging_config.is_configured:
-            self.setup_logging()
-        
-        # Load dataset
-        self.ensure_dataset_ready()
-        
-        # Load model
-        if not self.model_manager.is_loaded():
-            print("ℹ️  Loading model for dataset building...")
-            self.model_manager.load_model()
-            print("✓ Model loaded successfully!")
-        
-        # Initialize dataset builder with custom directory
-        self.dataset_builder = DatasetBuilder(
-            model_manager=self.model_manager,
-            dataset_manager=self.dataset_manager,
-            max_new_tokens=200,
-            stream_output=False,
-            dataset_dir=self.dataset_dir
-        )
-    
     def test_single_record(self, idx: int) -> TestResult:
         """Test single MBPP record by index"""
         try:
@@ -1507,7 +1407,7 @@ class MBPPTester:
             
         except Exception as e:
             logging.error(f"Failed to test record {idx}: {str(e)}")
-            raise TestExecutionError(f"Failed to test record {idx}: {str(e)}") from e
+            raise RuntimeError(f"Failed to test record {idx}: {str(e)}") from e
     
     def test_range(self, start_idx: int = 0, end_idx: int = 3) -> dict[str, Any]:
         """Test range of MBPP records"""
@@ -1526,71 +1426,7 @@ class MBPPTester:
             
         except Exception as e:
             logging.error(f"Test range execution failed: {str(e)}")
-            raise TestExecutionError(f"Test range execution failed: {str(e)}") from e
-    
-    def build_dataset_mvp_with_cleanup(self, start_idx: int = 0, end_idx: int = 2, 
-                                     save_format: str = "both") -> dict[str, Any]:
-        """Build MVP dataset with automatic cleanup"""
-        
-        # Perform cleanup first
-        auto_cleanup()
-        
-        # Call the existing method
-        return self.build_dataset_mvp(start_idx, end_idx, save_format)
-    
-    def build_dataset_mvp(self, start_idx: int = 0, end_idx: int = 2, 
-                         save_format: str = "both") -> dict[str, Any]:
-        """
-        Build MVP dataset with 3 records (or specified range)
-        
-        Args:
-            start_idx: Starting record index
-            end_idx: Ending record index (inclusive)
-            save_format: "json", "parquet", or "both"
-            
-        Returns:
-            dict: Summary of dataset building results
-        """
-        try:
-            # Setup components
-            self.setup_components()
-            
-            print(f"ℹ️  Building MVP dataset for records {start_idx} to {end_idx}")
-            
-            # Build dataset
-            results = self.dataset_builder.build_dataset(start_idx, end_idx)
-            
-            # Save results in requested format
-            saved_files = {}
-            if save_format in ["json", "both"]:
-                saved_files['json'] = self.dataset_builder.save_results()
-            
-            if save_format in ["parquet", "both"]:
-                saved_files['parquet'] = self.dataset_builder.save_dataframe()
-            
-            if save_format == "both":
-                print("✓ Dataset saved in both JSON and Parquet formats!")
-            
-            # Create summary
-            stats = self.dataset_builder.get_statistics()
-            analysis = self.dataset_builder.analyze_results()
-            
-            summary = {
-                **stats,
-                'saved_files': saved_files,
-                'log_file': self.log_file,
-                'results': results,
-                'analysis': analysis
-            }
-            
-            # Display summary
-            self._display_mvp_summary(summary)
-            
-            return summary
-            
-        except Exception as e:
-            logging.error(f"MVP dataset building failed: {str(e)}")
-            raise DatasetError(f"MVP dataset building failed: {str(e)}") from e
+            raise RuntimeError(f"Test range execution failed: {str(e)}") from e
     
     def get_summary(self) -> dict[str, Any]:
         """Get current test results summary"""
@@ -1663,6 +1499,103 @@ class MBPPTester:
             print(f"ℹ️  Results logged to: {self.log_file}")
         
         return summary
+
+class EnhancedMBPPTester(MBPPTester):
+    """Extended MBPPTester with dataset building capabilities"""
+    
+    def __init__(self, model_name: str = DEFAULT_MODEL_NAME, debug: bool = False, 
+                 log_dir: str = DEFAULT_LOG_DIR, dataset_dir: str = DEFAULT_DATASET_DIR):
+        super().__init__(debug, log_dir)
+        self.model_manager = ModelManager(model_name)
+        self.dataset_dir = dataset_dir
+        self.dataset_builder = None
+    
+    def setup_components(self):
+        """Setup all required components"""
+        # Setup logging
+        if not self.logging_config.is_configured:
+            self.setup_logging()
+        
+        # Load dataset
+        self.ensure_dataset_ready()
+        
+        # Load model
+        if not self.model_manager.is_loaded():
+            print("ℹ️  Loading model for dataset building...")
+            self.model_manager.load_model()
+            print("✓ Model loaded successfully!")
+        
+        # Initialize dataset builder with custom directory
+        self.dataset_builder = DatasetBuilder(
+            model_manager=self.model_manager,
+            dataset_manager=self.dataset_manager,
+            max_new_tokens=200,
+            stream_output=False,
+            dataset_dir=self.dataset_dir
+        )
+    
+    def build_dataset_mvp_with_cleanup(self, start_idx: int = 0, end_idx: int = 2, 
+                                     save_format: str = "both") -> dict[str, Any]:
+        """Build MVP dataset with automatic cleanup"""
+        
+        # Perform cleanup first
+        auto_cleanup()
+        
+        # Call the existing method
+        return self.build_dataset_mvp(start_idx, end_idx, save_format)
+    
+    def build_dataset_mvp(self, start_idx: int = 0, end_idx: int = 2, 
+                         save_format: str = "both") -> dict[str, Any]:
+        """
+        Build MVP dataset with 3 records (or specified range)
+        
+        Args:
+            start_idx: Starting record index
+            end_idx: Ending record index (inclusive)
+            save_format: "json", "parquet", or "both"
+            
+        Returns:
+            dict: Summary of dataset building results
+        """
+        try:
+            # Setup components
+            self.setup_components()
+            
+            print(f"ℹ️  Building MVP dataset for records {start_idx} to {end_idx}")
+            
+            # Build dataset
+            results = self.dataset_builder.build_dataset(start_idx, end_idx)
+            
+            # Save results using unified method
+            saved_files = self.dataset_builder.save_dataset(format=save_format)
+            
+            # Handle different return types from save_dataset
+            if save_format == "both":
+                saved_files = {'json': saved_files[0], 'parquet': saved_files[1]}
+                print("✓ Dataset saved in both JSON and Parquet formats!")
+            else:
+                saved_files = {save_format: saved_files}
+            
+            # Create summary
+            stats = self.dataset_builder.get_statistics()
+            analysis = self.dataset_builder.analyze_results()
+            
+            summary = {
+                **stats,
+                'saved_files': saved_files,
+                'log_file': self.log_file,
+                'results': results,
+                'analysis': analysis
+            }
+            
+            # Display summary
+            self._display_mvp_summary(summary)
+            
+            return summary
+            
+        except Exception as e:
+            logging.error(f"MVP dataset building failed: {str(e)}")
+            raise RuntimeError(f"MVP dataset building failed: {str(e)}") from e
     
     def _display_mvp_summary(self, summary: dict):
         """Display formatted summary of MVP results"""
@@ -1719,7 +1652,7 @@ def load_dataset_dataframe(filepath: str) -> pd.DataFrame:
         return df
     except Exception as e:
         logging.error(f"Failed to load dataset from {filepath}: {str(e)}")
-        raise DatasetError(f"Failed to load dataset from {filepath}: {str(e)}") from e
+        raise RuntimeError(f"Failed to load dataset from {filepath}: {str(e)}") from e
 
 def analyze_dataset(df: pd.DataFrame) -> dict[str, Any]:
     """Perform comprehensive analysis of MBPP dataset"""
@@ -1816,79 +1749,9 @@ def get_dataset_info(filepath: str) -> dict[str, Any]:
         
     except Exception as e:
         logging.error(f"Failed to get dataset info: {str(e)}")
-        raise DatasetError(f"Failed to get dataset info: {str(e)}") from e
+        raise RuntimeError(f"Failed to get dataset info: {str(e)}") from e
 
-# ============================================================================
-# Convenience Functions
-# ============================================================================
 
-def test_mbpp_range(start_idx: int = 0, end_idx: int = 3, debug: bool = False) -> str:
-    """
-    Convenience function to test MBPP range with automatic setup
-    
-    Returns:
-        str: Path to log file
-    """
-    tester = MBPPTester(debug=debug)
-    summary = tester.test_range(start_idx, end_idx)
-    return summary['log_file']
-
-def create_prompt_from_record(record: dict) -> str:
-    """
-    Convenience function to create prompt from MBPP record
-    
-    Args:
-        record: MBPP dataset record
-        
-    Returns:
-        str: Standardized prompt template
-    """
-    builder = PromptTemplateBuilder()
-    return builder.build_prompt(record)
-
-def preview_mbpp_prompt(idx: int = 0) -> str:
-    """
-    Convenience function to preview prompt for MBPP record
-    
-    Args:
-        idx: Index of record to preview (default: 0)
-        
-    Returns:
-        str: Preview of prompt template
-    """
-    dataset_manager = DatasetManager()
-    dataset_manager.load_dataset()
-    return dataset_manager.preview_prompt_template(idx)
-
-def build_mvp_dataset(start_idx: int = 0, end_idx: int = 2, 
-                     model_name: str = DEFAULT_MODEL_NAME,
-                     save_format: str = "both") -> Union[str, tuple[str, str]]:
-    """
-    Convenience function to build MVP dataset
-    
-    Args:
-        start_idx: Starting record index
-        end_idx: Ending record index  
-        model_name: Model to use for generation
-        save_format: "json", "parquet", or "both"
-    
-    Returns:
-        str or tuple: Path(s) to saved results file(s)
-    """
-    tester = MBPPTester(model_name=model_name, debug=False)
-    summary = tester.build_dataset_mvp_with_cleanup(start_idx, end_idx, save_format=save_format)
-    
-    if save_format == "both":
-        return summary['saved_files']['json'], summary['saved_files']['parquet']
-    elif save_format == "parquet":
-        return summary['saved_files']['parquet']
-    else:
-        return summary['saved_files']['json']
-
-def quick_analyze(filepath: str) -> dict[str, Any]:
-    """Quick analysis of saved MBPP dataset"""
-    df = load_dataset_dataframe(filepath)
-    return analyze_dataset(df)
 
 # ============================================================================
 # Example Usage
@@ -1907,7 +1770,7 @@ if __name__ == "__main__":
         # Test prompt template functionality
         print("ℹ️  Testing prompt template functionality...")
         
-        dataset_manager = DatasetManager()
+        dataset_manager = EnhancedDatasetManager()
         dataset_manager.load_dataset()
         
         # Show sample prompt
@@ -1932,7 +1795,7 @@ if __name__ == "__main__":
             else:
                 print("✗ Model functionality test failed!")
                 
-        except ModelError as e:
+        except RuntimeError as e:
             print(f"✗ Model error: {e}")
         except Exception as e:
             print(f"✗ Unexpected error: {e}")
@@ -1947,17 +1810,18 @@ if __name__ == "__main__":
         
         print(f"✓ Ground truth testing complete: {summary}")
         
-        # NEW: Test MVP Dataset Building with DataFrame storage and cleanup
+        # NEW: Test MVP Dataset Building with unified save method
         print("\n" + "="*50)
-        print("ℹ️  Building MVP Dataset with DataFrame Storage and Cleanup...")
+        print("ℹ️  Building MVP Dataset with Unified Save Method...")
         
-        mvp_summary = tester.build_dataset_mvp_with_cleanup(
+        enhanced_tester = EnhancedMBPPTester(model_name=DEFAULT_MODEL_NAME, debug=False)
+        mvp_summary = enhanced_tester.build_dataset_mvp_with_cleanup(
             start_idx=0, 
-            end_idx=9, 
-            save_format="both"  # Save in both JSON and Parquet formats
+            end_idx=1, 
+            save_format="both"  # Uses the new unified save_dataset method
         )
         
-        print("✓ MVP dataset building with cleanup completed!")
+        print("✓ MVP dataset building with unified save completed!")
         
         # Show some results
         if mvp_summary['results']:
@@ -1973,7 +1837,8 @@ if __name__ == "__main__":
         if 'parquet' in mvp_summary.get('saved_files', {}):
             print(f"\nDemonstrating DataFrame analysis...")
             parquet_file = mvp_summary['saved_files']['parquet']
-            analysis = quick_analyze(parquet_file)
+            df = load_dataset_dataframe(parquet_file)
+            analysis = analyze_dataset(df)
             print(f"Analysis results: {analysis}")
         
         print(f"ℹ️  Full logs: {log_file}")

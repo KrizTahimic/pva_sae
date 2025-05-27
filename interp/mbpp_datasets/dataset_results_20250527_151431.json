@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2025-05-26T11:41:46.033273",
+    "timestamp": "2025-05-27T15:14:31.853103",
     "model_name": "google/gemma-2-2b",
     "total_processed": 10,
     "statistics": {
@@ -22,8 +22,7 @@
       "total_tests": 3,
       "success_rate": 100.0,
       "test_errors": [],
-      "generation_time": 19.91288995742798,
-      "error_type": null
+      "generation_time": 13.38833212852478
     },
     {
       "task_id": 12,
@@ -34,8 +33,7 @@
       "total_tests": 3,
       "success_rate": 0.0,
       "test_errors": [],
-      "generation_time": 3.9735522270202637,
-      "error_type": "all_tests_failed"
+      "generation_time": 4.472916126251221
     },
     {
       "task_id": 13,
@@ -48,8 +46,7 @@
       "test_errors": [
         "Code execution failed: '[' was never closed (<string>, line 12)"
       ],
-      "generation_time": 23.01407527923584,
-      "error_type": "all_tests_failed"
+      "generation_time": 22.98547887802124
     },
     {
       "task_id": 14,
@@ -60,8 +57,7 @@
       "total_tests": 3,
       "success_rate": 0.0,
       "test_errors": [],
-      "generation_time": 2.4526748657226562,
-      "error_type": "all_tests_failed"
+      "generation_time": 2.408363103866577
     },
     {
       "task_id": 15,
@@ -72,8 +68,7 @@
       "total_tests": 3,
       "success_rate": 0.0,
       "test_errors": [],
-      "generation_time": 3.327497959136963,
-      "error_type": "all_tests_failed"
+      "generation_time": 3.3459126949310303
     },
     {
       "task_id": 16,
@@ -84,8 +79,7 @@
       "total_tests": 3,
       "success_rate": 0.0,
       "test_errors": [],
-      "generation_time": 10.881006717681885,
-      "error_type": "all_tests_failed"
+      "generation_time": 11.527456045150757
     },
     {
       "task_id": 17,
@@ -96,8 +90,7 @@
       "total_tests": 3,
       "success_rate": 100.0,
       "test_errors": [],
-      "generation_time": 5.725630044937134,
-      "error_type": null
+      "generation_time": 5.876626968383789
     },
     {
       "task_id": 18,
@@ -108,8 +101,7 @@
       "total_tests": 3,
       "success_rate": 100.0,
       "test_errors": [],
-      "generation_time": 5.098766803741455,
-      "error_type": null
+      "generation_time": 5.055126905441284
     },
     {
       "task_id": 19,
@@ -120,8 +112,7 @@
       "total_tests": 3,
       "success_rate": 100.0,
       "test_errors": [],
-      "generation_time": 5.883954048156738,
-      "error_type": null
+      "generation_time": 5.580530166625977
     },
     {
       "task_id": 20,
@@ -132,8 +123,7 @@
       "total_tests": 3,
       "success_rate": 33.33333333333333,
       "test_errors": [],
-      "generation_time": 3.610490083694458,
-      "error_type": "partial_test_failure"
+      "generation_time": 3.585866928100586
     }
   ]
 }

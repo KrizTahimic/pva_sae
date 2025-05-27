@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2025-05-26T11:53:12.456978",
+    "timestamp": "2025-05-27T15:24:55.247584",
     "model_name": "google/gemma-2-2b",
     "total_processed": 10,
     "statistics": {
@@ -22,7 +22,7 @@
       "total_tests": 3,
       "success_rate": 100.0,
       "test_errors": [],
-      "generation_time": 20.42258095741272
+      "generation_time": 20.73733401298523
     },
     {
       "task_id": 12,
@@ -33,7 +33,7 @@
       "total_tests": 3,
       "success_rate": 0.0,
       "test_errors": [],
-      "generation_time": 4.137821197509766
+      "generation_time": 4.010288238525391
     },
     {
       "task_id": 13,
@@ -46,7 +46,7 @@
       "test_errors": [
         "Code execution failed: '[' was never closed (<string>, line 12)"
       ],
-      "generation_time": 22.611918926239014
+      "generation_time": 24.015450954437256
     },
     {
       "task_id": 14,
@@ -57,7 +57,7 @@
       "total_tests": 3,
       "success_rate": 0.0,
       "test_errors": [],
-      "generation_time": 2.379392147064209
+      "generation_time": 2.5473949909210205
     },
     {
       "task_id": 15,
@@ -68,7 +68,7 @@
       "total_tests": 3,
       "success_rate": 0.0,
       "test_errors": [],
-      "generation_time": 3.273162841796875
+      "generation_time": 3.453596830368042
     },
     {
       "task_id": 16,
@@ -79,7 +79,7 @@
       "total_tests": 3,
       "success_rate": 0.0,
       "test_errors": [],
-      "generation_time": 10.701211929321289
+      "generation_time": 11.336094856262207
     },
     {
       "task_id": 17,
@@ -90,7 +90,7 @@
       "total_tests": 3,
       "success_rate": 100.0,
       "test_errors": [],
-      "generation_time": 5.769345998764038
+      "generation_time": 6.0253660678863525
     },
     {
       "task_id": 18,
@@ -101,7 +101,7 @@
       "total_tests": 3,
       "success_rate": 100.0,
       "test_errors": [],
-      "generation_time": 5.0151238441467285
+      "generation_time": 5.084791898727417
     },
     {
       "task_id": 19,
@@ -112,7 +112,7 @@
       "total_tests": 3,
       "success_rate": 100.0,
       "test_errors": [],
-      "generation_time": 5.566680192947388
+      "generation_time": 5.595286130905151
     },
     {
       "task_id": 20,
@@ -123,7 +123,7 @@
       "total_tests": 3,
       "success_rate": 33.33333333333333,
       "test_errors": [],
-      "generation_time": 3.6036429405212402
+      "generation_time": 3.5710971355438232
     }
   ]
 }
