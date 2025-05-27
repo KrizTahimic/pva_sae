@@ -104,10 +104,57 @@ pva_sae/
 └── requirements.txt          # Dependencies
 ```
 
+## Checkpoint Recovery System
+
+The system includes robust checkpoint recovery for long-running dataset builds:
+
+### Automatic Recovery
+- **Checkpoints**: Saved every 50 records (configurable) to `checkpoints/` directory
+- **Auto-Resume**: Automatically detects and offers to resume from latest checkpoint
+- **Emergency Saves**: Graceful shutdown on Ctrl+C or system signals
+
+### Recovery After Crashes
+```bash
+# System automatically detects checkpoints on restart
+python scripts/run_production_build.py --model google/gemma-2-9b
+
+# Prompts: "Found checkpoint with 150 processed records. Resume? (y/n)"
+```
+
+### Manual Recovery
+```bash
+# List available checkpoints
+ls data/datasets/checkpoints/
+
+# Resume from specific checkpoint
+python scripts/run_production_build.py --resume checkpoints/checkpoint_0_973_20250527_180144.json
+```
+
+### What Gets Preserved
+- **Progress**: Exact record indices processed
+- **Results**: All generated code and test results
+- **Statistics**: Success rates, timing data, model configuration
+- **State**: Can resume from any interruption point
+
+### Production Features
+```python
+from phase1_dataset_building import ProductionMBPPTester
+
+# Production build with full hardening
+tester = ProductionMBPPTester(model_name="google/gemma-2-9b")
+dataset_path = tester.build_dataset_production(
+    start_idx=0, 
+    end_idx=973,  # Full MBPP dataset
+    resume_from_checkpoint=None  # Auto-detect latest
+)
+```
+
 ## Output Files
 
 - **Logs**: Timestamped logs in `data/logs/`
 - **Datasets**: JSON and Parquet files in `data/datasets/`
+- **Checkpoints**: Recovery files in `data/datasets/checkpoints/`
+- **Autosaves**: Periodic backups during long runs
 - **Metadata**: Accompanying metadata files with statistics
 
 ## Hardware Requirements
