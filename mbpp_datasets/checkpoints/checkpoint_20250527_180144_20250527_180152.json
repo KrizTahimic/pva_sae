@@ -1,0 +1,38 @@
+{
+  "last_completed_idx": 0,
+  "total_processed": 1,
+  "correct_solutions": 1,
+  "incorrect_solutions": 0,
+  "failed_records": [],
+  "results": [
+    {
+      "task_id": 11,
+      "prompt": "Write a python function to remove first and last occurrence of a given character from the string.\n\nassert remove_Occ(\"hello\",\"l\") == \"heo\"\nassert remove_Occ(\"abcda\",\"a\") == \"bcd\"\nassert remove_Occ(\"PHP\",\"P\") == \"H\"\n\n# Your code here",
+      "generated_code": "def remove_Occ(string,char):\n    string = string.replace(char,\"\")\n    return string",
+      "is_correct": true,
+      "passed_tests": 3,
+      "total_tests": 3,
+      "success_rate": 100.0,
+      "test_errors": [],
+      "generation_time": 7.695743083953857
+    }
+  ],
+  "timestamp": "2025-05-27T18:01:52.209256",
+  "config": {
+    "checkpoint_frequency": 5,
+    "checkpoint_dir": "checkpoints",
+    "autosave_frequency": 100,
+    "autosave_keep_last": 3,
+    "max_retries": 3,
+    "retry_backoff": 1.0,
+    "continue_on_error": true,
+    "memory_cleanup_frequency": 100,
+    "gc_collect_frequency": 50,
+    "progress_log_frequency": 10,
+    "show_progress_bar": true,
+    "max_memory_usage_gb": 100.0,
+    "max_gpu_memory_usage_gb": 30.0,
+    "enable_timing_stats": true,
+    "timeout_per_record": 300.0
+  }
+}

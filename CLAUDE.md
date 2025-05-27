@@ -17,7 +17,10 @@ The methodology follows three phases: dataset building (50% SAE analysis, 10% hy
 
 ### Environment Setup
 ```bash
-# Install dependencies
+# Activate conda environment
+conda activate pva_sae
+
+# Install dependencies (if not already installed)
 pip install -r requirements.txt
 
 # For CUDA support, also install:
@@ -31,6 +34,10 @@ python interp/data_processing.py
 
 # Run the enhanced data processing version
 python interp/dp_v2.py
+
+# Run production hardened version (recommended for full dataset)
+python interp/run_production_build.py --test-run  # Test with 10 records
+python interp/run_production_build.py --model google/gemma-2-9b  # Full production run
 ```
 
 ### Testing and Development
@@ -72,6 +79,14 @@ ls -la interp/mbpp_datasets/
    - `steering.py`: Model steering experiments
    - `robustness_analysis.py`: Robustness testing
    - `statistical_analysis.py`: Statistical analysis
+
+3. **Production Hardening** (`interp/data_processing_hardened.py`)
+   - `HardeningConfig`: Configuration for production parameters
+   - `CheckpointManager`: Saves/loads progress for resume capability
+   - `ProgressTracker`: Enhanced progress monitoring with ETA
+   - `ResourceMonitor`: Memory and GPU monitoring
+   - `HardenedDatasetBuilder`: Production-ready dataset builder
+   - `ProductionMBPPTester`: Orchestrates hardened pipeline
 
 ### Key Design Patterns
 
