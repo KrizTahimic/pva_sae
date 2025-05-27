@@ -27,15 +27,29 @@ pip install -r requirements.txt
 pip install accelerate
 ```
 
-### Running the Data Processing Pipeline
+### Running the Pipeline
+
+#### Full Three-Phase Pipeline
 ```bash
-# Run the main data processing script
-python3 interp/data_processing.py
+# Run complete pipeline
+python3 scripts/run_full_pipeline.py --model google/gemma-2-9b
 
-# Run the enhanced data processing version
-python3 interp/dp_v2.py
+# Run with custom configuration
+python3 scripts/run_full_pipeline.py --config configs/experiment.json
 
-# Run production hardened version (recommended for full dataset)
+# Dry run to see configuration
+python3 scripts/run_full_pipeline.py --dry-run
+```
+
+#### Phase 1: Dataset Building Only
+```bash
+# Run phase 1 with default settings
+python3 scripts/run_phase1.py --model google/gemma-2-9b
+
+# Quick test with smaller model
+python3 scripts/run_phase1.py --model google/gemma-2-2b --start 0 --end 10
+
+# Production build with hardening
 python3 interp/run_production_build.py --test-run  # Test with 10 records
 python3 interp/run_production_build.py --model google/gemma-2-9b  # Full production run
 ```
@@ -44,49 +58,89 @@ python3 interp/run_production_build.py --model google/gemma-2-9b  # Full product
 ```bash
 # Build dataset for thesis (Note: default model is gemma-2-2b, thesis uses gemma-2-9b)
 python3 -c "
-from interp.data_processing import EnhancedMBPPTester
+from interp.phase1_dataset_building import EnhancedMBPPTester
 tester = EnhancedMBPPTester(model_name='google/gemma-2-9b')
 tester.build_dataset_mvp_with_cleanup(start_idx=0, end_idx=100)
 "
 
 # Quick test with smaller model
 python3 -c "
-from interp.data_processing import EnhancedMBPPTester
+from interp.phase1_dataset_building import EnhancedMBPPTester
 tester = EnhancedMBPPTester()  # Uses default gemma-2-2b
 tester.build_dataset_mvp_with_cleanup(start_idx=0, end_idx=2)
 "
 
 # Check logs
-ls -la mbpp_logs/
+ls -la interp/data/logs/
 
 # View generated datasets
-ls -la interp/mbpp_datasets/
+ls -la interp/data/datasets/
 ```
 
-## Architecture Overview
+## New Architecture Overview (Refactored)
+
+### Project Structure
+
+```
+pva_sae/
+├── interp/
+│   ├── common/               # Shared utilities and configurations
+│   │   ├── utils.py         # Device detection, cleanup, helpers
+│   │   ├── config.py        # All configuration classes
+│   │   ├── models.py        # Model management
+│   │   └── logging.py       # Logging utilities
+│   │
+│   ├── phase1_dataset_building/   # Phase 1: Dataset generation
+│   │   ├── dataset_manager.py    # MBPP dataset and prompts
+│   │   ├── test_executor.py      # Code execution and testing
+│   │   ├── dataset_builder.py    # Dataset building logic
+│   │   └── mbpp_tester.py        # Main orchestrators
+│   │
+│   ├── phase2_sae_analysis/       # Phase 2: SAE analysis
+│   │   └── sae_analyzer.py       # (To be implemented)
+│   │
+│   ├── phase3_validation/         # Phase 3: Validation
+│   │   ├── statistical_validator.py  # AUROC/F1 analysis
+│   │   ├── robustness_tester.py     # Temperature testing
+│   │   └── model_steerer.py         # Steering experiments
+│   │
+│   ├── orchestration/         # Pipeline coordination
+│   │   └── pipeline.py       # Three-phase orchestrator
+│   │
+│   └── data/                 # Consolidated data directory
+│       ├── datasets/         # Generated datasets
+│       └── logs/            # Execution logs
+│
+└── scripts/                  # Entry point scripts
+    ├── run_full_pipeline.py  # Complete pipeline
+    └── run_phase1.py        # Phase 1 only
+```
 
 ### Core Components
 
-1. **Data Processing Pipeline** (`interp/data_processing.py`, `interp/dp_v2.py`)
-   - `ModelManager`: Handles model loading and code generation
-   - `EnhancedDatasetManager`: Manages MBPP dataset and prompt templates
-   - `TestExecutor`: Executes generated code against test cases
-   - `DatasetBuilder`: Orchestrates the generation and classification pipeline
-   - `EnhancedMBPPTester`: Main entry point for dataset building
+1. **Common Utilities** (`interp/common/`)
+   - Shared configurations, utilities, and model management
+   - No code duplication across modules
+   - Centralized logging and experiment tracking
 
-2. **Analysis Modules** (planned/in development)
-   - `sae_analysis.py`: Sparse autoencoder analysis
-   - `steering.py`: Model steering experiments
-   - `robustness_analysis.py`: Robustness testing
-   - `statistical_analysis.py`: Statistical analysis
+2. **Phase 1: Dataset Building** (`interp/phase1_dataset_building/`)
+   - `DatasetManager`: Loads and manages MBPP dataset
+   - `PromptTemplateBuilder`: Creates standardized prompts
+   - `TestExecutor`: Runs generated code against test cases
+   - `DatasetBuilder`: Coordinates generation and classification
+   - `HardenedDatasetBuilder`: Production-grade with checkpointing
+   - `ProductionMBPPTester`: Main entry point for production runs
 
-3. **Production Hardening** (`interp/data_processing_hardened.py`)
-   - `HardeningConfig`: Configuration for production parameters
-   - `CheckpointManager`: Saves/loads progress for resume capability
-   - `ProgressTracker`: Enhanced progress monitoring with ETA
-   - `ResourceMonitor`: Memory and GPU monitoring
-   - `HardenedDatasetBuilder`: Production-ready dataset builder
-   - `ProductionMBPPTester`: Orchestrates hardened pipeline
+3. **Phase 2: SAE Analysis** (`interp/phase2_sae_analysis/`)
+   - SAE activation analysis (to be implemented)
+   - Latent direction identification
+   - Separation score calculation
+
+4. **Phase 3: Validation** (`interp/phase3_validation/`)
+   - Statistical validation (AUROC, F1)
+   - Robustness testing across temperatures
+   - Model steering experiments
+   - Binomial testing for significance
 
 ### Key Design Patterns
 
@@ -105,8 +159,8 @@ ls -la interp/mbpp_datasets/
 
 ### File Organization
 
-- `mbpp_logs/`: Timestamped execution logs
-- `interp/mbpp_datasets/`: Generated datasets (JSON/Parquet)
+- `interp/data/logs/`: Timestamped execution logs
+- `interp/data/datasets/`: Generated datasets (JSON/Parquet)
 - Automatic cleanup keeps only latest 2-3 files of each type
 
 ### Hardware Support

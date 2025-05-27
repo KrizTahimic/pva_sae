@@ -1,0 +1,68 @@
+2025-05-27 18:30:02,169 - root - INFO - Logging system initialized
+2025-05-27 18:30:02,169 - root - INFO - Loading MBPP dataset...
+2025-05-27 18:30:17,115 - root - INFO - MBPP dataset loaded: 500 examples
+2025-05-27 18:30:17,115 - root - INFO - Starting model load: google/gemma-2-2b on mps
+2025-05-27 18:30:17,115 - root - INFO - Loading tokenizer for google/gemma-2-2b
+2025-05-27 18:30:18,446 - root - INFO - Tokenizer loaded successfully
+2025-05-27 18:30:18,446 - root - INFO - Loading model weights for google/gemma-2-2b on mps
+2025-05-27 18:30:29,020 - root - INFO - Model set to evaluation mode
+2025-05-27 18:30:29,021 - root - INFO - Model weights loaded successfully
+2025-05-27 18:30:29,021 - root - INFO - Model pipeline ready on device: mps
+2025-05-27 18:30:29,022 - root - INFO - Starting dataset building for records 0 to 9
+2025-05-27 18:30:29,123 - root - INFO - Resource usage - Memory: 0.3GB
+2025-05-27 18:30:29,128 - root - INFO - Processing record 0 (Task ID: 11)
+2025-05-27 18:30:36,886 - root - INFO - Test 1: PASSED
+2025-05-27 18:30:36,887 - root - INFO - Test 2: PASSED
+2025-05-27 18:30:36,887 - root - INFO - Test 3: PASSED
+2025-05-27 18:30:36,887 - root - INFO - Test summary: 3/3 tests passed
+2025-05-27 18:30:36,887 - root - INFO - Record 0 (11): CORRECT [Tests: 3/3, Time: 7.76s]
+2025-05-27 18:30:36,887 - root - INFO - Progress: 0/10 (1 done, 9 remaining) | Success: 1 (100.0%) | Failed: 0 | Retries: 0 | ETA: 1m 10s
+2025-05-27 18:30:36,887 - root - INFO - Checkpoint saved: mbpp_datasets/checkpoints/checkpoint_20250527_183029_20250527_183036.json
+2025-05-27 18:30:36,905 - root - INFO - Autosaved 1 results to mbpp_datasets/autosave_20250527_183029_20250527_183036.parquet
+2025-05-27 18:30:36,966 - root - INFO - Processing record 1 (Task ID: 12)
+2025-05-27 18:30:43,113 - root - INFO - Test 1: FAILED
+2025-05-27 18:30:43,113 - root - INFO - Test 2: FAILED
+2025-05-27 18:30:43,113 - root - INFO - Test 3: FAILED
+2025-05-27 18:30:43,113 - root - INFO - Test summary: 0/3 tests passed
+2025-05-27 18:30:43,113 - root - INFO - Record 1 (12): INCORRECT [Tests: 0/3, Time: 6.15s]
+2025-05-27 18:30:43,113 - root - INFO - Processing record 2 (Task ID: 13)
+2025-05-27 18:31:30,667 - root - ERROR - Code execution failed: 
+2025-05-27 18:31:30,668 - root - INFO - Record 2 (13): INCORRECT [Tests: 0/3, Time: 47.55s]
+2025-05-27 18:31:30,668 - root - INFO - Processing record 3 (Task ID: 14)
+2025-05-27 18:31:34,422 - root - INFO - Test 1: FAILED
+2025-05-27 18:31:34,422 - root - INFO - Test 2: FAILED
+2025-05-27 18:31:34,422 - root - INFO - Test 3: FAILED
+2025-05-27 18:31:34,422 - root - INFO - Test summary: 0/3 tests passed
+2025-05-27 18:31:34,422 - root - INFO - Record 3 (14): INCORRECT [Tests: 0/3, Time: 3.75s]
+2025-05-27 18:31:34,423 - root - INFO - Processing record 4 (Task ID: 15)
+2025-05-27 18:31:39,393 - root - INFO - Test 1: FAILED
+2025-05-27 18:31:39,393 - root - INFO - Test 2: FAILED
+2025-05-27 18:31:39,393 - root - INFO - Test 3: FAILED
+2025-05-27 18:31:39,393 - root - INFO - Test summary: 0/3 tests passed
+2025-05-27 18:31:39,393 - root - INFO - Record 4 (15): INCORRECT [Tests: 0/3, Time: 4.97s]
+2025-05-27 18:31:39,394 - root - INFO - Processing record 5 (Task ID: 16)
+2025-05-27 18:31:56,539 - root - INFO - Test 1: FAILED
+2025-05-27 18:31:56,540 - root - INFO - Test 2: FAILED
+2025-05-27 18:31:56,540 - root - INFO - Test 3: FAILED
+2025-05-27 18:31:56,540 - root - INFO - Test summary: 0/3 tests passed
+2025-05-27 18:31:56,540 - root - INFO - Record 5 (16): INCORRECT [Tests: 0/3, Time: 17.15s]
+2025-05-27 18:31:56,541 - root - INFO - Checkpoint saved: mbpp_datasets/checkpoints/checkpoint_20250527_183029_20250527_183156.json
+2025-05-27 18:31:56,542 - root - INFO - Processing record 6 (Task ID: 17)
+2025-05-27 18:32:05,874 - root - INFO - Test 1: PASSED
+2025-05-27 18:32:05,875 - root - INFO - Test 2: PASSED
+2025-05-27 18:32:05,875 - root - INFO - Test 3: PASSED
+2025-05-27 18:32:05,875 - root - INFO - Test summary: 3/3 tests passed
+2025-05-27 18:32:05,875 - root - INFO - Record 6 (17): CORRECT [Tests: 3/3, Time: 9.33s]
+2025-05-27 18:32:05,875 - root - INFO - Processing record 7 (Task ID: 18)
+2025-05-27 18:32:14,027 - root - INFO - Test 1: PASSED
+2025-05-27 18:32:14,027 - root - INFO - Test 2: PASSED
+2025-05-27 18:32:14,027 - root - INFO - Test 3: PASSED
+2025-05-27 18:32:14,027 - root - INFO - Test summary: 3/3 tests passed
+2025-05-27 18:32:14,027 - root - INFO - Record 7 (18): CORRECT [Tests: 3/3, Time: 8.15s]
+2025-05-27 18:32:14,027 - root - ERROR - Dataset building failed: [Errno 32] Broken pipe
+2025-05-27 18:32:14,028 - root - INFO - Checkpoint saved: mbpp_datasets/checkpoints/checkpoint_20250527_183029_20250527_183214.json
+2025-05-27 18:32:14,028 - root - INFO - Emergency checkpoint saved
+2025-05-27 18:32:14,028 - root - ERROR - Production dataset building failed: Dataset building failed: [Errno 32] Broken pipe
+2025-05-27 18:32:14,029 - root - INFO - Final progress: 8 records processed
+2025-05-27 18:32:14,034 - root - INFO - Unloading model resources...
+2025-05-27 18:32:14,067 - root - INFO - Model unloaded successfully

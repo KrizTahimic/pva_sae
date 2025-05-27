@@ -26,12 +26,24 @@ from datetime import datetime
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from interp.data_processing_hardened import (
-    ProductionMBPPTester,
-    HardeningConfig,
-    create_production_config,
-    estimate_processing_time
-)
+from interp.phase1_dataset_building import ProductionMBPPTester
+from interp.common import HardeningConfig
+
+# Helper functions
+def create_production_config(**kwargs):
+    """Create a production-ready configuration"""
+    return HardeningConfig(**kwargs)
+
+def estimate_processing_time(num_records, avg_time_per_record=30):
+    """Estimate processing time based on number of records"""
+    total_seconds = num_records * avg_time_per_record
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    else:
+        return f"{minutes}m"
 
 def parse_arguments():
     """Parse command line arguments"""
@@ -111,15 +123,15 @@ Examples:
     parser.add_argument(
         "--dataset-dir",
         type=str,
-        default="mbpp_datasets",
-        help="Directory for saving datasets (default: mbpp_datasets)"
+        default="interp/data/datasets",
+        help="Directory for saving datasets (default: interp/data/datasets)"
     )
     
     parser.add_argument(
         "--log-dir",
         type=str,
-        default="mbpp_logs",
-        help="Directory for saving logs (default: mbpp_logs)"
+        default="interp/data/logs",
+        help="Directory for saving logs (default: interp/data/logs)"
     )
     
     return parser.parse_args()
@@ -189,10 +201,11 @@ def main():
         print(f"🔧 Initializing production tester with {args.model}...")
         tester = ProductionMBPPTester(
             model_name=args.model,
-            config=config,
             debug=False,
             log_dir=args.log_dir,
-            dataset_dir=args.dataset_dir
+            dataset_dir=args.dataset_dir,
+            max_new_tokens=2000,
+            hardening_config=config
         )
         
         # Run production build
@@ -200,12 +213,15 @@ def main():
         print("   (Press Ctrl+C to interrupt safely - progress will be saved)")
         print()
         
-        summary = tester.build_dataset_production(
+        dataset_path = tester.build_dataset_production(
             start_idx=args.start,
             end_idx=args.end,
-            resume=not args.no_resume,
-            save_config=True
+            stream=False,
+            resume_from_checkpoint=None if args.no_resume else 'auto'
         )
+        
+        # Get summary from tester
+        summary = tester.hardened_builder.get_statistics() if tester.hardened_builder else {}
         
         # Success!
         print("\n" + "="*70)
@@ -215,13 +231,11 @@ def main():
         # Show key results
         print(f"\nKey Results:")
         print(f"  Total processed: {summary['total_processed']}")
-        print(f"  Success rate: {summary['correct_rate']:.1f}%")
-        print(f"  Failed records: {len(summary['failed_records'])}")
+        print(f"  Success rate: {summary.get('correct_rate', 0):.1f}%")
+        print(f"  Incorrect solutions: {summary.get('incorrect_solutions', 0)}")
         
-        if summary['failed_records']:
-            print(f"\n⚠️  Failed record indices: {summary['failed_records'][:10]}")
-            if len(summary['failed_records']) > 10:
-                print(f"    ... and {len(summary['failed_records']) - 10} more")
+        if dataset_path:
+            print(f"\n📊 Dataset saved to: {dataset_path}")
         
         print(f"\n📁 Results saved in: {args.dataset_dir}")
         print(f"📋 Logs saved in: {args.log_dir}")
