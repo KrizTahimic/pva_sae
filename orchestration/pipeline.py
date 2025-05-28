@@ -1,7 +1,8 @@
 """
 Main pipeline orchestration for the PVA-SAE thesis project.
 
-This module coordinates the three-phase methodology:
+This module coordinates the complete methodology:
+0. Difficulty Analysis (preprocessing MBPP problems with complexity scores)
 1. Dataset Building (50% SAE analysis, 10% hyperparameter tuning, 40% validation)
 2. SAE Activation Analysis using separation scores
 3. Validation through statistical measures and causal intervention
@@ -17,7 +18,7 @@ from common.utils import split_indices_interleaved, validate_split_quality
 
 
 class ThesisPipeline:
-    """Orchestrates the complete three-phase thesis pipeline"""
+    """Orchestrates the complete four-phase thesis pipeline"""
     
     def __init__(self, experiment_config: ExperimentConfig):
         """
@@ -30,18 +31,26 @@ class ThesisPipeline:
         self.logger = logging.getLogger(__name__)
         
         # Results storage
+        self.phase0_results = None
         self.phase1_results = None
         self.phase2_results = None
         self.phase3_results = None
     
-    def run_complete_pipeline(self) -> Dict[str, Any]:
+    def run_complete_pipeline(self, skip_phase0: bool = False) -> Dict[str, Any]:
         """
-        Run the complete three-phase pipeline
+        Run the complete four-phase pipeline
         
+        Args:
+            skip_phase0: Skip Phase 0 if difficulty mapping already exists
+            
         Returns:
             dict: Complete pipeline results
         """
         self.logger.info("Starting complete thesis pipeline")
+        
+        # Phase 0: Difficulty Analysis (if not skipped)
+        if not skip_phase0:
+            self.phase0_results = self._run_phase0()
         
         # Phase 1: Dataset Building
         self.phase1_results = self._run_phase1()
@@ -53,6 +62,12 @@ class ThesisPipeline:
         self.phase3_results = self._run_phase3()
         
         return self._compile_results()
+    
+    def _run_phase0(self) -> Dict[str, Any]:
+        """Run Phase 0: Difficulty Analysis"""
+        self.logger.info("Phase 0: Difficulty Analysis - Not yet implemented")
+        # TODO: Implement difficulty analysis coordination
+        return {'status': 'not_implemented'}
     
     def _run_phase1(self) -> Dict[str, Any]:
         """Run Phase 1: Dataset Building"""
@@ -76,6 +91,7 @@ class ThesisPipeline:
         """Compile results from all phases"""
         return {
             'experiment_name': self.config.experiment_name,
+            'phase0': self.phase0_results,
             'phase1': self.phase1_results,
             'phase2': self.phase2_results,
             'phase3': self.phase3_results

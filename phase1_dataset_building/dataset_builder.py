@@ -380,7 +380,8 @@ class DatasetBuilder:
                  dataset_manager: PromptAwareDatasetManager,
                  config: DatasetConfiguration,
                  max_new_tokens: int = 200, 
-                 stream_output: bool = False):
+                 stream_output: bool = False,
+                 difficulty_mapping: Optional[Dict[str, Any]] = None):
         """
         Initialize dataset builder
         
@@ -390,12 +391,14 @@ class DatasetBuilder:
             config: Dataset configuration
             max_new_tokens: Maximum tokens to generate
             stream_output: Whether to stream generation output
+            difficulty_mapping: Optional pre-computed difficulty mapping from Phase 0
         """
         self.model_manager = model_manager
         self.dataset_manager = dataset_manager
         self.config = config
         self.max_new_tokens = max_new_tokens
         self.stream_output = stream_output
+        self.difficulty_mapping = difficulty_mapping or {}
         
         # Results tracking
         self.generation_results: List[CodeGenerationResult] = []
@@ -474,8 +477,8 @@ class DatasetBuilder:
             # Classify result
             is_correct = self._classify_solution(test_result, generated_code)
             
-            # Calculate reference code complexity
-            complexity = get_cyclomatic_complexity(record['code'])
+            # Get complexity from difficulty mapping or calculate on demand
+            complexity = self._get_complexity_score(task_id, record)
             
             # Create result object
             result = CodeGenerationResult(
@@ -735,6 +738,26 @@ class DatasetBuilder:
         
         return is_correct
     
+    def _get_complexity_score(self, task_id: str, record: dict) -> int:
+        """
+        Get complexity score from difficulty mapping or calculate on demand
+        
+        Args:
+            task_id: Task identifier
+            record: MBPP record containing reference code
+            
+        Returns:
+            int: Cyclomatic complexity score
+        """
+        # Try to get from pre-computed difficulty mapping first
+        if self.difficulty_mapping and task_id in self.difficulty_mapping:
+            difficulty_metrics = self.difficulty_mapping[task_id]
+            return difficulty_metrics.cyclomatic_complexity
+        
+        # Fallback: calculate on demand from reference code
+        reference_code = record.get('code', '')
+        return get_cyclomatic_complexity(reference_code)
+    
     def _update_statistics(self, result: CodeGenerationResult):
         """Update processing statistics"""
         self.total_processed += 1
@@ -778,7 +801,8 @@ class RobustDatasetBuilder(DatasetBuilder):
                  config: DatasetConfiguration,
                  robustness_config: RobustnessConfig,
                  max_new_tokens: int = 200,
-                 stream_output: bool = False):
+                 stream_output: bool = False,
+                 difficulty_mapping: Optional[Dict[str, Any]] = None):
         """
         Initialize robust dataset builder
         
@@ -789,8 +813,9 @@ class RobustDatasetBuilder(DatasetBuilder):
             robustness_config: Robustness configuration
             max_new_tokens: Maximum tokens to generate
             stream_output: Whether to stream generation output
+            difficulty_mapping: Optional pre-computed difficulty mapping from Phase 0
         """
-        super().__init__(model_manager, dataset_manager, config, max_new_tokens, stream_output)
+        super().__init__(model_manager, dataset_manager, config, max_new_tokens, stream_output, difficulty_mapping)
         
         self.robustness_config = robustness_config
         self.checkpoint_manager = CheckpointManager(
