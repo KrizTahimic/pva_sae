@@ -15,7 +15,7 @@ from common import (
     ModelManager,
     ModelConfiguration,
     DatasetConfiguration,
-    HardeningConfig,
+    RobustnessConfig,
     DEFAULT_MODEL_NAME,
     DEFAULT_LOG_DIR,
     DEFAULT_DATASET_DIR,
@@ -23,9 +23,9 @@ from common import (
     auto_cleanup,
     ensure_directory_exists
 )
-from phase1_dataset_building.dataset_manager import EnhancedDatasetManager, TestResult
+from phase1_dataset_building.dataset_manager import PromptAwareDatasetManager, CodeTestResult
 from phase1_dataset_building.test_executor import TestExecutor
-from phase1_dataset_building.dataset_builder import DatasetBuilder, HardenedDatasetBuilder
+from phase1_dataset_building.dataset_builder import DatasetBuilder, RobustDatasetBuilder
 
 
 class MBPPTester:
@@ -56,12 +56,12 @@ class MBPPTester:
         
         # Model and dataset managers
         self.model_manager = None
-        self.dataset_manager = EnhancedDatasetManager()
+        self.dataset_manager = PromptAwareDatasetManager()
         
         # Results tracking
         self.total_tests = 0
         self.passed_tests = 0
-        self.record_results: List[TestResult] = []
+        self.record_results: List[CodeTestResult] = []
     
     @property
     def log_file(self) -> Optional[str]:
@@ -91,7 +91,7 @@ class MBPPTester:
         if not self.dataset_manager.is_loaded():
             self.dataset_manager.load_dataset()
     
-    def test_single_record(self, idx: int) -> TestResult:
+    def test_single_record(self, idx: int) -> CodeTestResult:
         """
         Test single MBPP record by index
         
@@ -99,7 +99,7 @@ class MBPPTester:
             idx: Index of record to test
             
         Returns:
-            TestResult: Test execution results
+            CodeTestResult: Test execution results
         """
         try:
             record = self.dataset_manager.get_record(idx)
@@ -154,7 +154,7 @@ class MBPPTester:
             'log_file': self.log_file
         }
     
-    def get_detailed_results(self) -> List[TestResult]:
+    def get_detailed_results(self) -> List[CodeTestResult]:
         """Get detailed results for each tested record"""
         return self.record_results.copy()
     
@@ -192,7 +192,7 @@ class MBPPTester:
         self.passed_tests = 0
         self.record_results = []
     
-    def _update_overall_stats(self, result: TestResult):
+    def _update_overall_stats(self, result: CodeTestResult):
         """Update overall statistics with new result"""
         self.total_tests += result.total
         self.passed_tests += result.passed
@@ -217,8 +217,8 @@ class MBPPTester:
         return summary
 
 
-class EnhancedMBPPTester(MBPPTester):
-    """Enhanced MBPP tester with dataset building capabilities"""
+class DatasetBuildingOrchestrator(MBPPTester):
+    """Dataset building orchestrator with MBPP code generation capabilities"""
     
     def __init__(self,
                  model_name: str = DEFAULT_MODEL_NAME,
@@ -246,12 +246,12 @@ class EnhancedMBPPTester(MBPPTester):
         ensure_directory_exists(log_dir)
         ensure_directory_exists(dataset_dir)
     
-    def build_dataset_mvp(self, 
-                          start_idx: int = 0, 
-                          end_idx: int = 2, 
-                          stream: bool = False) -> str:
+    def build_dataset_simple(self, 
+                             start_idx: int = 0, 
+                             end_idx: int = 2, 
+                             stream: bool = False) -> str:
         """
-        Build dataset MVP (Minimum Viable Product)
+        Build dataset with simple configuration
         
         Args:
             start_idx: Starting index
@@ -308,12 +308,12 @@ class EnhancedMBPPTester(MBPPTester):
             self.logger.error(f"Dataset building failed: {str(e)}")
             raise RuntimeError(f"Dataset building failed: {str(e)}") from e
     
-    def build_dataset_mvp_with_cleanup(self, 
-                                       start_idx: int = 0, 
-                                       end_idx: int = 2, 
-                                       stream: bool = False) -> str:
+    def build_dataset_simple_with_cleanup(self, 
+                                          start_idx: int = 0, 
+                                          end_idx: int = 2, 
+                                          stream: bool = False) -> str:
         """
-        Build dataset MVP with automatic cleanup
+        Build dataset with simple configuration and automatic cleanup
         
         Args:
             start_idx: Starting index
@@ -327,7 +327,7 @@ class EnhancedMBPPTester(MBPPTester):
         auto_cleanup(self.dataset_dir, self.log_dir)
         
         # Build dataset
-        return self.build_dataset_mvp(start_idx, end_idx, stream)
+        return self.build_dataset_simple(start_idx, end_idx, stream)
     
     def analyze_dataset(self, dataset_path: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -377,8 +377,8 @@ class EnhancedMBPPTester(MBPPTester):
         return analysis
 
 
-class ProductionMBPPTester(EnhancedMBPPTester):
-    """Production-ready MBPP tester with hardening features"""
+class ProductionDatasetBuilder(DatasetBuildingOrchestrator):
+    """Production-ready dataset builder with robustness features"""
     
     def __init__(self,
                  model_name: str = DEFAULT_MODEL_NAME,
@@ -386,7 +386,7 @@ class ProductionMBPPTester(EnhancedMBPPTester):
                  log_dir: str = DEFAULT_LOG_DIR,
                  dataset_dir: str = DEFAULT_DATASET_DIR,
                  max_new_tokens: int = MAX_NEW_TOKEN,
-                 hardening_config: Optional[HardeningConfig] = None):
+                 robustness_config: Optional[RobustnessConfig] = None):
         """
         Initialize production MBPP tester
         
@@ -396,12 +396,12 @@ class ProductionMBPPTester(EnhancedMBPPTester):
             log_dir: Directory for log files
             dataset_dir: Directory for dataset files
             max_new_tokens: Maximum tokens to generate
-            hardening_config: Hardening configuration
+            robustness_config: Robustness configuration
         """
         super().__init__(model_name, debug, log_dir, dataset_dir, max_new_tokens)
         
-        self.hardening_config = hardening_config or HardeningConfig()
-        self.hardened_builder = None
+        self.robustness_config = robustness_config or RobustnessConfig()
+        self.robust_builder = None
     
     def build_dataset_production(self,
                                  start_idx: int = 0,
@@ -409,7 +409,7 @@ class ProductionMBPPTester(EnhancedMBPPTester):
                                  stream: bool = False,
                                  resume_from_checkpoint: Optional[str] = None) -> str:
         """
-        Build dataset with production hardening
+        Build dataset with production robustness
         
         Args:
             start_idx: Starting index
@@ -434,22 +434,22 @@ class ProductionMBPPTester(EnhancedMBPPTester):
                 'start_idx': start_idx,
                 'end_idx': end_idx,
                 'max_new_tokens': self.max_new_tokens,
-                'hardening_config': self.hardening_config.to_dict(),
+                'robustness_config': self.robustness_config.to_dict(),
                 'resume_from_checkpoint': resume_from_checkpoint
             })
             
-            # Create hardened dataset builder
+            # Create robust dataset builder
             dataset_config = DatasetConfiguration(
                 dataset_dir=self.dataset_dir,
                 start_idx=start_idx,
                 end_idx=end_idx
             )
             
-            self.hardened_builder = HardenedDatasetBuilder(
+            self.robust_builder = RobustDatasetBuilder(
                 model_manager=self.model_manager,
                 dataset_manager=self.dataset_manager,
                 config=dataset_config,
-                hardening_config=self.hardening_config,
+                robustness_config=self.robustness_config,
                 max_new_tokens=self.max_new_tokens,
                 stream_output=stream
             )
@@ -462,13 +462,13 @@ class ProductionMBPPTester(EnhancedMBPPTester):
             
             # Build dataset with resume capability
             start_time = time.time()
-            results = self.hardened_builder.build_dataset_with_resume(
+            results = self.robust_builder.build_dataset_with_resume(
                 start_idx, end_idx, resume_from_checkpoint
             )
             duration = time.time() - start_time
             
             # Log phase end
-            stats = self.hardened_builder.get_statistics()
+            stats = self.robust_builder.get_statistics()
             self.logging_manager.log_phase_end(
                 "Dataset Building",
                 duration=duration,
@@ -477,7 +477,7 @@ class ProductionMBPPTester(EnhancedMBPPTester):
             )
             
             # Get saved dataset path
-            dataset_files = self.hardened_builder.save_dataset(format="both")
+            dataset_files = self.robust_builder.save_dataset(format="both")
             dataset_path = dataset_files[1]  # Parquet file
             
             # Display final summary
@@ -491,7 +491,7 @@ class ProductionMBPPTester(EnhancedMBPPTester):
             self.logging_manager.log_error_with_context(e, {
                 'start_idx': start_idx,
                 'end_idx': end_idx,
-                'processed': self.hardened_builder.total_processed if self.hardened_builder else 0
+                'processed': self.robust_builder.total_processed if self.robust_builder else 0
             })
             raise RuntimeError(f"Production dataset building failed: {str(e)}") from e
     
@@ -513,13 +513,13 @@ class ProductionMBPPTester(EnhancedMBPPTester):
         # Extract configurations
         model_config = ModelConfiguration(**config_data.get('model', {}))
         dataset_config = DatasetConfiguration(**config_data.get('dataset', {}))
-        hardening_config = HardeningConfig(**config_data.get('hardening', {}))
+        robustness_config = RobustnessConfig(**config_data.get('robustness', {}))
         
         # Update tester configuration
         self.model_name = model_config.model_name
         self.dataset_dir = dataset_config.dataset_dir
         self.max_new_tokens = model_config.max_new_tokens
-        self.hardening_config = hardening_config
+        self.robustness_config = robustness_config
         
         # Setup model with config
         self.setup_model(model_config)

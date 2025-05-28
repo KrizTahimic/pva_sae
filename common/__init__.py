@@ -27,7 +27,7 @@ from .config import (
     LoggingConfiguration,
     ModelConfiguration,
     DatasetConfiguration,
-    HardeningConfig,
+    RobustnessConfig,
     ExperimentConfig,
     AnalysisConfig,
     ValidationConfig
@@ -65,7 +65,7 @@ __all__ = [
     'LoggingConfiguration',
     'ModelConfiguration',
     'DatasetConfiguration',
-    'HardeningConfig',
+    'RobustnessConfig',
     'ExperimentConfig',
     'AnalysisConfig',
     'ValidationConfig',

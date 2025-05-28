@@ -22,13 +22,13 @@ from common import (
     ExperimentConfig,
     ModelConfiguration,
     DatasetConfiguration,
-    HardeningConfig,
+    RobustnessConfig,
     AnalysisConfig,
     ValidationConfig,
     LoggingManager,
     ExperimentLogger
 )
-from phase1_dataset_building import ProductionMBPPTester
+from phase1_dataset_building import ProductionDatasetBuilder
 from orchestration.pipeline import ThesisPipeline
 
 
@@ -184,7 +184,7 @@ def load_or_create_config(args):
         experiment_config = ExperimentConfig(**config_data.get('experiment', {}))
         model_config = ModelConfiguration(**config_data.get('model', {}))
         dataset_config = DatasetConfiguration(**config_data.get('dataset', {}))
-        hardening_config = HardeningConfig(**config_data.get('hardening', {}))
+        robustness_config = RobustnessConfig(**config_data.get('robustness', {}))
         analysis_config = AnalysisConfig(**config_data.get('analysis', {}))
         validation_config = ValidationConfig(**config_data.get('validation', {}))
     else:
@@ -205,7 +205,7 @@ def load_or_create_config(args):
             end_idx=args.end_idx
         )
         
-        hardening_config = HardeningConfig(
+        robustness_config = RobustnessConfig(
             checkpoint_frequency=args.checkpoint_freq,
             show_progress_bar=True
         )
@@ -224,7 +224,7 @@ def load_or_create_config(args):
         'experiment': experiment_config,
         'model': model_config,
         'dataset': dataset_config,
-        'hardening': hardening_config,
+        'robustness': robustness_config,
         'analysis': analysis_config,
         'validation': validation_config
     }
@@ -243,12 +243,12 @@ def run_phase1(configs, args, logger):
         return args.dataset_file
     
     # Create tester
-    tester = ProductionMBPPTester(
+    tester = ProductionDatasetBuilder(
         model_name=configs['model'].model_name,
         debug=args.debug,
         dataset_dir=configs['dataset'].dataset_dir,
         max_new_tokens=configs['model'].max_new_tokens,
-        hardening_config=configs['hardening']
+        robustness_config=configs['robustness']
     )
     
     # Build dataset

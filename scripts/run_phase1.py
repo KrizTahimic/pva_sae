@@ -12,7 +12,7 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from phase1_dataset_building import EnhancedMBPPTester
+from phase1_dataset_building import DatasetBuildingOrchestrator
 
 
 def main():
@@ -68,20 +68,20 @@ def main():
     
     try:
         # Create tester
-        tester = EnhancedMBPPTester(
+        tester = DatasetBuildingOrchestrator(
             model_name=args.model,
             dataset_dir=args.dataset_dir
         )
         
         # Build dataset
         if args.cleanup:
-            dataset_path = tester.build_dataset_mvp_with_cleanup(
+            dataset_path = tester.build_dataset_simple_with_cleanup(
                 start_idx=args.start,
                 end_idx=args.end,
                 stream=args.stream
             )
         else:
-            dataset_path = tester.build_dataset_mvp(
+            dataset_path = tester.build_dataset_simple(
                 start_idx=args.start,
                 end_idx=args.end,
                 stream=args.stream

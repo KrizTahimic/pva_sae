@@ -15,8 +15,8 @@ from common import DEFAULT_DATASET_DIR
 
 
 @dataclass
-class TestResult:
-    """Encapsulates test execution results"""
+class CodeTestResult:
+    """Encapsulates code test execution results"""
     passed: int
     total: int
     errors: List[str]
@@ -37,12 +37,12 @@ class TestResult:
 
 
 @dataclass
-class GenerationResult:
+class CodeGenerationResult:
     """Encapsulates code generation and testing results"""
     task_id: str
     prompt: str
     generated_code: str
-    test_result: TestResult
+    test_result: CodeTestResult
     is_correct: bool
     generation_time: float
     
@@ -337,8 +337,8 @@ class DatasetManager:
             raise RuntimeError("Dataset not loaded. Call load_dataset() first.")
 
 
-class EnhancedDatasetManager(DatasetManager):
-    """Extended DatasetManager with prompt template functionality"""
+class PromptAwareDatasetManager(DatasetManager):
+    """Dataset manager with integrated prompt template functionality"""
     
     def __init__(self):
         super().__init__()

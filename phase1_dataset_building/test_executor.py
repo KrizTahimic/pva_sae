@@ -8,7 +8,7 @@ to determine correctness according to the pass@1 criterion.
 import logging
 from typing import Optional, Tuple, List, Dict, Any
 
-from phase1_dataset_building.dataset_manager import TestResult
+from phase1_dataset_building.dataset_manager import CodeTestResult
 
 
 class TestExecutor:
@@ -35,7 +35,7 @@ class TestExecutor:
             return False, str(e)
     
     @staticmethod
-    def run_code_tests(code: str, test_cases: List[str], task_id: Optional[str] = None) -> TestResult:
+    def run_code_tests(code: str, test_cases: List[str], task_id: Optional[str] = None) -> CodeTestResult:
         """
         Execute code against multiple test cases
         
@@ -45,7 +45,7 @@ class TestExecutor:
             task_id: Optional task identifier for logging
             
         Returns:
-            TestResult: Results of test execution
+            CodeTestResult: Results of test execution
         """
         logger = logging.getLogger(__name__)
         
@@ -61,13 +61,13 @@ class TestExecutor:
         except Exception as e:
             error_msg = f"Code execution failed: {str(e)}"
             logger.error(error_msg)
-            return TestResult(passed=0, total=len(test_cases), errors=[error_msg])
+            return CodeTestResult(passed=0, total=len(test_cases), errors=[error_msg])
         
         # Execute test cases
         return TestExecutor._execute_test_cases(test_cases, namespace)
     
     @staticmethod
-    def run_record_tests(record: dict) -> TestResult:
+    def run_record_tests(record: dict) -> CodeTestResult:
         """
         Execute tests using ground truth code from MBPP record
         
@@ -75,7 +75,7 @@ class TestExecutor:
             record: MBPP record containing code and test cases
             
         Returns:
-            TestResult: Results of test execution
+            CodeTestResult: Results of test execution
         """
         logger = logging.getLogger(__name__)
         task_id = record['task_id']
@@ -97,7 +97,7 @@ class TestExecutor:
             logger.debug(f"  Test {i+1}: {test}")
     
     @staticmethod
-    def _execute_test_cases(test_cases: List[str], namespace: dict) -> TestResult:
+    def _execute_test_cases(test_cases: List[str], namespace: dict) -> CodeTestResult:
         """Execute all test cases and collect results"""
         logger = logging.getLogger(__name__)
         passed_tests = 0
@@ -120,7 +120,7 @@ class TestExecutor:
                 logger.info(log_msg)
         
         logger.info(f"Test summary: {passed_tests}/{total_tests} tests passed")
-        return TestResult(passed=passed_tests, total=total_tests, errors=errors)
+        return CodeTestResult(passed=passed_tests, total=total_tests, errors=errors)
 
 
 class EnhancedTestExecutor(TestExecutor):
@@ -128,7 +128,7 @@ class EnhancedTestExecutor(TestExecutor):
     
     @staticmethod
     def run_code_with_timeout(code: str, test_cases: List[str], 
-                              timeout: float = 5.0, task_id: Optional[str] = None) -> TestResult:
+                              timeout: float = 5.0, task_id: Optional[str] = None) -> CodeTestResult:
         """
         Execute code against test cases with timeout protection
         
@@ -139,7 +139,7 @@ class EnhancedTestExecutor(TestExecutor):
             task_id: Optional task identifier for logging
             
         Returns:
-            TestResult: Results of test execution
+            CodeTestResult: Results of test execution
         """
         import signal
         import functools
@@ -163,7 +163,7 @@ class EnhancedTestExecutor(TestExecutor):
         except Exception as e:
             error_msg = f"Code execution failed: {str(e)}"
             logger.error(error_msg)
-            return TestResult(passed=0, total=len(test_cases), errors=[error_msg])
+            return CodeTestResult(passed=0, total=len(test_cases), errors=[error_msg])
         
         # Execute test cases with timeout
         passed_tests = 0
@@ -202,7 +202,7 @@ class EnhancedTestExecutor(TestExecutor):
                 logger.error(error_msg)
         
         logger.info(f"Test summary: {passed_tests}/{total_tests} tests passed")
-        return TestResult(passed=passed_tests, total=total_tests, errors=errors)
+        return CodeTestResult(passed=passed_tests, total=total_tests, errors=errors)
     
     @staticmethod
     def validate_code_syntax(code: str) -> Tuple[bool, Optional[str]]:

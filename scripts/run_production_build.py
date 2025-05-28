@@ -2,7 +2,7 @@
 """
 Production Dataset Building Script
 
-This script demonstrates how to use the hardened dataset building pipeline
+This script demonstrates how to use the robust dataset building pipeline
 for processing the full MBPP dataset (974 records) with production-grade
 reliability features.
 
@@ -26,13 +26,13 @@ from datetime import datetime
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from phase1_dataset_building import ProductionMBPPTester
-from common import HardeningConfig
+from phase1_dataset_building import ProductionDatasetBuilder
+from common import RobustnessConfig
 
 # Helper functions
 def create_production_config(**kwargs):
     """Create a production-ready configuration"""
-    return HardeningConfig(**kwargs)
+    return RobustnessConfig(**kwargs)
 
 def estimate_processing_time(num_records, avg_time_per_record=30):
     """Estimate processing time based on number of records"""
@@ -48,7 +48,7 @@ def estimate_processing_time(num_records, avg_time_per_record=30):
 def parse_arguments():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
-        description="Build MBPP dataset with production hardening",
+        description="Build MBPP dataset with production robustness",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -199,13 +199,13 @@ def main():
         
         # Initialize tester
         print(f"🔧 Initializing production tester with {args.model}...")
-        tester = ProductionMBPPTester(
+        tester = ProductionDatasetBuilder(
             model_name=args.model,
             debug=False,
             log_dir=args.log_dir,
             dataset_dir=args.dataset_dir,
             max_new_tokens=2000,
-            hardening_config=config
+            robustness_config=config
         )
         
         # Run production build
@@ -221,7 +221,7 @@ def main():
         )
         
         # Get summary from tester
-        summary = tester.hardened_builder.get_statistics() if tester.hardened_builder else {}
+        summary = tester.robust_builder.get_statistics() if tester.robust_builder else {}
         
         # Success!
         print("\n" + "="*70)

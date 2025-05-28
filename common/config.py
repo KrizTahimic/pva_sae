@@ -76,8 +76,8 @@ class DatasetConfiguration:
 
 
 @dataclass
-class HardeningConfig:
-    """Configuration for production hardening features"""
+class RobustnessConfig:
+    """Configuration for production robustness features"""
     # Checkpointing
     checkpoint_frequency: int = 50
     checkpoint_dir: str = "checkpoints"
@@ -112,7 +112,7 @@ class HardeningConfig:
         return asdict(self)
     
     @classmethod
-    def from_dict(cls, config_dict: dict) -> 'HardeningConfig':
+    def from_dict(cls, config_dict: dict) -> 'RobustnessConfig':
         """Create from dictionary"""
         return cls(**config_dict)
     
@@ -122,7 +122,7 @@ class HardeningConfig:
             json.dump(self.to_dict(), f, indent=2)
     
     @classmethod
-    def load_from_file(cls, filepath: str) -> 'HardeningConfig':
+    def load_from_file(cls, filepath: str) -> 'RobustnessConfig':
         """Load configuration from JSON file"""
         with open(filepath, 'r') as f:
             config_dict = json.load(f)

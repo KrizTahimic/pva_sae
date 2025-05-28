@@ -22,13 +22,13 @@ from pathlib import Path
 from common import (
     ModelManager,
     DatasetConfiguration,
-    HardeningConfig,
+    RobustnessConfig,
     ensure_directory_exists,
     get_timestamp,
     format_duration,
     get_memory_usage
 )
-from phase1_dataset_building.dataset_manager import GenerationResult, TestResult, EnhancedDatasetManager
+from phase1_dataset_building.dataset_manager import CodeGenerationResult, CodeTestResult, PromptAwareDatasetManager
 from phase1_dataset_building.test_executor import TestExecutor
 
 
@@ -36,7 +36,7 @@ from phase1_dataset_building.test_executor import TestExecutor
 class CheckpointData:
     """Data structure for checkpointing progress"""
     processed_indices: List[int] = field(default_factory=list)
-    results: List[GenerationResult] = field(default_factory=list)
+    results: List[CodeGenerationResult] = field(default_factory=list)
     statistics: Dict[str, Any] = field(default_factory=dict)
     start_time: str = field(default_factory=lambda: datetime.now().isoformat())
     last_checkpoint_time: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -64,15 +64,15 @@ class CheckpointData:
             config=data.get('config', {})
         )
         
-        # Reconstruct GenerationResult objects
+        # Reconstruct CodeGenerationResult objects
         for result_dict in data.get('results', []):
-            test_result = TestResult(
+            test_result = CodeTestResult(
                 passed=result_dict['passed_tests'],
                 total=result_dict['total_tests'],
                 errors=result_dict.get('test_errors', [])
             )
             
-            gen_result = GenerationResult(
+            gen_result = CodeGenerationResult(
                 task_id=result_dict['task_id'],
                 prompt=result_dict['prompt'],
                 generated_code=result_dict['generated_code'],
@@ -283,12 +283,12 @@ class ProgressTracker:
 class ResourceMonitor:
     """Monitors system resources during processing"""
     
-    def __init__(self, config: HardeningConfig):
+    def __init__(self, config: RobustnessConfig):
         """
         Initialize resource monitor
         
         Args:
-            config: Hardening configuration
+            config: Robustness configuration
         """
         self.config = config
         self.logger = logging.getLogger(__name__)
@@ -375,7 +375,7 @@ class DatasetBuilder:
     
     def __init__(self, 
                  model_manager: ModelManager, 
-                 dataset_manager: EnhancedDatasetManager,
+                 dataset_manager: PromptAwareDatasetManager,
                  config: DatasetConfiguration,
                  max_new_tokens: int = 200, 
                  stream_output: bool = False):
@@ -396,14 +396,14 @@ class DatasetBuilder:
         self.stream_output = stream_output
         
         # Results tracking
-        self.generation_results: List[GenerationResult] = []
+        self.generation_results: List[CodeGenerationResult] = []
         self.total_processed = 0
         self.correct_solutions = 0
         self.incorrect_solutions = 0
         
         self.logger = logging.getLogger(__name__)
     
-    def build_dataset(self, start_idx: int = 0, end_idx: int = 2) -> List[GenerationResult]:
+    def build_dataset(self, start_idx: int = 0, end_idx: int = 2) -> List[CodeGenerationResult]:
         """
         Build dataset by processing MBPP records and generating solutions
         
@@ -412,7 +412,7 @@ class DatasetBuilder:
             end_idx: Ending index for MBPP records (inclusive)
             
         Returns:
-            list[GenerationResult]: Results for each processed record
+            list[CodeGenerationResult]: Results for each processed record
         """
         try:
             self._validate_prerequisites()
@@ -436,7 +436,7 @@ class DatasetBuilder:
             self.logger.error(f"Dataset building failed: {str(e)}")
             raise RuntimeError(f"Dataset building failed: {str(e)}") from e
     
-    def process_single_record(self, idx: int) -> GenerationResult:
+    def process_single_record(self, idx: int) -> CodeGenerationResult:
         """
         Process a single MBPP record: generate code and test it
         
@@ -444,7 +444,7 @@ class DatasetBuilder:
             idx: Index of MBPP record to process
             
         Returns:
-            GenerationResult: Complete result with generation and testing info
+            CodeGenerationResult: Complete result with generation and testing info
         """
         try:
             # Get record and build prompt
@@ -473,7 +473,7 @@ class DatasetBuilder:
             is_correct = self._classify_solution(test_result, generated_code)
             
             # Create result object
-            result = GenerationResult(
+            result = CodeGenerationResult(
                 task_id=task_id,
                 prompt=prompt,
                 generated_code=generated_code,
@@ -495,11 +495,11 @@ class DatasetBuilder:
             error_msg = str(e)
             self.logger.error(f"Failed to process record {idx}: {error_msg}")
             
-            return GenerationResult(
+            return CodeGenerationResult(
                 task_id=f"failed_{idx}",
                 prompt="",
                 generated_code="",
-                test_result=TestResult(passed=0, total=0, errors=[error_msg]),
+                test_result=CodeTestResult(passed=0, total=0, errors=[error_msg]),
                 is_correct=False,
                 generation_time=0.0,
             )
@@ -659,7 +659,7 @@ class DatasetBuilder:
         self.correct_solutions = 0
         self.incorrect_solutions = 0
     
-    def _process_record_batch(self, start_idx: int, end_idx: int) -> List[GenerationResult]:
+    def _process_record_batch(self, start_idx: int, end_idx: int) -> List[CodeGenerationResult]:
         """Process batch of records with progress tracking"""
         results = []
         
@@ -698,7 +698,7 @@ class DatasetBuilder:
             self.logger.error(error_msg)
             raise RuntimeError(error_msg) from e
     
-    def _test_generated_code(self, generated_code: str, record: dict, task_id: str) -> TestResult:
+    def _test_generated_code(self, generated_code: str, record: dict, task_id: str) -> CodeTestResult:
         """Test generated code against MBPP test cases"""
         try:
             test_cases = record['test_list']
@@ -714,10 +714,10 @@ class DatasetBuilder:
             error_msg = f"Testing failed for task {task_id}: {str(e)}"
             self.logger.error(error_msg)
             # Return failed test result
-            return TestResult(passed=0, total=len(record['test_list']), 
+            return CodeTestResult(passed=0, total=len(record['test_list']), 
                             errors=[str(e)])
     
-    def _classify_solution(self, test_result: TestResult, generated_code: str) -> bool:
+    def _classify_solution(self, test_result: CodeTestResult, generated_code: str) -> bool:
         """
         Classify solution according to methodology:
         - Correct: passes all 3 test cases on first attempt (pass@1)
@@ -728,7 +728,7 @@ class DatasetBuilder:
         
         return is_correct
     
-    def _update_statistics(self, result: GenerationResult):
+    def _update_statistics(self, result: CodeGenerationResult):
         """Update processing statistics"""
         self.total_processed += 1
         if result.is_correct:
@@ -736,7 +736,7 @@ class DatasetBuilder:
         else:
             self.incorrect_solutions += 1
     
-    def _log_single_result(self, result: GenerationResult, idx: int):
+    def _log_single_result(self, result: CodeGenerationResult, idx: int):
         """Log result for single record"""
         status = "CORRECT" if result.is_correct else "INCORRECT"
         test_summary = f"{result.test_result.passed}/{result.test_result.total}"
@@ -762,35 +762,35 @@ class DatasetBuilder:
         print(f"✓ {summary_msg}")
 
 
-class HardenedDatasetBuilder(DatasetBuilder):
-    """Production-hardened dataset builder with advanced features"""
+class RobustDatasetBuilder(DatasetBuilder):
+    """Production-robust dataset builder with advanced features"""
     
     def __init__(self,
                  model_manager: ModelManager,
-                 dataset_manager: EnhancedDatasetManager,
+                 dataset_manager: PromptAwareDatasetManager,
                  config: DatasetConfiguration,
-                 hardening_config: HardeningConfig,
+                 robustness_config: RobustnessConfig,
                  max_new_tokens: int = 200,
                  stream_output: bool = False):
         """
-        Initialize hardened dataset builder
+        Initialize robust dataset builder
         
         Args:
             model_manager: Model manager for code generation
             dataset_manager: Dataset manager for MBPP data
             config: Dataset configuration
-            hardening_config: Hardening configuration
+            robustness_config: Robustness configuration
             max_new_tokens: Maximum tokens to generate
             stream_output: Whether to stream generation output
         """
         super().__init__(model_manager, dataset_manager, config, max_new_tokens, stream_output)
         
-        self.hardening_config = hardening_config
+        self.robustness_config = robustness_config
         self.checkpoint_manager = CheckpointManager(
-            checkpoint_dir=os.path.join(config.dataset_dir, hardening_config.checkpoint_dir),
-            checkpoint_frequency=hardening_config.checkpoint_frequency
+            checkpoint_dir=os.path.join(config.dataset_dir, robustness_config.checkpoint_dir),
+            checkpoint_frequency=robustness_config.checkpoint_frequency
         )
-        self.resource_monitor = ResourceMonitor(hardening_config)
+        self.resource_monitor = ResourceMonitor(robustness_config)
         
         # Track processing state
         self.checkpoint_data: Optional[CheckpointData] = None
@@ -802,7 +802,7 @@ class HardenedDatasetBuilder(DatasetBuilder):
     def build_dataset_with_resume(self, 
                                   start_idx: int = 0, 
                                   end_idx: int = 2,
-                                  resume_from_checkpoint: Optional[str] = None) -> List[GenerationResult]:
+                                  resume_from_checkpoint: Optional[str] = None) -> List[CodeGenerationResult]:
         """
         Build dataset with checkpoint resume capability
         
@@ -812,7 +812,7 @@ class HardenedDatasetBuilder(DatasetBuilder):
             resume_from_checkpoint: Path to checkpoint file to resume from
             
         Returns:
-            list[GenerationResult]: Results for each processed record
+            list[CodeGenerationResult]: Results for each processed record
         """
         try:
             self._validate_prerequisites()
@@ -841,7 +841,7 @@ class HardenedDatasetBuilder(DatasetBuilder):
                         'start_idx': start_idx,
                         'end_idx': end_idx,
                         'model_name': self.model_manager.config.model_name,
-                        'hardening_config': self.hardening_config.to_dict()
+                        'robustness_config': self.robustness_config.to_dict()
                     }
                 )
                 self._reset_statistics()
@@ -849,8 +849,8 @@ class HardenedDatasetBuilder(DatasetBuilder):
             # Validate range
             self._validate_range(start_idx, end_idx)
             
-            # Process records with hardening features
-            results = self._process_records_hardened(start_idx, end_idx)
+            # Process records with robustness features
+            results = self._process_records_robust(start_idx, end_idx)
             
             # Final checkpoint and cleanup
             if not self.interrupted:
@@ -867,8 +867,8 @@ class HardenedDatasetBuilder(DatasetBuilder):
             self._save_emergency_checkpoint()
             raise RuntimeError(f"Dataset building failed: {str(e)}") from e
     
-    def _process_records_hardened(self, start_idx: int, end_idx: int) -> List[GenerationResult]:
-        """Process records with hardening features"""
+    def _process_records_robust(self, start_idx: int, end_idx: int) -> List[CodeGenerationResult]:
+        """Process records with robustness features"""
         results = []
         
         # Determine which records to process
@@ -885,11 +885,11 @@ class HardenedDatasetBuilder(DatasetBuilder):
             start_idx=start_idx
         )
         
-        # Process with hardening features
+        # Process with robustness features
         for idx in tqdm(indices_to_process, desc="Generating solutions", unit="problem"):
             try:
                 # Check resources periodically
-                if self.total_processed % self.hardening_config.memory_cleanup_frequency == 0:
+                if self.total_processed % self.robustness_config.memory_cleanup_frequency == 0:
                     self.resource_monitor.cleanup_if_needed()
                 
                 # Process record with retries
@@ -913,7 +913,7 @@ class HardenedDatasetBuilder(DatasetBuilder):
                     
             except Exception as e:
                 self.logger.error(f"Failed to process record {idx}: {str(e)}")
-                if not self.hardening_config.continue_on_error:
+                if not self.robustness_config.continue_on_error:
                     raise
                 # Continue with next record
                 continue
@@ -927,25 +927,25 @@ class HardenedDatasetBuilder(DatasetBuilder):
         
         return results
     
-    def _process_record_with_retry(self, idx: int) -> Optional[GenerationResult]:
+    def _process_record_with_retry(self, idx: int) -> Optional[CodeGenerationResult]:
         """Process record with retry logic"""
         last_error = None
         
-        for attempt in range(self.hardening_config.max_retries):
+        for attempt in range(self.robustness_config.max_retries):
             try:
                 result = self.process_single_record(idx)
                 return result
                 
             except Exception as e:
                 last_error = e
-                retry_delay = self.hardening_config.retry_backoff * (2 ** attempt)
+                retry_delay = self.robustness_config.retry_backoff * (2 ** attempt)
                 
                 self.logger.warning(
-                    f"Attempt {attempt + 1}/{self.hardening_config.max_retries} failed "
+                    f"Attempt {attempt + 1}/{self.robustness_config.max_retries} failed "
                     f"for record {idx}: {str(e)}"
                 )
                 
-                if attempt < self.hardening_config.max_retries - 1:
+                if attempt < self.robustness_config.max_retries - 1:
                     self.logger.info(f"Retrying in {retry_delay:.1f} seconds...")
                     time.sleep(retry_delay)
         
@@ -966,7 +966,7 @@ class HardenedDatasetBuilder(DatasetBuilder):
         )
         
         # Autosave partial results
-        if self.total_processed % self.hardening_config.autosave_frequency == 0:
+        if self.total_processed % self.robustness_config.autosave_frequency == 0:
             self._autosave_results()
     
     def _autosave_results(self):
@@ -988,7 +988,7 @@ class HardenedDatasetBuilder(DatasetBuilder):
             cleanup_old_files(
                 self.config.dataset_dir,
                 f"autosave_{self.checkpoint_data.config['start_idx']}_*.parquet",
-                keep_last=self.hardening_config.autosave_keep_last
+                keep_last=self.robustness_config.autosave_keep_last
             )
             
         except Exception as e:

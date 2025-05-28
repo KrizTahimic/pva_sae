@@ -7,11 +7,11 @@ Python solutions for MBPP problems and classifying them as correct or incorrect.
 
 # Import dataset management components
 from phase1_dataset_building.dataset_manager import (
-    TestResult,
-    GenerationResult,
+    CodeTestResult,
+    CodeGenerationResult,
     PromptTemplateBuilder,
     DatasetManager,
-    EnhancedDatasetManager
+    PromptAwareDatasetManager
 )
 
 # Import test execution components
@@ -27,23 +27,23 @@ from phase1_dataset_building.dataset_builder import (
     ProgressTracker,
     ResourceMonitor,
     DatasetBuilder,
-    HardenedDatasetBuilder
+    RobustDatasetBuilder
 )
 
 # Import main orchestrators
 from phase1_dataset_building.mbpp_tester import (
     MBPPTester,
-    EnhancedMBPPTester,
-    ProductionMBPPTester
+    DatasetBuildingOrchestrator,
+    ProductionDatasetBuilder
 )
 
 __all__ = [
     # Dataset management
-    'TestResult',
-    'GenerationResult',
+    'CodeTestResult',
+    'CodeGenerationResult',
     'PromptTemplateBuilder',
     'DatasetManager',
-    'EnhancedDatasetManager',
+    'PromptAwareDatasetManager',
     
     # Test execution
     'TestExecutor',
@@ -55,10 +55,10 @@ __all__ = [
     'ProgressTracker',
     'ResourceMonitor',
     'DatasetBuilder',
-    'HardenedDatasetBuilder',
+    'RobustDatasetBuilder',
     
     # Main orchestrators
     'MBPPTester',
-    'EnhancedMBPPTester',
-    'ProductionMBPPTester'
+    'DatasetBuildingOrchestrator',
+    'ProductionDatasetBuilder'
 ]
