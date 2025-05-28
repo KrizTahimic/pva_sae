@@ -15,7 +15,8 @@ from .utils import (
     get_memory_usage,
     ensure_directory_exists,
     get_timestamp,
-    safe_json_dumps
+    safe_json_dumps,
+    get_cyclomatic_complexity
 )
 
 # Import configuration classes
@@ -56,6 +57,7 @@ __all__ = [
     'ensure_directory_exists',
     'get_timestamp',
     'safe_json_dumps',
+    'get_cyclomatic_complexity',
     
     # Config
     'DEFAULT_MODEL_NAME',

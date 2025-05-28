@@ -2,6 +2,7 @@ datasets
 tqdm
 torch
 transformers
+radon
 
 # If cuda
 accelerate

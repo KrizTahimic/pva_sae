@@ -196,3 +196,31 @@ def safe_json_dumps(obj: any, indent: int = 2) -> str:
         obj = convert_value(obj)
     
     return json.dumps(obj, indent=indent, default=str)
+
+
+def get_cyclomatic_complexity(code: str) -> tuple[int, str]:
+    """
+    Calculate cyclomatic complexity and difficulty category for Python code
+    
+    Args:
+        code: Python source code string
+        
+    Returns:
+        tuple: (complexity_score, difficulty_category)
+    """
+    try:
+        from radon.complexity import cc_visit
+        results = cc_visit(code)
+        complexity = max(r.complexity for r in results) if results else 1
+    except Exception:
+        complexity = 1
+    
+    # Categorize difficulty based on complexity score
+    if complexity <= 4:
+        difficulty = 'easy'
+    elif complexity <= 7:
+        difficulty = 'medium'
+    else:
+        difficulty = 'hard'
+    
+    return complexity, difficulty

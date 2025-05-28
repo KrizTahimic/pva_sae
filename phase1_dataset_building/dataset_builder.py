@@ -26,7 +26,8 @@ from common import (
     ensure_directory_exists,
     get_timestamp,
     format_duration,
-    get_memory_usage
+    get_memory_usage,
+    get_cyclomatic_complexity
 )
 from phase1_dataset_building.dataset_manager import CodeGenerationResult, CodeTestResult, PromptAwareDatasetManager
 from phase1_dataset_building.test_executor import TestExecutor
@@ -78,7 +79,9 @@ class CheckpointData:
                 generated_code=result_dict['generated_code'],
                 test_result=test_result,
                 is_correct=result_dict['is_correct'],
-                generation_time=result_dict['generation_time']
+                generation_time=result_dict['generation_time'],
+                reference_complexity=result_dict.get('reference_complexity', 1),
+                difficulty_category=result_dict.get('difficulty_category', 'easy')
             )
             checkpoint.results.append(gen_result)
         
@@ -472,6 +475,9 @@ class DatasetBuilder:
             # Classify result
             is_correct = self._classify_solution(test_result, generated_code)
             
+            # Calculate reference code complexity
+            complexity, difficulty = get_cyclomatic_complexity(record['code'])
+            
             # Create result object
             result = CodeGenerationResult(
                 task_id=task_id,
@@ -480,6 +486,8 @@ class DatasetBuilder:
                 test_result=test_result,
                 is_correct=is_correct,
                 generation_time=generation_time,
+                reference_complexity=complexity,
+                difficulty_category=difficulty,
             )
             
             # Update statistics
@@ -502,6 +510,8 @@ class DatasetBuilder:
                 test_result=CodeTestResult(passed=0, total=0, errors=[error_msg]),
                 is_correct=False,
                 generation_time=0.0,
+                reference_complexity=1,
+                difficulty_category='easy',
             )
     
     def get_statistics(self) -> Dict[str, Any]:
