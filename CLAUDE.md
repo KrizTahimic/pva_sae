@@ -204,3 +204,44 @@ The system automatically detects and uses:
   - Correction Rate: Proportion of incorrect→correct after steering
   - Corruption Rate: Proportion of correct→incorrect after steering
   - Binomial Testing: Compares to baseline random steering (p < 0.05)
+
+## Coding Practices
+
+The codebase follows these simple, maintainable practices suitable for research-quality code:
+
+### Simplicity First
+- **Clear over clever**: Prefer explicit, readable code over complex optimizations
+- **Single responsibility**: Each class/function has one clear purpose
+- **No premature optimization**: Focus on correctness and clarity first
+
+### Code Organization
+- **Manager pattern**: Separate managers handle models, datasets, logging, directories
+- **Result objects**: Structured data with `TestResult`, `GenerationResult` classes
+- **No code duplication**: Shared utilities in `common/` package
+- **Clear naming**: Function and variable names describe their purpose
+
+### Error Handling
+- **Fail fast**: Validate inputs early and provide clear error messages
+- **Graceful degradation**: Continue processing when possible, log failures clearly
+- **Timeout handling**: All model calls and code execution have reasonable timeouts
+
+### Testing & Validation
+- **Executable examples**: All code examples in documentation should work
+- **Incremental testing**: Start with small datasets (2-10 samples) before full runs
+- **Automatic validation**: Generated code is actually executed and tested
+
+### Data Management
+- **Timestamped outputs**: All files include generation timestamps
+- **Automatic cleanup**: Keep only latest 2-3 versions of each file type
+- **Multiple formats**: Save both JSON (human-readable) and Parquet (efficient)
+- **Metadata tracking**: Configuration and execution details saved with datasets
+
+### Dependencies
+- **Minimal viable**: Only include dependencies that are actually needed
+- **Standard libraries**: Prefer Python standard library when sufficient
+- **Hardware agnostic**: Auto-detect CUDA/MPS/CPU, graceful fallbacks
+
+### Documentation
+- **Code as documentation**: Clear naming reduces need for comments
+- **Command examples**: All commands in CLAUDE.md are copy-pastable and tested
+- **Architecture overview**: High-level structure documented with examples
