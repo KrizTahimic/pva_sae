@@ -304,7 +304,7 @@ class DatasetManager:
         
         try:
             self.logger.info("Loading MBPP dataset...")
-            self.dataset = load_dataset("mbpp")
+            self.dataset = load_dataset("Muennighoff/mbpp", "full")
             self.test_data = self.dataset['test']
             self._is_loaded = True
             
