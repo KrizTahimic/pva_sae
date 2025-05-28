@@ -8,10 +8,12 @@ This module coordinates the three-phase methodology:
 """
 
 import logging
+import pandas as pd
 from typing import Optional, Dict, Any, List, Tuple
 from pathlib import Path
 
 from common import ExperimentConfig, ExperimentLogger
+from common.utils import split_indices_interleaved, validate_split_quality
 
 
 class ThesisPipeline:
@@ -83,19 +85,22 @@ class ThesisPipeline:
 class DatasetSplitter:
     """Handles dataset splitting according to thesis methodology"""
     
-    def __init__(self, dataset_path: str):
+    def __init__(self, dataset_path: str, complexity_column: str = 'complexity_score'):
         """
         Initialize dataset splitter
         
         Args:
             dataset_path: Path to the dataset file
+            complexity_column: Name of column containing complexity scores
         """
         self.dataset_path = dataset_path
+        self.complexity_column = complexity_column
+        self.target_ratios = [0.5, 0.1, 0.4]  # SAE, Hyperparams, Validation
         self.logger = logging.getLogger(__name__)
     
-    def split_dataset(self) -> Tuple[Any, Any, Any]:
+    def split_dataset(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
-        Split dataset according to methodology:
+        Split dataset using interleaved sampling based on complexity:
         - 50% for SAE analysis
         - 10% for hyperparameter tuning
         - 40% for validation
@@ -103,9 +108,57 @@ class DatasetSplitter:
         Returns:
             Tuple of (sae_data, tuning_data, validation_data)
         """
-        # TODO: Implement dataset splitting
-        self.logger.warning("Dataset splitting not yet implemented")
-        return None, None, None
+        self.logger.info(f"Loading dataset from {self.dataset_path}")
+        
+        # Load dataset
+        if self.dataset_path.endswith('.parquet'):
+            df = pd.read_parquet(self.dataset_path)
+        elif self.dataset_path.endswith('.json'):
+            df = pd.read_json(self.dataset_path)
+        else:
+            raise ValueError(f"Unsupported file format: {self.dataset_path}")
+        
+        # Check complexity column exists
+        if self.complexity_column not in df.columns:
+            # Try alternative column names
+            alt_columns = ['reference_complexity', 'cyclomatic_complexity']
+            for alt_col in alt_columns:
+                if alt_col in df.columns:
+                    self.complexity_column = alt_col
+                    self.logger.info(f"Using complexity column: {alt_col}")
+                    break
+            else:
+                raise ValueError(f"No complexity column found. Expected: {self.complexity_column}")
+        
+        # Get complexity scores
+        complexity_scores = df[self.complexity_column].values
+        indices = list(range(len(df)))
+        
+        self.logger.info(f"Splitting {len(df)} samples with complexity range {complexity_scores.min()}-{complexity_scores.max()}")
+        
+        # Perform interleaved splitting
+        splits, pattern = split_indices_interleaved(indices, complexity_scores, self.target_ratios)
+        
+        # Create DataFrames for each split
+        sae_data = df.iloc[splits[0]].copy()
+        tuning_data = df.iloc[splits[1]].copy()
+        validation_data = df.iloc[splits[2]].copy()
+        
+        # Validate split quality
+        is_valid = validate_split_quality(splits, complexity_scores, self.target_ratios)
+        
+        # Log results
+        actual_ratios = [len(split)/len(df) for split in splits]
+        self.logger.info(f"Split results:")
+        self.logger.info(f"  SAE: {len(sae_data)} samples ({actual_ratios[0]:.3f})")
+        self.logger.info(f"  Hyperparams: {len(tuning_data)} samples ({actual_ratios[1]:.3f})")
+        self.logger.info(f"  Validation: {len(validation_data)} samples ({actual_ratios[2]:.3f})")
+        self.logger.info(f"  Split quality: {'PASS' if is_valid else 'FAIL'}")
+        
+        if not is_valid:
+            self.logger.warning("Split quality validation failed - splits may not have uniform complexity distribution")
+        
+        return sae_data, tuning_data, validation_data
 
 
 class ResultsAggregator:

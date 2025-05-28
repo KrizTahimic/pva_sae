@@ -70,6 +70,14 @@ tester = EnhancedMBPPTester()  # Uses default gemma-2-2b
 tester.build_dataset_mvp_with_cleanup(start_idx=0, end_idx=2)
 "
 
+# Test dataset splitting
+python3 -c "
+from orchestration.pipeline import DatasetSplitter
+splitter = DatasetSplitter('data/datasets/latest_dataset.parquet')
+sae_data, tuning_data, validation_data = splitter.split_dataset()
+print(f'Split sizes: SAE={len(sae_data)}, Tuning={len(tuning_data)}, Validation={len(validation_data)}')
+"
+
 # Check logs
 ls -la data/logs/
 
@@ -187,6 +195,8 @@ The system automatically detects and uses:
 - Hyperparameter Tuning: 10% (for F1 threshold and steering coefficient)
 - Validation: 40%
 
+**Implementation**: Uses interleaved sampling to ensure uniform complexity distribution across all splits. No buckets or categories - pure quantitative approach that maintains exact ratio targets while preserving complexity ordering.
+
 ### SAE Analysis Details
 - Uses pre-trained SAEs from GemmaScope with JumpReLU architecture
 - Analyzes residual stream at final token position
@@ -235,6 +245,7 @@ The codebase follows these simple, maintainable practices suitable for research-
 - **Automatic cleanup**: Keep only latest 2-3 versions of each file type
 - **Multiple formats**: Save both JSON (human-readable) and Parquet (efficient)
 - **Metadata tracking**: Configuration and execution details saved with datasets
+- **Interleaved splitting**: Deterministic, bucket-free dataset splits maintaining complexity balance
 
 ### Dependencies
 - **Minimal viable**: Only include dependencies that are actually needed
