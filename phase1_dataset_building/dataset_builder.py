@@ -80,8 +80,7 @@ class CheckpointData:
                 test_result=test_result,
                 is_correct=result_dict['is_correct'],
                 generation_time=result_dict['generation_time'],
-                reference_complexity=result_dict.get('reference_complexity', 1),
-                difficulty_category=result_dict.get('difficulty_category', 'easy')
+                complexity_score=result_dict.get('complexity_score', result_dict.get('reference_complexity', 1))
             )
             checkpoint.results.append(gen_result)
         
@@ -476,7 +475,7 @@ class DatasetBuilder:
             is_correct = self._classify_solution(test_result, generated_code)
             
             # Calculate reference code complexity
-            complexity, difficulty = get_cyclomatic_complexity(record['code'])
+            complexity = get_cyclomatic_complexity(record['code'])
             
             # Create result object
             result = CodeGenerationResult(
@@ -486,8 +485,7 @@ class DatasetBuilder:
                 test_result=test_result,
                 is_correct=is_correct,
                 generation_time=generation_time,
-                reference_complexity=complexity,
-                difficulty_category=difficulty,
+                complexity_score=complexity,
             )
             
             # Update statistics
@@ -510,8 +508,7 @@ class DatasetBuilder:
                 test_result=CodeTestResult(passed=0, total=0, errors=[error_msg]),
                 is_correct=False,
                 generation_time=0.0,
-                reference_complexity=1,
-                difficulty_category='easy',
+                complexity_score=1,
             )
     
     def get_statistics(self) -> Dict[str, Any]:

@@ -45,8 +45,7 @@ class CodeGenerationResult:
     test_result: CodeTestResult
     is_correct: bool
     generation_time: float
-    reference_complexity: int = 1
-    difficulty_category: str = 'easy'
+    complexity_score: int = 1
     
     @property
     def success_rate(self) -> float:
@@ -65,8 +64,7 @@ class CodeGenerationResult:
             'success_rate': self.success_rate,
             'test_errors': self.test_result.errors,
             'generation_time': self.generation_time,
-            'reference_complexity': self.reference_complexity,
-            'difficulty_category': self.difficulty_category,
+            'complexity_score': self.complexity_score,
         }
     
     def to_dataframe_row(self) -> dict:
@@ -75,8 +73,7 @@ class CodeGenerationResult:
             'task_id': self.task_id,
             'generated_code': self.generated_code,
             'test_passed': self.is_correct,
-            'reference_complexity': self.reference_complexity,
-            'difficulty_category': self.difficulty_category,
+            'complexity_score': self.complexity_score,
         }
 
 
