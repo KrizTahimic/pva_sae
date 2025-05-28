@@ -168,11 +168,14 @@ dataset_path = tester.build_dataset_production(
 If you use this code in your research, please cite:
 
 ```bibtex
-@thesis{pva_sae2025,
-  title={Program Validity Awareness in Language Models using Sparse Autoencoders},
-  author={Your Name},
+@thesis{tahimic2025pva,
+  title={Identifying and Steering Program Validity Awareness Latent Directions in LLMs: A Sparse Autoencoder Analysis of Code Hallucinations},
+  author={Tahimic, Kriz Royce},
   year={2025},
-  school={Your University}
+  school={De La Salle University},
+  type={Bachelor's Thesis},
+  department={Department of Software Technology, College of Computer Studies},
+  advisor={Cheng, Charibeth K.}
 }
 ```
 
