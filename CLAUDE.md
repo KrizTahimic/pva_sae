@@ -27,48 +27,55 @@ pip install -r requirements.txt
 pip install accelerate
 ```
 
-### Running the Pipeline
+### Running Individual Phases
 
-#### Full Three-Phase Pipeline
+#### Phase 0: Difficulty Analysis
 ```bash
-# Run complete pipeline
-python3 scripts/run_full_pipeline.py --model google/gemma-2-9b
+# Run difficulty analysis for all MBPP problems
+python3 run.py --phase 0
 
-# Run with custom configuration
-python3 scripts/run_full_pipeline.py --config configs/experiment.json
+# Load and validate existing difficulty mapping
+python3 run.py --phase 0 --load-existing data/datasets/difficulty_mapping_20241201_120000.json
 
-# Dry run to see configuration
-python3 scripts/run_full_pipeline.py --dry-run
+# Run without saving (analysis only)
+python3 run.py --phase 0 --no-save --verbose
 ```
 
-#### Phase 1: Dataset Building Only
+#### Phase 1: Dataset Building
 ```bash
-# Run phase 1 with default settings
-python3 scripts/run_phase1.py --model google/gemma-2-9b
+# Run dataset building with default settings
+python3 run.py --phase 1 --model google/gemma-2-9b
 
-# Quick test with smaller model
-python3 scripts/run_phase1.py --model google/gemma-2-2b --start 0 --end 10
+# Quick test with smaller model and range
+python3 run.py --phase 1 --model google/gemma-2-2b --start 0 --end 10
 
-# Production build with hardening
-python3 scripts/run_production_build.py --test-run  # Test with 10 records
-python3 scripts/run_production_build.py --model google/gemma-2-9b  # Full production run
+# Stream output and cleanup before building
+python3 run.py --phase 1 --model google/gemma-2-9b --stream --cleanup
+```
+
+#### Phase 2: SAE Analysis
+```bash
+# Run SAE analysis on generated dataset
+python3 run.py --phase 2 --dataset data/datasets/latest_dataset.parquet
+
+# Use custom SAE model and threshold
+python3 run.py --phase 2 --dataset data/datasets/latest_dataset.parquet --sae-model path/to/sae --latent-threshold 0.05
+```
+
+#### Phase 3: Validation
+```bash
+# Run validation with default settings
+python3 run.py --phase 3 --dataset data/datasets/latest_dataset.parquet
+
+# Custom temperature and steering coefficient ranges
+python3 run.py --phase 3 --dataset data/datasets/latest_dataset.parquet --temperatures 0.0 1.0 2.0 --steering-coeffs -2.0 0.0 2.0
 ```
 
 ### Testing and Development
 ```bash
-# Build dataset for thesis (Note: default model is gemma-2-2b, thesis uses gemma-2-9b)
-python3 -c "
-from phase1_dataset_building import EnhancedMBPPTester
-tester = EnhancedMBPPTester(model_name='google/gemma-2-9b')
-tester.build_dataset_mvp_with_cleanup(start_idx=0, end_idx=100)
-"
-
-# Quick test with smaller model
-python3 -c "
-from phase1_dataset_building import EnhancedMBPPTester
-tester = EnhancedMBPPTester()  # Uses default gemma-2-2b
-tester.build_dataset_mvp_with_cleanup(start_idx=0, end_idx=2)
-"
+# Quick tests with small datasets
+python3 run.py --phase 0 --verbose  # Test difficulty analysis
+python3 run.py --phase 1 --model google/gemma-2-2b --start 0 --end 2  # Test dataset building
 
 # Test dataset splitting
 python3 -c "
@@ -78,10 +85,8 @@ sae_data, tuning_data, validation_data = splitter.split_dataset()
 print(f'Split sizes: SAE={len(sae_data)}, Tuning={len(tuning_data)}, Validation={len(validation_data)}')
 "
 
-# Check logs
+# Check logs and datasets
 ls -la data/logs/
-
-# View generated datasets
 ls -la data/datasets/
 ```
 

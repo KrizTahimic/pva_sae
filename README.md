@@ -56,36 +56,36 @@ pip install accelerate
 
 ### Quick Start
 
-```python
-from phase1_dataset_building import EnhancedMBPPTester
+Run individual phases using the unified script:
 
-# Initialize tester with Gemma 2 model
-tester = EnhancedMBPPTester(model_name="google/gemma-2-9b")
+```bash
+# Phase 0: Analyze difficulty for all MBPP problems
+python3 run.py --phase 0
 
-# Build dataset with automatic cleanup
-results = tester.build_dataset_mvp_with_cleanup(
-    start_idx=0, 
-    end_idx=100,  # Process first 100 MBPP problems
-    save_format="both"  # Save as JSON and Parquet
-)
+# Phase 1: Build dataset with Gemma 2 model
+python3 run.py --phase 1 --model google/gemma-2-9b
+
+# Phase 2: Analyze with Sparse Autoencoders
+python3 run.py --phase 2 --dataset data/datasets/latest_dataset.parquet
+
+# Phase 3: Run validation experiments
+python3 run.py --phase 3 --dataset data/datasets/latest_dataset.parquet
 ```
 
-### Dataset Building Only
+### Phase-Specific Examples
 
-```python
-from phase1_dataset_building import EnhancedDatasetManager, ModelManager, DatasetBuilder
+```bash
+# Quick test with small dataset
+python3 run.py --phase 1 --model google/gemma-2-2b --start 0 --end 10
 
-# Setup components
-dataset_manager = EnhancedDatasetManager()
-dataset_manager.load_dataset()
+# Load existing difficulty mapping
+python3 run.py --phase 0 --load-existing data/datasets/difficulty_mapping_latest.json
 
-model_manager = ModelManager("google/gemma-2-9b")
-model_manager.load_model()
+# Custom SAE analysis parameters
+python3 run.py --phase 2 --dataset my_dataset.parquet --latent-threshold 0.05
 
-# Build dataset
-builder = DatasetBuilder(model_manager, dataset_manager)
-results = builder.build_dataset(start_idx=0, end_idx=100)
-builder.save_dataset(format="parquet")
+# Validation with custom temperature range
+python3 run.py --phase 3 --dataset my_dataset.parquet --temperatures 0.0 1.0 2.0
 ```
 
 ## Project Structure
@@ -93,6 +93,7 @@ builder.save_dataset(format="parquet")
 ```
 pva_sae/
 ├── common/                        # Shared utilities and configurations
+├── phase0_difficulty_analysis/    # Phase 0: MBPP complexity preprocessing
 ├── phase1_dataset_building/       # Phase 1: Dataset generation
 ├── phase2_sae_analysis/           # Phase 2: SAE analysis
 ├── phase3_validation/             # Phase 3: Validation
@@ -100,8 +101,8 @@ pva_sae/
 ├── data/                          # Consolidated data directory
 │   ├── datasets/                 # Generated datasets
 │   └── logs/                     # Execution logs
-├── scripts/                       # Entry point scripts
-└── requirements.txt          # Dependencies
+├── run.py                         # Main entry point
+└── requirements.txt               # Dependencies
 ```
 
 ## Checkpoint Recovery System
@@ -116,7 +117,7 @@ The system includes robust checkpoint recovery for long-running dataset builds:
 ### Recovery After Crashes
 ```bash
 # System automatically detects checkpoints on restart
-python scripts/run_production_build.py --model google/gemma-2-9b
+python3 run.py --phase 1 --model google/gemma-2-9b
 
 # Prompts: "Found checkpoint with 150 processed records. Resume? (y/n)"
 ```
@@ -126,8 +127,8 @@ python scripts/run_production_build.py --model google/gemma-2-9b
 # List available checkpoints
 ls data/datasets/checkpoints/
 
-# Resume from specific checkpoint
-python scripts/run_production_build.py --resume checkpoints/checkpoint_0_973_20250527_180144.json
+# Note: Manual checkpoint resumption requires direct Python API usage
+# as the simplified run.py focuses on clean phase execution
 ```
 
 ### What Gets Preserved
@@ -137,16 +138,12 @@ python scripts/run_production_build.py --resume checkpoints/checkpoint_0_973_202
 - **State**: Can resume from any interruption point
 
 ### Production Features
-```python
-from phase1_dataset_building import ProductionMBPPTester
+```bash
+# Production build with full MBPP dataset
+python3 run.py --phase 1 --model google/gemma-2-9b --start 0 --end 973 --cleanup
 
-# Production build with full hardening
-tester = ProductionMBPPTester(model_name="google/gemma-2-9b")
-dataset_path = tester.build_dataset_production(
-    start_idx=0, 
-    end_idx=973,  # Full MBPP dataset
-    resume_from_checkpoint=None  # Auto-detect latest
-)
+# Enable progress streaming and verbose output
+python3 run.py --phase 1 --model google/gemma-2-9b --stream --verbose
 ```
 
 ## Output Files
