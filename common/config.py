@@ -15,7 +15,7 @@ import os
 DEFAULT_MODEL_NAME = "google/gemma-2-2b"
 DEFAULT_LOG_DIR = "data/logs"
 DEFAULT_DATASET_DIR = "data/datasets" 
-MAX_NEW_TOKEN = 2000
+MAX_NEW_TOKENS = 2000
 
 
 @dataclass
@@ -48,7 +48,7 @@ class LoggingConfiguration:
 class ModelConfiguration:
     """Configuration for model setup"""
     model_name: str = DEFAULT_MODEL_NAME
-    max_new_tokens: int = MAX_NEW_TOKEN
+    max_new_tokens: int = MAX_NEW_TOKENS
     temperature: float = 0.0
     top_p: float = 1.0
     do_sample: bool = False

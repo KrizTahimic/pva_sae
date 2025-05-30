@@ -81,7 +81,7 @@ class PromptTemplateBuilder:
     """Constructs standardized prompt templates from MBPP records"""
     
     # Template constants
-    CODE_INITIATOR = "# Your code here"
+    CODE_INITIATOR = "# Your code here:"
     
     def __init__(self):
         """Initialize the prompt template builder"""
@@ -276,13 +276,18 @@ class PromptTemplateBuilder:
         Returns:
             str: Complete standardized prompt template
         """
-        # Construct template with consistent formatting:
-        # 1. Problem description
-        # 2. Empty line
-        # 3. Test cases
-        # 4. Empty line  
-        # 5. Code initiator
-        template = f"{problem_description}\n\n{test_cases}\n\n{self.CODE_INITIATOR}"
+        # Construct template with instruction and consistent formatting
+        template = f"""You are an expert Python programmer. Write a Python function to solve the following problem.
+
+Problem:
+{problem_description}
+
+Your function must pass all of these test cases:
+{test_cases}
+
+Write only the function definition. Do not include test code or explanations.
+
+{self.CODE_INITIATOR}"""
         
         return template
 

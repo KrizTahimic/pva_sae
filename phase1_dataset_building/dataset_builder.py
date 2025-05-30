@@ -379,7 +379,7 @@ class DatasetBuilder:
                  model_manager: ModelManager, 
                  dataset_manager: PromptAwareDatasetManager,
                  config: DatasetConfiguration,
-                 max_new_tokens: int = 200, 
+                 max_new_tokens: int = 2000, 
                  stream_output: bool = False,
                  difficulty_mapping: Optional[Dict[str, Any]] = None):
         """
@@ -800,7 +800,7 @@ class RobustDatasetBuilder(DatasetBuilder):
                  dataset_manager: PromptAwareDatasetManager,
                  config: DatasetConfiguration,
                  robustness_config: RobustnessConfig,
-                 max_new_tokens: int = 200,
+                 max_new_tokens: int = 2000,
                  stream_output: bool = False,
                  difficulty_mapping: Optional[Dict[str, Any]] = None):
         """

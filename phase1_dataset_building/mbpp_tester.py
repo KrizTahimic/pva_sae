@@ -19,7 +19,7 @@ from common import (
     DEFAULT_MODEL_NAME,
     DEFAULT_LOG_DIR,
     DEFAULT_DATASET_DIR,
-    MAX_NEW_TOKEN,
+    MAX_NEW_TOKENS,
     auto_cleanup,
     ensure_directory_exists
 )
@@ -225,7 +225,7 @@ class DatasetBuildingOrchestrator(MBPPTester):
                  debug: bool = False,
                  log_dir: str = DEFAULT_LOG_DIR,
                  dataset_dir: str = DEFAULT_DATASET_DIR,
-                 max_new_tokens: int = MAX_NEW_TOKEN):
+                 max_new_tokens: int = MAX_NEW_TOKENS):
         """
         Initialize enhanced MBPP tester
         
@@ -385,7 +385,7 @@ class ProductionDatasetBuilder(DatasetBuildingOrchestrator):
                  debug: bool = False,
                  log_dir: str = DEFAULT_LOG_DIR,
                  dataset_dir: str = DEFAULT_DATASET_DIR,
-                 max_new_tokens: int = MAX_NEW_TOKEN,
+                 max_new_tokens: int = MAX_NEW_TOKENS,
                  robustness_config: Optional[RobustnessConfig] = None):
         """
         Initialize production MBPP tester
