@@ -342,8 +342,11 @@ def test_gpu_setup(args, logger):
             print(f"  Compute Capability: {props.major}.{props.minor}")
             print(f"  Total Memory: {props.total_memory / (1024**3):.1f}GB")
             print(f"  Multiprocessor Count: {props.multi_processor_count}")
-            print(f"  Max Threads per Block: {props.max_threads_per_block}")
-            print(f"  Max Threads per Multiprocessor: {props.max_threads_per_multi_processor}")
+            # These attributes might not be available in all PyTorch versions
+            if hasattr(props, 'max_threads_per_block'):
+                print(f"  Max Threads per Block: {props.max_threads_per_block}")
+            if hasattr(props, 'max_threads_per_multi_processor'):
+                print(f"  Max Threads per Multiprocessor: {props.max_threads_per_multi_processor}")
     
     # Test simple tensor operation
     print(f"\n{'='*60}")
