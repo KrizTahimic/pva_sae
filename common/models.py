@@ -55,8 +55,13 @@ class ModelManager:
         
         self.logger.info(f"Using device: {self.device}, dtype: {self.dtype}")
     
-    def load_model(self):
-        """Load model and tokenizer"""
+    def load_model(self, num_gpus: int = 1):
+        """
+        Load model and tokenizer with multi-GPU support
+        
+        Args:
+            num_gpus: Number of GPUs to use (1 for single GPU, >1 for DataParallel)
+        """
         self.logger.info(f"Loading model: {self.config.model_name}")
         
         # Load tokenizer
@@ -65,10 +70,14 @@ class ModelManager:
             trust_remote_code=self.config.trust_remote_code
         )
         
+        # Set padding token if not set
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+        
         # Load model
         model_kwargs = {
             "torch_dtype": self.dtype,
-            "device_map": "auto" if self.device.type == "cuda" else None,
+            "device_map": "auto" if self.device.type == "cuda" and num_gpus == 1 else None,
             "trust_remote_code": self.config.trust_remote_code
         }
         
@@ -77,10 +86,27 @@ class ModelManager:
             **model_kwargs
         )
         
-        if self.device.type != "cuda":
+        # Handle multi-GPU setup
+        if self.device.type == "cuda" and num_gpus > 1:
+            if torch.cuda.device_count() < num_gpus:
+                self.logger.warning(
+                    f"Requested {num_gpus} GPUs but only {torch.cuda.device_count()} available"
+                )
+                num_gpus = torch.cuda.device_count()
+            
+            if num_gpus > 1:
+                # Move model to primary GPU first
+                self.model = self.model.to(self.device)
+                # Wrap with DataParallel
+                self.model = torch.nn.DataParallel(self.model, device_ids=list(range(num_gpus)))
+                self.logger.info(f"Model loaded with DataParallel on {num_gpus} GPUs")
+            else:
+                self.logger.info(f"Model loaded on single GPU")
+        elif self.device.type != "cuda":
             self.model = self.model.to(self.device)
-        
-        self.logger.info(f"Model loaded successfully on {self.device}")
+            self.logger.info(f"Model loaded on {self.device}")
+        else:
+            self.logger.info(f"Model loaded successfully on {self.device}")
     
     def generate(self, 
                  prompt: str, 
@@ -144,22 +170,95 @@ class ModelManager:
     
     def batch_generate(self, 
                        prompts: list[str],
+                       batch_size: Optional[int] = None,
                        **generation_kwargs) -> list[str]:
         """
-        Generate text for multiple prompts
+        Generate text for multiple prompts with true batching
         
         Args:
             prompts: List of input prompts
+            batch_size: Size of batches to process (None for all at once)
             **generation_kwargs: Additional generation parameters
             
         Returns:
             list[str]: List of generated texts
         """
-        results = []
-        for prompt in prompts:
-            result = self.generate(prompt, **generation_kwargs)
-            results.append(result)
-        return results
+        if not self.model or not self.tokenizer:
+            raise RuntimeError("Model not loaded. Call load_model() first.")
+        
+        # If batch_size is not specified, process all at once
+        if batch_size is None:
+            batch_size = len(prompts)
+        
+        # Extract generation parameters
+        max_new_tokens = generation_kwargs.get('max_new_tokens', self.config.max_new_tokens)
+        temperature = generation_kwargs.get('temperature', self.config.temperature)
+        top_p = generation_kwargs.get('top_p', self.config.top_p)
+        do_sample = generation_kwargs.get('do_sample', self.config.do_sample)
+        stream = generation_kwargs.get('stream', False)
+        
+        all_results = []
+        
+        # Process in batches
+        for i in range(0, len(prompts), batch_size):
+            batch_prompts = prompts[i:i + batch_size]
+            
+            # Tokenize batch with padding
+            inputs = self.tokenizer(
+                batch_prompts, 
+                return_tensors="pt", 
+                padding=True,
+                truncation=True
+            )
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            
+            # Setup generation kwargs
+            gen_kwargs = {
+                "max_new_tokens": max_new_tokens,
+                "temperature": temperature,
+                "top_p": top_p,
+                "do_sample": do_sample,
+                "pad_token_id": self.tokenizer.pad_token_id,
+                "eos_token_id": self.tokenizer.eos_token_id,
+                "attention_mask": inputs.get("attention_mask")
+            }
+            
+            # Add streamer if requested (only works for single prompt)
+            if stream and len(batch_prompts) == 1:
+                streamer = TextStreamer(self.tokenizer, skip_special_tokens=True)
+                gen_kwargs["streamer"] = streamer
+            
+            # Generate for batch
+            with torch.no_grad():
+                # Handle DataParallel models
+                if isinstance(self.model, torch.nn.DataParallel):
+                    # DataParallel handles batch distribution automatically
+                    outputs = self.model.module.generate(
+                        input_ids=inputs["input_ids"],
+                        **gen_kwargs
+                    )
+                else:
+                    outputs = self.model.generate(
+                        input_ids=inputs["input_ids"],
+                        **gen_kwargs
+                    )
+            
+            # Decode outputs
+            for j, output in enumerate(outputs):
+                # Get the length of the input prompt
+                input_length = inputs["input_ids"][j].shape[0]
+                # Decode only the generated part
+                generated_text = self.tokenizer.decode(
+                    output[input_length:], 
+                    skip_special_tokens=True
+                )
+                all_results.append(generated_text)
+            
+            # Clear GPU cache after each batch
+            if self.device.type == "cuda" and i + batch_size < len(prompts):
+                torch.cuda.empty_cache()
+        
+        return all_results
     
     @contextmanager
     def generation_context(self):
