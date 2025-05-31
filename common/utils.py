@@ -135,6 +135,7 @@ def get_memory_usage() -> dict:
     return {
         "cpu": {
             "used_gb": memory_info.used / 1024**3,
+            "available_gb": memory_info.available / 1024**3,
             "total_gb": memory_info.total / 1024**3,
             "percent": memory_info.percent
         },

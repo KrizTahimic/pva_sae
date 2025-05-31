@@ -319,6 +319,7 @@ def test_gpu_setup(args, logger):
     print(f"  Used: {memory_stats['cpu']['used_gb']:.1f}GB")
     print(f"  Available: {memory_stats['cpu']['available_gb']:.1f}GB")
     print(f"  Total: {memory_stats['cpu']['total_gb']:.1f}GB")
+    print(f"  Usage: {memory_stats['cpu']['percent']:.1f}%")
     
     # GPU Memory
     if memory_stats['gpu']:
