@@ -392,8 +392,7 @@ class DatasetBuilder:
                  config: DatasetConfiguration,
                  max_new_tokens: int = 2000, 
                  stream_output: bool = False,
-                 difficulty_mapping: Optional[Dict[str, Any]] = None,
-                 batch_size: int = 1):
+                 difficulty_mapping: Optional[Dict[str, Any]] = None):
         """
         Initialize dataset builder
         
@@ -404,7 +403,6 @@ class DatasetBuilder:
             max_new_tokens: Maximum tokens to generate
             stream_output: Whether to stream generation output
             difficulty_mapping: Optional pre-computed difficulty mapping from Phase 0
-            batch_size: Batch size for generation (1 for sequential)
         """
         self.model_manager = model_manager
         self.dataset_manager = dataset_manager
@@ -412,7 +410,6 @@ class DatasetBuilder:
         self.max_new_tokens = max_new_tokens
         self.stream_output = stream_output
         self.difficulty_mapping = difficulty_mapping or {}
-        self.batch_size = batch_size
         
         # Results tracking
         self.generation_results: List[CodeGenerationResult] = []
@@ -444,7 +441,7 @@ class DatasetBuilder:
             self._reset_statistics()
             
             # Process records with progress tracking
-            results = self._process_record_batch(start_idx, end_idx)
+            results = self._process_records(start_idx, end_idx)
             
             # Log final statistics
             self._log_final_statistics()
@@ -697,15 +694,8 @@ class DatasetBuilder:
         self.correct_solutions = 0
         self.incorrect_solutions = 0
     
-    def _process_record_batch(self, start_idx: int, end_idx: int) -> List[CodeGenerationResult]:
-        """Process batch of records with progress tracking"""
-        if self.batch_size > 1:
-            return self._process_record_batch_parallel(start_idx, end_idx)
-        else:
-            return self._process_record_batch_sequential(start_idx, end_idx)
-    
-    def _process_record_batch_sequential(self, start_idx: int, end_idx: int) -> List[CodeGenerationResult]:
-        """Process records sequentially (original implementation)"""
+    def _process_records(self, start_idx: int, end_idx: int) -> List[CodeGenerationResult]:
+        """Process records sequentially with progress tracking"""
         results = []
         
         for idx in tqdm(range(start_idx, end_idx + 1),
@@ -721,106 +711,6 @@ class DatasetBuilder:
                 print(f"✗ Failed to process record {idx}")
                 # Continue with next record
                 continue
-        
-        return results
-    
-    def _process_record_batch_parallel(self, start_idx: int, end_idx: int) -> List[CodeGenerationResult]:
-        """Process records in batches for parallel generation"""
-        results = []
-        indices = list(range(start_idx, end_idx + 1))
-        
-        # Process in batches
-        for batch_start in tqdm(range(0, len(indices), self.batch_size),
-                               desc="Processing batches",
-                               unit="batch"):
-            batch_indices = indices[batch_start:batch_start + self.batch_size]
-            
-            try:
-                # Collect prompts and records for batch
-                batch_prompts = []
-                batch_records = []
-                batch_task_ids = []
-                
-                for idx in batch_indices:
-                    record = self.dataset_manager.get_record(idx)
-                    prompt = self.dataset_manager.get_prompt_template(idx)
-                    
-                    batch_prompts.append(prompt)
-                    batch_records.append(record)
-                    batch_task_ids.append(record['task_id'])
-                
-                self.logger.info(f"Generating batch of {len(batch_prompts)} solutions")
-                
-                # Generate code for batch
-                generation_start = time.time()
-                generated_codes = self.model_manager.batch_generate(
-                    prompts=batch_prompts,
-                    max_new_tokens=self.max_new_tokens,
-                    stream=False  # Streaming not supported for batch
-                )
-                generation_time = time.time() - generation_start
-                avg_gen_time = generation_time / len(batch_prompts)
-                
-                # Process each generated result
-                for i, (idx, generated_code, record, task_id) in enumerate(
-                    zip(batch_indices, generated_codes, batch_records, batch_task_ids)
-                ):
-                    try:
-                        # Test generated code
-                        test_result = self._test_generated_code(generated_code, record, task_id)
-                        
-                        # Classify result
-                        is_correct = self._classify_solution(test_result, generated_code)
-                        
-                        # Get complexity
-                        complexity = self._get_complexity_score(task_id, record)
-                        
-                        # Create result object
-                        result = CodeGenerationResult(
-                            task_id=task_id,
-                            prompt=batch_prompts[i],
-                            generated_code=generated_code,
-                            test_result=test_result,
-                            is_correct=is_correct,
-                            generation_time=avg_gen_time,
-                            complexity_score=complexity,
-                        )
-                        
-                        results.append(result)
-                        self.generation_results.append(result)
-                        
-                        # Update statistics
-                        self._update_statistics(result)
-                        
-                        # Log result
-                        self._log_single_result(result, idx)
-                        
-                    except Exception as e:
-                        self.logger.error(f"Failed to process result for record {idx}: {str(e)}")
-                        # Create failed result
-                        failed_result = CodeGenerationResult(
-                            task_id=task_id,
-                            prompt=batch_prompts[i],
-                            generated_code=generated_code,
-                            test_result=CodeTestResult(passed=0, total=0, errors=[str(e)]),
-                            is_correct=False,
-                            generation_time=avg_gen_time,
-                            complexity_score=1,
-                        )
-                        results.append(failed_result)
-                        self.generation_results.append(failed_result)
-                        self._update_statistics(failed_result)
-                
-            except Exception as e:
-                self.logger.error(f"Failed to process batch starting at {batch_indices[0]}: {str(e)}")
-                # Process failed batch items individually as fallback
-                for idx in batch_indices:
-                    try:
-                        result = self.process_single_record(idx)
-                        results.append(result)
-                        self.generation_results.append(result)
-                    except Exception as e2:
-                        self.logger.error(f"Failed to process record {idx} in fallback: {str(e2)}")
         
         return results
     
@@ -937,8 +827,7 @@ class RobustDatasetBuilder(DatasetBuilder):
                  robustness_config: RobustnessConfig,
                  max_new_tokens: int = 2000,
                  stream_output: bool = False,
-                 difficulty_mapping: Optional[Dict[str, Any]] = None,
-                 batch_size: int = 1):
+                 difficulty_mapping: Optional[Dict[str, Any]] = None):
         """
         Initialize robust dataset builder
         
@@ -950,9 +839,8 @@ class RobustDatasetBuilder(DatasetBuilder):
             max_new_tokens: Maximum tokens to generate
             stream_output: Whether to stream generation output
             difficulty_mapping: Optional pre-computed difficulty mapping from Phase 0
-            batch_size: Batch size for generation (1 for sequential)
         """
-        super().__init__(model_manager, dataset_manager, config, max_new_tokens, stream_output, difficulty_mapping, batch_size)
+        super().__init__(model_manager, dataset_manager, config, max_new_tokens, stream_output, difficulty_mapping)
         
         self.robustness_config = robustness_config
         self.checkpoint_manager = CheckpointManager(

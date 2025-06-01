@@ -175,6 +175,9 @@ class ModelManager:
         """
         Generate text for multiple prompts with true batching
         
+        DEPRECATED: This method is deprecated in favor of sequential processing
+        with multi-GPU parallelism. Use multiple calls to generate() instead.
+        
         Args:
             prompts: List of input prompts
             batch_size: Size of batches to process (None for all at once)
@@ -183,6 +186,13 @@ class ModelManager:
         Returns:
             list[str]: List of generated texts
         """
+        import warnings
+        warnings.warn(
+            "batch_generate() is deprecated. Use sequential calls to generate() "
+            "with multi-GPU parallelism for better performance and reliability.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         if not self.model or not self.tokenizer:
             raise RuntimeError("Model not loaded. Call load_model() first.")
         

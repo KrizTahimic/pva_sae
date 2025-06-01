@@ -122,18 +122,6 @@ def setup_argument_parser():
         action='store_true',
         help='Run cleanup before building'
     )
-    phase1_group.add_argument(
-        '--batch-size',
-        type=int,
-        default=1,
-        help='Batch size for generation (1 for sequential)'
-    )
-    phase1_group.add_argument(
-        '--num-gpus',
-        type=int,
-        default=1,
-        help='Number of GPUs to use for generation'
-    )
     
     # Phase 2: SAE Analysis arguments
     phase2_group = phase_parser.add_argument_group('Phase 2: SAE Analysis')
@@ -239,7 +227,7 @@ def run_phase1(args, logger):
     
     logger.info("Starting Phase 1: Dataset Building")
     logger.info(f"Model: {args.model}, Range: {args.start}-{args.end}")
-    logger.info(f"Batch size: {args.batch_size}, GPUs: {args.num_gpus}")
+    logger.info("Processing mode: Sequential (use multi_gpu_launcher.py for parallel processing)")
     
     # Setup CUDA environment and cleanup GPUs before starting
     if torch.cuda.is_available():
@@ -262,17 +250,13 @@ def run_phase1(args, logger):
         dataset_path = tester.build_dataset_simple_with_cleanup(
             start_idx=args.start,
             end_idx=args.end,
-            stream=args.stream,
-            batch_size=args.batch_size,
-            num_gpus=args.num_gpus
+            stream=args.stream
         )
     else:
         dataset_path = tester.build_dataset_simple(
             start_idx=args.start,
             end_idx=args.end,
-            stream=args.stream,
-            batch_size=args.batch_size,
-            num_gpus=args.num_gpus
+            stream=args.stream
         )
     
     logger.info("✅ Phase 1 completed successfully")

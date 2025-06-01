@@ -5,29 +5,28 @@
 - **Total GPU Memory**: 95.1GB (3 × 31.7GB)
 - **CPU Memory**: 128GB total
 
-## Recommended Batch Sizes
+## Multi-GPU Parallelism Strategy
 
-### For 3 GPUs:
-- **Conservative**: `--batch-size 12 --num-gpus 3` (4 per GPU)
-- **Optimal**: `--batch-size 18 --num-gpus 3` (6 per GPU)
-- **Aggressive**: `--batch-size 24 --num-gpus 3` (8 per GPU)
+The project uses **process-level parallelism** instead of batching for optimal GPU utilization:
+
+### Architecture:
+- **Sequential Processing**: Each GPU processes one problem at a time
+- **Multi-Process Parallelism**: 3 separate processes, each assigned to a different GPU
+- **Range Distribution**: Dataset is split across GPUs by index ranges
 
 ### Testing Commands:
 ```bash
 # Test GPU setup
 python3 run.py test-gpu --detailed
 
-# Sequential baseline (for comparison)
+# Sequential processing (single GPU)
 python3 run.py phase 1 --start 0 --end 10
 
-# Single GPU batch processing
-python3 run.py phase 1 --start 0 --end 7 --batch-size 8
-
-# Multi-GPU batch processing (3 GPUs)
-python3 run.py phase 1 --start 0 --end 17 --batch-size 18 --num-gpus 3
+# Multi-GPU parallel processing (recommended)
+python3 multi_gpu_launcher.py --start 0 --end 17 --model google/gemma-2-9b
 
 # Production run with 3 GPUs
-python3 run.py phase 1 --start 0 --end 973 --batch-size 18 --num-gpus 3
+python3 multi_gpu_launcher.py --start 0 --end 973 --model google/gemma-2-9b
 ```
 
 ## Memory Monitoring
@@ -38,6 +37,12 @@ watch -n 1 nvidia-smi
 ```
 
 ## Expected Performance
-- **Sequential**: ~1 problem per 2-3 seconds
-- **Single GPU batch=8**: ~4 problems per 3-4 seconds
-- **3 GPUs batch=18**: ~18 problems per 4-5 seconds (10-12x speedup)
+- **Sequential (1 GPU)**: ~1 problem per 2-3 seconds
+- **Multi-GPU (3 GPUs)**: ~3 problems per 2-3 seconds (3x speedup)
+- **Effective Throughput**: ~3600-5400 problems per hour with 3 GPUs
+
+## Why No Batching?
+- **Memory Efficiency**: Sequential processing avoids memory spikes
+- **Streaming Support**: Enables real-time output streaming
+- **Error Isolation**: Failures don't affect entire batches
+- **Simpler Architecture**: One clear processing path

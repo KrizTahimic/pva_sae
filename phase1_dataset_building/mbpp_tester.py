@@ -250,9 +250,7 @@ class DatasetBuildingOrchestrator(MBPPTester):
     def build_dataset_simple(self, 
                              start_idx: int = 0, 
                              end_idx: int = 2, 
-                             stream: bool = False,
-                             batch_size: int = 1,
-                             num_gpus: int = 1) -> str:
+                             stream: bool = False) -> str:
         """
         Build dataset with simple configuration
         
@@ -260,8 +258,6 @@ class DatasetBuildingOrchestrator(MBPPTester):
             start_idx: Starting index
             end_idx: Ending index (inclusive)
             stream: Whether to stream generation output
-            batch_size: Batch size for generation (1 for sequential)
-            num_gpus: Number of GPUs to use (1 for single GPU, >1 for DataParallel)
             
         Returns:
             str: Path to saved dataset
@@ -286,8 +282,7 @@ class DatasetBuildingOrchestrator(MBPPTester):
                 dataset_manager=self.dataset_manager,
                 config=dataset_config,
                 max_new_tokens=self.max_new_tokens,
-                stream_output=stream,
-                batch_size=batch_size
+                stream_output=stream
             )
             
             # Build dataset
@@ -317,9 +312,7 @@ class DatasetBuildingOrchestrator(MBPPTester):
     def build_dataset_simple_with_cleanup(self, 
                                           start_idx: int = 0, 
                                           end_idx: int = 2, 
-                                          stream: bool = False,
-                                          batch_size: int = 1,
-                                          num_gpus: int = 1) -> str:
+                                          stream: bool = False) -> str:
         """
         Build dataset with simple configuration and automatic cleanup
         
@@ -327,8 +320,6 @@ class DatasetBuildingOrchestrator(MBPPTester):
             start_idx: Starting index
             end_idx: Ending index (inclusive)
             stream: Whether to stream generation output
-            batch_size: Batch size for generation (1 for sequential)
-            num_gpus: Number of GPUs to use (1 for single GPU, >1 for DataParallel)
             
         Returns:
             str: Path to saved dataset
@@ -337,7 +328,7 @@ class DatasetBuildingOrchestrator(MBPPTester):
         auto_cleanup(self.dataset_dir, self.log_dir)
         
         # Build dataset
-        return self.build_dataset_simple(start_idx, end_idx, stream, batch_size, num_gpus)
+        return self.build_dataset_simple(start_idx, end_idx, stream)
     
     def analyze_dataset(self, dataset_path: Optional[str] = None) -> Dict[str, Any]:
         """
