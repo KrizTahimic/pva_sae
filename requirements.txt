@@ -3,6 +3,9 @@ tqdm
 torch
 transformers
 radon
+transformer_lens
+einops
+jaxtyping
 
 # If cuda
 accelerate
