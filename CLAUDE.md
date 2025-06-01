@@ -18,6 +18,7 @@ The methodology follows three phases: dataset building (50% SAE analysis, 10% hy
 - Use `python3 run.py test-gpu` to test GPU setup
 - Use `python3 run.py phase 1 --batch-size 16 --num-gpus 4` for multi-GPU generation
 - Use Gemma 2 2B for testing: `--model google/gemma-2-2b`
+- to memorize this issue so we will prevent this from happening again.
 
 ## Key Commands
 
@@ -32,5 +33,3 @@ pip install -r requirements.txt
 # For CUDA support, also install:
 pip install accelerate
 ```
-
-[rest of the file remains unchanged]

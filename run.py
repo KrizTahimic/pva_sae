@@ -11,13 +11,16 @@ Usage:
 
 import argparse
 import sys
+import os
 from pathlib import Path
+import torch
 
 # Add project root to path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from common.logging import LoggingManager
+from common.gpu_utils import cleanup_gpu_memory, ensure_gpu_available, setup_cuda_environment
 
 
 def setup_argument_parser():
@@ -36,6 +39,14 @@ def setup_argument_parser():
         '--detailed',
         action='store_true',
         help='Show detailed GPU information'
+    )
+    
+    # GPU cleanup command
+    cleanup_gpu_parser = subparsers.add_parser('cleanup-gpu', help='Clean GPU memory and zombie contexts')
+    cleanup_gpu_parser.add_argument(
+        '--aggressive',
+        action='store_true',
+        help='Use aggressive cleanup methods'
     )
     
     # Phase command (existing functionality)
@@ -230,6 +241,18 @@ def run_phase1(args, logger):
     logger.info(f"Model: {args.model}, Range: {args.start}-{args.end}")
     logger.info(f"Batch size: {args.batch_size}, GPUs: {args.num_gpus}")
     
+    # Setup CUDA environment and cleanup GPUs before starting
+    if torch.cuda.is_available():
+        logger.info("Setting up CUDA environment and cleaning GPU memory...")
+        setup_cuda_environment()
+        cleanup_gpu_memory()
+        
+        # Ensure GPU is responsive
+        gpu_device = int(os.environ.get('CUDA_VISIBLE_DEVICES', '0'))
+        if not ensure_gpu_available(gpu_device):
+            logger.warning(f"GPU {gpu_device} not responsive, attempting cleanup...")
+            cleanup_gpu_memory(gpu_device)
+    
     tester = DatasetBuildingOrchestrator(
         model_name=args.model,
         dataset_dir=args.dataset_dir
@@ -274,6 +297,87 @@ def run_phase3(args, logger):
     # TODO: Implement validation
     logger.info("Validation not yet implemented")
     logger.info("This phase will run statistical validation and model steering experiments")
+
+
+def cleanup_gpu_command(args, logger):
+    """Clean GPU memory and zombie contexts"""
+    print(f"\n{'='*60}")
+    print(f"GPU CLEANUP TOOL")
+    print(f"{'='*60}\n")
+    
+    if not torch.cuda.is_available():
+        print("❌ No CUDA GPUs detected")
+        return
+    
+    import gc
+    import subprocess
+    
+    # Step 1: Force Python garbage collection
+    print("1. Running Python garbage collection...")
+    gc.collect()
+    print("   ✓ Garbage collection completed")
+    
+    # Step 2: Clean all GPUs
+    gpu_count = torch.cuda.device_count()
+    print(f"\n2. Cleaning {gpu_count} GPU(s)...")
+    
+    for i in range(gpu_count):
+        print(f"\n   GPU {i}:")
+        try:
+            # Get initial memory stats
+            from common.gpu_utils import get_gpu_memory_info
+            before = get_gpu_memory_info(i)
+            print(f"   - Before: {before.get('allocated_mb', 0):.1f}MB allocated, {before.get('reserved_mb', 0):.1f}MB reserved")
+            
+            # Clean GPU
+            cleanup_gpu_memory(i)
+            
+            # Get after stats
+            after = get_gpu_memory_info(i)
+            print(f"   - After:  {after.get('allocated_mb', 0):.1f}MB allocated, {after.get('reserved_mb', 0):.1f}MB reserved")
+            print(f"   ✓ Cleaned")
+            
+        except Exception as e:
+            print(f"   ❌ Error: {e}")
+    
+    # Step 3: Aggressive cleanup if requested
+    if args.aggressive:
+        print("\n3. Running aggressive cleanup...")
+        
+        # Kill user's Python processes
+        try:
+            result = subprocess.run(['pkill', '-u', os.environ.get('USER', ''), '-f', 'python'], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                print("   ✓ Killed hanging Python processes")
+            else:
+                print("   - No Python processes to kill")
+        except Exception as e:
+            print(f"   ❌ Failed to kill processes: {e}")
+        
+        # Clear shared memory
+        try:
+            result = subprocess.run("ipcs -m | grep $USER | awk '{print $2}' | xargs -n1 ipcrm -m 2>/dev/null || true", 
+                                  shell=True, capture_output=True, text=True)
+            print("   ✓ Cleared shared memory segments")
+        except Exception as e:
+            print(f"   - Could not clear shared memory: {e}")
+    
+    # Step 4: Show final GPU status
+    print("\n4. Final GPU Status:")
+    try:
+        result = subprocess.run(['nvidia-smi', '--query-gpu=index,memory.used,memory.free,utilization.gpu', '--format=csv'],
+                              capture_output=True, text=True)
+        if result.returncode == 0:
+            print(result.stdout)
+        else:
+            print("   Could not get nvidia-smi status")
+    except:
+        print("   nvidia-smi not available")
+    
+    print(f"\n{'='*60}")
+    print("✓ GPU cleanup completed")
+    print(f"{'='*60}\n")
 
 
 def test_gpu_setup(args, logger):
@@ -390,6 +494,10 @@ def main():
     # Handle different commands
     if args.command == 'test-gpu':
         test_gpu_setup(args, logger)
+        return
+    
+    elif args.command == 'cleanup-gpu':
+        cleanup_gpu_command(args, logger)
         return
     
     elif args.command == 'phase':
