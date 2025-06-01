@@ -15,7 +15,8 @@ from pathlib import Path
 import json
 from datetime import datetime
 
-def merge_parquet_files(pattern: str, output_file: str, dataset_dir: str = "data/datasets"):
+def merge_parquet_files(pattern: str, output_file: str, dataset_dir: str = "data/datasets", 
+                       recent_only: bool = True, time_window_minutes: int = 60):
     """
     Merge multiple parquet files into one
     
@@ -23,10 +24,31 @@ def merge_parquet_files(pattern: str, output_file: str, dataset_dir: str = "data
         pattern: Glob pattern to match files
         output_file: Output filename
         dataset_dir: Directory containing datasets
+        recent_only: Only merge files created within time window
+        time_window_minutes: Time window for recent files (default 60 minutes)
     """
     # Find matching files
     search_pattern = os.path.join(dataset_dir, pattern)
-    files = sorted(glob.glob(search_pattern))
+    all_files = sorted(glob.glob(search_pattern))
+    
+    # Filter by recency if requested
+    if recent_only and all_files:
+        import time
+        current_time = time.time()
+        time_window_seconds = time_window_minutes * 60
+        
+        files = []
+        for f in all_files:
+            file_mtime = os.path.getmtime(f)
+            if (current_time - file_mtime) <= time_window_seconds:
+                files.append(f)
+        
+        if len(files) < len(all_files):
+            print(f"Filtered to {len(files)} recent files (within {time_window_minutes} minutes)")
+            excluded = len(all_files) - len(files)
+            print(f"Excluded {excluded} older files")
+    else:
+        files = all_files
     
     if not files:
         print(f"No files found matching pattern: {search_pattern}")
@@ -93,7 +115,7 @@ def merge_parquet_files(pattern: str, output_file: str, dataset_dir: str = "data
 
 
 def cleanup_partial_datasets(dataset_dir: str = "data/datasets", 
-                           pattern: str = "mbpp_dataset_*.parquet",
+                           pattern: str = "dataset_*.parquet",
                            keep_merged: bool = True):
     """
     Clean up partial dataset files after merging
@@ -136,14 +158,14 @@ def main():
     parser.add_argument(
         '--pattern',
         type=str,
-        default='mbpp_dataset_*.parquet',
+        default='dataset_*.parquet',
         help='Glob pattern to match dataset files'
     )
     parser.add_argument(
         '--output',
         type=str,
-        default='merged_dataset.parquet',
-        help='Output filename for merged dataset'
+        default=None,
+        help='Output filename for merged dataset (auto-generated if not specified)'
     )
     parser.add_argument(
         '--dataset-dir',
@@ -156,14 +178,55 @@ def main():
         action='store_true',
         help='Remove partial datasets after merging'
     )
+    parser.add_argument(
+        '--all',
+        action='store_true',
+        help='Merge all matching files (not just recent ones)'
+    )
+    parser.add_argument(
+        '--time-window',
+        type=int,
+        default=60,
+        help='Time window in minutes for recent files (default: 60)'
+    )
     
     args = parser.parse_args()
+    
+    # Generate output filename if not specified
+    if args.output is None:
+        # Add import at function level to avoid circular imports
+        import sys
+        sys.path.insert(0, str(Path(__file__).parent))
+        from common.utils import generate_dataset_filename
+        
+        # Try to extract model name from pattern or existing files
+        search_pattern = os.path.join(args.dataset_dir, args.pattern)
+        files = glob.glob(search_pattern)
+        
+        model_name = None
+        if files:
+            # Try to extract model name from first file
+            first_file = os.path.basename(files[0])
+            if 'gemma' in first_file:
+                for part in first_file.split('_'):
+                    if 'gemma' in part:
+                        model_name = f"google/{part}"
+                        break
+        
+        args.output = generate_dataset_filename(
+            prefix="dataset",
+            model_name=model_name,
+            suffix="merged",
+            extension="parquet"
+        )
     
     # Merge files
     output_path = merge_parquet_files(
         pattern=args.pattern,
         output_file=args.output,
-        dataset_dir=args.dataset_dir
+        dataset_dir=args.dataset_dir,
+        recent_only=not args.all,
+        time_window_minutes=args.time_window
     )
     
     # Cleanup if requested

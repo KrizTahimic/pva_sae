@@ -141,7 +141,9 @@ class MultiGPULauncher:
             env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
             
             # Create log file for this GPU
-            log_file = f"data/logs/gpu_{gpu_id}_output.log"
+            from common.utils import get_readable_timestamp
+            timestamp = get_readable_timestamp()
+            log_file = f"data/logs/gpu_{gpu_id}_{model.split('/')[-1]}_{split_start}-{split_end}_{timestamp}.log"
             
             print(f"Launching on GPU {gpu_id}: {split_start}-{split_end}")
             self.logger.info(f"Launching process on GPU {gpu_id}: {' '.join(cmd)}")

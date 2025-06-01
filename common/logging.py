@@ -65,8 +65,9 @@ class LoggingManager:
         # Setup file handler
         if self.log_to_file:
             os.makedirs(self.log_dir, exist_ok=True)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self.log_file = os.path.join(self.log_dir, f"mbpp_test_{timestamp}.log")
+            from common.utils import get_readable_timestamp
+            timestamp = get_readable_timestamp()
+            self.log_file = os.path.join(self.log_dir, f"pva_sae_{logger_name}_{timestamp}.log")
             
             file_handler = logging.FileHandler(self.log_file)
             file_handler.setLevel(self.log_level)

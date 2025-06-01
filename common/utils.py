@@ -163,6 +163,66 @@ def get_timestamp() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
+def get_readable_timestamp() -> str:
+    """
+    Get human-readable timestamp for file naming
+    
+    Returns:
+        str: Timestamp in format YYYY-MM-DD_HH-MM-SS
+    """
+    return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+
+def generate_dataset_filename(prefix: str = "dataset", 
+                            model_name: Optional[str] = None,
+                            start_idx: Optional[int] = None,
+                            end_idx: Optional[int] = None,
+                            suffix: Optional[str] = None,
+                            extension: str = "parquet") -> str:
+    """
+    Generate descriptive dataset filename with metadata
+    
+    Args:
+        prefix: File prefix (e.g., "dataset", "checkpoint", "results")
+        model_name: Model name to include (will be sanitized)
+        start_idx: Starting index of dataset
+        end_idx: Ending index of dataset
+        suffix: Additional suffix (e.g., "merged", "final")
+        extension: File extension
+        
+    Returns:
+        str: Descriptive filename like "dataset_gemma-2-9b_0-973_2024-01-06_14-30-45.parquet"
+    """
+    parts = [prefix]
+    
+    # Add model name (sanitized)
+    if model_name:
+        # Extract just the model variant, remove "google/" prefix
+        model_short = model_name.split('/')[-1].replace('_', '-')
+        parts.append(model_short)
+    
+    # Add index range
+    if start_idx is not None and end_idx is not None:
+        parts.append(f"{start_idx}-{end_idx}")
+    elif start_idx is not None:
+        parts.append(f"from{start_idx}")
+    elif end_idx is not None:
+        parts.append(f"to{end_idx}")
+    
+    # Add suffix
+    if suffix:
+        parts.append(suffix)
+    
+    # Add readable timestamp
+    parts.append(get_readable_timestamp())
+    
+    # Join with underscores
+    filename = "_".join(parts)
+    
+    # Add extension
+    return f"{filename}.{extension}"
+
+
 def safe_json_dumps(obj: any, indent: int = 2) -> str:
     """
     Safely convert object to JSON string, handling special types

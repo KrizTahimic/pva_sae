@@ -124,8 +124,19 @@ class CheckpointManager:
             checkpoint_data.last_checkpoint_time = datetime.now().isoformat()
             
             # Generate filename
-            timestamp = get_timestamp()
-            filename = f"{prefix}_{timestamp}.json"
+            from common.utils import generate_dataset_filename
+            
+            # Get model name from config if available
+            model_name = checkpoint_data.config.get('model_name', None)
+            processed_count = len(checkpoint_data.processed_indices)
+            
+            filename = generate_dataset_filename(
+                prefix=prefix,
+                model_name=model_name,
+                start_idx=0,
+                end_idx=processed_count - 1 if processed_count > 0 else 0,
+                extension="json"
+            )
             filepath = os.path.join(self.checkpoint_dir, filename)
             
             # Save checkpoint
@@ -574,8 +585,13 @@ class DatasetBuilder:
     def _save_json(self, filepath: str = None) -> str:
         """Save results to JSON format"""
         if filepath is None:
-            timestamp = get_timestamp()
-            filepath = os.path.join(self.config.dataset_dir, f"dataset_results_{timestamp}.json")
+            from common.utils import generate_dataset_filename
+            filename = generate_dataset_filename(
+                prefix="results",
+                model_name=self.model_manager.config.model_name,
+                extension="json"
+            )
+            filepath = os.path.join(self.config.dataset_dir, filename)
         elif not os.path.isabs(filepath):
             filepath = os.path.join(self.config.dataset_dir, filepath)
         
@@ -600,8 +616,13 @@ class DatasetBuilder:
     def _save_parquet(self, filepath: str = None) -> str:
         """Save results to Parquet format with metadata"""
         if filepath is None:
-            timestamp = get_timestamp()
-            filepath = os.path.join(self.config.dataset_dir, f"mbpp_dataset_{timestamp}.parquet")
+            from common.utils import generate_dataset_filename
+            filename = generate_dataset_filename(
+                prefix="dataset",
+                model_name=self.model_manager.config.model_name,
+                extension="parquet"
+            )
+            filepath = os.path.join(self.config.dataset_dir, filename)
         elif not os.path.isabs(filepath):
             filepath = os.path.join(self.config.dataset_dir, filepath)
         
@@ -634,8 +655,12 @@ class DatasetBuilder:
     def _save_both(self, base_name: str = None) -> Tuple[str, str]:
         """Save in both JSON and Parquet formats"""
         if base_name is None:
-            timestamp = get_timestamp()
-            base_name = f"mbpp_dataset_{timestamp}"
+            from common.utils import generate_dataset_filename
+            base_name = generate_dataset_filename(
+                prefix="dataset",
+                model_name=self.model_manager.config.model_name,
+                extension=""
+            )[:-1]  # Remove the trailing dot
         
         # Save both formats
         json_file = self._save_json(f"{base_name}.json")
@@ -1115,12 +1140,17 @@ class RobustDatasetBuilder(DatasetBuilder):
     
     def _autosave_results(self):
         """Save partial results automatically"""
-        timestamp = get_timestamp()
-        autosave_file = os.path.join(
-            self.config.dataset_dir,
-            f"autosave_{self.checkpoint_data.config['start_idx']}_"
-            f"{self.checkpoint_data.config['end_idx']}_{timestamp}.parquet"
+        from common.utils import generate_dataset_filename
+        
+        autosave_filename = generate_dataset_filename(
+            prefix="autosave",
+            model_name=self.model_manager.config.model_name,
+            start_idx=self.checkpoint_data.config['start_idx'],
+            end_idx=self.checkpoint_data.config['end_idx'],
+            suffix=f"progress{self.total_processed}",
+            extension="parquet"
         )
+        autosave_file = os.path.join(self.config.dataset_dir, autosave_filename)
         
         try:
             df = self.get_dataframe()
