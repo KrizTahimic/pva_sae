@@ -133,6 +133,9 @@ class ActivationExtractor:
                 self.activations_cache[layer_name].append(last_token_acts)
             else:
                 self.activations_cache[layer_name] = [last_token_acts]
+            
+            # Return None to indicate no modification to the input
+            return None
                 
         return hook_fn
     
