@@ -60,32 +60,32 @@ Run individual phases using the unified script:
 
 ```bash
 # Phase 0: Analyze difficulty for all MBPP problems
-python3 run.py --phase 0
+python3 run.py phase 0
 
 # Phase 1: Build dataset with Gemma 2 model
-python3 run.py --phase 1 --model google/gemma-2-9b
+python3 run.py phase 1 --model google/gemma-2-9b
 
 # Phase 2: Analyze with Sparse Autoencoders
-python3 run.py --phase 2 --dataset data/datasets/latest_dataset.parquet
+python3 run.py phase 2 --dataset data/datasets/latest_dataset.parquet
 
 # Phase 3: Run validation experiments
-python3 run.py --phase 3 --dataset data/datasets/latest_dataset.parquet
+python3 run.py phase 3 --dataset data/datasets/latest_dataset.parquet
 ```
 
 ### Phase-Specific Examples
 
 ```bash
 # Quick test with small dataset
-python3 run.py --phase 1 --model google/gemma-2-2b --start 0 --end 10
+python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 10
 
 # Load existing difficulty mapping
-python3 run.py --phase 0 --load-existing data/datasets/difficulty_mapping_latest.json
+python3 run.py phase 0 --load-existing data/datasets/difficulty_mapping_latest.json
 
 # Custom SAE analysis parameters
-python3 run.py --phase 2 --dataset my_dataset.parquet --latent-threshold 0.05
+python3 run.py phase 2 --dataset my_dataset.parquet --latent-threshold 0.05
 
 # Validation with custom temperature range
-python3 run.py --phase 3 --dataset my_dataset.parquet --temperatures 0.0 1.0 2.0
+python3 run.py phase 3 --dataset my_dataset.parquet --temperatures 0.0 1.0 2.0
 ```
 
 ## Project Structure
@@ -117,7 +117,7 @@ The system includes robust checkpoint recovery for long-running dataset builds:
 ### Recovery After Crashes
 ```bash
 # System automatically detects checkpoints on restart
-python3 run.py --phase 1 --model google/gemma-2-9b
+python3 run.py phase 1 --model google/gemma-2-9b
 
 # Prompts: "Found checkpoint with 150 processed records. Resume? (y/n)"
 ```
@@ -140,10 +140,10 @@ ls data/datasets/checkpoints/
 ### Production Features
 ```bash
 # Production build with full MBPP dataset
-python3 run.py --phase 1 --model google/gemma-2-9b --start 0 --end 973 --cleanup
+python3 run.py phase 1 --model google/gemma-2-9b --start 0 --end 973 --cleanup
 
 # Enable progress streaming and verbose output
-python3 run.py --phase 1 --model google/gemma-2-9b --stream --verbose
+python3 run.py phase 1 --model google/gemma-2-9b --stream --verbose
 ```
 
 ## Output Files
