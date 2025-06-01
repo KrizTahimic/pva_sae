@@ -146,13 +146,88 @@ python3 run.py phase 1 --model google/gemma-2-9b --start 0 --end 973 --cleanup
 python3 run.py phase 1 --model google/gemma-2-9b --stream --verbose
 ```
 
-## Output Files
+## Output Files and Naming Convention
 
-- **Logs**: Timestamped logs in `data/logs/`
-- **Datasets**: JSON and Parquet files in `data/datasets/`
-- **Checkpoints**: Recovery files in `data/datasets/checkpoints/`
-- **Autosaves**: Periodic backups during long runs
-- **Metadata**: Accompanying metadata files with statistics
+The project uses a descriptive naming convention to make files easy to identify and organize:
+
+### File Naming Format
+All output files follow this pattern:
+```
+<prefix>_<model>_<range>_<suffix>_<timestamp>.<extension>
+```
+
+**Components:**
+- **prefix**: File type (dataset, results, checkpoint, autosave, etc.)
+- **model**: Sanitized model name (e.g., gemma-2-9b, gemma-2-2b)
+- **range**: Index range processed (e.g., 0-973, 325-649)
+- **suffix**: Additional descriptors (merged, final, progress150, etc.)
+- **timestamp**: Human-readable format (YYYY-MM-DD_HH-MM-SS)
+
+### Dataset Files (`data/datasets/`)
+```bash
+# Main datasets (Parquet format)
+dataset_gemma-2-9b_0-973_2024-01-06_14-30-45.parquet
+
+# Merged datasets from parallel processing
+dataset_gemma-2-9b_0-973_merged_2024-01-06_15-45-30.parquet
+
+# Results in JSON format
+results_gemma-2-9b_0-973_2024-01-06_14-30-45.json
+
+# Metadata files (accompany each dataset)
+dataset_gemma-2-9b_0-973_2024-01-06_14-30-45_metadata.json
+```
+
+### Checkpoint Files (`data/datasets/checkpoints/`)
+```bash
+# Regular checkpoints (every 50 records)
+checkpoint_gemma-2-9b_0-149_2024-01-06_14-35-20.json
+
+# Final checkpoints
+final_gemma-2-9b_0-973_2024-01-06_15-30-45.json
+```
+
+### Autosave Files (`data/datasets/`)
+```bash
+# Periodic autosaves during processing
+autosave_gemma-2-9b_0-973_progress150_2024-01-06_14-35-45.parquet
+autosave_gemma-2-9b_0-973_progress300_2024-01-06_14-50-15.parquet
+```
+
+### Log Files (`data/logs/`)
+```bash
+# Main application logs
+pva_sae_phase1_2024-01-06_14-30-45.log
+pva_sae_multi_gpu_launcher_2024-01-06_14-30-45.log
+
+# Multi-GPU processing logs (one per GPU)
+gpu_0_gemma-2-9b_0-324_2024-01-06_14-30-45.log
+gpu_1_gemma-2-9b_325-649_2024-01-06_14-30-45.log
+gpu_2_gemma-2-9b_650-973_2024-01-06_14-30-45.log
+```
+
+### Reading and Organizing Files
+
+**Finding related files:**
+```bash
+# List all datasets for a specific model
+ls data/datasets/dataset_gemma-2-9b_*.parquet
+
+# List files from a specific time period
+ls data/datasets/*_2024-01-06_*.parquet
+
+# Find checkpoints for a specific range
+ls data/datasets/checkpoints/checkpoint_*_0-973_*.json
+```
+
+**Merging parallel processing results:**
+```bash
+# Merge all recent dataset files
+python3 merge_datasets.py --pattern "dataset_gemma-2-9b_*.parquet"
+
+# Merge with custom output name
+python3 merge_datasets.py --output final_dataset_full_mbpp.parquet
+```
 
 ## Hardware Requirements
 
