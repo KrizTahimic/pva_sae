@@ -123,8 +123,8 @@ class TestExecutor:
         return CodeTestResult(passed=passed_tests, total=total_tests, errors=errors)
 
 
-class EnhancedTestExecutor(TestExecutor):
-    """Enhanced test executor with additional features"""
+class SafeTestExecutor(TestExecutor):
+    """Safe test executor with timeout and error handling"""
     
     @staticmethod
     def run_code_with_timeout(code: str, test_cases: List[str], 

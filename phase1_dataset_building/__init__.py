@@ -17,7 +17,7 @@ from phase1_dataset_building.dataset_manager import (
 # Import test execution components
 from phase1_dataset_building.test_executor import (
     TestExecutor,
-    EnhancedTestExecutor
+    SafeTestExecutor
 )
 
 # Import dataset building components
@@ -47,7 +47,7 @@ __all__ = [
     
     # Test execution
     'TestExecutor',
-    'EnhancedTestExecutor',
+    'SafeTestExecutor',
     
     # Dataset building
     'CheckpointData',

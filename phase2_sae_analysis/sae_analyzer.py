@@ -148,8 +148,8 @@ class ActivationCache:
         return key in self.cache
 
 
-class ImprovedActivationExtractor:
-    """Improved activation extractor with robust error handling and multi-model support."""
+class ActivationExtractor:
+    """Activation extractor with robust error handling and multi-model support."""
     
     def __init__(
         self, 
@@ -376,7 +376,7 @@ def find_pva_directions(
         raise ValueError("Both correct and incorrect prompts must be provided")
     
     # Extract activations
-    extractor = ImprovedActivationExtractor(model, tokenizer, device)
+    extractor = ActivationExtractor(model, tokenizer, device)
     
     logger.info(f"Extracting activations for {len(correct_prompts)} correct samples")
     correct_acts = extractor.extract_activations(correct_prompts, layer_idx)
@@ -455,7 +455,7 @@ class SAEAnalysisPipeline:
         self.model = model
         self.tokenizer = tokenizer
         self.device = device
-        self.extractor = ImprovedActivationExtractor(model, tokenizer, device)
+        self.extractor = ActivationExtractor(model, tokenizer, device)
         
         logger.info("Initialized SAE Analysis Pipeline")
     
