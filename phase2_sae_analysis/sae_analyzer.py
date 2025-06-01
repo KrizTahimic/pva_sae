@@ -18,7 +18,6 @@ from pathlib import Path
 import contextlib
 from huggingface_hub import hf_hub_download
 from transformer_lens import HookedTransformer
-from transformers import AutoTokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -149,45 +148,33 @@ class ActivationCache:
 
 
 class ActivationExtractor:
-    """Activation extractor with robust error handling and multi-model support."""
+    """Activation extractor with robust error handling for TransformerLens models."""
     
     def __init__(
         self, 
-        model: Union[HookedTransformer, torch.nn.Module], 
-        tokenizer: AutoTokenizer,
+        model: HookedTransformer, 
         device: str = "mps"
     ):
         self.model = model
-        self.tokenizer = tokenizer
         self.device = device
-        self.is_hooked_transformer = isinstance(model, HookedTransformer)
         self.cache = ActivationCache()
         
-        logger.info(f"Initialized extractor for {'TransformerLens' if self.is_hooked_transformer else 'Hugging Face'} model")
+        logger.info("Initialized extractor for TransformerLens model")
     
     @contextlib.contextmanager
     def _hook_context(self, hooks: List[Tuple]):
-        """Context manager for safe hook management."""
-        handles = []
+        """Context manager for safe hook management with TransformerLens."""
         try:
-            if self.is_hooked_transformer:
-                # TransformerLens hooks
-                for hook_name, hook_fn in hooks:
-                    handle = self.model.add_hook(hook_name, hook_fn)
-                    handles.append(handle)
-            else:
-                # Hugging Face hooks
-                for module, hook_fn in hooks:
-                    handle = module.register_forward_pre_hook(hook_fn)
-                    handles.append(handle)
+            # Clear any existing hooks first
+            self.model.reset_hooks()
+            
+            # Add new hooks - TransformerLens manages them internally
+            for hook_name, hook_fn in hooks:
+                self.model.add_hook(hook_name, hook_fn)
             yield
         finally:
-            # Clean up hooks
-            for handle in handles:
-                if self.is_hooked_transformer:
-                    handle.remove()
-                else:
-                    handle.remove()
+            # Clean up all hooks
+            self.model.reset_hooks()
     
     def extract_activations(
         self,
@@ -213,10 +200,7 @@ class ActivationExtractor:
         
         self.cache.clear()
         
-        if self.is_hooked_transformer:
-            return self._extract_with_transformerlens(prompts, layer_idx, position, hook_type)
-        else:
-            return self._extract_with_huggingface(prompts, layer_idx, position)
+        return self._extract_with_transformerlens(prompts, layer_idx, position, hook_type)
     
     def _extract_with_transformerlens(
         self,
@@ -251,39 +235,6 @@ class ActivationExtractor:
         
         return self._collect_cached_activations()
     
-    def _extract_with_huggingface(
-        self,
-        prompts: List[str],
-        layer_idx: int,
-        position: Union[int, str]
-    ) -> torch.Tensor:
-        """Extract activations using Hugging Face hooks."""
-        try:
-            layer_module = self.model.model.layers[layer_idx]
-        except (AttributeError, IndexError) as e:
-            raise ValueError(f"Could not access layer {layer_idx}: {e}")
-        
-        def extraction_hook(module, input):
-            """Hook function for Hugging Face models."""
-            activation = input[0] if isinstance(input, tuple) else input
-            
-            if position == 'all':
-                extracted = activation.detach().clone()
-            elif isinstance(position, int):
-                pos = position if position != -1 else activation.shape[1] - 1
-                extracted = activation[:, pos, :].detach().clone()
-            else:
-                raise ValueError(f"Invalid position: {position}")
-                
-            # Store each sample separately
-            for i in range(extracted.shape[0]):
-                cache_key = f"sample_{len(self.cache.cache)}"
-                self.cache.store(cache_key, extracted[i:i+1])
-        
-        with self._hook_context([(layer_module, extraction_hook)]):
-            self._process_prompts_batch(prompts)
-        
-        return self._collect_cached_activations()
     
     def _process_prompts_batch(self, prompts: List[str], batch_size: int = 1):
         """Process prompts in batches to trigger hooks."""
@@ -291,21 +242,12 @@ class ActivationExtractor:
             for i in range(0, len(prompts), batch_size):
                 batch_prompts = prompts[i:i + batch_size]
                 
-                # Tokenize batch
-                inputs = self.tokenizer(
-                    batch_prompts,
-                    return_tensors="pt",
-                    padding=True,
-                    truncation=True,
-                    max_length=512
-                ).to(self.device)
+                # Tokenize batch using model's tokenizer
+                tokens = self.model.to_tokens(batch_prompts, prepend_bos=True)
                 
                 # Forward pass to trigger hooks
                 try:
-                    if self.is_hooked_transformer:
-                        _ = self.model(inputs.input_ids)
-                    else:
-                        _ = self.model(**inputs)
+                    _ = self.model(tokens)
                 except Exception as e:
                     logger.error(f"Error during forward pass: {e}")
                     raise
@@ -355,8 +297,7 @@ def compute_separation_scores(
 
 
 def find_pva_directions(
-    model,
-    tokenizer,
+    model: HookedTransformer,
     sae: JumpReLUSAE,
     correct_prompts: List[str],
     incorrect_prompts: List[str],
@@ -365,6 +306,14 @@ def find_pva_directions(
 ) -> Tuple[PVALatentDirection, PVALatentDirection]:
     """
     Find PVA latent directions for a single layer.
+    
+    Args:
+        model: TransformerLens HookedTransformer model
+        sae: SAE model for the specified layer
+        correct_prompts: List of prompts that produce correct solutions
+        incorrect_prompts: List of prompts that produce incorrect solutions
+        layer_idx: Layer index to analyze
+        device: Device to run computations on
     
     Returns:
         Tuple of (correct_direction, incorrect_direction)
@@ -376,7 +325,7 @@ def find_pva_directions(
         raise ValueError("Both correct and incorrect prompts must be provided")
     
     # Extract activations
-    extractor = ActivationExtractor(model, tokenizer, device)
+    extractor = ActivationExtractor(model, device)
     
     logger.info(f"Extracting activations for {len(correct_prompts)} correct samples")
     correct_acts = extractor.extract_activations(correct_prompts, layer_idx)
@@ -437,7 +386,7 @@ class SAEAnalysisResults:
 
 class SAEAnalysisPipeline:
     """
-    Integrated pipeline for complete SAE analysis workflow.
+    Integrated pipeline for complete SAE analysis workflow using TransformerLens.
     
     This class orchestrates the entire SAE analysis process:
     1. Model and SAE loading
@@ -448,14 +397,12 @@ class SAEAnalysisPipeline:
     
     def __init__(
         self,
-        model: Union[HookedTransformer, torch.nn.Module],
-        tokenizer: AutoTokenizer,
+        model: HookedTransformer,
         device: str = "mps"
     ):
         self.model = model
-        self.tokenizer = tokenizer
         self.device = device
-        self.extractor = ActivationExtractor(model, tokenizer, device)
+        self.extractor = ActivationExtractor(model, device)
         
         logger.info("Initialized SAE Analysis Pipeline")
     
