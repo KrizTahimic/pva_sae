@@ -12,7 +12,7 @@ from dataclasses import dataclass, asdict
 
 # Import common utilities
 from common import DEFAULT_DATASET_DIR
-from phase2_sae_analysis.prompt_utils import build_prompt_template
+from common.prompt_utils import build_prompt_template
 
 
 @dataclass
