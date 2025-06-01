@@ -1,19 +1,24 @@
 """
 SAE (Sparse Autoencoder) Analysis module for Phase 2 of the PVA-SAE project.
 
-This module implements the core SAE analysis functionality:
-1. Hook-based activation extraction
-2. Separation score computation
+This module implements the complete SAE analysis pipeline:
+1. Hook-based activation extraction with robust error handling
+2. Separation score computation following thesis methodology
 3. PVA latent direction identification
+4. Integrated pipeline for end-to-end analysis
 """
 
 import torch
 import torch.nn as nn
 import numpy as np
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Union, Optional
 from dataclasses import dataclass
 import logging
+from pathlib import Path
+import contextlib
 from huggingface_hub import hf_hub_download
+from transformer_lens import HookedTransformer
+from transformers import AutoTokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -79,14 +84,23 @@ class JumpReLUSAE(nn.Module):
         return recon
 
 
-def load_gemma_scope_sae(repo_id: str, sae_id: str, device: str = "cuda") -> JumpReLUSAE:
+def load_gemma_scope_sae(repo_id: str, sae_id: str, device: str = "mps") -> JumpReLUSAE:
     """Load a GemmaScope SAE from HuggingFace Hub."""
     logger.info(f"Loading SAE from {repo_id}/{sae_id}")
+    
+    # GemmaScope SAEs have a specific directory structure
+    # Format: layer_X/width_16k/average_l0_Y/params.npz
+    if "/" not in sae_id:
+        # If just layer name provided, use canonical structure
+        sae_path = f"{sae_id}/width_16k/average_l0_71/params.npz"
+    else:
+        # Full path provided
+        sae_path = f"{sae_id}/params.npz"
     
     # Download parameters
     path_to_params = hf_hub_download(
         repo_id=repo_id,
-        filename=f"{sae_id}/params.npz",
+        filename=sae_path,
         force_download=False,
     )
     
@@ -105,77 +119,209 @@ def load_gemma_scope_sae(repo_id: str, sae_id: str, device: str = "cuda") -> Jum
     return sae
 
 
-class ActivationExtractor:
-    """Handles hook-based activation extraction from transformer models."""
+class ActivationCache:
+    """Thread-safe activation cache with automatic cleanup."""
     
-    def __init__(self, model, tokenizer, device: str = "cuda"):
+    def __init__(self):
+        self.cache = {}
+    
+    def store(self, key: str, activation: torch.Tensor):
+        """Store activation with given key."""
+        self.cache[key] = activation.detach().clone()
+    
+    def get(self, key: str) -> torch.Tensor:
+        """Get activation by key."""
+        return self.cache.get(key)
+    
+    def clear(self):
+        """Clear all cached activations."""
+        self.cache.clear()
+    
+    def keys(self):
+        """Get cache keys."""
+        return self.cache.keys()
+    
+    def __getitem__(self, key: str):
+        return self.cache[key]
+    
+    def __contains__(self, key: str):
+        return key in self.cache
+
+
+class ImprovedActivationExtractor:
+    """Improved activation extractor with robust error handling and multi-model support."""
+    
+    def __init__(
+        self, 
+        model: Union[HookedTransformer, torch.nn.Module], 
+        tokenizer: AutoTokenizer,
+        device: str = "mps"
+    ):
         self.model = model
         self.tokenizer = tokenizer
         self.device = device
-        self.activations_cache = {}
+        self.is_hooked_transformer = isinstance(model, HookedTransformer)
+        self.cache = ActivationCache()
         
-    def _create_hook(self, layer_name: str):
-        """Create a hook function for capturing activations."""
-        def hook_fn(module, input):
-            # For pre-hooks, we only get module and input (no output)
-            # For transformer blocks, we want the residual stream
-            # This is typically the first element of the input tuple
-            if isinstance(input, tuple):
-                activation = input[0].detach()
-            else:
-                activation = input.detach()
-            
-            # Store only the last token's activation
-            # Shape: [batch_size, seq_len, hidden_dim] -> [batch_size, hidden_dim]
-            last_token_acts = activation[:, -1, :].clone()
-            
-            if layer_name in self.activations_cache:
-                self.activations_cache[layer_name].append(last_token_acts)
-            else:
-                self.activations_cache[layer_name] = [last_token_acts]
-            
-            # Return None to indicate no modification to the input
-            return None
-                
-        return hook_fn
+        logger.info(f"Initialized extractor for {'TransformerLens' if self.is_hooked_transformer else 'Hugging Face'} model")
     
-    def extract_activations(self, prompts: List[str], layer_idx: int) -> torch.Tensor:
-        """Extract activations for given prompts at specified layer."""
-        self.activations_cache.clear()
-        
-        # Get the layer module
-        layer_name = f"layer_{layer_idx}"
-        layer_module = self.model.model.layers[layer_idx]
-        
-        # Register hook
-        hook_handle = layer_module.register_forward_pre_hook(
-            self._create_hook(layer_name)
-        )
-        
+    @contextlib.contextmanager
+    def _hook_context(self, hooks: List[Tuple]):
+        """Context manager for safe hook management."""
+        handles = []
         try:
-            # Process prompts
-            with torch.no_grad():
-                for prompt in prompts:
-                    inputs = self.tokenizer(
-                        prompt,
-                        return_tensors="pt",
-                        padding=True,
-                        truncation=True,
-                        max_length=512
-                    ).to(self.device)
-                    
-                    # Forward pass (just to trigger hooks)
-                    _ = self.model(**inputs)
-            
-            # Collect activations
-            activations = torch.cat(self.activations_cache[layer_name], dim=0)
-            logger.info(f"Extracted activations shape: {activations.shape}")
-            
-            return activations
-            
+            if self.is_hooked_transformer:
+                # TransformerLens hooks
+                for hook_name, hook_fn in hooks:
+                    handle = self.model.add_hook(hook_name, hook_fn)
+                    handles.append(handle)
+            else:
+                # Hugging Face hooks
+                for module, hook_fn in hooks:
+                    handle = module.register_forward_pre_hook(hook_fn)
+                    handles.append(handle)
+            yield
         finally:
-            # Always remove hook
-            hook_handle.remove()
+            # Clean up hooks
+            for handle in handles:
+                if self.is_hooked_transformer:
+                    handle.remove()
+                else:
+                    handle.remove()
+    
+    def extract_activations(
+        self,
+        prompts: List[str],
+        layer_idx: int,
+        position: Union[int, str] = -1,
+        hook_type: str = "resid_pre"
+    ) -> torch.Tensor:
+        """
+        Extract activations for given prompts at specified layer and position.
+        
+        Args:
+            prompts: List of text prompts
+            layer_idx: Layer index to extract from
+            position: Token position (-1 for last, 'all' for all tokens)
+            hook_type: Type of hook for TransformerLens (resid_pre, resid_mid, resid_post)
+            
+        Returns:
+            Tensor of extracted activations
+        """
+        if not prompts:
+            raise ValueError("No prompts provided")
+        
+        self.cache.clear()
+        
+        if self.is_hooked_transformer:
+            return self._extract_with_transformerlens(prompts, layer_idx, position, hook_type)
+        else:
+            return self._extract_with_huggingface(prompts, layer_idx, position)
+    
+    def _extract_with_transformerlens(
+        self,
+        prompts: List[str],
+        layer_idx: int,
+        position: Union[int, str],
+        hook_type: str
+    ) -> torch.Tensor:
+        """Extract activations using TransformerLens hooks."""
+        hook_name = f"blocks.{layer_idx}.hook_{hook_type}"
+        
+        def extraction_hook(activation, hook):
+            """Hook function for TransformerLens."""
+            if position == 'all':
+                extracted = activation.detach().clone()
+            elif isinstance(position, int):
+                pos = position if position != -1 else activation.shape[1] - 1
+                extracted = activation[:, pos, :].detach().clone()
+            else:
+                raise ValueError(f"Invalid position: {position}")
+                
+            # Store each sample separately for easier concatenation
+            for i in range(extracted.shape[0]):
+                cache_key = f"sample_{len(self.cache.cache)}"
+                self.cache.store(cache_key, extracted[i:i+1])
+            
+            return activation
+        
+        # Use context manager for safe hook management
+        with self._hook_context([(hook_name, extraction_hook)]):
+            self._process_prompts_batch(prompts)
+        
+        return self._collect_cached_activations()
+    
+    def _extract_with_huggingface(
+        self,
+        prompts: List[str],
+        layer_idx: int,
+        position: Union[int, str]
+    ) -> torch.Tensor:
+        """Extract activations using Hugging Face hooks."""
+        try:
+            layer_module = self.model.model.layers[layer_idx]
+        except (AttributeError, IndexError) as e:
+            raise ValueError(f"Could not access layer {layer_idx}: {e}")
+        
+        def extraction_hook(module, input):
+            """Hook function for Hugging Face models."""
+            activation = input[0] if isinstance(input, tuple) else input
+            
+            if position == 'all':
+                extracted = activation.detach().clone()
+            elif isinstance(position, int):
+                pos = position if position != -1 else activation.shape[1] - 1
+                extracted = activation[:, pos, :].detach().clone()
+            else:
+                raise ValueError(f"Invalid position: {position}")
+                
+            # Store each sample separately
+            for i in range(extracted.shape[0]):
+                cache_key = f"sample_{len(self.cache.cache)}"
+                self.cache.store(cache_key, extracted[i:i+1])
+        
+        with self._hook_context([(layer_module, extraction_hook)]):
+            self._process_prompts_batch(prompts)
+        
+        return self._collect_cached_activations()
+    
+    def _process_prompts_batch(self, prompts: List[str], batch_size: int = 1):
+        """Process prompts in batches to trigger hooks."""
+        with torch.no_grad():
+            for i in range(0, len(prompts), batch_size):
+                batch_prompts = prompts[i:i + batch_size]
+                
+                # Tokenize batch
+                inputs = self.tokenizer(
+                    batch_prompts,
+                    return_tensors="pt",
+                    padding=True,
+                    truncation=True,
+                    max_length=512
+                ).to(self.device)
+                
+                # Forward pass to trigger hooks
+                try:
+                    if self.is_hooked_transformer:
+                        _ = self.model(inputs.input_ids)
+                    else:
+                        _ = self.model(**inputs)
+                except Exception as e:
+                    logger.error(f"Error during forward pass: {e}")
+                    raise
+    
+    def _collect_cached_activations(self) -> torch.Tensor:
+        """Collect and concatenate all cached activations."""
+        activations = []
+        for key in sorted(self.cache.keys()):
+            activations.append(self.cache[key])
+        
+        if not activations:
+            raise RuntimeError("No activations were captured")
+            
+        result = torch.cat(activations, dim=0)
+        logger.info(f"Extracted activations shape: {result.shape}")
+        return result
 
 
 def compute_separation_scores(
@@ -215,7 +361,7 @@ def find_pva_directions(
     correct_prompts: List[str],
     incorrect_prompts: List[str],
     layer_idx: int,
-    device: str = "cuda"
+    device: str = "mps"
 ) -> Tuple[PVALatentDirection, PVALatentDirection]:
     """
     Find PVA latent directions for a single layer.
@@ -225,8 +371,12 @@ def find_pva_directions(
     """
     logger.info(f"Analyzing layer {layer_idx}")
     
+    # Validate inputs
+    if not correct_prompts or not incorrect_prompts:
+        raise ValueError("Both correct and incorrect prompts must be provided")
+    
     # Extract activations
-    extractor = ActivationExtractor(model, tokenizer, device)
+    extractor = ImprovedActivationExtractor(model, tokenizer, device)
     
     logger.info(f"Extracting activations for {len(correct_prompts)} correct samples")
     correct_acts = extractor.extract_activations(correct_prompts, layer_idx)
@@ -262,3 +412,195 @@ def find_pva_directions(
     )
     
     return correct_direction, incorrect_direction
+
+
+@dataclass
+class SAEAnalysisResults:
+    """Container for complete SAE analysis results."""
+    layer_idx: int
+    correct_direction: PVALatentDirection
+    incorrect_direction: PVALatentDirection
+    separation_scores: SeparationScores
+    correct_sae_activations: torch.Tensor
+    incorrect_sae_activations: torch.Tensor
+    
+    def summary(self) -> str:
+        """Get a summary of the analysis results."""
+        return (
+            f"SAE Analysis Results for Layer {self.layer_idx}:\n"
+            f"  {self.correct_direction}\n"
+            f"  {self.incorrect_direction}\n"
+            f"  Correct samples: {self.correct_sae_activations.shape[0]}\n"
+            f"  Incorrect samples: {self.incorrect_sae_activations.shape[0]}"
+        )
+
+
+class SAEAnalysisPipeline:
+    """
+    Integrated pipeline for complete SAE analysis workflow.
+    
+    This class orchestrates the entire SAE analysis process:
+    1. Model and SAE loading
+    2. Activation extraction
+    3. Separation score computation
+    4. PVA direction identification
+    """
+    
+    def __init__(
+        self,
+        model: Union[HookedTransformer, torch.nn.Module],
+        tokenizer: AutoTokenizer,
+        device: str = "mps"
+    ):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.device = device
+        self.extractor = ImprovedActivationExtractor(model, tokenizer, device)
+        
+        logger.info("Initialized SAE Analysis Pipeline")
+    
+    def load_sae(
+        self,
+        repo_id: str = "google/gemma-scope-2b-pt-res",
+        layer_idx: int = 20,
+        sae_id: Optional[str] = None
+    ) -> JumpReLUSAE:
+        """
+        Load SAE for specified layer.
+        
+        Args:
+            repo_id: HuggingFace repository ID
+            layer_idx: Layer index for SAE
+            sae_id: Specific SAE ID, defaults to layer-{layer_idx}
+            
+        Returns:
+            Loaded SAE model
+        """
+        if sae_id is None:
+            sae_id = f"layer_{layer_idx}"
+        
+        try:
+            sae = load_gemma_scope_sae(repo_id, sae_id, self.device)
+            logger.info(f"Successfully loaded SAE for layer {layer_idx}")
+            return sae
+        except Exception as e:
+            logger.error(f"Failed to load SAE: {e}")
+            raise
+    
+    def analyze_layer(
+        self,
+        correct_prompts: List[str],
+        incorrect_prompts: List[str],
+        layer_idx: int,
+        sae: Optional[JumpReLUSAE] = None,
+        repo_id: str = "google/gemma-scope-2b-pt-res"
+    ) -> SAEAnalysisResults:
+        """
+        Perform complete SAE analysis for a single layer.
+        
+        Args:
+            correct_prompts: List of prompts that produce correct solutions
+            incorrect_prompts: List of prompts that produce incorrect solutions
+            layer_idx: Layer to analyze
+            sae: Pre-loaded SAE model (optional)
+            repo_id: HuggingFace repository for SAE loading
+            
+        Returns:
+            Complete analysis results
+        """
+        # Validate inputs
+        if not correct_prompts or not incorrect_prompts:
+            raise ValueError("Both correct and incorrect prompts must be provided")
+        
+        if len(correct_prompts) < 5 or len(incorrect_prompts) < 5:
+            logger.warning("Small sample sizes may lead to unreliable results")
+        
+        # Load SAE if not provided
+        if sae is None:
+            sae = self.load_sae(repo_id, layer_idx)
+        
+        logger.info(f"Starting analysis for layer {layer_idx}")
+        
+        # Extract activations
+        logger.info(f"Extracting activations for {len(correct_prompts)} correct samples")
+        correct_acts = self.extractor.extract_activations(correct_prompts, layer_idx)
+        
+        logger.info(f"Extracting activations for {len(incorrect_prompts)} incorrect samples")  
+        incorrect_acts = self.extractor.extract_activations(incorrect_prompts, layer_idx)
+        
+        # Apply SAE encoding
+        with torch.no_grad():
+            correct_sae_acts = sae.encode(correct_acts)
+            incorrect_sae_acts = sae.encode(incorrect_acts)
+        
+        logger.info(f"SAE activations - Correct: {correct_sae_acts.shape}, Incorrect: {incorrect_sae_acts.shape}")
+        
+        # Compute separation scores
+        scores = compute_separation_scores(correct_sae_acts, incorrect_sae_acts)
+        
+        # Create PVA directions
+        correct_direction = PVALatentDirection(
+            direction_type="correct",
+            layer=layer_idx,
+            feature_idx=scores.best_correct_idx,
+            separation_score=scores.s_correct[scores.best_correct_idx].item(),
+            f_correct=scores.f_correct[scores.best_correct_idx].item(),
+            f_incorrect=scores.f_incorrect[scores.best_correct_idx].item()
+        )
+        
+        incorrect_direction = PVALatentDirection(
+            direction_type="incorrect",
+            layer=layer_idx,
+            feature_idx=scores.best_incorrect_idx,
+            separation_score=scores.s_incorrect[scores.best_incorrect_idx].item(),
+            f_correct=scores.f_correct[scores.best_incorrect_idx].item(),
+            f_incorrect=scores.f_incorrect[scores.best_incorrect_idx].item()
+        )
+        
+        results = SAEAnalysisResults(
+            layer_idx=layer_idx,
+            correct_direction=correct_direction,
+            incorrect_direction=incorrect_direction,
+            separation_scores=scores,
+            correct_sae_activations=correct_sae_acts,
+            incorrect_sae_activations=incorrect_sae_acts
+        )
+        
+        logger.info(f"Analysis complete for layer {layer_idx}")
+        logger.info(f"Best correct feature: {correct_direction.feature_idx} (score: {correct_direction.separation_score:.3f})")
+        logger.info(f"Best incorrect feature: {incorrect_direction.feature_idx} (score: {incorrect_direction.separation_score:.3f})")
+        
+        return results
+    
+    def analyze_multiple_layers(
+        self,
+        correct_prompts: List[str],
+        incorrect_prompts: List[str],
+        layer_indices: List[int],
+        repo_id: str = "google/gemma-scope-2b-pt-res"
+    ) -> Dict[int, SAEAnalysisResults]:
+        """
+        Perform SAE analysis across multiple layers.
+        
+        Args:
+            correct_prompts: List of prompts that produce correct solutions
+            incorrect_prompts: List of prompts that produce incorrect solutions
+            layer_indices: List of layer indices to analyze
+            repo_id: HuggingFace repository for SAE loading
+            
+        Returns:
+            Dictionary mapping layer_idx to analysis results
+        """
+        results = {}
+        
+        for layer_idx in layer_indices:
+            try:
+                results[layer_idx] = self.analyze_layer(
+                    correct_prompts, incorrect_prompts, layer_idx, repo_id=repo_id
+                )
+            except Exception as e:
+                logger.error(f"Failed to analyze layer {layer_idx}: {e}")
+                continue
+        
+        logger.info(f"Completed analysis for {len(results)} layers")
+        return results

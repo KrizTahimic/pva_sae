@@ -174,29 +174,3 @@ H_1&: \text{Corruption Rate} > p_0
 \end{align}
 
 To establish valid baseline flip rates ($p_0$) for our statistical tests, we steer latent directions picked from the same layer of program validity awareness latent direction through simple random sampling using the same steering coefficient $\alpha$. We apply these control interventions to both initially correct and incorrect samples to measure the background rate of state changes that occur due to non-specific perturbations. These baseline rates serve as our null hypothesis values, allowing us to determine whether our targeted latent direction interventions produce statistically significant effects beyond what would be expected from arbitrary model steering.  We reject the null hypothesis when p-values fall below 0.05, allowing us to conclude with statistical confidence that our identified latent directions causally influence code correctness.
-
-\section{Calendar of Activities}
-
-Table \ref{tab:timetableactivities} shows a Gantt chart of the activities. Each bullet represents approximately one week's worth of activity.
-
-\begin{table}[h]
-    \centering
-    \begin{tabular}{l|c|c|c|c|c|c|c|c|c}
-         \toprule
-         &  \multicolumn{8}{c}{2025} \\
-         \textbf{Activity} & \textbf{Jan} & \textbf{Feb} & \textbf{Mar} & \textbf{Apr} & \textbf{May} & \textbf{Jun} & \textbf{Jul} & \textbf{Aug}  \\
-         \midrule
-         Dataset Building & & & & **** & **** & & &  \\
-         \midrule
-         SAE Activation Analysis & & & & & **** & **** & &  \\
-         \midrule
-         Statistical Analysis & & & & & & **** & **** &  \\
-         \midrule
-         Steering Analysis & & & & & & & **** & **** \\
-         \midrule
-         Documentation & **** & **** & **** & **** & **** & **** & **** & **** \\
-         \bottomrule
-    \end{tabular}
-    \caption{Gantt Chart of Activities}
-    \label{tab:timetableactivities}
-\end{table}
