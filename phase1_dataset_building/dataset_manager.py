@@ -12,6 +12,7 @@ from dataclasses import dataclass, asdict
 
 # Import common utilities
 from common import DEFAULT_DATASET_DIR
+from phase2_sae_analysis.prompt_utils import build_prompt_template
 
 
 @dataclass
@@ -276,20 +277,8 @@ class PromptTemplateBuilder:
         Returns:
             str: Complete standardized prompt template
         """
-        # Construct template with instruction and consistent formatting
-        template = f"""You are an expert Python programmer. Write a Python function to solve the following problem.
-
-Problem:
-{problem_description}
-
-Your function must pass all of these test cases:
-{test_cases}
-
-Write only the function definition. Do not include test code or explanations.
-
-{self.CODE_INITIATOR}"""
-        
-        return template
+        # Use shared prompt template
+        return build_prompt_template(problem_description, test_cases, self.CODE_INITIATOR)
 
 
 class DatasetManager:
