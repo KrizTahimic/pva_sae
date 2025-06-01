@@ -10,7 +10,7 @@ This module implements the core SAE analysis functionality:
 import torch
 import torch.nn as nn
 import numpy as np
-from typing import Dict, List, Tuple, Optional
+from typing import List, Tuple
 from dataclasses import dataclass
 import logging
 from huggingface_hub import hf_hub_download
@@ -116,7 +116,8 @@ class ActivationExtractor:
         
     def _create_hook(self, layer_name: str):
         """Create a hook function for capturing activations."""
-        def hook_fn(module, input, output):
+        def hook_fn(module, input):
+            # For pre-hooks, we only get module and input (no output)
             # For transformer blocks, we want the residual stream
             # This is typically the first element of the input tuple
             if isinstance(input, tuple):
