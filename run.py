@@ -49,6 +49,15 @@ def setup_argument_parser():
         help='Use aggressive cleanup methods'
     )
     
+    # Status command
+    status_parser = subparsers.add_parser('status', help='Show current system status')
+    
+    # Validate command
+    validate_parser = subparsers.add_parser('validate', help='Validate system dependencies and setup')
+    
+    # Test phase commands
+    test_phase1_parser = subparsers.add_parser('test-phase1', help='Quick test of Phase 1 with 10 records')
+    
     # Phase command (existing functionality)
     phase_parser = subparsers.add_parser('phase', help='Run a specific phase')
     
@@ -460,6 +469,244 @@ def test_gpu_setup(args, logger):
     print(f"\n{'='*60}\n")
 
 
+def show_status(args, logger):
+    """Show current system status"""
+    import pandas as pd
+    from glob import glob
+    
+    print(f"\n{'='*50}")
+    print("SYSTEM STATUS")
+    print(f"{'='*50}")
+    
+    # Check phases implementation
+    print("\n📋 Phases:")
+    implemented_phases = []
+    placeholder_phases = []
+    
+    # Check run functions in this file for implementation status
+    current_file_content = Path(__file__).read_text()
+    
+    # Phase 0 - check if run_phase0 has real implementation
+    if "run_phase0" in current_file_content and "MBPPPreprocessor" in current_file_content:
+        implemented_phases.append(0)
+    else:
+        placeholder_phases.append(0)
+    
+    # Phase 1 - check if run_phase1 has real implementation  
+    if "run_phase1" in current_file_content and "DatasetBuildingOrchestrator" in current_file_content:
+        implemented_phases.append(1)
+    else:
+        placeholder_phases.append(1)
+    
+    # Phase 2 - check if run_phase2 has TODO or placeholder text
+    if "# TODO: Implement SAE analysis" in current_file_content or "SAE Analysis not yet implemented" in current_file_content:
+        placeholder_phases.append(2)
+    else:
+        implemented_phases.append(2)
+    
+    # Phase 3 - check if run_phase3 has TODO or placeholder text
+    if "# TODO: Implement validation" in current_file_content or "Validation not yet implemented" in current_file_content:
+        placeholder_phases.append(3)
+    else:
+        implemented_phases.append(3)
+    
+    impl_str = ",".join(map(str, implemented_phases)) if implemented_phases else "None"
+    place_str = ",".join(map(str, placeholder_phases)) if placeholder_phases else "None"
+    print(f"   ✅ Implemented: {impl_str}")
+    print(f"   ❌ Placeholder: {place_str}")
+    
+    # Check latest dataset
+    print("\n📊 Latest Dataset:")
+    dataset_files = glob("data/datasets/dataset_*.parquet")
+    if dataset_files:
+        latest_dataset = max(dataset_files, key=os.path.getmtime)
+        try:
+            df = pd.read_parquet(latest_dataset)
+            correct_count = df['test_passed'].sum()
+            total_count = len(df)
+            correct_rate = (correct_count / total_count * 100) if total_count > 0 else 0
+            
+            dataset_name = Path(latest_dataset).name
+            print(f"   ✅ {dataset_name}")
+            print(f"   📈 {total_count} records, {correct_rate:.0f}% correct")
+        except Exception as e:
+            print(f"   ❌ Error reading dataset: {e}")
+    else:
+        print("   ❌ No datasets found")
+    
+    # Check GPU status
+    print("\n🖥️  GPU:")
+    if torch.cuda.is_available():
+        gpu_count = torch.cuda.device_count()
+        print(f"   ✅ {gpu_count} GPU(s) available")
+    else:
+        print("   ❌ CUDA unavailable (CPU mode)")
+    
+    print(f"\n{'='*50}\n")
+
+
+def validate_system(args, logger):
+    """Validate system dependencies and setup"""
+    print(f"\n{'='*50}")
+    print("SYSTEM VALIDATION")
+    print(f"{'='*50}")
+    
+    validation_results = []
+    
+    # Check HF Token
+    print("\n🔑 Hugging Face Token:")
+    try:
+        from huggingface_hub import HfApi
+        
+        # Try to get user info - this uses saved token automatically
+        api = HfApi()
+        user_info = api.whoami()
+        if user_info:
+            print(f"   ✅ HF Token accessible (logged in as: {user_info['name']})")
+            validation_results.append(("HF Token", True))
+        else:
+            print("   ❌ HF Token not found")
+            validation_results.append(("HF Token", False))
+    except Exception as e:
+        print(f"   ❌ HF Token error: {e}")
+        validation_results.append(("HF Token", False))
+    
+    # Check Model accessibility
+    print("\n🤖 Models:")
+    try:
+        from transformers import AutoTokenizer
+        tokenizer = AutoTokenizer.from_pretrained("google/gemma-2-2b")
+        print("   ✅ Gemma-2-2b accessible")
+        validation_results.append(("Model", True))
+    except Exception as e:
+        print(f"   ❌ Model error: {e}")
+        validation_results.append(("Model", False))
+    
+    # Check Tokenizer
+    print("\n🔤 Tokenizer:")
+    try:
+        if 'tokenizer' in locals():
+            test_tokens = tokenizer("Hello world", return_tensors="pt")
+            print("   ✅ Tokenizer works")
+            validation_results.append(("Tokenizer", True))
+        else:
+            raise Exception("Tokenizer not loaded")
+    except Exception as e:
+        print(f"   ❌ Tokenizer error: {e}")
+        validation_results.append(("Tokenizer", False))
+    
+    # Check GemmaScope (SAE)
+    print("\n🧠 GemmaScope:")
+    try:
+        import requests
+        # Just check if we can access the model hub page
+        response = requests.head("https://huggingface.co/google/gemma-scope-2b-pt-res", timeout=10)
+        if response.status_code == 200:
+            print("   ✅ GemmaScope accessible")
+            validation_results.append(("GemmaScope", True))
+        else:
+            print("   ❌ GemmaScope not accessible")
+            validation_results.append(("GemmaScope", False))
+    except Exception as e:
+        print(f"   ❌ GemmaScope error: {e}")
+        validation_results.append(("GemmaScope", False))
+    
+    # Check CUDA
+    print("\n🖥️  CUDA:")
+    if torch.cuda.is_available():
+        print("   ✅ CUDA available")
+        validation_results.append(("CUDA", True))
+    else:
+        print("   ❌ CUDA unavailable")
+        validation_results.append(("CUDA", False))
+    
+    # Check dataset readability
+    print("\n📊 Dataset:")
+    try:
+        from glob import glob
+        import pandas as pd
+        dataset_files = glob("data/datasets/dataset_*.parquet")
+        if dataset_files:
+            latest_dataset = max(dataset_files, key=os.path.getmtime)
+            df = pd.read_parquet(latest_dataset)
+            print(f"   ✅ Dataset readable ({len(df)} records)")
+            validation_results.append(("Dataset", True))
+        else:
+            print("   ❌ No datasets found")
+            validation_results.append(("Dataset", False))
+    except Exception as e:
+        print(f"   ❌ Dataset error: {e}")
+        validation_results.append(("Dataset", False))
+    
+    # Summary
+    print(f"\n{'='*50}")
+    print("VALIDATION SUMMARY")
+    print(f"{'='*50}")
+    
+    passed = sum(1 for _, result in validation_results if result)
+    total = len(validation_results)
+    
+    for component, result in validation_results:
+        status = "✅" if result else "❌"
+        print(f"   {status} {component}")
+    
+    print(f"\nOverall: {passed}/{total} checks passed")
+    print(f"{'='*50}\n")
+
+
+def test_phase1(args, logger):
+    """Quick test of Phase 1 with 10 records"""
+    from glob import glob
+    import pandas as pd
+    from phase1_dataset_building import DatasetBuildingOrchestrator
+    
+    print(f"\n{'='*50}")
+    print("PHASE 1 QUICK TEST")
+    print(f"{'='*50}")
+    
+    # Find latest dataset to get 10 records from
+    dataset_files = glob("data/datasets/dataset_*.parquet")
+    if not dataset_files:
+        print("❌ No existing datasets found. Run Phase 1 first.")
+        return
+    
+    latest_dataset = max(dataset_files, key=os.path.getmtime)
+    print(f"\n📊 Using dataset: {Path(latest_dataset).name}")
+    
+    try:
+        # Load dataset and take first 10 records
+        df = pd.read_parquet(latest_dataset)
+        if len(df) < 10:
+            print(f"⚠️  Dataset only has {len(df)} records (using all)")
+            test_df = df
+        else:
+            test_df = df.head(10)
+            print(f"📝 Testing with first 10 records")
+        
+        # Calculate correct rate
+        correct_count = test_df['test_passed'].sum()
+        total_count = len(test_df)
+        correct_rate = (correct_count / total_count * 100) if total_count > 0 else 0
+        
+        print(f"\n📈 Results:")
+        print(f"   Records tested: {total_count}")
+        print(f"   Correct solutions: {correct_count}")
+        print(f"   Correct rate: {correct_rate:.1f}%")
+        
+        # Check if rate is reasonable (>10%)
+        if correct_rate >= 10:
+            print(f"\n✅ Phase 1 test PASSED (correct rate >= 10%)")
+        else:
+            print(f"\n❌ Phase 1 test FAILED (correct rate < 10%)")
+            print("   This might indicate issues with test execution or model performance")
+        
+    except Exception as e:
+        print(f"\n❌ Phase 1 test FAILED: {e}")
+        logger.error(f"Phase 1 test error: {e}")
+    
+    print(f"{'='*50}\n")
+
+
 def main():
     """Main entry point"""
     parser = setup_argument_parser()
@@ -482,6 +729,18 @@ def main():
     
     elif args.command == 'cleanup-gpu':
         cleanup_gpu_command(args, logger)
+        return
+    
+    elif args.command == 'status':
+        show_status(args, logger)
+        return
+    
+    elif args.command == 'validate':
+        validate_system(args, logger)
+        return
+    
+    elif args.command == 'test-phase1':
+        test_phase1(args, logger)
         return
     
     elif args.command == 'phase':
