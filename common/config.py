@@ -6,7 +6,7 @@ phases of the project.
 """
 
 from dataclasses import dataclass, field, asdict
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import json
 import os
 
@@ -168,6 +168,51 @@ class AnalysisConfig:
     latent_threshold: float = 0.02  # 2% activation threshold
     max_latents: int = 100
     final_token_only: bool = True
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary"""
+        return asdict(self)
+
+
+@dataclass
+class SAELayerConfig:
+    """Configuration for SAE layer analysis"""
+    # Model-specific layer definitions for Gemma-2B
+    gemma_2b_it_layers: List[int] = field(default_factory=lambda: [13])  # Single key layer for IT model
+    gemma_2b_all_layers: Optional[List[int]] = None  # All 26 layers (computed dynamically)
+    
+    # SAE configuration for Gemma-2B
+    sae_repo_id: str = "google/gemma-scope-2b-pt-res"
+    sae_width: str = "16k" 
+    sae_sparsity: str = "83"  # Use available sparsity level
+    
+    # Component to analyze (focus on resid_post)
+    hook_component: str = "resid_post"
+    
+    # Checkpointing
+    checkpoint_dir: str = "data/sae_checkpoints"
+    save_after_each_layer: bool = True
+    
+    # Memory management 
+    use_memory_mapping: bool = False  # Auto-determined based on layer count
+    cleanup_after_layer: bool = True
+    
+    def get_layers_for_model(self, model_name: str, n_layers: int) -> List[int]:
+        """Get appropriate layers for given model"""
+        if "gemma-2-2b-it" in model_name.lower():
+            return self.gemma_2b_it_layers
+        elif "gemma-2-2b" in model_name.lower():
+            # All layers except 0 (embedding) for base model
+            if self.gemma_2b_all_layers is None:
+                return list(range(1, n_layers))  # 1-25 for 26-layer model
+            return self.gemma_2b_all_layers
+        else:
+            # Default fallback
+            return [13]  # Safe single layer
+    
+    def should_use_memory_mapping(self, layer_count: int) -> bool:
+        """Determine if memory mapping should be used based on layer count"""
+        return self.use_memory_mapping or layer_count > 1
     
     def to_dict(self) -> dict:
         """Convert to dictionary"""

@@ -16,8 +16,14 @@ from dataclasses import dataclass
 import logging
 from pathlib import Path
 import contextlib
+import json
+import gc
+import os
+from datetime import datetime
 from huggingface_hub import hf_hub_download
 from transformer_lens import HookedTransformer
+
+from common.config import SAELayerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +89,7 @@ class JumpReLUSAE(nn.Module):
         return recon
 
 
-def load_gemma_scope_sae(repo_id: str, sae_id: str, device: str = "mps") -> JumpReLUSAE:
+def load_gemma_scope_sae(repo_id: str, sae_id: str, device: str) -> JumpReLUSAE:
     """Load a GemmaScope SAE from HuggingFace Hub."""
     logger.info(f"Loading SAE from {repo_id}/{sae_id}")
     
@@ -91,7 +97,7 @@ def load_gemma_scope_sae(repo_id: str, sae_id: str, device: str = "mps") -> Jump
     # Format: layer_X/width_16k/average_l0_Y/params.npz
     if "/" not in sae_id:
         # If just layer name provided, use canonical structure
-        sae_path = f"{sae_id}/width_16k/average_l0_71/params.npz"
+        sae_path = f"{sae_id}/width_16k/average_l0_77/params.npz"
     else:
         # Full path provided
         sae_path = f"{sae_id}/params.npz"
@@ -153,9 +159,11 @@ class ActivationExtractor:
     def __init__(
         self, 
         model: HookedTransformer, 
-        device: str = "mps"
+        device: str
     ):
         self.model = model
+        
+        
         self.device = device
         self.cache = ActivationCache()
         
@@ -302,7 +310,7 @@ def find_pva_directions(
     correct_prompts: List[str],
     incorrect_prompts: List[str],
     layer_idx: int,
-    device: str = "mps"
+    device: str
 ) -> Tuple[PVALatentDirection, PVALatentDirection]:
     """
     Find PVA latent directions for a single layer.
@@ -323,6 +331,7 @@ def find_pva_directions(
     # Validate inputs
     if not correct_prompts or not incorrect_prompts:
         raise ValueError("Both correct and incorrect prompts must be provided")
+    
     
     # Extract activations
     extractor = ActivationExtractor(model, device)
@@ -398,9 +407,11 @@ class SAEAnalysisPipeline:
     def __init__(
         self,
         model: HookedTransformer,
-        device: str = "mps"
+        device: str
     ):
         self.model = model
+        
+        
         self.device = device
         self.extractor = ActivationExtractor(model, device)
         
@@ -551,3 +562,495 @@ class SAEAnalysisPipeline:
         
         logger.info(f"Completed analysis for {len(results)} layers")
         return results
+
+
+class MultiLayerActivationCache:
+    """Memory-efficient cache for multi-layer activations with optional memory mapping"""
+    
+    def __init__(self, device: str = "auto", use_memory_mapping: bool = False, 
+                 cache_dir: Optional[str] = None, n_samples: int = None, 
+                 n_layers: int = None, d_model: int = None):
+        
+        self.device = device
+        self.use_memory_mapping = use_memory_mapping
+        self.cache_dir = Path(cache_dir) if cache_dir else None
+        
+        if use_memory_mapping:
+            if not all([cache_dir, n_samples, n_layers, d_model]):
+                raise ValueError("Memory mapping requires cache_dir, n_samples, n_layers, and d_model")
+            self._setup_memory_mapping(n_samples, n_layers, d_model)
+        else:
+            self.activations = {}  # layer_idx -> activations tensor
+    
+    def _setup_memory_mapping(self, n_samples: int, n_layers: int, d_model: int):
+        """Setup memory-mapped storage for large-scale analysis"""
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create memory-mapped array for all activations
+        self.activations_mmap = np.memmap(
+            self.cache_dir / "activations.dat",
+            dtype='float32',
+            mode='w+',
+            shape=(n_samples, n_layers, d_model)
+        )
+        
+        # Keep track of which layers have data
+        self.layer_sample_counts = {}
+        
+        logger.info(f"Created memory-mapped cache: {n_samples} samples x {n_layers} layers x {d_model} features")
+    
+    def store_layer(self, layer_idx: int, activations: torch.Tensor):
+        """Store activations for a specific layer"""
+        if self.use_memory_mapping:
+            # Convert to numpy and store in memory-mapped array
+            acts_np = activations.detach().cpu().numpy()
+            n_samples = acts_np.shape[0]
+            self.activations_mmap[:n_samples, layer_idx, :] = acts_np
+            self.layer_sample_counts[layer_idx] = n_samples
+        else:
+            # Store in regular memory
+            self.activations[layer_idx] = activations.detach().clone()
+    
+    def get_layer(self, layer_idx: int) -> torch.Tensor:
+        """Get activations for a specific layer"""
+        if self.use_memory_mapping:
+            if layer_idx not in self.layer_sample_counts:
+                return None
+            n_samples = self.layer_sample_counts[layer_idx]
+            acts_np = self.activations_mmap[:n_samples, layer_idx, :]
+            return torch.from_numpy(acts_np.copy()).to(self.device)
+        else:
+            return self.activations.get(layer_idx)
+    
+    def clear_layer(self, layer_idx: int):
+        """Clear activations for a specific layer to free memory"""
+        if self.use_memory_mapping:
+            if layer_idx in self.layer_sample_counts:
+                del self.layer_sample_counts[layer_idx]
+        else:
+            if layer_idx in self.activations:
+                del self.activations[layer_idx]
+        
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+    
+    def cleanup(self):
+        """Clean up all resources"""
+        if self.use_memory_mapping:
+            if hasattr(self, 'activations_mmap'):
+                del self.activations_mmap
+            self.layer_sample_counts.clear()
+        else:
+            self.activations.clear()
+
+
+class MultiLayerActivationExtractor:
+    """Extract activations from all specified layers in a single forward pass"""
+    
+    def __init__(self, model: HookedTransformer, device: str = "auto"):
+        self.model = model
+        
+        
+        self.device = device
+        
+    @contextlib.contextmanager
+    def _hook_context(self, hooks: List[Tuple]):
+        """Context manager for safe hook management with TransformerLens"""
+        try:
+            # Clear any existing hooks first
+            self.model.reset_hooks()
+            
+            # Add new hooks - TransformerLens manages them internally
+            for hook_name, hook_fn in hooks:
+                self.model.add_hook(hook_name, hook_fn)
+            yield
+        finally:
+            # Clean up all hooks
+            self.model.reset_hooks()
+    
+    def extract_all_layers(
+        self,
+        prompts: List[str],
+        layer_indices: List[int],
+        position: Union[int, str] = -1,
+        hook_type: str = "resid_post",
+        use_memory_mapping: bool = False,
+        cache_dir: Optional[str] = None
+    ) -> MultiLayerActivationCache:
+        """Extract activations from all layers in one forward pass"""
+        
+        # Determine cache parameters
+        if use_memory_mapping and cache_dir:
+            # Get model dimensions for memory mapping
+            d_model = self.model.cfg.d_model
+            n_samples = len(prompts)
+            n_layers = len(layer_indices)
+            
+            cache = MultiLayerActivationCache(
+                device=self.device,
+                use_memory_mapping=True,
+                cache_dir=cache_dir,
+                n_samples=n_samples,
+                n_layers=n_layers,
+                d_model=d_model
+            )
+        else:
+            cache = MultiLayerActivationCache(device=self.device)
+        
+        # Create hooks for all layers
+        hooks = []
+        for layer_idx in layer_indices:
+            hook_name = f"blocks.{layer_idx}.hook_{hook_type}"
+            
+            def make_hook(layer_idx):
+                def extraction_hook(activation, hook):
+                    if position == 'all':
+                        extracted = activation.detach().clone()
+                    elif isinstance(position, int):
+                        pos = position if position != -1 else activation.shape[1] - 1
+                        extracted = activation[:, pos, :].detach().clone()
+                    else:
+                        raise ValueError(f"Invalid position: {position}")
+                    
+                    cache.store_layer(layer_idx, extracted)
+                    return activation
+                return extraction_hook
+            
+            hooks.append((hook_name, make_hook(layer_idx)))
+        
+        # Single forward pass captures all layers
+        with self._hook_context(hooks):
+            self._process_prompts_batch(prompts)
+        
+        return cache
+    
+    def _process_prompts_batch(self, prompts: List[str], batch_size: int = 1):
+        """Process prompts in batches to trigger hooks"""
+        with torch.no_grad():
+            for i in range(0, len(prompts), batch_size):
+                batch_prompts = prompts[i:i + batch_size]
+                
+                # Tokenize batch using model's tokenizer
+                tokens = self.model.to_tokens(batch_prompts, prepend_bos=True)
+                
+                # Forward pass to trigger hooks
+                try:
+                    _ = self.model(tokens)
+                except Exception as e:
+                    logger.error(f"Error during forward pass: {e}")
+                    raise
+
+
+@dataclass
+class MultiLayerSAEResults:
+    """Container for multi-layer SAE analysis results"""
+    layer_results: Dict[int, SAEAnalysisResults]
+    layer_indices: List[int]
+    model_name: str
+    n_correct_samples: int
+    n_incorrect_samples: int
+    hook_component: str
+    
+    def get_best_layer_for_correct(self) -> Tuple[int, PVALatentDirection]:
+        """Find layer with best correct direction"""
+        best_score = -float('inf')
+        best_layer = None
+        best_direction = None
+        
+        for layer_idx, results in self.layer_results.items():
+            if results.correct_direction.separation_score > best_score:
+                best_score = results.correct_direction.separation_score
+                best_layer = layer_idx
+                best_direction = results.correct_direction
+        
+        return best_layer, best_direction
+    
+    def get_best_layer_for_incorrect(self) -> Tuple[int, PVALatentDirection]:
+        """Find layer with best incorrect direction"""
+        best_score = -float('inf')
+        best_layer = None
+        best_direction = None
+        
+        for layer_idx, results in self.layer_results.items():
+            if results.incorrect_direction.separation_score > best_score:
+                best_score = results.incorrect_direction.separation_score
+                best_layer = layer_idx
+                best_direction = results.incorrect_direction
+        
+        return best_layer, best_direction
+    
+    def get_layer_summary(self) -> List[Dict]:
+        """Get summary statistics for each layer"""
+        summaries = []
+        for layer_idx in sorted(self.layer_results.keys()):
+            results = self.layer_results[layer_idx]
+            summaries.append({
+                'layer': layer_idx,
+                'correct_feature': results.correct_direction.feature_idx,
+                'correct_score': results.correct_direction.separation_score,
+                'incorrect_feature': results.incorrect_direction.feature_idx,
+                'incorrect_score': results.incorrect_direction.separation_score
+            })
+        return summaries
+    
+    def summary(self) -> str:
+        """Get summary of all layer results"""
+        best_correct_layer, best_correct = self.get_best_layer_for_correct()
+        best_incorrect_layer, best_incorrect = self.get_best_layer_for_incorrect()
+        
+        return (
+            f"Multi-Layer SAE Analysis Results:\n"
+            f"  Model: {self.model_name}\n"
+            f"  Component: {self.hook_component}\n"
+            f"  Layers analyzed: {len(self.layer_results)} {sorted(self.layer_results.keys())}\n"
+            f"  Samples: {self.n_correct_samples} correct, {self.n_incorrect_samples} incorrect\n"
+            f"  Best correct direction: Layer {best_correct_layer}, "
+            f"Feature {best_correct.feature_idx} (score: {best_correct.separation_score:.3f})\n"
+            f"  Best incorrect direction: Layer {best_incorrect_layer}, "
+            f"Feature {best_incorrect.feature_idx} (score: {best_incorrect.separation_score:.3f})"
+        )
+    
+    def save_to_file(self, filepath: str):
+        """Save results to JSON file"""
+        data = {
+            'model_name': self.model_name,
+            'hook_component': self.hook_component,
+            'n_correct_samples': self.n_correct_samples,
+            'n_incorrect_samples': self.n_incorrect_samples,
+            'layer_indices': self.layer_indices,
+            'layer_summaries': self.get_layer_summary()
+        }
+        
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=2)
+        
+        logger.info(f"Saved multi-layer results to {filepath}")
+
+
+class MultiLayerSAEAnalyzer:
+    """Analyze SAE features across multiple layers with memory management and checkpointing"""
+    
+    def __init__(self, model: HookedTransformer, sae_config: Optional[SAELayerConfig] = None, device: str = "auto"):
+        self.model = model
+        self.sae_config = sae_config or SAELayerConfig()
+        
+        
+        self.device = device
+        self.extractor = MultiLayerActivationExtractor(model, device)
+        
+        # Setup checkpoint directory
+        self.checkpoint_dir = Path(self.sae_config.checkpoint_dir)
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        
+        logger.info(f"Initialized MultiLayerSAEAnalyzer for {model.cfg.model_name}")
+    
+    def analyze_all_layers(
+        self,
+        correct_prompts: List[str],
+        incorrect_prompts: List[str],
+        layer_indices: Optional[List[int]] = None
+    ) -> MultiLayerSAEResults:
+        """Analyze all specified layers with efficient memory management"""
+        
+        # Determine layers to analyze
+        if layer_indices is None:
+            n_layers = self.model.cfg.n_layers
+            layer_indices = self.sae_config.get_layers_for_model(
+                self.model.cfg.model_name, n_layers
+            )
+        
+        logger.info(f"Analyzing {len(layer_indices)} layers: {layer_indices}")
+        logger.info(f"Component: {self.sae_config.hook_component}")
+        
+        # Determine if memory mapping is needed
+        use_memory_mapping = self.sae_config.should_use_memory_mapping(len(layer_indices))
+        cache_dir = str(self.checkpoint_dir / "activation_cache") if use_memory_mapping else None
+        
+        # Step 1: Extract all activations in one forward pass
+        logger.info("Extracting activations for correct samples...")
+        correct_cache = self.extractor.extract_all_layers(
+            correct_prompts, layer_indices, 
+            hook_type=self.sae_config.hook_component,
+            use_memory_mapping=use_memory_mapping,
+            cache_dir=cache_dir + "_correct" if cache_dir else None
+        )
+        
+        logger.info("Extracting activations for incorrect samples...")
+        incorrect_cache = self.extractor.extract_all_layers(
+            incorrect_prompts, layer_indices,
+            hook_type=self.sae_config.hook_component,
+            use_memory_mapping=use_memory_mapping,
+            cache_dir=cache_dir + "_incorrect" if cache_dir else None
+        )
+        
+        # Step 2: Process each layer sequentially
+        results = {}
+        for layer_idx in layer_indices:
+            try:
+                logger.info(f"Processing layer {layer_idx}...")
+                
+                # Get cached activations for this layer
+                correct_acts = correct_cache.get_layer(layer_idx)
+                incorrect_acts = incorrect_cache.get_layer(layer_idx)
+                
+                if correct_acts is None or incorrect_acts is None:
+                    logger.error(f"No activations found for layer {layer_idx}")
+                    continue
+                
+                # Load SAE for this layer
+                sae = self._load_sae_for_layer(layer_idx)
+                
+                # Compute SAE activations
+                with torch.no_grad():
+                    correct_sae_acts = sae.encode(correct_acts)
+                    incorrect_sae_acts = sae.encode(incorrect_acts)
+                
+                # Compute separation scores
+                scores = compute_separation_scores(correct_sae_acts, incorrect_sae_acts)
+                
+                # Create results
+                results[layer_idx] = self._create_analysis_results(
+                    layer_idx, scores, correct_sae_acts, incorrect_sae_acts
+                )
+                
+                # Save checkpoint after each layer if configured
+                if self.sae_config.save_after_each_layer:
+                    self._save_layer_checkpoint(layer_idx, results[layer_idx])
+                
+                # Critical: Clean up after each layer
+                if self.sae_config.cleanup_after_layer:
+                    del sae, correct_sae_acts, incorrect_sae_acts
+                    correct_cache.clear_layer(layer_idx)
+                    incorrect_cache.clear_layer(layer_idx)
+                    torch.cuda.empty_cache() if torch.cuda.is_available() else None
+                    gc.collect()
+                
+                logger.info(f"Layer {layer_idx} complete - best correct: "
+                          f"{results[layer_idx].correct_direction.feature_idx} "
+                          f"(score: {results[layer_idx].correct_direction.separation_score:.3f})")
+                
+            except Exception as e:
+                logger.error(f"Failed to analyze layer {layer_idx}: {e}")
+                continue
+        
+        # Clean up activation caches
+        correct_cache.cleanup()
+        incorrect_cache.cleanup()
+        
+        # Create comprehensive results
+        multi_layer_results = MultiLayerSAEResults(
+            layer_results=results,
+            layer_indices=list(results.keys()),
+            model_name=self.model.cfg.model_name,
+            n_correct_samples=len(correct_prompts),
+            n_incorrect_samples=len(incorrect_prompts),
+            hook_component=self.sae_config.hook_component
+        )
+        
+        # Save final results
+        self._save_final_results(multi_layer_results)
+        
+        logger.info(f"Completed analysis for {len(results)} layers")
+        return multi_layer_results
+    
+    def _load_sae_for_layer(self, layer_idx: int) -> JumpReLUSAE:
+        """Load SAE for specific layer with dynamic ID generation"""
+        sae_id = f"layer_{layer_idx}/width_{self.sae_config.sae_width}/average_l0_{self.sae_config.sae_sparsity}"
+        
+        return load_gemma_scope_sae(
+            repo_id=self.sae_config.sae_repo_id,
+            sae_id=sae_id,
+            device=self.device
+        )
+    
+    def _create_analysis_results(
+        self,
+        layer_idx: int,
+        scores: SeparationScores,
+        correct_sae_acts: torch.Tensor,
+        incorrect_sae_acts: torch.Tensor
+    ) -> SAEAnalysisResults:
+        """Create analysis results for a single layer"""
+        
+        # Create PVA directions
+        correct_direction = PVALatentDirection(
+            direction_type="correct",
+            layer=layer_idx,
+            feature_idx=scores.best_correct_idx,
+            separation_score=scores.s_correct[scores.best_correct_idx].item(),
+            f_correct=scores.f_correct[scores.best_correct_idx].item(),
+            f_incorrect=scores.f_incorrect[scores.best_correct_idx].item()
+        )
+        
+        incorrect_direction = PVALatentDirection(
+            direction_type="incorrect",
+            layer=layer_idx,
+            feature_idx=scores.best_incorrect_idx,
+            separation_score=scores.s_incorrect[scores.best_incorrect_idx].item(),
+            f_correct=scores.f_correct[scores.best_incorrect_idx].item(),
+            f_incorrect=scores.f_incorrect[scores.best_incorrect_idx].item()
+        )
+        
+        return SAEAnalysisResults(
+            layer_idx=layer_idx,
+            correct_direction=correct_direction,
+            incorrect_direction=incorrect_direction,
+            separation_scores=scores,
+            correct_sae_activations=correct_sae_acts,
+            incorrect_sae_activations=incorrect_sae_acts
+        )
+    
+    def _save_layer_checkpoint(self, layer_idx: int, results: SAEAnalysisResults):
+        """Save checkpoint after processing each layer"""
+        checkpoint_file = self.checkpoint_dir / f"layer_{layer_idx}_results.json"
+        
+        data = {
+            'layer_idx': layer_idx,
+            'correct_direction': {
+                'feature_idx': results.correct_direction.feature_idx,
+                'separation_score': results.correct_direction.separation_score,
+                'f_correct': results.correct_direction.f_correct,
+                'f_incorrect': results.correct_direction.f_incorrect
+            },
+            'incorrect_direction': {
+                'feature_idx': results.incorrect_direction.feature_idx,
+                'separation_score': results.incorrect_direction.separation_score,
+                'f_correct': results.incorrect_direction.f_correct,
+                'f_incorrect': results.incorrect_direction.f_incorrect
+            }
+        }
+        
+        with open(checkpoint_file, 'w') as f:
+            json.dump(data, f, indent=2)
+        
+        logger.info(f"Saved checkpoint for layer {layer_idx}")
+    
+    def _save_final_results(self, results: MultiLayerSAEResults):
+        """Save final comprehensive results"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        results_file = self.checkpoint_dir / f"multi_layer_results_{timestamp}.json"
+        results.save_to_file(str(results_file))
+
+
+class EnhancedSAEAnalysisPipeline(SAEAnalysisPipeline):
+    """Enhanced pipeline with multi-layer support"""
+    
+    def __init__(self, model: HookedTransformer, sae_config: Optional[SAELayerConfig] = None, device: str = "auto"):
+        super().__init__(model, device)
+        self.sae_config = sae_config or SAELayerConfig()
+        self.multi_layer_analyzer = MultiLayerSAEAnalyzer(model, self.sae_config, device)
+    
+    def analyze_all_residual_layers(
+        self,
+        correct_prompts: List[str],
+        incorrect_prompts: List[str],
+        layer_indices: Optional[List[int]] = None
+    ) -> MultiLayerSAEResults:
+        """Analyze resid_post across all specified layers"""
+        
+        logger.info(f"Starting comprehensive residual stream analysis...")
+        
+        return self.multi_layer_analyzer.analyze_all_layers(
+            correct_prompts, incorrect_prompts, layer_indices
+        )

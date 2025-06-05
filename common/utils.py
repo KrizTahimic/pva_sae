@@ -28,6 +28,21 @@ def detect_device() -> torch.device:
         return torch.device("cpu")
 
 
+def resolve_device(device: str) -> str:
+    """
+    Resolve device string, auto-detecting if needed.
+    
+    Args:
+        device: Device string ("auto", "cuda", "mps", "cpu", or torch.device)
+        
+    Returns:
+        str: Resolved device string
+    """
+    if device == "auto":
+        return str(detect_device())
+    return device
+
+
 def get_optimal_dtype(device: torch.device) -> torch.dtype:
     """
     Get optimal dtype based on device capabilities

@@ -58,6 +58,20 @@ def setup_argument_parser():
     # Test phase commands
     test_phase1_parser = subparsers.add_parser('test-phase1', help='Quick test of Phase 1 with 10 records')
     
+    test_phase2_parser = subparsers.add_parser('test-phase2', help='Quick test of Phase 2 SAE analysis with small sample')
+    test_phase2_parser.add_argument(
+        '--layer',
+        type=int,
+        default=13,
+        help='Layer to test (default: 13 for Gemma-2B-IT)'
+    )
+    test_phase2_parser.add_argument(
+        '--samples',
+        type=int, 
+        default=5,
+        help='Number of samples per class to test (default: 5)'
+    )
+    
     # Phase command (existing functionality)
     phase_parser = subparsers.add_parser('phase', help='Run a specific phase')
     
@@ -193,7 +207,7 @@ def validate_phase_arguments(args):
             raise ValueError(f"Dataset file not found: {args.dataset}")
 
 
-def run_phase0(args, logger):
+def run_phase0(args, logger, device: str):
     """Run Phase 0: Difficulty Analysis"""
     from phase0_difficulty_analysis.mbpp_preprocessor import MBPPPreprocessor
     
@@ -230,7 +244,7 @@ def run_phase0(args, logger):
             sys.exit(1)
 
 
-def run_phase1(args, logger):
+def run_phase1(args, logger, device: str):
     """Run Phase 1: Dataset Building"""
     from phase1_dataset_building import DatasetBuildingOrchestrator
     
@@ -272,7 +286,7 @@ def run_phase1(args, logger):
     logger.info(f"Dataset saved to: {dataset_path}")
 
 
-def run_phase2(args, logger):
+def run_phase2(args, logger, device: str):
     """Run Phase 2: SAE Analysis"""
     logger.info("Starting Phase 2: SAE Analysis")
     logger.info(f"Dataset: {args.dataset}")
@@ -282,7 +296,7 @@ def run_phase2(args, logger):
     logger.info("This phase will analyze latent representations using Sparse Autoencoders")
 
 
-def run_phase3(args, logger):
+def run_phase3(args, logger, device: str):
     """Run Phase 3: Validation"""
     logger.info("Starting Phase 3: Validation")
     logger.info(f"Dataset: {args.dataset}")
@@ -654,7 +668,7 @@ def validate_system(args, logger):
     print(f"{'='*50}\n")
 
 
-def test_phase1(args, logger):
+def test_phase1(args, logger, device: str):
     """Quick test of Phase 1 with 10 records"""
     from glob import glob
     import pandas as pd
@@ -707,6 +721,145 @@ def test_phase1(args, logger):
     print(f"{'='*50}\n")
 
 
+def test_phase2(args, logger, device: str):
+    """Quick test of Phase 2 SAE analysis with small sample"""
+    from glob import glob
+    import pandas as pd
+    from transformer_lens import HookedTransformer
+    from phase2_sae_analysis.sae_analyzer import EnhancedSAEAnalysisPipeline
+    from common.config import SAELayerConfig
+    
+    print(f"\n{'='*50}")
+    print("PHASE 2 QUICK TEST")
+    print(f"{'='*50}")
+    
+    # Find latest dataset
+    dataset_files = glob("data/datasets/dataset_*.parquet")
+    if not dataset_files:
+        print("❌ No datasets found. Run Phase 1 first.")
+        return
+    
+    latest_dataset = max(dataset_files, key=os.path.getmtime)
+    print(f"\n📊 Using dataset: {Path(latest_dataset).name}")
+    
+    try:
+        # Load dataset and sample records
+        df = pd.read_parquet(latest_dataset)
+        
+        # Get correct and incorrect samples
+        correct_df = df[df['test_passed'] == True]
+        incorrect_df = df[df['test_passed'] == False]
+        
+        n_samples = min(args.samples, 3)  # Limit to max 3 for speed
+        if len(correct_df) < n_samples or len(incorrect_df) < n_samples:
+            print(f"⚠️  Not enough samples. Using available: {len(correct_df)} correct, {len(incorrect_df)} incorrect")
+            n_samples = min(len(correct_df), len(incorrect_df), n_samples)
+        
+        if n_samples == 0:
+            print("❌ No valid samples found in dataset")
+            return
+        
+        # Sample data
+        correct_sample = correct_df.sample(n_samples, random_state=42)
+        incorrect_sample = incorrect_df.sample(n_samples, random_state=42)
+        
+        print(f"📝 Testing with {n_samples} samples per class")
+        print(f"🎯 Target layer: {args.layer}")
+        
+        # Create prompts using generated code (simplified format for testing)
+        correct_prompts = [
+            f"Task {row['task_id']}:\n{row['generated_code']}" 
+            for _, row in correct_sample.iterrows()
+        ]
+        incorrect_prompts = [
+            f"Task {row['task_id']}:\n{row['generated_code']}" 
+            for _, row in incorrect_sample.iterrows()
+        ]
+        
+        print(f"\n🤖 Loading Gemma-2B model...")
+        
+        # Load model (use 2B for testing speed)
+        import time
+        start_time = time.time()
+        
+        try:
+            model = HookedTransformer.from_pretrained(
+                "google/gemma-2-2b",
+                device=device,
+                dtype=torch.float32  # Use float32 for compatibility with SAE
+            )
+            load_time = time.time() - start_time
+            print(f"   Model loaded in {load_time:.1f}s")
+        except Exception as e:
+            print(f"   ❌ Model loading failed: {e}")
+            return
+        
+        # Configure for single layer test
+        sae_config = SAELayerConfig(
+            gemma_2b_all_layers=[args.layer],  # Test single layer
+            save_after_each_layer=False,       # Skip checkpointing for test
+            cleanup_after_layer=True,          # Clean up memory
+            checkpoint_dir="data/test_checkpoints"  # Separate test dir
+        )
+        
+        print(f"🧠 Initializing SAE pipeline...")
+        
+        # Initialize pipeline
+        pipeline = EnhancedSAEAnalysisPipeline(model, sae_config, device=device)
+        
+        print(f"⚙️  Running SAE analysis on layer {args.layer}...")
+        
+        # Run analysis
+        results = pipeline.analyze_all_residual_layers(
+            correct_prompts=correct_prompts,
+            incorrect_prompts=incorrect_prompts,
+            layer_indices=[args.layer]
+        )
+        
+        # Check results
+        if len(results.layer_results) > 0:
+            layer_result = results.layer_results[args.layer]
+            
+            print(f"\n📈 Results:")
+            print(f"   Layer analyzed: {args.layer}")
+            print(f"   Correct samples: {results.n_correct_samples}")
+            print(f"   Incorrect samples: {results.n_incorrect_samples}")
+            print(f"   Best correct feature: {layer_result.correct_direction.feature_idx}")
+            print(f"   Correct separation score: {layer_result.correct_direction.separation_score:.3f}")
+            print(f"   Best incorrect feature: {layer_result.incorrect_direction.feature_idx}")
+            print(f"   Incorrect separation score: {layer_result.incorrect_direction.separation_score:.3f}")
+            
+            # Check if we found meaningful separation
+            max_separation = max(
+                layer_result.correct_direction.separation_score,
+                layer_result.incorrect_direction.separation_score
+            )
+            
+            if max_separation > 0.05:  # Threshold for meaningful separation
+                print(f"\n✅ Phase 2 test PASSED (max separation: {max_separation:.3f} > 0.05)")
+            else:
+                print(f"\n⚠️  Phase 2 test WARNING (low separation: {max_separation:.3f} <= 0.05)")
+                print("   This might be normal for small samples or specific layers")
+        else:
+            print(f"\n❌ Phase 2 test FAILED (no results generated)")
+        
+    except ImportError as e:
+        print(f"\n❌ Phase 2 test FAILED (import error): {e}")
+        print("   Make sure TransformerLens and dependencies are installed")
+        logger.error(f"Phase 2 import error: {e}")
+    except Exception as e:
+        print(f"\n❌ Phase 2 test FAILED: {e}")
+        logger.error(f"Phase 2 test error: {e}")
+    finally:
+        # Clean up GPU memory
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        import gc
+        gc.collect()
+    
+    print(f"{'='*50}\n")
+
+
 def main():
     """Main entry point"""
     parser = setup_argument_parser()
@@ -721,6 +874,16 @@ def main():
     log_level = "DEBUG" if hasattr(args, 'verbose') and args.verbose else "INFO"
     logging_manager = LoggingManager(log_level=log_level, log_dir="data/logs")
     logger = logging_manager.setup_logging(__name__)
+    
+    # Detect device once for the entire application
+    try:
+        from common.utils import detect_device
+        device = str(detect_device())
+        logger.info(f"Detected device: {device}")
+    except Exception as e:
+        logger.error(f"Device detection failed: {e}")
+        logger.info("Falling back to CPU")
+        device = "cpu"
     
     # Handle different commands
     if args.command == 'test-gpu':
@@ -740,7 +903,11 @@ def main():
         return
     
     elif args.command == 'test-phase1':
-        test_phase1(args, logger)
+        test_phase1(args, logger, device)
+        return
+    
+    elif args.command == 'test-phase2':
+        test_phase2(args, logger, device)
         return
     
     elif args.command == 'phase':
@@ -766,13 +933,13 @@ def main():
         try:
             # Run selected phase
             if args.phase == 0:
-                run_phase0(args, logger)
+                run_phase0(args, logger, device)
             elif args.phase == 1:
-                run_phase1(args, logger)
+                run_phase1(args, logger, device)
             elif args.phase == 2:
-                run_phase2(args, logger)
+                run_phase2(args, logger, device)
             elif args.phase == 3:
-                run_phase3(args, logger)
+                run_phase3(args, logger, device)
             
             print(f"✅ Phase {args.phase} completed successfully!")
             

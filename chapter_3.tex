@@ -68,7 +68,7 @@ The autoencoder is trained to minimize a combined loss function incorporating re
 
 We analyze the residual stream at the final token for each code sample in our dataset to capture the model's representation during the input phase when the model consumes the programming problem prompt. 
 
-To ensure latent dimensions specifically correlate with code-related features rather than general language patterns, we exclude latent dimensions that activate frequently ($>2\%$) on approximately 1 million tokens obtained through simple random sampling from the Pile dataset. The remaining dimensions with the highest separation scores are then selected for further analysis and validation as potential indicators of program validity awareness.
+To ensure latent dimensions specifically correlate with code-related features rather than general language patterns, we exclude latent dimensions that activate frequently ($>2\%$) on tokens obtained from the Pile dataset. The remaining dimensions with the highest separation scores are then selected for further analysis and validation as potential indicators of program validity awareness.
 
 We then compute activation statistics for each latent dimension across correct and incorrect code samples. For a given layer $l$ and latent dimension $j$, we calculate the fraction of activations on correct and incorrect code, respectively:
 
@@ -128,7 +128,7 @@ To ensure the reliability and generalizability of our findings, we conduct two t
 First, the Temperature Variation Analysis examines how varying temperature affects the statistical significance of our program validity awareness latent directions. While our primary analysis uses deterministic sampling (temperature = 0), we systematically evaluate the model's performance across a range of temperature values: 0, 0.5, 1.0, 1.5, and 2.0. For each temperature value, we generate five distinct code solutions for every problem in the validation set. The statistical validation metrics (AUROC and F1 score) are then computed for each temperature setting, allowing us to visualize how sampling variability affects the statistical significance of the PVA latent directions.
 
 % Difficulty Variation Analysis
-Second, the Difficulty Variation Analysis examines how the identified latent directions generalize across problems of varying difficulty levels. Using the APPS dataset's three difficulty levels (introductory, interview, and competition), we compute the statistical metrics (AUROC and F1 score) for each difficulty category independently. This stratified analysis allows us to assess whether the program validity awareness mechanism operates uniformly across problem complexities or exhibits differential effectiveness based on problem difficulty.
+Second, the Difficulty Variation Analysis examines how the identified latent directions generalize across problems of varying difficulty levels. Using the randon cyclomatic complexity, we compute the statistical metrics (AUROC and F1 score) for difficulty score. This analysis allows us to assess whether the program validity awareness mechanism operates uniformly across problem complexities or exhibits differential effectiveness based on problem difficulty.
 
 \subsection{Model Steering}
 
