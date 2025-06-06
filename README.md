@@ -59,7 +59,10 @@ pip install accelerate
 Run individual phases using the unified script:
 
 ```bash
-# Phase 0: Analyze difficulty for all MBPP problems
+# Phase 0: Check existing difficulty mapping
+python3 run.py phase 0 --load-existing
+
+# If incomplete, run fresh analysis
 python3 run.py phase 0
 
 # Phase 1: Build dataset with Gemma 2 model
@@ -78,8 +81,8 @@ python3 run.py phase 3 --dataset data/datasets/latest_dataset.parquet
 # Quick test with small dataset
 python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 10
 
-# Load existing difficulty mapping
-python3 run.py phase 0 --load-existing data/datasets/difficulty_mapping_latest.json
+# Run analysis without saving (dry run)
+python3 run.py phase 0 --no-save
 
 # Custom SAE analysis parameters
 python3 run.py phase 2 --dataset my_dataset.parquet --latent-threshold 0.05

@@ -20,6 +20,7 @@ The methodology follows three phases: dataset building (50% SAE analysis, 10% hy
 - Use Gemma 2 2B for testing: `--model google/gemma-2-2b`
 - to memorize this issue so we will prevent this from happening again.
 - to memorize
+- to memorize scripts
 
 ## Project Scale & Technical Details
 
@@ -57,4 +58,16 @@ pip install -r requirements.txt
 
 # For CUDA support, also install:
 pip install accelerate
+```
+
+### Phase 0: Difficulty Analysis Workflow
+```bash
+# Check existing difficulty mapping
+python3 run.py phase 0 --load-existing
+
+# If incomplete, run fresh analysis
+python3 run.py phase 0
+
+# Run analysis without saving (dry run)
+python3 run.py phase 0 --no-save
 ```
