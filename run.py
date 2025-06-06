@@ -164,6 +164,23 @@ def setup_argument_parser():
         default=0.02,
         help='Activation threshold for latent filtering'
     )
+    phase2_group.add_argument(
+        '--pile-filter',
+        action='store_true',
+        help='Apply Pile dataset filtering to remove general language features'
+    )
+    phase2_group.add_argument(
+        '--pile-threshold',
+        type=float,
+        default=0.02,
+        help='Maximum Pile activation frequency (default: 2%%)'
+    )
+    phase2_group.add_argument(
+        '--pile-samples',
+        type=int,
+        default=10000,
+        help='Number of Pile samples to use (default: 10000)'
+    )
     
     # Phase 3: Validation arguments
     phase3_group = phase_parser.add_argument_group('Phase 3: Validation')
@@ -288,12 +305,100 @@ def run_phase1(args, logger, device: str):
 
 def run_phase2(args, logger, device: str):
     """Run Phase 2: SAE Analysis"""
+    import pandas as pd
+    from transformer_lens import HookedTransformer
+    from phase2_sae_analysis.sae_analyzer import EnhancedSAEAnalysisPipeline
+    from phase2_sae_analysis.pile_filter import PileFilter
+    from common.config import SAELayerConfig
+    
     logger.info("Starting Phase 2: SAE Analysis")
     logger.info(f"Dataset: {args.dataset}")
     
-    # TODO: Implement SAE analysis
-    logger.info("SAE Analysis not yet implemented")
-    logger.info("This phase will analyze latent representations using Sparse Autoencoders")
+    # Load dataset
+    logger.info("Loading dataset...")
+    df = pd.read_parquet(args.dataset)
+    
+    # Separate correct and incorrect samples
+    correct_df = df[df['test_passed'] == True]
+    incorrect_df = df[df['test_passed'] == False]
+    
+    logger.info(f"Dataset stats: {len(correct_df)} correct, {len(incorrect_df)} incorrect")
+    
+    # Create prompts from generated code
+    correct_prompts = [
+        f"{row['prompt']}\n{row['generated_code']}" 
+        for _, row in correct_df.iterrows()
+    ]
+    incorrect_prompts = [
+        f"{row['prompt']}\n{row['generated_code']}" 
+        for _, row in incorrect_df.iterrows()
+    ]
+    
+    # Load model
+    logger.info("Loading model...")
+    model = HookedTransformer.from_pretrained(
+        "google/gemma-2-2b",  # Use 2B for initial implementation
+        device=device,
+        dtype=torch.float32
+    )
+    
+    # Configure SAE analysis
+    sae_config = SAELayerConfig(
+        gemma_2b_all_layers=[13, 14, 15, 16, 17],  # Middle layers for 2B model
+        save_after_each_layer=True,
+        cleanup_after_layer=True,
+        checkpoint_dir="data/sae_checkpoints"
+    )
+    
+    # Initialize pipeline
+    logger.info("Initializing SAE analysis pipeline...")
+    pipeline = EnhancedSAEAnalysisPipeline(model, sae_config, device=device)
+    
+    # Run SAE analysis
+    logger.info("Running SAE analysis across layers...")
+    results = pipeline.analyze_all_residual_layers(
+        correct_prompts=correct_prompts[:100],  # Limit samples for initial run
+        incorrect_prompts=incorrect_prompts[:100]
+    )
+    
+    # Print initial results
+    logger.info("\n" + results.summary())
+    
+    # Apply Pile filtering if requested
+    if args.pile_filter:
+        logger.info(f"\nApplying Pile filtering (threshold: {args.pile_threshold})")
+        
+        # Initialize Pile filter
+        pile_filter = PileFilter(model, device=device)
+        
+        # Apply filtering
+        results = pipeline.apply_pile_filtering(
+            results=results,
+            pile_filter=pile_filter,
+            pile_threshold=args.pile_threshold,
+            top_k=20
+        )
+        
+        # Show filtered results
+        logger.info("\nPile-filtered results:")
+        for layer_idx in sorted(results.layer_results.keys()):
+            layer_result = results.layer_results[layer_idx]
+            
+            if layer_result.pile_filtered_correct:
+                filtered = layer_result.pile_filtered_correct
+                if filtered['top_latent'] is not None:
+                    logger.info(f"  Layer {layer_idx} (correct): Top latent {filtered['top_latent']} "
+                              f"(score: {filtered['separation_scores'][0]:.3f}, "
+                              f"Pile freq: {filtered['pile_frequencies'][0]:.3%})")
+            
+            if layer_result.pile_filtered_incorrect:
+                filtered = layer_result.pile_filtered_incorrect
+                if filtered['top_latent'] is not None:
+                    logger.info(f"  Layer {layer_idx} (incorrect): Top latent {filtered['top_latent']} "
+                              f"(score: {filtered['separation_scores'][0]:.3f}, "
+                              f"Pile freq: {filtered['pile_frequencies'][0]:.3%})")
+    
+    logger.info("\n✅ Phase 2 completed successfully")
 
 
 def run_phase3(args, logger, device: str):

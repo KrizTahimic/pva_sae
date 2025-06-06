@@ -11,7 +11,7 @@ This module implements the complete SAE analysis pipeline:
 import torch
 import torch.nn as nn
 import numpy as np
-from typing import List, Tuple, Dict, Union, Optional
+from typing import List, Tuple, Dict, Union, Optional, Any
 from dataclasses import dataclass
 import logging
 from pathlib import Path
@@ -68,6 +68,8 @@ class JumpReLUSAE(nn.Module):
     
     def __init__(self, d_model: int, d_sae: int):
         super().__init__()
+        self.d_model = d_model
+        self.d_sae = d_sae
         self.W_enc = nn.Parameter(torch.zeros(d_model, d_sae))
         self.W_dec = nn.Parameter(torch.zeros(d_sae, d_model))
         self.threshold = nn.Parameter(torch.zeros(d_sae))
@@ -381,16 +383,30 @@ class SAEAnalysisResults:
     separation_scores: SeparationScores
     correct_sae_activations: torch.Tensor
     incorrect_sae_activations: torch.Tensor
+    pile_filtered_correct: Optional[Dict[str, Any]] = None
+    pile_filtered_incorrect: Optional[Dict[str, Any]] = None
     
     def summary(self) -> str:
         """Get a summary of the analysis results."""
-        return (
+        summary = (
             f"SAE Analysis Results for Layer {self.layer_idx}:\n"
             f"  {self.correct_direction}\n"
             f"  {self.incorrect_direction}\n"
             f"  Correct samples: {self.correct_sae_activations.shape[0]}\n"
             f"  Incorrect samples: {self.incorrect_sae_activations.shape[0]}"
         )
+        
+        # Add Pile filtering info if available
+        if self.pile_filtered_correct:
+            summary += f"\n  Pile-filtered correct: {self.pile_filtered_correct['n_filtered']} latents"
+            if self.pile_filtered_correct['top_latent'] is not None:
+                summary += f" (top: {self.pile_filtered_correct['top_latent']})"
+        if self.pile_filtered_incorrect:
+            summary += f"\n  Pile-filtered incorrect: {self.pile_filtered_incorrect['n_filtered']} latents"
+            if self.pile_filtered_incorrect['top_latent'] is not None:
+                summary += f" (top: {self.pile_filtered_incorrect['top_latent']})"
+        
+        return summary
 
 
 class SAEAnalysisPipeline:
@@ -1054,3 +1070,72 @@ class EnhancedSAEAnalysisPipeline(SAEAnalysisPipeline):
         return self.multi_layer_analyzer.analyze_all_layers(
             correct_prompts, incorrect_prompts, layer_indices
         )
+    
+    def apply_pile_filtering(
+        self,
+        results: MultiLayerSAEResults,
+        pile_filter,
+        pile_threshold: float = 0.02,
+        top_k: int = 20
+    ) -> MultiLayerSAEResults:
+        """
+        Apply Pile filtering to multi-layer results.
+        
+        Args:
+            results: Multi-layer SAE analysis results
+            pile_filter: PileFilter instance
+            pile_threshold: Maximum allowed Pile activation frequency
+            top_k: Maximum number of latents to keep after filtering
+            
+        Returns:
+            Updated results with Pile filtering applied
+        """
+        from .pile_filter import PileFilter
+        
+        if not isinstance(pile_filter, PileFilter):
+            raise ValueError("pile_filter must be a PileFilter instance")
+        
+        logger.info(f"Applying Pile filtering with threshold {pile_threshold}")
+        
+        # Process each layer
+        for layer_idx in results.layer_results:
+            layer_result = results.layer_results[layer_idx]
+            
+            logger.info(f"Filtering layer {layer_idx}...")
+            
+            try:
+                # Load SAE for this layer
+                sae = self.multi_layer_analyzer._load_sae_for_layer(layer_idx)
+                
+                # Compute Pile frequencies for this layer
+                pile_frequencies = pile_filter.compute_pile_frequencies(layer_idx, sae)
+                
+                # Filter correct latents
+                layer_result.pile_filtered_correct = pile_filter.filter_by_pile_frequency(
+                    separation_scores=layer_result.separation_scores,
+                    pile_frequencies=pile_frequencies,
+                    direction='correct',
+                    pile_threshold=pile_threshold,
+                    top_k=top_k
+                )
+                
+                # Filter incorrect latents
+                layer_result.pile_filtered_incorrect = pile_filter.filter_by_pile_frequency(
+                    separation_scores=layer_result.separation_scores,
+                    pile_frequencies=pile_frequencies,
+                    direction='incorrect',
+                    pile_threshold=pile_threshold,
+                    top_k=top_k
+                )
+                
+                # Clean up
+                del sae
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                
+            except Exception as e:
+                logger.error(f"Failed to apply Pile filtering to layer {layer_idx}: {e}")
+                continue
+        
+        logger.info("Pile filtering complete")
+        return results
