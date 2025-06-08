@@ -130,10 +130,7 @@ class MBPPDifficultyAnalyzer:
             filepath = Path(filepath)
         
         # Convert to DataFrame for efficient storage
-        df_data = []
-        for task_id, metrics in self.difficulty_mapping.items():
-            row = metrics.to_dict()
-            df_data.append(row)
+        df_data = [metrics.to_dict() for metrics in self.difficulty_mapping.values()]
         
         df = pd.DataFrame(df_data)
         
@@ -184,10 +181,7 @@ class MBPPDifficultyAnalyzer:
         if not self.difficulty_mapping:
             return {}
         
-        complexity_scores = []
-        
-        for metrics in self.difficulty_mapping.values():
-            complexity_scores.append(metrics.cyclomatic_complexity)
+        complexity_scores = [metrics.cyclomatic_complexity for metrics in self.difficulty_mapping.values()]
         
         total = len(self.difficulty_mapping)
         

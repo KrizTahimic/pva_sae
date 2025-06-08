@@ -53,11 +53,9 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "data/phase0/mbpp_difficulty_mapping_*.parquet"
     ]
     
-    for pattern in dataset_patterns:
-        files_to_delete["datasets"].extend(glob.glob(pattern))
+    files_to_delete["datasets"] = [f for pattern in dataset_patterns for f in glob.glob(pattern)]
     
-    for pattern in phase0_patterns:
-        files_to_delete["phase0"].extend(glob.glob(pattern))
+    files_to_delete["phase0"] = [f for pattern in phase0_patterns for f in glob.glob(pattern)]
     
     # Phase 1 files
     phase1_patterns = [
@@ -67,8 +65,7 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "data/phase1/checkpoints/*.json"
     ]
     
-    for pattern in phase1_patterns:
-        files_to_delete["phase1"].extend(glob.glob(pattern))
+    files_to_delete["phase1"] = [f for pattern in phase1_patterns for f in glob.glob(pattern)]
     
     # Phase 2 files  
     phase2_patterns = [
@@ -77,8 +74,7 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "data/phase2/activation_cache*"
     ]
     
-    for pattern in phase2_patterns:
-        files_to_delete["phase2"].extend(glob.glob(pattern))
+    files_to_delete["phase2"] = [f for pattern in phase2_patterns for f in glob.glob(pattern)]
     
     # Phase 3 files
     phase3_patterns = [
@@ -86,8 +82,7 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "data/phase3/*.parquet"
     ]
     
-    for pattern in phase3_patterns:
-        files_to_delete["phase3"].extend(glob.glob(pattern))
+    files_to_delete["phase3"] = [f for pattern in phase3_patterns for f in glob.glob(pattern)]
     
     # Log files
     log_patterns = [
@@ -95,8 +90,7 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "data/logs/mbpp_test_*.log"
     ]
     
-    for pattern in log_patterns:
-        files_to_delete["logs"].extend(glob.glob(pattern))
+    files_to_delete["logs"] = [f for pattern in log_patterns for f in glob.glob(pattern)]
     
     # Checkpoint directory
     checkpoint_dir = "data/datasets/checkpoints"
@@ -109,8 +103,7 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "data/test_checkpoints/*.parquet"
     ]
     
-    for pattern in test_checkpoint_patterns:
-        files_to_delete["test_checkpoints"].extend(glob.glob(pattern))
+    files_to_delete["test_checkpoints"] = [f for pattern in test_checkpoint_patterns for f in glob.glob(pattern)]
     
     return files_to_delete
 

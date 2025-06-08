@@ -338,9 +338,7 @@ def create_interleaved_pattern(ratios):
     counts = [c // pattern_gcd for c in counts]
     
     # Create pattern array
-    pattern = []
-    for i, count in enumerate(counts):
-        pattern.extend([i] * count)
+    pattern = [i for i, count in enumerate(counts) for _ in range(count)]
     
     return pattern, counts
 
@@ -483,13 +481,11 @@ def discover_latest_phase1_dataset(phase1_dir: str = "data/phase1") -> Optional[
     
     # Look for dataset files (excluding checkpoints and autosaves)
     patterns = ["dataset_*.parquet"]
-    dataset_files = []
-    
-    for pattern in patterns:
-        files = list(phase1_path.glob(pattern))
-        # Filter out checkpoints and autosaves
-        files = [f for f in files if not any(x in f.name for x in ['checkpoint', 'autosave', 'emergency'])]
-        dataset_files.extend(files)
+    dataset_files = [
+        f for pattern in patterns 
+        for f in phase1_path.glob(pattern)
+        if not any(x in f.name for x in ['checkpoint', 'autosave', 'emergency'])
+    ]
     
     if not dataset_files:
         return None
