@@ -21,7 +21,6 @@ from common import (
     DEFAULT_DATASET_DIR,
     DEFAULT_PHASE1_DIR,
     MAX_NEW_TOKENS,
-    auto_cleanup,
     ensure_directory_exists
 )
 from phase1_dataset_building.dataset_manager import PromptAwareDatasetManager, CodeTestResult
@@ -314,26 +313,6 @@ class DatasetBuildingOrchestrator(MBPPTester):
             self.logger.error(f"Dataset building failed: {str(e)}")
             raise RuntimeError(f"Dataset building failed: {str(e)}") from e
     
-    def build_dataset_simple_with_cleanup(self, 
-                                          start_idx: int = 0, 
-                                          end_idx: int = 2, 
-                                          stream: bool = False) -> str:
-        """
-        Build dataset with simple configuration and automatic cleanup
-        
-        Args:
-            start_idx: Starting index
-            end_idx: Ending index (inclusive)
-            stream: Whether to stream generation output
-            
-        Returns:
-            str: Path to saved dataset
-        """
-        # Perform cleanup first
-        auto_cleanup(self.dataset_dir, self.log_dir)
-        
-        # Build dataset
-        return self.build_dataset_simple(start_idx, end_idx, stream)
     
     def analyze_dataset(self, dataset_path: Optional[str] = None) -> Dict[str, Any]:
         """

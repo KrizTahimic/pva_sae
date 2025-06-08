@@ -81,6 +81,18 @@ python3 run.py phase 2
 python3 run.py phase 3
 ```
 
+### Data Cleanup
+```bash
+# Clean all project data with confirmation prompts
+python3 clean_data.py
+
+# Force cleanup without prompts (for scripts)
+python3 clean_data.py --force
+
+# Preview what would be deleted
+python3 clean_data.py --dry-run
+```
+
 ### Auto-Discovery and Manual Override
 ```bash
 # Override auto-discovery with specific files

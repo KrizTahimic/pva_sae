@@ -66,50 +66,8 @@ def get_optimal_dtype(device: torch.device) -> torch.dtype:
         return torch.float32
 
 
-def cleanup_old_files(directory: str, pattern: str, keep_last: int = 3) -> None:
-    """
-    Clean up old files matching pattern, keeping only the most recent ones
-    
-    Args:
-        directory: Directory to clean
-        pattern: File pattern to match
-        keep_last: Number of recent files to keep
-    """
-    if not os.path.exists(directory):
-        return
-        
-    files = glob.glob(os.path.join(directory, pattern))
-    if len(files) <= keep_last:
-        return
-        
-    # Sort by modification time
-    files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
-    
-    # Remove older files
-    for file_path in files[keep_last:]:
-        try:
-            os.remove(file_path)
-            print(f"Removed old file: {file_path}")
-        except Exception as e:
-            print(f"Error removing {file_path}: {e}")
 
 
-def auto_cleanup(dataset_dir: str, log_dir: str) -> None:
-    """
-    Automatically clean up old dataset and log files
-    
-    Args:
-        dataset_dir: Directory containing dataset files
-        log_dir: Directory containing log files
-    """
-    # Clean up old dataset files
-    cleanup_old_files(dataset_dir, "mbpp_dataset_*.json", keep_last=2)
-    cleanup_old_files(dataset_dir, "mbpp_dataset_*.parquet", keep_last=2)
-    cleanup_old_files(dataset_dir, "mbpp_results_*.json", keep_last=2)
-    cleanup_old_files(dataset_dir, "autosave_*.parquet", keep_last=3)
-    
-    # Clean up old log files
-    cleanup_old_files(log_dir, "mbpp_test_*.log", keep_last=3)
 
 
 def format_duration(seconds: float) -> str:

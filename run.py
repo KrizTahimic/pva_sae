@@ -109,7 +109,7 @@ def setup_argument_parser():
     phase1_group.add_argument(
         '--model',
         type=str,
-        default='google/gemma-2-9b',
+        default='google/gemma-2-2b',
         help='Model name to use for dataset building'
     )
     phase1_group.add_argument(
@@ -134,11 +134,6 @@ def setup_argument_parser():
         '--stream',
         action='store_true',
         help='Stream generation output'
-    )
-    phase1_group.add_argument(
-        '--cleanup',
-        action='store_true',
-        help='Run cleanup before building'
     )
     phase1_group.add_argument(
         '--difficulty-mapping',
@@ -303,18 +298,11 @@ def run_phase1(args, logger, device: str):
         difficulty_mapping=difficulty_mapping
     )
     
-    if args.cleanup:
-        dataset_path = tester.build_dataset_simple_with_cleanup(
-            start_idx=args.start,
-            end_idx=args.end,
-            stream=args.stream
-        )
-    else:
-        dataset_path = tester.build_dataset_simple(
-            start_idx=args.start,
-            end_idx=args.end,
-            stream=args.stream
-        )
+    dataset_path = tester.build_dataset_simple(
+        start_idx=args.start,
+        end_idx=args.end,
+        stream=args.stream
+    )
     
     logger.info("✅ Phase 1 completed successfully")
     logger.info(f"Dataset saved to: {dataset_path}")
@@ -648,7 +636,6 @@ def test_gpu_setup(args, logger):
 def show_status(args, logger):
     """Show current system status"""
     import pandas as pd
-    from glob import glob
     
     print(f"\n{'='*50}")
     print("SYSTEM STATUS")
@@ -693,9 +680,9 @@ def show_status(args, logger):
     
     # Check latest dataset
     print("\n📊 Latest Dataset:")
-    dataset_files = glob("data/datasets/dataset_*.parquet")
-    if dataset_files:
-        latest_dataset = max(dataset_files, key=os.path.getmtime)
+    from common.utils import discover_latest_phase1_dataset
+    latest_dataset = discover_latest_phase1_dataset()
+    if latest_dataset:
         try:
             df = pd.read_parquet(latest_dataset)
             correct_count = df['test_passed'].sum()
@@ -708,7 +695,7 @@ def show_status(args, logger):
         except Exception as e:
             print(f"   ❌ Error reading dataset: {e}")
     else:
-        print("   ❌ No datasets found")
+        print("   ❌ No datasets found in data/phase1")
     
     # Check GPU status
     print("\n🖥️  GPU:")
@@ -799,16 +786,15 @@ def validate_system(args, logger):
     # Check dataset readability
     print("\n📊 Dataset:")
     try:
-        from glob import glob
+        from common.utils import discover_latest_phase1_dataset
         import pandas as pd
-        dataset_files = glob("data/datasets/dataset_*.parquet")
-        if dataset_files:
-            latest_dataset = max(dataset_files, key=os.path.getmtime)
+        latest_dataset = discover_latest_phase1_dataset()
+        if latest_dataset:
             df = pd.read_parquet(latest_dataset)
             print(f"   ✅ Dataset readable ({len(df)} records)")
             validation_results.append(("Dataset", True))
         else:
-            print("   ❌ No datasets found")
+            print("   ❌ No datasets found in data/phase1")
             validation_results.append(("Dataset", False))
     except Exception as e:
         print(f"   ❌ Dataset error: {e}")
@@ -832,21 +818,21 @@ def validate_system(args, logger):
 
 def test_phase1(args, logger, device: str):
     """Quick test of Phase 1 with 10 records"""
-    from glob import glob
     import pandas as pd
     from phase1_dataset_building import DatasetBuildingOrchestrator
+    from common.utils import discover_latest_phase1_dataset
     
     print(f"\n{'='*50}")
     print("PHASE 1 QUICK TEST")
     print(f"{'='*50}")
     
-    # Find latest dataset to get 10 records from
-    dataset_files = glob("data/datasets/dataset_*.parquet")
-    if not dataset_files:
-        print("❌ No existing datasets found. Run Phase 1 first.")
+    # Use auto-discovery to find latest dataset from Phase 1
+    print("\n🔍 Auto-discovering dataset from Phase 1...")
+    latest_dataset = discover_latest_phase1_dataset()
+    if not latest_dataset:
+        print("❌ No existing datasets found in data/phase1. Run Phase 1 first.")
         return
     
-    latest_dataset = max(dataset_files, key=os.path.getmtime)
     print(f"\n📊 Using dataset: {Path(latest_dataset).name}")
     
     try:
@@ -885,23 +871,23 @@ def test_phase1(args, logger, device: str):
 
 def test_phase2(args, logger, device: str):
     """Quick test of Phase 2 SAE analysis with small sample"""
-    from glob import glob
     import pandas as pd
     from transformer_lens import HookedTransformer
     from phase2_sae_analysis.sae_analyzer import EnhancedSAEAnalysisPipeline
     from common.config import SAELayerConfig
+    from common.utils import discover_latest_phase1_dataset
     
     print(f"\n{'='*50}")
     print("PHASE 2 QUICK TEST")
     print(f"{'='*50}")
     
-    # Find latest dataset
-    dataset_files = glob("data/datasets/dataset_*.parquet")
-    if not dataset_files:
-        print("❌ No datasets found. Run Phase 1 first.")
+    # Use auto-discovery to find latest dataset from Phase 1
+    print("\n🔍 Auto-discovering dataset from Phase 1...")
+    latest_dataset = discover_latest_phase1_dataset()
+    if not latest_dataset:
+        print("❌ No datasets found in data/phase1. Run Phase 1 first.")
         return
     
-    latest_dataset = max(dataset_files, key=os.path.getmtime)
     print(f"\n📊 Using dataset: {Path(latest_dataset).name}")
     
     try:
@@ -961,7 +947,7 @@ def test_phase2(args, logger, device: str):
             gemma_2b_layers=[args.layer],  # Test single layer
             save_after_each_layer=False,       # Skip checkpointing for test
             cleanup_after_layer=True,          # Clean up memory
-            checkpoint_dir="data/test_checkpoints"  # Separate test dir
+            checkpoint_dir="data/phase2/test_checkpoints"  # Separate test dir
         )
         
         print(f"🧠 Initializing SAE pipeline...")

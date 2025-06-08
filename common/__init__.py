@@ -9,8 +9,6 @@ including device detection, configuration management, logging, and model handlin
 from .utils import (
     detect_device,
     get_optimal_dtype,
-    cleanup_old_files,
-    auto_cleanup,
     format_duration,
     get_memory_usage,
     ensure_directory_exists,
@@ -59,8 +57,6 @@ __all__ = [
     # Utils
     'detect_device',
     'get_optimal_dtype',
-    'cleanup_old_files',
-    'auto_cleanup',
     'format_duration',
     'get_memory_usage',
     'ensure_directory_exists',
