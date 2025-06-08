@@ -16,7 +16,7 @@ import json
 from datetime import datetime
 
 def merge_parquet_files(pattern: str, output_file: str, dataset_dir: str = "data/datasets", 
-                       recent_only: bool = True, time_window_minutes: int = 60):
+                       recent_only: bool = True, time_window_minutes: int = 60, phase: int = 1):
     """
     Merge multiple parquet files into one
     
@@ -26,7 +26,11 @@ def merge_parquet_files(pattern: str, output_file: str, dataset_dir: str = "data
         dataset_dir: Directory containing datasets
         recent_only: Only merge files created within time window
         time_window_minutes: Time window for recent files (default 60 minutes)
+        phase: Phase number (1, 2, or 3) to determine directory
     """
+    # Adjust dataset_dir based on phase
+    if phase in [1, 2, 3]:
+        dataset_dir = f"data/phase{phase}"
     # Find matching files
     search_pattern = os.path.join(dataset_dir, pattern)
     all_files = sorted(glob.glob(search_pattern))
@@ -174,6 +178,13 @@ def main():
         help='Directory containing dataset files'
     )
     parser.add_argument(
+        '--phase',
+        type=int,
+        choices=[1, 2, 3],
+        default=1,
+        help='Phase number to determine directory (overrides --dataset-dir)'
+    )
+    parser.add_argument(
         '--cleanup',
         action='store_true',
         help='Remove partial datasets after merging'
@@ -226,7 +237,8 @@ def main():
         output_file=args.output,
         dataset_dir=args.dataset_dir,
         recent_only=not args.all,
-        time_window_minutes=args.time_window
+        time_window_minutes=args.time_window,
+        phase=args.phase
     )
     
     # Cleanup if requested

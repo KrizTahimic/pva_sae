@@ -11,7 +11,13 @@ PVA-SAE (Python Value Attribution Sparse Autoencoder) is a thesis research proje
 3. Applying Sparse Autoencoders (SAEs) from GemmaScope to identify latent directions
 4. Validating findings through statistical analysis (AUROC, F1) and model steering experiments
 
-The methodology follows three phases: dataset building (50% SAE analysis, 10% hyperparameter tuning, 40% validation), SAE activation analysis using separation scores, and validation through both statistical measures and causal intervention via model steering.
+The methodology follows four phases:
+- Phase 0: Difficulty analysis of MBPP problems
+- Phase 1: Dataset building (50% SAE analysis, 10% hyperparameter tuning, 40% validation)
+- Phase 2: SAE activation analysis using separation scores
+- Phase 3: Validation through both statistical measures and causal intervention via model steering
+
+Each phase outputs to its own directory (data/phase0/, data/phase1/, etc.) and automatically discovers inputs from previous phases.
 
 ## Memories
 - to memorize use python3
@@ -60,14 +66,30 @@ pip install -r requirements.txt
 pip install accelerate
 ```
 
-### Phase 0: Difficulty Analysis Workflow
+### Phase-Based Workflow
+```bash
+# Phase 0: Generate difficulty mapping (outputs to data/phase0/)
+python3 run.py phase 0
+
+# Phase 1: Build dataset (auto-discovers from phase0, outputs to data/phase1/)
+python3 run.py phase 1 --model google/gemma-2-9b
+
+# Phase 2: SAE analysis (auto-discovers from phase1, outputs to data/phase2/)
+python3 run.py phase 2
+
+# Phase 3: Validation (auto-discovers from phase1 & phase2, outputs to data/phase3/)
+python3 run.py phase 3
+```
+
+### Auto-Discovery and Manual Override
 ```bash
 # Check existing difficulty mapping
 python3 run.py phase 0 --load-existing
 
-# If incomplete, run fresh analysis
-python3 run.py phase 0
+# Override auto-discovery with specific files
+python3 run.py phase 1 --difficulty-mapping data/phase0/specific_mapping.parquet
+python3 run.py phase 2 --dataset data/phase1/specific_dataset.parquet
 
-# Run analysis without saving (dry run)
-python3 run.py phase 0 --no-save
+# Disable auto-discovery
+python3 run.py phase 1 --no-auto-discover
 ```

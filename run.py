@@ -95,7 +95,7 @@ def setup_argument_parser():
     phase0_group.add_argument(
         '--output-dir',
         type=str,
-        default='data/datasets',
+        default='data/phase0',
         help='Directory to save difficulty mapping'
     )
     phase0_group.add_argument(
@@ -132,7 +132,7 @@ def setup_argument_parser():
     phase1_group.add_argument(
         '--dataset-dir',
         type=str,
-        default='data/datasets',
+        default='data/phase1',
         help='Directory for dataset files'
     )
     phase1_group.add_argument(
@@ -145,13 +145,23 @@ def setup_argument_parser():
         action='store_true',
         help='Run cleanup before building'
     )
+    phase1_group.add_argument(
+        '--difficulty-mapping',
+        type=str,
+        help='Path to difficulty mapping file (default: auto-discover from phase0)'
+    )
+    phase1_group.add_argument(
+        '--no-auto-discover',
+        action='store_true',
+        help='Disable auto-discovery of difficulty mapping from phase0'
+    )
     
     # Phase 2: SAE Analysis arguments
     phase2_group = phase_parser.add_argument_group('Phase 2: SAE Analysis')
     phase2_group.add_argument(
         '--dataset',
         type=str,
-        help='Path to dataset file for analysis'
+        help='Path to dataset file for analysis (default: auto-discover from phase1)'
     )
     phase2_group.add_argument(
         '--sae-model',
@@ -275,10 +285,29 @@ def run_phase0(args, logger, device: str):
 def run_phase1(args, logger, device: str):
     """Run Phase 1: Dataset Building"""
     from phase1_dataset_building import DatasetBuildingOrchestrator
+    from phase0_difficulty_analysis.difficulty_analyzer import MBPPDifficultyAnalyzer
+    from common.utils import discover_latest_phase0_mapping
     
     logger.info("Starting Phase 1: Dataset Building")
     logger.info(f"Model: {args.model}, Range: {args.start}-{args.end}")
     logger.info("Processing mode: Sequential (use multi_gpu_launcher.py for parallel processing)")
+    
+    # Load difficulty mapping from Phase 0
+    difficulty_mapping = None
+    if not args.no_auto_discover:
+        if args.difficulty_mapping:
+            # Use explicitly provided mapping
+            logger.info(f"Loading difficulty mapping from: {args.difficulty_mapping}")
+            difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(args.difficulty_mapping)
+        else:
+            # Auto-discover from phase0
+            logger.info("Auto-discovering difficulty mapping from Phase 0...")
+            mapping_path = discover_latest_phase0_mapping()
+            if mapping_path:
+                logger.info(f"Found difficulty mapping: {mapping_path}")
+                difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(mapping_path)
+            else:
+                logger.warning("No difficulty mapping found in data/phase0, will calculate on-demand")
     
     # Setup CUDA environment and cleanup GPUs before starting
     if torch.cuda.is_available():
@@ -294,7 +323,8 @@ def run_phase1(args, logger, device: str):
     
     tester = DatasetBuildingOrchestrator(
         model_name=args.model,
-        dataset_dir=args.dataset_dir
+        dataset_dir=args.dataset_dir,
+        difficulty_mapping=difficulty_mapping
     )
     
     if args.cleanup:
@@ -321,9 +351,22 @@ def run_phase2(args, logger, device: str):
     from phase2_sae_analysis.sae_analyzer import EnhancedSAEAnalysisPipeline
     from phase2_sae_analysis.pile_filter import PileFilter
     from common.config import SAELayerConfig
+    from common.utils import discover_latest_phase1_dataset
     
     logger.info("Starting Phase 2: SAE Analysis")
-    logger.info(f"Dataset: {args.dataset}")
+    
+    # Auto-discover dataset if not provided
+    if not args.dataset:
+        logger.info("Auto-discovering dataset from Phase 1...")
+        dataset_path = discover_latest_phase1_dataset()
+        if dataset_path:
+            logger.info(f"Found dataset: {dataset_path}")
+            args.dataset = dataset_path
+        else:
+            logger.error("No dataset found in data/phase1. Please run Phase 1 first or specify --dataset")
+            sys.exit(1)
+    else:
+        logger.info(f"Using specified dataset: {args.dataset}")
     
     # Load dataset
     logger.info("Loading dataset...")
@@ -358,7 +401,7 @@ def run_phase2(args, logger, device: str):
         gemma_2b_layers=[13, 14, 16, 17, 20],  # Middle layers for 2B model
         save_after_each_layer=True,
         cleanup_after_layer=True,
-        checkpoint_dir="data/sae_checkpoints"
+        checkpoint_dir="data/phase2/checkpoints"
     )
     
     # Initialize pipeline
@@ -414,12 +457,39 @@ def run_phase2(args, logger, device: str):
 
 def run_phase3(args, logger, device: str):
     """Run Phase 3: Validation"""
+    from common.utils import discover_latest_phase2_results, discover_latest_phase1_dataset
+    
     logger.info("Starting Phase 3: Validation")
+    
+    # Auto-discover Phase 2 results if not provided
+    if not hasattr(args, 'sae_results') or not args.sae_results:
+        logger.info("Auto-discovering SAE results from Phase 2...")
+        sae_results_path = discover_latest_phase2_results()
+        if sae_results_path:
+            logger.info(f"Found SAE results: {sae_results_path}")
+            args.sae_results = sae_results_path
+        else:
+            logger.error("No SAE results found in data/phase2. Please run Phase 2 first")
+            sys.exit(1)
+    
+    # Auto-discover dataset if not provided
+    if not args.dataset:
+        logger.info("Auto-discovering dataset from Phase 1...")
+        dataset_path = discover_latest_phase1_dataset()
+        if dataset_path:
+            logger.info(f"Found dataset: {dataset_path}")
+            args.dataset = dataset_path
+        else:
+            logger.error("No dataset found in data/phase1. Please run Phase 1 first")
+            sys.exit(1)
+    
     logger.info(f"Dataset: {args.dataset}")
+    logger.info(f"SAE Results: {args.sae_results}")
     
     # TODO: Implement validation
     logger.info("Validation not yet implemented")
     logger.info("This phase will run statistical validation and model steering experiments")
+    logger.info("Results will be saved to data/phase3/")
 
 
 def cleanup_gpu_command(args, logger):

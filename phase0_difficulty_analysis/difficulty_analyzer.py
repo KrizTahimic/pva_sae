@@ -30,7 +30,7 @@ class DifficultyMetrics:
 class MBPPDifficultyAnalyzer:
     """Analyzes difficulty metrics for the entire MBPP dataset"""
     
-    def __init__(self, output_dir: str = "data/datasets"):
+    def __init__(self, output_dir: str = "data/phase0"):
         """
         Initialize difficulty analyzer
         
@@ -140,59 +140,10 @@ class MBPPDifficultyAnalyzer:
         # Save as parquet for efficiency
         df.to_parquet(filepath, index=False)
         
-        # Also save summary statistics
-        self._save_difficulty_summary(filepath)
-        
         self.logger.info(f"Difficulty mapping saved to {filepath}")
         self.logger.info(f"Saved {len(self.difficulty_mapping)} difficulty entries")
         
         return str(filepath)
-    
-    def _save_difficulty_summary(self, mapping_filepath: Path) -> None:
-        """
-        Save summary statistics about difficulty distribution
-        
-        Args:
-            mapping_filepath: Path to the main mapping file
-        """
-        summary_filepath = mapping_filepath.with_suffix('.summary.json')
-        
-        # Calculate complexity statistics
-        complexity_scores = []
-        
-        for metrics in self.difficulty_mapping.values():
-            complexity_scores.append(metrics.cyclomatic_complexity)
-        
-        total_problems = len(self.difficulty_mapping)
-        
-        # Calculate complexity distribution
-        import numpy as np
-        complexity_array = np.array(complexity_scores) if complexity_scores else np.array([])
-        
-        summary = {
-            'total_problems_analyzed': total_problems,
-            'complexity_statistics': {
-                'min': int(complexity_array.min()) if len(complexity_array) > 0 else 0,
-                'max': int(complexity_array.max()) if len(complexity_array) > 0 else 0,
-                'mean': round(float(complexity_array.mean()), 2) if len(complexity_array) > 0 else 0,
-                'median': float(np.median(complexity_array)) if len(complexity_array) > 0 else 0,
-                'std': round(float(complexity_array.std()), 2) if len(complexity_array) > 0 else 0,
-                'percentiles': {
-                    '25th': float(np.percentile(complexity_array, 25)) if len(complexity_array) > 0 else 0,
-                    '75th': float(np.percentile(complexity_array, 75)) if len(complexity_array) > 0 else 0,
-                    '90th': float(np.percentile(complexity_array, 90)) if len(complexity_array) > 0 else 0
-                }
-            },
-            'methodology_note': 'Uses interleaved sampling based on complexity scores, not categorical buckets',
-            'timestamp': get_timestamp()
-        }
-        
-        # Save summary as JSON
-        import json
-        with open(summary_filepath, 'w') as f:
-            json.dump(summary, f, indent=2)
-        
-        self.logger.info(f"Difficulty summary saved to {summary_filepath}")
     
     @classmethod
     def load_difficulty_mapping(cls, filepath: str) -> Dict[str, DifficultyMetrics]:

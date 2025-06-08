@@ -431,3 +431,100 @@ def validate_split_quality(splits, complexity_scores, target_ratios, tolerance=0
         similar_distributions = similar_means and similar_stds
     
     return within_tolerance and similar_distributions
+
+
+# ============================================================================
+# Phase-based Auto-discovery Utilities
+# ============================================================================
+
+def discover_latest_phase0_mapping(phase0_dir: str = "data/phase0") -> Optional[str]:
+    """
+    Find the latest difficulty mapping file in the phase0 directory
+    
+    Args:
+        phase0_dir: Directory containing phase0 outputs
+        
+    Returns:
+        str: Path to latest mapping file, or None if not found
+    """
+    from pathlib import Path
+    
+    phase0_path = Path(phase0_dir)
+    if not phase0_path.exists():
+        return None
+    
+    # Look for difficulty mapping files
+    pattern = "*mbpp_difficulty_mapping_*.parquet"
+    mapping_files = list(phase0_path.glob(pattern))
+    
+    if not mapping_files:
+        return None
+    
+    # Return the most recently modified file
+    latest_file = max(mapping_files, key=lambda p: p.stat().st_mtime)
+    return str(latest_file)
+
+
+def discover_latest_phase1_dataset(phase1_dir: str = "data/phase1") -> Optional[str]:
+    """
+    Find the latest dataset file in the phase1 directory
+    
+    Args:
+        phase1_dir: Directory containing phase1 outputs
+        
+    Returns:
+        str: Path to latest dataset file, or None if not found
+    """
+    from pathlib import Path
+    
+    phase1_path = Path(phase1_dir)
+    if not phase1_path.exists():
+        return None
+    
+    # Look for dataset files (excluding checkpoints and autosaves)
+    patterns = ["dataset_*.parquet"]
+    dataset_files = []
+    
+    for pattern in patterns:
+        files = list(phase1_path.glob(pattern))
+        # Filter out checkpoints and autosaves
+        files = [f for f in files if not any(x in f.name for x in ['checkpoint', 'autosave', 'emergency'])]
+        dataset_files.extend(files)
+    
+    if not dataset_files:
+        return None
+    
+    # Return the most recently modified file
+    latest_file = max(dataset_files, key=lambda p: p.stat().st_mtime)
+    return str(latest_file)
+
+
+def discover_latest_phase2_results(phase2_dir: str = "data/phase2") -> Optional[str]:
+    """
+    Find the latest SAE analysis results in the phase2 directory
+    
+    Args:
+        phase2_dir: Directory containing phase2 outputs
+        
+    Returns:
+        str: Path to latest results file, or None if not found
+    """
+    from pathlib import Path
+    
+    phase2_path = Path(phase2_dir)
+    if not phase2_path.exists():
+        return None
+    
+    # Look for SAE analysis result files
+    patterns = ["sae_analysis_*.json", "multi_layer_results_*.json"]
+    result_files = []
+    
+    for pattern in patterns:
+        result_files.extend(list(phase2_path.glob(pattern)))
+    
+    if not result_files:
+        return None
+    
+    # Return the most recently modified file
+    latest_file = max(result_files, key=lambda p: p.stat().st_mtime)
+    return str(latest_file)

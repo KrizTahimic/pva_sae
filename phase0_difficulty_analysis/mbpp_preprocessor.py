@@ -17,7 +17,7 @@ from .difficulty_analyzer import MBPPDifficultyAnalyzer, DifficultyMetrics
 class MBPPPreprocessor:
     """Main orchestrator for Phase 0 MBPP difficulty preprocessing"""
     
-    def __init__(self, output_dir: str = "data/datasets"):
+    def __init__(self, output_dir: str = "data/phase0"):
         """
         Initialize MBPP preprocessor
         

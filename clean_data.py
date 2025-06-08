@@ -27,6 +27,10 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
     """
     files_to_delete = {
         "datasets": [],
+        "phase0": [],
+        "phase1": [],
+        "phase2": [],
+        "phase3": [],
         "logs": [],
         "checkpoints": [],
         "test_checkpoints": [],
@@ -42,8 +46,48 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "data/datasets/autosave_*.parquet"
     ]
     
+    # Phase 0 files
+    phase0_patterns = [
+        "data/phase0/*.json",
+        "data/phase0/*.parquet",
+        "data/phase0/mbpp_difficulty_mapping_*.parquet"
+    ]
+    
     for pattern in dataset_patterns:
         files_to_delete["datasets"].extend(glob.glob(pattern))
+    
+    for pattern in phase0_patterns:
+        files_to_delete["phase0"].extend(glob.glob(pattern))
+    
+    # Phase 1 files
+    phase1_patterns = [
+        "data/phase1/*.json",
+        "data/phase1/*.parquet",
+        "data/phase1/dataset_*.parquet",
+        "data/phase1/checkpoints/*.json"
+    ]
+    
+    for pattern in phase1_patterns:
+        files_to_delete["phase1"].extend(glob.glob(pattern))
+    
+    # Phase 2 files  
+    phase2_patterns = [
+        "data/phase2/*.json",
+        "data/phase2/checkpoints/*.json",
+        "data/phase2/activation_cache*"
+    ]
+    
+    for pattern in phase2_patterns:
+        files_to_delete["phase2"].extend(glob.glob(pattern))
+    
+    # Phase 3 files
+    phase3_patterns = [
+        "data/phase3/*.json",
+        "data/phase3/*.parquet"
+    ]
+    
+    for pattern in phase3_patterns:
+        files_to_delete["phase3"].extend(glob.glob(pattern))
     
     # Log files
     log_patterns = [
@@ -97,6 +141,46 @@ def print_files_summary(files_to_delete: dict) -> int:
             print(f"  ... and {dataset_count - 5} more")
         total_count += dataset_count
     
+    # Phase 0 files
+    phase0_count = len(files_to_delete["phase0"])
+    if phase0_count > 0:
+        print(f"\nPhase 0 files ({phase0_count} files):")
+        for f in sorted(files_to_delete["phase0"])[:5]:
+            print(f"  - {os.path.basename(f)}")
+        if phase0_count > 5:
+            print(f"  ... and {phase0_count - 5} more")
+        total_count += phase0_count
+    
+    # Phase 1 files
+    phase1_count = len(files_to_delete["phase1"])
+    if phase1_count > 0:
+        print(f"\nPhase 1 files ({phase1_count} files):")
+        for f in sorted(files_to_delete["phase1"])[:5]:
+            print(f"  - {os.path.basename(f)}")
+        if phase1_count > 5:
+            print(f"  ... and {phase1_count - 5} more")
+        total_count += phase1_count
+    
+    # Phase 2 files
+    phase2_count = len(files_to_delete["phase2"])
+    if phase2_count > 0:
+        print(f"\nPhase 2 files ({phase2_count} files):")
+        for f in sorted(files_to_delete["phase2"])[:5]:
+            print(f"  - {os.path.basename(f)}")
+        if phase2_count > 5:
+            print(f"  ... and {phase2_count - 5} more")
+        total_count += phase2_count
+    
+    # Phase 3 files
+    phase3_count = len(files_to_delete["phase3"])
+    if phase3_count > 0:
+        print(f"\nPhase 3 files ({phase3_count} files):")
+        for f in sorted(files_to_delete["phase3"])[:5]:
+            print(f"  - {os.path.basename(f)}")
+        if phase3_count > 5:
+            print(f"  ... and {phase3_count - 5} more")
+        total_count += phase3_count
+    
     # Logs
     log_count = len(files_to_delete["logs"])
     if log_count > 0:
@@ -146,6 +230,46 @@ def delete_files(files_to_delete: dict, dry_run: bool = False) -> int:
     
     # Delete dataset files
     for file_path in files_to_delete["datasets"]:
+        try:
+            if not dry_run:
+                os.remove(file_path)
+            print(f"{'[DRY RUN] Would delete' if dry_run else 'Deleted'}: {file_path}")
+            deleted_count += 1
+        except Exception as e:
+            print(f"Error deleting {file_path}: {e}")
+    
+    # Delete phase 0 files
+    for file_path in files_to_delete["phase0"]:
+        try:
+            if not dry_run:
+                os.remove(file_path)
+            print(f"{'[DRY RUN] Would delete' if dry_run else 'Deleted'}: {file_path}")
+            deleted_count += 1
+        except Exception as e:
+            print(f"Error deleting {file_path}: {e}")
+    
+    # Delete phase 1 files
+    for file_path in files_to_delete["phase1"]:
+        try:
+            if not dry_run:
+                os.remove(file_path)
+            print(f"{'[DRY RUN] Would delete' if dry_run else 'Deleted'}: {file_path}")
+            deleted_count += 1
+        except Exception as e:
+            print(f"Error deleting {file_path}: {e}")
+    
+    # Delete phase 2 files
+    for file_path in files_to_delete["phase2"]:
+        try:
+            if not dry_run:
+                os.remove(file_path)
+            print(f"{'[DRY RUN] Would delete' if dry_run else 'Deleted'}: {file_path}")
+            deleted_count += 1
+        except Exception as e:
+            print(f"Error deleting {file_path}: {e}")
+    
+    # Delete phase 3 files
+    for file_path in files_to_delete["phase3"]:
         try:
             if not dry_run:
                 os.remove(file_path)

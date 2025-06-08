@@ -13,19 +13,24 @@ This research analyzes how language models internally represent the concept of c
 
 ## Methodology
 
-### 1. Dataset Building
-- Uses MBPP dataset (974 programming problems)
+### Phase 0: Difficulty Analysis
+- Analyzes complexity of all 974 MBPP problems using cyclomatic complexity
+- Creates difficulty mapping for consistent data splits across experiments
+- Enables reproducible interleaved sampling based on problem difficulty
+
+### Phase 1: Dataset Building
+- Uses MBPP dataset with pre-computed difficulty mappings from Phase 0
 - Standardized prompt template: problem description + test cases + code initiator
 - Classification: correct (passes all 3 tests) vs incorrect
 - Dataset split: 50% SAE analysis, 10% hyperparameter tuning, 40% validation
 
-### 2. SAE Analysis
+### Phase 2: SAE Analysis
 - Utilizes pre-trained SAEs from GemmaScope with JumpReLU architecture
 - Analyzes residual stream at final token position
 - Computes separation scores to identify distinguishing latent dimensions
 - Filters out general language patterns (>2% activation on Pile dataset)
 
-### 3. Validation
+### Phase 3: Validation
 - **Statistical Analysis**: 
   - AUROC: Measures discrimination ability across all thresholds
   - F1 Score: Harmonic mean of precision and recall (optimized on hyperparameter set)
@@ -56,24 +61,23 @@ pip install accelerate
 
 ### Quick Start
 
-Run individual phases using the unified script:
+Run individual phases using the unified script with automatic data flow:
 
 ```bash
-# Phase 0: Check existing difficulty mapping
-python3 run.py phase 0 --load-existing
-
-# If incomplete, run fresh analysis
+# Phase 0: Generate difficulty mapping (outputs to data/phase0/)
 python3 run.py phase 0
 
-# Phase 1: Build dataset with Gemma 2 model
+# Phase 1: Build dataset (auto-discovers from phase0, outputs to data/phase1/)
 python3 run.py phase 1 --model google/gemma-2-9b
 
-# Phase 2: Analyze with Sparse Autoencoders
-python3 run.py phase 2 --dataset data/datasets/latest_dataset.parquet
+# Phase 2: Analyze with SAEs (auto-discovers from phase1, outputs to data/phase2/)
+python3 run.py phase 2
 
-# Phase 3: Run validation experiments
-python3 run.py phase 3 --dataset data/datasets/latest_dataset.parquet
+# Phase 3: Run validation (auto-discovers from phase1 & phase2, outputs to data/phase3/)
+python3 run.py phase 3
 ```
+
+The pipeline automatically discovers outputs from previous phases, creating a seamless workflow.
 
 ### Phase-Specific Examples
 
@@ -81,14 +85,15 @@ python3 run.py phase 3 --dataset data/datasets/latest_dataset.parquet
 # Quick test with small dataset
 python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 10
 
-# Run analysis without saving (dry run)
-python3 run.py phase 0 --no-save
+# Run phase 0 without saving (dry run)
+python3 run.py phase 0 --dry-run
 
-# Custom SAE analysis parameters
-python3 run.py phase 2 --dataset my_dataset.parquet --latent-threshold 0.05
+# Override auto-discovery with specific files
+python3 run.py phase 1 --difficulty-mapping data/phase0/specific_mapping.parquet
+python3 run.py phase 2 --dataset data/phase1/specific_dataset.parquet
 
-# Validation with custom temperature range
-python3 run.py phase 3 --dataset my_dataset.parquet --temperatures 0.0 1.0 2.0
+# Disable auto-discovery entirely
+python3 run.py phase 1 --no-auto-discover
 ```
 
 ## Project Structure
@@ -100,9 +105,11 @@ pva_sae/
 ├── phase1_dataset_building/       # Phase 1: Dataset generation
 ├── phase2_sae_analysis/           # Phase 2: SAE analysis
 ├── phase3_validation/             # Phase 3: Validation
-├── orchestration/                 # Pipeline coordination
-├── data/                          # Consolidated data directory
-│   ├── datasets/                 # Generated datasets
+├── data/                          # Phase-based data directory
+│   ├── phase0/                   # Difficulty mappings
+│   ├── phase1/                   # Generated datasets
+│   ├── phase2/                   # SAE analysis results
+│   ├── phase3/                   # Validation results
 │   └── logs/                     # Execution logs
 ├── run.py                         # Main entry point
 └── requirements.txt               # Dependencies

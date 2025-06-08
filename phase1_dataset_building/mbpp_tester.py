@@ -19,6 +19,7 @@ from common import (
     DEFAULT_MODEL_NAME,
     DEFAULT_LOG_DIR,
     DEFAULT_DATASET_DIR,
+    DEFAULT_PHASE1_DIR,
     MAX_NEW_TOKENS,
     auto_cleanup,
     ensure_directory_exists
@@ -225,8 +226,9 @@ class DatasetBuildingOrchestrator(MBPPTester):
                  model_name: str = DEFAULT_MODEL_NAME,
                  debug: bool = False,
                  log_dir: str = DEFAULT_LOG_DIR,
-                 dataset_dir: str = DEFAULT_DATASET_DIR,
-                 max_new_tokens: int = MAX_NEW_TOKENS):
+                 dataset_dir: str = DEFAULT_PHASE1_DIR,
+                 max_new_tokens: int = MAX_NEW_TOKENS,
+                 difficulty_mapping: Optional[Dict[str, Any]] = None):
         """
         Initialize enhanced MBPP tester
         
@@ -236,12 +238,14 @@ class DatasetBuildingOrchestrator(MBPPTester):
             log_dir: Directory for log files
             dataset_dir: Directory for dataset files
             max_new_tokens: Maximum tokens to generate
+            difficulty_mapping: Optional pre-computed difficulty mapping from Phase 0
         """
         super().__init__(model_name, debug, log_dir)
         
         self.dataset_dir = dataset_dir
         self.max_new_tokens = max_new_tokens
         self.dataset_builder = None
+        self.difficulty_mapping = difficulty_mapping
         
         # Ensure directories exist
         ensure_directory_exists(log_dir)
@@ -282,7 +286,8 @@ class DatasetBuildingOrchestrator(MBPPTester):
                 dataset_manager=self.dataset_manager,
                 config=dataset_config,
                 max_new_tokens=self.max_new_tokens,
-                stream_output=stream
+                stream_output=stream,
+                difficulty_mapping=self.difficulty_mapping
             )
             
             # Build dataset
@@ -385,7 +390,7 @@ class ProductionDatasetBuilder(DatasetBuildingOrchestrator):
                  model_name: str = DEFAULT_MODEL_NAME,
                  debug: bool = False,
                  log_dir: str = DEFAULT_LOG_DIR,
-                 dataset_dir: str = DEFAULT_DATASET_DIR,
+                 dataset_dir: str = DEFAULT_PHASE1_DIR,
                  max_new_tokens: int = MAX_NEW_TOKENS,
                  robustness_config: Optional[RobustnessConfig] = None):
         """
@@ -452,7 +457,8 @@ class ProductionDatasetBuilder(DatasetBuildingOrchestrator):
                 config=dataset_config,
                 robustness_config=self.robustness_config,
                 max_new_tokens=self.max_new_tokens,
-                stream_output=stream
+                stream_output=stream,
+                difficulty_mapping=self.difficulty_mapping
             )
             
             # Start phase
