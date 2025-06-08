@@ -16,7 +16,15 @@ from .utils import (
     ensure_directory_exists,
     get_timestamp,
     safe_json_dumps,
-    get_cyclomatic_complexity
+    get_cyclomatic_complexity,
+    # Context managers
+    memory_mapped_array,
+    torch_memory_cleanup,
+    atomic_file_write,
+    temporary_torch_file,
+    torch_no_grad_and_cleanup,
+    managed_subprocess,
+    file_lock
 )
 
 # Import configuration classes
@@ -24,6 +32,7 @@ from .config import (
     DEFAULT_MODEL_NAME,
     DEFAULT_LOG_DIR,
     DEFAULT_DATASET_DIR,
+    DEFAULT_PHASE1_DIR,
     MAX_NEW_TOKENS,
     LoggingConfiguration,
     ModelConfiguration,
@@ -59,10 +68,20 @@ __all__ = [
     'safe_json_dumps',
     'get_cyclomatic_complexity',
     
+    # Context managers
+    'memory_mapped_array',
+    'torch_memory_cleanup',
+    'atomic_file_write',
+    'temporary_torch_file',
+    'torch_no_grad_and_cleanup',
+    'managed_subprocess',
+    'file_lock',
+    
     # Config
     'DEFAULT_MODEL_NAME',
     'DEFAULT_LOG_DIR',
     'DEFAULT_DATASET_DIR',
+    'DEFAULT_PHASE1_DIR',
     'MAX_NEW_TOKENS',
     'LoggingConfiguration',
     'ModelConfiguration',

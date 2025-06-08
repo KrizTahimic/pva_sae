@@ -27,7 +27,8 @@ from common import (
     get_timestamp,
     format_duration,
     get_memory_usage,
-    get_cyclomatic_complexity
+    get_cyclomatic_complexity,
+    atomic_file_write
 )
 from phase1_dataset_building.dataset_manager import CodeGenerationResult, CodeTestResult, PromptAwareDatasetManager
 from phase1_dataset_building.test_executor import TestExecutor
@@ -139,8 +140,8 @@ class CheckpointManager:
             )
             filepath = os.path.join(self.checkpoint_dir, filename)
             
-            # Save checkpoint
-            with open(filepath, 'w') as f:
+            # Save checkpoint atomically
+            with atomic_file_write(filepath, 'w') as f:
                 json.dump(checkpoint_data.to_dict(), f, indent=2)
             
             self.current_checkpoint_file = filepath
@@ -603,7 +604,7 @@ class DatasetBuilder:
             'results': [result.to_dict() for result in self.generation_results]
         }
         
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with atomic_file_write(filepath, 'w', encoding='utf-8') as f:
             json.dump(results_data, f, indent=2, ensure_ascii=False)
         
         self.logger.info(f"JSON results saved to {filepath}")
@@ -623,9 +624,22 @@ class DatasetBuilder:
         elif not os.path.isabs(filepath):
             filepath = os.path.join(self.config.dataset_dir, filepath)
         
-        # Convert to DataFrame and save
+        # Convert to DataFrame and save atomically
         df = self.get_dataframe()
-        df.to_parquet(filepath, index=False)
+        
+        # Use temporary file for parquet (pandas doesn't support file objects)
+        import tempfile
+        temp_fd, temp_path = tempfile.mkstemp(suffix='.parquet', dir=os.path.dirname(filepath))
+        os.close(temp_fd)
+        try:
+            df.to_parquet(temp_path, index=False)
+            # Move atomically
+            import shutil
+            shutil.move(temp_path, filepath)
+        except:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise
         
         # Save metadata separately
         metadata = {
@@ -639,7 +653,7 @@ class DatasetBuilder:
         }
         
         metadata_file = filepath.replace('.parquet', '_metadata.json')
-        with open(metadata_file, 'w', encoding='utf-8') as f:
+        with atomic_file_write(metadata_file, 'w', encoding='utf-8') as f:
             json.dump(metadata, f, indent=2, ensure_ascii=False)
         
         self.logger.info(f"Parquet dataset saved to {filepath}")
@@ -1042,7 +1056,21 @@ class RobustDatasetBuilder(DatasetBuilder):
         
         try:
             df = self.get_dataframe()
-            df.to_parquet(autosave_file, index=False)
+            
+            # Use atomic write for autosave
+            import tempfile
+            temp_fd, temp_path = tempfile.mkstemp(suffix='.parquet', dir=os.path.dirname(autosave_file))
+            os.close(temp_fd)
+            try:
+                df.to_parquet(temp_path, index=False)
+                # Move atomically
+                import shutil
+                shutil.move(temp_path, autosave_file)
+            except:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+                raise
+            
             self.logger.info(f"Autosaved {len(df)} results to {autosave_file}")
             
             # Clean up old autosaves

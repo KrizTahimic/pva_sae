@@ -9,8 +9,13 @@ helper functions.
 import torch
 import os
 import glob
+import tempfile
+import shutil
+import numpy as np
+from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Optional, List, Generator, Any
+from pathlib import Path
 
 
 def detect_device() -> torch.device:
@@ -524,3 +529,230 @@ def discover_latest_phase2_results(phase2_dir: str = "data/phase2") -> Optional[
     # Return the most recently modified file
     latest_file = max(result_files, key=lambda p: p.stat().st_mtime)
     return str(latest_file)
+
+
+# ============================================================================
+# Context Manager Utilities
+# ============================================================================
+
+@contextmanager
+def memory_mapped_array(filename: str, dtype: np.dtype, shape: tuple, mode: str = 'r+') -> Generator[np.memmap, None, None]:
+    """
+    Context manager for memory-mapped numpy arrays with automatic cleanup
+    
+    Args:
+        filename: Path to the memory-mapped file
+        dtype: Data type of the array
+        shape: Shape of the array
+        mode: File mode ('r', 'r+', 'w+', 'c')
+        
+    Yields:
+        np.memmap: Memory-mapped array
+        
+    Example:
+        with memory_mapped_array('data.dat', np.float32, (1000, 100)) as arr:
+            arr[0] = [1.0] * 100
+    """
+    mmap = None
+    try:
+        mmap = np.memmap(filename, dtype=dtype, mode=mode, shape=shape)
+        yield mmap
+    finally:
+        if mmap is not None:
+            # Ensure data is flushed to disk
+            if mode != 'r':
+                mmap.flush()
+            # Delete the memmap object to release resources
+            del mmap
+
+
+@contextmanager
+def torch_memory_cleanup(device: Optional[torch.device] = None) -> Generator[None, None, None]:
+    """
+    Context manager that ensures torch memory is cleaned up after operations
+    
+    Args:
+        device: Specific device to clean up (None for all)
+        
+    Example:
+        with torch_memory_cleanup():
+            # Perform torch operations
+            model = load_model()
+            predictions = model(data)
+    """
+    try:
+        yield
+    finally:
+        # Clear cache based on device type
+        if device is None:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+        else:
+            # Convert string to device if needed
+            if isinstance(device, str):
+                device = torch.device(device)
+            
+            if device.type == 'cuda':
+                torch.cuda.empty_cache(device)
+                torch.cuda.synchronize(device)
+        
+        # Force garbage collection
+        import gc
+        gc.collect()
+
+
+@contextmanager
+def atomic_file_write(filepath: str, mode: str = 'w', **kwargs) -> Generator[Any, None, None]:
+    """
+    Context manager for atomic file writes using temporary files
+    
+    Ensures file is only written if the entire operation succeeds.
+    On failure, the original file (if any) remains unchanged.
+    
+    Args:
+        filepath: Target file path
+        mode: File mode ('w', 'wb', etc.)
+        **kwargs: Additional arguments for open()
+        
+    Example:
+        with atomic_file_write('config.json') as f:
+            json.dump(config, f)
+    """
+    filepath = Path(filepath)
+    temp_file = None
+    
+    try:
+        # Create temporary file in same directory (for same filesystem)
+        with tempfile.NamedTemporaryFile(
+            mode=mode,
+            dir=filepath.parent,
+            delete=False,
+            **kwargs
+        ) as temp_file:
+            temp_path = temp_file.name
+            yield temp_file
+        
+        # If we get here, writing succeeded. Move temp file to target
+        shutil.move(temp_path, filepath)
+        
+    except Exception:
+        # Clean up temp file on error
+        if temp_file and os.path.exists(temp_path):
+            os.unlink(temp_path)
+        raise
+
+
+@contextmanager
+def temporary_torch_file(model_or_tensor: Any, suffix: str = '.pt') -> Generator[str, None, None]:
+    """
+    Context manager for temporary torch save files
+    
+    Args:
+        model_or_tensor: PyTorch model or tensor to save
+        suffix: File suffix
+        
+    Yields:
+        str: Path to temporary file
+        
+    Example:
+        with temporary_torch_file(model.state_dict()) as temp_path:
+            # Use temp_path for operations
+            upload_to_cloud(temp_path)
+    """
+    fd, temp_path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)  # Close the file descriptor
+    
+    try:
+        torch.save(model_or_tensor, temp_path)
+        yield temp_path
+    finally:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+
+
+@contextmanager
+def torch_no_grad_and_cleanup(device: Optional[torch.device] = None) -> Generator[None, None, None]:
+    """
+    Combined context manager for torch.no_grad() and memory cleanup
+    
+    Args:
+        device: Device to clean up after operations
+        
+    Example:
+        with torch_no_grad_and_cleanup(device):
+            outputs = model(inputs)
+    """
+    with torch.no_grad():
+        with torch_memory_cleanup(device):
+            yield
+
+
+@contextmanager
+def managed_subprocess(*args, **kwargs) -> Generator[Any, None, None]:
+    """
+    Context manager for subprocess with proper cleanup
+    
+    Ensures subprocess is properly terminated even on exceptions.
+    
+    Args:
+        *args, **kwargs: Arguments for subprocess.Popen
+        
+    Example:
+        with managed_subprocess(['python', 'script.py'], stdout=PIPE) as proc:
+            output, _ = proc.communicate()
+    """
+    import subprocess
+    import signal
+    
+    proc = None
+    try:
+        proc = subprocess.Popen(*args, **kwargs)
+        yield proc
+    finally:
+        if proc and proc.poll() is None:
+            # Try graceful termination first
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                # Force kill if necessary
+                proc.kill()
+                proc.wait()
+
+
+@contextmanager
+def file_lock(filepath: str, timeout: float = 10.0) -> Generator[None, None, None]:
+    """
+    Simple file-based lock for coordinating access across processes
+    
+    Args:
+        filepath: Path to file being locked
+        timeout: Maximum time to wait for lock
+        
+    Example:
+        with file_lock('dataset.parquet'):
+            # Exclusive access to dataset
+            df = pd.read_parquet('dataset.parquet')
+    """
+    import time
+    
+    lockfile = f"{filepath}.lock"
+    start_time = time.time()
+    
+    # Wait for lock
+    while os.path.exists(lockfile):
+        if time.time() - start_time > timeout:
+            raise TimeoutError(f"Could not acquire lock for {filepath}")
+        time.sleep(0.1)
+    
+    # Acquire lock
+    try:
+        # Create lock file atomically
+        fd = os.open(lockfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.close(fd)
+        yield
+    finally:
+        # Release lock
+        if os.path.exists(lockfile):
+            os.unlink(lockfile)

@@ -18,6 +18,7 @@ from tqdm import tqdm
 import gc
 
 from .sae_analyzer import SeparationScores
+from common.utils import torch_memory_cleanup, torch_no_grad_and_cleanup, atomic_file_write
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +150,7 @@ class PileFilter:
                 start_idx, end_idx = span
                 
                 # Get activations using hooks
-                with torch.no_grad():
+                with torch_no_grad_and_cleanup(self.device):
                     # Run model to get residual stream
                     _, cache = self.model.run_with_cache(
                         tokens,
@@ -175,9 +176,8 @@ class PileFilter:
                 
                 # Clear cache periodically
                 if valid_samples % 500 == 0:
-                    if self.device == 'cuda':
-                        torch.cuda.empty_cache()
-                    gc.collect()
+                    with torch_memory_cleanup(self.device):
+                        pass
         
         logger.info(f"Extracted activations from {valid_samples} valid samples")
         return latent_activations
@@ -199,7 +199,8 @@ class PileFilter:
         
         if cache_file.exists() and metadata_file.exists():
             logger.info(f"Loading cached Pile frequencies for layer {layer_idx}")
-            frequencies = torch.load(cache_file)
+            with torch_no_grad_and_cleanup(self.device):
+                frequencies = torch.load(cache_file, map_location=self.device)
             with open(metadata_file, 'r') as f:
                 metadata = json.load(f)
             logger.info(f"Loaded cache: {metadata['n_samples']} samples, computed on {metadata['timestamp']}")
@@ -221,15 +222,17 @@ class PileFilter:
                 # Fraction of samples where activation > eps
                 frequencies[latent_idx] = (activations > self.eps).float().mean()
         
-        # Save cache
-        torch.save(frequencies, cache_file)
+        # Save cache with atomic write
+        with atomic_file_write(str(cache_file), mode='wb') as f:
+            torch.save(frequencies, f)
+        
         metadata = {
             'n_samples': len(texts),
             'timestamp': datetime.now().isoformat(),
             'n_latents': n_latents,
             'layer_idx': layer_idx
         }
-        with open(metadata_file, 'w') as f:
+        with atomic_file_write(str(metadata_file), mode='w') as f:
             json.dump(metadata, f, indent=2)
         
         logger.info(f"Computed and cached Pile frequencies for {n_latents} latents")

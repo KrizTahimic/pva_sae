@@ -24,6 +24,7 @@ from huggingface_hub import hf_hub_download
 from transformer_lens import HookedTransformer
 
 from common.config import SAELayerConfig
+from common.utils import memory_mapped_array, torch_memory_cleanup, torch_no_grad_and_cleanup
 
 logger = logging.getLogger(__name__)
 
@@ -602,27 +603,28 @@ class MultiLayerActivationCache:
         """Setup memory-mapped storage for large-scale analysis"""
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create memory-mapped array for all activations
-        self.activations_mmap = np.memmap(
-            self.cache_dir / "activations.dat",
-            dtype='float32',
-            mode='w+',
-            shape=(n_samples, n_layers, d_model)
-        )
+        # Store parameters for context manager
+        self.mmap_params = {
+            'filename': str(self.cache_dir / "activations.dat"),
+            'dtype': np.float32,
+            'shape': (n_samples, n_layers, d_model),
+            'mode': 'w+'
+        }
         
         # Keep track of which layers have data
         self.layer_sample_counts = {}
         
-        logger.info(f"Created memory-mapped cache: {n_samples} samples x {n_layers} layers x {d_model} features")
+        logger.info(f"Prepared memory-mapped cache: {n_samples} samples x {n_layers} layers x {d_model} features")
     
     def store_layer(self, layer_idx: int, activations: torch.Tensor):
         """Store activations for a specific layer"""
         if self.use_memory_mapping:
             # Convert to numpy and store in memory-mapped array
-            acts_np = activations.detach().cpu().numpy()
-            n_samples = acts_np.shape[0]
-            self.activations_mmap[:n_samples, layer_idx, :] = acts_np
-            self.layer_sample_counts[layer_idx] = n_samples
+            with memory_mapped_array(**self.mmap_params) as mmap:
+                acts_np = activations.detach().cpu().numpy()
+                n_samples = acts_np.shape[0]
+                mmap[:n_samples, layer_idx, :] = acts_np
+                self.layer_sample_counts[layer_idx] = n_samples
         else:
             # Store in regular memory
             self.activations[layer_idx] = activations.detach().clone()
@@ -633,8 +635,9 @@ class MultiLayerActivationCache:
             if layer_idx not in self.layer_sample_counts:
                 return None
             n_samples = self.layer_sample_counts[layer_idx]
-            acts_np = self.activations_mmap[:n_samples, layer_idx, :]
-            return torch.from_numpy(acts_np.copy()).to(self.device)
+            with memory_mapped_array(**self.mmap_params) as mmap:
+                acts_np = mmap[:n_samples, layer_idx, :]
+                return torch.from_numpy(acts_np.copy()).to(self.device)
         else:
             return self.activations.get(layer_idx)
     
@@ -647,18 +650,21 @@ class MultiLayerActivationCache:
             if layer_idx in self.activations:
                 del self.activations[layer_idx]
         
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        gc.collect()
+        # Use context manager for proper cleanup
+        with torch_memory_cleanup(self.device):
+            pass
     
     def cleanup(self):
         """Clean up all resources"""
         if self.use_memory_mapping:
-            if hasattr(self, 'activations_mmap'):
-                del self.activations_mmap
+            # Memory map cleanup is handled by context manager
             self.layer_sample_counts.clear()
         else:
             self.activations.clear()
+        
+        # Ensure GPU memory is cleaned
+        with torch_memory_cleanup(self.device):
+            pass
 
 
 class MultiLayerActivationExtractor:

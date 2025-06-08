@@ -26,6 +26,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from common.logging import LoggingManager
+from common.utils import managed_subprocess
 
 
 class MultiGPULauncher:
@@ -148,16 +149,16 @@ class MultiGPULauncher:
             print(f"Launching on GPU {gpu_id}: {split_start}-{split_end}")
             self.logger.info(f"Launching process on GPU {gpu_id}: {' '.join(cmd)}")
             
-            # Launch process
-            with open(log_file, 'w') as log:
-                process = subprocess.Popen(
-                    cmd,
-                    env=env,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    preexec_fn=os.setsid  # Create new process group
-                )
-                self.processes.append((gpu_id, process, log_file))
+            # Launch process with context manager
+            log_handle = open(log_file, 'w')
+            process = subprocess.Popen(
+                cmd,
+                env=env,
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                preexec_fn=os.setsid  # Create new process group
+            )
+            self.processes.append((gpu_id, process, log_file, log_handle))
         
         print(f"\nAll processes launched. Monitoring progress...")
         print(f"Check individual logs in data/logs/gpu_*_output.log")
@@ -174,14 +175,20 @@ class MultiGPULauncher:
                 completed = []
                 failed = []
                 
-                for gpu_id, process, log_file in self.processes:
+                for gpu_id, process, log_file, log_handle in self.processes:
                     poll = process.poll()
                     if poll is None:
                         running.append(gpu_id)
                     elif poll == 0:
                         completed.append(gpu_id)
+                        # Close log file for completed process
+                        if log_handle and not log_handle.closed:
+                            log_handle.close()
                     else:
                         failed.append((gpu_id, poll))
+                        # Close log file for failed process
+                        if log_handle and not log_handle.closed:
+                            log_handle.close()
                 
                 # Display status
                 elapsed = time.time() - start_time
@@ -222,12 +229,25 @@ class MultiGPULauncher:
         print(f"\nCheck logs in data/logs/gpu_*_output.log for details")
     
     def cleanup(self):
-        """Clean up all running processes"""
-        for gpu_id, process, log_file in self.processes:
+        """Clean up all running processes and resources"""
+        for gpu_id, process, log_file, log_handle in self.processes:
+            # Close log file if still open
+            if log_handle and not log_handle.closed:
+                log_handle.close()
+            
+            # Terminate process if still running
             if process.poll() is None:
                 print(f"Terminating process on GPU {gpu_id}")
                 try:
+                    # Try graceful termination first
                     os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                    # Wait briefly for termination
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        # Force kill if necessary
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                        process.wait()
                 except Exception as e:
                     print(f"Error terminating process: {e}")
 
