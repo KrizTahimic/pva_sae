@@ -103,11 +103,6 @@ def setup_argument_parser():
         action='store_true',
         help='Run analysis without saving difficulty mapping to file'
     )
-    phase0_group.add_argument(
-        '--load-existing',
-        type=str,
-        help='Load and validate existing difficulty mapping file'
-    )
     
     # Phase 1: Dataset Building arguments
     phase1_group = phase_parser.add_argument_group('Phase 1: Dataset Building')
@@ -243,43 +238,24 @@ def run_phase0(args, logger, device: str):
     # Initialize preprocessor with output directory (default: data/datasets)
     preprocessor = MBPPPreprocessor(output_dir=args.output_dir)
     
-    if args.load_existing:
-        # LOAD EXISTING PATH: Skip computation, just load previously saved file
-        logger.info(f"Loading existing difficulty mapping: {args.load_existing}")
-        # Load parquet file from data/datasets/mbpp_difficulty_mapping_*.parquet
-        difficulty_mapping = preprocessor.load_existing_mapping(args.load_existing)
+    # COMPUTATION PATH: Analyze all 974 MBPP problems from scratch
+    # This loops through dataset, calculates cyclomatic complexity, test metrics
+    # Creates new timestamped files: mbpp_difficulty_mapping_{timestamp}.parquet + .summary.json
+    try:
+        difficulty_mapping = preprocessor.preprocess_dataset(save_mapping=not args.dry_run)
         
-        # Validate that file contains all 974 MBPP problems
-        is_complete = preprocessor.validate_mapping_completeness(difficulty_mapping)
+        logger.info("✅ Phase 0 completed successfully")
+        logger.info(f"Analyzed {len(difficulty_mapping)} MBPP problems")
         
-        if is_complete:
-            logger.info("✅ Existing difficulty mapping is complete and valid")
-            # Get statistics from loaded data (no new computation)
-            distribution = preprocessor.difficulty_analyzer.get_complexity_distribution()
-            if distribution:
-                logger.info(f"Complexity distribution - Mean: {distribution['mean']}, Median: {distribution['median']}")
-        else:
-            logger.error("❌ Existing difficulty mapping is incomplete")
-            sys.exit(1)
-    else:
-        # COMPUTATION PATH: Analyze all 974 MBPP problems from scratch
-        # This loops through dataset, calculates cyclomatic complexity, test metrics
-        # Creates new timestamped files: mbpp_difficulty_mapping_{timestamp}.parquet + .summary.json
-        try:
-            difficulty_mapping = preprocessor.preprocess_dataset(save_mapping=not args.dry_run)
+        # FILE CREATION: Show path to newly created parquet file (only if files were saved)
+        if not args.dry_run:
+            # Gets most recent file by modification time from data/datasets/
+            latest_mapping = preprocessor.get_latest_difficulty_mapping_path()
+            logger.info(f"Difficulty mapping available at: {latest_mapping}")
             
-            logger.info("✅ Phase 0 completed successfully")
-            logger.info(f"Analyzed {len(difficulty_mapping)} MBPP problems")
-            
-            # FILE CREATION: Show path to newly created parquet file (only if files were saved)
-            if not args.dry_run:
-                # Gets most recent file by modification time from data/datasets/
-                latest_mapping = preprocessor.get_latest_difficulty_mapping_path()
-                logger.info(f"Difficulty mapping available at: {latest_mapping}")
-                
-        except Exception as e:
-            logger.error(f"❌ Phase 0 failed: {str(e)}")
-            sys.exit(1)
+    except Exception as e:
+        logger.error(f"❌ Phase 0 failed: {str(e)}")
+        sys.exit(1)
 
 
 def run_phase1(args, logger, device: str):

@@ -121,49 +121,4 @@ class MBPPPreprocessor:
         latest_file = max(mapping_files, key=lambda p: p.stat().st_mtime)
         return str(latest_file)
     
-    def load_existing_mapping(self, filepath: Optional[str] = None) -> Dict[str, DifficultyMetrics]:
-        """
-        Load existing difficulty mapping from file
-        
-        Args:
-            filepath: Optional path to mapping file. If None, loads latest mapping
-            
-        Returns:
-            dict: Loaded difficulty mapping
-        """
-        if filepath is None:
-            filepath = self.get_latest_difficulty_mapping_path()
-            if filepath is None:
-                raise FileNotFoundError("No existing difficulty mapping found")
-        
-        self.logger.info(f"Loading difficulty mapping from: {filepath}")
-        mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(filepath)
-        self.logger.info(f"Loaded difficulty mapping for {len(mapping)} problems")
-        
-        return mapping
     
-    def validate_mapping_completeness(self, 
-                                    difficulty_mapping: Dict[str, DifficultyMetrics]) -> bool:
-        """
-        Validate that difficulty mapping covers all MBPP problems
-        
-        Args:
-            difficulty_mapping: Difficulty mapping to validate
-            
-        Returns:
-            bool: True if mapping is complete
-        """
-        if not self.dataset_manager.is_loaded():
-            self.dataset_manager.load_dataset()
-        
-        expected_size = self.dataset_manager.get_size()
-        actual_size = len(difficulty_mapping)
-        
-        is_complete = expected_size == actual_size
-        
-        if is_complete:
-            self.logger.info(f"Difficulty mapping validation passed: {actual_size}/{expected_size} problems")
-        else:
-            self.logger.warning(f"Difficulty mapping incomplete: {actual_size}/{expected_size} problems")
-        
-        return is_complete

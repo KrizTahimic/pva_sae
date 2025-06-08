@@ -83,9 +83,6 @@ python3 run.py phase 3
 
 ### Auto-Discovery and Manual Override
 ```bash
-# Check existing difficulty mapping
-python3 run.py phase 0 --load-existing
-
 # Override auto-discovery with specific files
 python3 run.py phase 1 --difficulty-mapping data/phase0/specific_mapping.parquet
 python3 run.py phase 2 --dataset data/phase1/specific_dataset.parquet
