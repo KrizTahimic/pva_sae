@@ -29,6 +29,7 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "datasets": [],
         "logs": [],
         "checkpoints": [],
+        "test_checkpoints": [],
         "other": []
     }
     
@@ -57,6 +58,15 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
     checkpoint_dir = "data/datasets/checkpoints"
     if os.path.exists(checkpoint_dir):
         files_to_delete["checkpoints"].append(checkpoint_dir)
+    
+    # Test checkpoint files
+    test_checkpoint_patterns = [
+        "data/test_checkpoints/*.json",
+        "data/test_checkpoints/*.parquet"
+    ]
+    
+    for pattern in test_checkpoint_patterns:
+        files_to_delete["test_checkpoints"].extend(glob.glob(pattern))
     
     return files_to_delete
 
@@ -103,6 +113,16 @@ def print_files_summary(files_to_delete: dict) -> int:
         for d in files_to_delete["checkpoints"]:
             print(f"  - {d}/")
         total_count += len(files_to_delete["checkpoints"])
+    
+    # Test checkpoints
+    test_checkpoint_count = len(files_to_delete["test_checkpoints"])
+    if test_checkpoint_count > 0:
+        print(f"\nTest checkpoint files ({test_checkpoint_count} files):")
+        for f in sorted(files_to_delete["test_checkpoints"])[:5]:
+            print(f"  - {os.path.basename(f)}")
+        if test_checkpoint_count > 5:
+            print(f"  ... and {test_checkpoint_count - 5} more")
+        total_count += test_checkpoint_count
     
     if total_count == 0:
         print("\nNo files found to delete. Data directory is already clean!")
@@ -153,6 +173,16 @@ def delete_files(files_to_delete: dict, dry_run: bool = False) -> int:
             deleted_count += 1
         except Exception as e:
             print(f"Error deleting directory {dir_path}: {e}")
+    
+    # Delete test checkpoint files
+    for file_path in files_to_delete["test_checkpoints"]:
+        try:
+            if not dry_run:
+                os.remove(file_path)
+            print(f"{'[DRY RUN] Would delete' if dry_run else 'Deleted'}: {file_path}")
+            deleted_count += 1
+        except Exception as e:
+            print(f"Error deleting {file_path}: {e}")
     
     return deleted_count
 

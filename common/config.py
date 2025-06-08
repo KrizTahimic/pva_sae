@@ -177,14 +177,13 @@ class AnalysisConfig:
 @dataclass
 class SAELayerConfig:
     """Configuration for SAE layer analysis"""
-    # Model-specific layer definitions for Gemma-2B
-    gemma_2b_it_layers: List[int] = field(default_factory=lambda: [13])  # Single key layer for IT model
-    gemma_2b_all_layers: Optional[List[int]] = None  # All 26 layers (computed dynamically)
+    # Model-specific layer definitions for Gemma-2B (base model only)
+    gemma_2b_layers: Optional[List[int]] = None  # All 26 layers (computed dynamically)
     
     # SAE configuration for Gemma-2B
     sae_repo_id: str = "google/gemma-scope-2b-pt-res"
     sae_width: str = "16k" 
-    sae_sparsity: str = "83"  # Use available sparsity level
+    sae_sparsity: str = "71"  # Use commonly available sparsity level
     
     # Component to analyze (focus on resid_post)
     hook_component: str = "resid_post"
@@ -198,17 +197,11 @@ class SAELayerConfig:
     cleanup_after_layer: bool = True
     
     def get_layers_for_model(self, model_name: str, n_layers: int) -> List[int]:
-        """Get appropriate layers for given model"""
-        if "gemma-2-2b-it" in model_name.lower():
-            return self.gemma_2b_it_layers
-        elif "gemma-2-2b" in model_name.lower():
-            # All layers except 0 (embedding) for base model
-            if self.gemma_2b_all_layers is None:
-                return list(range(1, n_layers))  # 1-25 for 26-layer model
-            return self.gemma_2b_all_layers
-        else:
-            # Default fallback
-            return [13]  # Safe single layer
+        """Get appropriate layers for Gemma-2B base model"""
+        # All layers except 0 (embedding) for base model (layers 1-25 for 26-layer model)
+        if self.gemma_2b_layers is None:
+            return list(range(1, n_layers))
+        return self.gemma_2b_layers
     
     def should_use_memory_mapping(self, layer_count: int) -> bool:
         """Determine if memory mapping should be used based on layer count"""

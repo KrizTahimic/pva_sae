@@ -63,7 +63,7 @@ def setup_argument_parser():
         '--layer',
         type=int,
         default=13,
-        help='Layer to test (default: 13 for Gemma-2B-IT)'
+        help='Layer to test (default: 13 for Gemma-2B)'
     )
     test_phase2_parser.add_argument(
         '--samples',
@@ -99,9 +99,9 @@ def setup_argument_parser():
         help='Directory to save difficulty mapping'
     )
     phase0_group.add_argument(
-        '--no-save',
+        '--dry-run',
         action='store_true',
-        help='Skip saving difficulty mapping to file'
+        help='Run analysis without saving difficulty mapping to file'
     )
     phase0_group.add_argument(
         '--load-existing',
@@ -230,16 +230,21 @@ def run_phase0(args, logger, device: str):
     
     logger.info("Starting Phase 0: MBPP difficulty analysis")
     
+    # Initialize preprocessor with output directory (default: data/datasets)
     preprocessor = MBPPPreprocessor(output_dir=args.output_dir)
     
     if args.load_existing:
+        # LOAD EXISTING PATH: Skip computation, just load previously saved file
         logger.info(f"Loading existing difficulty mapping: {args.load_existing}")
+        # Load parquet file from data/datasets/mbpp_difficulty_mapping_*.parquet
         difficulty_mapping = preprocessor.load_existing_mapping(args.load_existing)
         
+        # Validate that file contains all 974 MBPP problems
         is_complete = preprocessor.validate_mapping_completeness(difficulty_mapping)
         
         if is_complete:
             logger.info("✅ Existing difficulty mapping is complete and valid")
+            # Get statistics from loaded data (no new computation)
             distribution = preprocessor.difficulty_analyzer.get_complexity_distribution()
             if distribution:
                 logger.info(f"Complexity distribution - Mean: {distribution['mean']}, Median: {distribution['median']}")
@@ -247,17 +252,23 @@ def run_phase0(args, logger, device: str):
             logger.error("❌ Existing difficulty mapping is incomplete")
             sys.exit(1)
     else:
-        difficulty_mapping = preprocessor.preprocess_dataset(save_mapping=not args.no_save)
-        
-        if difficulty_mapping:
+        # COMPUTATION PATH: Analyze all 974 MBPP problems from scratch
+        # This loops through dataset, calculates cyclomatic complexity, test metrics
+        # Creates new timestamped files: mbpp_difficulty_mapping_{timestamp}.parquet + .summary.json
+        try:
+            difficulty_mapping = preprocessor.preprocess_dataset(save_mapping=not args.dry_run)
+            
             logger.info("✅ Phase 0 completed successfully")
             logger.info(f"Analyzed {len(difficulty_mapping)} MBPP problems")
             
-            if not args.no_save:
+            # FILE CREATION: Show path to newly created parquet file (only if files were saved)
+            if not args.dry_run:
+                # Gets most recent file by modification time from data/datasets/
                 latest_mapping = preprocessor.get_latest_difficulty_mapping_path()
                 logger.info(f"Difficulty mapping available at: {latest_mapping}")
-        else:
-            logger.error("❌ Phase 0 failed")
+                
+        except Exception as e:
+            logger.error(f"❌ Phase 0 failed: {str(e)}")
             sys.exit(1)
 
 
@@ -344,7 +355,7 @@ def run_phase2(args, logger, device: str):
     
     # Configure SAE analysis
     sae_config = SAELayerConfig(
-        gemma_2b_all_layers=[13, 14, 15, 16, 17],  # Middle layers for 2B model
+        gemma_2b_layers=[13, 14, 16, 17, 20],  # Middle layers for 2B model
         save_after_each_layer=True,
         cleanup_after_layer=True,
         checkpoint_dir="data/sae_checkpoints"
@@ -901,7 +912,7 @@ def test_phase2(args, logger, device: str):
         
         # Configure for single layer test
         sae_config = SAELayerConfig(
-            gemma_2b_all_layers=[args.layer],  # Test single layer
+            gemma_2b_layers=[args.layer],  # Test single layer
             save_after_each_layer=False,       # Skip checkpointing for test
             cleanup_after_layer=True,          # Clean up memory
             checkpoint_dir="data/test_checkpoints"  # Separate test dir

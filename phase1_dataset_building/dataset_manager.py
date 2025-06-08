@@ -181,7 +181,6 @@ class PromptTemplateBuilder:
             'total_length': len(prompt),
             'total_lines': prompt.count('\n') + 1,
             'problem_description_length': len(record['text'].strip()),
-            'num_test_cases': len(record['test_list']),
             'test_cases_length': sum(len(test.strip()) for test in record['test_list']),
             'task_id': record.get('task_id', 'unknown')
         }

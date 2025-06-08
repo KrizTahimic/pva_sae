@@ -99,7 +99,7 @@ def load_gemma_scope_sae(repo_id: str, sae_id: str, device: str) -> JumpReLUSAE:
     # Format: layer_X/width_16k/average_l0_Y/params.npz
     if "/" not in sae_id:
         # If just layer name provided, use canonical structure
-        sae_path = f"{sae_id}/width_16k/average_l0_77/params.npz"
+        sae_path = f"{sae_id}/width_16k/average_l0_71/params.npz"
     else:
         # Full path provided
         sae_path = f"{sae_id}/params.npz"

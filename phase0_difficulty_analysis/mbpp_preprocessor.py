@@ -104,13 +104,20 @@ class MBPPPreprocessor:
         Returns:
             str: Path to latest mapping file, or None if none found
         """
+        # Step 1: Create glob pattern to match all difficulty mapping files
+        # Matches: mbpp_difficulty_mapping_20250608_160739.parquet, etc.
         pattern = "mbpp_difficulty_mapping_*.parquet"
+        
+        # Step 2: Search output_dir (data/datasets) for all matching files
+        # Returns list of Path objects
         mapping_files = list(self.output_dir.glob(pattern))
         
         if not mapping_files:
             return None
         
-        # Sort by modification time, return latest
+        # Step 3: Find file with most recent modification time
+        # p.stat().st_mtime gets file's last modification timestamp (Unix epoch)
+        # max() finds the Path with highest timestamp = most recently modified
         latest_file = max(mapping_files, key=lambda p: p.stat().st_mtime)
         return str(latest_file)
     

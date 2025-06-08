@@ -21,10 +21,6 @@ class DifficultyMetrics:
     """Encapsulates difficulty analysis metrics for a single MBPP problem"""
     task_id: str
     cyclomatic_complexity: int
-    reference_code: str
-    num_test_cases: int
-    avg_test_case_length: float
-    problem_description_length: int
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization"""
@@ -108,18 +104,9 @@ class MBPPDifficultyAnalyzer:
         # Calculate cyclomatic complexity
         cyclomatic_complexity = get_cyclomatic_complexity(reference_code)
         
-        # Calculate additional metrics
-        num_test_cases = len(test_list)
-        avg_test_case_length = sum(len(test.strip()) for test in test_list) / num_test_cases if num_test_cases > 0 else 0.0
-        problem_description_length = len(problem_text.strip())
-        
         return DifficultyMetrics(
             task_id=task_id,
-            cyclomatic_complexity=cyclomatic_complexity,
-            reference_code=reference_code,
-            num_test_cases=num_test_cases,
-            avg_test_case_length=avg_test_case_length,
-            problem_description_length=problem_description_length
+            cyclomatic_complexity=cyclomatic_complexity
         )
     
     
@@ -230,11 +217,7 @@ class MBPPDifficultyAnalyzer:
         for _, row in df.iterrows():
             metrics = DifficultyMetrics(
                 task_id=row['task_id'],
-                cyclomatic_complexity=row['cyclomatic_complexity'],
-                reference_code=row['reference_code'],
-                num_test_cases=row['num_test_cases'],
-                avg_test_case_length=row['avg_test_case_length'],
-                problem_description_length=row['problem_description_length']
+                cyclomatic_complexity=row['cyclomatic_complexity']
             )
             difficulty_mapping[metrics.task_id] = metrics
         
