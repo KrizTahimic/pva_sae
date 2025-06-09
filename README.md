@@ -35,7 +35,7 @@ This research analyzes how language models internally represent the concept of c
   - AUROC: Measures discrimination ability across all thresholds
   - F1 Score: Harmonic mean of precision and recall (optimized on hyperparameter set)
 - **Robustness Analysis**:
-  - Temperature Variation: Tests across temperatures (0, 0.5, 1.0, 1.5, 2.0)
+  - Temperature Variation: Tests across temperatures (0.0, 0.3, 0.6, 0.9, 1.2)
   - Difficulty Variation: Evaluates performance across difficulty levels
 - **Model Steering**: 
   - Manipulates identified latent directions to test causal influence
