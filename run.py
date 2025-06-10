@@ -3,10 +3,13 @@
 Single entry point for all PVA-SAE thesis phases.
 
 Usage:
-    python3 run.py --phase 0                                    # Difficulty analysis
-    python3 run.py --phase 1 --model google/gemma-2-9b         # Dataset building
-    python3 run.py --phase 2 --dataset data/datasets/latest.parquet  # SAE analysis
-    python3 run.py --phase 3 --dataset data/datasets/latest.parquet  # Validation
+    python3 run.py phase 0                                      # Difficulty analysis
+    python3 run.py phase 1 --model google/gemma-2-2b           # Dataset building (single GPU)
+    python3 run.py phase 2                                      # SAE analysis (auto-discovers input)
+    python3 run.py phase 3                                      # Validation (auto-discovers input)
+    
+For multi-GPU dataset building, use:
+    python3 multi_gpu_launcher.py --phase 1 --num-gpus 3 --model google/gemma-2-2b
 """
 
 import argparse
@@ -225,7 +228,7 @@ def run_phase0(args, logger, device: str):
     
     logger.info("Starting Phase 0: MBPP difficulty analysis")
     
-    # Initialize preprocessor with output directory (default: data/datasets)
+    # Initialize preprocessor with output directory (default: data/phase0)
     preprocessor = MBPPPreprocessor(output_dir=args.output_dir)
     
     # COMPUTATION PATH: Analyze all 974 MBPP problems from scratch

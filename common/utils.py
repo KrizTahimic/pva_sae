@@ -169,7 +169,7 @@ def generate_dataset_filename(prefix: str = "dataset",
         extension: File extension
         
     Returns:
-        str: Descriptive filename like "dataset_gemma-2-9b_0-973_2024-01-06_14-30-45.parquet"
+        str: Descriptive filename like "dataset_gemma-2-2b_0-973_2024-01-06_14-30-45.parquet"
     """
     parts = [prefix]
     

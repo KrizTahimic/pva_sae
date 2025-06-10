@@ -28,7 +28,7 @@ This research will use the Mostly Basic Programming Problems (MBPP) dataset as p
 
 The problem description provides the fundamental problem statement, while test cases lay out the function signature and the concrete demonstrations of the expected input-output behavior. Finally, the code initiator is a vital component in generating the code solution as we are prompting a base model, not an instruct model.
 
-We then utilize Google's Gemma 2 language model with 9 billion parameters in its base configuration (\texttt{google/gemma-2-9b}) \cite{team2024gemma}. To ensure consistency and reproducibility in our code generation process, we set the temperature parameter to 0, prioritizing deterministic outputs over creative variations. This choice lets us focus on understanding the model's base behavior in code generation tasks.
+We then utilize Google's Gemma 2 language model with 2 billion parameters in its base configuration (\texttt{google/gemma-2-2b}) \cite{team2024gemma}. To ensure consistency and reproducibility in our code generation process, we set the temperature parameter to 0, prioritizing deterministic outputs over creative variations. This choice lets us focus on understanding the model's base behavior in code generation tasks.
 
 Afterward, we categorize each sample based on the performance of the generated solution against the MBPP test cases. We classify solutions as correct when they pass all three test cases on the first attempt (pass@1). Any implementation that fails to achieve this criterion, regardless of the failure type (compilation errors, runtime exceptions, or incorrect outputs), is classified as incorrect.
 

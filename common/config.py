@@ -14,7 +14,7 @@ import os
 # Default values
 DEFAULT_MODEL_NAME = "google/gemma-2-2b"
 DEFAULT_LOG_DIR = "data/logs"
-DEFAULT_DATASET_DIR = "data/datasets"
+DEFAULT_DATASET_DIR = "data/phase1"
 DEFAULT_PHASE0_DIR = "data/phase0"
 DEFAULT_PHASE1_DIR = "data/phase1"
 DEFAULT_PHASE2_DIR = "data/phase2"

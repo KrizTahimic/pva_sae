@@ -23,10 +23,10 @@ python3 run.py test-gpu --detailed
 python3 run.py phase 1 --start 0 --end 10
 
 # Multi-GPU parallel processing (recommended)
-python3 multi_gpu_launcher.py --start 0 --end 17 --model google/gemma-2-9b
+python3 multi_gpu_launcher.py --start 0 --end 17 --model google/gemma-2-2b
 
 # Production run with 3 GPUs
-python3 multi_gpu_launcher.py --start 0 --end 973 --model google/gemma-2-9b
+python3 multi_gpu_launcher.py --start 0 --end 973 --model google/gemma-2-2b
 ```
 
 ## Memory Monitoring

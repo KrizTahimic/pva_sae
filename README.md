@@ -4,7 +4,7 @@ This repository contains the implementation for a thesis project investigating p
 
 ## Overview
 
-This research analyzes how language models internally represent the concept of code correctness. By using Google's Gemma 2 model (9B parameters) and the MBPP (Mostly Basic Programming Problems) dataset, we:
+This research analyzes how language models internally represent the concept of code correctness. By using Google's Gemma 2 model (2B parameters) and the MBPP (Mostly Basic Programming Problems) dataset, we:
 
 1. Generate Python code solutions using a base language model
 2. Classify solutions as correct (pass@1) or incorrect
@@ -68,7 +68,7 @@ Run individual phases using the unified script with automatic data flow:
 python3 run.py phase 0
 
 # Phase 1: Build dataset (auto-discovers from phase0, outputs to data/phase1/)
-python3 run.py phase 1 --model google/gemma-2-9b
+python3 run.py phase 1 --model google/gemma-2-2b
 
 # Phase 2: Analyze with SAEs (auto-discovers from phase1, outputs to data/phase2/)
 python3 run.py phase 2
@@ -127,7 +127,7 @@ The system includes robust checkpoint recovery for long-running dataset builds:
 ### Recovery After Crashes
 ```bash
 # System automatically detects checkpoints on restart
-python3 run.py phase 1 --model google/gemma-2-9b
+python3 run.py phase 1 --model google/gemma-2-2b
 
 # Prompts: "Found checkpoint with 150 processed records. Resume? (y/n)"
 ```
@@ -150,10 +150,10 @@ ls data/datasets/checkpoints/
 ### Production Features
 ```bash
 # Production build with full MBPP dataset
-python3 run.py phase 1 --model google/gemma-2-9b --start 0 --end 973 --cleanup
+python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 973 --cleanup
 
 # Enable progress streaming and verbose output
-python3 run.py phase 1 --model google/gemma-2-9b --stream --verbose
+python3 run.py phase 1 --model google/gemma-2-2b --stream --verbose
 ```
 
 ## Output Files and Naming Convention
@@ -168,7 +168,7 @@ All output files follow this pattern:
 
 **Components:**
 - **prefix**: File type (dataset, results, checkpoint, autosave, etc.)
-- **model**: Sanitized model name (e.g., gemma-2-9b, gemma-2-2b)
+- **model**: Sanitized model name (e.g., gemma-2-2b, gemma-2-2b)
 - **range**: Index range processed (e.g., 0-973, 325-649)
 - **suffix**: Additional descriptors (merged, final, progress150, etc.)
 - **timestamp**: Human-readable format (YYYY-MM-DD_HH-MM-SS)
@@ -176,32 +176,32 @@ All output files follow this pattern:
 ### Dataset Files (`data/datasets/`)
 ```bash
 # Main datasets (Parquet format)
-dataset_gemma-2-9b_0-973_2024-01-06_14-30-45.parquet
+dataset_gemma-2-2b_0-973_2024-01-06_14-30-45.parquet
 
 # Merged datasets from parallel processing
-dataset_gemma-2-9b_0-973_merged_2024-01-06_15-45-30.parquet
+dataset_gemma-2-2b_0-973_merged_2024-01-06_15-45-30.parquet
 
 # Results in JSON format
-results_gemma-2-9b_0-973_2024-01-06_14-30-45.json
+results_gemma-2-2b_0-973_2024-01-06_14-30-45.json
 
 # Metadata files (accompany each dataset)
-dataset_gemma-2-9b_0-973_2024-01-06_14-30-45_metadata.json
+dataset_gemma-2-2b_0-973_2024-01-06_14-30-45_metadata.json
 ```
 
 ### Checkpoint Files (`data/datasets/checkpoints/`)
 ```bash
 # Regular checkpoints (every 50 records)
-checkpoint_gemma-2-9b_0-149_2024-01-06_14-35-20.json
+checkpoint_gemma-2-2b_0-149_2024-01-06_14-35-20.json
 
 # Final checkpoints
-final_gemma-2-9b_0-973_2024-01-06_15-30-45.json
+final_gemma-2-2b_0-973_2024-01-06_15-30-45.json
 ```
 
 ### Autosave Files (`data/datasets/`)
 ```bash
 # Periodic autosaves during processing
-autosave_gemma-2-9b_0-973_progress150_2024-01-06_14-35-45.parquet
-autosave_gemma-2-9b_0-973_progress300_2024-01-06_14-50-15.parquet
+autosave_gemma-2-2b_0-973_progress150_2024-01-06_14-35-45.parquet
+autosave_gemma-2-2b_0-973_progress300_2024-01-06_14-50-15.parquet
 ```
 
 ### Log Files (`data/logs/`)
@@ -211,9 +211,9 @@ pva_sae_phase1_2024-01-06_14-30-45.log
 pva_sae_multi_gpu_launcher_2024-01-06_14-30-45.log
 
 # Multi-GPU processing logs (one per GPU)
-gpu_0_gemma-2-9b_0-324_2024-01-06_14-30-45.log
-gpu_1_gemma-2-9b_325-649_2024-01-06_14-30-45.log
-gpu_2_gemma-2-9b_650-973_2024-01-06_14-30-45.log
+gpu_0_gemma-2-2b_0-324_2024-01-06_14-30-45.log
+gpu_1_gemma-2-2b_325-649_2024-01-06_14-30-45.log
+gpu_2_gemma-2-2b_650-973_2024-01-06_14-30-45.log
 ```
 
 ### Reading and Organizing Files
@@ -221,7 +221,7 @@ gpu_2_gemma-2-9b_650-973_2024-01-06_14-30-45.log
 **Finding related files:**
 ```bash
 # List all datasets for a specific model
-ls data/datasets/dataset_gemma-2-9b_*.parquet
+ls data/datasets/dataset_gemma-2-2b_*.parquet
 
 # List files from a specific time period
 ls data/datasets/*_2024-01-06_*.parquet
@@ -233,7 +233,7 @@ ls data/datasets/checkpoints/checkpoint_*_0-973_*.json
 **Merging parallel processing results:**
 ```bash
 # Merge all recent dataset files
-python3 merge_datasets.py --pattern "dataset_gemma-2-9b_*.parquet"
+python3 merge_datasets.py --pattern "dataset_gemma-2-2b_*.parquet"
 
 # Merge with custom output name
 python3 merge_datasets.py --output final_dataset_full_mbpp.parquet
