@@ -58,7 +58,6 @@ from .models import (
 # Import generation utilities
 from .generation import (
     RobustGenerator,
-    StreamingGenerator,
     GenerationResult,
     create_generator
 )
@@ -135,7 +134,6 @@ __all__ = [
     
     # Generation
     'RobustGenerator',
-    'StreamingGenerator',
     'GenerationResult',
     'create_generator',
     

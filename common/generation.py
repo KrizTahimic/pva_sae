@@ -273,93 +273,18 @@ class RobustGenerator:
             )
 
 
-class StreamingGenerator:
-    """
-    Generator with streaming output support for interactive use.
-    
-    Provides real-time output streaming while maintaining robustness features.
-    """
-    
-    def __init__(self, model_manager: ModelManager):
-        """Initialize streaming generator."""
-        self.model_manager = model_manager
-        self.logger = logging.getLogger(__name__)
-    
-    def generate_stream(
-        self,
-        prompt: str,
-        temperature: Optional[float] = None,
-        max_new_tokens: Optional[int] = None,
-        callback: Optional[Callable[[str], None]] = None
-    ) -> GenerationResult:
-        """
-        Generate with streaming output and optional callback.
-        
-        Args:
-            prompt: Input prompt
-            temperature: Generation temperature
-            max_new_tokens: Maximum new tokens
-            callback: Optional callback for each token/chunk
-            
-        Returns:
-            GenerationResult with complete generated text
-        """
-        start_time = time.time()
-        temperature = temperature or self.model_manager.config.temperature
-        max_new_tokens = max_new_tokens or 2000
-        
-        try:
-            # For now, use the standard generate with stream=True
-            # In future, could implement custom streaming logic
-            generated_text = self.model_manager.generate(
-                prompt=prompt,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-                stream=True
-            )
-            
-            generation_time = time.time() - start_time
-            
-            return GenerationResult(
-                prompt=prompt,
-                generated_text=generated_text,
-                generation_time=generation_time,
-                temperature=temperature,
-                success=True
-            )
-            
-        except Exception as e:
-            generation_time = time.time() - start_time
-            error_msg = f"Streaming generation failed: {str(e)}"
-            self.logger.error(error_msg)
-            
-            return GenerationResult(
-                prompt=prompt,
-                generated_text="",
-                generation_time=generation_time,
-                temperature=temperature,
-                success=False,
-                error_message=error_msg
-            )
-
-
 def create_generator(
     model_manager: ModelManager,
-    robustness_config: Optional[RobustnessConfig] = None,
-    streaming: bool = False
-) -> Any:
+    robustness_config: Optional[RobustnessConfig] = None
+) -> RobustGenerator:
     """
-    Factory function to create appropriate generator instance.
+    Factory function to create RobustGenerator instance.
     
     Args:
         model_manager: Initialized ModelManager
         robustness_config: Optional robustness configuration
-        streaming: Whether to create streaming generator
         
     Returns:
-        RobustGenerator or StreamingGenerator instance
+        RobustGenerator instance
     """
-    if streaming:
-        return StreamingGenerator(model_manager)
-    else:
-        return RobustGenerator(model_manager, robustness_config)
+    return RobustGenerator(model_manager, robustness_config)
