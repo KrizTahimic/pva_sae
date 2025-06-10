@@ -30,6 +30,8 @@ from common import (
     get_cyclomatic_complexity,
     atomic_file_write
 )
+from common.generation import RobustGenerator, GenerationResult
+from common.prompt_utils import PromptBuilder
 from phase1_dataset_building.dataset_manager import CodeGenerationResult, CodeTestResult, PromptAwareDatasetManager
 from phase1_dataset_building.test_executor import TestExecutor
 
@@ -412,6 +414,12 @@ class DatasetBuilder:
         self.stream_output = stream_output
         self.difficulty_mapping = difficulty_mapping or {}
         
+        # Initialize robust generator
+        self.generator = RobustGenerator(
+            model_manager=model_manager,
+            default_max_new_tokens=max_new_tokens
+        )
+        
         # Results tracking
         self.generation_results: List[CodeGenerationResult] = []
         self.total_processed = 0
@@ -478,10 +486,19 @@ class DatasetBuilder:
                 print(f"PROBLEM: {record['text']}")
                 print(f"{'='*60}")
             
-            # Generate code
-            generation_start = time.time()
-            generated_code = self._generate_code_safely(prompt, task_id)
-            generation_time = time.time() - generation_start
+            # Generate code with timing tracked by generator
+            generation_result = self.generator.generate(
+                prompt=prompt,
+                max_new_tokens=self.max_new_tokens,
+                stream=self.stream_output,
+                retry_on_failure=True
+            )
+            
+            if not generation_result.success:
+                raise RuntimeError(f"Generation failed: {generation_result.error_message}")
+            
+            generated_code = generation_result.generated_text
+            generation_time = generation_result.generation_time
             
             # Test generated code
             test_result = self._test_generated_code(generated_code, record, task_id)
@@ -729,23 +746,23 @@ class DatasetBuilder:
         return results
     
     def _generate_code_safely(self, prompt: str, task_id: str) -> str:
-        """Generate code with error handling"""
-        try:
-            generated_code = self.model_manager.generate(
-                prompt=prompt,
-                max_new_tokens=self.max_new_tokens,
-                stream=self.stream_output
-            )
-            
-            if not generated_code.strip():
-                raise RuntimeError("Generated empty code")
-            
-            return generated_code
-            
-        except Exception as e:
-            error_msg = f"Code generation failed for task {task_id}: {str(e)}"
+        """Generate code with error handling using robust generator"""
+        generation_result = self.generator.generate(
+            prompt=prompt,
+            max_new_tokens=self.max_new_tokens,
+            stream=self.stream_output,
+            retry_on_failure=True
+        )
+        
+        if not generation_result.success:
+            error_msg = f"Code generation failed for task {task_id}: {generation_result.error_message}"
             self.logger.error(error_msg)
-            raise RuntimeError(error_msg) from e
+            raise RuntimeError(error_msg)
+        
+        if not generation_result.generated_text.strip():
+            raise RuntimeError("Generated empty code")
+        
+        return generation_result.generated_text
     
     def _test_generated_code(self, generated_code: str, record: dict, task_id: str) -> CodeTestResult:
         """Test generated code against MBPP test cases"""
@@ -857,6 +874,14 @@ class RobustDatasetBuilder(DatasetBuilder):
         super().__init__(model_manager, dataset_manager, config, max_new_tokens, stream_output, difficulty_mapping)
         
         self.robustness_config = robustness_config
+        
+        # Update generator with robustness config
+        self.generator = RobustGenerator(
+            model_manager=model_manager,
+            robustness_config=robustness_config,
+            default_max_new_tokens=max_new_tokens
+        )
+        
         self.checkpoint_manager = CheckpointManager(
             checkpoint_dir=os.path.join(config.dataset_dir, robustness_config.checkpoint_dir),
             checkpoint_frequency=robustness_config.checkpoint_frequency

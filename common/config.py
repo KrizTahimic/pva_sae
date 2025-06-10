@@ -193,7 +193,7 @@ class SAELayerConfig:
     hook_component: str = "resid_post"
     
     # Checkpointing
-    checkpoint_dir: str = "data/sae_checkpoints"
+    checkpoint_dir: str = "data/phase2/sae_checkpoints"
     save_after_each_layer: bool = True
     
     # Memory management 
@@ -230,6 +230,20 @@ class ValidationConfig:
     # Model steering
     steering_coefficients: list = field(default_factory=lambda: [-1.0, -0.5, 0.0, 0.5, 1.0])
     binomial_test_alpha: float = 0.05
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary"""
+        return asdict(self)
+
+
+@dataclass
+class ActivationExtractionConfig:
+    """Configuration for activation extraction utilities"""
+    batch_size: int = 8  # Batch size for processing prompts
+    max_cache_size_gb: float = 10.0  # Maximum cache size in GB
+    max_length: int = 2048  # Maximum sequence length for tokenization
+    clear_cache_between_layers: bool = True  # Clear cache between layer extractions
+    cleanup_after_batch: bool = True  # Memory cleanup after each batch
     
     def to_dict(self) -> dict:
         """Convert to dictionary"""

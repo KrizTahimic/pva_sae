@@ -23,8 +23,14 @@ from datetime import datetime
 from huggingface_hub import hf_hub_download
 from transformer_lens import HookedTransformer
 
-from common.config import SAELayerConfig
+from common.config import SAELayerConfig, ActivationExtractionConfig
 from common.utils import memory_mapped_array, torch_memory_cleanup, torch_no_grad_and_cleanup
+from common.activation_extraction import (
+    TransformerLensExtractor,
+    HuggingFaceExtractor,
+    ActivationData,
+    create_activation_extractor
+)
 
 logger = logging.getLogger(__name__)
 
@@ -127,154 +133,12 @@ def load_gemma_scope_sae(repo_id: str, sae_id: str, device: str) -> JumpReLUSAE:
     return sae
 
 
-class ActivationCache:
-    """Thread-safe activation cache with automatic cleanup."""
-    
-    def __init__(self):
-        self.cache = {}
-    
-    def store(self, key: str, activation: torch.Tensor):
-        """Store activation with given key."""
-        self.cache[key] = activation.detach().clone()
-    
-    def get(self, key: str) -> torch.Tensor:
-        """Get activation by key."""
-        return self.cache.get(key)
-    
-    def clear(self):
-        """Clear all cached activations."""
-        self.cache.clear()
-    
-    def keys(self):
-        """Get cache keys."""
-        return self.cache.keys()
-    
-    def __getitem__(self, key: str):
-        return self.cache[key]
-    
-    def __contains__(self, key: str):
-        return key in self.cache
+# ActivationCache has been moved to common.activation_extraction
 
 
-class ActivationExtractor:
-    """Activation extractor with robust error handling for TransformerLens models."""
-    
-    def __init__(
-        self, 
-        model: HookedTransformer, 
-        device: str
-    ):
-        self.model = model
-        
-        
-        self.device = device
-        self.cache = ActivationCache()
-        
-        logger.info("Initialized extractor for TransformerLens model")
-    
-    @contextlib.contextmanager
-    def _hook_context(self, hooks: List[Tuple]):
-        """Context manager for safe hook management with TransformerLens."""
-        try:
-            # Clear any existing hooks first
-            self.model.reset_hooks()
-            
-            # Add new hooks - TransformerLens manages them internally
-            for hook_name, hook_fn in hooks:
-                self.model.add_hook(hook_name, hook_fn)
-            yield
-        finally:
-            # Clean up all hooks
-            self.model.reset_hooks()
-    
-    def extract_activations(
-        self,
-        prompts: List[str],
-        layer_idx: int,
-        position: Union[int, str] = -1,
-        hook_type: str = "resid_pre"
-    ) -> torch.Tensor:
-        """
-        Extract activations for given prompts at specified layer and position.
-        
-        Args:
-            prompts: List of text prompts
-            layer_idx: Layer index to extract from
-            position: Token position (-1 for last, 'all' for all tokens)
-            hook_type: Type of hook for TransformerLens (resid_pre, resid_mid, resid_post)
-            
-        Returns:
-            Tensor of extracted activations
-        """
-        if not prompts:
-            raise ValueError("No prompts provided")
-        
-        self.cache.clear()
-        
-        return self._extract_with_transformerlens(prompts, layer_idx, position, hook_type)
-    
-    def _extract_with_transformerlens(
-        self,
-        prompts: List[str],
-        layer_idx: int,
-        position: Union[int, str],
-        hook_type: str
-    ) -> torch.Tensor:
-        """Extract activations using TransformerLens hooks."""
-        hook_name = f"blocks.{layer_idx}.hook_{hook_type}"
-        
-        def extraction_hook(activation, hook):
-            """Hook function for TransformerLens."""
-            if position == 'all':
-                extracted = activation.detach().clone()
-            elif isinstance(position, int):
-                pos = position if position != -1 else activation.shape[1] - 1
-                extracted = activation[:, pos, :].detach().clone()
-            else:
-                raise ValueError(f"Invalid position: {position}")
-                
-            # Store each sample separately for easier concatenation
-            for i in range(extracted.shape[0]):
-                cache_key = f"sample_{len(self.cache.cache)}"
-                self.cache.store(cache_key, extracted[i:i+1])
-            
-            return activation
-        
-        # Use context manager for safe hook management
-        with self._hook_context([(hook_name, extraction_hook)]):
-            self._process_prompts_batch(prompts)
-        
-        return self._collect_cached_activations()
-    
-    
-    def _process_prompts_batch(self, prompts: List[str], batch_size: int = 1):
-        """Process prompts in batches to trigger hooks."""
-        with torch.no_grad():
-            for i in range(0, len(prompts), batch_size):
-                batch_prompts = prompts[i:i + batch_size]
-                
-                # Tokenize batch using model's tokenizer
-                tokens = self.model.to_tokens(batch_prompts, prepend_bos=True)
-                
-                # Forward pass to trigger hooks
-                try:
-                    _ = self.model(tokens)
-                except Exception as e:
-                    logger.error(f"Error during forward pass: {e}")
-                    raise
-    
-    def _collect_cached_activations(self) -> torch.Tensor:
-        """Collect and concatenate all cached activations."""
-        activations = []
-        for key in sorted(self.cache.keys()):
-            activations.append(self.cache[key])
-        
-        if not activations:
-            raise RuntimeError("No activations were captured")
-            
-        result = torch.cat(activations, dim=0)
-        logger.info(f"Extracted activations shape: {result.shape}")
-        return result
+# ActivationExtractor has been moved to common.activation_extraction
+# We use the centralized TransformerLensExtractor instead
+# Methods moved to common.activation_extraction
 
 
 def compute_separation_scores(
@@ -427,10 +291,20 @@ class SAEAnalysisPipeline:
         device: str
     ):
         self.model = model
-        
-        
         self.device = device
-        self.extractor = ActivationExtractor(model, device)
+        
+        # Use centralized activation extractor
+        activation_config = ActivationExtractionConfig(
+            batch_size=8,
+            max_cache_size_gb=10.0,
+            clear_cache_between_layers=True
+        )
+        self.extractor = create_activation_extractor(
+            model=model,
+            model_type="transformerlens",
+            device=device,
+            config=activation_config
+        )
         
         logger.info("Initialized SAE Analysis Pipeline")
     
@@ -498,10 +372,22 @@ class SAEAnalysisPipeline:
         
         # Extract activations
         logger.info(f"Extracting activations for {len(correct_prompts)} correct samples")
-        correct_acts = self.extractor.extract_activations(correct_prompts, layer_idx)
+        correct_data = self.extractor.extract_activations(
+            prompts=correct_prompts,
+            layer_idx=layer_idx,
+            position=-1,  # Final token
+            hook_type="resid_post"
+        )
+        correct_acts = correct_data.activations
         
         logger.info(f"Extracting activations for {len(incorrect_prompts)} incorrect samples")  
-        incorrect_acts = self.extractor.extract_activations(incorrect_prompts, layer_idx)
+        incorrect_data = self.extractor.extract_activations(
+            prompts=incorrect_prompts,
+            layer_idx=layer_idx,
+            position=-1,  # Final token
+            hook_type="resid_post"
+        )
+        incorrect_acts = incorrect_data.activations
         
         # Apply SAE encoding
         with torch.no_grad():
@@ -672,9 +558,20 @@ class MultiLayerActivationExtractor:
     
     def __init__(self, model: HookedTransformer, device: str = "auto"):
         self.model = model
-        
-        
         self.device = device
+        
+        # Use centralized activation extractor
+        activation_config = ActivationExtractionConfig(
+            batch_size=1,
+            max_cache_size_gb=20.0,
+            clear_cache_between_layers=False  # Important for multi-layer extraction
+        )
+        self.extractor = create_activation_extractor(
+            model=model,
+            model_type="transformerlens",
+            device=device,
+            config=activation_config
+        )
         
     @contextlib.contextmanager
     def _hook_context(self, hooks: List[Tuple]):
@@ -747,21 +644,10 @@ class MultiLayerActivationExtractor:
         
         return cache
     
-    def _process_prompts_batch(self, prompts: List[str], batch_size: int = 1):
+    def _process_prompts_batch(self, prompts: List[str]):
         """Process prompts in batches to trigger hooks"""
-        with torch.no_grad():
-            for i in range(0, len(prompts), batch_size):
-                batch_prompts = prompts[i:i + batch_size]
-                
-                # Tokenize batch using model's tokenizer
-                tokens = self.model.to_tokens(batch_prompts, prepend_bos=True)
-                
-                # Forward pass to trigger hooks
-                try:
-                    _ = self.model(tokens)
-                except Exception as e:
-                    logger.error(f"Error during forward pass: {e}")
-                    raise
+        # Use the extractor's batch processing (will trigger our hooks)
+        self.extractor._process_prompts_batch(prompts)
 
 
 @dataclass

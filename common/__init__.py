@@ -38,7 +38,9 @@ from .config import (
     RobustnessConfig,
     ExperimentConfig,
     AnalysisConfig,
-    ValidationConfig
+    ValidationConfig,
+    ActivationExtractionConfig,
+    SAELayerConfig
 )
 
 # Import logging utilities
@@ -51,6 +53,40 @@ from .logging import (
 from .models import (
     ModelManager,
     ModelPool
+)
+
+# Import generation utilities
+from .generation import (
+    RobustGenerator,
+    StreamingGenerator,
+    GenerationResult,
+    create_generator
+)
+
+# Import activation extraction utilities
+from .activation_extraction import (
+    ActivationData,
+    ActivationCache,
+    BaseActivationExtractor,
+    TransformerLensExtractor,
+    HuggingFaceExtractor,
+    create_activation_extractor
+)
+
+# Import model interfaces
+from .model_interfaces import (
+    UnifiedModelInterface,
+    ModelSteeringInterface,
+    GenerationWithActivations,
+    create_unified_interface
+)
+
+# Import prompt utilities
+from .prompt_utils import (
+    build_prompt_template,
+    PromptBuilder,
+    PromptVariation,
+    PromptManager
 )
 
 __all__ = [
@@ -86,6 +122,8 @@ __all__ = [
     'ExperimentConfig',
     'AnalysisConfig',
     'ValidationConfig',
+    'ActivationExtractionConfig',
+    'SAELayerConfig',
     
     # Logging
     'LoggingManager',
@@ -93,5 +131,31 @@ __all__ = [
     
     # Models
     'ModelManager',
-    'ModelPool'
+    'ModelPool',
+    
+    # Generation
+    'RobustGenerator',
+    'StreamingGenerator',
+    'GenerationResult',
+    'create_generator',
+    
+    # Activation extraction
+    'ActivationData',
+    'ActivationCache',
+    'BaseActivationExtractor',
+    'TransformerLensExtractor',
+    'HuggingFaceExtractor',
+    'create_activation_extractor',
+    
+    # Model interfaces
+    'UnifiedModelInterface',
+    'ModelSteeringInterface',
+    'GenerationWithActivations',
+    'create_unified_interface',
+    
+    # Prompt utilities
+    'build_prompt_template',
+    'PromptBuilder',
+    'PromptVariation',
+    'PromptManager'
 ]
