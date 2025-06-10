@@ -34,8 +34,7 @@ from common import (
     ActivationExtractionConfig
 )
 from common.generation import RobustGenerator, GenerationResult
-from common.prompt_utils import PromptBuilder
-from phase1_dataset_building.dataset_manager import CodeGenerationResult, CodeTestResult, PromptAwareDatasetManager
+from phase1_dataset_building.dataset_manager import CodeGenerationResult, CodeTestResult, DatasetManager
 from phase1_dataset_building.solution_evaluator import SolutionEvaluator
 
 
@@ -394,7 +393,7 @@ class DatasetBuilder:
     
     def __init__(self, 
                  model_manager: ModelManager, 
-                 dataset_manager: PromptAwareDatasetManager,
+                 dataset_manager: DatasetManager,
                  config: DatasetConfiguration,
                  max_new_tokens: int = 2000, 
                  difficulty_mapping: Optional[Dict[str, Any]] = None):
@@ -909,7 +908,7 @@ class RobustDatasetBuilder(DatasetBuilder):
     
     def __init__(self,
                  model_manager: ModelManager,
-                 dataset_manager: PromptAwareDatasetManager,
+                 dataset_manager: DatasetManager,
                  config: DatasetConfiguration,
                  robustness_config: RobustnessConfig,
                  max_new_tokens: int = 2000,

@@ -23,7 +23,7 @@ from common import (
     MAX_NEW_TOKENS,
     ensure_directory_exists
 )
-from phase1_dataset_building.dataset_manager import PromptAwareDatasetManager, CodeTestResult
+from phase1_dataset_building.dataset_manager import DatasetManager, CodeTestResult
 from phase1_dataset_building.solution_evaluator import SolutionEvaluator
 from phase1_dataset_building.dataset_builder import DatasetBuilder, RobustDatasetBuilder
 
@@ -56,7 +56,7 @@ class MBPPTester:
         
         # Model and dataset managers
         self.model_manager = None
-        self.dataset_manager = PromptAwareDatasetManager()
+        self.dataset_manager = DatasetManager()
         
         # Results tracking
         self.total_tests = 0

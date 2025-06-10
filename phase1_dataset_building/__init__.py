@@ -3,15 +3,18 @@ Phase 1: Dataset Building for the PVA-SAE project.
 
 This package contains all components for building datasets by generating
 Python solutions for MBPP problems and classifying them as correct or incorrect.
+
+Main Components:
+    - DatasetManager: MBPP dataset loading, management, and prompt generation
+    - DatasetBuilder: Core dataset building logic
+    - SolutionEvaluator: Code evaluation against test cases
 """
 
 # Import dataset management components
 from phase1_dataset_building.dataset_manager import (
     CodeTestResult,
     CodeGenerationResult,
-    PromptTemplateBuilder,
-    DatasetManager,
-    PromptAwareDatasetManager
+    DatasetManager
 )
 
 # Import solution evaluation components
@@ -38,26 +41,24 @@ from phase1_dataset_building.mbpp_tester import (
 )
 
 __all__ = [
-    # Dataset management
+    # Dataset management - core data structures
     'CodeTestResult',
-    'CodeGenerationResult',
-    'PromptTemplateBuilder',
+    'CodeGenerationResult', 
     'DatasetManager',
-    'PromptAwareDatasetManager',
     
-    # Solution evaluation
+    # Solution evaluation - testing generated code
     'SolutionEvaluator',
     'SafeSolutionEvaluator',
     
-    # Dataset building
+    # Dataset building - core processing logic
     'CheckpointData',
     'CheckpointManager',
-    'ProgressTracker',
+    'ProgressTracker', 
     'ResourceMonitor',
     'DatasetBuilder',
     'RobustDatasetBuilder',
     
-    # Main orchestrators
+    # Main orchestrators - high-level workflow coordination
     'MBPPTester',
     'DatasetBuildingOrchestrator',
     'ProductionDatasetBuilder'
