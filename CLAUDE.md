@@ -25,6 +25,22 @@ Each phase outputs to its own directory (data/phase0/, data/phase1/, etc.) and a
 - **Checkpointing**: Save every 50 records, autosave every 100 with 3 versions retained
 - **Activations**: Extract on-demand (`final_token_only=True`), focus on residual stream
 
+## Library Documentation Resources
+
+When working with SAELens or TransformerLens, access their official documentation:
+
+### SAELens
+- **GitHub**: https://github.com/jbloomAus/SAELens
+- **Documentation**: https://jbloomaus.github.io/SAELens/
+- **Purpose**: Training and analyzing sparse autoencoders on language models
+- **Key Features**: Pre-trained SAE downloads, custom SAE training, SAE-Vis integration
+
+### TransformerLens  
+- **GitHub**: https://github.com/TransformerLensOrg/TransformerLens
+- **Documentation**: https://transformerlensorg.github.io/TransformerLens/
+- **Purpose**: Mechanistic interpretability of GPT-style language models
+- **Key Features**: 50+ model support, activation caching, intervention capabilities
+
 ## Memories
 - Always use `python3` (not python)
 - Use `python3 run.py test-gpu` to test GPU setup

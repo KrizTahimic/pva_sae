@@ -99,8 +99,8 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
     
     # Test checkpoint files
     test_checkpoint_patterns = [
-        "data/test_checkpoints/*.json",
-        "data/test_checkpoints/*.parquet"
+        "data/phase2/test_checkpoints/*.json",
+        "data/phase2/test_checkpoints/*.parquet"
     ]
     
     files_to_delete["test_checkpoints"] = [f for pattern in test_checkpoint_patterns for f in glob.glob(pattern)]

@@ -36,7 +36,7 @@ class PileFilter:
         """
         self.model = model
         self.device = device
-        self.pile_cache_dir = Path("data/pile_cache")
+        self.pile_cache_dir = Path("data/phase2/pile_cache")
         self.pile_cache_dir.mkdir(parents=True, exist_ok=True)
         self.eps = 1e-6  # Activation threshold for numerical stability
         
