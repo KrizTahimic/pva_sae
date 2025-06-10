@@ -252,15 +252,13 @@ class DatasetBuildingOrchestrator(MBPPTester):
     
     def build_dataset_simple(self, 
                              start_idx: int = 0, 
-                             end_idx: int = 2, 
-                             stream: bool = False) -> str:
+                             end_idx: int = 2) -> str:
         """
         Build dataset with simple configuration
         
         Args:
             start_idx: Starting index
             end_idx: Ending index (inclusive)
-            stream: Whether to stream generation output
             
         Returns:
             str: Path to saved dataset
@@ -285,7 +283,6 @@ class DatasetBuildingOrchestrator(MBPPTester):
                 dataset_manager=self.dataset_manager,
                 config=dataset_config,
                 max_new_tokens=self.max_new_tokens,
-                stream_output=stream,
                 difficulty_mapping=self.difficulty_mapping
             )
             
@@ -391,7 +388,6 @@ class ProductionDatasetBuilder(DatasetBuildingOrchestrator):
     def build_dataset_production(self,
                                  start_idx: int = 0,
                                  end_idx: int = 973,
-                                 stream: bool = False,
                                  resume_from_checkpoint: Optional[str] = None) -> str:
         """
         Build dataset with production robustness
@@ -399,7 +395,6 @@ class ProductionDatasetBuilder(DatasetBuildingOrchestrator):
         Args:
             start_idx: Starting index
             end_idx: Ending index (inclusive)
-            stream: Whether to stream generation output
             resume_from_checkpoint: Path to checkpoint to resume from
             
         Returns:
@@ -436,7 +431,6 @@ class ProductionDatasetBuilder(DatasetBuildingOrchestrator):
                 config=dataset_config,
                 robustness_config=self.robustness_config,
                 max_new_tokens=self.max_new_tokens,
-                stream_output=stream,
                 difficulty_mapping=self.difficulty_mapping
             )
             
@@ -513,8 +507,7 @@ class ProductionDatasetBuilder(DatasetBuildingOrchestrator):
         # Build dataset
         return self.build_dataset_production(
             start_idx=dataset_config.start_idx,
-            end_idx=dataset_config.end_idx or 973,
-            stream=config_data.get('stream_output', False)
+            end_idx=dataset_config.end_idx or 973
         )
     
     def _display_production_summary(self, stats: Dict[str, Any], 

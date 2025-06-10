@@ -289,11 +289,6 @@ def main():
         help='Directory for dataset outputs'
     )
     parser.add_argument(
-        '--stream',
-        action='store_true',
-        help='Stream generation output'
-    )
-    parser.add_argument(
         '--cleanup',
         action='store_true',
         help='Run cleanup before processing'
@@ -311,8 +306,6 @@ def main():
     
     # Build extra arguments
     extra_args = []
-    if args.stream:
-        extra_args.append('--stream')
     if args.cleanup:
         extra_args.append('--cleanup')
     

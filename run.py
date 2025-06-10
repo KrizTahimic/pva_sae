@@ -131,11 +131,6 @@ def setup_argument_parser():
         help='Directory for dataset files'
     )
     phase1_group.add_argument(
-        '--stream',
-        action='store_true',
-        help='Stream generation output'
-    )
-    phase1_group.add_argument(
         '--difficulty-mapping',
         type=str,
         help='Path to difficulty mapping file (default: auto-discover from phase0)'
@@ -300,8 +295,7 @@ def run_phase1(args, logger, device: str):
     
     dataset_path = tester.build_dataset_simple(
         start_idx=args.start,
-        end_idx=args.end,
-        stream=args.stream
+        end_idx=args.end
     )
     
     logger.info("✅ Phase 1 completed successfully")

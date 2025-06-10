@@ -69,7 +69,6 @@ class RobustGenerator:
         prompt: str,
         temperature: Optional[float] = None,
         max_new_tokens: Optional[int] = None,
-        stream: bool = False,
         retry_on_failure: bool = True
     ) -> GenerationResult:
         """
@@ -79,7 +78,6 @@ class RobustGenerator:
             prompt: Input prompt for generation
             temperature: Generation temperature (None uses model default)
             max_new_tokens: Maximum new tokens to generate
-            stream: Whether to stream output
             retry_on_failure: Whether to retry on generation failure
             
         Returns:
@@ -90,11 +88,11 @@ class RobustGenerator:
         
         if retry_on_failure:
             return self._generate_with_retry(
-                prompt, temperature, max_new_tokens, stream
+                prompt, temperature, max_new_tokens
             )
         else:
             return self._single_generation_attempt(
-                prompt, temperature, max_new_tokens, stream
+                prompt, temperature, max_new_tokens
             )
     
     def generate_with_temperature_variation(
@@ -127,7 +125,6 @@ class RobustGenerator:
                 prompt=prompt,
                 temperature=temp,
                 max_new_tokens=max_new_tokens,
-                stream=False,
                 retry_on_failure=True
             )
             results.append(result)
@@ -170,7 +167,6 @@ class RobustGenerator:
                 prompt=prompt,
                 temperature=temperature,
                 max_new_tokens=max_new_tokens,
-                stream=False,
                 retry_on_failure=True
             )
             results.append(result)
@@ -185,8 +181,7 @@ class RobustGenerator:
         self,
         prompt: str,
         temperature: float,
-        max_new_tokens: int,
-        stream: bool
+        max_new_tokens: int
     ) -> GenerationResult:
         """Generate with retry logic on failure."""
         last_error = None
@@ -194,7 +189,7 @@ class RobustGenerator:
         for attempt in range(self.config.max_retries):
             try:
                 return self._single_generation_attempt(
-                    prompt, temperature, max_new_tokens, stream, attempt + 1
+                    prompt, temperature, max_new_tokens, attempt + 1
                 )
             except Exception as e:
                 last_error = e
@@ -230,7 +225,6 @@ class RobustGenerator:
         prompt: str,
         temperature: float,
         max_new_tokens: int,
-        stream: bool,
         attempt: int = 1
     ) -> GenerationResult:
         """Single generation attempt with timing and error handling."""
@@ -240,8 +234,7 @@ class RobustGenerator:
             generated_text = self.model_manager.generate(
                 prompt=prompt,
                 max_new_tokens=max_new_tokens,
-                temperature=temperature,
-                stream=stream
+                temperature=temperature
             )
             
             if not generated_text.strip():

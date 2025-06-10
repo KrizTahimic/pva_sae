@@ -6,7 +6,7 @@ for language models used in the project.
 """
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from typing import Optional, Dict, Any, Union
 import logging
 import gc
@@ -113,8 +113,7 @@ class ModelManager:
                  max_new_tokens: Optional[int] = None,
                  temperature: Optional[float] = None,
                  top_p: Optional[float] = None,
-                 do_sample: Optional[bool] = None,
-                 stream: bool = False) -> str:
+                 do_sample: Optional[bool] = None) -> str:
         """
         Generate text from prompt
         
@@ -124,7 +123,6 @@ class ModelManager:
             temperature: Sampling temperature
             top_p: Top-p sampling parameter
             do_sample: Whether to use sampling
-            stream: Whether to stream output
             
         Returns:
             str: Generated text
@@ -151,10 +149,6 @@ class ModelManager:
             "pad_token_id": self.tokenizer.eos_token_id
         }
         
-        # Add streamer if requested
-        if stream:
-            streamer = TextStreamer(self.tokenizer, skip_special_tokens=True)
-            gen_kwargs["streamer"] = streamer
         
         # Generate
         with torch.no_grad():
@@ -205,7 +199,6 @@ class ModelManager:
         temperature = generation_kwargs.get('temperature', self.config.temperature)
         top_p = generation_kwargs.get('top_p', self.config.top_p)
         do_sample = generation_kwargs.get('do_sample', self.config.do_sample)
-        stream = generation_kwargs.get('stream', False)
         
         all_results = []
         
@@ -233,10 +226,6 @@ class ModelManager:
                 "attention_mask": inputs.get("attention_mask")
             }
             
-            # Add streamer if requested (only works for single prompt)
-            if stream and len(batch_prompts) == 1:
-                streamer = TextStreamer(self.tokenizer, skip_special_tokens=True)
-                gen_kwargs["streamer"] = streamer
             
             # Generate for batch
             with torch.no_grad():

@@ -394,7 +394,6 @@ class DatasetBuilder:
                  dataset_manager: PromptAwareDatasetManager,
                  config: DatasetConfiguration,
                  max_new_tokens: int = 2000, 
-                 stream_output: bool = False,
                  difficulty_mapping: Optional[Dict[str, Any]] = None):
         """
         Initialize dataset builder
@@ -404,14 +403,12 @@ class DatasetBuilder:
             dataset_manager: Dataset manager for MBPP data
             config: Dataset configuration
             max_new_tokens: Maximum tokens to generate
-            stream_output: Whether to stream generation output
             difficulty_mapping: Optional pre-computed difficulty mapping from Phase 0
         """
         self.model_manager = model_manager
         self.dataset_manager = dataset_manager
         self.config = config
         self.max_new_tokens = max_new_tokens
-        self.stream_output = stream_output
         self.difficulty_mapping = difficulty_mapping or {}
         
         # Initialize robust generator
@@ -479,18 +476,11 @@ class DatasetBuilder:
             task_id = record['task_id']
             self.logger.info(f"Processing record {idx} (Task ID: {task_id})")
             
-            if self.stream_output:
-                print(f"\n{'='*60}")
-                print(f"PROCESSING TASK {task_id} (Record {idx})")
-                print(f"{'='*60}")
-                print(f"PROBLEM: {record['text']}")
-                print(f"{'='*60}")
             
             # Generate code with timing tracked by generator
             generation_result = self.generator.generate(
                 prompt=prompt,
                 max_new_tokens=self.max_new_tokens,
-                stream=self.stream_output,
                 retry_on_failure=True
             )
             
@@ -750,7 +740,6 @@ class DatasetBuilder:
         generation_result = self.generator.generate(
             prompt=prompt,
             max_new_tokens=self.max_new_tokens,
-            stream=self.stream_output,
             retry_on_failure=True
         )
         
@@ -832,9 +821,6 @@ class DatasetBuilder:
         
         self.logger.info(log_msg)
         
-        if self.stream_output:
-            color = "✓" if result.is_correct else "✗"
-            print(f"\n{color} {status}: {test_summary} tests passed")
     
     def _log_final_statistics(self):
         """Log final dataset building statistics"""
@@ -857,7 +843,6 @@ class RobustDatasetBuilder(DatasetBuilder):
                  config: DatasetConfiguration,
                  robustness_config: RobustnessConfig,
                  max_new_tokens: int = 2000,
-                 stream_output: bool = False,
                  difficulty_mapping: Optional[Dict[str, Any]] = None):
         """
         Initialize robust dataset builder
@@ -868,10 +853,9 @@ class RobustDatasetBuilder(DatasetBuilder):
             config: Dataset configuration
             robustness_config: Robustness configuration
             max_new_tokens: Maximum tokens to generate
-            stream_output: Whether to stream generation output
             difficulty_mapping: Optional pre-computed difficulty mapping from Phase 0
         """
-        super().__init__(model_manager, dataset_manager, config, max_new_tokens, stream_output, difficulty_mapping)
+        super().__init__(model_manager, dataset_manager, config, max_new_tokens, difficulty_mapping)
         
         self.robustness_config = robustness_config
         
