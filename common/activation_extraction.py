@@ -15,6 +15,7 @@ from pathlib import Path
 import gc
 
 from transformer_lens import HookedTransformer
+import numpy as np
 
 from common.utils import torch_memory_cleanup, torch_no_grad_and_cleanup
 from common.config import ActivationExtractionConfig
@@ -46,6 +47,87 @@ class ActivationData:
             activations=self.activations.to(device),
             prompt_count=self.prompt_count
         )
+
+
+def save_activation_data(data: ActivationData, filepath: Path) -> None:
+    """
+    Save activation data to disk using numpy compressed format.
+    
+    Args:
+        data: ActivationData object to save
+        filepath: Path to save file (.npz format)
+        
+    Raises:
+        IOError: If file cannot be written
+    """
+    filepath = Path(filepath)
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        # Convert tensor to numpy for efficient storage
+        activations_np = data.activations.detach().cpu().numpy()
+        
+        # Save both data and metadata
+        np.savez_compressed(
+            filepath,
+            activations=activations_np,
+            layer=data.layer,
+            position=str(data.position),  # Convert to string for JSON compatibility
+            hook_type=data.hook_type,
+            prompt_count=data.prompt_count
+        )
+        logger.debug(f"Saved activation data to {filepath}")
+    except Exception as e:
+        logger.error(f"Failed to save activation data to {filepath}: {e}")
+        raise IOError(f"Cannot write to {filepath}: {e}")
+
+
+def load_activation_data(filepath: Path) -> ActivationData:
+    """
+    Load activation data from disk.
+    
+    Args:
+        filepath: Path to saved activation file
+        
+    Returns:
+        ActivationData object
+        
+    Raises:
+        FileNotFoundError: If activation file doesn't exist
+        ValueError: If file format is invalid
+    """
+    filepath = Path(filepath)
+    
+    if not filepath.exists():
+        raise FileNotFoundError(f"Activation file not found: {filepath}")
+    
+    try:
+        # Load numpy archive
+        data = np.load(filepath)
+        
+        # Reconstruct tensor from numpy
+        activations = torch.from_numpy(data['activations'])
+        
+        # Parse position (convert back from string if needed)
+        position = data['position'].item()
+        if position.isdigit() or position == '-1':
+            position = int(position)
+        
+        # Reconstruct ActivationData
+        activation_data = ActivationData(
+            layer=int(data['layer'].item()),
+            position=position,
+            hook_type=str(data['hook_type'].item()),
+            activations=activations,
+            prompt_count=int(data['prompt_count'].item())
+        )
+        
+        logger.debug(f"Loaded activation data from {filepath}")
+        return activation_data
+        
+    except Exception as e:
+        logger.error(f"Failed to load activation data from {filepath}: {e}")
+        raise ValueError(f"Invalid activation file format: {e}")
 
 
 class ActivationCache:

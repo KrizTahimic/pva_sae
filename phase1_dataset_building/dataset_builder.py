@@ -28,7 +28,10 @@ from common import (
     format_duration,
     get_memory_usage,
     get_cyclomatic_complexity,
-    atomic_file_write
+    atomic_file_write,
+    create_activation_extractor,
+    save_activation_data,
+    ActivationExtractionConfig
 )
 from common.generation import RobustGenerator, GenerationResult
 from common.prompt_utils import PromptBuilder
@@ -424,6 +427,65 @@ class DatasetBuilder:
         self.incorrect_solutions = 0
         
         self.logger = logging.getLogger(__name__)
+        
+        # Setup activation extraction if enabled
+        self.activation_extractor = None
+        if self.config.save_activations:
+            self._setup_activation_extraction()
+    
+    def _setup_activation_extraction(self):
+        """Setup activation extraction if enabled"""
+        try:
+            # Create activation extractor
+            extraction_config = ActivationExtractionConfig(
+                batch_size=1,  # Process one at a time during generation
+                max_cache_size_gb=5.0,
+                clear_cache_between_layers=True
+            )
+            
+            self.activation_extractor = create_activation_extractor(
+                model=self.model_manager.model,
+                model_type="transformerlens",
+                device=self.model_manager.config.device or "cuda",
+                config=extraction_config
+            )
+            
+            # Create activation directories
+            activation_base = Path(self.config.dataset_dir) / "activations"
+            (activation_base / "correct").mkdir(parents=True, exist_ok=True)
+            (activation_base / "incorrect").mkdir(parents=True, exist_ok=True)
+            
+            self.logger.info(f"Activation extraction enabled for layers: {self.config.activation_layers}")
+        except Exception as e:
+            self.logger.error(f"Failed to setup activation extraction: {e}")
+            self.config.save_activations = False
+            self.activation_extractor = None
+    
+    def _extract_and_save_activations(self, prompt: str, task_id: str, is_correct: bool):
+        """Extract and save activations for all configured layers"""
+        try:
+            for layer_idx in self.config.activation_layers:
+                # Extract activations for this layer
+                activation_data = self.activation_extractor.extract_activations(
+                    prompts=[prompt],
+                    layer_idx=layer_idx,
+                    position=self.config.activation_position,
+                    hook_type=self.config.activation_hook_type
+                )
+                
+                # Determine save path
+                subdir = "correct" if is_correct else "incorrect"
+                activation_dir = Path(self.config.dataset_dir) / "activations" / subdir
+                filepath = activation_dir / f"{task_id}_layer_{layer_idx}.npz"
+                
+                # Save activation data
+                save_activation_data(activation_data, filepath)
+                
+                self.logger.debug(f"Saved activations for {task_id} layer {layer_idx} to {subdir}/")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to extract/save activations for {task_id}: {e}")
+            # Continue processing even if activation extraction fails
     
     def build_dataset(self, start_idx: int = 0, end_idx: int = 2) -> List[CodeGenerationResult]:
         """
@@ -495,6 +557,14 @@ class DatasetBuilder:
             
             # Classify result
             is_correct = self._classify_solution(test_result, generated_code)
+            
+            # Extract and save activations if enabled
+            if self.config.save_activations and self.activation_extractor:
+                self._extract_and_save_activations(
+                    prompt=prompt + generated_code,
+                    task_id=task_id,
+                    is_correct=is_correct
+                )
             
             # Get complexity from difficulty mapping or calculate on demand
             complexity = self._get_complexity_score(task_id, record)

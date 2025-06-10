@@ -306,15 +306,20 @@ def run_phase1(args, logger, device: str):
 
 
 def run_phase2(args, logger, device: str):
-    """Run Phase 2: SAE Analysis"""
+    """Run Phase 2: SAE Analysis (CPU-only, using saved activations)"""
     import pandas as pd
-    from transformer_lens import HookedTransformer
-    from phase2_sae_analysis.sae_analyzer import EnhancedSAEAnalysisPipeline
+    from pathlib import Path
+    from phase2_sae_analysis.activation_loader import ActivationLoader
+    from phase2_sae_analysis.sae_analyzer import load_gemma_scope_sae, compute_separation_scores
     from phase2_sae_analysis.pile_filter import PileFilter
     from common.config import SAELayerConfig
     from common.utils import discover_latest_phase1_dataset
     
-    logger.info("Starting Phase 2: SAE Analysis")
+    logger.info("Starting Phase 2: SAE Analysis (CPU-only)")
+    logger.info("Phase 2 now loads saved activations from Phase 1 - no GPU required")
+    
+    # Force CPU usage for Phase 2
+    device = "cpu"
     
     # Auto-discover dataset if not provided
     if not args.dataset:
@@ -329,89 +334,154 @@ def run_phase2(args, logger, device: str):
     else:
         logger.info(f"Using specified dataset: {args.dataset}")
     
-    # Load dataset
-    logger.info("Loading dataset...")
+    # Load dataset to get task IDs
+    logger.info("Loading dataset metadata...")
     df = pd.read_parquet(args.dataset)
+    dataset_path = Path(args.dataset)
     
-    # Separate correct and incorrect samples
-    correct_df = df[df['test_passed'] == True]
-    incorrect_df = df[df['test_passed'] == False]
+    # Get task IDs by category
+    correct_task_ids = df[df['test_passed'] == True]['task_id'].tolist()
+    incorrect_task_ids = df[df['test_passed'] == False]['task_id'].tolist()
     
-    logger.info(f"Dataset stats: {len(correct_df)} correct, {len(incorrect_df)} incorrect")
+    logger.info(f"Dataset stats: {len(correct_task_ids)} correct, {len(incorrect_task_ids)} incorrect")
     
-    # Create prompts from generated code
-    correct_prompts = [
-        f"{row['prompt']}\n{row['generated_code']}" 
-        for _, row in correct_df.iterrows()
-    ]
-    incorrect_prompts = [
-        f"{row['prompt']}\n{row['generated_code']}" 
-        for _, row in incorrect_df.iterrows()
-    ]
+    # Initialize activation loader
+    activation_dir = dataset_path.parent / "activations"
+    if not activation_dir.exists():
+        logger.error(f"Activation directory not found: {activation_dir}")
+        logger.error("Please run Phase 1 with activation extraction enabled (save_activations=True)")
+        sys.exit(1)
     
-    # Load model
-    logger.info("Loading model...")
-    model = HookedTransformer.from_pretrained(
-        "google/gemma-2-2b",  # Use 2B for initial implementation
-        device=device,
-        dtype=torch.float32
-    )
+    logger.info(f"Loading activations from: {activation_dir}")
+    activation_loader = ActivationLoader(activation_dir)
+    
+    # Show activation summary
+    summary = activation_loader.get_summary()
+    logger.info(f"Found activations: {summary['n_correct_tasks']} correct, "
+                f"{summary['n_incorrect_tasks']} incorrect, "
+                f"{summary['n_layers']} layers: {summary['layers']}")
     
     # Configure SAE analysis
     sae_config = SAELayerConfig(
-        gemma_2b_layers=[13, 14, 16, 17, 20],  # Middle layers for 2B model
+        gemma_2b_layers=summary['layers'],  # Use available layers
         save_after_each_layer=True,
         cleanup_after_layer=True,
         checkpoint_dir="data/phase2/checkpoints"
     )
     
-    # Initialize pipeline
-    logger.info("Initializing SAE analysis pipeline...")
-    pipeline = EnhancedSAEAnalysisPipeline(model, sae_config, device=device)
+    # Create results storage
+    from phase2_sae_analysis.sae_analyzer import (
+        SAEAnalysisResults, PVALatentDirection, SeparationScores,
+        MultiLayerSAEResults
+    )
     
-    # Run SAE analysis
-    logger.info("Running SAE analysis across layers...")
-    results = pipeline.analyze_all_residual_layers(
-        correct_prompts=correct_prompts[:100],  # Limit samples for initial run
-        incorrect_prompts=incorrect_prompts[:100]
+    layer_results = {}
+    
+    # Process each layer
+    logger.info("Processing SAE analysis for each layer...")
+    for layer_idx in sae_config.gemma_2b_layers:
+        logger.info(f"\nAnalyzing layer {layer_idx}...")
+        
+        try:
+            # Load saved activations
+            correct_acts = activation_loader.load_batch(
+                correct_task_ids[:100],  # Limit for initial run
+                layer=layer_idx,
+                category="correct"
+            )
+            incorrect_acts = activation_loader.load_batch(
+                incorrect_task_ids[:100],  # Limit for initial run
+                layer=layer_idx,
+                category="incorrect"
+            )
+            
+            logger.info(f"Loaded activations - correct: {correct_acts.shape}, incorrect: {incorrect_acts.shape}")
+            
+            # Load SAE for this layer
+            sae_id = f"layer_{layer_idx}/width_{sae_config.sae_width}/average_l0_{sae_config.sae_sparsity}"
+            sae = load_gemma_scope_sae(
+                repo_id=sae_config.sae_repo_id,
+                sae_id=sae_id,
+                device=device
+            )
+            
+            # Apply SAE encoding
+            import torch
+            with torch.no_grad():
+                correct_sae_acts = sae.encode(correct_acts)
+                incorrect_sae_acts = sae.encode(incorrect_acts)
+            
+            # Compute separation scores
+            scores = compute_separation_scores(correct_sae_acts, incorrect_sae_acts)
+            
+            # Create PVA directions
+            correct_direction = PVALatentDirection(
+                direction_type="correct",
+                layer=layer_idx,
+                feature_idx=scores.best_correct_idx,
+                separation_score=scores.s_correct[scores.best_correct_idx].item(),
+                f_correct=scores.f_correct[scores.best_correct_idx].item(),
+                f_incorrect=scores.f_incorrect[scores.best_correct_idx].item()
+            )
+            
+            incorrect_direction = PVALatentDirection(
+                direction_type="incorrect",
+                layer=layer_idx,
+                feature_idx=scores.best_incorrect_idx,
+                separation_score=scores.s_incorrect[scores.best_incorrect_idx].item(),
+                f_correct=scores.f_correct[scores.best_incorrect_idx].item(),
+                f_incorrect=scores.f_incorrect[scores.best_incorrect_idx].item()
+            )
+            
+            # Store results
+            layer_results[layer_idx] = SAEAnalysisResults(
+                layer_idx=layer_idx,
+                correct_direction=correct_direction,
+                incorrect_direction=incorrect_direction,
+                separation_scores=scores,
+                correct_sae_activations=correct_sae_acts,
+                incorrect_sae_activations=incorrect_sae_acts
+            )
+            
+            logger.info(f"Layer {layer_idx} - Best correct feature: {correct_direction.feature_idx} "
+                       f"(score: {correct_direction.separation_score:.3f})")
+            logger.info(f"Layer {layer_idx} - Best incorrect feature: {incorrect_direction.feature_idx} "
+                       f"(score: {incorrect_direction.separation_score:.3f})")
+            
+            # Clean up to save memory
+            del sae, correct_acts, incorrect_acts, correct_sae_acts, incorrect_sae_acts
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            
+        except Exception as e:
+            logger.error(f"Failed to analyze layer {layer_idx}: {e}")
+            continue
+    
+    # Create multi-layer results
+    results = MultiLayerSAEResults(
+        layer_results=layer_results,
+        layer_indices=list(layer_results.keys()),
+        model_name="google/gemma-2-2b",
+        n_correct_samples=len(correct_task_ids[:100]),
+        n_incorrect_samples=len(incorrect_task_ids[:100]),
+        hook_component=sae_config.hook_component
     )
     
     # Print initial results
     logger.info("\n" + results.summary())
     
+    # Save results
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    results_file = Path("data/phase2") / f"multi_layer_results_{timestamp}.json"
+    results_file.parent.mkdir(parents=True, exist_ok=True)
+    results.save_to_file(str(results_file))
+    logger.info(f"\nResults saved to: {results_file}")
+    
     # Apply Pile filtering if requested
     if args.pile_filter:
-        logger.info(f"\nApplying Pile filtering (threshold: {args.pile_threshold})")
-        
-        # Initialize Pile filter
-        pile_filter = PileFilter(model, device=device)
-        
-        # Apply filtering
-        results = pipeline.apply_pile_filtering(
-            results=results,
-            pile_filter=pile_filter,
-            pile_threshold=args.pile_threshold,
-            top_k=20
-        )
-        
-        # Show filtered results
-        logger.info("\nPile-filtered results:")
-        for layer_idx in sorted(results.layer_results.keys()):
-            layer_result = results.layer_results[layer_idx]
-            
-            if layer_result.pile_filtered_correct:
-                filtered = layer_result.pile_filtered_correct
-                if filtered['top_latent'] is not None:
-                    logger.info(f"  Layer {layer_idx} (correct): Top latent {filtered['top_latent']} "
-                              f"(score: {filtered['separation_scores'][0]:.3f}, "
-                              f"Pile freq: {filtered['pile_frequencies'][0]:.3%})")
-            
-            if layer_result.pile_filtered_incorrect:
-                filtered = layer_result.pile_filtered_incorrect
-                if filtered['top_latent'] is not None:
-                    logger.info(f"  Layer {layer_idx} (incorrect): Top latent {filtered['top_latent']} "
-                              f"(score: {filtered['separation_scores'][0]:.3f}, "
-                              f"Pile freq: {filtered['pile_frequencies'][0]:.3%})")
+        logger.info(f"\nPile filtering requires loading the model temporarily.")
+        logger.info("Skipping Pile filtering in this CPU-only implementation.")
+        # TODO: Consider pre-computing Pile frequencies in a separate step
     
     logger.info("\n✅ Phase 2 completed successfully")
 

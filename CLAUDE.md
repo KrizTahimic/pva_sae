@@ -19,11 +19,27 @@ The methodology follows four phases:
 
 Each phase outputs to its own directory (data/phase0/, data/phase1/, etc.) and automatically discovers inputs from previous phases.
 
+### Data Output Structure
+```
+data/
+├── phase0/           # Difficulty mappings
+├── phase1/           # Generated code + activations
+│   ├── dataset_*.parquet
+│   ├── dataset_*_metadata.json
+│   └── activations/
+│       ├── correct/
+│       │   └── {task_id}_layer_{n}.npz
+│       └── incorrect/
+│           └── {task_id}_layer_{n}.npz
+├── phase2/           # SAE analysis results
+└── phase3/           # Validation results
+```
+
 ## Key Project Constraints
 - **Scale**: 974 MBPP problems, 2000 tokens max, 2B parameter model
 - **Resources**: 100GB CPU RAM max, 30GB GPU memory per GPU, up to 3 GPUs
 - **Checkpointing**: Save every 50 records, autosave every 100 with 3 versions retained
-- **Activations**: Extract on-demand (`final_token_only=True`), focus on residual stream
+- **Activations**: Extract during Phase 1 generation, save to disk for Phase 2 analysis
 
 ## Library Documentation Resources
 
@@ -46,9 +62,9 @@ When working with SAELens or TransformerLens, access their official documentatio
 - Use `python3 run.py test-gpu` to test GPU setup
 - Use `python3 multi_gpu_launcher.py --phase 1 --num-gpus 3` for multi-GPU generation
 - Multi-GPU uses index-based work splitting, not batching
-- batch_size only used for Phase 2 activation extraction (default: 8)
+- Phase 2 is CPU-only, uses saved activations from Phase 1
 - Checkpoint recovery: Auto-discovers latest checkpoints by timestamp
-- Memory management: Extract activations on-demand, avoid permanent storage
+- Memory management: Extract and save activations during Phase 1, load from disk in Phase 2
 
 ## Project-Specific Patterns
 
@@ -61,7 +77,7 @@ When working with SAELens or TransformerLens, access their official documentatio
 - **Distribution**: Index-based work splitting via multi_gpu_launcher.py (not Ray)
 - **Work allocation**: Each GPU gets contiguous dataset slice (e.g., 0-324, 325-649, 650-973)
 - **Process coordination**: Uses subprocess, not distributed computing framework
-- **Memory management**: Extract activations on-demand, avoid permanent storage
+- **Memory management**: Extract and save activations during Phase 1, load from disk in Phase 2
 
 ### Steering Experiments
 - **Coefficient range**: Test multiple values from -1.0 to 1.0

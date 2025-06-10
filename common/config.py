@@ -74,6 +74,12 @@ class DatasetConfiguration:
     start_idx: int = 0
     end_idx: Optional[int] = None
     
+    # Activation extraction settings
+    save_activations: bool = True
+    activation_layers: List[int] = field(default_factory=lambda: [13, 14, 16, 17, 20])
+    activation_hook_type: str = "resid_post"
+    activation_position: int = -1  # Final token
+    
     def to_dict(self) -> dict:
         """Convert to dictionary"""
         return asdict(self)

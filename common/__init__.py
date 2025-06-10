@@ -69,7 +69,9 @@ from .activation_extraction import (
     BaseActivationExtractor,
     TransformerLensExtractor,
     HuggingFaceExtractor,
-    create_activation_extractor
+    create_activation_extractor,
+    save_activation_data,
+    load_activation_data
 )
 
 # Import model interfaces
@@ -144,6 +146,8 @@ __all__ = [
     'TransformerLensExtractor',
     'HuggingFaceExtractor',
     'create_activation_extractor',
+    'save_activation_data',
+    'load_activation_data',
     
     # Model interfaces
     'UnifiedModelInterface',
