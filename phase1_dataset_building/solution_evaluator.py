@@ -1,8 +1,8 @@
 """
-Test execution functionality for Phase 1 of the PVA-SAE project.
+Solution evaluation functionality for Phase 1 of the PVA-SAE project.
 
-This module handles the execution of generated code against test cases
-to determine correctness according to the pass@1 criterion.
+This module handles the evaluation of generated code solutions against test cases
+to determine correctness according to the pass@1 criterion for dataset building.
 """
 
 import logging
@@ -11,13 +11,13 @@ from typing import Optional, Tuple, List, Dict, Any
 from phase1_dataset_building.dataset_manager import CodeTestResult
 
 
-class TestExecutor:
-    """Executes code against test cases"""
+class SolutionEvaluator:
+    """Evaluates generated code solutions for correctness"""
     
     @staticmethod
-    def run_single_test(test_code: str, namespace: dict) -> Tuple[bool, Optional[str]]:
+    def _evaluate_single_test(test_code: str, namespace: dict) -> Tuple[bool, Optional[str]]:
         """
-        Execute single test case and return result
+        Evaluate single test case and return result
         
         Args:
             test_code: The test code to execute
@@ -35,24 +35,24 @@ class TestExecutor:
             return False, str(e)
     
     @staticmethod
-    def run_code_tests(code: str, test_cases: List[str], task_id: Optional[str] = None) -> CodeTestResult:
+    def evaluate_solution(code: str, test_cases: List[str], task_id: Optional[str] = None) -> CodeTestResult:
         """
-        Execute code against multiple test cases
+        Evaluate generated code against multiple test cases
         
         Args:
-            code: The generated code to test
+            code: The generated code to evaluate
             test_cases: List of test case strings
             task_id: Optional task identifier for logging
             
         Returns:
-            CodeTestResult: Results of test execution
+            CodeTestResult: Results of solution evaluation
         """
         logger = logging.getLogger(__name__)
         
         if task_id:
-            logger.debug(f"Testing code for task {task_id}")
+            logger.debug(f"Evaluating solution for task {task_id}")
         
-        TestExecutor._log_test_setup(code, test_cases)
+        SolutionEvaluator._log_evaluation_setup(code, test_cases)
         
         # Prepare execution environment
         namespace = {}
@@ -63,49 +63,49 @@ class TestExecutor:
             logger.error(error_msg)
             return CodeTestResult(passed=0, total=len(test_cases), errors=[error_msg])
         
-        # Execute test cases
-        return TestExecutor._execute_test_cases(test_cases, namespace)
+        # Evaluate test cases
+        return SolutionEvaluator._evaluate_test_cases(test_cases, namespace)
     
     @staticmethod
-    def run_record_tests(record: dict) -> CodeTestResult:
+    def evaluate_mbpp_solution(record: dict) -> CodeTestResult:
         """
-        Execute tests using ground truth code from MBPP record
+        Evaluate solution using MBPP record data
         
         Args:
             record: MBPP record containing code and test cases
             
         Returns:
-            CodeTestResult: Results of test execution
+            CodeTestResult: Results of solution evaluation
         """
         logger = logging.getLogger(__name__)
         task_id = record['task_id']
         logger.debug(f"PROBLEM:\n{record['text']}")
         
-        return TestExecutor.run_code_tests(
+        return SolutionEvaluator.evaluate_solution(
             code=record['code'],
             test_cases=record['test_list'],
             task_id=task_id
         )
     
     @staticmethod
-    def _log_test_setup(code: str, test_cases: List[str]):
-        """Log test setup information"""
+    def _log_evaluation_setup(code: str, test_cases: List[str]):
+        """Log evaluation setup information"""
         logger = logging.getLogger(__name__)
-        logger.debug(f"CODE TO TEST:\n{code}")
+        logger.debug(f"CODE TO EVALUATE:\n{code}")
         logger.debug("TEST CASES:")
         for i, test in enumerate(test_cases):
             logger.debug(f"  Test {i+1}: {test}")
     
     @staticmethod
-    def _execute_test_cases(test_cases: List[str], namespace: dict) -> CodeTestResult:
-        """Execute all test cases and collect results"""
+    def _evaluate_test_cases(test_cases: List[str], namespace: dict) -> CodeTestResult:
+        """Evaluate all test cases and collect results"""
         logger = logging.getLogger(__name__)
         passed_tests = 0
         total_tests = len(test_cases)
         errors = []
         
         for i, test_case in enumerate(test_cases):
-            success, error_msg = TestExecutor.run_single_test(test_case, namespace)
+            success, error_msg = SolutionEvaluator._evaluate_single_test(test_case, namespace)
             
             if success:
                 logger.info(f"Test {i+1}: PASSED")
@@ -119,42 +119,42 @@ class TestExecutor:
                 
                 logger.info(log_msg)
         
-        logger.info(f"Test summary: {passed_tests}/{total_tests} tests passed")
+        logger.info(f"Evaluation summary: {passed_tests}/{total_tests} tests passed")
         return CodeTestResult(passed=passed_tests, total=total_tests, errors=errors)
 
 
-class SafeTestExecutor(TestExecutor):
-    """Safe test executor with timeout and error handling"""
+class SafeSolutionEvaluator(SolutionEvaluator):
+    """Safe solution evaluator with timeout and error handling"""
     
     @staticmethod
-    def run_code_with_timeout(code: str, test_cases: List[str], 
-                              timeout: float = 5.0, task_id: Optional[str] = None) -> CodeTestResult:
+    def evaluate_solution_with_timeout(code: str, test_cases: List[str], 
+                                     timeout: float = 5.0, task_id: Optional[str] = None) -> CodeTestResult:
         """
-        Execute code against test cases with timeout protection
+        Evaluate solution with timeout protection
         
         Args:
-            code: The generated code to test
+            code: The generated code to evaluate
             test_cases: List of test case strings
             timeout: Maximum execution time per test case
             task_id: Optional task identifier for logging
             
         Returns:
-            CodeTestResult: Results of test execution
+            CodeTestResult: Results of solution evaluation
         """
         import signal
         import functools
         
         def timeout_handler(signum, frame):
-            raise TimeoutError("Test execution timed out")
+            raise TimeoutError("Solution evaluation timed out")
         
-        # For non-Unix systems, fall back to regular execution
+        # For non-Unix systems, fall back to regular evaluation
         if not hasattr(signal, 'SIGALRM'):
-            return TestExecutor.run_code_tests(code, test_cases, task_id)
+            return SolutionEvaluator.evaluate_solution(code, test_cases, task_id)
         
         logger = logging.getLogger(__name__)
         
         if task_id:
-            logger.debug(f"Testing code for task {task_id} with timeout {timeout}s")
+            logger.debug(f"Evaluating solution for task {task_id} with timeout {timeout}s")
         
         # Prepare execution environment
         namespace = {}
@@ -165,7 +165,7 @@ class SafeTestExecutor(TestExecutor):
             logger.error(error_msg)
             return CodeTestResult(passed=0, total=len(test_cases), errors=[error_msg])
         
-        # Execute test cases with timeout
+        # Evaluate test cases with timeout
         passed_tests = 0
         total_tests = len(test_cases)
         errors = []
@@ -176,7 +176,7 @@ class SafeTestExecutor(TestExecutor):
             signal.alarm(int(timeout))
             
             try:
-                success, error_msg = TestExecutor.run_single_test(test_case, namespace)
+                success, error_msg = SolutionEvaluator._evaluate_single_test(test_case, namespace)
                 signal.alarm(0)  # Cancel timeout
                 
                 if success:
@@ -201,13 +201,13 @@ class SafeTestExecutor(TestExecutor):
                 errors.append(error_msg)
                 logger.error(error_msg)
         
-        logger.info(f"Test summary: {passed_tests}/{total_tests} tests passed")
+        logger.info(f"Evaluation summary: {passed_tests}/{total_tests} tests passed")
         return CodeTestResult(passed=passed_tests, total=total_tests, errors=errors)
     
     @staticmethod
     def validate_code_syntax(code: str) -> Tuple[bool, Optional[str]]:
         """
-        Validate Python code syntax before execution
+        Validate Python code syntax before evaluation
         
         Args:
             code: The code to validate

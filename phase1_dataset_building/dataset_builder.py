@@ -33,7 +33,7 @@ from common import (
 from common.generation import RobustGenerator, GenerationResult
 from common.prompt_utils import PromptBuilder
 from phase1_dataset_building.dataset_manager import CodeGenerationResult, CodeTestResult, PromptAwareDatasetManager
-from phase1_dataset_building.test_executor import TestExecutor
+from phase1_dataset_building.solution_evaluator import SolutionEvaluator
 
 
 @dataclass
@@ -757,7 +757,7 @@ class DatasetBuilder:
         """Test generated code against MBPP test cases"""
         try:
             test_cases = record['test_list']
-            test_result = TestExecutor.run_code_tests(
+            test_result = SolutionEvaluator.evaluate_solution(
                 code=generated_code,
                 test_cases=test_cases,
                 task_id=task_id

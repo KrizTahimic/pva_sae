@@ -14,10 +14,10 @@ from phase1_dataset_building.dataset_manager import (
     PromptAwareDatasetManager
 )
 
-# Import test execution components
-from phase1_dataset_building.test_executor import (
-    TestExecutor,
-    SafeTestExecutor
+# Import solution evaluation components
+from phase1_dataset_building.solution_evaluator import (
+    SolutionEvaluator,
+    SafeSolutionEvaluator
 )
 
 # Import dataset building components
@@ -45,9 +45,9 @@ __all__ = [
     'DatasetManager',
     'PromptAwareDatasetManager',
     
-    # Test execution
-    'TestExecutor',
-    'SafeTestExecutor',
+    # Solution evaluation
+    'SolutionEvaluator',
+    'SafeSolutionEvaluator',
     
     # Dataset building
     'CheckpointData',

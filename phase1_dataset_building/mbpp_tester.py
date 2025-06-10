@@ -24,7 +24,7 @@ from common import (
     ensure_directory_exists
 )
 from phase1_dataset_building.dataset_manager import PromptAwareDatasetManager, CodeTestResult
-from phase1_dataset_building.test_executor import TestExecutor
+from phase1_dataset_building.solution_evaluator import SolutionEvaluator
 from phase1_dataset_building.dataset_builder import DatasetBuilder, RobustDatasetBuilder
 
 
@@ -107,7 +107,7 @@ class MBPPTester:
             
             self.logger.info(f"Processing record {idx} (Task ID: {record['task_id']})")
             
-            result = TestExecutor.run_record_tests(record)
+            result = SolutionEvaluator.evaluate_mbpp_solution(record)
             self._update_overall_stats(result)
             
             self.logger.info("-" * 40)
