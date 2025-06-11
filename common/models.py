@@ -19,14 +19,14 @@ from common.config import ModelConfiguration
 class ModelManager:
     """Manages language model loading and generation"""
     
-    def __init__(self, config: Optional[ModelConfiguration] = None):
+    def __init__(self, config: ModelConfiguration):
         """
         Initialize model manager
         
         Args:
-            config: Model configuration object
+            config: Model configuration object (required)
         """
-        self.config = config or ModelConfiguration()
+        self.config = config
         self.model = None
         self.tokenizer = None
         self.device = None

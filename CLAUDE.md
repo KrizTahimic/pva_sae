@@ -141,14 +141,21 @@ python3 run.py phase 1 --no-auto-discover
 
 ## Code Quality Guidelines
 
-### 1. **Naming & Structure**
+### 1. **Simplicity Principle (KISS - Keep It Simple, Stupid)**
+- **Choose the simplest solution** that meets requirements
+- **Avoid over-engineering**: Don't build for hypothetical future needs
+- **Prefer readability over cleverness**: Code is read more than written
+- **One thing per function/class**: Single responsibility principle
+- **Minimize dependencies**: Use built-in libraries when possible
+
+### 2. **Naming & Structure**
 - **Variables**: `user_count`, `total_price` (snake_case)
 - **Functions**: `get_user_data()`, `validate_email()` (descriptive names)
 - **Constants**: `MAX_RETRIES`, `DEFAULT_TIMEOUT` (UPPER_CASE)
 - **Classes**: `UserManager`, `DatabaseConnection` (PascalCase)
 - **Keep functions small**: Ideally under 20-30 lines
 
-### 2. **Error Handling & Logging**
+### 3. **Error Handling & Logging**
 - Use try-catch blocks with specific exceptions
 - Log errors with context for debugging
 - Fail fast with meaningful error messages
@@ -161,23 +168,23 @@ except SpecificException as e:
     return default_value
 ```
 
-### 3. **Python Best Practices**
+### 4. **Python Best Practices**
 - **List comprehensions**: `[x*2 for x in nums if x > 0]`
 - **Context managers**: `with open('file.txt') as f:`
 - **Type hints**: `def process_data(items: List[str]) -> Dict[str, int]:`
 - **DRY principle**: Don't Repeat Yourself - Extract repeated code into functions
 - **YAGNI principle**: You Ain't Gonna Need It - Don't add functionality until it's actually needed
 
-### 4. **Logging Standards**
+### 5. **Logging Standards**
 - **Levels**: DEBUG (diagnostics) → INFO (events) → WARNING (recoverable) → ERROR (failures) → CRITICAL (system issues)
 - **Structure with context**: `logger.error(f"Failed to process {item_id}: {str(e)}")`
 
-### 5. **Documentation**
+### 6. **Documentation**
 - Comment the "why," not the "what"
 - Use docstrings for functions and classes
 - Keep comments current with code changes
 
-### 6. **Problem-Solving Approach**
+### 7. **Problem-Solving Approach**
 - **Root cause analysis**: Avoid bandaid fixes and really fix the root of the problem
 - **Investigate thoroughly**: Understand the underlying issue before implementing solutions
 - **Systematic debugging**: Use proper debugging techniques rather than quick patches

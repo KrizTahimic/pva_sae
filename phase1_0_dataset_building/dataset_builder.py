@@ -62,24 +62,26 @@ class DatasetBuilder:
         self.current_results = []
         self.logger = logging.getLogger(__name__)
         
-        # Setup activation extraction if enabled
+        # Setup activation extraction
         self.activation_extractor = None
-        if self.config.save_activations:
-            self._setup_activation_extraction()
+        self._setup_activation_extraction()
     
     def _setup_activation_extraction(self):
-        """Setup activation extraction if enabled."""
+        """Setup activation extraction."""
         try:
-            extraction_config = ActivationExtractionConfig(
-                max_cache_size_gb=5.0,
-                clear_cache_between_layers=True
-            )
+            # Create activation extractor for HuggingFace model
+            from common.activation_extraction import create_activation_extractor, ActivationExtractionConfig
             
-            # Only setup activation extraction if we have a compatible model
-            # For now, disable for non-HookedTransformer models
-            self.logger.warning("Activation extraction requires HookedTransformer model, disabling for now")
-            self.config.save_activations = False
-            return
+            self.activation_extractor = create_activation_extractor(
+                model=self.generator.model_manager.model,
+                model_type="huggingface",
+                tokenizer=self.generator.model_manager.tokenizer,
+                device=self.generator.model_manager.device,
+                config=ActivationExtractionConfig(
+                    max_cache_size_gb=5.0,
+                    clear_cache_between_layers=True
+                )
+            )
             
             # Create activation directories
             activation_base = Path(self.config.dataset_dir) / "activations"
@@ -87,9 +89,10 @@ class DatasetBuilder:
             (activation_base / "incorrect").mkdir(parents=True, exist_ok=True)
             
             self.logger.info(f"Activation extraction enabled for layers: {self.config.activation_layers}")
+            
         except Exception as e:
             self.logger.error(f"Failed to setup activation extraction: {e}")
-            self.config.save_activations = False
+            raise  # Fail fast - this is required functionality
     
     def process_record(self, idx: int) -> CodeGenerationResult:
         """
@@ -132,8 +135,8 @@ class DatasetBuilder:
             # Determine if correct (pass@1)
             is_correct = test_result.passed == test_result.total and test_result.total > 0
             
-            # Extract and save activations if enabled
-            if self.config.save_activations and self.activation_extractor:
+            # Save activations
+            if self.activation_extractor:
                 self._save_activations(
                     prompt=prompt + generation_result.generated_text,
                     task_id=task_id,

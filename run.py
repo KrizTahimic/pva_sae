@@ -362,7 +362,7 @@ def run_phase2(args, logger, device: str):
     activation_dir = dataset_path.parent / "activations"
     if not activation_dir.exists():
         logger.error(f"Activation directory not found: {activation_dir}")
-        logger.error("Please run Phase 1 with activation extraction enabled (save_activations=True)")
+        logger.error("No activation files found. Please run Phase 1 first to generate activations.")
         sys.exit(1)
     
     logger.info(f"Loading activations from: {activation_dir}")

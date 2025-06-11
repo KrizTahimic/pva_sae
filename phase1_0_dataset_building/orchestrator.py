@@ -32,22 +32,22 @@ class Phase1Orchestrator:
     
     def __init__(self,
                  difficulty_mapping: Dict[str, Any],
-                 model_config: Optional[ModelConfiguration] = None,
-                 dataset_config: Optional[DatasetConfiguration] = None,
-                 robustness_config: Optional[RobustnessConfig] = None):
+                 model_config: ModelConfiguration,
+                 dataset_config: DatasetConfiguration,
+                 robustness_config: RobustnessConfig):
         """
         Initialize Phase 1 orchestrator with configuration objects.
         
         Args:
-            model_config: Model configuration
-            dataset_config: Dataset configuration
-            robustness_config: Robustness configuration for checkpointing/monitoring
             difficulty_mapping: Pre-computed difficulty mapping from Phase 0 (required)
+            model_config: Model configuration (required)
+            dataset_config: Dataset configuration (required)
+            robustness_config: Robustness configuration for checkpointing/monitoring (required)
         """
-        # Use provided configs or defaults
-        self.model_config = model_config or ModelConfiguration()
-        self.dataset_config = dataset_config or DatasetConfiguration()
-        self.robustness_config = robustness_config or RobustnessConfig()
+        # Store required configurations
+        self.model_config = model_config
+        self.dataset_config = dataset_config
+        self.robustness_config = robustness_config
         self.difficulty_mapping = difficulty_mapping
         
         # Auto-enable checkpointing for GPU
