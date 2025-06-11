@@ -167,12 +167,12 @@ python3 run.py phase 3 --input data/phase2/specific_results.json
 - **DRY (Don't Repeat Yourself)**: Extract repeated code into reusable functions
 - **YAGNI (You Ain't Gonna Need It)**: Don't add functionality until actually needed
 - **Single Responsibility**: One clear purpose per function/class
+- **Minimize Scope**: Declare variables in smallest scope possible, avoid global state
 
 #### Implementation Guidelines
 - Prefer readability over cleverness
 - Avoid over-engineering for hypothetical futures
 - Minimize external dependencies
-- Keep functions under 20-30 lines
 
 ### Problem-Solving Approach
 - **Root cause analysis**: Avoid bandaid fixes and really fix the root of the problem

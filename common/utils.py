@@ -276,140 +276,17 @@ def safe_json_dumps(obj: any, indent: int = 2) -> str:
 
 
 # ============================================================================
-# Dataset Splitting Utilities
+# Dataset Splitting Utilities - MOVED TO phase1_1_data_splitting
 # ============================================================================
-
-def create_interleaved_pattern(ratios):
-    """
-    Convert decimal ratios to integer pattern for interleaved sampling
-    
-    Args:
-        ratios: List of decimal ratios (e.g., [0.5, 0.1, 0.4])
-        
-    Returns:
-        tuple: (pattern_list, count_list) where pattern_list contains
-               split indices and count_list contains integer counts
-    """
-    from math import gcd
-    from functools import reduce
-    
-    # Convert to integers by finding common denominator
-    fractions = []
-    for r in ratios:
-        # Convert to fraction (multiply by 1000 to handle decimals)
-        numerator = int(r * 1000)
-        denominator = 1000
-        # Reduce fraction
-        common = gcd(numerator, denominator)
-        fractions.append((numerator // common, denominator // common))
-    
-    # Find LCM of denominators
-    denominators = [f[1] for f in fractions]
-    lcm = denominators[0]
-    for d in denominators[1:]:
-        lcm = lcm * d // gcd(lcm, d)
-    
-    # Convert to integer counts
-    counts = []
-    for num, den in fractions:
-        counts.append((num * lcm) // den)
-    
-    # Reduce by GCD to get smallest pattern
-    pattern_gcd = reduce(gcd, counts)
-    counts = [c // pattern_gcd for c in counts]
-    
-    # Create pattern array
-    pattern = [i for i, count in enumerate(counts) for _ in range(count)]
-    
-    return pattern, counts
+# The dataset splitting functions have been moved to:
+# - phase1_1_data_splitting.dataset_splitter for splitting logic
+# - phase1_1_data_splitting.split_quality_checker for validation
+# This follows the minimize scope principle - functions are now in the phase
+# where they're actually used.
 
 
-def split_indices_interleaved(indices, complexity_scores, ratios):
-    """
-    Split indices using interleaved sampling based on complexity
-    
-    Args:
-        indices: List of indices to split
-        complexity_scores: Array/list of complexity scores for each index
-        ratios: List of target ratios for splits
-        
-    Returns:
-        tuple: (splits, pattern) where splits is list of index lists for each split
-    """
-    # Create pattern
-    pattern, counts = create_interleaved_pattern(ratios)
-    
-    # Sort indices by complexity
-    sorted_indices = sorted(indices, key=lambda i: complexity_scores[i])
-    
-    # Apply pattern cyclically
-    splits = [[] for _ in range(len(ratios))]
-    
-    for i, idx in enumerate(sorted_indices):
-        split_id = pattern[i % len(pattern)]
-        splits[split_id].append(idx)
-    
-    return splits, pattern
 
 
-def validate_split_quality(splits, complexity_scores, target_ratios, tolerance=0.02):
-    """
-    Validate the quality of dataset splits
-    
-    Args:
-        splits: List of index lists for each split
-        complexity_scores: Array/list of complexity scores
-        target_ratios: List of target ratios
-        tolerance: Maximum allowed ratio error
-        
-    Returns:
-        bool: True if splits pass validation
-    """
-    import numpy as np
-    
-    total_samples = sum(len(split) for split in splits)
-    
-    # Check ratios
-    actual_ratios = [len(split)/total_samples for split in splits]
-    ratio_errors = [abs(actual - target) for actual, target in zip(actual_ratios, target_ratios)]
-    
-    # Check if within tolerance
-    within_tolerance = all(error <= tolerance for error in ratio_errors)
-    
-    # Check complexity distribution similarity
-    split_complexities = [[complexity_scores[i] for i in split] for split in splits]
-    
-    # Simple statistical comparison (mean and std comparison)
-    # If scipy is available, use KS test, otherwise use basic statistics
-    try:
-        from scipy import stats
-        ks_pvalues = []
-        for i in range(len(split_complexities)):
-            for j in range(i+1, len(split_complexities)):
-                _, p_value = stats.ks_2samp(split_complexities[i], split_complexities[j])
-                ks_pvalues.append(p_value)
-        
-        # Distributions are similar if p > 0.05 (not significantly different)
-        similar_distributions = all(p > 0.05 for p in ks_pvalues)
-        
-    except ImportError:
-        # Fallback: Basic statistical comparison
-        means = [np.mean(complexities) for complexities in split_complexities]
-        stds = [np.std(complexities) for complexities in split_complexities]
-        
-        # Check if means are similar (within 20% of overall mean)
-        overall_mean = np.mean(complexity_scores)
-        mean_threshold = 0.2 * overall_mean
-        similar_means = all(abs(mean - overall_mean) <= mean_threshold for mean in means)
-        
-        # Check if standard deviations are similar (within 50% of overall std)
-        overall_std = np.std(complexity_scores)
-        std_threshold = 0.5 * overall_std
-        similar_stds = all(abs(std - overall_std) <= std_threshold for std in stds)
-        
-        similar_distributions = similar_means and similar_stds
-    
-    return within_tolerance and similar_distributions
 
 
 # ============================================================================

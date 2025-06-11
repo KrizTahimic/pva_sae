@@ -87,9 +87,9 @@ def setup_argument_parser():
     # Required phase selection
     phase_parser.add_argument(
         'phase',
-        type=int,
-        choices=[0, 1, 2, 3],
-        help='Phase to run: 0=Difficulty Analysis, 1=Dataset Building, 2=SAE Analysis, 3=Validation'
+        type=float,
+        choices=[0, 1, 1.1, 2, 3],
+        help='Phase to run: 0=Difficulty Analysis, 1=Dataset Building, 1.1=Dataset Splitting, 2=SAE Analysis, 3=Validation'
     )
     
     # Global arguments (add to phase parser)
@@ -148,6 +148,39 @@ def setup_argument_parser():
         type=str,
         default='data/phase1_0',
         help='Directory for dataset files'
+    )
+    
+    # Phase 1.1: Dataset Splitting arguments
+    phase1_1_group = phase_parser.add_argument_group('Phase 1.1: Dataset Splitting')
+    phase1_1_group.add_argument(
+        '--split-ratios',
+        type=float,
+        nargs=3,
+        default=[0.5, 0.1, 0.4],
+        help='Split ratios for SAE, hyperparam, validation (default: 0.5 0.1 0.4)'
+    )
+    phase1_1_group.add_argument(
+        '--random-seed',
+        type=int,
+        default=42,
+        help='Random seed for reproducible splitting (default: 42)'
+    )
+    phase1_1_group.add_argument(
+        '--n-strata',
+        type=int,
+        default=10,
+        help='Number of complexity strata for stratified sampling (default: 10)'
+    )
+    phase1_1_group.add_argument(
+        '--split-output-dir',
+        type=str,
+        default='data/phase1_1',
+        help='Directory to save split indices (default: data/phase1_1)'
+    )
+    phase1_1_group.add_argument(
+        '--generate-report',
+        action='store_true',
+        help='Generate quality report after splitting'
     )
     
     # Phase 2: SAE Analysis arguments
@@ -313,6 +346,112 @@ def run_phase1(args, logger, device: str):
     
     logger.info("✅ Phase 1 completed successfully")
     logger.info(f"Dataset saved to: {dataset_path}")
+
+
+def run_phase1_1(args, logger, device: str):
+    """Run Phase 1.1: Dataset Splitting"""
+    import pandas as pd
+    from pathlib import Path
+    from phase1_1_data_splitting import split_dataset, check_split_quality, generate_quality_report
+    from phase1_1_data_splitting.config import SplitConfig
+    from common.utils import discover_latest_phase_output
+    
+    logger.info("Starting Phase 1.1: Dataset Splitting")
+    logger.info(f"Split ratios: {args.split_ratios}")
+    logger.info(f"Random seed: {args.random_seed}")
+    logger.info(f"Number of strata: {args.n_strata}")
+    
+    # Auto-discover or use provided dataset
+    if args.input:
+        dataset_path = args.input
+        logger.info(f"Using provided dataset: {dataset_path}")
+    else:
+        logger.info("Auto-discovering dataset from Phase 1.0...")
+        dataset_path = discover_latest_phase_output(1, phase_dir="data/phase1_0")
+        
+        if not dataset_path:
+            logger.error("No Phase 1.0 dataset found! Please run Phase 1 first.")
+            sys.exit(1)
+        
+        logger.info(f"Found dataset: {dataset_path}")
+    
+    # Load dataset
+    try:
+        df = pd.read_parquet(dataset_path)
+        logger.info(f"Loaded dataset with {len(df)} samples")
+        
+        # Check minimum size
+        if len(df) < 10:
+            logger.error(f"Dataset too small for splitting: {len(df)} samples (minimum 10 required)")
+            logger.error("Please run Phase 1 with more samples first (e.g., --end 50)")
+            sys.exit(1)
+        
+        # Verify required columns
+        required_columns = ['task_id', 'complexity_score']
+        if not all(col in df.columns for col in required_columns):
+            logger.error(f"Dataset missing required columns: {required_columns}")
+            sys.exit(1)
+            
+    except Exception as e:
+        logger.error(f"Failed to load dataset: {e}")
+        sys.exit(1)
+    
+    # Create configuration
+    config = SplitConfig(
+        sae_ratio=args.split_ratios[0],
+        hyperparam_ratio=args.split_ratios[1],
+        validation_ratio=args.split_ratios[2],
+        random_seed=args.random_seed,
+        n_complexity_strata=args.n_strata,
+        output_dir=args.split_output_dir
+    )
+    
+    # Validate configuration
+    try:
+        config.validate()
+    except ValueError as e:
+        logger.error(f"Invalid configuration: {e}")
+        sys.exit(1)
+    
+    # Perform splitting
+    logger.info("Performing stratified randomized splitting...")
+    splits = split_dataset(df, config)
+    
+    # Log split results
+    for split_name, indices in splits.items():
+        logger.info(f"Split '{split_name}': {len(indices)} samples ({len(indices)/len(df):.1%})")
+    
+    # Check split quality
+    logger.info("Checking split quality...")
+    quality_results = check_split_quality(
+        splits, 
+        df, 
+        config.ratios, 
+        tolerance=config.ratio_tolerance
+    )
+    
+    # Log quality summary
+    if quality_results['overall_quality']:
+        logger.info("✅ Split quality: PASS")
+    else:
+        logger.warning("⚠️ Split quality: FAIL")
+    
+    for summary_point in quality_results['quality_summary']:
+        logger.info(f"  - {summary_point}")
+    
+    # Generate report if requested
+    if args.generate_report:
+        logger.info("Generating quality report...")
+        report_path = generate_quality_report(
+            splits,
+            df,
+            quality_results,
+            config.output_dir
+        )
+        logger.info(f"Quality report saved to: {report_path}")
+    
+    logger.info("✅ Phase 1.1 completed successfully")
+    logger.info(f"Split indices saved to: {config.output_dir}")
 
 
 def run_phase2(args, logger, device: str):
@@ -1143,7 +1282,8 @@ def main():
         # Display phase info
         phase_names = {
             0: "Difficulty Analysis",
-            1: "Dataset Building", 
+            1: "Dataset Building",
+            1.1: "Dataset Splitting", 
             2: "SAE Analysis",
             3: "Validation"
         }
@@ -1158,6 +1298,8 @@ def main():
                 run_phase0(args, logger, device)
             elif args.phase == 1:
                 run_phase1(args, logger, device)
+            elif args.phase == 1.1:
+                run_phase1_1(args, logger, device)
             elif args.phase == 2:
                 run_phase2(args, logger, device)
             elif args.phase == 3:
