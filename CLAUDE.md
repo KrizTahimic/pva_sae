@@ -165,7 +165,8 @@ except SpecificException as e:
 - **List comprehensions**: `[x*2 for x in nums if x > 0]`
 - **Context managers**: `with open('file.txt') as f:`
 - **Type hints**: `def process_data(items: List[str]) -> Dict[str, int]:`
-- **DRY principle**: Extract repeated code into functions
+- **DRY principle**: Don't Repeat Yourself - Extract repeated code into functions
+- **YAGNI principle**: You Ain't Gonna Need It - Don't add functionality until it's actually needed
 
 ### 4. **Logging Standards**
 - **Levels**: DEBUG (diagnostics) → INFO (events) → WARNING (recoverable) → ERROR (failures) → CRITICAL (system issues)
