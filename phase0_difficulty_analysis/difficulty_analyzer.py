@@ -12,8 +12,28 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-from common.utils import get_cyclomatic_complexity, get_timestamp, ensure_directory_exists
+from common.utils import get_timestamp, ensure_directory_exists
 from common.logging import LoggingManager
+
+
+def get_cyclomatic_complexity(code: str) -> int:
+    """
+    Calculate cyclomatic complexity for Python code
+    
+    Args:
+        code: Python source code string
+        
+    Returns:
+        int: Cyclomatic complexity score
+    """
+    try:
+        from radon.complexity import cc_visit
+        results = cc_visit(code)
+        complexity = max(r.complexity for r in results) if results else 1
+    except Exception:
+        complexity = 1
+    
+    return complexity
 
 
 @dataclass

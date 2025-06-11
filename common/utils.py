@@ -275,26 +275,6 @@ def safe_json_dumps(obj: any, indent: int = 2) -> str:
     return json.dumps(obj, indent=indent, default=str)
 
 
-def get_cyclomatic_complexity(code: str) -> int:
-    """
-    Calculate cyclomatic complexity for Python code
-    
-    Args:
-        code: Python source code string
-        
-    Returns:
-        int: Cyclomatic complexity score
-    """
-    try:
-        from radon.complexity import cc_visit
-        results = cc_visit(code)
-        complexity = max(r.complexity for r in results) if results else 1
-    except Exception:
-        complexity = 1
-    
-    return complexity
-
-
 # ============================================================================
 # Dataset Splitting Utilities
 # ============================================================================
