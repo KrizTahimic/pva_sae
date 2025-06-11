@@ -58,6 +58,29 @@ When working with SAELens or TransformerLens, access their official documentatio
 - **Purpose**: Mechanistic interpretability of GPT-style language models
 - **Key Features**: 50+ model support, activation caching, intervention capabilities
 
+## Framework Usage Patterns
+
+### Dual HuggingFace/TransformerLens Approach
+This project uses both frameworks for different purposes:
+
+1. **HuggingFace (Primary)** - General model loading and activation extraction
+   - Models loaded via `AutoModelForCausalLM.from_pretrained()`
+   - Custom activation extraction using PyTorch hooks
+   - Broad model support and compatibility
+   - Used for dataset generation and primary inference
+
+2. **TransformerLens (Secondary)** - Mechanistic interpretability experiments
+   - Models loaded via `HookedTransformer.from_pretrained_no_processing()`
+   - Built-in `ActivationCache` for storing activations
+   - Specialized interpretability features (patching, steering)
+   - Used primarily for analysis and intervention experiments
+
+### Activation Extraction Patterns
+- **HuggingFace path**: Custom forward/pre-forward hooks attached to model modules
+- **TransformerLens path**: Built-in activation caching functionality
+- **Storage**: Activations cached to memory-mapped files for efficiency
+- **SAE integration**: Compatible with both frameworks
+
 ## Memories
 - Always use `python3` (not python)
 - Use `python3 run.py test-gpu` to test GPU setup
