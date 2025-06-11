@@ -27,6 +27,7 @@ sys.path.insert(0, str(project_root))
 
 from common.logging import LoggingManager
 from common.utils import managed_subprocess
+from phase1_0_dataset_building.config import DEFAULT_PHASE1_DIR
 
 
 class MultiGPULauncher:
@@ -285,7 +286,7 @@ def main():
     parser.add_argument(
         '--dataset-dir',
         type=str,
-        default='data/phase1_0',
+        default=DEFAULT_PHASE1_DIR,
         help='Directory for dataset outputs'
     )
     parser.add_argument(

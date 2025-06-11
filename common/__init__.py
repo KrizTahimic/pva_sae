@@ -26,8 +26,6 @@ from .utils import (
 from .config import (
     DEFAULT_MODEL_NAME,
     DEFAULT_LOG_DIR,
-    DEFAULT_DATASET_DIR,
-    DEFAULT_PHASE1_DIR,
     MAX_NEW_TOKENS,
     ModelConfiguration,
     DatasetConfiguration,
@@ -100,8 +98,6 @@ __all__ = [
     # Config
     'DEFAULT_MODEL_NAME',
     'DEFAULT_LOG_DIR',
-    'DEFAULT_DATASET_DIR',
-    'DEFAULT_PHASE1_DIR',
     'MAX_NEW_TOKENS',
     'ModelConfiguration',
     'DatasetConfiguration',

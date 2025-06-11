@@ -17,6 +17,10 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Generator, Any, Union
 from pathlib import Path
 
+# Import phase-specific directory constants
+# Note: These imports are done inside functions to avoid circular import issues
+# when this module is imported from common.__init__.py
+
 
 def detect_device() -> torch.device:
     """
@@ -293,29 +297,58 @@ def safe_json_dumps(obj: any, indent: int = 2) -> str:
 # Auto-discovery Utilities
 # ============================================================================
 
+def _get_phase_directories():
+    """Get phase directories from their respective config modules."""
+    # Import here to avoid circular import issues
+    try:
+        from phase0_difficulty_analysis.config import DEFAULT_PHASE0_DIR
+        from phase1_0_dataset_building.config import DEFAULT_PHASE1_DIR  
+        from phase2_sae_analysis.config import DEFAULT_PHASE2_DIR
+        from phase3_validation.config import DEFAULT_PHASE3_DIR
+        return {
+            0: DEFAULT_PHASE0_DIR,
+            1: DEFAULT_PHASE1_DIR,
+            2: DEFAULT_PHASE2_DIR,
+            3: DEFAULT_PHASE3_DIR
+        }
+    except ImportError:
+        # Fallback to hardcoded paths if phase configs aren't available
+        return {
+            0: "data/phase0",
+            1: "data/phase1_0", 
+            2: "data/phase2",
+            3: "data/phase3"
+        }
+
 # Configuration for phase output auto-discovery
-PHASE_OUTPUT_CONFIGS = {
-    0: {
-        "dir": "data/phase0",
-        "patterns": "*mbpp_difficulty_mapping_*.parquet",
-        "exclude_keywords": None
-    },
-    1: {
-        "dir": "data/phase1_0",
-        "patterns": "dataset_*.parquet",
-        "exclude_keywords": ['checkpoint', 'autosave', 'emergency']
-    },
-    2: {
-        "dir": "data/phase2",
-        "patterns": ["sae_analysis_*.json", "multi_layer_results_*.json"],
-        "exclude_keywords": None
-    },
-    3: {
-        "dir": "data/phase3",
-        "patterns": ["validation_results_*.json", "steering_results_*.json"],
-        "exclude_keywords": None
+def _get_phase_output_configs():
+    """Get phase output configurations with proper directory paths."""
+    phase_dirs = _get_phase_directories()
+    return {
+        0: {
+            "dir": phase_dirs[0],
+            "patterns": "*mbpp_difficulty_mapping_*.parquet",
+            "exclude_keywords": None
+        },
+        1: {
+            "dir": phase_dirs[1],
+            "patterns": "dataset_*.parquet",
+            "exclude_keywords": ['checkpoint', 'autosave', 'emergency']
+        },
+        2: {
+            "dir": phase_dirs[2],
+            "patterns": ["sae_analysis_*.json", "multi_layer_results_*.json"],
+            "exclude_keywords": None
+        },
+        3: {
+            "dir": phase_dirs[3],
+            "patterns": ["validation_results_*.json", "steering_results_*.json"],
+            "exclude_keywords": None
+        }
     }
-}
+
+# Lazy-loaded configuration
+PHASE_OUTPUT_CONFIGS = None
 
 
 def discover_latest_phase_output(phase: int, phase_dir: Optional[str] = None) -> Optional[str]:
@@ -335,6 +368,10 @@ def discover_latest_phase_output(phase: int, phase_dir: Optional[str] = None) ->
     Raises:
         ValueError: If phase number is invalid
     """
+    global PHASE_OUTPUT_CONFIGS
+    if PHASE_OUTPUT_CONFIGS is None:
+        PHASE_OUTPUT_CONFIGS = _get_phase_output_configs()
+        
     if phase not in PHASE_OUTPUT_CONFIGS:
         raise ValueError(f"Unknown phase: {phase}. Valid phases are: {list(PHASE_OUTPUT_CONFIGS.keys())}")
     

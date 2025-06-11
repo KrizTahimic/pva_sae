@@ -3,6 +3,12 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
+# Phase 1.1 specific constants
+DEFAULT_PHASE1_1_DIR = "data/phase1_1"
+
+# Re-export shared configs if needed
+from common.config import DatasetConfiguration
+
 
 @dataclass
 class SplitConfig:

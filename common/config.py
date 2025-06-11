@@ -11,14 +11,9 @@ import json
 import os
 
 
-# Default values
+# Default values - shared across phases
 DEFAULT_MODEL_NAME = "google/gemma-2-2b"
 DEFAULT_LOG_DIR = "data/logs"
-DEFAULT_DATASET_DIR = "data/phase1_0"
-DEFAULT_PHASE0_DIR = "data/phase0"
-DEFAULT_PHASE1_DIR = "data/phase1_0"
-DEFAULT_PHASE2_DIR = "data/phase2"
-DEFAULT_PHASE3_DIR = "data/phase3"
 MAX_NEW_TOKENS = 2000
 
 
@@ -40,7 +35,7 @@ class ModelConfiguration:
 @dataclass
 class DatasetConfiguration:
     """Configuration for dataset handling"""
-    dataset_dir: str = DEFAULT_DATASET_DIR
+    dataset_dir: str = "data/phase1_0"  # Default, should be overridden by phase configs
     dataset_name: str = "google/mbpp"
     split: str = "test"
     start_idx: int = 0

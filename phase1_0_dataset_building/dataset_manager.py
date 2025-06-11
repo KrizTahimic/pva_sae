@@ -10,8 +10,8 @@ import logging
 from typing import Optional, Any, Dict, List, Tuple
 from dataclasses import dataclass, asdict
 
-# Import common utilities
-from common import DEFAULT_DATASET_DIR
+# Import common utilities and phase config
+from .config import DEFAULT_DATASET_DIR
 from common.prompt_utils import PromptBuilder
 
 # Configuration constants

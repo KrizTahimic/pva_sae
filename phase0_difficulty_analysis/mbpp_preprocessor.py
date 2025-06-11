@@ -12,12 +12,13 @@ from typing import Optional, Dict, Any
 from common.logging import LoggingManager
 from phase1_0_dataset_building.dataset_manager import DatasetManager
 from .difficulty_analyzer import MBPPDifficultyAnalyzer, DifficultyMetrics
+from .config import DEFAULT_PHASE0_DIR
 
 
 class MBPPPreprocessor:
     """Main orchestrator for Phase 0 MBPP difficulty preprocessing"""
     
-    def __init__(self, output_dir: str = "data/phase0"):
+    def __init__(self, output_dir: str = DEFAULT_PHASE0_DIR):
         """
         Initialize MBPP preprocessor
         
