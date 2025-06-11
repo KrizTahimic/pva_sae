@@ -1,0 +1,27 @@
+{
+  "creation_timestamp": "2025-06-11T10:52:11.686868",
+  "model_name": "google/gemma-2-2b",
+  "total_records": 6,
+  "correct_count": 1,
+  "incorrect_count": 5,
+  "correct_rate": 16.666666666666664,
+  "dataset_config": {
+    "dataset_dir": "data/phase1",
+    "dataset_name": "google/mbpp",
+    "split": "test",
+    "start_idx": 0,
+    "end_idx": 5,
+    "save_activations": false,
+    "activation_layers": [
+      13,
+      14,
+      16,
+      17,
+      20
+    ],
+    "activation_hook_type": "resid_post",
+    "activation_position": -1
+  },
+  "dataframe_file": "dataset_gemma-2-2b_2025-06-11_10-52-11.parquet",
+  "dataset_directory": "data/phase1"
+}

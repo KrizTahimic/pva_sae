@@ -1,0 +1,18 @@
+{
+  "model_name": "gemma-2-2b",
+  "hook_component": "resid_post",
+  "n_correct_samples": 2,
+  "n_incorrect_samples": 2,
+  "layer_indices": [
+    20
+  ],
+  "layer_summaries": [
+    {
+      "layer": 20,
+      "correct_feature": 208,
+      "correct_score": 1.0,
+      "incorrect_feature": 213,
+      "incorrect_score": 1.0
+    }
+  ]
+}

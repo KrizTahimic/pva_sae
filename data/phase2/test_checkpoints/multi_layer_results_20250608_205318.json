@@ -1,0 +1,8 @@
+{
+  "model_name": "gemma-2-2b",
+  "hook_component": "resid_post",
+  "n_correct_samples": 3,
+  "n_incorrect_samples": 3,
+  "layer_indices": [],
+  "layer_summaries": []
+}
