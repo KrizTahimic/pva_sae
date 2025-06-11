@@ -20,10 +20,10 @@ from common import (
     ensure_directory_exists,
     get_timestamp
 )
-from phase1_dataset_building.dataset_manager import DatasetManager
-from phase1_dataset_building.dataset_builder import DatasetBuilder
-from phase1_dataset_building import checkpoint_manager
-from phase1_dataset_building import resource_monitor
+from phase1_0_dataset_building.dataset_manager import DatasetManager
+from phase1_0_dataset_building.dataset_builder import DatasetBuilder
+from phase1_0_dataset_building import checkpoint_manager
+from phase1_0_dataset_building import resource_monitor
 
 
 class Phase1Orchestrator:

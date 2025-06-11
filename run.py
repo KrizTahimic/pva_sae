@@ -131,7 +131,7 @@ def setup_argument_parser():
     phase1_group.add_argument(
         '--dataset-dir',
         type=str,
-        default='data/phase1',
+        default='data/phase1_0',
         help='Directory for dataset files'
     )
     phase1_group.add_argument(
@@ -254,7 +254,7 @@ def run_phase0(args, logger, device: str):
 
 def run_phase1(args, logger, device: str):
     """Run Phase 1: Dataset Building"""
-    from phase1_dataset_building import Phase1Orchestrator
+    from phase1_0_dataset_building import Phase1Orchestrator
     from phase0_difficulty_analysis.difficulty_analyzer import MBPPDifficultyAnalyzer
     from common.utils import discover_latest_phase0_mapping
     from common import ModelConfiguration, DatasetConfiguration, RobustnessConfig
@@ -351,7 +351,7 @@ def run_phase2(args, logger, device: str):
             logger.info(f"Found dataset: {dataset_path}")
             args.dataset = dataset_path
         else:
-            logger.error("No dataset found in data/phase1. Please run Phase 1 first or specify --dataset")
+            logger.error("No dataset found in data/phase1_0. Please run Phase 1 first or specify --dataset")
             sys.exit(1)
     else:
         logger.info(f"Using specified dataset: {args.dataset}")
@@ -533,7 +533,7 @@ def run_phase3(args, logger, device: str):
             logger.info(f"Found dataset: {dataset_path}")
             args.dataset = dataset_path
         else:
-            logger.error("No dataset found in data/phase1. Please run Phase 1 first")
+            logger.error("No dataset found in data/phase1_0. Please run Phase 1 first")
             sys.exit(1)
     
     logger.info(f"Dataset: {args.dataset}")
@@ -784,7 +784,7 @@ def show_status(args, logger):
         except Exception as e:
             print(f"   ❌ Error reading dataset: {e}")
     else:
-        print("   ❌ No datasets found in data/phase1")
+        print("   ❌ No datasets found in data/phase1_0")
     
     # Check GPU status
     print("\n🖥️  GPU:")
@@ -883,7 +883,7 @@ def validate_system(args, logger):
             print(f"   ✅ Dataset readable ({len(df)} records)")
             validation_results.append(("Dataset", True))
         else:
-            print("   ❌ No datasets found in data/phase1")
+            print("   ❌ No datasets found in data/phase1_0")
             validation_results.append(("Dataset", False))
     except Exception as e:
         print(f"   ❌ Dataset error: {e}")
@@ -908,7 +908,7 @@ def validate_system(args, logger):
 def test_phase1(args, logger, device: str):
     """Quick test of Phase 1 with 10 records"""
     import pandas as pd
-    from phase1_dataset_building import DatasetBuildingOrchestrator
+    from phase1_0_dataset_building import DatasetBuildingOrchestrator
     from common.utils import discover_latest_phase1_dataset
     
     print(f"\n{'='*50}")
@@ -919,7 +919,7 @@ def test_phase1(args, logger, device: str):
     print("\n🔍 Auto-discovering dataset from Phase 1...")
     latest_dataset = discover_latest_phase1_dataset()
     if not latest_dataset:
-        print("❌ No existing datasets found in data/phase1. Run Phase 1 first.")
+        print("❌ No existing datasets found in data/phase1_0. Run Phase 1 first.")
         return
     
     print(f"\n📊 Using dataset: {Path(latest_dataset).name}")
@@ -974,7 +974,7 @@ def test_phase2(args, logger, device: str):
     print("\n🔍 Auto-discovering dataset from Phase 1...")
     latest_dataset = discover_latest_phase1_dataset()
     if not latest_dataset:
-        print("❌ No datasets found in data/phase1. Run Phase 1 first.")
+        print("❌ No datasets found in data/phase1_0. Run Phase 1 first.")
         return
     
     print(f"\n📊 Using dataset: {Path(latest_dataset).name}")

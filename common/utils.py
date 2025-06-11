@@ -426,7 +426,7 @@ def discover_latest_phase0_mapping(phase0_dir: str = "data/phase0") -> Optional[
     return str(latest_file)
 
 
-def discover_latest_phase1_dataset(phase1_dir: str = "data/phase1") -> Optional[str]:
+def discover_latest_phase1_dataset(phase1_dir: str = "data/phase1_0") -> Optional[str]:
     """
     Find the latest dataset file in the phase1 directory
     

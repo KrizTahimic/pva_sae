@@ -12,7 +12,7 @@ from typing import List, Optional, Any
 from datetime import datetime
 
 from common import atomic_file_write, ensure_directory_exists
-from phase1_dataset_building.dataset_manager import CodeGenerationResult, CodeTestResult
+from phase1_0_dataset_building.dataset_manager import CodeGenerationResult, CodeTestResult
 
 
 def save_checkpoint(results: List[CodeGenerationResult], 

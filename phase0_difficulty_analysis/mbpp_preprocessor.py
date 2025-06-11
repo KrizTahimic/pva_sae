@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 from common.logging import LoggingManager
-from phase1_dataset_building.dataset_manager import DatasetManager
+from phase1_0_dataset_building.dataset_manager import DatasetManager
 from .difficulty_analyzer import MBPPDifficultyAnalyzer, DifficultyMetrics
 
 

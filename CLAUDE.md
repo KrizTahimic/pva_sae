@@ -17,13 +17,14 @@ The methodology follows four phases:
 - Phase 2: SAE activation analysis using separation scores
 - Phase 3: Validation through both statistical measures and causal intervention via model steering
 
-Each phase outputs to its own directory (data/phase0/, data/phase1/, etc.) and automatically discovers inputs from previous phases.
+Each phase outputs to its own directory (data/phase0/, data/phase1_0/, data/phase1_1/, etc.) and automatically discovers inputs from previous phases.
 
 ### Data Output Structure
 ```
 data/
 ├── phase0/           # Difficulty mappings
-├── phase1/           # Generated code + activations
+├── phase1_0/         # Generated code + activations (dataset building)
+├── phase1_1/         # Data splitting
 │   ├── dataset_*.parquet
 │   ├── dataset_*_metadata.json
 │   └── activations/

@@ -22,12 +22,12 @@ from common import (
     ActivationExtractionConfig
 )
 from common.generation import RobustGenerator
-from phase1_dataset_building.dataset_manager import (
+from phase1_0_dataset_building.dataset_manager import (
     DatasetManager, 
     CodeGenerationResult, 
     CodeTestResult
 )
-from phase1_dataset_building.solution_evaluator import SolutionEvaluator
+from phase1_0_dataset_building.solution_evaluator import SolutionEvaluator
 
 
 class DatasetBuilder:

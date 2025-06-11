@@ -12,27 +12,27 @@ Main Components:
 """
 
 # Import dataset management components
-from phase1_dataset_building.dataset_manager import (
+from phase1_0_dataset_building.dataset_manager import (
     CodeTestResult,
     CodeGenerationResult,
     DatasetManager
 )
 
 # Import solution evaluation components
-from phase1_dataset_building.solution_evaluator import (
+from phase1_0_dataset_building.solution_evaluator import (
     SolutionEvaluator,
     SafeSolutionEvaluator
 )
 
 # Import dataset building components
-from phase1_dataset_building.dataset_builder import DatasetBuilder
+from phase1_0_dataset_building.dataset_builder import DatasetBuilder
 
 # Import orchestrator
-from phase1_dataset_building.orchestrator import Phase1Orchestrator
+from phase1_0_dataset_building.orchestrator import Phase1Orchestrator
 
 # Import utility modules (not classes, just modules)
-from phase1_dataset_building import checkpoint_manager
-from phase1_dataset_building import resource_monitor
+from phase1_0_dataset_building import checkpoint_manager
+from phase1_0_dataset_building import resource_monitor
 
 __all__ = [
     # Dataset management - core data structures

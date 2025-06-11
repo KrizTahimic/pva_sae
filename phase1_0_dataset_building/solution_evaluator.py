@@ -8,7 +8,7 @@ to determine correctness according to the pass@1 criterion for dataset building.
 import logging
 from typing import Optional, Tuple, List, Dict, Any
 
-from phase1_dataset_building.dataset_manager import CodeTestResult
+from phase1_0_dataset_building.dataset_manager import CodeTestResult
 
 
 class SolutionEvaluator:
