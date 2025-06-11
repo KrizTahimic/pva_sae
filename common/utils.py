@@ -33,21 +33,6 @@ def detect_device() -> torch.device:
         return torch.device("cpu")
 
 
-def resolve_device(device: str) -> str:
-    """
-    Resolve device string, auto-detecting if needed.
-    
-    Args:
-        device: Device string ("auto", "cuda", "mps", "cpu", or torch.device)
-        
-    Returns:
-        str: Resolved device string
-    """
-    if device == "auto":
-        return str(detect_device())
-    return device
-
-
 def get_optimal_dtype(device: torch.device) -> torch.dtype:
     """
     Get optimal dtype based on device capabilities
@@ -602,34 +587,6 @@ def atomic_file_write(filepath: str, mode: str = 'w', **kwargs) -> Generator[Any
 
 
 @contextmanager
-def temporary_torch_file(model_or_tensor: Any, suffix: str = '.pt') -> Generator[str, None, None]:
-    """
-    Context manager for temporary torch save files
-    
-    Args:
-        model_or_tensor: PyTorch model or tensor to save
-        suffix: File suffix
-        
-    Yields:
-        str: Path to temporary file
-        
-    Example:
-        with temporary_torch_file(model.state_dict()) as temp_path:
-            # Use temp_path for operations
-            upload_to_cloud(temp_path)
-    """
-    fd, temp_path = tempfile.mkstemp(suffix=suffix)
-    os.close(fd)  # Close the file descriptor
-    
-    try:
-        torch.save(model_or_tensor, temp_path)
-        yield temp_path
-    finally:
-        if os.path.exists(temp_path):
-            os.unlink(temp_path)
-
-
-@contextmanager
 def torch_no_grad_and_cleanup(device: Optional[torch.device] = None) -> Generator[None, None, None]:
     """
     Combined context manager for torch.no_grad() and memory cleanup
@@ -679,38 +636,3 @@ def managed_subprocess(*args, **kwargs) -> Generator[Any, None, None]:
                 proc.wait()
 
 
-@contextmanager
-def file_lock(filepath: str, timeout: float = 10.0) -> Generator[None, None, None]:
-    """
-    Simple file-based lock for coordinating access across processes
-    
-    Args:
-        filepath: Path to file being locked
-        timeout: Maximum time to wait for lock
-        
-    Example:
-        with file_lock('dataset.parquet'):
-            # Exclusive access to dataset
-            df = pd.read_parquet('dataset.parquet')
-    """
-    import time
-    
-    lockfile = f"{filepath}.lock"
-    start_time = time.time()
-    
-    # Wait for lock
-    while os.path.exists(lockfile):
-        if time.time() - start_time > timeout:
-            raise TimeoutError(f"Could not acquire lock for {filepath}")
-        time.sleep(0.1)
-    
-    # Acquire lock
-    try:
-        # Create lock file atomically
-        fd = os.open(lockfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        os.close(fd)
-        yield
-    finally:
-        # Release lock
-        if os.path.exists(lockfile):
-            os.unlink(lockfile)

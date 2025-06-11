@@ -271,29 +271,3 @@ def build_prompt_template(
     )
 
 
-class PromptManager:
-    """Manages prompt templates and variations for experiments."""
-    
-    def __init__(self):
-        """Initialize prompt manager."""
-        self.templates: Dict[str, str] = {}
-        self.variations: Dict[str, List[PromptVariation]] = {}
-        self.logger = logging.getLogger(__name__)
-    
-    def register_template(self, name: str, template: str) -> None:
-        """Register a custom prompt template."""
-        self.templates[name] = template
-        self.logger.info(f"Registered template: {name}")
-    
-    def get_template(self, name: str) -> Optional[str]:
-        """Get registered template by name."""
-        return self.templates.get(name)
-    
-    def save_variations(self, experiment_id: str, variations: List[PromptVariation]) -> None:
-        """Save prompt variations for an experiment."""
-        self.variations[experiment_id] = variations
-        self.logger.info(f"Saved {len(variations)} variations for experiment: {experiment_id}")
-    
-    def get_variations(self, experiment_id: str) -> Optional[List[PromptVariation]]:
-        """Get saved variations for an experiment."""
-        return self.variations.get(experiment_id)

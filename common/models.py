@@ -111,18 +111,14 @@ class ModelManager:
     def generate(self, 
                  prompt: str, 
                  max_new_tokens: Optional[int] = None,
-                 temperature: Optional[float] = None,
-                 top_p: Optional[float] = None,
-                 do_sample: Optional[bool] = None) -> str:
+                 temperature: Optional[float] = None) -> str:
         """
         Generate text from prompt
         
         Args:
             prompt: Input prompt
             max_new_tokens: Maximum new tokens to generate
-            temperature: Sampling temperature
-            top_p: Top-p sampling parameter
-            do_sample: Whether to use sampling
+            temperature: Sampling temperature (0.0 for deterministic)
             
         Returns:
             str: Generated text
@@ -133,8 +129,9 @@ class ModelManager:
         # Use provided values or fall back to config
         max_new_tokens = max_new_tokens or self.config.max_new_tokens
         temperature = temperature if temperature is not None else self.config.temperature
-        top_p = top_p if top_p is not None else self.config.top_p
-        do_sample = do_sample if do_sample is not None else self.config.do_sample
+        
+        # Automatically determine do_sample based on temperature
+        do_sample = temperature > 0.0
         
         # Tokenize input
         inputs = self.tokenizer(prompt, return_tensors="pt")
@@ -144,7 +141,6 @@ class ModelManager:
         gen_kwargs = {
             "max_new_tokens": max_new_tokens,
             "temperature": temperature,
-            "top_p": top_p,
             "do_sample": do_sample,
             "pad_token_id": self.tokenizer.eos_token_id
         }
@@ -197,8 +193,9 @@ class ModelManager:
         # Extract generation parameters
         max_new_tokens = generation_kwargs.get('max_new_tokens', self.config.max_new_tokens)
         temperature = generation_kwargs.get('temperature', self.config.temperature)
-        top_p = generation_kwargs.get('top_p', self.config.top_p)
-        do_sample = generation_kwargs.get('do_sample', self.config.do_sample)
+        
+        # Automatically determine do_sample based on temperature
+        do_sample = temperature > 0.0
         
         all_results = []
         
@@ -219,7 +216,6 @@ class ModelManager:
             gen_kwargs = {
                 "max_new_tokens": max_new_tokens,
                 "temperature": temperature,
-                "top_p": top_p,
                 "do_sample": do_sample,
                 "pad_token_id": self.tokenizer.pad_token_id,
                 "eos_token_id": self.tokenizer.eos_token_id,
@@ -307,47 +303,3 @@ class ModelManager:
         self.cleanup()
 
 
-class ModelPool:
-    """Manages a pool of models for experiments"""
-    
-    def __init__(self):
-        """Initialize model pool"""
-        self.models = {}
-        self.logger = logging.getLogger(__name__)
-    
-    def add_model(self, name: str, config: ModelConfiguration) -> ModelManager:
-        """
-        Add a model to the pool
-        
-        Args:
-            name: Name for the model in the pool
-            config: Model configuration
-            
-        Returns:
-            ModelManager: The model manager instance
-        """
-        if name in self.models:
-            self.logger.warning(f"Model {name} already exists, replacing...")
-            self.models[name].cleanup()
-        
-        manager = ModelManager(config)
-        manager.load_model()
-        self.models[name] = manager
-        
-        return manager
-    
-    def get_model(self, name: str) -> Optional[ModelManager]:
-        """Get a model from the pool"""
-        return self.models.get(name)
-    
-    def remove_model(self, name: str):
-        """Remove a model from the pool"""
-        if name in self.models:
-            self.models[name].cleanup()
-            del self.models[name]
-    
-    def cleanup_all(self):
-        """Cleanup all models in the pool"""
-        for name, model in self.models.items():
-            model.cleanup()
-        self.models.clear()
