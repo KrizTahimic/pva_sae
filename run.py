@@ -24,6 +24,7 @@ sys.path.insert(0, str(project_root))
 
 from common.logging import LoggingManager
 from common.gpu_utils import cleanup_gpu_memory, ensure_gpu_available, setup_cuda_environment
+from common import MAX_NEW_TOKENS
 
 
 def setup_argument_parser():
@@ -253,9 +254,10 @@ def run_phase0(args, logger, device: str):
 
 def run_phase1(args, logger, device: str):
     """Run Phase 1: Dataset Building"""
-    from phase1_dataset_building import DatasetBuildingOrchestrator
+    from phase1_dataset_building import Phase1Orchestrator
     from phase0_difficulty_analysis.difficulty_analyzer import MBPPDifficultyAnalyzer
     from common.utils import discover_latest_phase0_mapping
+    from common import ModelConfiguration, DatasetConfiguration, RobustnessConfig
     
     logger.info("Starting Phase 1: Dataset Building")
     logger.info(f"Model: {args.model}, Range: {args.start}-{args.end}")
@@ -269,14 +271,17 @@ def run_phase1(args, logger, device: str):
             logger.info(f"Loading difficulty mapping from: {args.difficulty_mapping}")
             difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(args.difficulty_mapping)
         else:
-            # Auto-discover from phase0
+            # Auto-discover from phase0 (required)
             logger.info("Auto-discovering difficulty mapping from Phase 0...")
             mapping_path = discover_latest_phase0_mapping()
-            if mapping_path:
-                logger.info(f"Found difficulty mapping: {mapping_path}")
-                difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(mapping_path)
-            else:
-                logger.warning("No difficulty mapping found in data/phase0, will calculate on-demand")
+            if not mapping_path:
+                logger.error("No difficulty mapping found in data/phase0/")
+                logger.error("Phase 1 requires Phase 0 difficulty analysis to be completed first.")
+                logger.error("Please run: python3 run.py phase 0")
+                sys.exit(1)
+            
+            logger.info(f"Found difficulty mapping: {mapping_path}")
+            difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(mapping_path)
     
     # Setup CUDA environment and cleanup GPUs before starting
     if torch.cuda.is_available():
@@ -290,13 +295,30 @@ def run_phase1(args, logger, device: str):
             logger.warning(f"GPU {gpu_device} not responsive, attempting cleanup...")
             cleanup_gpu_memory(gpu_device)
     
-    tester = DatasetBuildingOrchestrator(
+    # Create configuration objects
+    model_config = ModelConfiguration(
         model_name=args.model,
-        dataset_dir=args.dataset_dir,
-        difficulty_mapping=difficulty_mapping
+        max_new_tokens=MAX_NEW_TOKENS
     )
     
-    dataset_path = tester.build_dataset_simple(
+    dataset_config = DatasetConfiguration(
+        dataset_dir=args.dataset_dir,
+        start_idx=args.start,
+        end_idx=args.end
+    )
+    
+    robustness_config = RobustnessConfig()
+    
+    # Create orchestrator with configs
+    orchestrator = Phase1Orchestrator(
+        difficulty_mapping=difficulty_mapping,
+        model_config=model_config,
+        dataset_config=dataset_config,
+        robustness_config=robustness_config
+    )
+    
+    # Build dataset
+    dataset_path = orchestrator.build_dataset(
         start_idx=args.start,
         end_idx=args.end
     )

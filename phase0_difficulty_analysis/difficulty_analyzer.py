@@ -19,7 +19,7 @@ from common.logging import LoggingManager
 @dataclass
 class DifficultyMetrics:
     """Encapsulates difficulty analysis metrics for a single MBPP problem"""
-    task_id: str
+    task_id: int
     cyclomatic_complexity: int
     
     def to_dict(self) -> Dict[str, Any]:
@@ -40,12 +40,12 @@ class MBPPDifficultyAnalyzer:
         self.output_dir = Path(output_dir)
         logging_manager = LoggingManager(log_dir="data/logs")
         self.logger = logging_manager.setup_logging(__name__)
-        self.difficulty_mapping: Dict[str, DifficultyMetrics] = {}
+        self.difficulty_mapping: Dict[int, DifficultyMetrics] = {}
         
         ensure_directory_exists(str(self.output_dir))
         self.logger.info("MBPPDifficultyAnalyzer initialized")
     
-    def analyze_dataset(self, dataset_manager) -> Dict[str, DifficultyMetrics]:
+    def analyze_dataset(self, dataset_manager) -> Dict[int, DifficultyMetrics]:
         """
         Analyze difficulty for entire MBPP dataset
         
@@ -96,7 +96,7 @@ class MBPPDifficultyAnalyzer:
         Returns:
             DifficultyMetrics: Computed difficulty metrics
         """
-        task_id = str(record.get('task_id', 'unknown'))
+        task_id = record.get('task_id', -1)  # Use -1 as sentinel for missing task_id
         reference_code = record.get('code', '')
         test_list = record.get('test_list', [])
         problem_text = record.get('text', '')
@@ -143,7 +143,7 @@ class MBPPDifficultyAnalyzer:
         return str(filepath)
     
     @classmethod
-    def load_difficulty_mapping(cls, filepath: str) -> Dict[str, DifficultyMetrics]:
+    def load_difficulty_mapping(cls, filepath: str) -> Dict[int, DifficultyMetrics]:
         """
         Load difficulty mapping from file
         

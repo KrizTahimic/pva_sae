@@ -14,7 +14,6 @@ from .utils import (
     ensure_directory_exists,
     get_timestamp,
     safe_json_dumps,
-    get_cyclomatic_complexity,
     # Context managers
     memory_mapped_array,
     torch_memory_cleanup,
@@ -99,7 +98,6 @@ __all__ = [
     'ensure_directory_exists',
     'get_timestamp',
     'safe_json_dumps',
-    'get_cyclomatic_complexity',
     
     # Context managers
     'memory_mapped_array',
