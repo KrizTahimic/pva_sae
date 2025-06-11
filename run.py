@@ -208,19 +208,10 @@ def validate_phase_arguments(args):
         if not args.model:
             raise ValueError("Phase 1 requires --model argument")
     
-    elif args.phase == 2:
-        # Phase 2 requires dataset
-        if not args.dataset:
-            raise ValueError("Phase 2 requires --dataset argument")
-        if not Path(args.dataset).exists():
-            raise ValueError(f"Dataset file not found: {args.dataset}")
-    
-    elif args.phase == 3:
-        # Phase 3 requires dataset
-        if not args.dataset:
-            raise ValueError("Phase 3 requires --dataset argument")
-        if not Path(args.dataset).exists():
-            raise ValueError(f"Dataset file not found: {args.dataset}")
+    # Phases 2-3 use auto-discovery, so no validation required
+    # If explicit dataset is provided, validate it exists
+    if args.dataset and not Path(args.dataset).exists():
+        raise ValueError(f"Dataset file not found: {args.dataset}")
 
 
 def run_phase0(args, logger, device: str):
