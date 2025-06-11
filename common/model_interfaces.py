@@ -220,50 +220,6 @@ class UnifiedModelInterface:
         # Will be implemented based on specific steering approach
         raise NotImplementedError("Model steering will be implemented in Phase 3")
     
-    def batch_generate_with_temperature_sweep(
-        self,
-        prompts: List[str],
-        temperatures: List[float],
-        max_new_tokens: Optional[int] = None,
-        extract_activations: bool = False,
-        activation_layers: Optional[List[int]] = None
-    ) -> Dict[float, List[Union[GenerationResult, GenerationWithActivations]]]:
-        """
-        Generate for multiple prompts across temperature values.
-        
-        Args:
-            prompts: List of prompts
-            temperatures: Temperature values to try
-            max_new_tokens: Maximum new tokens
-            extract_activations: Whether to extract activations
-            activation_layers: Layers to extract from
-            
-        Returns:
-            Dictionary mapping temperature to list of results
-        """
-        results = {}
-        
-        for temp in temperatures:
-            self.logger.info(f"Generating with temperature={temp}")
-            temp_results = []
-            
-            for prompt in prompts:
-                result = self.generate(
-                    prompt=prompt,
-                    temperature=temp,
-                    max_new_tokens=max_new_tokens,
-                    extract_activations=extract_activations,
-                    activation_layers=activation_layers
-                )
-                temp_results.append(result)
-                
-                # Memory cleanup between prompts
-                if self.robustness_config.memory_cleanup_frequency > 0:
-                    torch_memory_cleanup()
-            
-            results[temp] = temp_results
-        
-        return results
     
     def _load_huggingface_model(self, num_gpus: int) -> None:
         """Load HuggingFace model."""

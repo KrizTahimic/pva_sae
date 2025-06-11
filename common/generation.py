@@ -134,49 +134,6 @@ class RobustGenerator:
         
         return results
     
-    def batch_generate(
-        self,
-        prompts: List[str],
-        temperature: Optional[float] = None,
-        max_new_tokens: Optional[int] = None,
-        progress_callback: Optional[Callable[[int, int], None]] = None
-    ) -> List[GenerationResult]:
-        """
-        Generate outputs for multiple prompts with progress tracking.
-        
-        Args:
-            prompts: List of input prompts
-            temperature: Generation temperature
-            max_new_tokens: Maximum new tokens to generate
-            progress_callback: Optional callback for progress updates (current, total)
-            
-        Returns:
-            List of GenerationResult objects
-        """
-        results = []
-        total = len(prompts)
-        
-        for idx, prompt in enumerate(prompts):
-            # Memory cleanup periodically
-            if idx > 0 and idx % self.config.memory_cleanup_frequency == 0:
-                torch_memory_cleanup()
-                self.logger.info(f"Memory cleanup at index {idx}")
-            
-            # Generate with retry
-            result = self.generate(
-                prompt=prompt,
-                temperature=temperature,
-                max_new_tokens=max_new_tokens,
-                retry_on_failure=True
-            )
-            results.append(result)
-            
-            # Progress callback
-            if progress_callback:
-                progress_callback(idx + 1, total)
-        
-        return results
-    
     def _generate_with_retry(
         self,
         prompt: str,

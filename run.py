@@ -745,7 +745,7 @@ def show_status(args, logger):
         placeholder_phases.append(0)
     
     # Phase 1 - check if run_phase1 has real implementation  
-    if "run_phase1" in current_file_content and "DatasetBuildingOrchestrator" in current_file_content:
+    if "run_phase1" in current_file_content and "Phase1Orchestrator" in current_file_content:
         implemented_phases.append(1)
     else:
         placeholder_phases.append(1)
@@ -908,7 +908,7 @@ def validate_system(args, logger):
 def test_phase1(args, logger, device: str):
     """Quick test of Phase 1 with 10 records"""
     import pandas as pd
-    from phase1_0_dataset_building import DatasetBuildingOrchestrator
+    from phase1_0_dataset_building import Phase1Orchestrator
     from common.utils import discover_latest_phase1_dataset
     
     print(f"\n{'='*50}")

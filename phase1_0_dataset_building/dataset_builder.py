@@ -71,7 +71,6 @@ class DatasetBuilder:
         """Setup activation extraction if enabled."""
         try:
             extraction_config = ActivationExtractionConfig(
-                batch_size=1,
                 max_cache_size_gb=5.0,
                 clear_cache_between_layers=True
             )
