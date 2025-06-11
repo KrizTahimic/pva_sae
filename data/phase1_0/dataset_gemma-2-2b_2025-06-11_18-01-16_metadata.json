@@ -1,5 +1,5 @@
 {
-  "creation_timestamp": "2025-06-11T13:16:25.588629",
+  "creation_timestamp": "2025-06-11T18:01:16.785137",
   "model_name": "google/gemma-2-2b",
   "total_records": 3,
   "correct_count": 1,
@@ -11,7 +11,6 @@
     "split": "test",
     "start_idx": 0,
     "end_idx": 2,
-    "save_activations": false,
     "activation_layers": [
       13,
       14,
@@ -22,6 +21,6 @@
     "activation_hook_type": "resid_post",
     "activation_position": -1
   },
-  "dataframe_file": "dataset_gemma-2-2b_2025-06-11_13-16-25.parquet",
+  "dataframe_file": "dataset_gemma-2-2b_2025-06-11_18-01-16.parquet",
   "dataset_directory": "data/phase1_0"
 }

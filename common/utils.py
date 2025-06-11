@@ -14,7 +14,7 @@ import shutil
 import numpy as np
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Optional, List, Generator, Any
+from typing import Optional, List, Generator, Any, Union
 from pathlib import Path
 
 
@@ -184,6 +184,59 @@ def generate_dataset_filename(prefix: str = "dataset",
     
     # Add extension
     return f"{filename}.{extension}"
+
+
+def find_latest_file(directory: str, 
+                    patterns: Union[str, List[str]], 
+                    exclude_keywords: Optional[List[str]] = None) -> Optional[str]:
+    """
+    Find the most recently modified file matching patterns in directory.
+    
+    This is the core auto-discovery function used by all phase-specific utilities.
+    
+    Args:
+        directory: Directory to search in
+        patterns: Single pattern or list of glob patterns (e.g., "*.parquet", ["*.json", "*.yaml"])
+        exclude_keywords: Optional list of keywords to exclude from filenames
+        
+    Returns:
+        Path to the most recently modified matching file, or None if not found
+        
+    Example:
+        # Find latest parquet file
+        find_latest_file("data/", "*.parquet")
+        
+        # Find latest JSON or YAML, excluding backups
+        find_latest_file("configs/", ["*.json", "*.yaml"], exclude_keywords=["backup", "old"])
+    """
+    from pathlib import Path
+    
+    dir_path = Path(directory)
+    if not dir_path.exists():
+        return None
+    
+    # Normalize patterns to list
+    if isinstance(patterns, str):
+        patterns = [patterns]
+    
+    # Collect all matching files
+    matching_files = []
+    for pattern in patterns:
+        matching_files.extend(list(dir_path.glob(pattern)))
+    
+    # Apply exclusion filter if provided
+    if exclude_keywords:
+        matching_files = [
+            f for f in matching_files 
+            if not any(keyword in f.name for keyword in exclude_keywords)
+        ]
+    
+    if not matching_files:
+        return None
+    
+    # Return the most recently modified file
+    latest_file = max(matching_files, key=lambda p: p.stat().st_mtime)
+    return str(latest_file)
 
 
 def safe_json_dumps(obj: any, indent: int = 2) -> str:
@@ -380,7 +433,7 @@ def validate_split_quality(splits, complexity_scores, target_ratios, tolerance=0
 
 
 # ============================================================================
-# Phase-based Auto-discovery Utilities
+# Auto-discovery Utilities
 # ============================================================================
 
 def discover_latest_phase0_mapping(phase0_dir: str = "data/phase0") -> Optional[str]:
@@ -393,22 +446,7 @@ def discover_latest_phase0_mapping(phase0_dir: str = "data/phase0") -> Optional[
     Returns:
         str: Path to latest mapping file, or None if not found
     """
-    from pathlib import Path
-    
-    phase0_path = Path(phase0_dir)
-    if not phase0_path.exists():
-        return None
-    
-    # Look for difficulty mapping files
-    pattern = "*mbpp_difficulty_mapping_*.parquet"
-    mapping_files = list(phase0_path.glob(pattern))
-    
-    if not mapping_files:
-        return None
-    
-    # Return the most recently modified file
-    latest_file = max(mapping_files, key=lambda p: p.stat().st_mtime)
-    return str(latest_file)
+    return find_latest_file(phase0_dir, "*mbpp_difficulty_mapping_*.parquet")
 
 
 def discover_latest_phase1_dataset(phase1_dir: str = "data/phase1_0") -> Optional[str]:
@@ -421,26 +459,11 @@ def discover_latest_phase1_dataset(phase1_dir: str = "data/phase1_0") -> Optiona
     Returns:
         str: Path to latest dataset file, or None if not found
     """
-    from pathlib import Path
-    
-    phase1_path = Path(phase1_dir)
-    if not phase1_path.exists():
-        return None
-    
-    # Look for dataset files (excluding checkpoints and autosaves)
-    patterns = ["dataset_*.parquet"]
-    dataset_files = [
-        f for pattern in patterns 
-        for f in phase1_path.glob(pattern)
-        if not any(x in f.name for x in ['checkpoint', 'autosave', 'emergency'])
-    ]
-    
-    if not dataset_files:
-        return None
-    
-    # Return the most recently modified file
-    latest_file = max(dataset_files, key=lambda p: p.stat().st_mtime)
-    return str(latest_file)
+    return find_latest_file(
+        phase1_dir, 
+        "dataset_*.parquet", 
+        exclude_keywords=['checkpoint', 'autosave', 'emergency']
+    )
 
 
 def discover_latest_phase2_results(phase2_dir: str = "data/phase2") -> Optional[str]:
@@ -453,25 +476,10 @@ def discover_latest_phase2_results(phase2_dir: str = "data/phase2") -> Optional[
     Returns:
         str: Path to latest results file, or None if not found
     """
-    from pathlib import Path
-    
-    phase2_path = Path(phase2_dir)
-    if not phase2_path.exists():
-        return None
-    
-    # Look for SAE analysis result files
-    patterns = ["sae_analysis_*.json", "multi_layer_results_*.json"]
-    result_files = []
-    
-    for pattern in patterns:
-        result_files.extend(list(phase2_path.glob(pattern)))
-    
-    if not result_files:
-        return None
-    
-    # Return the most recently modified file
-    latest_file = max(result_files, key=lambda p: p.stat().st_mtime)
-    return str(latest_file)
+    return find_latest_file(
+        phase2_dir, 
+        ["sae_analysis_*.json", "multi_layer_results_*.json"]
+    )
 
 
 # ============================================================================
