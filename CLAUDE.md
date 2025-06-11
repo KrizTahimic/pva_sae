@@ -176,3 +176,8 @@ except SpecificException as e:
 - Comment the "why," not the "what"
 - Use docstrings for functions and classes
 - Keep comments current with code changes
+
+### 6. **Problem-Solving Approach**
+- **Root cause analysis**: Avoid bandaid fixes and really fix the root of the problem
+- **Investigate thoroughly**: Understand the underlying issue before implementing solutions
+- **Systematic debugging**: Use proper debugging techniques rather than quick patches
