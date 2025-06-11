@@ -157,9 +157,6 @@ python3 clean_data.py --dry-run
 # Override auto-discovery with specific files
 python3 run.py phase 1 --difficulty-mapping data/phase0/specific_mapping.parquet
 python3 run.py phase 2 --dataset data/phase1/specific_dataset.parquet
-
-# Disable auto-discovery
-python3 run.py phase 1 --no-auto-discover
 ```
 
 ## Code Quality Guidelines

@@ -139,11 +139,6 @@ def setup_argument_parser():
         type=str,
         help='Path to difficulty mapping file (default: auto-discover from phase0)'
     )
-    phase1_group.add_argument(
-        '--no-auto-discover',
-        action='store_true',
-        help='Disable auto-discovery of difficulty mapping from phase0'
-    )
     
     # Phase 2: SAE Analysis arguments
     phase2_group = phase_parser.add_argument_group('Phase 2: SAE Analysis')
@@ -255,24 +250,22 @@ def run_phase1(args, logger, device: str):
     logger.info("Processing mode: Sequential (use multi_gpu_launcher.py for parallel processing)")
     
     # Load difficulty mapping from Phase 0
-    difficulty_mapping = None
-    if not args.no_auto_discover:
-        if args.difficulty_mapping:
-            # Use explicitly provided mapping
-            logger.info(f"Loading difficulty mapping from: {args.difficulty_mapping}")
-            difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(args.difficulty_mapping)
-        else:
-            # Auto-discover from phase0 (required)
-            logger.info("Auto-discovering difficulty mapping from Phase 0...")
-            mapping_path = discover_latest_phase0_mapping()
-            if not mapping_path:
-                logger.error("No difficulty mapping found in data/phase0/")
-                logger.error("Phase 1 requires Phase 0 difficulty analysis to be completed first.")
-                logger.error("Please run: python3 run.py phase 0")
-                sys.exit(1)
-            
-            logger.info(f"Found difficulty mapping: {mapping_path}")
-            difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(mapping_path)
+    if args.difficulty_mapping:
+        # Use explicitly provided mapping
+        logger.info(f"Loading difficulty mapping from: {args.difficulty_mapping}")
+        difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(args.difficulty_mapping)
+    else:
+        # Auto-discover from phase0 (required)
+        logger.info("Auto-discovering difficulty mapping from Phase 0...")
+        mapping_path = discover_latest_phase0_mapping()
+        if not mapping_path:
+            logger.error("No difficulty mapping found in data/phase0/")
+            logger.error("Phase 1 requires Phase 0 difficulty analysis to be completed first.")
+            logger.error("Please run: python3 run.py phase 0")
+            sys.exit(1)
+        
+        logger.info(f"Found difficulty mapping: {mapping_path}")
+        difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(mapping_path)
     
     # Setup CUDA environment and cleanup GPUs before starting
     if torch.cuda.is_available():
