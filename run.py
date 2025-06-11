@@ -246,7 +246,7 @@ def run_phase1(args, logger, device: str):
     """Run Phase 1: Dataset Building"""
     from phase1_0_dataset_building import Phase1Orchestrator
     from phase0_difficulty_analysis.difficulty_analyzer import MBPPDifficultyAnalyzer
-    from common.utils import discover_latest_phase0_mapping
+    from common.utils import discover_latest_phase_output
     from common import ModelConfiguration, DatasetConfiguration, RobustnessConfig
     
     logger.info("Starting Phase 1: Dataset Building")
@@ -261,7 +261,7 @@ def run_phase1(args, logger, device: str):
     else:
         # Auto-discover from phase0 (required)
         logger.info("Auto-discovering difficulty mapping from Phase 0...")
-        mapping_path = discover_latest_phase0_mapping()
+        mapping_path = discover_latest_phase_output(0)
         if not mapping_path:
             logger.error("No difficulty mapping found in data/phase0/")
             logger.error("Phase 1 requires Phase 0 difficulty analysis to be completed first.")
@@ -323,7 +323,7 @@ def run_phase2(args, logger, device: str):
     from phase2_sae_analysis.sae_analyzer import load_gemma_scope_sae, compute_separation_scores
     from phase2_sae_analysis.pile_filter import PileFilter
     from common.config import SAELayerConfig
-    from common.utils import discover_latest_phase1_dataset
+    from common.utils import discover_latest_phase_output
     
     logger.info("Starting Phase 2: SAE Analysis (CPU-only)")
     logger.info("Phase 2 now loads saved activations from Phase 1 - no GPU required")
@@ -337,7 +337,7 @@ def run_phase2(args, logger, device: str):
         dataset_path = args.input
     else:
         logger.info("Auto-discovering dataset from Phase 1...")
-        dataset_path = discover_latest_phase1_dataset()
+        dataset_path = discover_latest_phase_output(1)
         if not dataset_path:
             logger.error("No dataset found in data/phase1_0. Please run Phase 1 first or specify --input")
             sys.exit(1)
@@ -497,7 +497,7 @@ def run_phase2(args, logger, device: str):
 
 def run_phase3(args, logger, device: str):
     """Run Phase 3: Validation"""
-    from common.utils import discover_latest_phase2_results, discover_latest_phase1_dataset
+    from common.utils import discover_latest_phase_output
     
     logger.info("Starting Phase 3: Validation")
     
@@ -507,7 +507,7 @@ def run_phase3(args, logger, device: str):
         sae_results_path = args.input
     else:
         logger.info("Auto-discovering SAE results from Phase 2...")
-        sae_results_path = discover_latest_phase2_results()
+        sae_results_path = discover_latest_phase_output(2)
         if not sae_results_path:
             logger.error("No SAE results found in data/phase2. Please run Phase 2 first or specify --input")
             sys.exit(1)
@@ -515,7 +515,7 @@ def run_phase3(args, logger, device: str):
     
     # Always auto-discover dataset (Phase 3 needs both)
     logger.info("Auto-discovering dataset from Phase 1...")
-    dataset_path = discover_latest_phase1_dataset()
+    dataset_path = discover_latest_phase_output(1)
     if not dataset_path:
         logger.error("No dataset found in data/phase1_0. Please run Phase 1 first")
         sys.exit(1)
@@ -754,8 +754,8 @@ def show_status(args, logger):
     
     # Check latest dataset
     print("\n📊 Latest Dataset:")
-    from common.utils import discover_latest_phase1_dataset
-    latest_dataset = discover_latest_phase1_dataset()
+    from common.utils import discover_latest_phase_output
+    latest_dataset = discover_latest_phase_output(1)
     if latest_dataset:
         try:
             df = pd.read_parquet(latest_dataset)
@@ -860,9 +860,9 @@ def validate_system(args, logger):
     # Check dataset readability
     print("\n📊 Dataset:")
     try:
-        from common.utils import discover_latest_phase1_dataset
+        from common.utils import discover_latest_phase_output
         import pandas as pd
-        latest_dataset = discover_latest_phase1_dataset()
+        latest_dataset = discover_latest_phase_output(1)
         if latest_dataset:
             df = pd.read_parquet(latest_dataset)
             print(f"   ✅ Dataset readable ({len(df)} records)")
@@ -894,7 +894,7 @@ def test_phase1(args, logger, device: str):
     """Quick test of Phase 1 with 10 records"""
     import pandas as pd
     from phase1_0_dataset_building import Phase1Orchestrator
-    from common.utils import discover_latest_phase1_dataset
+    from common.utils import discover_latest_phase_output
     
     print(f"\n{'='*50}")
     print("PHASE 1 QUICK TEST")
@@ -902,7 +902,7 @@ def test_phase1(args, logger, device: str):
     
     # Use auto-discovery to find latest dataset from Phase 1
     print("\n🔍 Auto-discovering dataset from Phase 1...")
-    latest_dataset = discover_latest_phase1_dataset()
+    latest_dataset = discover_latest_phase_output(1)
     if not latest_dataset:
         print("❌ No existing datasets found in data/phase1_0. Run Phase 1 first.")
         return
@@ -949,7 +949,7 @@ def test_phase2(args, logger, device: str):
     from transformer_lens import HookedTransformer
     from phase2_sae_analysis.sae_analyzer import EnhancedSAEAnalysisPipeline
     from common.config import SAELayerConfig
-    from common.utils import discover_latest_phase1_dataset
+    from common.utils import discover_latest_phase_output
     
     print(f"\n{'='*50}")
     print("PHASE 2 QUICK TEST")
@@ -957,7 +957,7 @@ def test_phase2(args, logger, device: str):
     
     # Use auto-discovery to find latest dataset from Phase 1
     print("\n🔍 Auto-discovering dataset from Phase 1...")
-    latest_dataset = discover_latest_phase1_dataset()
+    latest_dataset = discover_latest_phase_output(1)
     if not latest_dataset:
         print("❌ No datasets found in data/phase1_0. Run Phase 1 first.")
         return

@@ -416,50 +416,61 @@ def validate_split_quality(splits, complexity_scores, target_ratios, tolerance=0
 # Auto-discovery Utilities
 # ============================================================================
 
-def discover_latest_phase0_mapping(phase0_dir: str = "data/phase0") -> Optional[str]:
-    """
-    Find the latest difficulty mapping file in the phase0 directory
-    
-    Args:
-        phase0_dir: Directory containing phase0 outputs
-        
-    Returns:
-        str: Path to latest mapping file, or None if not found
-    """
-    return find_latest_file(phase0_dir, "*mbpp_difficulty_mapping_*.parquet")
+# Configuration for phase output auto-discovery
+PHASE_OUTPUT_CONFIGS = {
+    0: {
+        "dir": "data/phase0",
+        "patterns": "*mbpp_difficulty_mapping_*.parquet",
+        "exclude_keywords": None
+    },
+    1: {
+        "dir": "data/phase1_0",
+        "patterns": "dataset_*.parquet",
+        "exclude_keywords": ['checkpoint', 'autosave', 'emergency']
+    },
+    2: {
+        "dir": "data/phase2",
+        "patterns": ["sae_analysis_*.json", "multi_layer_results_*.json"],
+        "exclude_keywords": None
+    },
+    3: {
+        "dir": "data/phase3",
+        "patterns": ["validation_results_*.json", "steering_results_*.json"],
+        "exclude_keywords": None
+    }
+}
 
 
-def discover_latest_phase1_dataset(phase1_dir: str = "data/phase1_0") -> Optional[str]:
+def discover_latest_phase_output(phase: int, phase_dir: Optional[str] = None) -> Optional[str]:
     """
-    Find the latest dataset file in the phase1 directory
+    Discover the latest output file from any phase.
+    
+    This is a consolidated function that replaces the three separate discovery functions
+    for better maintainability and DRY compliance.
     
     Args:
-        phase1_dir: Directory containing phase1 outputs
+        phase: Phase number (0, 1, 2, or 3)
+        phase_dir: Optional override for phase directory
         
     Returns:
-        str: Path to latest dataset file, or None if not found
+        str: Path to latest output file, or None if not found
+        
+    Raises:
+        ValueError: If phase number is invalid
     """
+    if phase not in PHASE_OUTPUT_CONFIGS:
+        raise ValueError(f"Unknown phase: {phase}. Valid phases are: {list(PHASE_OUTPUT_CONFIGS.keys())}")
+    
+    config = PHASE_OUTPUT_CONFIGS[phase]
+    directory = phase_dir or config["dir"]
+    
     return find_latest_file(
-        phase1_dir, 
-        "dataset_*.parquet", 
-        exclude_keywords=['checkpoint', 'autosave', 'emergency']
+        directory,
+        config["patterns"],
+        config.get("exclude_keywords")
     )
 
 
-def discover_latest_phase2_results(phase2_dir: str = "data/phase2") -> Optional[str]:
-    """
-    Find the latest SAE analysis results in the phase2 directory
-    
-    Args:
-        phase2_dir: Directory containing phase2 outputs
-        
-    Returns:
-        str: Path to latest results file, or None if not found
-    """
-    return find_latest_file(
-        phase2_dir, 
-        ["sae_analysis_*.json", "multi_layer_results_*.json"]
-    )
 
 
 # ============================================================================
