@@ -8,10 +8,11 @@ from typing import List, Optional
 class SplitConfig:
     """Configuration for dataset splitting in Phase 1.1."""
     
-    # Split ratios
-    sae_ratio: float = 0.5
-    hyperparam_ratio: float = 0.1
-    validation_ratio: float = 0.4
+    # Fixed split ratios based on research requirements
+    # 50% for SAE analysis, 10% for hyperparameter tuning, 40% for validation
+    SAE_RATIO: float = 0.5
+    HYPERPARAM_RATIO: float = 0.1
+    VALIDATION_RATIO: float = 0.4
     
     # Stratified randomization settings
     random_seed: Optional[int] = 42
@@ -27,7 +28,7 @@ class SplitConfig:
     @property
     def ratios(self) -> List[float]:
         """Get ratios as a list."""
-        return [self.sae_ratio, self.hyperparam_ratio, self.validation_ratio]
+        return [self.SAE_RATIO, self.HYPERPARAM_RATIO, self.VALIDATION_RATIO]
     
     @property
     def split_names(self) -> List[str]:
@@ -36,15 +37,6 @@ class SplitConfig:
     
     def validate(self) -> None:
         """Validate configuration values."""
-        # Check ratios sum to 1
-        ratio_sum = sum(self.ratios)
-        if abs(ratio_sum - 1.0) > 0.001:
-            raise ValueError(f"Split ratios must sum to 1.0, got {ratio_sum}")
-        
-        # Check all ratios are positive
-        if any(r <= 0 for r in self.ratios):
-            raise ValueError("All split ratios must be positive")
-        
         # Check strata count
         if self.n_complexity_strata < 2:
             raise ValueError("Number of complexity strata must be at least 2")

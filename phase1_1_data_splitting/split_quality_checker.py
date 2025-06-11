@@ -27,14 +27,13 @@ logger = logging.getLogger(__name__)
 def check_split_quality(
     splits: Dict[str, List[int]],
     df: pd.DataFrame,
-    target_ratios: List[float],
     tolerance: float = 0.02
 ) -> Dict[str, Any]:
     """
     Check quality of dataset splits.
     
     Performs comprehensive validation including:
-    - Ratio accuracy check
+    - Ratio accuracy check (against fixed 50%/10%/40% ratios)
     - Complexity distribution similarity tests
     - Correct/incorrect balance verification
     - Statistical significance tests
@@ -42,7 +41,6 @@ def check_split_quality(
     Args:
         splits: Dictionary of split names to index lists
         df: Original dataframe with complexity_score and optionally test_passed
-        target_ratios: Expected ratios for splits
         tolerance: Maximum allowed deviation from target ratios
         
     Returns:
@@ -50,6 +48,9 @@ def check_split_quality(
     """
     total_samples = len(df)
     complexity_scores = df['complexity_score'].values
+    
+    # Fixed target ratios: 50% SAE, 10% hyperparams, 40% validation
+    target_ratios = [0.5, 0.1, 0.4]
     
     results = {
         'total_samples': total_samples,

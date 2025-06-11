@@ -153,13 +153,6 @@ def setup_argument_parser():
     # Phase 1.1: Dataset Splitting arguments
     phase1_1_group = phase_parser.add_argument_group('Phase 1.1: Dataset Splitting')
     phase1_1_group.add_argument(
-        '--split-ratios',
-        type=float,
-        nargs=3,
-        default=[0.5, 0.1, 0.4],
-        help='Split ratios for SAE, hyperparam, validation (default: 0.5 0.1 0.4)'
-    )
-    phase1_1_group.add_argument(
         '--random-seed',
         type=int,
         default=42,
@@ -357,7 +350,7 @@ def run_phase1_1(args, logger, device: str):
     from common.utils import discover_latest_phase_output
     
     logger.info("Starting Phase 1.1: Dataset Splitting")
-    logger.info(f"Split ratios: {args.split_ratios}")
+    logger.info("Split ratios: 50% SAE, 10% hyperparameters, 40% validation")
     logger.info(f"Random seed: {args.random_seed}")
     logger.info(f"Number of strata: {args.n_strata}")
     
@@ -398,9 +391,6 @@ def run_phase1_1(args, logger, device: str):
     
     # Create configuration
     config = SplitConfig(
-        sae_ratio=args.split_ratios[0],
-        hyperparam_ratio=args.split_ratios[1],
-        validation_ratio=args.split_ratios[2],
         random_seed=args.random_seed,
         n_complexity_strata=args.n_strata,
         output_dir=args.split_output_dir
@@ -426,7 +416,6 @@ def run_phase1_1(args, logger, device: str):
     quality_results = check_split_quality(
         splits, 
         df, 
-        config.ratios, 
         tolerance=config.ratio_tolerance
     )
     

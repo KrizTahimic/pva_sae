@@ -11,9 +11,6 @@ python3 run.py phase 1.1
 # With quality report
 python3 run.py phase 1.1 --generate-report
 
-# Custom ratios
-python3 run.py phase 1.1 --split-ratios 0.6 0.2 0.2
-
 # Specific input dataset
 python3 run.py phase 1.1 --input data/phase1_0/my_dataset.parquet
 ```
@@ -44,11 +41,12 @@ data/phase1_1/
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--split-ratios` | `0.5 0.1 0.4` | Ratios for SAE, hyperparam, validation |
 | `--random-seed` | `42` | Random seed for reproducibility |
 | `--n-strata` | `10` | Number of complexity strata |
 | `--split-output-dir` | `data/phase1_1` | Output directory |
 | `--generate-report` | `false` | Generate HTML quality report |
+
+**Note:** Split ratios are fixed at 50% SAE analysis, 10% hyperparameter tuning, 40% validation based on research requirements.
 
 ## Quality Validation
 
