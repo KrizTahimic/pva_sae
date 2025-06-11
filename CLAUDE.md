@@ -155,8 +155,9 @@ python3 clean_data.py --dry-run
 ### Auto-Discovery and Manual Override
 ```bash
 # Override auto-discovery with specific files
-python3 run.py phase 1 --difficulty-mapping data/phase0/specific_mapping.parquet
-python3 run.py phase 2 --dataset data/phase1/specific_dataset.parquet
+python3 run.py phase 1 --input data/phase0/specific_mapping.parquet
+python3 run.py phase 2 --input data/phase1_0/specific_dataset.parquet
+python3 run.py phase 3 --input data/phase2/specific_results.json
 ```
 
 ## Code Quality Guidelines

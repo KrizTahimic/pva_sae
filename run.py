@@ -8,6 +8,11 @@ Usage:
     python3 run.py phase 2                                      # SAE analysis (auto-discovers input)
     python3 run.py phase 3                                      # Validation (auto-discovers input)
     
+Manual input override:
+    python3 run.py phase 1 --input data/phase0/mapping.parquet  # Use specific difficulty mapping
+    python3 run.py phase 2 --input data/phase1_0/dataset.parquet  # Use specific dataset
+    python3 run.py phase 3 --input data/phase2/results.json       # Use specific SAE results
+    
 For multi-GPU dataset building, use:
     python3 multi_gpu_launcher.py --phase 1 --num-gpus 3 --model google/gemma-2-2b
 """
@@ -94,6 +99,16 @@ def setup_argument_parser():
         help='Enable verbose logging'
     )
     
+    # Universal input argument for all phases
+    phase_parser.add_argument(
+        '--input',
+        type=str,
+        help='Input file from previous phase (overrides auto-discovery). '
+             'Phase 1: difficulty mapping (.parquet), '
+             'Phase 2: dataset (.parquet), '
+             'Phase 3: SAE results (.json)'
+    )
+    
     # Phase 0: Difficulty Analysis arguments
     phase0_group = phase_parser.add_argument_group('Phase 0: Difficulty Analysis')
     phase0_group.add_argument(
@@ -134,19 +149,9 @@ def setup_argument_parser():
         default='data/phase1_0',
         help='Directory for dataset files'
     )
-    phase1_group.add_argument(
-        '--difficulty-mapping',
-        type=str,
-        help='Path to difficulty mapping file (default: auto-discover from phase0)'
-    )
     
     # Phase 2: SAE Analysis arguments
     phase2_group = phase_parser.add_argument_group('Phase 2: SAE Analysis')
-    phase2_group.add_argument(
-        '--dataset',
-        type=str,
-        help='Path to dataset file for analysis (default: auto-discover from phase1)'
-    )
     phase2_group.add_argument(
         '--sae-model',
         type=str,
@@ -203,10 +208,9 @@ def validate_phase_arguments(args):
         if not args.model:
             raise ValueError("Phase 1 requires --model argument")
     
-    # Phases 2-3 use auto-discovery, so no validation required
-    # If explicit dataset is provided, validate it exists
-    if args.dataset and not Path(args.dataset).exists():
-        raise ValueError(f"Dataset file not found: {args.dataset}")
+    # Validate input file if provided
+    if args.input and not Path(args.input).exists():
+        raise ValueError(f"Input file not found: {args.input}")
 
 
 def run_phase0(args, logger, device: str):
@@ -250,10 +254,10 @@ def run_phase1(args, logger, device: str):
     logger.info("Processing mode: Sequential (use multi_gpu_launcher.py for parallel processing)")
     
     # Load difficulty mapping from Phase 0
-    if args.difficulty_mapping:
+    if args.input:
         # Use explicitly provided mapping
-        logger.info(f"Loading difficulty mapping from: {args.difficulty_mapping}")
-        difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(args.difficulty_mapping)
+        logger.info(f"Loading difficulty mapping from: {args.input}")
+        difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(args.input)
     else:
         # Auto-discover from phase0 (required)
         logger.info("Auto-discovering difficulty mapping from Phase 0...")
@@ -327,23 +331,22 @@ def run_phase2(args, logger, device: str):
     # Force CPU usage for Phase 2
     device = "cpu"
     
-    # Auto-discover dataset if not provided
-    if not args.dataset:
+    # Get dataset path from input or auto-discovery
+    if args.input:
+        logger.info(f"Using specified dataset: {args.input}")
+        dataset_path = args.input
+    else:
         logger.info("Auto-discovering dataset from Phase 1...")
         dataset_path = discover_latest_phase1_dataset()
-        if dataset_path:
-            logger.info(f"Found dataset: {dataset_path}")
-            args.dataset = dataset_path
-        else:
-            logger.error("No dataset found in data/phase1_0. Please run Phase 1 first or specify --dataset")
+        if not dataset_path:
+            logger.error("No dataset found in data/phase1_0. Please run Phase 1 first or specify --input")
             sys.exit(1)
-    else:
-        logger.info(f"Using specified dataset: {args.dataset}")
+        logger.info(f"Found dataset: {dataset_path}")
     
     # Load dataset to get task IDs
     logger.info("Loading dataset metadata...")
-    df = pd.read_parquet(args.dataset)
-    dataset_path = Path(args.dataset)
+    df = pd.read_parquet(dataset_path)
+    dataset_path = Path(dataset_path)
     
     # Get task IDs by category
     correct_task_ids = df[df['test_passed'] == True]['task_id'].tolist()
@@ -498,30 +501,28 @@ def run_phase3(args, logger, device: str):
     
     logger.info("Starting Phase 3: Validation")
     
-    # Auto-discover Phase 2 results if not provided
-    if not hasattr(args, 'sae_results') or not args.sae_results:
+    # Get SAE results from input or auto-discovery
+    if args.input:
+        logger.info(f"Using specified SAE results: {args.input}")
+        sae_results_path = args.input
+    else:
         logger.info("Auto-discovering SAE results from Phase 2...")
         sae_results_path = discover_latest_phase2_results()
-        if sae_results_path:
-            logger.info(f"Found SAE results: {sae_results_path}")
-            args.sae_results = sae_results_path
-        else:
-            logger.error("No SAE results found in data/phase2. Please run Phase 2 first")
+        if not sae_results_path:
+            logger.error("No SAE results found in data/phase2. Please run Phase 2 first or specify --input")
             sys.exit(1)
+        logger.info(f"Found SAE results: {sae_results_path}")
     
-    # Auto-discover dataset if not provided
-    if not args.dataset:
-        logger.info("Auto-discovering dataset from Phase 1...")
-        dataset_path = discover_latest_phase1_dataset()
-        if dataset_path:
-            logger.info(f"Found dataset: {dataset_path}")
-            args.dataset = dataset_path
-        else:
-            logger.error("No dataset found in data/phase1_0. Please run Phase 1 first")
-            sys.exit(1)
+    # Always auto-discover dataset (Phase 3 needs both)
+    logger.info("Auto-discovering dataset from Phase 1...")
+    dataset_path = discover_latest_phase1_dataset()
+    if not dataset_path:
+        logger.error("No dataset found in data/phase1_0. Please run Phase 1 first")
+        sys.exit(1)
+    logger.info(f"Found dataset: {dataset_path}")
     
-    logger.info(f"Dataset: {args.dataset}")
-    logger.info(f"SAE Results: {args.sae_results}")
+    logger.info(f"Dataset: {dataset_path}")
+    logger.info(f"SAE Results: {sae_results_path}")
     
     # TODO: Implement validation
     logger.info("Validation not yet implemented")
