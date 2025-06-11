@@ -259,8 +259,18 @@ class DatasetBuilder:
         # Save metadata
         self._save_metadata(filepath, results)
         
+        # Print summary statistics
+        correct_count = sum(1 for r in results if r.is_correct)
+        total = len(results)
+        correct_rate = (correct_count / total * 100) if total > 0 else 0
+        
         self.logger.info(f"Dataset saved to {filepath}")
-        print(f"✓ Dataset saved to: {filepath}")
+        print(f"✓ Dataset building complete: {total} records processed, {correct_count} correct ({correct_rate:.1f}%), {total - correct_count} incorrect")
+        print(f"✓ Parquet dataset saved to: {filepath}")
+        
+        # Also save metadata filename
+        metadata_file = filepath.replace('.parquet', '_metadata.json')
+        print(f"ℹ️  Metadata saved to: {os.path.basename(metadata_file)}")
         
         return filepath
     

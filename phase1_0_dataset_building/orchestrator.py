@@ -10,6 +10,7 @@ import os
 import time
 from typing import Optional, Dict, Any, List
 from pathlib import Path
+from tqdm import tqdm
 
 from common import (
     LoggingManager,
@@ -93,7 +94,8 @@ class Phase1Orchestrator:
                 self.logger.info(f"Resuming from checkpoint with {len(checkpoint_data)} records")
             
             # Build phase
-            self.logger.info(f"Starting dataset building for records {start_idx} to {end_idx}")
+            self.logger.info("Starting dataset building process...")
+            print(f"ℹ️  Building dataset for {end_idx - start_idx + 1} records...")
             start_time = time.time()
             
             results = self._build_dataset_with_monitoring(
@@ -108,7 +110,7 @@ class Phase1Orchestrator:
             
             # Log summary
             duration = time.time() - start_time
-            self._log_summary(len(results), duration, dataset_path)
+            self._log_summary(results, duration, dataset_path)
             
             return dataset_path
             
@@ -194,8 +196,15 @@ class Phase1Orchestrator:
         results = checkpoint_data or []
         processed_indices = {r.task_id for r in results} if results else set()
         
+        # Create progress bar
+        progress_bar = tqdm(
+            range(start_idx, end_idx + 1),
+            desc="Generating solutions",
+            unit="problem"
+        )
+        
         # Process each record
-        for idx in range(start_idx, end_idx + 1):
+        for idx in progress_bar:
             # Skip if already processed
             if f"task_{idx}" in processed_indices:
                 continue
@@ -219,6 +228,8 @@ class Phase1Orchestrator:
                     self._save_checkpoint(results, start_idx, end_idx)
                     
             except Exception as e:
+                # Show failure in progress bar
+                progress_bar.write("Code execution failed: ")
                 self.logger.error(f"Failed to process record {idx}: {str(e)}")
                 raise  # Fail-fast
         
@@ -249,23 +260,23 @@ class Phase1Orchestrator:
             resource_monitor.cleanup_gpu_memory()
             self.logger.info("GPU memory cleaned up")
     
-    def _log_summary(self, total_records: int, duration: float, dataset_path: str):
+    def _log_summary(self, results: List[Any], duration: float, dataset_path: str):
         """Log final summary."""
-        from common.utils import format_duration
+        total_records = len(results)
+        correct_count = sum(1 for r in results if r.is_correct)
+        incorrect_count = total_records - correct_count
+        correct_rate = (correct_count / total_records * 100) if total_records > 0 else 0
         
-        summary = f"""
-{'='*60}
-DATASET BUILDING COMPLETE
-{'='*60}
-Model: {self.model_config.model_name}
-Total Records: {total_records}
-Duration: {format_duration(duration)}
-Speed: {total_records/duration:.2f} records/second
-Dataset: {dataset_path}
-Log file: {self.logging_manager.log_file}
-{'='*60}
-        """
-        print(summary)
+        print(f"\n{'='*60}")
+        print("DATASET BUILDING COMPLETE")
+        print(f"{'='*60}")
+        print(f"Total Processed: {total_records}")
+        print(f"Correct Solutions: {correct_count} ({correct_rate:.1f}%)")
+        print(f"Incorrect Solutions: {incorrect_count}")
+        print(f"Dataset saved to: {dataset_path}")
+        print(f"{'='*60}")
+        
+        from common.utils import format_duration
         self.logger.info(f"Phase 1 completed: {total_records} records in {format_duration(duration)}")
     
     def _handle_interruption(self):
