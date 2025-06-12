@@ -42,7 +42,7 @@ class SplitConfig:
     def __post_init__(self):
         """Set default output_dir if not specified."""
         if self.output_dir is None:
-            self.output_dir = get_phase_dir(1, 1)
+            self.output_dir = get_phase_dir("1.1")
     
     def validate(self) -> None:
         """Validate configuration values."""

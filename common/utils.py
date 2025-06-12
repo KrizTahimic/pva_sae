@@ -298,29 +298,27 @@ def safe_json_dumps(obj: any, indent: int = 2) -> str:
 
 # Simple configuration for phase directories and output patterns
 PHASE_CONFIGS = {
-    0: {
+    "0": {
         "dir": "data/phase0",
         "patterns": "*mbpp_difficulty_mapping_*.parquet",
         "exclude_keywords": None
     },
-    1: {
-        0: {  # Phase 1.0 - Dataset Building
-            "dir": "data/phase1_0",
-            "patterns": "dataset_*.parquet",
-            "exclude_keywords": ['checkpoint', 'autosave', 'emergency']
-        },
-        1: {  # Phase 1.1 - Dataset Splitting
-            "dir": "data/phase1_1",
-            "patterns": "dataset_*.parquet",
-            "exclude_keywords": None
-        }
+    "1": {  # Phase 1.0 - Dataset Building
+        "dir": "data/phase1_0",
+        "patterns": "dataset_*.parquet",
+        "exclude_keywords": ['checkpoint', 'autosave', 'emergency']
     },
-    2: {
+    "1.1": {  # Phase 1.1 - Dataset Splitting
+        "dir": "data/phase1_1",
+        "patterns": "dataset_*.parquet",
+        "exclude_keywords": None
+    },
+    "2": {
         "dir": "data/phase2",
         "patterns": ["sae_analysis_*.json", "multi_layer_results_*.json"],
         "exclude_keywords": None
     },
-    3: {
+    "3": {
         "dir": "data/phase3",
         "patterns": ["validation_results_*.json", "steering_results_*.json"],
         "exclude_keywords": None
@@ -328,73 +326,47 @@ PHASE_CONFIGS = {
 }
 
 
-def get_phase_dir(phase, subphase: int = 0) -> str:
+def get_phase_dir(phase: str) -> str:
     """
     Get the directory path for a given phase.
     
     Args:
-        phase: Phase number (0, 1, 2, 3) or float (1.1)
-        subphase: Subphase for phase 1 (0=dataset building, 1=splitting)
+        phase: Phase string ("0", "1", "1.1", "2", "3")
         
     Returns:
         str: Directory path for the phase
         
     Examples:
-        get_phase_dir(0) -> "data/phase0"
-        get_phase_dir(1) -> "data/phase1_0"
-        get_phase_dir(1, 1) -> "data/phase1_1"
-        get_phase_dir(1.1) -> "data/phase1_1"
+        get_phase_dir("0") -> "data/phase0"
+        get_phase_dir("1") -> "data/phase1_0"
+        get_phase_dir("1.1") -> "data/phase1_1"
+        get_phase_dir("2") -> "data/phase2"
+        get_phase_dir("3") -> "data/phase3"
     """
-    # Handle float input (1.1 -> phase=1, subphase=1)
-    if isinstance(phase, float) and phase == 1.1:
-        phase, subphase = 1, 1
-    elif isinstance(phase, float):
-        phase = int(phase)
-        
     if phase not in PHASE_CONFIGS:
         raise ValueError(f"Unknown phase: {phase}. Valid phases are: {list(PHASE_CONFIGS.keys())}")
     
-    # Handle two-level structure for phase 1
-    if phase == 1:
-        if subphase not in PHASE_CONFIGS[1]:
-            raise ValueError(f"Unknown subphase {subphase} for phase 1. Valid subphases: {list(PHASE_CONFIGS[1].keys())}")
-        return PHASE_CONFIGS[1][subphase]["dir"]
-    else:
-        return PHASE_CONFIGS[phase]["dir"]
+    return PHASE_CONFIGS[phase]["dir"]
 
 
-def discover_latest_phase_output(phase, subphase: int = 0, phase_dir: Optional[str] = None) -> Optional[str]:
+def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None) -> Optional[str]:
     """
     Discover the latest output file from any phase.
     
     Args:
-        phase: Phase number (0, 1, 2, or 3) or float (1.1)
-        subphase: Subphase for phase 1 (0=dataset building, 1=splitting)
+        phase: Phase string ("0", "1", "1.1", "2", "3")
         phase_dir: Optional override for phase directory
         
     Returns:
         str: Path to latest output file, or None if not found
         
     Raises:
-        ValueError: If phase number is invalid
+        ValueError: If phase is invalid
     """
-    # Handle float input (1.1 -> phase=1, subphase=1)
-    if isinstance(phase, float) and phase == 1.1:
-        phase, subphase = 1, 1
-    elif isinstance(phase, float):
-        phase = int(phase)
-        
     if phase not in PHASE_CONFIGS:
         raise ValueError(f"Unknown phase: {phase}. Valid phases are: {list(PHASE_CONFIGS.keys())}")
     
-    # Handle two-level structure for phase 1
-    if phase == 1:
-        if subphase not in PHASE_CONFIGS[1]:
-            raise ValueError(f"Unknown subphase {subphase} for phase 1. Valid subphases: {list(PHASE_CONFIGS[1].keys())}")
-        config = PHASE_CONFIGS[1][subphase]
-    else:
-        config = PHASE_CONFIGS[phase]
-    
+    config = PHASE_CONFIGS[phase]
     directory = phase_dir or config["dir"]
     
     return find_latest_file(

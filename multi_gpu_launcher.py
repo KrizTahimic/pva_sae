@@ -286,7 +286,7 @@ def main():
     parser.add_argument(
         '--dataset-dir',
         type=str,
-        default=get_phase_dir(1),
+        default=get_phase_dir("1"),
         help='Directory for dataset outputs'
     )
     parser.add_argument(
