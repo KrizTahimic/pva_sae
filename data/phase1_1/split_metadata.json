@@ -1,0 +1,41 @@
+{
+  "creation_timestamp": "2025-06-12T10:37:53.698995",
+  "total_samples": 10,
+  "split_sizes": {
+    "sae": 5,
+    "hyperparams": 1,
+    "validation": 4
+  },
+  "split_ratios": {
+    "sae": 0.5,
+    "hyperparams": 0.1,
+    "validation": 0.4
+  },
+  "complexity_range": [
+    1.0,
+    7.0
+  ],
+  "split_complexity_stats": {
+    "sae": {
+      "mean": 2.8,
+      "std": 2.4899799195977463,
+      "min": 1.0,
+      "max": 7.0,
+      "correct_rate": 0.0
+    },
+    "hyperparams": {
+      "mean": 2.0,
+      "std": NaN,
+      "min": 2.0,
+      "max": 2.0,
+      "correct_rate": 0.0
+    },
+    "validation": {
+      "mean": 1.5,
+      "std": 1.0,
+      "min": 1.0,
+      "max": 3.0,
+      "correct_rate": 0.75
+    }
+  }
+}

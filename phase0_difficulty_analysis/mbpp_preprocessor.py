@@ -12,20 +12,20 @@ from typing import Optional, Dict, Any
 from common.logging import LoggingManager
 from phase1_0_dataset_building.dataset_manager import DatasetManager
 from .difficulty_analyzer import MBPPDifficultyAnalyzer, DifficultyMetrics
-from .config import DEFAULT_PHASE0_DIR
+from common.utils import get_phase_dir
 
 
 class MBPPPreprocessor:
     """Main orchestrator for Phase 0 MBPP difficulty preprocessing"""
     
-    def __init__(self, output_dir: str = DEFAULT_PHASE0_DIR):
+    def __init__(self, output_dir: str = None):
         """
         Initialize MBPP preprocessor
         
         Args:
             output_dir: Directory to save preprocessed data
         """
-        self.output_dir = Path(output_dir)
+        self.output_dir = Path(output_dir or get_phase_dir(0))
         logging_manager = LoggingManager(log_dir="data/logs")
         self.logger = logging_manager.setup_logging(__name__)
         

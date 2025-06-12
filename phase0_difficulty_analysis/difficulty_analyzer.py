@@ -13,7 +13,7 @@ from pathlib import Path
 
 from common.utils import get_timestamp, ensure_directory_exists
 from common.logging import LoggingManager
-from .config import DEFAULT_PHASE0_DIR
+from common.utils import get_phase_dir
 
 
 def get_cyclomatic_complexity(code: str) -> int:
@@ -50,14 +50,14 @@ class DifficultyMetrics:
 class MBPPDifficultyAnalyzer:
     """Analyzes difficulty metrics for the entire MBPP dataset"""
     
-    def __init__(self, output_dir: str = DEFAULT_PHASE0_DIR):
+    def __init__(self, output_dir: str = None):
         """
         Initialize difficulty analyzer
         
         Args:
             output_dir: Directory to save difficulty mapping
         """
-        self.output_dir = Path(output_dir)
+        self.output_dir = Path(output_dir or get_phase_dir(0))
         logging_manager = LoggingManager(log_dir="data/logs")
         self.logger = logging_manager.setup_logging(__name__)
         self.difficulty_mapping: Dict[int, DifficultyMetrics] = {}

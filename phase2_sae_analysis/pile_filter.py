@@ -19,7 +19,7 @@ import gc
 
 from .sae_analyzer import SeparationScores
 from common.utils import torch_memory_cleanup, torch_no_grad_and_cleanup, atomic_file_write
-from .config import DEFAULT_PHASE2_DIR
+from common.utils import get_phase_dir
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class PileFilter:
         """
         self.model = model
         self.device = device
-        self.pile_cache_dir = Path(DEFAULT_PHASE2_DIR) / "pile_cache"
+        self.pile_cache_dir = Path(get_phase_dir(2)) / "pile_cache"
         self.pile_cache_dir.mkdir(parents=True, exist_ok=True)
         self.eps = 1e-6  # Activation threshold for numerical stability
         

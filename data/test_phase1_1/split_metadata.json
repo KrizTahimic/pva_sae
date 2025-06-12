@@ -1,0 +1,41 @@
+{
+  "creation_timestamp": "2025-06-11T19:56:11.127172",
+  "total_samples": 100,
+  "split_sizes": {
+    "sae": 50,
+    "hyperparams": 10,
+    "validation": 40
+  },
+  "split_ratios": {
+    "sae": 0.5,
+    "hyperparams": 0.1,
+    "validation": 0.4
+  },
+  "complexity_range": [
+    1.0,
+    9.0
+  ],
+  "split_complexity_stats": {
+    "sae": {
+      "mean": 5.48,
+      "std": 2.5414121094785243,
+      "min": 1.0,
+      "max": 9.0,
+      "correct_rate": 0.62
+    },
+    "hyperparams": {
+      "mean": 5.1,
+      "std": 2.923088169119167,
+      "min": 1.0,
+      "max": 9.0,
+      "correct_rate": 0.7
+    },
+    "validation": {
+      "mean": 5.175,
+      "std": 2.7445750686932042,
+      "min": 1.0,
+      "max": 9.0,
+      "correct_rate": 0.675
+    }
+  }
+}

@@ -11,7 +11,7 @@ from typing import Optional, Any, Dict, List, Tuple
 from dataclasses import dataclass, asdict
 
 # Import common utilities and phase config
-from .config import DEFAULT_DATASET_DIR
+from common.utils import get_phase_dir
 from common.prompt_utils import PromptBuilder
 
 # Configuration constants

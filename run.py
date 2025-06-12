@@ -31,12 +31,8 @@ from common.logging import LoggingManager
 from common.gpu_utils import cleanup_gpu_memory, ensure_gpu_available, setup_cuda_environment
 from common import MAX_NEW_TOKENS
 
-# Import phase-specific directory constants
-from phase0_difficulty_analysis.config import DEFAULT_PHASE0_DIR
-from phase1_0_dataset_building.config import DEFAULT_PHASE1_DIR
-from phase1_1_data_splitting.config import DEFAULT_PHASE1_1_DIR
-from phase2_sae_analysis.config import DEFAULT_PHASE2_DIR
-from phase3_validation.config import DEFAULT_PHASE3_DIR
+# Import centralized phase directory function
+from common.utils import get_phase_dir
 
 
 def setup_argument_parser():
@@ -121,7 +117,7 @@ def setup_argument_parser():
     phase0_group.add_argument(
         '--output-dir',
         type=str,
-        default=DEFAULT_PHASE0_DIR,
+        default=get_phase_dir(0),
         help='Directory to save difficulty mapping'
     )
     phase0_group.add_argument(
@@ -153,7 +149,7 @@ def setup_argument_parser():
     phase1_group.add_argument(
         '--dataset-dir',
         type=str,
-        default=DEFAULT_PHASE1_DIR,
+        default=get_phase_dir(1),
         help='Directory for dataset files'
     )
     
@@ -174,7 +170,7 @@ def setup_argument_parser():
     phase1_1_group.add_argument(
         '--split-output-dir',
         type=str,
-        default=DEFAULT_PHASE1_1_DIR,
+        default=get_phase_dir(1, 1),
         help='Directory to save split indices'
     )
     phase1_1_group.add_argument(
@@ -296,7 +292,7 @@ def run_phase1(args, logger, device: str):
         logger.info("Auto-discovering difficulty mapping from Phase 0...")
         mapping_path = discover_latest_phase_output(0)
         if not mapping_path:
-            logger.error(f"No difficulty mapping found in {DEFAULT_PHASE0_DIR}/")
+            logger.error(f"No difficulty mapping found in {get_phase_dir(0)}/")
             logger.error("Phase 1 requires Phase 0 difficulty analysis to be completed first.")
             logger.error("Please run: python3 run.py phase 0")
             sys.exit(1)
@@ -367,7 +363,7 @@ def run_phase1_1(args, logger, device: str):
         logger.info(f"Using provided dataset: {dataset_path}")
     else:
         logger.info("Auto-discovering dataset from Phase 1.0...")
-        dataset_path = discover_latest_phase_output(1, phase_dir=DEFAULT_PHASE1_DIR)
+        dataset_path = discover_latest_phase_output(1, phase_dir=get_phase_dir(1))
         
         if not dataset_path:
             logger.error("No Phase 1.0 dataset found! Please run Phase 1 first.")
@@ -474,7 +470,7 @@ def run_phase2(args, logger, device: str):
         logger.info("Auto-discovering dataset from Phase 1...")
         dataset_path = discover_latest_phase_output(1)
         if not dataset_path:
-            logger.error(f"No dataset found in {DEFAULT_PHASE1_DIR}. Please run Phase 1 first or specify --input")
+            logger.error(f"No dataset found in {get_phase_dir(1)}. Please run Phase 1 first or specify --input")
             sys.exit(1)
         logger.info(f"Found dataset: {dataset_path}")
     
@@ -510,7 +506,7 @@ def run_phase2(args, logger, device: str):
         gemma_2b_layers=summary['layers'],  # Use available layers
         save_after_each_layer=True,
         cleanup_after_layer=True,
-        checkpoint_dir=f"{DEFAULT_PHASE2_DIR}/checkpoints"
+        checkpoint_dir=f"{get_phase_dir(2)}/checkpoints"
     )
     
     # Create results storage
@@ -616,7 +612,7 @@ def run_phase2(args, logger, device: str):
     # Save results
     from datetime import datetime
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    results_file = Path(DEFAULT_PHASE2_DIR) / f"multi_layer_results_{timestamp}.json"
+    results_file = Path(get_phase_dir(2)) / f"multi_layer_results_{timestamp}.json"
     results_file.parent.mkdir(parents=True, exist_ok=True)
     results.save_to_file(str(results_file))
     logger.info(f"\nResults saved to: {results_file}")
@@ -644,7 +640,7 @@ def run_phase3(args, logger, device: str):
         logger.info("Auto-discovering SAE results from Phase 2...")
         sae_results_path = discover_latest_phase_output(2)
         if not sae_results_path:
-            logger.error(f"No SAE results found in {DEFAULT_PHASE2_DIR}. Please run Phase 2 first or specify --input")
+            logger.error(f"No SAE results found in {get_phase_dir(2)}. Please run Phase 2 first or specify --input")
             sys.exit(1)
         logger.info(f"Found SAE results: {sae_results_path}")
     
@@ -652,7 +648,7 @@ def run_phase3(args, logger, device: str):
     logger.info("Auto-discovering dataset from Phase 1...")
     dataset_path = discover_latest_phase_output(1)
     if not dataset_path:
-        logger.error(f"No dataset found in {DEFAULT_PHASE1_DIR}. Please run Phase 1 first")
+        logger.error(f"No dataset found in {get_phase_dir(1)}. Please run Phase 1 first")
         sys.exit(1)
     logger.info(f"Found dataset: {dataset_path}")
     
@@ -662,7 +658,7 @@ def run_phase3(args, logger, device: str):
     # TODO: Implement validation
     logger.info("Validation not yet implemented")
     logger.info("This phase will run statistical validation and model steering experiments")
-    logger.info(f"Results will be saved to {DEFAULT_PHASE3_DIR}/")
+    logger.info(f"Results will be saved to {get_phase_dir(3)}/")
 
 
 def cleanup_gpu_command(args, logger):
@@ -904,7 +900,7 @@ def show_status(args, logger):
         except Exception as e:
             print(f"   ❌ Error reading dataset: {e}")
     else:
-        print(f"   ❌ No datasets found in {DEFAULT_PHASE1_DIR}")
+        print(f"   ❌ No datasets found in {get_phase_dir(1)}")
     
     # Check GPU status
     print("\n🖥️  GPU:")
@@ -1003,7 +999,7 @@ def validate_system(args, logger):
             print(f"   ✅ Dataset readable ({len(df)} records)")
             validation_results.append(("Dataset", True))
         else:
-            print(f"   ❌ No datasets found in {DEFAULT_PHASE1_DIR}")
+            print(f"   ❌ No datasets found in {get_phase_dir(1)}")
             validation_results.append(("Dataset", False))
     except Exception as e:
         print(f"   ❌ Dataset error: {e}")
@@ -1039,7 +1035,7 @@ def test_phase1(args, logger, device: str):
     print("\n🔍 Auto-discovering dataset from Phase 1...")
     latest_dataset = discover_latest_phase_output(1)
     if not latest_dataset:
-        print(f"❌ No existing datasets found in {DEFAULT_PHASE1_DIR}. Run Phase 1 first.")
+        print(f"❌ No existing datasets found in {get_phase_dir(1)}. Run Phase 1 first.")
         return
     
     print(f"\n📊 Using dataset: {Path(latest_dataset).name}")
@@ -1094,7 +1090,7 @@ def test_phase2(args, logger, device: str):
     print("\n🔍 Auto-discovering dataset from Phase 1...")
     latest_dataset = discover_latest_phase_output(1)
     if not latest_dataset:
-        print(f"❌ No datasets found in {DEFAULT_PHASE1_DIR}. Run Phase 1 first.")
+        print(f"❌ No datasets found in {get_phase_dir(1)}. Run Phase 1 first.")
         return
     
     print(f"\n📊 Using dataset: {Path(latest_dataset).name}")
@@ -1156,7 +1152,7 @@ def test_phase2(args, logger, device: str):
             gemma_2b_layers=[args.layer],  # Test single layer
             save_after_each_layer=False,       # Skip checkpointing for test
             cleanup_after_layer=True,          # Clean up memory
-            checkpoint_dir=f"{DEFAULT_PHASE2_DIR}/test_checkpoints"  # Separate test dir
+            checkpoint_dir=f"{get_phase_dir(2)}/test_checkpoints"  # Separate test dir
         )
         
         print(f"🧠 Initializing SAE pipeline...")

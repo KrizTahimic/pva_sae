@@ -3,11 +3,9 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
-# Phase 1.1 specific constants
-DEFAULT_PHASE1_1_DIR = "data/phase1_1"
-
 # Re-export shared configs if needed
 from common.config import DatasetConfiguration
+from common.utils import get_phase_dir
 
 
 @dataclass
@@ -25,7 +23,7 @@ class SplitConfig:
     n_complexity_strata: int = 10  # Number of complexity strata for stratification
     
     # Output settings
-    output_dir: str = "data/phase1_1"
+    output_dir: str = None  # Will default to get_phase_dir(1, 1) in __post_init__
     save_indices_only: bool = True  # Just save indices, not full datasets
     
     # Tolerance for ratio validation
@@ -40,6 +38,11 @@ class SplitConfig:
     def split_names(self) -> List[str]:
         """Get split names."""
         return ["sae", "hyperparams", "validation"]
+    
+    def __post_init__(self):
+        """Set default output_dir if not specified."""
+        if self.output_dir is None:
+            self.output_dir = get_phase_dir(1, 1)
     
     def validate(self) -> None:
         """Validate configuration values."""
