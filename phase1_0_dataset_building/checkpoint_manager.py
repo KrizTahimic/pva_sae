@@ -4,10 +4,11 @@ Checkpoint management utilities for Phase 1 of the PVA-SAE project.
 Simple utility functions for GPU-aware checkpointing without complex class hierarchies.
 """
 
-import os
+from os import unlink
+from os.path import exists as path_exists, join as path_join, getmtime
 import json
-import glob
-import logging
+from glob import glob
+from logging import getLogger
 from typing import List, Optional, Any
 from datetime import datetime
 
@@ -29,7 +30,7 @@ def save_checkpoint(results: List[CodeGenerationResult],
     Returns:
         Path to saved checkpoint file
     """
-    logger = logging.getLogger(__name__)
+    logger = getLogger(__name__)
     
     try:
         ensure_directory_exists(checkpoint_dir)
@@ -37,7 +38,7 @@ def save_checkpoint(results: List[CodeGenerationResult],
         # Generate timestamp-based filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{prefix}_{timestamp}_{len(results)}_records.json"
-        filepath = os.path.join(checkpoint_dir, filename)
+        filepath = path_join(checkpoint_dir, filename)
         
         # Prepare checkpoint data
         checkpoint_data = {
@@ -68,7 +69,7 @@ def load_checkpoint(checkpoint_path: str) -> List[CodeGenerationResult]:
     Returns:
         List of CodeGenerationResult objects
     """
-    logger = logging.getLogger(__name__)
+    logger = getLogger(__name__)
     
     try:
         with open(checkpoint_path, 'r') as f:
@@ -99,17 +100,17 @@ def find_latest_checkpoint(checkpoint_dir: str, prefix: str = "checkpoint") -> O
     Returns:
         Path to latest checkpoint or None if not found
     """
-    if not os.path.exists(checkpoint_dir):
+    if not path_exists(checkpoint_dir):
         return None
     
-    pattern = os.path.join(checkpoint_dir, f"{prefix}_*.json")
-    checkpoint_files = glob.glob(pattern)
+    pattern = path_join(checkpoint_dir, f"{prefix}_*.json")
+    checkpoint_files = glob(pattern)
     
     if not checkpoint_files:
         return None
     
     # Sort by modification time and return latest
-    checkpoint_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+    checkpoint_files.sort(key=lambda x: getmtime(x), reverse=True)
     return checkpoint_files[0]
 
 
@@ -135,26 +136,26 @@ def cleanup_old_checkpoints(checkpoint_dir: str, keep_last: int = 5):
         checkpoint_dir: Directory containing checkpoints
         keep_last: Number of recent checkpoints to keep
     """
-    logger = logging.getLogger(__name__)
+    logger = getLogger(__name__)
     
-    if not os.path.exists(checkpoint_dir):
+    if not path_exists(checkpoint_dir):
         return
     
     # Find all checkpoint files
-    pattern = os.path.join(checkpoint_dir, "checkpoint_*.json")
-    checkpoint_files = glob.glob(pattern)
+    pattern = path_join(checkpoint_dir, "checkpoint_*.json")
+    checkpoint_files = glob(pattern)
     
     if len(checkpoint_files) <= keep_last:
         return
     
     # Sort by modification time (newest first)
-    checkpoint_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+    checkpoint_files.sort(key=lambda x: getmtime(x), reverse=True)
     
     # Delete old files
     files_to_delete = checkpoint_files[keep_last:]
     for filepath in files_to_delete:
         try:
-            os.unlink(filepath)
+            unlink(filepath)
             logger.debug(f"Deleted old checkpoint: {filepath}")
         except Exception as e:
             logger.warning(f"Failed to delete checkpoint {filepath}: {e}")

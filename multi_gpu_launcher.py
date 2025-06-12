@@ -11,10 +11,10 @@ Usage:
 """
 
 import argparse
-import subprocess
-import os
+from subprocess import Popen, STDOUT, TimeoutExpired
+from os import environ, setsid, killpg, getpgid
 import time
-import signal
+from signal import signal as signal_register, SIGINT, SIGTERM, SIGKILL
 import sys
 from typing import List, Tuple
 import math
@@ -53,8 +53,8 @@ class MultiGPULauncher:
             raise RuntimeError("No GPUs available")
             
         # Setup signal handlers for cleanup
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
+        signal_register(SIGINT, self._signal_handler)
+        signal_register(SIGTERM, self._signal_handler)
     
     def _signal_handler(self, signum, frame):
         """Handle interruption signals"""
@@ -139,7 +139,7 @@ class MultiGPULauncher:
                 cmd.extend(extra_args)
             
             # Set environment for GPU
-            env = os.environ.copy()
+            env = environ.copy()
             env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
             
             # Create log file for this GPU
@@ -152,12 +152,12 @@ class MultiGPULauncher:
             
             # Launch process with context manager
             log_handle = open(log_file, 'w')
-            process = subprocess.Popen(
+            process = Popen(
                 cmd,
                 env=env,
                 stdout=log_handle,
-                stderr=subprocess.STDOUT,
-                preexec_fn=os.setsid  # Create new process group
+                stderr=STDOUT,
+                preexec_fn=setsid  # Create new process group
             )
             self.processes.append((gpu_id, process, log_file, log_handle))
         
@@ -241,13 +241,13 @@ class MultiGPULauncher:
                 print(f"Terminating process on GPU {gpu_id}")
                 try:
                     # Try graceful termination first
-                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                    killpg(getpgid(process.pid), SIGTERM)
                     # Wait briefly for termination
                     try:
                         process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
+                    except TimeoutExpired:
                         # Force kill if necessary
-                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                        killpg(getpgid(process.pid), SIGKILL)
                         process.wait()
                 except Exception as e:
                     print(f"Error terminating process: {e}")

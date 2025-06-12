@@ -7,10 +7,9 @@ helper functions.
 """
 
 import torch
-import os
-import glob
-import tempfile
-import shutil
+from os import makedirs, path, unlink
+from tempfile import NamedTemporaryFile
+from shutil import move
 import numpy as np
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -117,7 +116,7 @@ def ensure_directory_exists(directory: str) -> None:
     Args:
         directory: Path to directory
     """
-    os.makedirs(directory, exist_ok=True)
+    makedirs(directory, exist_ok=True)
 
 
 def get_timestamp() -> str:
@@ -480,7 +479,7 @@ def atomic_file_write(filepath: str, mode: str = 'w', **kwargs) -> Generator[Any
     
     try:
         # Create temporary file in same directory (for same filesystem)
-        with tempfile.NamedTemporaryFile(
+        with NamedTemporaryFile(
             mode=mode,
             dir=filepath.parent,
             delete=False,
@@ -490,12 +489,12 @@ def atomic_file_write(filepath: str, mode: str = 'w', **kwargs) -> Generator[Any
             yield temp_file
         
         # If we get here, writing succeeded. Move temp file to target
-        shutil.move(temp_path, filepath)
+        move(temp_path, filepath)
         
     except Exception:
         # Clean up temp file on error
-        if temp_file and os.path.exists(temp_path):
-            os.unlink(temp_path)
+        if temp_file and path.exists(temp_path):
+            unlink(temp_path)
         raise
 
 

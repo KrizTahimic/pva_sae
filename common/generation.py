@@ -6,7 +6,7 @@ temperature variation support, and advanced error handling for all project phase
 """
 
 import time
-import logging
+from logging import getLogger
 from typing import Optional, List, Dict, Any, Callable
 from dataclasses import dataclass
 import torch
@@ -16,7 +16,7 @@ from common.config import RobustnessConfig
 from common.utils import torch_memory_cleanup
 
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 @dataclass
@@ -59,7 +59,7 @@ class RobustGenerator:
         self.model_manager = model_manager
         self.config = robustness_config or RobustnessConfig()
         self.default_max_new_tokens = default_max_new_tokens
-        self.logger = logging.getLogger(__name__)
+        self.logger = getLogger(__name__)
         
         if not self.model_manager.model:
             raise RuntimeError("Model not loaded in ModelManager")

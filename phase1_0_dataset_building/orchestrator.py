@@ -6,7 +6,7 @@ dataset building process without complex inheritance.
 """
 
 import logging
-import os
+from os.path import join as path_join
 import time
 from typing import Optional, Dict, Any, List
 from pathlib import Path
@@ -178,7 +178,7 @@ class Phase1Orchestrator:
         if not torch.cuda.is_available():
             return None
             
-        checkpoint_dir = os.path.join(self.dataset_config.dataset_dir, self.robustness_config.checkpoint_dir)
+        checkpoint_dir = path_join(self.dataset_config.dataset_dir, self.robustness_config.checkpoint_dir)
         checkpoint_path = checkpoint_manager.find_latest_checkpoint(
             checkpoint_dir, f"checkpoint_{start_idx}_{end_idx}"
         )
@@ -237,7 +237,7 @@ class Phase1Orchestrator:
     
     def _save_checkpoint(self, results: List[Any], start_idx: int, end_idx: int):
         """Save checkpoint."""
-        checkpoint_dir = os.path.join(self.dataset_config.dataset_dir, self.robustness_config.checkpoint_dir)
+        checkpoint_dir = path_join(self.dataset_config.dataset_dir, self.robustness_config.checkpoint_dir)
         ensure_directory_exists(checkpoint_dir)
         
         checkpoint_path = checkpoint_manager.save_checkpoint(

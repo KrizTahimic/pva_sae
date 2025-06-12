@@ -8,7 +8,7 @@ for language models used in the project.
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from typing import Optional, Dict, Any, Union
-import logging
+from logging import getLogger
 import gc
 from contextlib import contextmanager
 
@@ -31,7 +31,7 @@ class ModelManager:
         self.tokenizer = None
         self.device = None
         self.dtype = None
-        self.logger = logging.getLogger(__name__)
+        self.logger = getLogger(__name__)
         
         # Setup device and dtype
         self._setup_device_and_dtype()

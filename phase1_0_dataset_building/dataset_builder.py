@@ -5,10 +5,11 @@ This module contains a single DatasetBuilder class without inheritance,
 focused on building datasets efficiently with clean separation of concerns.
 """
 
-import os
+from os import close as os_close, unlink
+from os.path import join as path_join, exists as path_exists, basename, dirname
 import time
-import logging
-import pandas as pd
+from logging import getLogger
+from pandas import DataFrame
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
@@ -60,7 +61,7 @@ class DatasetBuilder:
         
         # Tracking
         self.current_results = []
-        self.logger = logging.getLogger(__name__)
+        self.logger = getLogger(__name__)
         
         # Setup activation extraction
         self.activation_extractor = None
@@ -232,7 +233,7 @@ class DatasetBuilder:
         
         # Convert to DataFrame
         df_rows = [result.to_dataframe_row() for result in results]
-        df = pd.DataFrame(df_rows)
+        df = DataFrame(df_rows)
         
         # Generate filename
         from common.utils import generate_dataset_filename
@@ -241,12 +242,12 @@ class DatasetBuilder:
             model_name=self.model_manager.config.model_name,
             extension="parquet"
         )
-        filepath = os.path.join(self.config.dataset_dir, filename)
+        filepath = path_join(self.config.dataset_dir, filename)
         
         # Save parquet file atomically
         import tempfile
-        temp_fd, temp_path = tempfile.mkstemp(suffix='.parquet', dir=os.path.dirname(filepath))
-        os.close(temp_fd)
+        temp_fd, temp_path = tempfile.mkstemp(suffix='.parquet', dir=dirname(filepath))
+        os_close(temp_fd)
         
         try:
             df.to_parquet(temp_path, index=False)
@@ -254,8 +255,8 @@ class DatasetBuilder:
             import shutil
             shutil.move(temp_path, filepath)
         except:
-            if os.path.exists(temp_path):
-                os.unlink(temp_path)
+            if path_exists(temp_path):
+                unlink(temp_path)
             raise
         
         # Save metadata
@@ -272,7 +273,7 @@ class DatasetBuilder:
         
         # Also save metadata filename
         metadata_file = filepath.replace('.parquet', '_metadata.json')
-        print(f"ℹ️  Metadata saved to: {os.path.basename(metadata_file)}")
+        print(f"ℹ️  Metadata saved to: {basename(metadata_file)}")
         
         return filepath
     
@@ -291,7 +292,7 @@ class DatasetBuilder:
             'incorrect_count': len(results) - correct_count,
             'correct_rate': (correct_count / len(results) * 100) if results else 0.0,
             'dataset_config': self.config.to_dict(),
-            'dataframe_file': os.path.basename(dataset_path),
+            'dataframe_file': basename(dataset_path),
             'dataset_directory': self.config.dataset_dir
         }
         

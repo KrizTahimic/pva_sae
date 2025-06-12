@@ -17,9 +17,9 @@ For multi-GPU dataset building, use:
     python3 multi_gpu_launcher.py --phase 1 --num-gpus 3 --model google/gemma-2-2b
 """
 
-import argparse
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import sys
-import os
+from os import environ
 from pathlib import Path
 import torch
 
@@ -41,9 +41,9 @@ from phase3_validation.config import DEFAULT_PHASE3_DIR
 
 def setup_argument_parser():
     """Setup command line argument parser with phase-specific argument groups"""
-    parser = argparse.ArgumentParser(
+    parser = ArgumentParser(
         description="Run PVA-SAE thesis phases",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        formatter_class=ArgumentDefaultsHelpFormatter
     )
     
     # Create subparsers for different commands
@@ -311,7 +311,7 @@ def run_phase1(args, logger, device: str):
         cleanup_gpu_memory()
         
         # Ensure GPU is responsive
-        gpu_device = int(os.environ.get('CUDA_VISIBLE_DEVICES', '0'))
+        gpu_device = int(environ.get('CUDA_VISIBLE_DEVICES', '0'))
         if not ensure_gpu_available(gpu_device):
             logger.warning(f"GPU {gpu_device} not responsive, attempting cleanup...")
             cleanup_gpu_memory(gpu_device)
@@ -712,7 +712,7 @@ def cleanup_gpu_command(args, logger):
         
         # Kill user's Python processes
         try:
-            result = subprocess.run(['pkill', '-u', os.environ.get('USER', ''), '-f', 'python'], 
+            result = subprocess.run(['pkill', '-u', environ.get('USER', ''), '-f', 'python'], 
                                   capture_output=True, text=True)
             if result.returncode == 0:
                 print("   ✓ Killed hanging Python processes")
