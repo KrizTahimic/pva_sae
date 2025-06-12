@@ -6,8 +6,7 @@ without any LLM involvement. It creates a lightweight mapping of difficulty
 scores that can be used by subsequent phases.
 """
 
-import logging
-import pandas as pd
+from pandas import DataFrame, read_parquet
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -153,7 +152,7 @@ class MBPPDifficultyAnalyzer:
         # Convert to DataFrame for efficient storage
         df_data = [metrics.to_dict() for metrics in self.difficulty_mapping.values()]
         
-        df = pd.DataFrame(df_data)
+        df = DataFrame(df_data)
         
         # Save as parquet for efficiency
         df.to_parquet(filepath, index=False)
@@ -179,7 +178,7 @@ class MBPPDifficultyAnalyzer:
             raise FileNotFoundError(f"Difficulty mapping file not found: {filepath}")
         
         # Load DataFrame
-        df = pd.read_parquet(filepath)
+        df = read_parquet(filepath)
         
         # Convert back to DifficultyMetrics objects
         difficulty_mapping = {}
@@ -209,18 +208,18 @@ class MBPPDifficultyAnalyzer:
         if not complexity_scores:
             return {'total_analyzed': 0}
         
-        import numpy as np
-        complexity_array = np.array(complexity_scores)
+        from numpy import array, min as np_min, max as np_max, mean, median, std, percentile
+        complexity_array = array(complexity_scores)
         
         return {
             'total_analyzed': total,
-            'complexity_range': (int(complexity_array.min()), int(complexity_array.max())),
-            'mean': round(float(complexity_array.mean()), 2),
-            'median': float(np.median(complexity_array)),
-            'std': round(float(complexity_array.std()), 2),
+            'complexity_range': (int(np_min(complexity_array)), int(np_max(complexity_array))),
+            'mean': round(float(mean(complexity_array)), 2),
+            'median': float(median(complexity_array)),
+            'std': round(float(std(complexity_array)), 2),
             'percentiles': {
-                '25th': float(np.percentile(complexity_array, 25)),
-                '75th': float(np.percentile(complexity_array, 75)),
-                '90th': float(np.percentile(complexity_array, 90))
+                '25th': float(percentile(complexity_array, 25)),
+                '75th': float(percentile(complexity_array, 75)),
+                '90th': float(percentile(complexity_array, 90))
             }
         }

@@ -7,8 +7,7 @@ phases of the project.
 
 from dataclasses import dataclass, field, asdict
 from typing import Optional, Dict, Any, List
-import json
-import os
+from json import dump as json_dump, load as json_load
 
 
 # Default values - shared across phases
@@ -95,13 +94,13 @@ class RobustnessConfig:
     def save_to_file(self, filepath: str):
         """Save configuration to JSON file"""
         with open(filepath, 'w') as f:
-            json.dump(self.to_dict(), f, indent=2)
+            json_dump(self.to_dict(), f, indent=2)
     
     @classmethod
     def load_from_file(cls, filepath: str) -> 'RobustnessConfig':
         """Load configuration from JSON file"""
         with open(filepath, 'r') as f:
-            config_dict = json.load(f)
+            config_dict = json_load(f)
         return cls.from_dict(config_dict)
 
 

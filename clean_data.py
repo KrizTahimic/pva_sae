@@ -8,11 +8,12 @@ Usage:
     python3 clean_data.py --dry-run # Dry run - shows what would be deleted
 """
 
-import argparse
-import os
-import shutil
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from os import remove
+from os.path import exists, basename
+from shutil import rmtree
 from pathlib import Path
-import glob
+from glob import glob
 
 
 def get_files_to_delete(data_dir: str = "data") -> dict:
@@ -53,9 +54,9 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "data/phase0/mbpp_difficulty_mapping_*.parquet"
     ]
     
-    files_to_delete["datasets"] = [f for pattern in dataset_patterns for f in glob.glob(pattern)]
+    files_to_delete["datasets"] = [f for pattern in dataset_patterns for f in glob(pattern)]
     
-    files_to_delete["phase0"] = [f for pattern in phase0_patterns for f in glob.glob(pattern)]
+    files_to_delete["phase0"] = [f for pattern in phase0_patterns for f in glob(pattern)]
     
     # Phase 1 files
     phase1_patterns = [
@@ -65,7 +66,7 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "data/phase1/checkpoints/*.json"
     ]
     
-    files_to_delete["phase1"] = [f for pattern in phase1_patterns for f in glob.glob(pattern)]
+    files_to_delete["phase1"] = [f for pattern in phase1_patterns for f in glob(pattern)]
     
     # Phase 2 files  
     phase2_patterns = [
@@ -74,7 +75,7 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "data/phase2/activation_cache*"
     ]
     
-    files_to_delete["phase2"] = [f for pattern in phase2_patterns for f in glob.glob(pattern)]
+    files_to_delete["phase2"] = [f for pattern in phase2_patterns for f in glob(pattern)]
     
     # Phase 3 files
     phase3_patterns = [
@@ -82,7 +83,7 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "data/phase3/*.parquet"
     ]
     
-    files_to_delete["phase3"] = [f for pattern in phase3_patterns for f in glob.glob(pattern)]
+    files_to_delete["phase3"] = [f for pattern in phase3_patterns for f in glob(pattern)]
     
     # Log files
     log_patterns = [
@@ -90,11 +91,11 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "data/logs/mbpp_test_*.log"
     ]
     
-    files_to_delete["logs"] = [f for pattern in log_patterns for f in glob.glob(pattern)]
+    files_to_delete["logs"] = [f for pattern in log_patterns for f in glob(pattern)]
     
     # Checkpoint directory
     checkpoint_dir = "data/datasets/checkpoints"
-    if os.path.exists(checkpoint_dir):
+    if exists(checkpoint_dir):
         files_to_delete["checkpoints"].append(checkpoint_dir)
     
     # Test checkpoint files
@@ -103,7 +104,7 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
         "data/phase2/test_checkpoints/*.parquet"
     ]
     
-    files_to_delete["test_checkpoints"] = [f for pattern in test_checkpoint_patterns for f in glob.glob(pattern)]
+    files_to_delete["test_checkpoints"] = [f for pattern in test_checkpoint_patterns for f in glob(pattern)]
     
     return files_to_delete
 
@@ -129,7 +130,7 @@ def print_files_summary(files_to_delete: dict) -> int:
     if dataset_count > 0:
         print(f"\nDatasets ({dataset_count} files):")
         for f in sorted(files_to_delete["datasets"])[:5]:
-            print(f"  - {os.path.basename(f)}")
+            print(f"  - {basename(f)}")
         if dataset_count > 5:
             print(f"  ... and {dataset_count - 5} more")
         total_count += dataset_count
@@ -139,7 +140,7 @@ def print_files_summary(files_to_delete: dict) -> int:
     if phase0_count > 0:
         print(f"\nPhase 0 files ({phase0_count} files):")
         for f in sorted(files_to_delete["phase0"])[:5]:
-            print(f"  - {os.path.basename(f)}")
+            print(f"  - {basename(f)}")
         if phase0_count > 5:
             print(f"  ... and {phase0_count - 5} more")
         total_count += phase0_count
@@ -149,7 +150,7 @@ def print_files_summary(files_to_delete: dict) -> int:
     if phase1_count > 0:
         print(f"\nPhase 1 files ({phase1_count} files):")
         for f in sorted(files_to_delete["phase1"])[:5]:
-            print(f"  - {os.path.basename(f)}")
+            print(f"  - {basename(f)}")
         if phase1_count > 5:
             print(f"  ... and {phase1_count - 5} more")
         total_count += phase1_count
@@ -159,7 +160,7 @@ def print_files_summary(files_to_delete: dict) -> int:
     if phase2_count > 0:
         print(f"\nPhase 2 files ({phase2_count} files):")
         for f in sorted(files_to_delete["phase2"])[:5]:
-            print(f"  - {os.path.basename(f)}")
+            print(f"  - {basename(f)}")
         if phase2_count > 5:
             print(f"  ... and {phase2_count - 5} more")
         total_count += phase2_count
@@ -169,7 +170,7 @@ def print_files_summary(files_to_delete: dict) -> int:
     if phase3_count > 0:
         print(f"\nPhase 3 files ({phase3_count} files):")
         for f in sorted(files_to_delete["phase3"])[:5]:
-            print(f"  - {os.path.basename(f)}")
+            print(f"  - {basename(f)}")
         if phase3_count > 5:
             print(f"  ... and {phase3_count - 5} more")
         total_count += phase3_count
@@ -179,7 +180,7 @@ def print_files_summary(files_to_delete: dict) -> int:
     if log_count > 0:
         print(f"\nLogs ({log_count} files):")
         for f in sorted(files_to_delete["logs"])[:5]:
-            print(f"  - {os.path.basename(f)}")
+            print(f"  - {basename(f)}")
         if log_count > 5:
             print(f"  ... and {log_count - 5} more")
         total_count += log_count
@@ -196,7 +197,7 @@ def print_files_summary(files_to_delete: dict) -> int:
     if test_checkpoint_count > 0:
         print(f"\nTest checkpoint files ({test_checkpoint_count} files):")
         for f in sorted(files_to_delete["test_checkpoints"])[:5]:
-            print(f"  - {os.path.basename(f)}")
+            print(f"  - {basename(f)}")
         if test_checkpoint_count > 5:
             print(f"  ... and {test_checkpoint_count - 5} more")
         total_count += test_checkpoint_count
@@ -225,7 +226,7 @@ def delete_files(files_to_delete: dict, dry_run: bool = False) -> int:
     for file_path in files_to_delete["datasets"]:
         try:
             if not dry_run:
-                os.remove(file_path)
+                remove(file_path)
             print(f"{'[DRY RUN] Would delete' if dry_run else 'Deleted'}: {file_path}")
             deleted_count += 1
         except Exception as e:
@@ -235,7 +236,7 @@ def delete_files(files_to_delete: dict, dry_run: bool = False) -> int:
     for file_path in files_to_delete["phase0"]:
         try:
             if not dry_run:
-                os.remove(file_path)
+                remove(file_path)
             print(f"{'[DRY RUN] Would delete' if dry_run else 'Deleted'}: {file_path}")
             deleted_count += 1
         except Exception as e:
@@ -245,7 +246,7 @@ def delete_files(files_to_delete: dict, dry_run: bool = False) -> int:
     for file_path in files_to_delete["phase1"]:
         try:
             if not dry_run:
-                os.remove(file_path)
+                remove(file_path)
             print(f"{'[DRY RUN] Would delete' if dry_run else 'Deleted'}: {file_path}")
             deleted_count += 1
         except Exception as e:
@@ -255,7 +256,7 @@ def delete_files(files_to_delete: dict, dry_run: bool = False) -> int:
     for file_path in files_to_delete["phase2"]:
         try:
             if not dry_run:
-                os.remove(file_path)
+                remove(file_path)
             print(f"{'[DRY RUN] Would delete' if dry_run else 'Deleted'}: {file_path}")
             deleted_count += 1
         except Exception as e:
@@ -265,7 +266,7 @@ def delete_files(files_to_delete: dict, dry_run: bool = False) -> int:
     for file_path in files_to_delete["phase3"]:
         try:
             if not dry_run:
-                os.remove(file_path)
+                remove(file_path)
             print(f"{'[DRY RUN] Would delete' if dry_run else 'Deleted'}: {file_path}")
             deleted_count += 1
         except Exception as e:
@@ -275,7 +276,7 @@ def delete_files(files_to_delete: dict, dry_run: bool = False) -> int:
     for file_path in files_to_delete["logs"]:
         try:
             if not dry_run:
-                os.remove(file_path)
+                remove(file_path)
             print(f"{'[DRY RUN] Would delete' if dry_run else 'Deleted'}: {file_path}")
             deleted_count += 1
         except Exception as e:
@@ -285,7 +286,7 @@ def delete_files(files_to_delete: dict, dry_run: bool = False) -> int:
     for dir_path in files_to_delete["checkpoints"]:
         try:
             if not dry_run:
-                shutil.rmtree(dir_path)
+                rmtree(dir_path)
             print(f"{'[DRY RUN] Would delete' if dry_run else 'Deleted'} directory: {dir_path}")
             deleted_count += 1
         except Exception as e:
@@ -295,7 +296,7 @@ def delete_files(files_to_delete: dict, dry_run: bool = False) -> int:
     for file_path in files_to_delete["test_checkpoints"]:
         try:
             if not dry_run:
-                os.remove(file_path)
+                remove(file_path)
             print(f"{'[DRY RUN] Would delete' if dry_run else 'Deleted'}: {file_path}")
             deleted_count += 1
         except Exception as e:
@@ -306,9 +307,9 @@ def delete_files(files_to_delete: dict, dry_run: bool = False) -> int:
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(
+    parser = ArgumentParser(
         description="Clean all generated data files",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        formatter_class=ArgumentDefaultsHelpFormatter
     )
     
     parser.add_argument(

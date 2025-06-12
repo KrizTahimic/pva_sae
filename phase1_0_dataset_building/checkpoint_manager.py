@@ -6,7 +6,7 @@ Simple utility functions for GPU-aware checkpointing without complex class hiera
 
 from os import unlink
 from os.path import exists as path_exists, join as path_join, getmtime
-import json
+from json import dump as json_dump, load as json_load
 from glob import glob
 from logging import getLogger
 from typing import List, Optional, Any
@@ -49,7 +49,7 @@ def save_checkpoint(results: List[CodeGenerationResult],
         
         # Save atomically
         with atomic_file_write(filepath, 'w') as f:
-            json.dump(checkpoint_data, f, indent=2)
+            json_dump(checkpoint_data, f, indent=2)
         
         logger.info(f"Checkpoint saved: {filepath} ({len(results)} records)")
         return filepath
@@ -73,7 +73,7 @@ def load_checkpoint(checkpoint_path: str) -> List[CodeGenerationResult]:
     
     try:
         with open(checkpoint_path, 'r') as f:
-            data = json.load(f)
+            data = json_load(f)
         
         # Reconstruct results
         results = []

@@ -7,17 +7,18 @@ This module ensures equal complexity distribution across splits by:
 3. Applying interleaved sampling across strata
 """
 
-import numpy as np
+from numpy import random, arange, mean, std, linspace, ndarray
+from numpy.random import seed, shuffle
 import pandas as pd
-import json
+from json import dump as json_dump, load as json_load
 from pathlib import Path
 from typing import List, Tuple, Dict, Optional
-import logging
+from logging import getLogger
 from datetime import datetime
 
 from .config import SplitConfig
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 def split_dataset(
@@ -50,11 +51,11 @@ def split_dataset(
     
     # Set random seed for reproducibility
     if config.random_seed is not None:
-        np.random.seed(config.random_seed)
+        seed(config.random_seed)
         logger.info(f"Set random seed to {config.random_seed}")
     
     # Extract indices and complexity scores
-    indices = np.arange(len(df))
+    indices = arange(len(df))
     complexity_scores = df['complexity_score'].values
     
     logger.info(f"Splitting {len(df)} samples with complexity range "
@@ -71,8 +72,8 @@ def split_dataset(
     for name, split_indices in split_dict.items():
         split_complexity = complexity_scores[split_indices]
         logger.info(f"Split '{name}': {len(split_indices)} samples, "
-                   f"complexity mean={np.mean(split_complexity):.2f}, "
-                   f"std={np.std(split_complexity):.2f}")
+                   f"complexity mean={mean(split_complexity):.2f}, "
+                   f"std={std(split_complexity):.2f}")
     
     # Save splits
     save_splits(split_dict, config.output_dir, df)
@@ -81,10 +82,10 @@ def split_dataset(
 
 
 def create_complexity_strata(
-    indices: np.ndarray,
-    complexity_scores: np.ndarray,
+    indices: ndarray,
+    complexity_scores: ndarray,
     n_strata: int
-) -> List[np.ndarray]:
+) -> List[ndarray]:
     """
     Divide indices into complexity strata and shuffle within each.
     
@@ -104,7 +105,7 @@ def create_complexity_strata(
     max_complexity = complexity_scores.max()
     
     # Add small epsilon to max to ensure highest value is included
-    boundaries = np.linspace(min_complexity, max_complexity + 1e-6, n_strata + 1)
+    boundaries = linspace(min_complexity, max_complexity + 1e-6, n_strata + 1)
     
     # Assign indices to strata
     strata = []
@@ -121,7 +122,7 @@ def create_complexity_strata(
             mask = (complexity_scores >= lower) & (complexity_scores < upper)
         
         stratum_indices = indices[mask].copy()
-        np.random.shuffle(stratum_indices)  # Shuffle within stratum
+        shuffle(stratum_indices)  # Shuffle within stratum
         strata.append(stratum_indices)
         
         total_assigned += len(stratum_indices)
@@ -136,7 +137,7 @@ def create_complexity_strata(
 
 
 def apply_stratified_interleaving(
-    strata: List[np.ndarray],
+    strata: List[ndarray],
     ratios: List[float]
 ) -> List[List[int]]:
     """
@@ -267,7 +268,7 @@ def save_splits(
         # Convert numpy types to Python native types for JSON serialization
         indices_list = [int(idx) for idx in indices]
         with open(filepath, 'w') as f:
-            json.dump(indices_list, f)
+            json_dump(indices_list, f)
         logger.info(f"Saved {len(indices)} indices to {filepath}")
     
     # Calculate and save metadata
@@ -298,7 +299,7 @@ def save_splits(
                 float(split_correctness.mean())
     
     with open(output_path / 'split_metadata.json', 'w') as f:
-        json.dump(metadata, f, indent=2)
+        json_dump(metadata, f, indent=2)
     
     logger.info(f"Saved metadata to {output_path / 'split_metadata.json'}")
 
@@ -326,7 +327,7 @@ def load_splits(split_dir: str) -> Dict[str, List[int]]:
     for split_file in sorted(split_path.glob("*_indices.json")):
         split_name = split_file.stem.replace("_indices", "")
         with open(split_file, 'r') as f:
-            splits[split_name] = json.load(f)
+            splits[split_name] = json_load(f)
         logger.info(f"Loaded {len(splits[split_name])} indices for split '{split_name}'")
     
     if not splits:
