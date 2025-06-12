@@ -73,9 +73,7 @@ from .model_interfaces import (
 
 # Import prompt utilities
 from .prompt_utils import (
-    build_prompt_template,
-    PromptBuilder,
-    PromptVariation
+    PromptBuilder
 )
 
 __all__ = [
@@ -133,7 +131,5 @@ __all__ = [
     'create_unified_interface',
     
     # Prompt utilities
-    'build_prompt_template',
-    'PromptBuilder',
-    'PromptVariation'
+    'PromptBuilder'
 ]

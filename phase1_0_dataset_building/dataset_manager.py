@@ -225,7 +225,7 @@ class DatasetManager:
                              f"test_cases_count={test_cases.count('assert')}")
             
             # Build prompt using common utilities
-            prompt = PromptBuilder.build_standard_prompt(
+            prompt = PromptBuilder.build_prompt(
                 problem_description=problem_description,
                 test_cases=test_cases,
                 code_initiator=DEFAULT_CODE_INITIATOR
