@@ -23,7 +23,7 @@ from datetime import datetime
 from huggingface_hub import hf_hub_download
 from transformer_lens import HookedTransformer
 
-from common.config import SAELayerConfig, ActivationExtractionConfig
+from common.config import Config
 from common.utils import memory_mapped_array, torch_memory_cleanup, torch_no_grad_and_cleanup
 from common.activation_extraction import (
     TransformerLensExtractor,
@@ -293,17 +293,17 @@ class SAEAnalysisPipeline:
         self.model = model
         self.device = device
         
-        # Use centralized activation extractor
-        activation_config = ActivationExtractionConfig(
-            batch_size=8,
-            max_cache_size_gb=10.0,
-            clear_cache_between_layers=True
-        )
+        # Use centralized activation extractor with Config
+        config = Config()
+        config.activation_batch_size = 8
+        config.activation_max_cache_gb = 10.0
+        config.activation_clear_cache_between_layers = True
+        
         self.extractor = create_activation_extractor(
             model=model,
             model_type="transformerlens",
             device=device,
-            config=activation_config
+            config=config
         )
         
         logger.info("Initialized SAE Analysis Pipeline")
@@ -560,17 +560,17 @@ class MultiLayerActivationExtractor:
         self.model = model
         self.device = device
         
-        # Use centralized activation extractor
-        activation_config = ActivationExtractionConfig(
-            batch_size=1,
-            max_cache_size_gb=20.0,
-            clear_cache_between_layers=False  # Important for multi-layer extraction
-        )
+        # Use centralized activation extractor with Config
+        config = Config()
+        config.activation_batch_size = 1
+        config.activation_max_cache_gb = 20.0
+        config.activation_clear_cache_between_layers = False  # Important for multi-layer extraction
+        
         self.extractor = create_activation_extractor(
             model=model,
             model_type="transformerlens",
             device=device,
-            config=activation_config
+            config=config
         )
         
     @contextlib.contextmanager
@@ -739,16 +739,16 @@ class MultiLayerSAEResults:
 class MultiLayerSAEAnalyzer:
     """Analyze SAE features across multiple layers with memory management and checkpointing"""
     
-    def __init__(self, model: HookedTransformer, sae_config: Optional[SAELayerConfig] = None, device: str = "auto"):
+    def __init__(self, model: HookedTransformer, config: Optional[Config] = None, device: str = "auto"):
         self.model = model
-        self.sae_config = sae_config or SAELayerConfig()
+        self.config = config or Config()
         
         
         self.device = device
         self.extractor = MultiLayerActivationExtractor(model, device)
         
         # Setup checkpoint directory
-        self.checkpoint_dir = Path(self.sae_config.checkpoint_dir)
+        self.checkpoint_dir = Path(self.config.sae_checkpoint_dir)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         
         logger.info(f"Initialized MultiLayerSAEAnalyzer for {model.cfg.model_name}")
@@ -764,22 +764,20 @@ class MultiLayerSAEAnalyzer:
         # Determine layers to analyze
         if layer_indices is None:
             n_layers = self.model.cfg.n_layers
-            layer_indices = self.sae_config.get_layers_for_model(
-                self.model.cfg.model_name, n_layers
-            )
+            layer_indices = self.config.activation_layers  # Use available layers
         
         logger.info(f"Analyzing {len(layer_indices)} layers: {layer_indices}")
-        logger.info(f"Component: {self.sae_config.hook_component}")
+        logger.info(f"Component: {self.config.sae_hook_component}")
         
         # Determine if memory mapping is needed
-        use_memory_mapping = self.sae_config.should_use_memory_mapping(len(layer_indices))
+        use_memory_mapping = self.config.sae_use_memory_mapping
         cache_dir = str(self.checkpoint_dir / "activation_cache") if use_memory_mapping else None
         
         # Step 1: Extract all activations in one forward pass
         logger.info("Extracting activations for correct samples...")
         correct_cache = self.extractor.extract_all_layers(
             correct_prompts, layer_indices, 
-            hook_type=self.sae_config.hook_component,
+            hook_type=self.config.sae_hook_component,
             use_memory_mapping=use_memory_mapping,
             cache_dir=cache_dir + "_correct" if cache_dir else None
         )
@@ -787,7 +785,7 @@ class MultiLayerSAEAnalyzer:
         logger.info("Extracting activations for incorrect samples...")
         incorrect_cache = self.extractor.extract_all_layers(
             incorrect_prompts, layer_indices,
-            hook_type=self.sae_config.hook_component,
+            hook_type=self.config.sae_hook_component,
             use_memory_mapping=use_memory_mapping,
             cache_dir=cache_dir + "_incorrect" if cache_dir else None
         )
@@ -823,11 +821,11 @@ class MultiLayerSAEAnalyzer:
                 )
                 
                 # Save checkpoint after each layer if configured
-                if self.sae_config.save_after_each_layer:
+                if self.config.sae_save_after_each_layer:
                     self._save_layer_checkpoint(layer_idx, results[layer_idx])
                 
                 # Critical: Clean up after each layer
-                if self.sae_config.cleanup_after_layer:
+                if self.config.sae_cleanup_after_layer:
                     del sae, correct_sae_acts, incorrect_sae_acts
                     correct_cache.clear_layer(layer_idx)
                     incorrect_cache.clear_layer(layer_idx)
@@ -853,7 +851,7 @@ class MultiLayerSAEAnalyzer:
             model_name=self.model.cfg.model_name,
             n_correct_samples=len(correct_prompts),
             n_incorrect_samples=len(incorrect_prompts),
-            hook_component=self.sae_config.hook_component
+            hook_component=self.config.sae_hook_component
         )
         
         # Save final results
@@ -864,10 +862,10 @@ class MultiLayerSAEAnalyzer:
     
     def _load_sae_for_layer(self, layer_idx: int) -> JumpReLUSAE:
         """Load SAE for specific layer with dynamic ID generation"""
-        sae_id = f"layer_{layer_idx}/width_{self.sae_config.sae_width}/average_l0_{self.sae_config.sae_sparsity}"
+        sae_id = f"layer_{layer_idx}/width_{self.config.sae_width}/average_l0_{self.config.sae_sparsity}"
         
         return load_gemma_scope_sae(
-            repo_id=self.sae_config.sae_repo_id,
+            repo_id=self.config.sae_repo_id,
             sae_id=sae_id,
             device=self.device
         )
@@ -944,10 +942,10 @@ class MultiLayerSAEAnalyzer:
 class EnhancedSAEAnalysisPipeline(SAEAnalysisPipeline):
     """Enhanced pipeline with multi-layer support"""
     
-    def __init__(self, model: HookedTransformer, sae_config: Optional[SAELayerConfig] = None, device: str = "auto"):
+    def __init__(self, model: HookedTransformer, config: Optional[Config] = None, device: str = "auto"):
         super().__init__(model, device)
-        self.sae_config = sae_config or SAELayerConfig()
-        self.multi_layer_analyzer = MultiLayerSAEAnalyzer(model, self.sae_config, device)
+        self.config = config or Config()
+        self.multi_layer_analyzer = MultiLayerSAEAnalyzer(model, self.config, device)
     
     def analyze_all_residual_layers(
         self,

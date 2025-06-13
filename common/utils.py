@@ -54,10 +54,6 @@ def get_optimal_dtype(device: torch.device) -> torch.dtype:
         return torch.float32
 
 
-
-
-
-
 def format_duration(seconds: float) -> str:
     """
     Format duration in seconds to human-readable string

@@ -110,18 +110,6 @@ def setup_argument_parser():
         help='Show the final configuration and exit'
     )
     
-    phase_parser.add_argument(
-        '--config-file',
-        type=str,
-        help='Load configuration from JSON file'
-    )
-    
-    phase_parser.add_argument(
-        '--save-config',
-        type=str,
-        help='Save the final configuration to specified file'
-    )
-    
     # Universal input argument for all phases
     phase_parser.add_argument(
         '--input',
@@ -464,7 +452,7 @@ def run_phase2(config: Config, logger, device: str):
     from phase2_sae_analysis.activation_loader import ActivationLoader
     from phase2_sae_analysis.sae_analyzer import load_gemma_scope_sae, compute_separation_scores
     from phase2_sae_analysis.pile_filter import PileFilter
-    from common.config import SAELayerConfig
+    # SAELayerConfig removed - using unified Config
     from common.utils import discover_latest_phase_output
     
     logger.info("Starting Phase 2: SAE Analysis (CPU-only)")
@@ -515,18 +503,8 @@ def run_phase2(config: Config, logger, device: str):
                 f"{summary['n_incorrect_tasks']} incorrect, "
                 f"{summary['n_layers']} layers: {summary['layers']}")
     
-    # Configure SAE analysis from unified config
-    sae_config = SAELayerConfig(
-        gemma_2b_layers=summary['layers'],  # Use available layers
-        sae_repo_id=config.sae_repo_id,
-        sae_width=config.sae_width,
-        sae_sparsity=config.sae_sparsity,
-        hook_component=config.sae_hook_component,
-        save_after_each_layer=config.sae_save_after_each_layer,
-        cleanup_after_layer=config.sae_cleanup_after_layer,
-        use_memory_mapping=config.sae_use_memory_mapping,
-        checkpoint_dir=config.sae_checkpoint_dir
-    )
+    # Use available layers from the activation summary
+    available_layers = summary['layers']
     
     # Create results storage
     from phase2_sae_analysis.sae_analyzer import (
@@ -538,7 +516,7 @@ def run_phase2(config: Config, logger, device: str):
     
     # Process each layer
     logger.info("Processing SAE analysis for each layer...")
-    for layer_idx in sae_config.gemma_2b_layers:
+    for layer_idx in available_layers:
         logger.info(f"\nAnalyzing layer {layer_idx}...")
         
         try:
@@ -557,9 +535,9 @@ def run_phase2(config: Config, logger, device: str):
             logger.info(f"Loaded activations - correct: {correct_acts.shape}, incorrect: {incorrect_acts.shape}")
             
             # Load SAE for this layer
-            sae_id = f"layer_{layer_idx}/width_{sae_config.sae_width}/average_l0_{sae_config.sae_sparsity}"
+            sae_id = f"layer_{layer_idx}/width_{config.sae_width}/average_l0_{config.sae_sparsity}"
             sae = load_gemma_scope_sae(
-                repo_id=sae_config.sae_repo_id,
+                repo_id=config.sae_repo_id,
                 sae_id=sae_id,
                 device=device
             )
@@ -622,7 +600,7 @@ def run_phase2(config: Config, logger, device: str):
         model_name=config.model_name,
         n_correct_samples=len(correct_task_ids[:100]),
         n_incorrect_samples=len(incorrect_task_ids[:100]),
-        hook_component=sae_config.hook_component
+        hook_component=config.sae_hook_component
     )
     
     # Print initial results
@@ -1103,7 +1081,7 @@ def test_phase2(args, logger, device: str):
     import pandas as pd
     from transformer_lens import HookedTransformer
     from phase2_sae_analysis.sae_analyzer import EnhancedSAEAnalysisPipeline
-    from common.config import SAELayerConfig
+    # SAELayerConfig removed - using unified Config
     from common.utils import discover_latest_phase_output
     
     print(f"\n{'='*50}")
@@ -1171,18 +1149,18 @@ def test_phase2(args, logger, device: str):
             print(f"   ❌ Model loading failed: {e}")
             return
         
-        # Configure for single layer test
-        sae_config = SAELayerConfig(
-            gemma_2b_layers=[args.layer],  # Test single layer
-            save_after_each_layer=False,       # Skip checkpointing for test
-            cleanup_after_layer=True,          # Clean up memory
-            checkpoint_dir=f"{get_phase_dir('2')}/test_checkpoints"  # Separate test dir
-        )
+        # Create test config based on unified Config
+        from common.config import Config
+        test_config = Config()
+        test_config.activation_layers = [args.layer]  # Test single layer
+        test_config.sae_save_after_each_layer = False  # Skip checkpointing for test
+        test_config.sae_cleanup_after_layer = True  # Clean up memory
+        test_config.sae_checkpoint_dir = f"{get_phase_dir('2')}/test_checkpoints"  # Separate test dir
         
         print(f"🧠 Initializing SAE pipeline...")
         
         # Initialize pipeline
-        pipeline = EnhancedSAEAnalysisPipeline(model, sae_config, device=device)
+        pipeline = EnhancedSAEAnalysisPipeline(model, test_config, device=device)
         
         print(f"⚙️  Running SAE analysis on layer {args.layer}...")
         
@@ -1288,12 +1266,8 @@ def main():
         return
     
     elif args.command == 'phase':
-        # Create unified config
-        if args.config_file:
-            logger.info(f"Loading config from file: {args.config_file}")
-            config = Config.from_file(args.config_file)
-        else:
-            config = Config.from_args(args, phase=str(args.phase))
+        # Create unified config from args
+        config = Config.from_args(args, phase=str(args.phase))
         
         # Store input file path if provided
         if args.input:
@@ -1317,11 +1291,6 @@ def main():
         if args.show_config:
             print("\n" + config.dump(phase=str(args.phase)))
             sys.exit(0)
-        
-        # Save config if requested
-        if args.save_config:
-            config.save_to_file(args.save_config)
-            logger.info(f"Configuration saved to: {args.save_config}")
         
         # Display phase info
         phase_names = {

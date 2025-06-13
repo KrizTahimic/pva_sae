@@ -18,7 +18,7 @@ from transformer_lens import HookedTransformer
 import numpy as np
 
 from common.utils import torch_memory_cleanup, torch_no_grad_and_cleanup
-from common.config import ActivationExtractionConfig
+from common.config import Config
 
 
 logger = logging.getLogger(__name__)
@@ -203,7 +203,7 @@ class BaseActivationExtractor:
         self,
         model: Any,
         device: str,
-        config: Optional[ActivationExtractionConfig] = None
+        config: Optional[Config] = None
     ):
         """
         Initialize base extractor.
@@ -215,8 +215,8 @@ class BaseActivationExtractor:
         """
         self.model = model
         self.device = device
-        self.config = config or ActivationExtractionConfig()
-        self.cache = ActivationCache(max_cache_size_gb=self.config.max_cache_size_gb)
+        self.config = config or Config()
+        self.cache = ActivationCache(max_cache_size_gb=self.config.activation_max_cache_gb)
         self.logger = logging.getLogger(__name__)
     
     def clear_cache(self) -> None:
@@ -270,7 +270,7 @@ class BaseActivationExtractor:
             self.logger.info(f"Extracting from layer {layer_idx}")
             
             # Clear cache between layers to manage memory
-            if self.config.clear_cache_between_layers:
+            if self.config.activation_clear_cache_between_layers:
                 self.clear_cache()
             
             activation_data = self.extract_activations(
@@ -291,7 +291,7 @@ class TransformerLensExtractor(BaseActivationExtractor):
         self,
         model: HookedTransformer,
         device: str,
-        config: Optional[ActivationExtractionConfig] = None
+        config: Optional[Config] = None
     ):
         """Initialize TransformerLens-specific extractor."""
         super().__init__(model, device, config)
@@ -371,7 +371,7 @@ class TransformerLensExtractor(BaseActivationExtractor):
     
     def _process_prompts_batch(self, prompts: List[str]) -> None:
         """Process prompts in batches for memory efficiency."""
-        batch_size = self.config.batch_size
+        batch_size = self.config.activation_batch_size
         
         for i in range(0, len(prompts), batch_size):
             batch_prompts = prompts[i:i + batch_size]
@@ -380,7 +380,7 @@ class TransformerLensExtractor(BaseActivationExtractor):
             self.model(batch_prompts)
             
             # Memory cleanup after each batch
-            if self.config.cleanup_after_batch:
+            if self.config.activation_cleanup_after_batch:
                 torch_memory_cleanup()
     
     def _collect_cached_activations(self) -> torch.Tensor:
@@ -407,7 +407,7 @@ class HuggingFaceExtractor(BaseActivationExtractor):
         model: Any,
         tokenizer: Any,
         device: str,
-        config: Optional[ActivationExtractionConfig] = None
+        config: Optional[Config] = None
     ):
         """
         Initialize HuggingFace-specific extractor.
@@ -503,7 +503,7 @@ class HuggingFaceExtractor(BaseActivationExtractor):
     
     def _process_prompts_batch(self, prompts: List[str]) -> None:
         """Process prompts in batches."""
-        batch_size = self.config.batch_size
+        batch_size = self.config.activation_batch_size
         
         for i in range(0, len(prompts), batch_size):
             batch_prompts = prompts[i:i + batch_size]
@@ -514,7 +514,7 @@ class HuggingFaceExtractor(BaseActivationExtractor):
                 return_tensors="pt",
                 padding=True,
                 truncation=True,
-                max_length=self.config.max_length
+                max_length=self.config.activation_max_length
             )
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
@@ -522,7 +522,7 @@ class HuggingFaceExtractor(BaseActivationExtractor):
             _ = self.model(**inputs)
             
             # Memory cleanup
-            if self.config.cleanup_after_batch:
+            if self.config.activation_cleanup_after_batch:
                 torch_memory_cleanup()
     
     def _collect_cached_activations(self) -> torch.Tensor:
@@ -543,7 +543,7 @@ def create_activation_extractor(
     model: Any,
     model_type: str = "auto",
     device: str = "cuda",
-    config: Optional[ActivationExtractionConfig] = None,
+    config: Optional[Config] = None,
     **kwargs
 ) -> BaseActivationExtractor:
     """

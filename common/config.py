@@ -7,10 +7,8 @@ CLI args > environment variables > config file > defaults
 """
 
 from dataclasses import dataclass, field, fields, asdict
-from typing import Optional, List, Dict, Any
-from pathlib import Path
+from typing import Optional, List
 import os
-import json
 
 # Default values - shared across phases
 DEFAULT_MODEL_NAME = "google/gemma-2-2b"
@@ -204,46 +202,15 @@ class Config:
                 
                 setattr(self, field.name, value)
     
-    @classmethod
-    def from_file(cls, filepath: str) -> 'Config':
-        """
-        Load configuration from JSON file.
-        
-        Args:
-            filepath: Path to JSON config file
-            
-        Returns:
-            Config object loaded from file
-        """
-        with open(filepath, 'r') as f:
-            data = json.load(f)
-        
-        # Filter out unknown fields
-        valid_fields = {f.name for f in fields(cls)}
-        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
-        
-        # Create config with loaded values
-        config = cls(**filtered_data)
-        
-        # Still apply environment overrides
-        config._load_from_env()
-        
-        return config
+    # File-based configuration removed for simplicity (KISS principle)
+    # Use CLI arguments or environment variables instead
     
-    def save_to_file(self, filepath: str) -> None:
-        """Save current configuration to JSON file."""
-        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(filepath, 'w') as f:
-            json.dump(asdict(self), f, indent=2)
-    
-    def dump(self, phase: Optional[str] = None, show_source: bool = False) -> str:
+    def dump(self, phase: Optional[str] = None) -> str:
         """
         Return formatted config for logging.
         
         Args:
             phase: If specified, highlight settings relevant to this phase
-            show_source: If True, show where each value came from (not implemented yet)
             
         Returns:
             Formatted configuration string
@@ -341,121 +308,3 @@ class Config:
         phase_key = f"phase{phase.replace('.', '_')}_output_dir"
         return getattr(self, phase_key, f"data/phase{phase}")
 
-
-# Legacy compatibility - minimal classes for components not yet migrated
-# These will be removed once all components use Config directly
-
-from dataclasses import dataclass
-import warnings
-
-@dataclass
-class ModelConfiguration:
-    """DEPRECATED: Minimal legacy class. Use Config instead."""
-    model_name: str = DEFAULT_MODEL_NAME
-    max_new_tokens: int = MAX_NEW_TOKENS
-    temperature: float = 0.0
-    device: Optional[str] = None
-    dtype: Optional[str] = None
-    trust_remote_code: bool = True
-    
-    def to_dict(self) -> dict:
-        """Convert to dictionary for compatibility."""
-        return asdict(self)
-
-@dataclass  
-class DatasetConfiguration:
-    """DEPRECATED: Minimal legacy class. Use Config instead."""
-    dataset_dir: str = "data/phase1_0"
-    dataset_name: str = "Muennighoff/mbpp"
-    split: str = "test"
-    start_idx: int = 0
-    end_idx: Optional[int] = None
-    activation_layers: List[int] = None
-    activation_hook_type: str = "resid_post"
-    activation_position: int = -1
-    
-    def __post_init__(self):
-        if self.activation_layers is None:
-            self.activation_layers = [13, 14, 16, 17, 20]
-    
-    def to_dict(self) -> dict:
-        """Convert to dictionary for compatibility."""
-        return asdict(self)
-
-@dataclass
-class RobustnessConfig:
-    """DEPRECATED: Minimal legacy class. Use Config instead."""
-    checkpoint_frequency: int = 50
-    checkpoint_dir: str = "checkpoints"
-    autosave_frequency: int = 100
-    autosave_keep_last: int = 3
-    max_retries: int = 3
-    retry_backoff: float = 1.0
-    continue_on_error: bool = True
-    memory_cleanup_frequency: int = 100
-    gc_collect_frequency: int = 50
-    progress_log_frequency: int = 10
-    show_progress_bar: bool = True
-    max_memory_usage_gb: float = 100.0
-    max_gpu_memory_usage_gb: float = 30.0
-    enable_timing_stats: bool = True
-    timeout_per_record: float = 300.0
-    
-    def to_dict(self) -> dict:
-        """Convert to dictionary for compatibility."""
-        return asdict(self)
-
-@dataclass
-class ActivationExtractionConfig:
-    """DEPRECATED: Minimal legacy class. Use Config instead."""
-    batch_size: int = 8
-    max_cache_size_gb: float = 10.0
-    max_length: int = 2048
-    clear_cache_between_layers: bool = True
-    cleanup_after_batch: bool = True
-    
-    def to_dict(self) -> dict:
-        """Convert to dictionary for compatibility."""
-        return asdict(self)
-
-@dataclass
-class SAELayerConfig:
-    """DEPRECATED: Minimal legacy class. Use Config instead."""
-    gemma_2b_layers: Optional[List[int]] = None
-    sae_repo_id: str = "google/gemma-scope-2b-pt-res"
-    sae_width: str = "16k"
-    sae_sparsity: str = "71"
-    hook_component: str = "resid_post"
-    checkpoint_dir: str = "data/phase2/sae_checkpoints"
-    save_after_each_layer: bool = True
-    cleanup_after_layer: bool = True
-    use_memory_mapping: bool = False
-    
-    def to_dict(self) -> dict:
-        """Convert to dictionary for compatibility."""
-        return asdict(self)
-
-# Config adapter functions - minimal versions
-def create_model_config(config: Config) -> ModelConfiguration:
-    """Create legacy ModelConfiguration from Config."""
-    return ModelConfiguration(
-        model_name=config.model_name,
-        max_new_tokens=config.model_max_new_tokens,
-        temperature=config.model_temperature,
-        device=config.model_device,
-        dtype=config.model_dtype,
-        trust_remote_code=config.model_trust_remote_code
-    )
-
-def create_dataset_config(config: Config) -> DatasetConfiguration:
-    """Create legacy DatasetConfiguration from Config."""
-    return DatasetConfiguration(
-        dataset_dir=config.dataset_dir,
-        dataset_name=config.dataset_name,
-        split=config.dataset_split,
-        start_idx=config.dataset_start_idx,
-        end_idx=config.dataset_end_idx,
-        activation_layers=config.activation_layers,
-        activation_hook_type=config.activation_hook_type,
-        activation_position=config.activation_position
-    )

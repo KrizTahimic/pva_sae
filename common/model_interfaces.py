@@ -21,11 +21,7 @@ from common.activation_extraction import (
     create_activation_extractor,
     ActivationData
 )
-from common.config import (
-    ModelConfiguration, 
-    RobustnessConfig, 
-    ActivationExtractionConfig
-)
+from common.config import Config
 from common.utils import torch_memory_cleanup
 
 
@@ -59,9 +55,7 @@ class UnifiedModelInterface:
         self,
         model_name: str,
         device: str = "cuda",
-        model_config: Optional[ModelConfiguration] = None,
-        robustness_config: Optional[RobustnessConfig] = None,
-        activation_config: Optional[ActivationExtractionConfig] = None
+        config: Optional[Config] = None
     ):
         """
         Initialize unified model interface.
@@ -69,17 +63,13 @@ class UnifiedModelInterface:
         Args:
             model_name: Name/path of the model to load
             device: Device to use
-            model_config: Model configuration
-            robustness_config: Robustness configuration
-            activation_config: Activation extraction configuration
+            config: Unified configuration
         """
         self.model_name = model_name
         self.device = device
         
-        # Initialize configurations
-        self.model_config = model_config or ModelConfiguration(model_name=model_name)
-        self.robustness_config = robustness_config or RobustnessConfig()
-        self.activation_config = activation_config or ActivationExtractionConfig()
+        # Initialize configuration
+        self.config = config or Config(model_name=model_name)
         
         # Initialize components
         self.model_manager = None
@@ -106,7 +96,7 @@ class UnifiedModelInterface:
         # Initialize generator
         self.generator = RobustGenerator(
             self.model_manager,
-            self.robustness_config
+            self.config
         )
         
         # Initialize activation extractor
@@ -115,7 +105,7 @@ class UnifiedModelInterface:
             model=self.model,
             model_type=model_type,
             device=self.device,
-            config=self.activation_config,
+            config=self.config,
             tokenizer=self.tokenizer
         )
         
@@ -223,7 +213,7 @@ class UnifiedModelInterface:
     
     def _load_huggingface_model(self, num_gpus: int) -> None:
         """Load HuggingFace model."""
-        self.model_manager = ModelManager(self.model_config)
+        self.model_manager = ModelManager(self.config)
         self.model_manager.load_model(num_gpus=num_gpus)
         self.model = self.model_manager.model
         self.tokenizer = self.model_manager.tokenizer
@@ -236,11 +226,11 @@ class UnifiedModelInterface:
         self.model = HookedTransformer.from_pretrained(
             self.model_name,
             device=self.device,
-            dtype=self.model_config.dtype
+            dtype=self.config.model_dtype
         )
         
         # Create a mock ModelManager for compatibility with generator
-        self.model_manager = ModelManager(self.model_config)
+        self.model_manager = ModelManager(self.config)
         self.model_manager.model = self.model
         self.model_manager.tokenizer = self.model.tokenizer
         self.tokenizer = self.model.tokenizer

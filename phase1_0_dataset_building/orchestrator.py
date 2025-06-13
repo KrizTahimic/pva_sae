@@ -128,11 +128,8 @@ class Phase1Orchestrator:
         """Initialize model manager."""
         self.logger.info(f"Loading model: {self.config.model_name}")
         
-        # Create legacy config for ModelManager
-        from common.config import create_model_config
-        model_config = create_model_config(self.config)
-        
-        self.model_manager = ModelManager(model_config)
+        # Pass unified config directly to ModelManager
+        self.model_manager = ModelManager(self.config)
         self.model_manager.load_model()
         
         # Monitor GPU if available
@@ -152,14 +149,11 @@ class Phase1Orchestrator:
     
     def _setup_builder(self):
         """Initialize dataset builder."""
-        # Create legacy config for DatasetBuilder
-        from common.config import create_dataset_config
-        dataset_config = create_dataset_config(self.config)
-        
+        # Pass unified config directly to DatasetBuilder
         self.dataset_builder = DatasetBuilder(
             model_manager=self.model_manager,
             dataset_manager=self.dataset_manager,
-            config=dataset_config,
+            config=self.config,
             difficulty_mapping=self.difficulty_mapping
         )
     

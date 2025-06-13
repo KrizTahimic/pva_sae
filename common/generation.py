@@ -7,12 +7,11 @@ temperature variation support, and advanced error handling for all project phase
 
 import time
 from logging import getLogger
-from typing import Optional, List, Dict, Any, Callable
+from typing import Optional, List
 from dataclasses import dataclass
-import torch
 
 from common.models import ModelManager
-from common.config import RobustnessConfig
+from common.config import Config
 from common.utils import torch_memory_cleanup
 
 
@@ -45,7 +44,7 @@ class RobustGenerator:
     def __init__(
         self,
         model_manager: ModelManager,
-        robustness_config: Optional[RobustnessConfig] = None,
+        config: Optional[Config] = None,
         default_max_new_tokens: int = 2000
     ):
         """
@@ -53,11 +52,11 @@ class RobustGenerator:
         
         Args:
             model_manager: Initialized ModelManager instance
-            robustness_config: Configuration for robustness features
+            config: Configuration for robustness features
             default_max_new_tokens: Default max tokens for generation
         """
         self.model_manager = model_manager
-        self.config = robustness_config or RobustnessConfig()
+        self.config = config or Config()
         self.default_max_new_tokens = default_max_new_tokens
         self.logger = getLogger(__name__)
         
@@ -83,7 +82,7 @@ class RobustGenerator:
         Returns:
             GenerationResult with generated text and metadata
         """
-        temperature = temperature if temperature is not None else self.model_manager.config.temperature
+        temperature = temperature if temperature is not None else self.model_manager.config.model_temperature
         max_new_tokens = max_new_tokens or self.default_max_new_tokens
         
         if retry_on_failure:
@@ -225,16 +224,16 @@ class RobustGenerator:
 
 def create_generator(
     model_manager: ModelManager,
-    robustness_config: Optional[RobustnessConfig] = None
+    config: Optional[Config] = None
 ) -> RobustGenerator:
     """
     Factory function to create RobustGenerator instance.
     
     Args:
         model_manager: Initialized ModelManager
-        robustness_config: Optional robustness configuration
+        config: Optional configuration
         
     Returns:
         RobustGenerator instance
     """
-    return RobustGenerator(model_manager, robustness_config)
+    return RobustGenerator(model_manager, config)

@@ -3,8 +3,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
-# Re-export shared configs if needed
-from common.config import DatasetConfiguration
+# No need to import legacy configs anymore
 from common.utils import get_phase_dir
 
 

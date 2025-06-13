@@ -15,13 +15,13 @@ from pathlib import Path
 
 from common import (
     ModelManager,
-    DatasetConfiguration,
     ensure_directory_exists,
     atomic_file_write,
     create_activation_extractor,
-    save_activation_data,
-    ActivationExtractionConfig
+    save_activation_data
 )
+from common.config import Config
+from dataclasses import asdict
 from common.generation import RobustGenerator
 from phase1_0_dataset_building.dataset_manager import (
     DatasetManager, 
@@ -37,7 +37,7 @@ class DatasetBuilder:
     def __init__(self,
                  model_manager: ModelManager,
                  dataset_manager: DatasetManager,
-                 config: DatasetConfiguration,
+                 config: Config,
                  difficulty_mapping: Optional[Dict[str, Any]] = None):
         """
         Initialize dataset builder with clean configuration.
@@ -56,7 +56,8 @@ class DatasetBuilder:
         # Initialize generator
         self.generator = RobustGenerator(
             model_manager=model_manager,
-            default_max_new_tokens=model_manager.config.max_new_tokens
+            config=config,
+            default_max_new_tokens=config.model_max_new_tokens
         )
         
         # Tracking
@@ -71,17 +72,14 @@ class DatasetBuilder:
         """Setup activation extraction."""
         try:
             # Create activation extractor for HuggingFace model
-            from common.activation_extraction import create_activation_extractor, ActivationExtractionConfig
+            from common.activation_extraction import create_activation_extractor
             
             self.activation_extractor = create_activation_extractor(
                 model=self.generator.model_manager.model,
                 model_type="huggingface",
                 tokenizer=self.generator.model_manager.tokenizer,
                 device=self.generator.model_manager.device,
-                config=ActivationExtractionConfig(
-                    max_cache_size_gb=5.0,
-                    clear_cache_between_layers=True
-                )
+                config=self.config  # Pass unified config directly
             )
             
             # Create activation directories
@@ -119,7 +117,7 @@ class DatasetBuilder:
             # Generate code
             generation_result = self.generator.generate(
                 prompt=prompt,
-                max_new_tokens=self.model_manager.config.max_new_tokens,
+                max_new_tokens=self.model_manager.config.model_max_new_tokens,
                 retry_on_failure=True
             )
             
@@ -291,7 +289,7 @@ class DatasetBuilder:
             'correct_count': correct_count,
             'incorrect_count': len(results) - correct_count,
             'correct_rate': (correct_count / len(results) * 100) if results else 0.0,
-            'dataset_config': self.config.to_dict(),
+            'dataset_config': asdict(self.config),
             'dataframe_file': basename(dataset_path),
             'dataset_directory': self.config.dataset_dir
         }

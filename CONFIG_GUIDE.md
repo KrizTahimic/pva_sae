@@ -1,46 +1,49 @@
 # Configuration Guide
 
-The PVA-SAE project uses a unified configuration system that provides clear visibility and control over all settings.
+The PVA-SAE project uses a simple, clean configuration system with clear visibility and control over all settings.
+
+## Configuration Methods
+
+Settings are applied in this order (later overrides earlier):
+
+1. **Defaults** - Built-in defaults in `config.py` (your single source of truth)
+2. **Environment Variables** - `PVA_SAE_*` variables  
+3. **CLI Arguments** - Command-line flags (highest priority)
 
 ## Quick Start
 
 ### View Current Configuration
+Always check what settings will be used before running:
 ```bash
-# Show all settings that will be used
+# Show all settings with defaults
 python3 run.py phase 1 --show-config
 
 # Show config with CLI overrides
-python3 run.py phase 1 --model gpt2 --start 0 --end 50 --show-config
+python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 50 --show-config
 ```
 
-### Use Configuration Files
+### Using CLI Arguments
+Override specific settings as needed:
 ```bash
-# Load config from file
-python3 run.py phase 1 --config-file my_config.json
-
-# Save current config to file
-python3 run.py phase 1 --model gpt2 --save-config my_config.json
-```
-
-### Environment Variables
-Set any config value via environment variables:
-```bash
-export PVA_SAE_MODEL_NAME=gpt2
-export PVA_SAE_CHECKPOINT_FREQUENCY=25
+# Basic usage with defaults
 python3 run.py phase 1
+
+# Override specific settings
+python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 100 --verbose
 ```
 
-## Configuration Precedence
-
-Settings are applied in this order (later overrides earlier):
-1. **Defaults** - Built-in defaults in `unified_config.py`
-2. **Config File** - Values from `--config-file`
-3. **Environment Variables** - `PVA_SAE_*` variables
-4. **CLI Arguments** - Command-line flags
+### Using Environment Variables
+Set environment variables for session-wide settings:
+```bash
+export PVA_SAE_MODEL_NAME=google/gemma-2-2b
+export PVA_SAE_CHECKPOINT_FREQUENCY=25
+export PVA_SAE_VERBOSE=true
+python3 run.py phase 1  # Uses env vars
+```
 
 ## Configuration Structure
 
-Settings are organized by prefix:
+All defaults are defined in `config.py`. Settings are organized by prefix:
 - `model_*` - Model configuration
 - `dataset_*` - Dataset settings
 - `activation_*` - Activation extraction
@@ -53,40 +56,34 @@ Settings are organized by prefix:
 
 ### Phase 1: Dataset Building
 ```bash
-# Basic usage
+# Use all defaults from config.py
+python3 run.py phase 1
+
+# Override specific settings
 python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 100
 
-# With custom config
-python3 run.py phase 1 --config-file configs/fast_test.json
-
-# Save config for reproducibility
-python3 run.py phase 1 --model gpt2 --checkpoint-frequency 25 --save-config experiment_1.json
+# Check what will run before executing
+python3 run.py phase 1 --start 50 --end 150 --show-config
 ```
 
 ### Phase 2: SAE Analysis
 ```bash
-# Show Phase 2 specific settings
+# Show Phase 2 settings before running
 python3 run.py phase 2 --show-config
 
 # Override SAE settings
 python3 run.py phase 2 --latent-threshold 0.05 --pile-filter
 ```
 
-## Creating Config Files
+## Modifying Default Settings
 
-Example config file (`config_example.json`):
-```json
-{
-  "model_name": "google/gemma-2-2b",
-  "model_temperature": 0.0,
-  "dataset_start_idx": 0,
-  "dataset_end_idx": 50,
-  "checkpoint_frequency": 25,
-  "verbose": true
-}
+To change default values, edit the constants in `config.py`:
+```python
+# common/config.py
+DEFAULT_MODEL_NAME = "google/gemma-2-2b"
+DEFAULT_CHECKPOINT_FREQUENCY = 50
+# ... other defaults
 ```
-
-You only need to include settings you want to change from defaults.
 
 ## Debugging Configuration Issues
 
@@ -95,9 +92,15 @@ You only need to include settings you want to change from defaults.
 3. **Validate paths** - Phase directories are shown in the config dump
 4. **Use `--verbose`** for detailed logging
 
-## Migration from Old System
+## Environment Variable Reference
 
-The new unified config system replaces the old separate config classes. During migration:
-- Old code still works via `config_adapter.py`
-- New code should use `Config` directly
-- All settings are now in one place for clarity
+Any config setting can be set via environment variable using the pattern `PVA_SAE_<SETTING_NAME>`:
+- `PVA_SAE_MODEL_NAME` - Model to use
+- `PVA_SAE_CHECKPOINT_FREQUENCY` - How often to checkpoint
+- `PVA_SAE_VERBOSE` - Enable verbose logging
+- etc.
+
+For lists, use comma-separated values:
+```bash
+export PVA_SAE_ACTIVATION_LAYERS="13,14,16,17,20"
+```

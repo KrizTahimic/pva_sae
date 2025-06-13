@@ -13,13 +13,13 @@ import gc
 from contextlib import contextmanager
 
 from common.utils import detect_device, get_optimal_dtype, get_memory_usage
-from common.config import ModelConfiguration
+from common.config import Config
 
 
 class ModelManager:
     """Manages language model loading and generation"""
     
-    def __init__(self, config: ModelConfiguration):
+    def __init__(self, config: Config):
         """
         Initialize model manager
         
@@ -38,18 +38,18 @@ class ModelManager:
     
     def _setup_device_and_dtype(self):
         """Setup device and dtype based on configuration or auto-detection"""
-        if self.config.device:
-            self.device = torch.device(self.config.device)
+        if self.config.model_device:
+            self.device = torch.device(self.config.model_device)
         else:
             self.device = detect_device()
         
-        if self.config.dtype:
+        if self.config.model_dtype:
             dtype_map = {
                 "float16": torch.float16,
                 "bfloat16": torch.bfloat16,
                 "float32": torch.float32
             }
-            self.dtype = dtype_map.get(self.config.dtype, torch.float32)
+            self.dtype = dtype_map.get(self.config.model_dtype, torch.float32)
         else:
             self.dtype = get_optimal_dtype(self.device)
         
@@ -67,7 +67,7 @@ class ModelManager:
         # Load tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.config.model_name,
-            trust_remote_code=self.config.trust_remote_code
+            trust_remote_code=self.config.model_trust_remote_code
         )
         
         # Set padding token if not set
@@ -78,7 +78,7 @@ class ModelManager:
         model_kwargs = {
             "torch_dtype": self.dtype,
             "device_map": "auto" if self.device.type == "cuda" and num_gpus == 1 else None,
-            "trust_remote_code": self.config.trust_remote_code
+            "trust_remote_code": self.config.model_trust_remote_code
         }
         
         self.model = AutoModelForCausalLM.from_pretrained(
@@ -127,8 +127,8 @@ class ModelManager:
             raise RuntimeError("Model not loaded. Call load_model() first.")
         
         # Use provided values or fall back to config
-        max_new_tokens = max_new_tokens or self.config.max_new_tokens
-        temperature = temperature if temperature is not None else self.config.temperature
+        max_new_tokens = max_new_tokens or self.config.model_max_new_tokens
+        temperature = temperature if temperature is not None else self.config.model_temperature
         
         # Automatically determine do_sample based on temperature
         do_sample = temperature > 0.0
