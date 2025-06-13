@@ -15,12 +15,10 @@ from tqdm import tqdm
 from common import (
     LoggingManager,
     ModelManager,
-    ModelConfiguration,
-    DatasetConfiguration,
-    RobustnessConfig,
     ensure_directory_exists,
     get_timestamp
 )
+from common.config import Config
 from phase1_0_dataset_building.dataset_manager import DatasetManager
 from phase1_0_dataset_building.dataset_builder import DatasetBuilder
 from phase1_0_dataset_building import checkpoint_manager
@@ -32,28 +30,17 @@ class Phase1Orchestrator:
     
     def __init__(self,
                  difficulty_mapping: Dict[str, Any],
-                 model_config: ModelConfiguration,
-                 dataset_config: DatasetConfiguration,
-                 robustness_config: RobustnessConfig):
+                 config: Config):
         """
-        Initialize Phase 1 orchestrator with configuration objects.
+        Initialize Phase 1 orchestrator with unified configuration.
         
         Args:
             difficulty_mapping: Pre-computed difficulty mapping from Phase 0 (required)
-            model_config: Model configuration (required)
-            dataset_config: Dataset configuration (required)
-            robustness_config: Robustness configuration for checkpointing/monitoring (required)
+            config: Unified configuration object (required)
         """
-        # Store required configurations
-        self.model_config = model_config
-        self.dataset_config = dataset_config
-        self.robustness_config = robustness_config
+        # Store configurations
+        self.config = config
         self.difficulty_mapping = difficulty_mapping
-        
-        # Auto-enable checkpointing for GPU
-        import torch
-        if torch.cuda.is_available() and not hasattr(self.robustness_config, 'checkpoint_frequency'):
-            self.robustness_config.checkpoint_frequency = 50
         
         # Components (initialized lazily)
         self.logger = None
@@ -63,8 +50,8 @@ class Phase1Orchestrator:
         self.dataset_builder = None
         
         # Ensure directories exist
-        ensure_directory_exists(self.dataset_config.dataset_dir)
-        ensure_directory_exists("data/logs")
+        ensure_directory_exists(self.config.dataset_dir)
+        ensure_directory_exists(self.config.log_dir)
     
     def build_dataset(self, start_idx: int, end_idx: int) -> str:
         """
@@ -132,20 +119,20 @@ class Phase1Orchestrator:
     
     def _log_configuration(self, start_idx: int, end_idx: int):
         """Log experiment configuration."""
-        config_info = {
-            'model_config': self.model_config.to_dict(),
-            'dataset_config': self.dataset_config.to_dict(),
-            'robustness_config': self.robustness_config.to_dict(),
-            'start_idx': start_idx,
-            'end_idx': end_idx
-        }
-        self.logger.info(f"Phase 1 Configuration: {config_info}")
+        self.logger.info(f"Phase 1 range: {start_idx} to {end_idx}")
+        self.logger.info(f"Model: {self.config.model_name}")
+        self.logger.info(f"Dataset directory: {self.config.dataset_dir}")
+        self.logger.info(f"Checkpoint frequency: {self.config.checkpoint_frequency}")
     
     def _setup_model(self):
         """Initialize model manager."""
-        self.logger.info(f"Loading model: {self.model_config.model_name}")
+        self.logger.info(f"Loading model: {self.config.model_name}")
         
-        self.model_manager = ModelManager(self.model_config)
+        # Create legacy config for ModelManager
+        from common.config import create_model_config
+        model_config = create_model_config(self.config)
+        
+        self.model_manager = ModelManager(model_config)
         self.model_manager.load_model()
         
         # Monitor GPU if available
@@ -165,10 +152,14 @@ class Phase1Orchestrator:
     
     def _setup_builder(self):
         """Initialize dataset builder."""
+        # Create legacy config for DatasetBuilder
+        from common.config import create_dataset_config
+        dataset_config = create_dataset_config(self.config)
+        
         self.dataset_builder = DatasetBuilder(
             model_manager=self.model_manager,
             dataset_manager=self.dataset_manager,
-            config=self.dataset_config,
+            config=dataset_config,
             difficulty_mapping=self.difficulty_mapping
         )
     
@@ -178,7 +169,7 @@ class Phase1Orchestrator:
         if not torch.cuda.is_available():
             return None
             
-        checkpoint_dir = path_join(self.dataset_config.dataset_dir, self.robustness_config.checkpoint_dir)
+        checkpoint_dir = path_join(self.config.dataset_dir, self.config.checkpoint_dir)
         checkpoint_path = checkpoint_manager.find_latest_checkpoint(
             checkpoint_dir, f"checkpoint_{start_idx}_{end_idx}"
         )
@@ -211,7 +202,7 @@ class Phase1Orchestrator:
             
             # Monitor resources periodically
             if idx % 10 == 0:
-                threshold = self.robustness_config.max_gpu_memory_usage_gb * 0.9
+                threshold = self.config.max_gpu_memory_usage_gb * 0.9
                 if not resource_monitor.monitor_resources(warn_threshold_gb=threshold):
                     resource_monitor.cleanup_gpu_memory()
             
@@ -223,7 +214,7 @@ class Phase1Orchestrator:
                 # Checkpoint if needed
                 import torch
                 if torch.cuda.is_available() and checkpoint_manager.should_checkpoint(
-                    len(results), self.robustness_config.checkpoint_frequency
+                    len(results), self.config.checkpoint_frequency
                 ):
                     self._save_checkpoint(results, start_idx, end_idx)
                     
@@ -237,7 +228,7 @@ class Phase1Orchestrator:
     
     def _save_checkpoint(self, results: List[Any], start_idx: int, end_idx: int):
         """Save checkpoint."""
-        checkpoint_dir = path_join(self.dataset_config.dataset_dir, self.robustness_config.checkpoint_dir)
+        checkpoint_dir = path_join(self.config.dataset_dir, self.config.checkpoint_dir)
         ensure_directory_exists(checkpoint_dir)
         
         checkpoint_path = checkpoint_manager.save_checkpoint(

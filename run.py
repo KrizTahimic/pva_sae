@@ -30,6 +30,7 @@ sys.path.insert(0, str(project_root))
 from common.logging import LoggingManager
 from common.gpu_utils import cleanup_gpu_memory, ensure_gpu_available, setup_cuda_environment
 from common import MAX_NEW_TOKENS
+from common.config import Config
 
 # Import centralized phase directory function
 from common.utils import get_phase_dir
@@ -100,6 +101,25 @@ def setup_argument_parser():
         '--verbose',
         action='store_true',
         help='Enable verbose logging'
+    )
+    
+    # Config management arguments
+    phase_parser.add_argument(
+        '--show-config',
+        action='store_true',
+        help='Show the final configuration and exit'
+    )
+    
+    phase_parser.add_argument(
+        '--config-file',
+        type=str,
+        help='Load configuration from JSON file'
+    )
+    
+    phase_parser.add_argument(
+        '--save-config',
+        type=str,
+        help='Save the final configuration to specified file'
     )
     
     # Universal input argument for all phases
@@ -242,26 +262,29 @@ def validate_phase_arguments(args):
         raise ValueError(f"Input file not found: {args.input}")
 
 
-def run_phase0(args, logger, device: str):
+def run_phase0(config: Config, logger, device: str, dry_run: bool = False):
     """Run Phase 0: Difficulty Analysis"""
     from phase0_difficulty_analysis.mbpp_preprocessor import MBPPPreprocessor
     
     logger.info("Starting Phase 0: MBPP difficulty analysis")
     
+    # Log configuration
+    logger.info("\n" + config.dump(phase="0"))
+    
     # Initialize preprocessor with output directory
-    preprocessor = MBPPPreprocessor(output_dir=args.output_dir)
+    preprocessor = MBPPPreprocessor(output_dir=config.phase0_output_dir)
     
     # COMPUTATION PATH: Analyze all 974 MBPP problems from scratch
     # This loops through dataset, calculates cyclomatic complexity, test metrics
     # Creates new timestamped files: mbpp_difficulty_mapping_{timestamp}.parquet + .summary.json
     try:
-        difficulty_mapping = preprocessor.preprocess_dataset(save_mapping=not args.dry_run)
+        difficulty_mapping = preprocessor.preprocess_dataset(save_mapping=not dry_run)
         
         logger.info("✅ Phase 0 completed successfully")
         logger.info(f"Analyzed {len(difficulty_mapping)} MBPP problems")
         
         # FILE CREATION: Show path to newly created parquet file (only if files were saved)
-        if not args.dry_run:
+        if not dry_run:
             # Gets most recent file by modification time from data/datasets/
             latest_mapping = preprocessor.get_latest_difficulty_mapping_path()
             logger.info(f"Difficulty mapping available at: {latest_mapping}")
@@ -271,28 +294,30 @@ def run_phase0(args, logger, device: str):
         sys.exit(1)
 
 
-def run_phase1(args, logger, device: str):
+def run_phase1(config: Config, logger, device: str):
     """Run Phase 1: Dataset Building"""
     from phase1_0_dataset_building import Phase1Orchestrator
     from phase0_difficulty_analysis.difficulty_analyzer import MBPPDifficultyAnalyzer
     from common.utils import discover_latest_phase_output
-    from common import ModelConfiguration, DatasetConfiguration, RobustnessConfig
     
     logger.info("Starting Phase 1: Dataset Building")
-    logger.info(f"Model: {args.model}, Range: {args.start}-{args.end}")
+    logger.info(f"Model: {config.model_name}, Range: {config.dataset_start_idx}-{config.dataset_end_idx}")
     logger.info("Processing mode: Sequential (use multi_gpu_launcher.py for parallel processing)")
     
+    # Log configuration
+    logger.info("\n" + config.dump(phase="1"))
+    
     # Load difficulty mapping from Phase 0
-    if args.input:
+    if hasattr(config, '_input_file') and config._input_file:
         # Use explicitly provided mapping
-        logger.info(f"Loading difficulty mapping from: {args.input}")
-        difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(args.input)
+        logger.info(f"Loading difficulty mapping from: {config._input_file}")
+        difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(config._input_file)
     else:
         # Auto-discover from phase0 (required)
         logger.info("Auto-discovering difficulty mapping from Phase 0...")
         mapping_path = discover_latest_phase_output("0")
         if not mapping_path:
-            logger.error(f"No difficulty mapping found in {get_phase_dir('0')}/")
+            logger.error(f"No difficulty mapping found in {config.phase0_output_dir}/")
             logger.error("Phase 1 requires Phase 0 difficulty analysis to be completed first.")
             logger.error("Please run: python3 run.py phase 0")
             sys.exit(1)
@@ -312,39 +337,23 @@ def run_phase1(args, logger, device: str):
             logger.warning(f"GPU {gpu_device} not responsive, attempting cleanup...")
             cleanup_gpu_memory(gpu_device)
     
-    # Create configuration objects
-    model_config = ModelConfiguration(
-        model_name=args.model,
-        max_new_tokens=MAX_NEW_TOKENS
-    )
-    
-    dataset_config = DatasetConfiguration(
-        dataset_dir=args.dataset_dir,
-        start_idx=args.start,
-        end_idx=args.end
-    )
-    
-    robustness_config = RobustnessConfig()
-    
-    # Create orchestrator with configs
+    # Create orchestrator with unified config
     orchestrator = Phase1Orchestrator(
         difficulty_mapping=difficulty_mapping,
-        model_config=model_config,
-        dataset_config=dataset_config,
-        robustness_config=robustness_config
+        config=config
     )
     
     # Build dataset
     dataset_path = orchestrator.build_dataset(
-        start_idx=args.start,
-        end_idx=args.end
+        start_idx=config.dataset_start_idx,
+        end_idx=config.dataset_end_idx
     )
     
     logger.info("✅ Phase 1 completed successfully")
     logger.info(f"Dataset saved to: {dataset_path}")
 
 
-def run_phase1_1(args, logger, device: str):
+def run_phase1_1(config: Config, logger, device: str):
     """Run Phase 1.1: Dataset Splitting"""
     import pandas as pd
     from pathlib import Path
@@ -354,16 +363,17 @@ def run_phase1_1(args, logger, device: str):
     
     logger.info("Starting Phase 1.1: Dataset Splitting")
     logger.info("Split ratios: 50% SAE, 10% hyperparameters, 40% validation")
-    logger.info(f"Random seed: {args.random_seed}")
-    logger.info(f"Number of strata: {args.n_strata}")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="1.1"))
     
     # Auto-discover or use provided dataset
-    if args.input:
-        dataset_path = args.input
+    if hasattr(config, '_input_file') and config._input_file:
+        dataset_path = config._input_file
         logger.info(f"Using provided dataset: {dataset_path}")
     else:
         logger.info("Auto-discovering dataset from Phase 1.0...")
-        dataset_path = discover_latest_phase_output("1", phase_dir=get_phase_dir('1'))
+        dataset_path = discover_latest_phase_output("1", phase_dir=config.phase1_output_dir)
         
         if not dataset_path:
             logger.error("No Phase 1.0 dataset found! Please run Phase 1 first.")
@@ -392,23 +402,24 @@ def run_phase1_1(args, logger, device: str):
         logger.error(f"Failed to load dataset: {e}")
         sys.exit(1)
     
-    # Create configuration
-    config = SplitConfig(
-        random_seed=args.random_seed,
-        n_complexity_strata=args.n_strata,
-        output_dir=args.split_output_dir
+    # Create split configuration from unified config
+    split_config = SplitConfig(
+        random_seed=config.split_random_seed,
+        n_complexity_strata=config.split_n_strata,
+        output_dir=config.phase1_1_output_dir,
+        ratio_tolerance=config.split_ratio_tolerance
     )
     
     # Validate configuration
     try:
-        config.validate()
+        split_config.validate()
     except ValueError as e:
         logger.error(f"Invalid configuration: {e}")
         sys.exit(1)
     
     # Perform splitting
     logger.info("Performing stratified randomized splitting...")
-    splits = split_dataset(df, config)
+    splits = split_dataset(df, split_config)
     
     # Log split results
     for split_name, indices in splits.items():
@@ -419,7 +430,7 @@ def run_phase1_1(args, logger, device: str):
     quality_results = check_split_quality(
         splits, 
         df, 
-        tolerance=config.ratio_tolerance
+        tolerance=split_config.ratio_tolerance
     )
     
     # Log quality summary
@@ -431,22 +442,22 @@ def run_phase1_1(args, logger, device: str):
     for summary_point in quality_results['quality_summary']:
         logger.info(f"  - {summary_point}")
     
-    # Generate report if requested
-    if args.generate_report:
+    # Generate report if requested (check for generate_report attribute)
+    if hasattr(config, '_generate_report') and config._generate_report:
         logger.info("Generating quality report...")
         report_path = generate_quality_report(
             splits,
             df,
             quality_results,
-            config.output_dir
+            split_config.output_dir
         )
         logger.info(f"Quality report saved to: {report_path}")
     
     logger.info("✅ Phase 1.1 completed successfully")
-    logger.info(f"Split indices saved to: {config.output_dir}")
+    logger.info(f"Split indices saved to: {split_config.output_dir}")
 
 
-def run_phase2(args, logger, device: str):
+def run_phase2(config: Config, logger, device: str):
     """Run Phase 2: SAE Analysis (CPU-only, using saved activations)"""
     import pandas as pd
     from pathlib import Path
@@ -459,18 +470,21 @@ def run_phase2(args, logger, device: str):
     logger.info("Starting Phase 2: SAE Analysis (CPU-only)")
     logger.info("Phase 2 now loads saved activations from Phase 1 - no GPU required")
     
+    # Log configuration
+    logger.info("\n" + config.dump(phase="2"))
+    
     # Force CPU usage for Phase 2
     device = "cpu"
     
     # Get dataset path from input or auto-discovery
-    if args.input:
-        logger.info(f"Using specified dataset: {args.input}")
-        dataset_path = args.input
+    if hasattr(config, '_input_file') and config._input_file:
+        logger.info(f"Using specified dataset: {config._input_file}")
+        dataset_path = config._input_file
     else:
         logger.info("Auto-discovering dataset from Phase 1...")
         dataset_path = discover_latest_phase_output("1")
         if not dataset_path:
-            logger.error(f"No dataset found in {get_phase_dir('1')}. Please run Phase 1 first or specify --input")
+            logger.error(f"No dataset found in {config.phase1_output_dir}. Please run Phase 1 first or specify --input")
             sys.exit(1)
         logger.info(f"Found dataset: {dataset_path}")
     
@@ -501,12 +515,17 @@ def run_phase2(args, logger, device: str):
                 f"{summary['n_incorrect_tasks']} incorrect, "
                 f"{summary['n_layers']} layers: {summary['layers']}")
     
-    # Configure SAE analysis
+    # Configure SAE analysis from unified config
     sae_config = SAELayerConfig(
         gemma_2b_layers=summary['layers'],  # Use available layers
-        save_after_each_layer=True,
-        cleanup_after_layer=True,
-        checkpoint_dir=f"{get_phase_dir('2')}/checkpoints"
+        sae_repo_id=config.sae_repo_id,
+        sae_width=config.sae_width,
+        sae_sparsity=config.sae_sparsity,
+        hook_component=config.sae_hook_component,
+        save_after_each_layer=config.sae_save_after_each_layer,
+        cleanup_after_layer=config.sae_cleanup_after_layer,
+        use_memory_mapping=config.sae_use_memory_mapping,
+        checkpoint_dir=config.sae_checkpoint_dir
     )
     
     # Create results storage
@@ -600,7 +619,7 @@ def run_phase2(args, logger, device: str):
     results = MultiLayerSAEResults(
         layer_results=layer_results,
         layer_indices=list(layer_results.keys()),
-        model_name="google/gemma-2-2b",
+        model_name=config.model_name,
         n_correct_samples=len(correct_task_ids[:100]),
         n_incorrect_samples=len(incorrect_task_ids[:100]),
         hook_component=sae_config.hook_component
@@ -612,13 +631,13 @@ def run_phase2(args, logger, device: str):
     # Save results
     from datetime import datetime
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    results_file = Path(get_phase_dir('2')) / f"multi_layer_results_{timestamp}.json"
+    results_file = Path(config.phase2_output_dir) / f"multi_layer_results_{timestamp}.json"
     results_file.parent.mkdir(parents=True, exist_ok=True)
     results.save_to_file(str(results_file))
     logger.info(f"\nResults saved to: {results_file}")
     
     # Apply Pile filtering if requested
-    if args.pile_filter:
+    if config.pile_filter_enabled:
         logger.info(f"\nPile filtering requires loading the model temporarily.")
         logger.info("Skipping Pile filtering in this CPU-only implementation.")
         # TODO: Consider pre-computing Pile frequencies in a separate step
@@ -626,21 +645,24 @@ def run_phase2(args, logger, device: str):
     logger.info("\n✅ Phase 2 completed successfully")
 
 
-def run_phase3(args, logger, device: str):
+def run_phase3(config: Config, logger, device: str):
     """Run Phase 3: Validation"""
     from common.utils import discover_latest_phase_output
     
     logger.info("Starting Phase 3: Validation")
     
+    # Log configuration
+    logger.info("\n" + config.dump(phase="3"))
+    
     # Get SAE results from input or auto-discovery
-    if args.input:
-        logger.info(f"Using specified SAE results: {args.input}")
-        sae_results_path = args.input
+    if hasattr(config, '_input_file') and config._input_file:
+        logger.info(f"Using specified SAE results: {config._input_file}")
+        sae_results_path = config._input_file
     else:
         logger.info("Auto-discovering SAE results from Phase 2...")
         sae_results_path = discover_latest_phase_output("2")
         if not sae_results_path:
-            logger.error(f"No SAE results found in {get_phase_dir('2')}. Please run Phase 2 first or specify --input")
+            logger.error(f"No SAE results found in {config.phase2_output_dir}. Please run Phase 2 first or specify --input")
             sys.exit(1)
         logger.info(f"Found SAE results: {sae_results_path}")
     
@@ -648,17 +670,19 @@ def run_phase3(args, logger, device: str):
     logger.info("Auto-discovering dataset from Phase 1...")
     dataset_path = discover_latest_phase_output("1")
     if not dataset_path:
-        logger.error(f"No dataset found in {get_phase_dir('1')}. Please run Phase 1 first")
+        logger.error(f"No dataset found in {config.phase1_output_dir}. Please run Phase 1 first")
         sys.exit(1)
     logger.info(f"Found dataset: {dataset_path}")
     
     logger.info(f"Dataset: {dataset_path}")
     logger.info(f"SAE Results: {sae_results_path}")
+    logger.info(f"Temperatures to test: {config.validation_temperatures}")
+    logger.info(f"Steering coefficients: {config.validation_steering_coeffs}")
     
     # TODO: Implement validation
     logger.info("Validation not yet implemented")
     logger.info("This phase will run statistical validation and model steering experiments")
-    logger.info(f"Results will be saved to {get_phase_dir('3')}/")
+    logger.info(f"Results will be saved to {config.phase3_output_dir}/")
 
 
 def cleanup_gpu_command(args, logger):
@@ -1264,12 +1288,40 @@ def main():
         return
     
     elif args.command == 'phase':
-        # Validate phase-specific arguments
+        # Create unified config
+        if args.config_file:
+            logger.info(f"Loading config from file: {args.config_file}")
+            config = Config.from_file(args.config_file)
+        else:
+            config = Config.from_args(args, phase=str(args.phase))
+        
+        # Store input file path if provided
+        if args.input:
+            config._input_file = args.input
+        
+        # Handle phase-specific special arguments
+        if args.phase == 0 and hasattr(args, 'dry_run'):
+            config._dry_run = args.dry_run
+        
+        if args.phase == 1.1 and hasattr(args, 'generate_report'):
+            config._generate_report = args.generate_report
+        
+        # Validate config for the phase
         try:
-            validate_phase_arguments(args)
+            config.validate(str(args.phase))
         except ValueError as e:
-            logger.error(f"Argument validation failed: {e}")
+            logger.error(f"Configuration validation failed: {e}")
             sys.exit(1)
+        
+        # Show config and exit if requested
+        if args.show_config:
+            print("\n" + config.dump(phase=str(args.phase)))
+            sys.exit(0)
+        
+        # Save config if requested
+        if args.save_config:
+            config.save_to_file(args.save_config)
+            logger.info(f"Configuration saved to: {args.save_config}")
         
         # Display phase info
         phase_names = {
@@ -1285,23 +1337,24 @@ def main():
         print(f"{'='*60}")
         
         try:
-            # Run selected phase
+            # Run selected phase with unified config
             if args.phase == 0:
-                run_phase0(args, logger, device)
+                dry_run = getattr(config, '_dry_run', False)
+                run_phase0(config, logger, device, dry_run=dry_run)
             elif args.phase == 1:
-                run_phase1(args, logger, device)
+                run_phase1(config, logger, device)
             elif args.phase == 1.1:
-                run_phase1_1(args, logger, device)
+                run_phase1_1(config, logger, device)
             elif args.phase == 2:
-                run_phase2(args, logger, device)
+                run_phase2(config, logger, device)
             elif args.phase == 3:
-                run_phase3(args, logger, device)
+                run_phase3(config, logger, device)
             
             print(f"✅ Phase {args.phase} completed successfully!")
             
         except Exception as e:
             logger.error(f"Phase {args.phase} failed: {str(e)}")
-            if args.verbose:
+            if config.verbose:
                 import traceback
                 logger.error(f"Full traceback:\n{traceback.format_exc()}")
             sys.exit(1)

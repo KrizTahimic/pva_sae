@@ -1,0 +1,15 @@
+{
+  "model_name": "google/gemma-2-2b",
+  "model_max_new_tokens": 2000,
+  "model_temperature": 0.0,
+  "dataset_name": "Muennighoff/mbpp",
+  "dataset_split": "test",
+  "dataset_start_idx": 0,
+  "dataset_end_idx": 50,
+  "activation_layers": [13, 14, 16, 17, 20],
+  "checkpoint_frequency": 25,
+  "autosave_frequency": 50,
+  "show_progress_bar": true,
+  "verbose": true,
+  "comment": "Example configuration for testing Phase 1 with first 50 MBPP problems"
+}

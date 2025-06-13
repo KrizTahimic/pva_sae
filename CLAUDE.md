@@ -164,10 +164,12 @@ python3 run.py phase 3 --input data/phase2/specific_results.json
 
 #### Core Principles
 - **KISS (Keep It Simple)**: Choose the simplest solution that meets requirements
-- **DRY (Don't Repeat Yourself)**: Extract repeated code into reusable functions
 - **YAGNI (You Ain't Gonna Need It)**: Don't add functionality until actually needed
+- **No Backward Compatibility**: Prioritize clean code over maintaining old interfaces
 - **Single Responsibility**: One clear purpose per function/class
 - **Minimize Scope**: Declare variables in smallest scope possible, avoid global state
+- **DRY (Don't Repeat Yourself)**: Extract repeated code into reusable functions
+
 
 #### Implementation Guidelines
 - Prefer readability over cleverness
