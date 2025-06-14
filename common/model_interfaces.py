@@ -12,12 +12,11 @@ from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 
-from transformer_lens import HookedTransformer
+# Removed transformer_lens import - only HuggingFace models supported
 
 from common.models import ModelManager
 from common.generation import RobustGenerator, GenerationResult
 from common.activation_extraction import (
-    BaseActivationExtractor, 
     create_activation_extractor,
     ActivationData
 )
@@ -218,22 +217,7 @@ class UnifiedModelInterface:
         self.model = self.model_manager.model
         self.tokenizer = self.model_manager.tokenizer
     
-    def _load_transformer_lens_model(self) -> None:
-        """Load TransformerLens model."""
-        # For TransformerLens, we need to handle model loading differently
-        from transformer_lens import HookedTransformer
-        
-        self.model = HookedTransformer.from_pretrained(
-            self.model_name,
-            device=self.device,
-            dtype=self.config.model_dtype
-        )
-        
-        # Create a mock ModelManager for compatibility with generator
-        self.model_manager = ModelManager(self.config)
-        self.model_manager.model = self.model
-        self.model_manager.tokenizer = self.model.tokenizer
-        self.tokenizer = self.model.tokenizer
+    # Removed _load_transformer_lens_model (YAGNI) - only HuggingFace models supported
     
     def _generate_with_activations(
         self,
@@ -376,7 +360,6 @@ class ModelSteeringInterface:
 def create_unified_interface(
     model_name: str,
     device: str = "cuda",
-    load_as_transformer_lens: bool = False,
     num_gpus: int = 1,
     **config_kwargs
 ) -> UnifiedModelInterface:
@@ -386,7 +369,6 @@ def create_unified_interface(
     Args:
         model_name: Model name/path
         device: Device to use
-        load_as_transformer_lens: Whether to load as TransformerLens
         num_gpus: Number of GPUs
         **config_kwargs: Additional configuration parameters
         
@@ -401,9 +383,6 @@ def create_unified_interface(
         activation_config=config_kwargs.get('activation_config')
     )
     
-    interface.load_model(
-        num_gpus=num_gpus,
-        as_transformer_lens=load_as_transformer_lens
-    )
+    interface.load_model(num_gpus=num_gpus)
     
     return interface

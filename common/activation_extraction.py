@@ -1,8 +1,8 @@
 """
-Unified activation extraction utilities for the PVA-SAE project.
+Activation extraction utilities for the PVA-SAE project.
 
-This module provides centralized activation collection functionality with support for
-multiple model types (TransformerLens, HuggingFace) and memory-efficient extraction.
+This module provides activation collection functionality for HuggingFace models
+with memory-efficient extraction and storage.
 """
 
 import torch
@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import gc
 
-from transformer_lens import HookedTransformer
+# Removed transformer_lens import - only HuggingFace models supported
 import numpy as np
 
 from common.utils import torch_memory_cleanup, torch_no_grad_and_cleanup
@@ -284,119 +284,7 @@ class BaseActivationExtractor:
         return results
 
 
-class TransformerLensExtractor(BaseActivationExtractor):
-    """Activation extractor for TransformerLens models."""
-    
-    def __init__(
-        self,
-        model: HookedTransformer,
-        device: str,
-        config: Optional[Config] = None
-    ):
-        """Initialize TransformerLens-specific extractor."""
-        super().__init__(model, device, config)
-        
-        if not isinstance(model, HookedTransformer):
-            raise TypeError("Model must be a HookedTransformer instance")
-        
-        self.logger.info("Initialized TransformerLens activation extractor")
-    
-    @contextlib.contextmanager
-    def _hook_context(self, hooks: List[Tuple[str, Callable]]):
-        """Context manager for safe hook management with TransformerLens."""
-        try:
-            # Clear any existing hooks first
-            self.model.reset_hooks()
-            
-            # Add new hooks
-            for hook_name, hook_fn in hooks:
-                self.model.add_hook(hook_name, hook_fn)
-            
-            yield
-            
-        finally:
-            # Always clean up hooks
-            self.model.reset_hooks()
-    
-    @torch_no_grad_and_cleanup
-    def extract_activations(
-        self,
-        prompts: List[str],
-        layer_idx: int,
-        position: Union[int, str] = -1,
-        hook_type: str = "resid_pre"
-    ) -> ActivationData:
-        """Extract activations using TransformerLens hooks."""
-        if not prompts:
-            raise ValueError("No prompts provided")
-        
-        # Clear cache for this extraction
-        self.cache.clear()
-        
-        # Construct hook name based on TransformerLens conventions
-        hook_name = f"blocks.{layer_idx}.hook_{hook_type}"
-        
-        def extraction_hook(activation, hook):
-            """Hook function for TransformerLens."""
-            # Handle different position specifications
-            if position == 'all':
-                extracted = activation.detach().clone()
-            elif isinstance(position, int):
-                pos = position if position != -1 else activation.shape[1] - 1
-                extracted = activation[:, pos, :].detach().clone()
-            else:
-                raise ValueError(f"Invalid position: {position}")
-            
-            # Store each sample separately for easier concatenation
-            for i in range(extracted.shape[0]):
-                cache_key = f"sample_{len(self.cache.cache)}"
-                self.cache.store(cache_key, extracted[i:i+1])
-            
-            return activation
-        
-        # Process prompts with hook
-        with self._hook_context([(hook_name, extraction_hook)]):
-            self._process_prompts_batch(prompts)
-        
-        # Collect and concatenate cached activations
-        activations = self._collect_cached_activations()
-        
-        return ActivationData(
-            layer=layer_idx,
-            position=position,
-            hook_type=hook_type,
-            activations=activations,
-            prompt_count=len(prompts)
-        )
-    
-    def _process_prompts_batch(self, prompts: List[str]) -> None:
-        """Process prompts in batches for memory efficiency."""
-        batch_size = self.config.activation_batch_size
-        
-        for i in range(0, len(prompts), batch_size):
-            batch_prompts = prompts[i:i + batch_size]
-            
-            # Run model forward pass
-            self.model(batch_prompts)
-            
-            # Memory cleanup after each batch
-            if self.config.activation_cleanup_after_batch:
-                torch_memory_cleanup()
-    
-    def _collect_cached_activations(self) -> torch.Tensor:
-        """Collect and concatenate all cached activations."""
-        # Get all cache keys in order
-        keys = sorted(self.cache.keys(), key=lambda x: int(x.split('_')[1]))
-        
-        if not keys:
-            raise RuntimeError("No activations were cached")
-        
-        # Concatenate all activations
-        activations = []
-        for key in keys:
-            activations.append(self.cache.get(key))
-        
-        return torch.cat(activations, dim=0)
+# Removed TransformerLensExtractor class (YAGNI) - only HuggingFace models supported
 
 
 class HuggingFaceExtractor(BaseActivationExtractor):
@@ -541,37 +429,20 @@ class HuggingFaceExtractor(BaseActivationExtractor):
 
 def create_activation_extractor(
     model: Any,
-    model_type: str = "auto",
+    tokenizer: Any,
     device: str = "cuda",
-    config: Optional[Config] = None,
-    **kwargs
-) -> BaseActivationExtractor:
+    config: Optional[Config] = None
+) -> HuggingFaceExtractor:
     """
-    Factory function to create appropriate activation extractor.
+    Create activation extractor for HuggingFace models.
     
     Args:
-        model: Model instance
-        model_type: Type of model ("transformerlens", "huggingface", "auto")
+        model: HuggingFace model instance
+        tokenizer: HuggingFace tokenizer
         device: Device for extraction
         config: Extraction configuration
-        **kwargs: Additional arguments (e.g., tokenizer for HuggingFace)
         
     Returns:
-        Appropriate activation extractor instance
+        HuggingFace activation extractor instance
     """
-    if model_type == "auto":
-        # Auto-detect model type
-        if isinstance(model, HookedTransformer):
-            model_type = "transformerlens"
-        else:
-            model_type = "huggingface"
-    
-    if model_type == "transformerlens":
-        return TransformerLensExtractor(model, device, config)
-    elif model_type == "huggingface":
-        tokenizer = kwargs.get("tokenizer")
-        if tokenizer is None:
-            raise ValueError("HuggingFace extractor requires tokenizer")
-        return HuggingFaceExtractor(model, tokenizer, device, config)
-    else:
-        raise ValueError(f"Unknown model type: {model_type}")
+    return HuggingFaceExtractor(model, tokenizer, device, config)

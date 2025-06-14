@@ -1077,12 +1077,15 @@ def test_phase1(args, logger, device: str):
 
 
 def test_phase2(args, logger, device: str):
-    """Quick test of Phase 2 SAE analysis with small sample"""
-    import pandas as pd
-    from transformer_lens import HookedTransformer
-    from phase2_sae_analysis.sae_analyzer import EnhancedSAEAnalysisPipeline
-    # SAELayerConfig removed - using unified Config
-    from common.utils import discover_latest_phase_output
+    """Quick test of Phase 2 SAE analysis with saved activations"""
+    # Phase 2 is CPU-only and loads saved activations
+    device = "cpu"
+    
+    # Run simplified version of Phase 2
+    config = Config.from_args(args, phase="2")
+    config.dataset_end_idx = 10  # Limit to 10 samples for testing
+    
+    run_phase2(config, logger, device)
     
     print(f"\n{'='*50}")
     print("PHASE 2 QUICK TEST")
@@ -1200,7 +1203,7 @@ def test_phase2(args, logger, device: str):
         
     except ImportError as e:
         print(f"\n❌ Phase 2 test FAILED (import error): {e}")
-        print("   Make sure TransformerLens and dependencies are installed")
+        print("   Make sure all dependencies are installed")
         logger.error(f"Phase 2 import error: {e}")
     except Exception as e:
         print(f"\n❌ Phase 2 test FAILED: {e}")

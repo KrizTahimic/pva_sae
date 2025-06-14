@@ -76,7 +76,6 @@ class DatasetBuilder:
             
             self.activation_extractor = create_activation_extractor(
                 model=self.generator.model_manager.model,
-                model_type="huggingface",
                 tokenizer=self.generator.model_manager.tokenizer,
                 device=self.generator.model_manager.device,
                 config=self.config  # Pass unified config directly

@@ -51,8 +51,6 @@ from .generation import (
 from .activation_extraction import (
     ActivationData,
     ActivationCache,
-    BaseActivationExtractor,
-    TransformerLensExtractor,
     HuggingFaceExtractor,
     create_activation_extractor,
     save_activation_data,
@@ -109,8 +107,6 @@ __all__ = [
     # Activation extraction
     'ActivationData',
     'ActivationCache',
-    'BaseActivationExtractor',
-    'TransformerLensExtractor',
     'HuggingFaceExtractor',
     'create_activation_extractor',
     'save_activation_data',
