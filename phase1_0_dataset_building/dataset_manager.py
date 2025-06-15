@@ -5,13 +5,13 @@ This module contains classes for managing the MBPP dataset, including
 loading, prompt template generation, and data validation.
 """
 
-from datasets import load_dataset
+import pandas as pd
 import logging
 from typing import Optional, Any, Dict, List, Tuple
 from dataclasses import dataclass, asdict
 
 # Import common utilities and phase config
-from common.utils import get_phase_dir
+from common.utils import get_phase_dir, discover_latest_phase_output
 from common.prompt_utils import PromptBuilder
 
 # Configuration constants
@@ -43,10 +43,12 @@ def _validate_mbpp_record(record: Dict[str, Any], idx: int) -> None:
         )
     
     test_list = record.get('test_list', [])
-    if not isinstance(test_list, list) or len(test_list) < MIN_TEST_CASES:
+    # Accept both list and numpy array (from parquet files)
+    import numpy as np
+    if not (isinstance(test_list, (list, np.ndarray))) or len(test_list) < MIN_TEST_CASES:
         raise ValueError(
             f"MBPP record at index {idx} has invalid 'test_list' field. "
-            f"Expected list with >= {MIN_TEST_CASES} items, got: {len(test_list) if isinstance(test_list, list) else 'not a list'}"
+            f"Expected list/array with >= {MIN_TEST_CASES} items, got: {type(test_list).__name__} with {len(test_list) if hasattr(test_list, '__len__') else 'no length'}"
         )
 
 
@@ -145,28 +147,56 @@ class DatasetManager:
     """Manages MBPP dataset operations including loading, access, and prompt generation"""
     
     def __init__(self):
+        """Initialize DatasetManager."""
         self.dataset = None
         self.test_data = None
         self._is_loaded = False
         self.logger = logging.getLogger(__name__)
     
-    def load_dataset(self):
-        """Load MBPP dataset from Hugging Face"""
+    def load_dataset(self, enriched_path: Optional[str] = None):
+        """Load MBPP dataset from local enriched file.
+        
+        Args:
+            enriched_path: Optional path to enriched dataset. If None, auto-discovers from Phase 0.
+            
+        Raises:
+            RuntimeError: If enriched dataset is not found or cannot be loaded.
+        """
         if self._is_loaded:
             self.logger.info("MBPP dataset already loaded")
             return
         
         try:
-            self.logger.info("Loading MBPP dataset...")
-            self.dataset = load_dataset("Muennighoff/mbpp", "full")
-            self.test_data = self.dataset['test']
-            self._is_loaded = True
+            # Auto-discover enriched dataset if path not provided
+            if enriched_path is None:
+                enriched_path = discover_latest_phase_output("0")
+                if not enriched_path:
+                    raise RuntimeError(
+                        "No enriched dataset found. Please run Phase 0 first: python3 run.py phase 0"
+                    )
+                self.logger.info(f"Auto-discovered enriched dataset: {enriched_path}")
             
-            self.logger.info(f"MBPP dataset loaded: {len(self.test_data)} examples")
+            # Load enriched dataset
+            self.logger.info(f"Loading enriched MBPP dataset from: {enriched_path}")
+            df = pd.read_parquet(enriched_path)
+            
+            # Validate required columns
+            required_columns = ['task_id', 'text', 'code', 'test_list', 'test_imports', 'cyclomatic_complexity']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                raise RuntimeError(
+                    f"Enriched dataset missing required columns: {missing_columns}. "
+                    "Please re-run Phase 0 with the latest code."
+                )
+            
+            # Convert DataFrame to list of dicts for compatibility
+            self.test_data = df.to_dict('records')
+            self._is_loaded = True
+            self.logger.info(f"Enriched MBPP dataset loaded: {len(self.test_data)} examples")
             
         except Exception as e:
-            self.logger.error(f"Failed to load MBPP dataset: {str(e)}")
-            raise RuntimeError(f"Failed to load MBPP dataset: {str(e)}") from e
+            self.logger.error(f"Failed to load enriched dataset: {str(e)}")
+            raise RuntimeError(f"Failed to load enriched dataset: {str(e)}") from e
     
     def get_record(self, idx: int) -> dict:
         """Retrieve record by index with validation"""

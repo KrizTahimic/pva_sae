@@ -275,11 +275,10 @@ def safe_json_dumps(obj: any, indent: int = 2) -> str:
 
 
 # ============================================================================
-# Dataset Splitting Utilities - MOVED TO phase1_1_data_splitting
+# Problem Splitting Utilities - MOVED TO phase0_1_problem_splitting
 # ============================================================================
-# The dataset splitting functions have been moved to:
-# - phase1_1_data_splitting.dataset_splitter for splitting logic
-# - phase1_1_data_splitting.split_quality_checker for validation
+# The problem splitting functions have been moved to:
+# - phase0_1_problem_splitting.problem_splitter for splitting logic
 # This follows the minimize scope principle - functions are now in the phase
 # where they're actually used.
 
@@ -296,7 +295,7 @@ def safe_json_dumps(obj: any, indent: int = 2) -> str:
 PHASE_CONFIGS = {
     "0": {
         "dir": "data/phase0",
-        "patterns": "*mbpp_difficulty_mapping_*.parquet",
+        "patterns": "mbpp_with_complexity_*.parquet",  # Updated to look for enriched dataset
         "exclude_keywords": None
     },
     "1": {  # Phase 1.0 - Dataset Building
@@ -304,9 +303,9 @@ PHASE_CONFIGS = {
         "patterns": "dataset_*.parquet",
         "exclude_keywords": ['checkpoint', 'autosave', 'emergency']
     },
-    "1.1": {  # Phase 1.1 - Dataset Splitting
-        "dir": "data/phase1_1",
-        "patterns": "dataset_*.parquet",
+    "0.1": {  # Phase 0.1 - Problem Splitting
+        "dir": "data/phase0_1",
+        "patterns": "split_metadata.json",
         "exclude_keywords": None
     },
     "2": {
@@ -327,7 +326,7 @@ def get_phase_dir(phase: str) -> str:
     Get the directory path for a given phase.
     
     Args:
-        phase: Phase string ("0", "1", "1.1", "2", "3")
+        phase: Phase string ("0", "0.1", "1", "2", "3")
         
     Returns:
         str: Directory path for the phase
@@ -335,7 +334,7 @@ def get_phase_dir(phase: str) -> str:
     Examples:
         get_phase_dir("0") -> "data/phase0"
         get_phase_dir("1") -> "data/phase1_0"
-        get_phase_dir("1.1") -> "data/phase1_1"
+        get_phase_dir("0.1") -> "data/phase0_1"
         get_phase_dir("2") -> "data/phase2"
         get_phase_dir("3") -> "data/phase3"
     """
@@ -350,7 +349,7 @@ def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None) ->
     Discover the latest output file from any phase.
     
     Args:
-        phase: Phase string ("0", "1", "1.1", "2", "3")
+        phase: Phase string ("0", "0.1", "1", "2", "3")
         phase_dir: Optional override for phase directory
         
     Returns:

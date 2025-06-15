@@ -18,11 +18,17 @@ This research analyzes how language models internally represent the concept of c
 - Creates difficulty mapping for consistent data splits across experiments
 - Enables reproducible interleaved sampling based on problem difficulty
 
+### Phase 0.1: Problem Splitting
+- Splits MBPP problems into three sets based on difficulty scores from Phase 0
+- Stratified randomized interleaving ensures equal difficulty distribution
+- Creates: 50% SAE analysis, 10% hyperparameter tuning, 40% validation splits
+- Outputs task IDs for each split, enabling consistent experiments
+
 ### Phase 1: Dataset Building
 - Uses MBPP dataset with pre-computed difficulty mappings from Phase 0
 - Standardized prompt template: problem description + test cases + code initiator
 - Classification: correct (passes all 3 tests) vs incorrect
-- Dataset split: 50% SAE analysis, 10% hyperparameter tuning, 40% validation
+- Generates solutions for all 974 problems (splits applied in later phases)
 
 ### Phase 2: SAE Analysis
 - Utilizes pre-trained SAEs from GemmaScope with JumpReLU architecture
@@ -67,13 +73,13 @@ Run individual phases using the unified script with automatic data flow:
 # Phase 0: Generate difficulty mapping (outputs to data/phase0/)
 python3 run.py phase 0
 
+# Phase 0.1: Split problems by difficulty (auto-discovers from phase0, outputs to data/phase0_1/)
+python3 run.py phase 0.1
+
 # Phase 1: Build dataset (auto-discovers from phase0, outputs to data/phase1_0/)
 python3 run.py phase 1 --model google/gemma-2-2b
 
-# Phase 1.1: Split dataset (auto-discovers from phase1, outputs to data/phase1_1/)
-python3 run.py phase 1.1
-
-# Phase 1.2: Generate temperature variations (uses phase1.1 splits, outputs to data/phase1_2/)
+# Phase 1.2: Generate temperature variations (uses phase0.1 splits, outputs to data/phase1_2/)
 # Generates 5 samples each at temperatures [0.3, 0.6, 0.9, 1.2] for validation set only
 python3 run.py phase 1.2 --model google/gemma-2-2b
 
@@ -125,14 +131,14 @@ pva_sae/
 ├── common/                         # Shared utilities and configurations
 ├── phase0_difficulty_analysis/     # Phase 0: MBPP complexity preprocessing
 ├── phase1_0_dataset_building/      # Phase 1.0: Dataset generation
-├── phase1_1_data_splitting/        # Phase 1.1: Dataset splitting
+├── phase0_1_problem_splitting/     # Phase 0.1: Problem splitting
 ├── phase1_2_temperature_generation/# Phase 1.2: Temperature variations
 ├── phase2_sae_analysis/            # Phase 2: SAE analysis
 ├── phase3_validation/              # Phase 3: Validation
 ├── data/                           # Phase-based data directory
 │   ├── phase0/                    # Difficulty mappings
 │   ├── phase1_0/                  # Generated datasets
-│   ├── phase1_1/                  # Split indices
+│   ├── phase0_1/                  # Split task IDs
 │   ├── phase1_2/                  # Temperature variations
 │   ├── phase2/                    # SAE analysis results
 │   ├── phase3/                    # Validation results

@@ -1,0 +1,38 @@
+{
+  "creation_timestamp": "2025-06-15T20:58:44.844400",
+  "total_problems": 974,
+  "split_sizes": {
+    "sae": 489,
+    "hyperparams": 97,
+    "validation": 388
+  },
+  "split_ratios": {
+    "sae": 0.502053388090349,
+    "hyperparams": 0.09958932238193019,
+    "validation": 0.39835728952772076
+  },
+  "complexity_range": [
+    1.0,
+    16.0
+  ],
+  "split_complexity_stats": {
+    "sae": {
+      "mean": 2.7280163599182004,
+      "std": 1.8984604288032458,
+      "min": 1.0,
+      "max": 12.0
+    },
+    "hyperparams": {
+      "mean": 3.381443298969072,
+      "std": 2.0435024007462457,
+      "min": 1.0,
+      "max": 12.0
+    },
+    "validation": {
+      "mean": 2.8556701030927836,
+      "std": 2.1457954355188495,
+      "min": 1.0,
+      "max": 16.0
+    }
+  }
+}

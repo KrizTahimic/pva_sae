@@ -173,8 +173,8 @@ class DatasetBuilder:
                     is_correct=is_correct
                 )
             
-            # Get complexity score
-            complexity = self._get_complexity(task_id)
+            # Get complexity score from record (must exist in enriched dataset)
+            complexity = record['cyclomatic_complexity']  # Will raise KeyError if missing
             
             # Create result
             result = CodeGenerationResult(
@@ -254,13 +254,6 @@ class DatasetBuilder:
             # Continue processing even if activation extraction fails for individual records
             # But log detailed error information for debugging
     
-    def _get_complexity(self, task_id: int) -> int:
-        """Get complexity score from pre-computed difficulty mapping."""
-        if task_id not in self.difficulty_mapping:
-            raise ValueError(f"Task {task_id} not found in difficulty mapping. Ensure Phase 0 is completed.")
-        
-        difficulty_metrics = self.difficulty_mapping[task_id]
-        return difficulty_metrics.cyclomatic_complexity
     
     def save_dataset(self, results: List[CodeGenerationResult]) -> str:
         """

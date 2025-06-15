@@ -13,13 +13,13 @@ PVA-SAE (Python Value Attribution Sparse Autoencoder) is a thesis research proje
 
 The methodology follows these phases:
 - Phase 0: Difficulty analysis of MBPP problems
+- Phase 0.1: Problem splitting (50% SAE analysis, 10% hyperparameter tuning, 40% validation)
 - Phase 1.0: Dataset building with base generation (temperature=0.0)
-- Phase 1.1: Dataset splitting (50% SAE analysis, 10% hyperparameter tuning, 40% validation)
 - Phase 1.2: Temperature variation generation for validation split robustness
 - Phase 2: SAE activation analysis using separation scores (split-aware)
 - Phase 3: Validation through both statistical measures and causal intervention via model steering
 
-Each phase outputs to its own directory (data/phase0/, data/phase1_0/, data/phase1_1/, data/phase1_2/, etc.) and automatically discovers inputs from previous phases.
+Each phase outputs to its own directory (data/phase0/, data/phase0_1/, data/phase1_0/, data/phase1_2/, etc.) and automatically discovers inputs from previous phases.
 
 ### Data Output Structure
 ```
@@ -33,10 +33,10 @@ data/
 │       │   └── {task_id}_layer_{n}.npz
 │       └── incorrect/
 │           └── {task_id}_layer_{n}.npz
-├── phase1_1/         # Data splitting
-│   ├── sae_indices.json
-│   ├── hyperparams_indices.json
-│   ├── validation_indices.json
+├── phase0_1/         # Problem splitting
+│   ├── sae_task_ids.json
+│   ├── hyperparams_task_ids.json
+│   ├── validation_task_ids.json
 │   └── split_metadata.json
 ├── phase1_2/         # Temperature variations (validation split only)
 │   ├── dataset_temp_0_3.parquet  # 5 samples per task at temp 0.3
@@ -106,6 +106,7 @@ This project uses both frameworks for different purposes:
 - Use `python3 run.py test-gpu` to test GPU setup
 - Use `python3 multi_gpu_launcher.py --phase 1 --start 0 --end 973` for multi-GPU generation
 - Multi-GPU uses index-based work splitting, not batching
+- Phase 0.1 is CPU-only, splits problems based on difficulty from Phase 0
 - Phase 2 is CPU-only, uses saved activations from Phase 1
 - Checkpoint recovery: Auto-discovers latest checkpoints by timestamp
 - Memory management: Extract and save activations during Phase 1, load from disk in Phase 2
@@ -153,8 +154,8 @@ python3 run.py phase 1 --model google/gemma-2-2b
 # Phase 1.0: Build dataset (multi-GPU)
 python3 multi_gpu_launcher.py --phase 1 --start 0 --end 973 --model google/gemma-2-2b
 
-# Phase 1.1: Split dataset
-python3 run.py phase 1.1
+# Phase 0.1: Split problems by difficulty
+python3 run.py phase 0.1
 
 # Phase 1.2: Generate temperature variations for validation split (single GPU)
 python3 run.py phase 1.2 --model google/gemma-2-2b
@@ -196,17 +197,18 @@ python3 run.py phase 3 --input data/phase2/specific_results.json
 - **KISS (Keep It Simple)**: Choose the simplest solution that meets requirements
 - **YAGNI (You Ain't Gonna Need It)**: Don't add functionality until actually needed
 - **No Backward Compatibility**: Prioritize clean code over maintaining old interfaces
+- Fail fast and early. Avoid Fallbacks.
 - **Minimize Scope**: Declare variables in smallest scope possible, avoid global state
 - **DRY (Don't Repeat Yourself)**: Extract repeated code into reusable functions
 
-#### Implementation Guidelines
-- Prefer readability over cleverness
+#### Implementation Guidelines- Prefer readability over cleverness
 - Avoid over-engineering for hypothetical futures
 - **Single Responsibility**: One clear purpose per function/class
 
 ### Problem-Solving Approach
 - **Root cause analysis**: Avoid bandaid fixes and really fix the root of the problem
 - **Systematic debugging**: Use proper debugging techniques rather than quick patches
+- **No Backward Compatibility**: Prioritize clean code over maintaining old interfaces
 
 ### Naming & Structure
 - **Variables**: `user_count`, `total_price` (snake_case)

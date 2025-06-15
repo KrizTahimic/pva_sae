@@ -6,6 +6,7 @@ without any LLM involvement. It creates a lightweight mapping of difficulty
 scores that can be used by subsequent phases.
 """
 
+import pandas as pd
 from pandas import DataFrame, read_parquet
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
@@ -60,20 +61,19 @@ class MBPPDifficultyAnalyzer:
         self.output_dir = Path(output_dir or get_phase_dir(0))
         logging_manager = LoggingManager(log_dir="data/logs")
         self.logger = logging_manager.setup_logging(__name__)
-        self.difficulty_mapping: Dict[int, DifficultyMetrics] = {}
         
         ensure_directory_exists(str(self.output_dir))
         self.logger.info("MBPPDifficultyAnalyzer initialized")
     
-    def analyze_dataset(self, dataset_manager) -> Dict[int, DifficultyMetrics]:
+    def analyze_dataset(self, dataset_manager) -> pd.DataFrame:
         """
-        Analyze difficulty for entire MBPP dataset
+        Analyze difficulty for entire MBPP dataset and create enriched DataFrame
         
         Args:
             dataset_manager: Loaded DatasetManager instance
             
         Returns:
-            dict: Mapping of task_id to DifficultyMetrics
+            pd.DataFrame: Full MBPP dataset with cyclomatic_complexity column added
         """
         if not dataset_manager.is_loaded():
             raise ValueError("Dataset manager must be loaded before analysis")
@@ -81,14 +81,28 @@ class MBPPDifficultyAnalyzer:
         dataset_size = dataset_manager.get_size()
         self.logger.info(f"Starting difficulty analysis for {dataset_size} MBPP problems")
         
-        difficulty_mapping = {}
+        # Collect all records with complexity analysis
+        enriched_records = []
         failed_analyses = []
         
         for idx in range(dataset_size):
             try:
                 record = dataset_manager.get_record(idx)
-                metrics = self._analyze_single_problem(record)
-                difficulty_mapping[metrics.task_id] = metrics
+                
+                # Calculate cyclomatic complexity
+                reference_code = record.get('code', '')
+                cyclomatic_complexity = get_cyclomatic_complexity(reference_code)
+                
+                # Create enriched record with all original fields plus complexity
+                enriched_record = {
+                    'task_id': record.get('task_id', -1),
+                    'text': record.get('text', ''),
+                    'code': record.get('code', ''),
+                    'test_list': record.get('test_list', []),
+                    'test_imports': record.get('test_imports', ''),
+                    'cyclomatic_complexity': cyclomatic_complexity
+                }
+                enriched_records.append(enriched_record)
                 
                 if (idx + 1) % 100 == 0:
                     self.logger.info(f"Analyzed {idx + 1}/{dataset_size} problems")
@@ -98,13 +112,14 @@ class MBPPDifficultyAnalyzer:
                 failed_analyses.append(task_id)
                 self.logger.error(f"Failed to analyze problem {task_id}: {str(e)}")
         
-        self.difficulty_mapping = difficulty_mapping
+        # Create DataFrame from enriched records
+        enriched_df = pd.DataFrame(enriched_records)
         
         if failed_analyses:
             self.logger.warning(f"Failed to analyze {len(failed_analyses)} problems: {failed_analyses[:10]}...")
         
-        self.logger.info(f"Difficulty analysis completed: {len(difficulty_mapping)} problems analyzed")
-        return difficulty_mapping
+        self.logger.info(f"Difficulty analysis completed: {len(enriched_df)} problems analyzed")
+        return enriched_df
     
     def _analyze_single_problem(self, record: Dict[str, Any]) -> DifficultyMetrics:
         """
@@ -130,80 +145,49 @@ class MBPPDifficultyAnalyzer:
         )
     
     
-    def save_difficulty_mapping(self, filepath: Optional[str] = None) -> str:
+    
+    def save_enriched_dataset(self, df: pd.DataFrame, filepath: Optional[str] = None) -> str:
         """
-        Save difficulty mapping to file
+        Save enriched MBPP dataset with complexity to file
         
         Args:
+            df: Enriched DataFrame to save
             filepath: Optional custom filepath. If None, generates timestamped filename
-            
+        
         Returns:
             str: Path to saved file
         """
-        if not self.difficulty_mapping:
-            raise ValueError("No difficulty mapping to save. Run analyze_dataset() first.")
-        
+        # Generate filename if not provided
         if filepath is None:
             timestamp = get_timestamp()
-            filepath = self.output_dir / f"mbpp_difficulty_mapping_{timestamp}.parquet"
+            filename = f"mbpp_with_complexity_{timestamp}.parquet"
+            filepath = self.output_dir / filename
         else:
             filepath = Path(filepath)
         
-        # Convert to DataFrame for efficient storage
-        df_data = [metrics.to_dict() for metrics in self.difficulty_mapping.values()]
-        
-        df = DataFrame(df_data)
-        
-        # Save as parquet for efficiency
+        # Save to file
         df.to_parquet(filepath, index=False)
-        
-        self.logger.info(f"Difficulty mapping saved to {filepath}")
-        self.logger.info(f"Saved {len(self.difficulty_mapping)} difficulty entries")
+        self.logger.info(f"Saved enriched dataset to {filepath}")
+        self.logger.info(f"Dataset shape: {df.shape}")
         
         return str(filepath)
     
-    @classmethod
-    def load_difficulty_mapping(cls, filepath: str) -> Dict[int, DifficultyMetrics]:
-        """
-        Load difficulty mapping from file
-        
-        Args:
-            filepath: Path to difficulty mapping file
-            
-        Returns:
-            dict: Mapping of task_id to DifficultyMetrics
-        """
-        filepath = Path(filepath)
-        if not filepath.exists():
-            raise FileNotFoundError(f"Difficulty mapping file not found: {filepath}")
-        
-        # Load DataFrame
-        df = read_parquet(filepath)
-        
-        # Convert back to DifficultyMetrics objects
-        difficulty_mapping = {}
-        for _, row in df.iterrows():
-            metrics = DifficultyMetrics(
-                task_id=row['task_id'],
-                cyclomatic_complexity=row['cyclomatic_complexity']
-            )
-            difficulty_mapping[metrics.task_id] = metrics
-        
-        return difficulty_mapping
     
-    def get_complexity_distribution(self) -> Dict[str, Any]:
+    def get_complexity_distribution(self, enriched_df: pd.DataFrame = None) -> Dict[str, Any]:
         """
         Get complexity distribution statistics for analyzed problems
         
+        Args:
+            enriched_df: DataFrame with cyclomatic_complexity column
+            
         Returns:
             dict: Complexity distribution statistics
         """
-        if not self.difficulty_mapping:
-            return {}
+        if enriched_df is None or enriched_df.empty:
+            return {'total_analyzed': 0}
         
-        complexity_scores = [metrics.cyclomatic_complexity for metrics in self.difficulty_mapping.values()]
-        
-        total = len(self.difficulty_mapping)
+        complexity_scores = enriched_df['cyclomatic_complexity'].tolist()
+        total = len(enriched_df)
         
         if not complexity_scores:
             return {'total_analyzed': 0}

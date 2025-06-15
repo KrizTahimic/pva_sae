@@ -171,7 +171,7 @@ class MultiGPULauncher:
         """
         Launch Phase 1.2 temperature variation processes on different GPUs
         
-        For Phase 1.2, we load validation indices from Phase 1.1 and split
+        For Phase 1.2, we load validation task IDs from Phase 0.1 and split
         them across GPUs for parallel temperature generation.
         
         Args:
@@ -184,18 +184,18 @@ class MultiGPULauncher:
         
         # Load validation indices to determine workload
         import json
-        validation_indices_file = Path("data/phase1_1/validation_indices.json")
+        validation_task_ids_file = Path("data/phase0_1/validation_task_ids.json")
         
-        if not validation_indices_file.exists():
+        if not validation_task_ids_file.exists():
             raise FileNotFoundError(
-                f"Validation indices not found at {validation_indices_file}. "
-                "Please run Phase 1.1 first."
+                f"Validation task IDs not found at {validation_task_ids_file}. "
+                "Please run Phase 0.1 first."
             )
         
-        with open(validation_indices_file, 'r') as f:
-            validation_indices = json.load(f)
+        with open(validation_task_ids_file, 'r') as f:
+            validation_task_ids = json.load(f)
         
-        total_tasks = len(validation_indices)
+        total_tasks = len(validation_task_ids)
         
         print(f"\n{'='*60}")
         print(f"MULTI-GPU PHASE 1.2 TEMPERATURE GENERATION")
@@ -204,7 +204,7 @@ class MultiGPULauncher:
         print(f"Total validation tasks: {total_tasks}")
         print(f"Model: {model}")
         
-        # Split validation indices across GPUs
+        # Split validation task IDs across GPUs
         tasks_per_gpu = math.ceil(total_tasks / len(self.gpus))
         
         print(f"\nWorkload distribution:")
@@ -429,7 +429,7 @@ def main():
         )
     
     elif args.phase == 1.2:
-        # Phase 1.2 uses validation indices from Phase 1.1
+        # Phase 1.2 uses validation task IDs from Phase 0.1
         # No start/end required
         if args.start is not None or args.end is not None:
             print("Warning: Phase 1.2 ignores --start and --end arguments")

@@ -48,12 +48,10 @@ class TemperatureActivationLoader(ActivationLoader):
         sample_files = list(category_dir.glob(pattern))
         
         if not sample_files:
-            # Try without sample index for backward compatibility
-            filepath = category_dir / f"{task_id}_layer_{layer}.npz"
-            if filepath.exists():
-                return load_activation_data(filepath)
-            else:
-                raise FileNotFoundError(f"No activation files found for {task_id} layer {layer}")
+            raise FileNotFoundError(
+                f"No activation files found for {task_id} layer {layer}. "
+                f"Expected pattern: {pattern}"
+            )
         
         # Load all samples
         sample_activations = []
@@ -80,21 +78,15 @@ class TemperatureActivationLoader(ActivationLoader):
         category_dir = self.correct_dir if category == "correct" else self.incorrect_dir
         
         task_ids = set()
-        # Look for both patterns
-        for pattern in ["*_sample*_layer_*.npz", "*_layer_*.npz"]:
-            for filepath in category_dir.glob(pattern):
-                # Extract task_id from filename
-                stem = filepath.stem
-                if "_sample" in stem:
-                    # Format: {task_id}_sample{idx}_layer_{layer}
-                    parts = stem.split('_sample')
-                    if len(parts) >= 2:
-                        task_ids.add(parts[0])
-                else:
-                    # Format: {task_id}_layer_{layer}
-                    parts = stem.split('_layer_')
-                    if len(parts) == 2:
-                        task_ids.add(parts[0])
+        # Only look for the new sample-indexed pattern
+        pattern = "*_sample*_layer_*.npz"
+        for filepath in category_dir.glob(pattern):
+            # Extract task_id from filename
+            stem = filepath.stem
+            # Format: {task_id}_sample{idx}_layer_{layer}
+            parts = stem.split('_sample')
+            if len(parts) >= 2:
+                task_ids.add(parts[0])
         
         return sorted(list(task_ids))
 

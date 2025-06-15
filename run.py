@@ -92,8 +92,8 @@ def setup_argument_parser():
     phase_parser.add_argument(
         'phase',
         type=float,
-        choices=[0, 1, 1.1, 1.2, 2, 3],
-        help='Phase to run: 0=Difficulty Analysis, 1=Dataset Building, 1.1=Dataset Splitting, 1.2=Temperature Generation, 2=SAE Analysis, 3=Validation'
+        choices=[0, 0.1, 1, 1.2, 2, 3],
+        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 1.2=Temperature Generation, 2=SAE Analysis, 3=Validation'
     )
     
     # Global arguments (add to phase parser)
@@ -161,30 +161,30 @@ def setup_argument_parser():
         help='Directory for dataset files'
     )
     
-    # Phase 1.1: Dataset Splitting arguments
-    phase1_1_group = phase_parser.add_argument_group('Phase 1.1: Dataset Splitting')
-    phase1_1_group.add_argument(
+    # Phase 0.1: Problem Splitting arguments
+    phase0_1_group = phase_parser.add_argument_group('Phase 0.1: Problem Splitting')
+    phase0_1_group.add_argument(
         '--random-seed',
         type=int,
         default=42,
         help='Random seed for reproducible splitting (default: 42)'
     )
-    phase1_1_group.add_argument(
+    phase0_1_group.add_argument(
         '--n-strata',
         type=int,
         default=10,
         help='Number of complexity strata for stratified sampling (default: 10)'
     )
-    phase1_1_group.add_argument(
+    phase0_1_group.add_argument(
         '--split-output-dir',
         type=str,
-        default=get_phase_dir('1.1'),
-        help='Directory to save split indices'
+        default=get_phase_dir('0.1'),
+        help='Directory to save split task IDs'
     )
-    phase1_1_group.add_argument(
+    phase0_1_group.add_argument(
         '--generate-report',
         action='store_true',
-        help='Generate quality report after splitting'
+        help='Generate split metadata after splitting'
     )
     
     # Phase 1.2: Temperature Generation arguments
@@ -292,16 +292,19 @@ def run_phase0(config: Config, logger, device: str, dry_run: bool = False):
     # This loops through dataset, calculates cyclomatic complexity, test metrics
     # Creates new timestamped files: mbpp_difficulty_mapping_{timestamp}.parquet + .summary.json
     try:
-        difficulty_mapping = preprocessor.preprocess_dataset(save_mapping=not dry_run)
+        enriched_df = preprocessor.preprocess_dataset(save_mapping=not dry_run)
         
         logger.info("✅ Phase 0 completed successfully")
-        logger.info(f"Analyzed {len(difficulty_mapping)} MBPP problems")
+        logger.info(f"Analyzed {len(enriched_df)} MBPP problems")
         
         # FILE CREATION: Show path to newly created parquet file (only if files were saved)
         if not dry_run:
-            # Gets most recent file by modification time from data/datasets/
-            latest_mapping = preprocessor.get_latest_difficulty_mapping_path()
-            logger.info(f"Difficulty mapping available at: {latest_mapping}")
+            # Gets most recent enriched dataset file
+            latest_enriched = preprocessor.get_latest_enriched_dataset_path()
+            if latest_enriched:
+                logger.info(f"Enriched dataset available at: {latest_enriched}")
+            else:
+                logger.error("Failed to find saved enriched dataset after Phase 0 completion")
             
     except Exception as e:
         logger.error(f"❌ Phase 0 failed: {str(e)}")
@@ -311,7 +314,6 @@ def run_phase0(config: Config, logger, device: str, dry_run: bool = False):
 def run_phase1(config: Config, logger, device: str):
     """Run Phase 1: Dataset Building"""
     from phase1_0_dataset_building import Phase1Orchestrator
-    from phase0_difficulty_analysis.difficulty_analyzer import MBPPDifficultyAnalyzer
     from common.utils import discover_latest_phase_output
     
     logger.info("Starting Phase 1: Dataset Building")
@@ -321,23 +323,16 @@ def run_phase1(config: Config, logger, device: str):
     # Log configuration
     logger.info("\n" + config.dump(phase="1"))
     
-    # Load difficulty mapping from Phase 0
-    if hasattr(config, '_input_file') and config._input_file:
-        # Use explicitly provided mapping
-        logger.info(f"Loading difficulty mapping from: {config._input_file}")
-        difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(config._input_file)
-    else:
-        # Auto-discover from phase0 (required)
-        logger.info("Auto-discovering difficulty mapping from Phase 0...")
-        mapping_path = discover_latest_phase_output("0")
-        if not mapping_path:
-            logger.error(f"No difficulty mapping found in {config.phase0_output_dir}/")
-            logger.error("Phase 1 requires Phase 0 difficulty analysis to be completed first.")
-            logger.error("Please run: python3 run.py phase 0")
-            sys.exit(1)
-        
-        logger.info(f"Found difficulty mapping: {mapping_path}")
-        difficulty_mapping = MBPPDifficultyAnalyzer.load_difficulty_mapping(mapping_path)
+    # Verify Phase 0 has been run (enriched dataset must exist)
+    logger.info("Checking for enriched dataset from Phase 0...")
+    enriched_path = discover_latest_phase_output("0")
+    if not enriched_path:
+        logger.error(f"No enriched dataset found in {config.phase0_output_dir}/")
+        logger.error("Phase 1 requires Phase 0 to be completed first.")
+        logger.error("Please run: python3 run.py phase 0")
+        sys.exit(1)
+    
+    logger.info(f"Found enriched dataset: {enriched_path}")
     
     # Setup CUDA environment and cleanup GPUs before starting
     if torch.cuda.is_available():
@@ -351,9 +346,9 @@ def run_phase1(config: Config, logger, device: str):
             logger.warning(f"GPU {gpu_device} not responsive, attempting cleanup...")
             cleanup_gpu_memory(gpu_device)
     
-    # Create orchestrator with unified config
+    # Create orchestrator with unified config (no longer needs difficulty_mapping)
     orchestrator = Phase1Orchestrator(
-        difficulty_mapping=difficulty_mapping,
+        difficulty_mapping=None,  # No longer needed - complexity in enriched dataset
         config=config
     )
     
@@ -367,92 +362,63 @@ def run_phase1(config: Config, logger, device: str):
     logger.info(f"Dataset saved to: {dataset_path}")
 
 
-def run_phase1_1(config: Config, logger, device: str):
-    """Run Phase 1.1: Dataset Splitting"""
+def run_phase0_1(config: Config, logger, device: str):
+    """Run Phase 0.1: Problem Splitting"""
     import pandas as pd
     from pathlib import Path
-    from phase1_1_data_splitting import split_dataset, check_split_quality, generate_quality_report
+    from phase0_1_problem_splitting import split_problems
     from common.utils import discover_latest_phase_output
     
-    logger.info("Starting Phase 1.1: Dataset Splitting")
+    logger.info("Starting Phase 0.1: Problem Splitting")
     logger.info("Split ratios: 50% SAE, 10% hyperparameters, 40% validation")
     
     # Log configuration
-    logger.info("\n" + config.dump(phase="1.1"))
+    logger.info("\n" + config.dump(phase="0.1"))
     
-    # Auto-discover or use provided dataset
+    # Auto-discover or use provided difficulty mapping
     if hasattr(config, '_input_file') and config._input_file:
-        dataset_path = config._input_file
-        logger.info(f"Using provided dataset: {dataset_path}")
+        mapping_path = config._input_file
+        logger.info(f"Using provided difficulty mapping: {mapping_path}")
     else:
-        logger.info("Auto-discovering dataset from Phase 1.0...")
-        dataset_path = discover_latest_phase_output("1", phase_dir=config.phase1_output_dir)
+        logger.info("Auto-discovering difficulty mapping from Phase 0...")
+        mapping_path = discover_latest_phase_output("0", phase_dir=config.phase0_output_dir)
         
-        if not dataset_path:
-            logger.error("No Phase 1.0 dataset found! Please run Phase 1 first.")
+        if not mapping_path:
+            logger.error("No Phase 0 difficulty mapping found! Please run Phase 0 first.")
             sys.exit(1)
         
-        logger.info(f"Found dataset: {dataset_path}")
+        logger.info(f"Found difficulty mapping: {mapping_path}")
     
-    # Load dataset
+    # Load difficulty mapping
     try:
-        df = pd.read_parquet(dataset_path)
-        logger.info(f"Loaded dataset with {len(df)} samples")
+        df = pd.read_parquet(mapping_path)
+        logger.info(f"Loaded difficulty mapping with {len(df)} problems")
         
         # Check minimum size
         if len(df) < 10:
-            logger.error(f"Dataset too small for splitting: {len(df)} samples (minimum 10 required)")
-            logger.error("Please run Phase 1 with more samples first (e.g., --end 50)")
+            logger.error(f"Too few problems for splitting: {len(df)} problems (minimum 10 required)")
             sys.exit(1)
         
         # Verify required columns
-        required_columns = ['task_id', 'complexity_score']
+        required_columns = ['task_id', 'cyclomatic_complexity']
         if not all(col in df.columns for col in required_columns):
-            logger.error(f"Dataset missing required columns: {required_columns}")
+            logger.error(f"Difficulty mapping missing required columns: {required_columns}")
             sys.exit(1)
             
     except Exception as e:
-        logger.error(f"Failed to load dataset: {e}")
+        logger.error(f"Failed to load difficulty mapping: {e}")
         sys.exit(1)
     
     # Perform splitting with unified config
     logger.info("Performing stratified randomized splitting...")
-    splits = split_dataset(df, config)
+    splits = split_problems(df, config)
     
     # Log split results
-    for split_name, indices in splits.items():
-        logger.info(f"Split '{split_name}': {len(indices)} samples ({len(indices)/len(df):.1%})")
+    for split_name, task_ids in splits.items():
+        logger.info(f"Split '{split_name}': {len(task_ids)} problems ({len(task_ids)/len(df):.1%})")
     
-    # Check split quality
-    logger.info("Checking split quality...")
-    quality_results = check_split_quality(
-        splits, 
-        df, 
-        tolerance=config.split_ratio_tolerance
-    )
-    
-    # Log quality summary
-    if quality_results['overall_quality']:
-        logger.info("✅ Split quality: PASS")
-    else:
-        logger.warning("⚠️ Split quality: FAIL")
-    
-    for summary_point in quality_results['quality_summary']:
-        logger.info(f"  - {summary_point}")
-    
-    # Generate report if requested (check for generate_report attribute)
-    if hasattr(config, '_generate_report') and config._generate_report:
-        logger.info("Generating quality report...")
-        report_path = generate_quality_report(
-            splits,
-            df,
-            quality_results,
-            config.phase1_1_output_dir
-        )
-        logger.info(f"Quality report saved to: {report_path}")
-    
-    logger.info("✅ Phase 1.1 completed successfully")
-    logger.info(f"Split indices saved to: {config.phase1_1_output_dir}")
+    logger.info("✅ Phase 0.1 completed successfully")
+    logger.info(f"Splits saved to: {config.phase0_1_output_dir}")
 
 
 def run_phase1_2(config: Config, logger, device: str):
@@ -502,35 +468,35 @@ def run_phase1_2(config: Config, logger, device: str):
     if test_mode:
         config.phase1_2_output_dir = output_dir
     
-    # Check Phase 1.1 outputs exist
-    validation_indices_file = Path(config.phase1_1_output_dir) / "validation_indices.json"
-    if not validation_indices_file.exists():
-        logger.error(f"Validation indices not found at {validation_indices_file}")
-        logger.error("Please run Phase 1.1 first to create data splits")
+    # Check Phase 0.1 outputs exist
+    validation_task_ids_file = Path(config.phase0_1_output_dir) / "validation_task_ids.json"
+    if not validation_task_ids_file.exists():
+        logger.error(f"Validation task IDs not found at {validation_task_ids_file}")
+        logger.error("Please run Phase 0.1 first to create problem splits")
         sys.exit(1)
     
     # Handle --samples argument for testing with subset
     if hasattr(config, '_samples') and config._samples:
         import json
-        with open(validation_indices_file, 'r') as f:
-            all_validation_indices = json.load(f)
+        with open(validation_task_ids_file, 'r') as f:
+            all_validation_task_ids = json.load(f)
         
-        # Take subset of validation indices
-        subset_size = min(config._samples, len(all_validation_indices))
-        subset_indices = all_validation_indices[:subset_size]
+        # Take subset of validation task IDs
+        subset_size = min(config._samples, len(all_validation_task_ids))
+        subset_task_ids = all_validation_task_ids[:subset_size]
         
-        logger.info(f"Test mode: Using {subset_size} validation samples out of {len(all_validation_indices)}")
+        logger.info(f"Test mode: Using {subset_size} validation tasks out of {len(all_validation_task_ids)}")
         
         # Create temporary validation file with subset
         import tempfile
         temp_dir = Path(tempfile.mkdtemp(prefix="phase1_2_test_"))
-        temp_validation_file = temp_dir / "validation_indices.json"
+        temp_validation_file = temp_dir / "validation_task_ids.json"
         
         with open(temp_validation_file, 'w') as f:
-            json.dump(subset_indices, f)
+            json.dump(subset_task_ids, f)
         
         # Update config to use temporary directory
-        config.phase1_1_output_dir = str(temp_dir)
+        config.phase0_1_output_dir = str(temp_dir)
         test_mode = True
     
     # Initialize model manager
@@ -612,16 +578,16 @@ def run_phase2(config: Config, logger, device: str):
     # Force CPU usage for Phase 2
     device = "cpu"
     
-    # Load split indices from Phase 1.1
-    split_indices_file = Path(config.phase1_1_output_dir) / f"{split_name}_indices.json"
-    if not split_indices_file.exists():
-        logger.error(f"Split indices not found: {split_indices_file}")
-        logger.error("Please run Phase 1.1 first to create data splits")
+    # Load split task IDs from Phase 0.1
+    split_task_ids_file = Path(config.phase0_1_output_dir) / f"{split_name}_task_ids.json"
+    if not split_task_ids_file.exists():
+        logger.error(f"Split task IDs not found: {split_task_ids_file}")
+        logger.error("Please run Phase 0.1 first to create problem splits")
         sys.exit(1)
     
-    with open(split_indices_file, 'r') as f:
-        split_indices = json.load(f)
-    logger.info(f"Loaded {len(split_indices)} indices for {split_name} split")
+    with open(split_task_ids_file, 'r') as f:
+        split_task_ids = json.load(f)
+    logger.info(f"Loaded {len(split_task_ids)} task IDs for {split_name} split")
     
     # Get dataset path from input or auto-discovery
     if hasattr(config, '_input_file') and config._input_file:
@@ -640,8 +606,8 @@ def run_phase2(config: Config, logger, device: str):
     df = pd.read_parquet(dataset_path)
     dataset_path = Path(dataset_path)
     
-    # Filter dataset by split indices
-    df_split = df.iloc[split_indices]
+    # Filter dataset by split task IDs
+    df_split = df[df['task_id'].isin(split_task_ids)]
     
     # Get task IDs by category for this split
     correct_task_ids = df_split[df_split['test_passed'] == True]['task_id'].tolist()
@@ -1456,7 +1422,7 @@ def main():
         if args.phase == 0 and hasattr(args, 'dry_run'):
             config._dry_run = args.dry_run
         
-        if args.phase == 1.1 and hasattr(args, 'generate_report'):
+        if args.phase == 0.1 and hasattr(args, 'generate_report'):
             config._generate_report = args.generate_report
         
         # Validate config for the phase
@@ -1474,8 +1440,8 @@ def main():
         # Display phase info
         phase_names = {
             0: "Difficulty Analysis",
+            0.1: "Problem Splitting",
             1: "Dataset Building",
-            1.1: "Dataset Splitting",
             1.2: "Temperature Generation", 
             2: "SAE Analysis",
             3: "Validation"
@@ -1492,8 +1458,8 @@ def main():
                 run_phase0(config, logger, device, dry_run=dry_run)
             elif args.phase == 1:
                 run_phase1(config, logger, device)
-            elif args.phase == 1.1:
-                run_phase1_1(config, logger, device)
+            elif args.phase == 0.1:
+                run_phase0_1(config, logger, device)
             elif args.phase == 1.2:
                 run_phase1_2(config, logger, device)
             elif args.phase == 2:

@@ -50,7 +50,7 @@ class TemperatureVariationGenerator:
     Generates code solutions at multiple temperatures for robustness testing.
     
     This class handles:
-    1. Loading validation indices from Phase 1.1
+    1. Loading validation task IDs from Phase 0.1
     2. Generating solutions at multiple temperatures
     3. Extracting and saving activations for each temperature
     4. Organizing outputs by temperature
@@ -90,8 +90,8 @@ class TemperatureVariationGenerator:
             raise ValueError("temperature_variation_temps must be specified")
         if not self.config.temperature_samples_per_temp or self.config.temperature_samples_per_temp < 1:
             raise ValueError("temperature_samples_per_temp must be >= 1")
-        if not self.config.phase1_1_output_dir:
-            raise ValueError("phase1_1_output_dir must be specified")
+        if not self.config.phase0_1_output_dir:
+            raise ValueError("phase0_1_output_dir must be specified")
         if not self.config.phase1_output_dir:
             raise ValueError("phase1_output_dir must be specified") 
         if not self.config.phase1_2_output_dir:
@@ -106,22 +106,22 @@ class TemperatureVariationGenerator:
         """
         self.logger.info("Starting Phase 1.2: Temperature Variation Generation")
         
-        # Load validation indices
-        validation_indices = self._load_validation_indices()
-        self.logger.info(f"Loaded {len(validation_indices)} validation indices")
+        # Load validation task IDs
+        validation_task_ids = self._load_validation_task_ids()
+        self.logger.info(f"Loaded {len(validation_task_ids)} validation task IDs")
         
         # Check for multi-GPU task range from environment
         import os
         task_start = int(os.environ.get('TASK_START_IDX', '0'))
-        task_end = int(os.environ.get('TASK_END_IDX', str(len(validation_indices))))
+        task_end = int(os.environ.get('TASK_END_IDX', str(len(validation_task_ids))))
         
-        if task_start > 0 or task_end < len(validation_indices):
-            self.logger.info(f"Multi-GPU mode: Processing indices {task_start}-{task_end-1}")
-            validation_indices = validation_indices[task_start:task_end]
+        if task_start > 0 or task_end < len(validation_task_ids):
+            self.logger.info(f"Multi-GPU mode: Processing task IDs {task_start}-{task_end-1}")
+            validation_task_ids = validation_task_ids[task_start:task_end]
         
-        # Load base dataset
+        # Load base dataset and filter by task IDs
         base_dataset = self._load_base_dataset()
-        validation_data = base_dataset.iloc[validation_indices]
+        validation_data = base_dataset[base_dataset['task_id'].isin(validation_task_ids)]
         self.logger.info(f"Loaded validation data: {len(validation_data)} samples")
         
         # Create output structure
@@ -141,26 +141,26 @@ class TemperatureVariationGenerator:
             self._save_temperature_results(results, temperature)
         
         # Save metadata
-        metadata = self._create_metadata(all_results, validation_indices)
+        metadata = self._create_metadata(all_results, validation_task_ids)
         self._save_metadata(metadata)
         
         self.logger.info("Phase 1.2 completed successfully")
         return metadata
     
-    def _load_validation_indices(self) -> List[int]:
-        """Load validation indices from Phase 1.1."""
-        indices_file = Path(self.config.phase1_1_output_dir) / "validation_indices.json"
+    def _load_validation_task_ids(self) -> List[int]:
+        """Load validation task IDs from Phase 0.1."""
+        task_ids_file = Path(self.config.phase0_1_output_dir) / "validation_task_ids.json"
         
-        if not indices_file.exists():
+        if not task_ids_file.exists():
             raise FileNotFoundError(
-                f"Validation indices not found at {indices_file}. "
-                "Please run Phase 1.1 first."
+                f"Validation task IDs not found at {task_ids_file}. "
+                "Please run Phase 0.1 first."
             )
         
-        with open(indices_file, 'r') as f:
-            indices = json.load(f)
+        with open(task_ids_file, 'r') as f:
+            task_ids = json.load(f)
         
-        return indices
+        return task_ids
     
     def _load_base_dataset(self) -> pd.DataFrame:
         """Load base dataset from Phase 1.0."""
@@ -351,16 +351,16 @@ class TemperatureVariationGenerator:
     def _create_metadata(
         self,
         all_results: Dict[float, List[TemperatureGenerationResult]],
-        validation_indices: List[int]
+        validation_task_ids: List[int]
     ) -> Dict:
         """Create metadata summary for all temperature variations."""
         metadata = {
             "creation_timestamp": datetime.now().isoformat(),
             "temperatures": self.config.temperature_variation_temps,
             "samples_per_temperature": self.config.temperature_samples_per_temp,
-            "validation_indices": validation_indices,
-            "n_tasks": len(validation_indices),
-            "n_total_samples": len(validation_indices) * self.config.temperature_samples_per_temp * len(self.config.temperature_variation_temps),
+            "validation_task_ids": validation_task_ids,
+            "n_tasks": len(validation_task_ids),
+            "n_total_samples": len(validation_task_ids) * self.config.temperature_samples_per_temp * len(self.config.temperature_variation_temps),
             "temperature_stats": {}
         }
         

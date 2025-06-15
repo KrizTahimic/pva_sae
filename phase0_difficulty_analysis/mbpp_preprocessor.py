@@ -8,11 +8,12 @@ with difficulty analysis before any LLM interaction.
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
+import pandas as pd
 
 from common.logging import LoggingManager
-from phase1_0_dataset_building.dataset_manager import DatasetManager
-from .difficulty_analyzer import MBPPDifficultyAnalyzer, DifficultyMetrics
+from .difficulty_analyzer import MBPPDifficultyAnalyzer
 from common.utils import get_phase_dir
+from datasets import load_dataset
 
 
 class MBPPPreprocessor:
@@ -29,13 +30,16 @@ class MBPPPreprocessor:
         logging_manager = LoggingManager(log_dir="data/logs")
         self.logger = logging_manager.setup_logging(__name__)
         
-        # Initialize components
-        self.dataset_manager = DatasetManager()
+        # Initialize difficulty analyzer
         self.difficulty_analyzer = MBPPDifficultyAnalyzer(str(output_dir))
+        
+        # We'll load MBPP dataset directly from HuggingFace
+        self.dataset = None
+        self.test_data = None
         
         self.logger.info("MBPPPreprocessor initialized")
     
-    def preprocess_dataset(self, save_mapping: bool = True) -> Dict[str, DifficultyMetrics]:
+    def preprocess_dataset(self, save_mapping: bool = True) -> pd.DataFrame:
         """
         Run complete Phase 0 preprocessing on MBPP dataset
         
@@ -47,40 +51,40 @@ class MBPPPreprocessor:
         """
         self.logger.info("Starting Phase 0: MBPP difficulty preprocessing")
         
-        # Step 1: Load MBPP dataset
-        self.logger.info("Step 1: Loading MBPP dataset")
-        self.dataset_manager.load_dataset()
-        dataset_size = self.dataset_manager.get_size()
+        # Step 1: Load MBPP dataset directly from HuggingFace
+        self.logger.info("Step 1: Loading MBPP dataset from HuggingFace")
+        self._load_mbpp_from_huggingface()
+        dataset_size = len(self.test_data)
         self.logger.info(f"Loaded MBPP dataset with {dataset_size} problems")
         
         # Step 2: Analyze difficulty for all problems
         self.logger.info("Step 2: Analyzing difficulty metrics")
-        difficulty_mapping = self.difficulty_analyzer.analyze_dataset(self.dataset_manager)
+        enriched_df = self.difficulty_analyzer.analyze_dataset(self)
         
-        # Step 3: Save difficulty mapping if requested
-        mapping_filepath = None
+        # Step 3: Save enriched dataset if requested
+        enriched_filepath = None
         if save_mapping:
-            self.logger.info("Step 3: Saving difficulty mapping")
-            mapping_filepath = self.difficulty_analyzer.save_difficulty_mapping()
-            self.logger.info(f"Difficulty mapping saved to: {mapping_filepath}")
+            self.logger.info("Step 3: Saving enriched dataset")
+            enriched_filepath = self.difficulty_analyzer.save_enriched_dataset(enriched_df)
+            self.logger.info(f"Enriched dataset saved to: {enriched_filepath}")
         
         # Step 4: Report summary statistics
-        self._report_preprocessing_summary(difficulty_mapping, mapping_filepath)
+        complexity_stats = self.difficulty_analyzer.get_complexity_distribution(enriched_df)
+        self._report_preprocessing_summary(complexity_stats, enriched_filepath)
         
         self.logger.info("Phase 0 preprocessing completed successfully")
-        return difficulty_mapping
+        return enriched_df
     
     def _report_preprocessing_summary(self, 
-                                    difficulty_mapping: Dict[str, DifficultyMetrics],
-                                    mapping_filepath: Optional[str] = None) -> None:
+                                    distribution: Dict[str, Any],
+                                    enriched_filepath: Optional[str] = None) -> None:
         """
         Report summary of preprocessing results
         
         Args:
-            difficulty_mapping: Generated difficulty mapping
-            mapping_filepath: Path to saved mapping file
+            distribution: Complexity distribution statistics
+            enriched_filepath: Path to saved enriched dataset file
         """
-        distribution = self.difficulty_analyzer.get_complexity_distribution()
         
         self.logger.info("=== Phase 0 Preprocessing Summary ===")
         self.logger.info(f"Total problems analyzed: {distribution['total_analyzed']}")
@@ -93,33 +97,55 @@ class MBPPPreprocessor:
         self.logger.info(f"  75th percentile: {distribution['percentiles']['75th']}")
         self.logger.info(f"  90th percentile: {distribution['percentiles']['90th']}")
         
-        if mapping_filepath:
-            self.logger.info(f"Mapping saved to: {mapping_filepath}")
+        if enriched_filepath:
+            self.logger.info(f"Enriched dataset saved to: {enriched_filepath}")
         
         self.logger.info("=== End Summary ===")
     
-    def get_latest_difficulty_mapping_path(self) -> Optional[str]:
+    def _load_mbpp_from_huggingface(self):
+        """Load MBPP dataset directly from HuggingFace."""
+        try:
+            self.logger.info("Loading MBPP dataset from HuggingFace...")
+            self.dataset = load_dataset("Muennighoff/mbpp", "full")
+            self.test_data = self.dataset['test']
+            self.logger.info(f"Loaded {len(self.test_data)} MBPP problems")
+        except Exception as e:
+            self.logger.error(f"Failed to load MBPP from HuggingFace: {str(e)}")
+            raise RuntimeError(f"Failed to load MBPP dataset: {str(e)}") from e
+    
+    def get_size(self) -> int:
+        """Get dataset size."""
+        return len(self.test_data) if self.test_data else 0
+    
+    def get_record(self, idx: int) -> dict:
+        """Get record by index."""
+        if not self.test_data:
+            raise RuntimeError("Dataset not loaded")
+        return self.test_data[idx]
+    
+    def is_loaded(self) -> bool:
+        """Check if dataset is loaded."""
+        return self.test_data is not None
+    
+    def get_latest_enriched_dataset_path(self) -> Optional[str]:
         """
-        Get path to the most recently created difficulty mapping file
+        Get path to the most recently created enriched dataset file
         
         Returns:
-            str: Path to latest mapping file, or None if none found
+            str: Path to latest enriched dataset file, or None if none found
         """
-        # Step 1: Create glob pattern to match all difficulty mapping files
-        # Matches: mbpp_difficulty_mapping_20250608_160739.parquet, etc.
-        pattern = "mbpp_difficulty_mapping_*.parquet"
+        # Create glob pattern to match enriched dataset files
+        pattern = "mbpp_with_complexity_*.parquet"
         
-        # Step 2: Search output_dir (data/datasets) for all matching files
-        # Returns list of Path objects
-        mapping_files = list(self.output_dir.glob(pattern))
+        # Search output_dir for all matching files
+        enriched_files = list(self.output_dir.glob(pattern))
         
-        if not mapping_files:
+        if not enriched_files:
             return None
         
-        # Step 3: Find file with most recent modification time
-        # p.stat().st_mtime gets file's last modification timestamp (Unix epoch)
-        # max() finds the Path with highest timestamp = most recently modified
-        latest_file = max(mapping_files, key=lambda p: p.stat().st_mtime)
+        # Find file with most recent modification time
+        latest_file = max(enriched_files, key=lambda p: p.stat().st_mtime)
         return str(latest_file)
+    
     
     
