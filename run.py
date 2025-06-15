@@ -92,8 +92,8 @@ def setup_argument_parser():
     phase_parser.add_argument(
         'phase',
         type=float,
-        choices=[0, 1, 1.1, 2, 3],
-        help='Phase to run: 0=Difficulty Analysis, 1=Dataset Building, 1.1=Dataset Splitting, 2=SAE Analysis, 3=Validation'
+        choices=[0, 1, 1.1, 1.2, 2, 3],
+        help='Phase to run: 0=Difficulty Analysis, 1=Dataset Building, 1.1=Dataset Splitting, 1.2=Temperature Generation, 2=SAE Analysis, 3=Validation'
     )
     
     # Global arguments (add to phase parser)
@@ -189,6 +189,13 @@ def setup_argument_parser():
     
     # Phase 2: SAE Analysis arguments
     phase2_group = phase_parser.add_argument_group('Phase 2: SAE Analysis')
+    phase2_group.add_argument(
+        '--split',
+        type=str,
+        choices=['sae', 'hyperparams', 'validation'],
+        default='sae',
+        help='Which data split to analyze (default: sae)'
+    )
     phase2_group.add_argument(
         '--sae-model',
         type=str,
@@ -445,9 +452,103 @@ def run_phase1_1(config: Config, logger, device: str):
     logger.info(f"Split indices saved to: {split_config.output_dir}")
 
 
+def run_phase1_2(config: Config, logger, device: str):
+    """Run Phase 1.2: Temperature Variation Generation for validation split"""
+    from phase1_2_temperature_generation import TemperatureVariationGenerator, TemperatureConfig
+    from common.models import ModelManager
+    from common.utils import discover_latest_phase_output, setup_cuda_environment
+    
+    logger.info("Starting Phase 1.2: Temperature Variation Generation")
+    logger.info("This phase generates multiple temperature variations for the validation split")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="1.2"))
+    
+    # Setup CUDA for generation
+    if device != "cpu":
+        setup_cuda_environment()
+    
+    # Create temperature configuration
+    temp_config = TemperatureConfig(
+        temperatures=config.temperature_variation_temps,
+        samples_per_temperature=config.temperature_samples_per_temp,
+        phase1_1_dir=config.phase1_1_output_dir,
+        phase1_0_dir=config.phase1_output_dir,
+        output_dir=config.phase1_2_output_dir,
+        batch_size=config.activation_batch_size,
+        retry_on_failure=True,
+        max_retries=config.max_retries,
+        cleanup_frequency=config.memory_cleanup_frequency,
+        save_frequency=config.checkpoint_frequency
+    )
+    
+    # Validate configuration
+    try:
+        temp_config.validate()
+    except ValueError as e:
+        logger.error(f"Invalid temperature configuration: {e}")
+        sys.exit(1)
+    
+    # Check Phase 1.1 outputs exist
+    validation_indices_file = Path(temp_config.phase1_1_dir) / "validation_indices.json"
+    if not validation_indices_file.exists():
+        logger.error(f"Validation indices not found at {validation_indices_file}")
+        logger.error("Please run Phase 1.1 first to create data splits")
+        sys.exit(1)
+    
+    # Initialize model manager
+    logger.info(f"Loading model: {config.model_name}")
+    model_manager = ModelManager(config)
+    
+    try:
+        # Load model
+        model_manager.load_model()
+        logger.info(f"Model loaded successfully on {model_manager.device}")
+        
+        # Create temperature generator
+        generator = TemperatureVariationGenerator(
+            model_manager=model_manager,
+            config=temp_config,
+            global_config=config
+        )
+        
+        # Run generation
+        metadata = generator.run()
+        
+        # Log summary
+        logger.info("\n" + "="*60)
+        logger.info("TEMPERATURE GENERATION SUMMARY")
+        logger.info("="*60)
+        logger.info(f"Temperatures generated: {temp_config.temperatures}")
+        logger.info(f"Samples processed: {metadata['n_samples']}")
+        
+        for temp_str, stats in metadata['temperature_stats'].items():
+            logger.info(f"\nTemperature {temp_str}:")
+            logger.info(f"  - Pass rate: {stats['pass_rate']:.1%}")
+            logger.info(f"  - Correct: {stats['n_correct']}")
+            logger.info(f"  - Incorrect: {stats['n_incorrect']}")
+            logger.info(f"  - Avg generation time: {stats['avg_generation_time']:.2f}s")
+        
+        logger.info(f"\n✅ Phase 1.2 completed successfully")
+        logger.info(f"Results saved to: {temp_config.output_dir}")
+        
+    except Exception as e:
+        logger.error(f"Phase 1.2 failed: {e}")
+        if config.verbose:
+            import traceback
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
+        raise
+    finally:
+        # Cleanup
+        if model_manager:
+            model_manager.cleanup()
+        cleanup_gpu_memory()
+
+
 def run_phase2(config: Config, logger, device: str):
     """Run Phase 2: SAE Analysis (CPU-only, using saved activations)"""
     import pandas as pd
+    import json
     from pathlib import Path
     from phase2_sae_analysis.activation_loader import ActivationLoader
     from phase2_sae_analysis.sae_analyzer import load_gemma_scope_sae, compute_separation_scores
@@ -458,11 +559,26 @@ def run_phase2(config: Config, logger, device: str):
     logger.info("Starting Phase 2: SAE Analysis (CPU-only)")
     logger.info("Phase 2 now loads saved activations from Phase 1 - no GPU required")
     
+    # Get split to analyze
+    split_name = getattr(config, '_split', 'sae')
+    logger.info(f"Analyzing split: {split_name}")
+    
     # Log configuration
     logger.info("\n" + config.dump(phase="2"))
     
     # Force CPU usage for Phase 2
     device = "cpu"
+    
+    # Load split indices from Phase 1.1
+    split_indices_file = Path(config.phase1_1_output_dir) / f"{split_name}_indices.json"
+    if not split_indices_file.exists():
+        logger.error(f"Split indices not found: {split_indices_file}")
+        logger.error("Please run Phase 1.1 first to create data splits")
+        sys.exit(1)
+    
+    with open(split_indices_file, 'r') as f:
+        split_indices = json.load(f)
+    logger.info(f"Loaded {len(split_indices)} indices for {split_name} split")
     
     # Get dataset path from input or auto-discovery
     if hasattr(config, '_input_file') and config._input_file:
@@ -476,19 +592,36 @@ def run_phase2(config: Config, logger, device: str):
             sys.exit(1)
         logger.info(f"Found dataset: {dataset_path}")
     
-    # Load dataset to get task IDs
+    # Load dataset and filter by split
     logger.info("Loading dataset metadata...")
     df = pd.read_parquet(dataset_path)
     dataset_path = Path(dataset_path)
     
-    # Get task IDs by category
-    correct_task_ids = df[df['test_passed'] == True]['task_id'].tolist()
-    incorrect_task_ids = df[df['test_passed'] == False]['task_id'].tolist()
+    # Filter dataset by split indices
+    df_split = df.iloc[split_indices]
     
-    logger.info(f"Dataset stats: {len(correct_task_ids)} correct, {len(incorrect_task_ids)} incorrect")
+    # Get task IDs by category for this split
+    correct_task_ids = df_split[df_split['test_passed'] == True]['task_id'].tolist()
+    incorrect_task_ids = df_split[df_split['test_passed'] == False]['task_id'].tolist()
     
-    # Initialize activation loader
-    activation_dir = dataset_path.parent / "activations"
+    logger.info(f"Split '{split_name}' stats: {len(correct_task_ids)} correct, {len(incorrect_task_ids)} incorrect")
+    
+    # Determine activation directory based on split
+    if split_name == 'validation':
+        # Check if temperature variations exist
+        temp_activation_dir = Path(config.phase1_2_output_dir) / "activations"
+        if temp_activation_dir.exists():
+            logger.info("Using temperature-varied activations for validation split")
+            activation_dirs = [temp_activation_dir]
+        else:
+            logger.info("No temperature variations found, using base activations")
+            activation_dirs = [dataset_path.parent / "activations"]
+    else:
+        # Use base activations for SAE and hyperparams splits
+        activation_dirs = [dataset_path.parent / "activations"]
+    
+    # For now, use the first activation directory (we'll enhance this later for temperature aggregation)
+    activation_dir = activation_dirs[0]
     if not activation_dir.exists():
         logger.error(f"Activation directory not found: {activation_dir}")
         logger.error("No activation files found. Please run Phase 1 first to generate activations.")
@@ -520,14 +653,14 @@ def run_phase2(config: Config, logger, device: str):
         logger.info(f"\nAnalyzing layer {layer_idx}...")
         
         try:
-            # Load saved activations
+            # Load saved activations (use all task IDs from the split)
             correct_acts = activation_loader.load_batch(
-                correct_task_ids[:100],  # Limit for initial run
+                correct_task_ids,
                 layer=layer_idx,
                 category="correct"
             )
             incorrect_acts = activation_loader.load_batch(
-                incorrect_task_ids[:100],  # Limit for initial run
+                incorrect_task_ids,
                 layer=layer_idx,
                 category="incorrect"
             )
@@ -1299,7 +1432,8 @@ def main():
         phase_names = {
             0: "Difficulty Analysis",
             1: "Dataset Building",
-            1.1: "Dataset Splitting", 
+            1.1: "Dataset Splitting",
+            1.2: "Temperature Generation", 
             2: "SAE Analysis",
             3: "Validation"
         }
@@ -1317,6 +1451,8 @@ def main():
                 run_phase1(config, logger, device)
             elif args.phase == 1.1:
                 run_phase1_1(config, logger, device)
+            elif args.phase == 1.2:
+                run_phase1_2(config, logger, device)
             elif args.phase == 2:
                 run_phase2(config, logger, device)
             elif args.phase == 3:

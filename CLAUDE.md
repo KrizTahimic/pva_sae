@@ -11,20 +11,21 @@ PVA-SAE (Python Value Attribution Sparse Autoencoder) is a thesis research proje
 3. Applying Sparse Autoencoders (SAEs) from GemmaScope to identify latent directions
 4. Validating findings through statistical analysis (AUROC, F1) and model steering experiments
 
-The methodology follows four phases:
+The methodology follows these phases:
 - Phase 0: Difficulty analysis of MBPP problems
-- Phase 1: Dataset building (50% SAE analysis, 10% hyperparameter tuning, 40% validation)
-- Phase 2: SAE activation analysis using separation scores
+- Phase 1.0: Dataset building with base generation (temperature=0.0)
+- Phase 1.1: Dataset splitting (50% SAE analysis, 10% hyperparameter tuning, 40% validation)
+- Phase 1.2: Temperature variation generation for validation split robustness
+- Phase 2: SAE activation analysis using separation scores (split-aware)
 - Phase 3: Validation through both statistical measures and causal intervention via model steering
 
-Each phase outputs to its own directory (data/phase0/, data/phase1_0/, data/phase1_1/, etc.) and automatically discovers inputs from previous phases.
+Each phase outputs to its own directory (data/phase0/, data/phase1_0/, data/phase1_1/, data/phase1_2/, etc.) and automatically discovers inputs from previous phases.
 
 ### Data Output Structure
 ```
 data/
 ├── phase0/           # Difficulty mappings
 ├── phase1_0/         # Generated code + activations (dataset building)
-├── phase1_1/         # Data splitting
 │   ├── dataset_*.parquet
 │   ├── dataset_*_metadata.json
 │   └── activations/
@@ -32,7 +33,26 @@ data/
 │       │   └── {task_id}_layer_{n}.npz
 │       └── incorrect/
 │           └── {task_id}_layer_{n}.npz
-├── phase2/           # SAE analysis results
+├── phase1_1/         # Data splitting
+│   ├── sae_indices.json
+│   ├── hyperparams_indices.json
+│   ├── validation_indices.json
+│   └── split_metadata.json
+├── phase1_2/         # Temperature variations (validation split only)
+│   ├── dataset_temp_0_3.parquet  # 5 samples per task at temp 0.3
+│   ├── dataset_temp_0_6.parquet  # 5 samples per task at temp 0.6
+│   ├── dataset_temp_0_9.parquet  # 5 samples per task at temp 0.9
+│   ├── dataset_temp_1_2.parquet  # 5 samples per task at temp 1.2
+│   ├── metadata.json
+│   └── activations/
+│       ├── temp_0_3/
+│       │   ├── correct/
+│       │   │   └── {task_id}_sample{0-4}_layer_{n}.npz
+│       │   └── incorrect/
+│       ├── temp_0_6/
+│       └── temp_0_9/
+│           └── temp_1_2/
+├── phase2/           # SAE analysis results (split-aware)
 └── phase3/           # Validation results
 ```
 
@@ -84,7 +104,7 @@ This project uses both frameworks for different purposes:
 ## Memories
 - Always use `python3` (not python)
 - Use `python3 run.py test-gpu` to test GPU setup
-- Use `python3 multi_gpu_launcher.py --phase 1 --num-gpus 3` for multi-GPU generation
+- Use `python3 multi_gpu_launcher.py --phase 1 --start 0 --end 973` for multi-GPU generation
 - Multi-GPU uses index-based work splitting, not batching
 - Phase 2 is CPU-only, uses saved activations from Phase 1
 - Checkpoint recovery: Auto-discovers latest checkpoints by timestamp
@@ -127,14 +147,24 @@ pip install accelerate
 # Phase 0: Generate difficulty mapping (outputs to data/phase0/)
 python3 run.py phase 0
 
-# Phase 1: Build dataset (single GPU)
+# Phase 1.0: Build dataset (single GPU)
 python3 run.py phase 1 --model google/gemma-2-2b
 
-# Phase 1: Build dataset (multi-GPU)
-python3 multi_gpu_launcher.py --phase 1 --num-gpus 3 --model google/gemma-2-2b
+# Phase 1.0: Build dataset (multi-GPU)
+python3 multi_gpu_launcher.py --phase 1 --start 0 --end 973 --model google/gemma-2-2b
 
-# Phase 2: SAE analysis (auto-discovers from phase1, outputs to data/phase2/)
-python3 run.py phase 2
+# Phase 1.1: Split dataset
+python3 run.py phase 1.1
+
+# Phase 1.2: Generate temperature variations for validation split (single GPU)
+python3 run.py phase 1.2 --model google/gemma-2-2b
+
+# Phase 1.2: Generate temperature variations (multi-GPU)
+python3 multi_gpu_launcher.py --phase 1.2 --model google/gemma-2-2b
+
+# Phase 2: SAE analysis with split selection
+python3 run.py phase 2 --split sae        # Analyze SAE split (default)
+python3 run.py phase 2 --split validation # Analyze validation split (with temperature aggregation)
 
 # Phase 3: Validation (auto-discovers from phase1 & phase2, outputs to data/phase3/)
 python3 run.py phase 3

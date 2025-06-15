@@ -67,11 +67,19 @@ Run individual phases using the unified script with automatic data flow:
 # Phase 0: Generate difficulty mapping (outputs to data/phase0/)
 python3 run.py phase 0
 
-# Phase 1: Build dataset (auto-discovers from phase0, outputs to data/phase1/)
+# Phase 1: Build dataset (auto-discovers from phase0, outputs to data/phase1_0/)
 python3 run.py phase 1 --model google/gemma-2-2b
 
+# Phase 1.1: Split dataset (auto-discovers from phase1, outputs to data/phase1_1/)
+python3 run.py phase 1.1
+
+# Phase 1.2: Generate temperature variations (uses phase1.1 splits, outputs to data/phase1_2/)
+# Generates 5 samples each at temperatures [0.3, 0.6, 0.9, 1.2] for validation set only
+python3 run.py phase 1.2 --model google/gemma-2-2b
+
 # Phase 2: Analyze with SAEs (auto-discovers from phase1, outputs to data/phase2/)
-python3 run.py phase 2
+# Must specify which split to analyze: sae (50%), hyperparams (10%), or validation (40%)
+python3 run.py phase 2 --split sae
 
 # Phase 3: Run validation (auto-discovers from phase1 & phase2, outputs to data/phase3/)
 python3 run.py phase 3
@@ -97,17 +105,21 @@ python3 run.py phase 2 --dataset data/phase1/specific_dataset.parquet
 
 ```
 pva_sae/
-├── common/                        # Shared utilities and configurations
-├── phase0_difficulty_analysis/    # Phase 0: MBPP complexity preprocessing
-├── phase1_dataset_building/       # Phase 1: Dataset generation
-├── phase2_sae_analysis/           # Phase 2: SAE analysis
-├── phase3_validation/             # Phase 3: Validation
-├── data/                          # Phase-based data directory
-│   ├── phase0/                   # Difficulty mappings
-│   ├── phase1/                   # Generated datasets
-│   ├── phase2/                   # SAE analysis results
-│   ├── phase3/                   # Validation results
-│   └── logs/                     # Execution logs
+├── common/                         # Shared utilities and configurations
+├── phase0_difficulty_analysis/     # Phase 0: MBPP complexity preprocessing
+├── phase1_0_dataset_building/      # Phase 1.0: Dataset generation
+├── phase1_1_data_splitting/        # Phase 1.1: Dataset splitting
+├── phase1_2_temperature_generation/# Phase 1.2: Temperature variations
+├── phase2_sae_analysis/            # Phase 2: SAE analysis
+├── phase3_validation/              # Phase 3: Validation
+├── data/                           # Phase-based data directory
+│   ├── phase0/                    # Difficulty mappings
+│   ├── phase1_0/                  # Generated datasets
+│   ├── phase1_1/                  # Split indices
+│   ├── phase1_2/                  # Temperature variations
+│   ├── phase2/                    # SAE analysis results
+│   ├── phase3/                    # Validation results
+│   └── logs/                      # Execution logs
 ├── run.py                         # Main entry point
 └── requirements.txt               # Dependencies
 ```
@@ -152,6 +164,35 @@ python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 973 --cleanup
 # Enable progress streaming and verbose output
 python3 run.py phase 1 --model google/gemma-2-2b --stream --verbose
 ```
+
+## Multi-GPU Usage
+
+The project supports parallel processing across multiple GPUs for Phase 1 and Phase 1.2:
+
+### Phase 1: Dataset Building
+```bash
+# Auto-detect all available GPUs
+python3 multi_gpu_launcher.py --phase 1 --start 0 --end 973 --model google/gemma-2-2b
+
+# Use specific GPUs (e.g., GPUs 0, 1, and 2)
+python3 multi_gpu_launcher.py --phase 1 --gpus 0,1,2 --start 0 --end 973 --model google/gemma-2-2b
+```
+
+### Phase 1.2: Temperature Variations
+```bash
+# Generate temperature variations in parallel (auto-distributes validation set)
+python3 multi_gpu_launcher.py --phase 1.2 --model google/gemma-2-2b
+
+# Use specific GPUs
+python3 multi_gpu_launcher.py --phase 1.2 --gpus 0,1 --model google/gemma-2-2b
+```
+
+**Multi-GPU Features:**
+- Automatic workload distribution (index-based splitting)
+- Independent process per GPU with separate logging
+- Graceful interruption handling (Ctrl+C stops all processes)
+- Progress monitoring across all GPUs
+- Automatic result merging for Phase 1
 
 ## Output Files and Naming Convention
 

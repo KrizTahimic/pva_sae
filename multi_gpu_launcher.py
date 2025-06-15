@@ -86,14 +86,14 @@ class MultiGPULauncher:
             
         return splits
     
-    def launch_processes(self, 
-                        start_idx: int, 
-                        end_idx: int,
-                        model: str,
-                        dataset_dir: str = "data/datasets",
-                        extra_args: List[str] = None):
+    def launch_phase1_processes(self, 
+                               start_idx: int, 
+                               end_idx: int,
+                               model: str,
+                               dataset_dir: str = "data/datasets",
+                               extra_args: List[str] = None):
         """
-        Launch parallel processes on different GPUs
+        Launch Phase 1 parallel processes on different GPUs
         
         Args:
             start_idx: Starting index
@@ -163,6 +163,101 @@ class MultiGPULauncher:
         
         print(f"\nAll processes launched. Monitoring progress...")
         print(f"Check individual logs in data/logs/gpu_*_output.log")
+        print(f"\nPress Ctrl+C to stop all processes\n")
+    
+    def launch_phase12_processes(self, 
+                                model: str,
+                                extra_args: List[str] = None):
+        """
+        Launch Phase 1.2 temperature variation processes on different GPUs
+        
+        For Phase 1.2, we load validation indices from Phase 1.1 and split
+        them across GPUs for parallel temperature generation.
+        
+        Args:
+            model: Model name to use
+            extra_args: Additional arguments to pass
+        """
+        # Setup logging
+        logging_manager = LoggingManager(log_dir="data/logs")
+        self.logger = logging_manager.setup_logging("multi_gpu_launcher")
+        
+        # Load validation indices to determine workload
+        import json
+        validation_indices_file = Path("data/phase1_1/validation_indices.json")
+        
+        if not validation_indices_file.exists():
+            raise FileNotFoundError(
+                f"Validation indices not found at {validation_indices_file}. "
+                "Please run Phase 1.1 first."
+            )
+        
+        with open(validation_indices_file, 'r') as f:
+            validation_indices = json.load(f)
+        
+        total_tasks = len(validation_indices)
+        
+        print(f"\n{'='*60}")
+        print(f"MULTI-GPU PHASE 1.2 TEMPERATURE GENERATION")
+        print(f"{'='*60}")
+        print(f"Total GPUs: {len(self.gpus)}")
+        print(f"Total validation tasks: {total_tasks}")
+        print(f"Model: {model}")
+        
+        # Split validation indices across GPUs
+        tasks_per_gpu = math.ceil(total_tasks / len(self.gpus))
+        
+        print(f"\nWorkload distribution:")
+        
+        # Launch processes
+        for i, gpu_id in enumerate(self.gpus):
+            # Calculate indices slice for this GPU
+            start_idx = i * tasks_per_gpu
+            end_idx = min((i + 1) * tasks_per_gpu, total_tasks)
+            
+            if start_idx >= total_tasks:
+                break
+                
+            gpu_task_count = end_idx - start_idx
+            print(f"  GPU {gpu_id}: {gpu_task_count} tasks (indices {start_idx}-{end_idx-1})")
+            
+            cmd = [
+                "python3", "run.py", "phase", "1.2",
+                "--model", model,
+                # Pass the index range via environment variable since Phase 1.2
+                # doesn't have --start/--end arguments
+            ]
+            
+            # Add extra arguments
+            if extra_args:
+                cmd.extend(extra_args)
+            
+            # Set environment for GPU and task range
+            env = environ.copy()
+            env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+            env["TASK_START_IDX"] = str(start_idx)
+            env["TASK_END_IDX"] = str(end_idx)
+            
+            # Create log file for this GPU
+            from common.utils import get_readable_timestamp
+            timestamp = get_readable_timestamp()
+            log_file = f"data/logs/gpu_{gpu_id}_phase1.2_{timestamp}.log"
+            
+            # Launch process
+            log_handle = open(log_file, 'w')
+            process = Popen(
+                cmd,
+                stdout=log_handle,
+                stderr=STDOUT,
+                env=env,
+                preexec_fn=setsid  # Create new process group
+            )
+            self.processes.append((gpu_id, process, log_file, log_handle))
+        
+        print(f"\n{'='*60}")
+        print("Starting Phase 1.2 processes...\n")
+        print(f"\nAll processes launched. Monitoring progress...")
+        print(f"Check individual logs in data/logs/gpu_*_phase1.2_*.log")
         print(f"\nPress Ctrl+C to stop all processes\n")
     
     def monitor_processes(self):
@@ -261,6 +356,13 @@ def main():
     )
     
     parser.add_argument(
+        '--phase',
+        type=float,
+        choices=[1, 1.2],
+        default=1,
+        help='Phase to run (1=Dataset Building, 1.2=Temperature Generation)'
+    )
+    parser.add_argument(
         '--gpus',
         type=str,
         help='Comma-separated list of GPU indices (e.g., "0,1,2"). Auto-detect if not specified.'
@@ -268,14 +370,12 @@ def main():
     parser.add_argument(
         '--start',
         type=int,
-        required=True,
-        help='Starting index for dataset'
+        help='Starting index for dataset (required for Phase 1)'
     )
     parser.add_argument(
         '--end',
         type=int,
-        required=True,
-        help='Ending index for dataset (inclusive)'
+        help='Ending index for dataset (required for Phase 1)'
     )
     parser.add_argument(
         '--model',
@@ -286,8 +386,7 @@ def main():
     parser.add_argument(
         '--dataset-dir',
         type=str,
-        default=get_phase_dir("1"),
-        help='Directory for dataset outputs'
+        help='Directory for dataset outputs (default depends on phase)'
     )
     parser.add_argument(
         '--cleanup',
@@ -310,14 +409,36 @@ def main():
     if args.cleanup:
         extra_args.append('--cleanup')
     
-    # Launch processes
-    launcher.launch_processes(
-        start_idx=args.start,
-        end_idx=args.end,
-        model=args.model,
-        dataset_dir=args.dataset_dir,
-        extra_args=extra_args
-    )
+    # Phase-specific handling
+    if args.phase == 1:
+        # Phase 1 requires start/end indices
+        if args.start is None or args.end is None:
+            parser.error("Phase 1 requires --start and --end arguments")
+        
+        # Set default dataset directory if not specified
+        if args.dataset_dir is None:
+            args.dataset_dir = get_phase_dir("1")
+        
+        # Launch processes
+        launcher.launch_phase1_processes(
+            start_idx=args.start,
+            end_idx=args.end,
+            model=args.model,
+            dataset_dir=args.dataset_dir,
+            extra_args=extra_args
+        )
+    
+    elif args.phase == 1.2:
+        # Phase 1.2 uses validation indices from Phase 1.1
+        # No start/end required
+        if args.start is not None or args.end is not None:
+            print("Warning: Phase 1.2 ignores --start and --end arguments")
+        
+        # Launch Phase 1.2 processes
+        launcher.launch_phase12_processes(
+            model=args.model,
+            extra_args=extra_args
+        )
     
     # Monitor until completion
     launcher.monitor_processes()

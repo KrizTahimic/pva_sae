@@ -97,6 +97,7 @@ class Config:
     phase0_output_dir: str = "data/phase0"
     phase1_output_dir: str = "data/phase1_0"
     phase1_1_output_dir: str = "data/phase1_1"
+    phase1_2_output_dir: str = "data/phase1_2"
     phase2_output_dir: str = "data/phase2"
     phase3_output_dir: str = "data/phase3"
     
@@ -104,6 +105,10 @@ class Config:
     split_random_seed: int = 42
     split_n_strata: int = 10
     split_ratio_tolerance: float = 0.1
+    
+    # === TEMPERATURE VARIATION (Phase 1.2) ===
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.3, 0.6, 0.9, 1.2])
+    temperature_samples_per_temp: int = 5  # Number of samples to generate per temperature
     
     # === VALIDATION (Phase 3) ===
     validation_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.5, 1.0, 1.5, 2.0])
@@ -172,6 +177,19 @@ class Config:
                 value = getattr(args, arg_name)
                 if value is not None:
                     setattr(config, config_field, value)
+        
+        # Store special CLI args that aren't in Config fields
+        # These are accessed via getattr(config, '_argname', default)
+        special_args = ['input', 'split', 'dry_run', 'generate_report']
+        for arg_name in special_args:
+            if hasattr(args, arg_name):
+                value = getattr(args, arg_name)
+                if value is not None:
+                    setattr(config, f'_{arg_name}', value)
+        
+        # Store the original input file path if provided
+        if hasattr(args, 'input') and args.input:
+            config._input_file = args.input
         
         # Load environment variable overrides
         config._load_from_env()
