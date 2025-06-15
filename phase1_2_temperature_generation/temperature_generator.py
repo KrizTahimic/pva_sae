@@ -27,7 +27,6 @@ from common.config import Config
 from common.utils import torch_memory_cleanup, discover_latest_phase_output
 from phase1_0_dataset_building.dataset_manager import DatasetManager
 
-from .config import TemperatureConfig
 
 logger = logging.getLogger(__name__)
 
@@ -60,24 +59,21 @@ class TemperatureVariationGenerator:
     def __init__(
         self,
         model_manager: ModelManager,
-        config: TemperatureConfig,
-        global_config: Optional[Config] = None
+        config: Config
     ):
         """
         Initialize temperature variation generator.
         
         Args:
             model_manager: Initialized model manager
-            config: Temperature generation configuration
-            global_config: Global project configuration
+            config: Unified project configuration
         """
         self.model_manager = model_manager
         self.config = config
-        self.global_config = global_config or Config()
         self.logger = logging.getLogger(__name__)
         
         # Initialize components
-        self.generator = RobustGenerator(model_manager, global_config)
+        self.generator = RobustGenerator(model_manager, config)
         self.extractor = create_activation_extractor(
             model_manager.model,
             model_manager.tokenizer,
@@ -89,8 +85,17 @@ class TemperatureVariationGenerator:
         self.mbpp_dataset = DatasetManager()
         self.mbpp_dataset.load_dataset()
         
-        # Validate configuration
-        self.config.validate()
+        # Validate temperature configuration
+        if not self.config.temperature_variation_temps:
+            raise ValueError("temperature_variation_temps must be specified")
+        if not self.config.temperature_samples_per_temp or self.config.temperature_samples_per_temp < 1:
+            raise ValueError("temperature_samples_per_temp must be >= 1")
+        if not self.config.phase1_1_output_dir:
+            raise ValueError("phase1_1_output_dir must be specified")
+        if not self.config.phase1_output_dir:
+            raise ValueError("phase1_output_dir must be specified") 
+        if not self.config.phase1_2_output_dir:
+            raise ValueError("phase1_2_output_dir must be specified")
     
     def run(self) -> Dict[str, any]:
         """
@@ -124,7 +129,7 @@ class TemperatureVariationGenerator:
         
         # Generate for each temperature
         all_results = {}
-        for temperature in self.config.temperatures:
+        for temperature in self.config.temperature_variation_temps:
             self.logger.info(f"\nGenerating at temperature={temperature}")
             results = self._generate_for_temperature(
                 validation_data, 
@@ -144,7 +149,7 @@ class TemperatureVariationGenerator:
     
     def _load_validation_indices(self) -> List[int]:
         """Load validation indices from Phase 1.1."""
-        indices_file = self.config.phase1_1_path / "validation_indices.json"
+        indices_file = Path(self.config.phase1_1_output_dir) / "validation_indices.json"
         
         if not indices_file.exists():
             raise FileNotFoundError(
@@ -164,7 +169,7 @@ class TemperatureVariationGenerator:
         
         if not dataset_path:
             raise FileNotFoundError(
-                f"No dataset found in {self.config.phase1_0_dir}. "
+                f"No dataset found in {self.config.phase1_output_dir}. "
                 "Please run Phase 1.0 first."
             )
         
@@ -173,12 +178,12 @@ class TemperatureVariationGenerator:
     
     def _setup_output_directories(self) -> None:
         """Create output directory structure."""
-        self.config.output_path.mkdir(parents=True, exist_ok=True)
+        Path(self.config.phase1_2_output_dir).mkdir(parents=True, exist_ok=True)
         
         # Create activation directories for each temperature
-        for temp in self.config.temperatures:
+        for temp in self.config.temperature_variation_temps:
             temp_str = f"temp_{temp}".replace(".", "_")
-            act_dir = self.config.output_path / "activations" / temp_str
+            act_dir = Path(self.config.phase1_2_output_dir) / "activations" / temp_str
             (act_dir / "correct").mkdir(parents=True, exist_ok=True)
             (act_dir / "incorrect").mkdir(parents=True, exist_ok=True)
     
@@ -189,14 +194,14 @@ class TemperatureVariationGenerator:
     ) -> List[TemperatureGenerationResult]:
         """Generate solutions for all validation samples at given temperature."""
         results = []
-        total_expected = len(validation_data) * self.config.samples_per_temperature
+        total_expected = len(validation_data) * self.config.temperature_samples_per_temp
         
         for idx, row in validation_data.iterrows():
             # Generate multiple samples per task
-            for sample_idx in range(self.config.samples_per_temperature):
+            for sample_idx in range(self.config.temperature_samples_per_temp):
                 task_progress = len(results) + 1
                 self.logger.info(
-                    f"Processing {row['task_id']} sample {sample_idx+1}/{self.config.samples_per_temperature} "
+                    f"Processing {row['task_id']} sample {sample_idx+1}/{self.config.temperature_samples_per_temp} "
                     f"(overall: {task_progress}/{total_expected})"
                 )
                 
@@ -208,7 +213,7 @@ class TemperatureVariationGenerator:
                 self._extract_and_save_activations(result, temperature, sample_idx)
                 
                 # Periodic cleanup
-                if len(results) % self.config.cleanup_frequency == 0:
+                if len(results) % self.config.memory_cleanup_frequency == 0:
                     torch_memory_cleanup()
                 
                 # Progress logging
@@ -248,7 +253,7 @@ class TemperatureVariationGenerator:
         gen_result = self.generator.generate(
             prompt=prompt,
             temperature=temperature,
-            max_new_tokens=self.global_config.model_max_new_tokens
+            max_new_tokens=self.config.model_max_new_tokens
         )
         
         # Evaluate solution using SolutionEvaluator
@@ -297,19 +302,19 @@ class TemperatureVariationGenerator:
         temp_str = f"temp_{temperature}".replace(".", "_")
         
         # Extract activations for each layer
-        for layer_idx in self.global_config.activation_layers:
+        for layer_idx in self.config.activation_layers:
             try:
                 # Extract activation
                 activation_data = self.extractor.extract_activations(
                     prompts=[result.prompt + result.generated_code],
                     layer_idx=layer_idx,
-                    position=self.global_config.activation_position,
-                    hook_type=self.global_config.activation_hook_type
+                    position=self.config.activation_position,
+                    hook_type=self.config.activation_hook_type
                 )
                 
                 # Save to temperature-specific directory with sample index
                 save_path = (
-                    self.config.output_path / "activations" / temp_str / 
+                    Path(self.config.phase1_2_output_dir) / "activations" / temp_str / 
                     category / f"{result.task_id}_sample{sample_idx}_layer_{layer_idx}.npz"
                 )
                 save_activation_data(activation_data, save_path)
@@ -338,7 +343,7 @@ class TemperatureVariationGenerator:
         
         # Save to temperature-specific file
         temp_str = f"{temperature}".replace(".", "_")
-        output_file = self.config.output_path / f"dataset_temp_{temp_str}.parquet"
+        output_file = Path(self.config.phase1_2_output_dir) / f"dataset_temp_{temp_str}.parquet"
         df.to_parquet(output_file, index=False)
         
         self.logger.info(f"Saved {len(results)} results to {output_file}")
@@ -351,11 +356,11 @@ class TemperatureVariationGenerator:
         """Create metadata summary for all temperature variations."""
         metadata = {
             "creation_timestamp": datetime.now().isoformat(),
-            "temperatures": self.config.temperatures,
-            "samples_per_temperature": self.config.samples_per_temperature,
+            "temperatures": self.config.temperature_variation_temps,
+            "samples_per_temperature": self.config.temperature_samples_per_temp,
             "validation_indices": validation_indices,
             "n_tasks": len(validation_indices),
-            "n_total_samples": len(validation_indices) * self.config.samples_per_temperature * len(self.config.temperatures),
+            "n_total_samples": len(validation_indices) * self.config.temperature_samples_per_temp * len(self.config.temperature_variation_temps),
             "temperature_stats": {}
         }
         
@@ -373,7 +378,7 @@ class TemperatureVariationGenerator:
     
     def _save_metadata(self, metadata: Dict) -> None:
         """Save metadata to file."""
-        output_file = self.config.output_path / "metadata.json"
+        output_file = Path(self.config.phase1_2_output_dir) / "metadata.json"
         with open(output_file, 'w') as f:
             json.dump(metadata, f, indent=2)
         

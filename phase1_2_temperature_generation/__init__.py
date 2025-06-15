@@ -6,6 +6,5 @@ to enable robustness analysis in later phases.
 """
 
 from .temperature_generator import TemperatureVariationGenerator
-from .config import TemperatureConfig
 
-__all__ = ['TemperatureVariationGenerator', 'TemperatureConfig']
+__all__ = ['TemperatureVariationGenerator']

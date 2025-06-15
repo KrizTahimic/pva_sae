@@ -16,14 +16,14 @@ from typing import List, Tuple, Dict, Optional
 from logging import getLogger
 from datetime import datetime
 
-from .config import SplitConfig
+from common.config import Config
 
 logger = getLogger(__name__)
 
 
 def split_dataset(
     df: pd.DataFrame,
-    config: SplitConfig = SplitConfig()
+    config: Config
 ) -> Dict[str, List[int]]:
     """
     Split dataset using stratified randomized interleaving.
@@ -43,16 +43,21 @@ def split_dataset(
     Raises:
         ValueError: If required columns are missing or config is invalid
     """
-    # Validate inputs
-    config.validate()
+    # Validate split-specific inputs  
+    if config.split_random_seed is None:
+        raise ValueError("split_random_seed must be specified")
+    if config.split_n_strata is None or config.split_n_strata < 2:
+        raise ValueError("split_n_strata must be >= 2")
+    if config.phase1_1_output_dir is None:
+        raise ValueError("phase1_1_output_dir must be specified")
     required_columns = ['task_id', 'complexity_score']
     if not all(col in df.columns for col in required_columns):
         raise ValueError(f"DataFrame must contain columns: {required_columns}")
     
     # Set random seed for reproducibility
-    if config.random_seed is not None:
-        seed(config.random_seed)
-        logger.info(f"Set random seed to {config.random_seed}")
+    if config.split_random_seed is not None:
+        seed(config.split_random_seed)
+        logger.info(f"Set random seed to {config.split_random_seed}")
     
     # Extract indices and complexity scores
     indices = arange(len(df))
@@ -62,8 +67,8 @@ def split_dataset(
                 f"[{complexity_scores.min():.2f}, {complexity_scores.max():.2f}]")
     
     # Create stratified splits
-    strata = create_complexity_strata(indices, complexity_scores, config.n_complexity_strata)
-    splits = apply_stratified_interleaving(strata, config.ratios)
+    strata = create_complexity_strata(indices, complexity_scores, config.split_n_strata)
+    splits = apply_stratified_interleaving(strata, config.split_ratios)
     
     # Create result dictionary
     split_dict = {name: split for name, split in zip(config.split_names, splits)}
@@ -76,7 +81,7 @@ def split_dataset(
                    f"std={std(split_complexity):.2f}")
     
     # Save splits
-    save_splits(split_dict, config.output_dir, df)
+    save_splits(split_dict, config.phase1_1_output_dir, df)
     
     return split_dict
 

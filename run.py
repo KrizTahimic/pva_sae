@@ -372,7 +372,6 @@ def run_phase1_1(config: Config, logger, device: str):
     import pandas as pd
     from pathlib import Path
     from phase1_1_data_splitting import split_dataset, check_split_quality, generate_quality_report
-    from phase1_1_data_splitting.config import SplitConfig
     from common.utils import discover_latest_phase_output
     
     logger.info("Starting Phase 1.1: Dataset Splitting")
@@ -416,24 +415,9 @@ def run_phase1_1(config: Config, logger, device: str):
         logger.error(f"Failed to load dataset: {e}")
         sys.exit(1)
     
-    # Create split configuration from unified config
-    split_config = SplitConfig(
-        random_seed=config.split_random_seed,
-        n_complexity_strata=config.split_n_strata,
-        output_dir=config.phase1_1_output_dir,
-        ratio_tolerance=config.split_ratio_tolerance
-    )
-    
-    # Validate configuration
-    try:
-        split_config.validate()
-    except ValueError as e:
-        logger.error(f"Invalid configuration: {e}")
-        sys.exit(1)
-    
-    # Perform splitting
+    # Perform splitting with unified config
     logger.info("Performing stratified randomized splitting...")
-    splits = split_dataset(df, split_config)
+    splits = split_dataset(df, config)
     
     # Log split results
     for split_name, indices in splits.items():
@@ -444,7 +428,7 @@ def run_phase1_1(config: Config, logger, device: str):
     quality_results = check_split_quality(
         splits, 
         df, 
-        tolerance=split_config.ratio_tolerance
+        tolerance=config.split_ratio_tolerance
     )
     
     # Log quality summary
@@ -463,17 +447,17 @@ def run_phase1_1(config: Config, logger, device: str):
             splits,
             df,
             quality_results,
-            split_config.output_dir
+            config.phase1_1_output_dir
         )
         logger.info(f"Quality report saved to: {report_path}")
     
     logger.info("✅ Phase 1.1 completed successfully")
-    logger.info(f"Split indices saved to: {split_config.output_dir}")
+    logger.info(f"Split indices saved to: {config.phase1_1_output_dir}")
 
 
 def run_phase1_2(config: Config, logger, device: str):
     """Run Phase 1.2: Temperature Variation Generation for validation split"""
-    from phase1_2_temperature_generation import TemperatureVariationGenerator, TemperatureConfig
+    from phase1_2_temperature_generation import TemperatureVariationGenerator
     from common.models import ModelManager
     from common.utils import discover_latest_phase_output
     from common.gpu_utils import setup_cuda_environment
@@ -510,29 +494,16 @@ def run_phase1_2(config: Config, logger, device: str):
         output_dir = "data/test_phase1_2"
         logger.info(f"Test mode: Output will be saved to {output_dir}")
     
-    # Create temperature configuration
-    temp_config = TemperatureConfig(
-        temperatures=temperatures,
-        samples_per_temperature=samples_per_temp,
-        phase1_1_dir=config.phase1_1_output_dir,
-        phase1_0_dir=config.phase1_output_dir,
-        output_dir=output_dir,
-        batch_size=config.activation_batch_size,
-        retry_on_failure=True,
-        max_retries=config.max_retries,
-        cleanup_frequency=config.memory_cleanup_frequency,
-        save_frequency=config.checkpoint_frequency
-    )
-    
-    # Validate configuration
-    try:
-        temp_config.validate()
-    except ValueError as e:
-        logger.error(f"Invalid temperature configuration: {e}")
-        sys.exit(1)
+    # Update config with test mode overrides if needed
+    if hasattr(config, '_test_temps') and config._test_temps:
+        config.temperature_variation_temps = config._test_temps
+    if hasattr(config, '_test_samples_per_temp') and config._test_samples_per_temp:
+        config.temperature_samples_per_temp = config._test_samples_per_temp
+    if test_mode:
+        config.phase1_2_output_dir = output_dir
     
     # Check Phase 1.1 outputs exist
-    validation_indices_file = Path(temp_config.phase1_1_dir) / "validation_indices.json"
+    validation_indices_file = Path(config.phase1_1_output_dir) / "validation_indices.json"
     if not validation_indices_file.exists():
         logger.error(f"Validation indices not found at {validation_indices_file}")
         logger.error("Please run Phase 1.1 first to create data splits")
@@ -559,7 +530,7 @@ def run_phase1_2(config: Config, logger, device: str):
             json.dump(subset_indices, f)
         
         # Update config to use temporary directory
-        temp_config.phase1_1_dir = str(temp_dir)
+        config.phase1_1_output_dir = str(temp_dir)
         test_mode = True
     
     # Initialize model manager
@@ -574,8 +545,7 @@ def run_phase1_2(config: Config, logger, device: str):
         # Create temperature generator
         generator = TemperatureVariationGenerator(
             model_manager=model_manager,
-            config=temp_config,
-            global_config=config
+            config=config
         )
         
         # Run generation
@@ -585,7 +555,7 @@ def run_phase1_2(config: Config, logger, device: str):
         logger.info("\n" + "="*60)
         logger.info("TEMPERATURE GENERATION SUMMARY")
         logger.info("="*60)
-        logger.info(f"Temperatures generated: {temp_config.temperatures}")
+        logger.info(f"Temperatures generated: {config.temperature_variation_temps}")
         logger.info(f"Tasks processed: {metadata['n_tasks']}")
         logger.info(f"Total samples generated: {metadata['n_total_samples']}")
         
@@ -597,7 +567,7 @@ def run_phase1_2(config: Config, logger, device: str):
             logger.info(f"  - Avg generation time: {stats['avg_generation_time']:.2f}s")
         
         logger.info(f"\n✅ Phase 1.2 completed successfully")
-        logger.info(f"Results saved to: {temp_config.output_dir}")
+        logger.info(f"Results saved to: {config.phase1_2_output_dir}")
         
     except Exception as e:
         logger.error(f"Phase 1.2 failed: {e}")

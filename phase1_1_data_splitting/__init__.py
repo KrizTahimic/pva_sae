@@ -13,7 +13,6 @@ specific splits.
 
 from .dataset_splitter import split_dataset, load_splits
 from .split_quality_checker import check_split_quality, generate_quality_report
-from .config import SplitConfig
 
 __all__ = ['split_dataset', 'load_splits', 'check_split_quality', 
-           'generate_quality_report', 'SplitConfig']
+           'generate_quality_report']
