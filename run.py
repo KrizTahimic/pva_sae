@@ -187,6 +187,25 @@ def setup_argument_parser():
         help='Generate quality report after splitting'
     )
     
+    # Phase 1.2: Temperature Generation arguments
+    phase1_2_group = phase_parser.add_argument_group('Phase 1.2: Temperature Generation')
+    phase1_2_group.add_argument(
+        '--samples',
+        type=int,
+        help='Number of validation samples to process (for testing). Default: all'
+    )
+    phase1_2_group.add_argument(
+        '--test-temps',
+        nargs='+',
+        type=float,
+        help='Override temperatures for testing (e.g., --test-temps 0.3 0.6)'
+    )
+    phase1_2_group.add_argument(
+        '--test-samples-per-temp',
+        type=int,
+        help='Override samples per temperature for testing (default: 5)'
+    )
+    
     # Phase 2: SAE Analysis arguments
     phase2_group = phase_parser.add_argument_group('Phase 2: SAE Analysis')
     phase2_group.add_argument(
@@ -468,13 +487,35 @@ def run_phase1_2(config: Config, logger, device: str):
     if device != "cpu":
         setup_cuda_environment()
     
+    # Check for test mode arguments
+    test_mode = False
+    temperatures = config.temperature_variation_temps
+    samples_per_temp = config.temperature_samples_per_temp
+    output_dir = config.phase1_2_output_dir
+    
+    # Override for testing if requested
+    if hasattr(config, '_test_temps') and config._test_temps:
+        temperatures = config._test_temps
+        test_mode = True
+        logger.info(f"Test mode: Using temperatures {temperatures}")
+    
+    if hasattr(config, '_test_samples_per_temp') and config._test_samples_per_temp:
+        samples_per_temp = config._test_samples_per_temp
+        test_mode = True
+        logger.info(f"Test mode: Using {samples_per_temp} samples per temperature")
+    
+    if test_mode:
+        # Use test output directory to avoid mixing with production data
+        output_dir = "data/test_phase1_2"
+        logger.info(f"Test mode: Output will be saved to {output_dir}")
+    
     # Create temperature configuration
     temp_config = TemperatureConfig(
-        temperatures=config.temperature_variation_temps,
-        samples_per_temperature=config.temperature_samples_per_temp,
+        temperatures=temperatures,
+        samples_per_temperature=samples_per_temp,
         phase1_1_dir=config.phase1_1_output_dir,
         phase1_0_dir=config.phase1_output_dir,
-        output_dir=config.phase1_2_output_dir,
+        output_dir=output_dir,
         batch_size=config.activation_batch_size,
         retry_on_failure=True,
         max_retries=config.max_retries,
@@ -495,6 +536,30 @@ def run_phase1_2(config: Config, logger, device: str):
         logger.error(f"Validation indices not found at {validation_indices_file}")
         logger.error("Please run Phase 1.1 first to create data splits")
         sys.exit(1)
+    
+    # Handle --samples argument for testing with subset
+    if hasattr(config, '_samples') and config._samples:
+        import json
+        with open(validation_indices_file, 'r') as f:
+            all_validation_indices = json.load(f)
+        
+        # Take subset of validation indices
+        subset_size = min(config._samples, len(all_validation_indices))
+        subset_indices = all_validation_indices[:subset_size]
+        
+        logger.info(f"Test mode: Using {subset_size} validation samples out of {len(all_validation_indices)}")
+        
+        # Create temporary validation file with subset
+        import tempfile
+        temp_dir = Path(tempfile.mkdtemp(prefix="phase1_2_test_"))
+        temp_validation_file = temp_dir / "validation_indices.json"
+        
+        with open(temp_validation_file, 'w') as f:
+            json.dump(subset_indices, f)
+        
+        # Update config to use temporary directory
+        temp_config.phase1_1_dir = str(temp_dir)
+        test_mode = True
     
     # Initialize model manager
     logger.info(f"Loading model: {config.model_name}")
@@ -520,7 +585,8 @@ def run_phase1_2(config: Config, logger, device: str):
         logger.info("TEMPERATURE GENERATION SUMMARY")
         logger.info("="*60)
         logger.info(f"Temperatures generated: {temp_config.temperatures}")
-        logger.info(f"Samples processed: {metadata['n_samples']}")
+        logger.info(f"Tasks processed: {metadata['n_tasks']}")
+        logger.info(f"Total samples generated: {metadata['n_total_samples']}")
         
         for temp_str, stats in metadata['temperature_stats'].items():
             logger.info(f"\nTemperature {temp_str}:")
@@ -543,6 +609,12 @@ def run_phase1_2(config: Config, logger, device: str):
         if model_manager:
             model_manager.cleanup()
         cleanup_gpu_memory()
+        
+        # Clean up temporary directory if used
+        if test_mode and 'temp_dir' in locals() and temp_dir.exists():
+            import shutil
+            shutil.rmtree(temp_dir)
+            logger.info(f"Cleaned up temporary directory: {temp_dir}")
 
 
 def run_phase2(config: Config, logger, device: str):

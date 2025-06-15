@@ -180,7 +180,8 @@ class Config:
         
         # Store special CLI args that aren't in Config fields
         # These are accessed via getattr(config, '_argname', default)
-        special_args = ['input', 'split', 'dry_run', 'generate_report']
+        special_args = ['input', 'split', 'dry_run', 'generate_report', 
+                       'samples', 'test_temps', 'test_samples_per_temp']
         for arg_name in special_args:
             if hasattr(args, arg_name):
                 value = getattr(args, arg_name)
