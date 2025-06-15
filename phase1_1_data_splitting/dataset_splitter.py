@@ -68,10 +68,10 @@ def split_dataset(
     
     # Create stratified splits
     strata = create_complexity_strata(indices, complexity_scores, config.split_n_strata)
-    splits = apply_stratified_interleaving(strata, config.split_ratios)
+    splits = apply_stratified_interleaving(strata, config.get_split_ratios())
     
     # Create result dictionary
-    split_dict = {name: split for name, split in zip(config.split_names, splits)}
+    split_dict = {name: split for name, split in zip(config.get_split_names(), splits)}
     
     # Log split statistics
     for name, split_indices in split_dict.items():

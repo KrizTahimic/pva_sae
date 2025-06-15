@@ -104,7 +104,7 @@ class Config:
     # === DATA SPLITTING (Phase 1.1) ===
     split_random_seed: int = 42
     split_n_strata: int = 10
-    split_ratio_tolerance: float = 0.1
+    split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 1.2) ===
     temperature_variation_temps: List[float] = field(default_factory=lambda: [0.3, 0.6, 0.9, 1.2])
@@ -306,6 +306,20 @@ class Config:
             if not 0 < self.split_ratio_tolerance < 1:
                 raise ValueError("split_ratio_tolerance must be between 0 and 1")
         
+        elif phase == "1.2":
+            # Phase 1.2 requires temperature variation settings
+            if not self.temperature_variation_temps:
+                raise ValueError("At least one temperature must be specified")
+            
+            if any(t < 0 or t > 2.0 for t in self.temperature_variation_temps):
+                raise ValueError("Temperatures must be between 0.0 and 2.0")
+            
+            if 0.0 in self.temperature_variation_temps:
+                raise ValueError("Temperature 0.0 already generated in Phase 1.0. Use temperatures > 0.0")
+            
+            if self.temperature_samples_per_temp <= 0:
+                raise ValueError("temperature_samples_per_temp must be positive")
+        
         elif phase == "2":
             # Phase 2 requires SAE configuration
             if not self.sae_repo_id:
@@ -326,4 +340,13 @@ class Config:
         """Get output directory for specific phase."""
         phase_key = f"phase{phase.replace('.', '_')}_output_dir"
         return getattr(self, phase_key, f"data/phase{phase}")
+    
+    def get_split_ratios(self) -> List[float]:
+        """Get fixed split ratios for Phase 1.1."""
+        # 50% for SAE analysis, 10% for hyperparameter tuning, 40% for validation
+        return [0.5, 0.1, 0.4]
+    
+    def get_split_names(self) -> List[str]:
+        """Get split names for Phase 1.1."""
+        return ["sae", "hyperparams", "validation"]
 

@@ -78,7 +78,7 @@ class TemperatureVariationGenerator:
             model_manager.model,
             model_manager.tokenizer,
             model_manager.device,
-            global_config
+            config
         )
         
         # Initialize dataset manager for MBPP data access
