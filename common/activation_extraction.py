@@ -223,7 +223,6 @@ class BaseActivationExtractor:
         """Clear activation cache."""
         self.cache.clear()
     
-    @torch_no_grad_and_cleanup
     def extract_activations(
         self,
         prompts: List[str],
@@ -316,28 +315,62 @@ class HuggingFaceExtractor(BaseActivationExtractor):
         handles = []
         
         try:
-            # Get the target layer
-            if hasattr(self.model, 'transformer'):
-                # GPT-style models
+            # Get the target layer - improved architecture detection
+            layer = None
+            
+            if hasattr(self.model, 'transformer') and hasattr(self.model.transformer, 'h'):
+                # GPT-style models (GPT-2, GPT-J, etc.)
                 layer = self.model.transformer.h[layer_idx]
+                self.logger.debug(f"Using GPT-style architecture: transformer.h[{layer_idx}]")
             elif hasattr(self.model, 'model') and hasattr(self.model.model, 'layers'):
-                # LLaMA/Gemma-style models
+                # LLaMA-style models
                 layer = self.model.model.layers[layer_idx]
+                self.logger.debug(f"Using LLaMA-style architecture: model.layers[{layer_idx}]")
+            elif hasattr(self.model, 'layers'):
+                # Direct layers attribute (some Gemma models)
+                layer = self.model.layers[layer_idx]
+                self.logger.debug(f"Using direct layers architecture: layers[{layer_idx}]")
+            elif hasattr(self.model, 'model') and hasattr(self.model.model, 'embed_tokens'):
+                # Gemma-2B specific: model.layers directly
+                if hasattr(self.model.model, 'layers'):
+                    layer = self.model.model.layers[layer_idx]
+                    self.logger.debug(f"Using Gemma-2B architecture: model.layers[{layer_idx}]")
+                else:
+                    raise ValueError(f"Gemma model found but no layers attribute")
             else:
-                raise ValueError(f"Unknown model architecture for hook registration")
+                # Debug: Print model structure for troubleshooting
+                model_attrs = [attr for attr in dir(self.model) if not attr.startswith('_')]
+                self.logger.error(f"Model attributes: {model_attrs}")
+                if hasattr(self.model, 'model'):
+                    model_model_attrs = [attr for attr in dir(self.model.model) if not attr.startswith('_')]
+                    self.logger.error(f"Model.model attributes: {model_model_attrs}")
+                raise ValueError(f"Unknown model architecture for hook registration. Model type: {type(self.model)}")
+            
+            if layer is None:
+                raise ValueError(f"Could not find layer {layer_idx} in model")
+            
+            # Validate layer index bounds
+            if hasattr(self.model, 'config') and hasattr(self.model.config, 'num_hidden_layers'):
+                max_layers = self.model.config.num_hidden_layers
+                if layer_idx >= max_layers:
+                    raise ValueError(f"Layer index {layer_idx} exceeds model's {max_layers} layers")
             
             # Register hook on the layer output
             handle = layer.register_forward_hook(hook_fn)
             handles.append(handle)
+            self.logger.debug(f"Successfully registered hook on layer {layer_idx}")
             
             yield
             
+        except Exception as e:
+            self.logger.error(f"Failed to register hook on layer {layer_idx}: {e}")
+            raise
         finally:
             # Remove all hooks
             for handle in handles:
                 handle.remove()
+            self.logger.debug(f"Removed {len(handles)} hooks")
     
-    @torch_no_grad_and_cleanup
     def extract_activations(
         self,
         prompts: List[str],
@@ -346,48 +379,49 @@ class HuggingFaceExtractor(BaseActivationExtractor):
         hook_type: str = "output"
     ) -> ActivationData:
         """Extract activations using PyTorch hooks on HuggingFace models."""
-        if not prompts:
-            raise ValueError("No prompts provided")
-        
-        # Clear cache for this extraction
-        self.cache.clear()
-        
-        def extraction_hook(module, input, output):
-            """Hook function for HuggingFace models."""
-            # HuggingFace models typically return tuples
-            if isinstance(output, tuple):
-                activation = output[0]  # Hidden states are usually first
-            else:
-                activation = output
+        with torch_no_grad_and_cleanup(torch.device(self.device)):
+            if not prompts:
+                raise ValueError("No prompts provided")
             
-            # Handle position extraction
-            if position == 'all':
-                extracted = activation.detach().clone()
-            elif isinstance(position, int):
-                pos = position if position != -1 else activation.shape[1] - 1
-                extracted = activation[:, pos, :].detach().clone()
-            else:
-                raise ValueError(f"Invalid position: {position}")
+            # Clear cache for this extraction
+            self.cache.clear()
             
-            # Store activations
-            for i in range(extracted.shape[0]):
-                cache_key = f"sample_{len(self.cache.cache)}"
-                self.cache.store(cache_key, extracted[i:i+1])
-        
-        # Process prompts with hook
-        with self._hook_context(layer_idx, extraction_hook):
-            self._process_prompts_batch(prompts)
-        
-        # Collect cached activations
-        activations = self._collect_cached_activations()
-        
-        return ActivationData(
-            layer=layer_idx,
-            position=position,
-            hook_type=hook_type,
-            activations=activations,
-            prompt_count=len(prompts)
-        )
+            def extraction_hook(module, input, output):
+                """Hook function for HuggingFace models."""
+                # HuggingFace models typically return tuples
+                if isinstance(output, tuple):
+                    activation = output[0]  # Hidden states are usually first
+                else:
+                    activation = output
+                
+                # Handle position extraction
+                if position == 'all':
+                    extracted = activation.detach().clone()
+                elif isinstance(position, int):
+                    pos = position if position != -1 else activation.shape[1] - 1
+                    extracted = activation[:, pos, :].detach().clone()
+                else:
+                    raise ValueError(f"Invalid position: {position}")
+                
+                # Store activations
+                for i in range(extracted.shape[0]):
+                    cache_key = f"sample_{len(self.cache.cache)}"
+                    self.cache.store(cache_key, extracted[i:i+1])
+            
+            # Process prompts with hook
+            with self._hook_context(layer_idx, extraction_hook):
+                self._process_prompts_batch(prompts)
+            
+            # Collect cached activations
+            activations = self._collect_cached_activations()
+            
+            return ActivationData(
+                layer=layer_idx,
+                position=position,
+                hook_type=hook_type,
+                activations=activations,
+                prompt_count=len(prompts)
+            )
     
     def _process_prompts_batch(self, prompts: List[str]) -> None:
         """Process prompts in batches."""

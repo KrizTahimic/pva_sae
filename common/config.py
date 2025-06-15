@@ -47,7 +47,7 @@ class Config:
     dataset_end_idx: Optional[int] = None
     
     # === ACTIVATION SETTINGS ===
-    activation_layers: List[int] = field(default_factory=lambda: [13, 14, 16, 17, 20])
+    activation_layers: List[int] = field(default_factory=lambda: [8, 10, 12, 14, 16])  # Safe for Gemma-2B (18 layers)
     activation_hook_type: str = "resid_post"
     activation_position: int = -1  # Final token
     activation_batch_size: int = 8
@@ -96,12 +96,12 @@ class Config:
     # === PHASE-SPECIFIC OUTPUT DIRECTORIES ===
     phase0_output_dir: str = "data/phase0"
     phase1_output_dir: str = "data/phase1_0"
-    phase1_1_output_dir: str = "data/phase1_1"
+    phase0_1_output_dir: str = "data/phase0_1"
     phase1_2_output_dir: str = "data/phase1_2"
     phase2_output_dir: str = "data/phase2"
     phase3_output_dir: str = "data/phase3"
     
-    # === DATA SPLITTING (Phase 1.1) ===
+    # === PROBLEM SPLITTING (Phase 0.1) ===
     split_random_seed: int = 42
     split_n_strata: int = 10
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
@@ -146,7 +146,7 @@ class Config:
             
             # Phase-specific output dirs
             'output_dir': f'phase{phase.replace(".", "_")}_output_dir' if phase else None,
-            'split_output_dir': 'phase1_1_output_dir',
+            'split_output_dir': 'phase0_1_output_dir',
             
             # Robustness args
             'checkpoint_frequency': 'checkpoint_frequency',
@@ -272,7 +272,7 @@ class Config:
         Validate configuration for specific phase.
         
         Args:
-            phase: Phase to validate for ("0", "1", "1.1", "2", "3")
+            phase: Phase to validate for ("0", "0.1", "1", "1.2", "2", "3")
             
         Raises:
             ValueError: If configuration is invalid for the phase
@@ -298,8 +298,8 @@ class Config:
             if self.model_max_new_tokens <= 0:
                 raise ValueError("model_max_new_tokens must be > 0")
         
-        elif phase == "1.1":
-            # Phase 1.1 requires split configuration
+        elif phase == "0.1":
+            # Phase 0.1 requires split configuration
             if self.split_n_strata <= 0:
                 raise ValueError("split_n_strata must be > 0")
             
@@ -342,11 +342,11 @@ class Config:
         return getattr(self, phase_key, f"data/phase{phase}")
     
     def get_split_ratios(self) -> List[float]:
-        """Get fixed split ratios for Phase 1.1."""
+        """Get fixed split ratios for Phase 0.1."""
         # 50% for SAE analysis, 10% for hyperparameter tuning, 40% for validation
         return [0.5, 0.1, 0.4]
     
     def get_split_names(self) -> List[str]:
-        """Get split names for Phase 1.1."""
+        """Get split names for Phase 0.1."""
         return ["sae", "hyperparams", "validation"]
 

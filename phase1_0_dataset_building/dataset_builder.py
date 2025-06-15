@@ -69,28 +69,60 @@ class DatasetBuilder:
         self._setup_activation_extraction()
     
     def _setup_activation_extraction(self):
-        """Setup activation extraction."""
+        """Setup activation extraction with robust error handling."""
         try:
             # Create activation extractor for HuggingFace model
             from common.activation_extraction import create_activation_extractor
             
+            self.logger.info("Initializing activation extraction...")
+            
+            # Validate model has the required attributes first
+            model = self.generator.model_manager.model
+            if not hasattr(model, 'config'):
+                raise ValueError("Model missing config attribute")
+            
+            # Validate activation layers against model architecture
+            if hasattr(model.config, 'num_hidden_layers'):
+                max_layers = model.config.num_hidden_layers
+                invalid_layers = [l for l in self.config.activation_layers if l >= max_layers]
+                if invalid_layers:
+                    raise ValueError(f"Invalid layer indices {invalid_layers} - model only has {max_layers} layers")
+                self.logger.info(f"Validated activation layers {self.config.activation_layers} against model's {max_layers} layers")
+            else:
+                self.logger.warning("Could not validate layer indices - model.config.num_hidden_layers not found")
+            
             self.activation_extractor = create_activation_extractor(
-                model=self.generator.model_manager.model,
+                model=model,
                 tokenizer=self.generator.model_manager.tokenizer,
                 device=self.generator.model_manager.device,
                 config=self.config  # Pass unified config directly
             )
+            
+            # Test activation extraction with a simple prompt to ensure it works
+            self.logger.info("Testing activation extraction...")
+            try:
+                test_result = self.activation_extractor.extract_activations(
+                    prompts=["Test prompt"],
+                    layer_idx=self.config.activation_layers[0],
+                    position=self.config.activation_position,
+                    hook_type=self.config.activation_hook_type
+                )
+                self.logger.info(f"Test successful - extracted shape: {test_result.shape}")
+            except Exception as test_error:
+                self.logger.error(f"Activation extraction test failed: {test_error}")
+                raise ValueError(f"Activation extraction test failed: {test_error}")
             
             # Create activation directories
             activation_base = Path(self.config.dataset_dir) / "activations"
             (activation_base / "correct").mkdir(parents=True, exist_ok=True)
             (activation_base / "incorrect").mkdir(parents=True, exist_ok=True)
             
-            self.logger.info(f"Activation extraction enabled for layers: {self.config.activation_layers}")
+            self.logger.info(f"✅ Activation extraction enabled for layers: {self.config.activation_layers}")
             
         except Exception as e:
-            self.logger.error(f"Failed to setup activation extraction: {e}")
-            raise  # Fail fast - this is required functionality
+            self.logger.error(f"❌ Failed to setup activation extraction: {e}")
+            self.logger.error("This is a critical error - activation extraction is required for Phase 1")
+            raise RuntimeError(f"Activation extraction setup failed: {e}") from e
     
     def process_record(self, idx: int) -> CodeGenerationResult:
         """
@@ -186,6 +218,10 @@ class DatasetBuilder:
     
     def _save_activations(self, prompt: str, task_id: str, is_correct: bool):
         """Extract and save activations for configured layers."""
+        if not self.activation_extractor:
+            self.logger.error(f"Activation extractor not initialized for {task_id}")
+            return
+            
         try:
             for layer_idx in self.config.activation_layers:
                 # Extract activations
@@ -196,17 +232,27 @@ class DatasetBuilder:
                     hook_type=self.config.activation_hook_type
                 )
                 
+                # Validate extracted data
+                if activation_data.activations.numel() == 0:
+                    raise ValueError(f"Empty activations extracted for layer {layer_idx}")
+                
                 # Save to correct directory
                 subdir = "correct" if is_correct else "incorrect"
                 activation_dir = Path(self.config.dataset_dir) / "activations" / subdir
                 filepath = activation_dir / f"{task_id}_layer_{layer_idx}.npz"
                 
                 save_activation_data(activation_data, filepath)
-                self.logger.debug(f"Saved activations for {task_id} layer {layer_idx}")
+                self.logger.debug(f"✅ Saved activations for {task_id} layer {layer_idx} - shape: {activation_data.shape}")
+                
+                # Verify file was actually created
+                if not filepath.exists():
+                    raise IOError(f"Activation file was not created: {filepath}")
                 
         except Exception as e:
-            self.logger.error(f"Failed to save activations for {task_id}: {e}")
-            # Continue processing even if activation extraction fails
+            self.logger.error(f"❌ Failed to save activations for {task_id}: {e}")
+            self.logger.error(f"This may indicate a problem with activation extraction for prompt length {len(prompt)}")
+            # Continue processing even if activation extraction fails for individual records
+            # But log detailed error information for debugging
     
     def _get_complexity(self, task_id: int) -> int:
         """Get complexity score from pre-computed difficulty mapping."""
