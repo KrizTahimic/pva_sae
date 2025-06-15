@@ -89,6 +89,21 @@ The pipeline automatically discovers outputs from previous phases, creating a se
 
 ### Phase-Specific Examples
 
+#### Phase 1.2 Testing
+```bash
+# Test with just 3 validation samples at 2 temperatures
+python3 run.py phase 1.2 --samples 3 --test-temps 0.3 0.6 --test-samples-per-temp 2
+
+# Quick test with 5 samples using default temperatures
+python3 run.py phase 1.2 --samples 5
+
+# Test specific model with limited samples
+python3 run.py phase 1.2 --samples 10 --model google/gemma-2-2b
+```
+
+Test mode outputs to `data/test_phase1_2/` to keep production data clean.
+
+#### Other Phase Examples
 ```bash
 # Quick test with small dataset
 python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 10
@@ -97,8 +112,8 @@ python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 10
 python3 run.py phase 0 --dry-run
 
 # Override auto-discovery with specific files
-python3 run.py phase 1 --difficulty-mapping data/phase0/specific_mapping.parquet
-python3 run.py phase 2 --dataset data/phase1/specific_dataset.parquet
+python3 run.py phase 1 --input data/phase0/specific_mapping.parquet
+python3 run.py phase 2 --input data/phase1/specific_dataset.parquet
 ```
 
 ## Project Structure
@@ -193,6 +208,51 @@ python3 multi_gpu_launcher.py --phase 1.2 --gpus 0,1 --model google/gemma-2-2b
 - Graceful interruption handling (Ctrl+C stops all processes)
 - Progress monitoring across all GPUs
 - Automatic result merging for Phase 1
+
+## Phase 1.2: Temperature Generation Testing
+
+Phase 1.2 generates multiple samples at different temperatures for the validation split. For development and testing, you can use special arguments to process a subset:
+
+### Test Mode Arguments
+- `--samples N`: Process only the first N validation samples (default: all)
+- `--test-temps T1 T2 ...`: Override temperature values (default: 0.3 0.6 0.9 1.2)
+- `--test-samples-per-temp N`: Override samples per temperature (default: 5)
+
+### Example Commands
+```bash
+# Minimal test: 3 samples, 2 temps, 2 samples each = 12 total generations
+python3 run.py phase 1.2 --samples 3 --test-temps 0.3 0.6 --test-samples-per-temp 2
+
+# Medium test: 10 samples with default settings = 200 total generations
+python3 run.py phase 1.2 --samples 10
+
+# Test with specific model
+python3 run.py phase 1.2 --samples 5 --model google/gemma-2-2b
+
+# Production run: all validation samples at all temperatures
+python3 run.py phase 1.2 --model google/gemma-2-2b
+```
+
+### Test Output Structure
+Test mode outputs to `data/test_phase1_2/` with the same structure as production:
+```
+data/test_phase1_2/
+├── output/
+│   ├── dataset_temp_0_3.parquet
+│   ├── dataset_temp_0_6.parquet
+│   ├── metadata.json
+│   └── activations/
+│       ├── temp_0_3/
+│       │   ├── correct/
+│       │   └── incorrect/
+│       └── temp_0_6/
+```
+
+This allows you to:
+- Quickly verify the pipeline works before full runs
+- Test specific temperature combinations
+- Debug activation extraction without processing hundreds of samples
+- Keep test data separate from production data
 
 ## Output Files and Naming Convention
 
