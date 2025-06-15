@@ -475,7 +475,8 @@ def run_phase1_2(config: Config, logger, device: str):
     """Run Phase 1.2: Temperature Variation Generation for validation split"""
     from phase1_2_temperature_generation import TemperatureVariationGenerator, TemperatureConfig
     from common.models import ModelManager
-    from common.utils import discover_latest_phase_output, setup_cuda_environment
+    from common.utils import discover_latest_phase_output
+    from common.gpu_utils import setup_cuda_environment
     
     logger.info("Starting Phase 1.2: Temperature Variation Generation")
     logger.info("This phase generates multiple temperature variations for the validation split")
@@ -483,8 +484,8 @@ def run_phase1_2(config: Config, logger, device: str):
     # Log configuration
     logger.info("\n" + config.dump(phase="1.2"))
     
-    # Setup CUDA for generation
-    if device != "cpu":
+    # Setup CUDA for generation (only for NVIDIA GPUs)
+    if device == "cuda":
         setup_cuda_environment()
     
     # Check for test mode arguments
@@ -600,9 +601,9 @@ def run_phase1_2(config: Config, logger, device: str):
         
     except Exception as e:
         logger.error(f"Phase 1.2 failed: {e}")
-        if config.verbose:
-            import traceback
-            logger.error(f"Traceback:\n{traceback.format_exc()}")
+        # Always show traceback for debugging
+        import traceback
+        logger.error(f"Traceback:\n{traceback.format_exc()}")
         raise
     finally:
         # Cleanup

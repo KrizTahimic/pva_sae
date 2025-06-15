@@ -99,6 +99,8 @@ python3 run.py phase 1.2 --samples 5
 
 # Test specific model with limited samples
 python3 run.py phase 1.2 --samples 10 --model google/gemma-2-2b
+
+python3 run.py phase 1.2 --samples 2 --test-samples-per-temp 2
 ```
 
 Test mode outputs to `data/test_phase1_2/` to keep production data clean.

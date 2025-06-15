@@ -206,7 +206,6 @@ python3 run.py phase 3 --input data/phase2/specific_results.json
 
 ### Problem-Solving Approach
 - **Root cause analysis**: Avoid bandaid fixes and really fix the root of the problem
-- **Investigate thoroughly**: Understand the underlying issue before implementing solutions
 - **Systematic debugging**: Use proper debugging techniques rather than quick patches
 
 ### Naming & Structure

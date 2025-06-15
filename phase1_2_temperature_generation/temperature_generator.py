@@ -25,6 +25,7 @@ from common.activation_extraction import (
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.utils import torch_memory_cleanup, discover_latest_phase_output
+from phase1_0_dataset_building.dataset_manager import DatasetManager
 
 from .config import TemperatureConfig
 
@@ -83,6 +84,10 @@ class TemperatureVariationGenerator:
             model_manager.device,
             global_config
         )
+        
+        # Initialize dataset manager for MBPP data access
+        self.mbpp_dataset = DatasetManager()
+        self.mbpp_dataset.load_dataset()
         
         # Validate configuration
         self.config.validate()
@@ -225,14 +230,17 @@ class TemperatureVariationGenerator:
         """Generate solution for a single task at given temperature."""
         start_time = time.time()
         
+        # Get the actual MBPP record using task_id
+        mbpp_record = self.mbpp_dataset.get_record(int(row['task_id']))
+        
         # Create prompt using the same format as Phase 1
         # Extract test cases from test_list 
         test_cases_str = "\n".join([
-            f"assert {test.strip()}" for test in row['test_list']
+            f"assert {test.strip()}" for test in mbpp_record['test_list']
         ])
         
         prompt = PromptBuilder.build_prompt(
-            problem_description=row['text'],
+            problem_description=mbpp_record['text'],
             test_cases=test_cases_str
         )
         
@@ -251,10 +259,10 @@ class TemperatureVariationGenerator:
             from phase1_0_dataset_building.solution_evaluator import SolutionEvaluator
             eval_result = SolutionEvaluator.evaluate_solution(
                 gen_result.generated_text,
-                row['test_list']
+                mbpp_record['test_list']
             )
-            test_passed = eval_result.overall_success
-            error_message = eval_result.error_message if not eval_result.overall_success else None
+            test_passed = eval_result.passed == eval_result.total
+            error_message = "; ".join(eval_result.errors) if eval_result.errors else None
         else:
             error_message = gen_result.error_message
         
