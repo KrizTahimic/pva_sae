@@ -10,6 +10,29 @@ data/datasets/*
 !data/logs/.gitkeep
 !data/datasets/.gitkeep
 
+# Data files - ignore all data outputs but keep directory structure
+data/**/*.parquet
+data/**/*.npz
+data/**/*.json
+data/**/*.pkl
+data/**/*.csv
+data/**/*.txt
+data/**/*.log
+data/**/*.png
+data/**/*.jpg
+data/**/*.html
+
+# Keep directory structure markers
+!data/**/.gitkeep
+
+# Phase-specific data (in case of nested structures)
+data/phase*/**
+!data/phase*/.gitkeep
+!data/phase*/README.md
+data/test_phase*/**
+!data/test_phase*/.gitkeep
+!data/test_phase*/README.md
+
 # IDE and editor files
 .vscode/
 .idea/
