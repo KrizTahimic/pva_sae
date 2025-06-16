@@ -99,7 +99,6 @@ class MBPPDifficultyAnalyzer:
                     'text': record.get('text', ''),
                     'code': record.get('code', ''),
                     'test_list': record.get('test_list', []),
-                    'test_imports': record.get('test_imports', ''),
                     'cyclomatic_complexity': cyclomatic_complexity
                 }
                 enriched_records.append(enriched_record)

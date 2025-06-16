@@ -181,7 +181,7 @@ class DatasetManager:
             df = pd.read_parquet(enriched_path)
             
             # Validate required columns
-            required_columns = ['task_id', 'text', 'code', 'test_list', 'test_imports', 'cyclomatic_complexity']
+            required_columns = ['task_id', 'text', 'code', 'test_list', 'cyclomatic_complexity']
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
                 raise RuntimeError(
