@@ -8,12 +8,14 @@ for language models used in the project.
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from typing import Optional, Dict, Any, Union
-from logging import getLogger
 import gc
 from contextlib import contextmanager
 
 from common.utils import detect_device, get_optimal_dtype, get_memory_usage
 from common.config import Config
+from common.logging import get_logger
+
+# No module-level logger - initialized per instance to respect phase context
 
 
 class ModelManager:
@@ -31,7 +33,7 @@ class ModelManager:
         self.tokenizer = None
         self.device = None
         self.dtype = None
-        self.logger = getLogger(__name__)
+        self.logger = get_logger("models")  # Create logger per instance
         
         # Setup device and dtype
         self._setup_device_and_dtype()

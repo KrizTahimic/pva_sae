@@ -13,7 +13,6 @@ import torch.nn as nn
 import numpy as np
 from typing import List, Tuple, Dict, Union, Optional, Any
 from dataclasses import dataclass
-import logging
 from pathlib import Path
 import contextlib
 import json
@@ -23,8 +22,10 @@ from datetime import datetime
 from huggingface_hub import hf_hub_download
 from common.config import Config
 from common.utils import memory_mapped_array, torch_memory_cleanup, torch_no_grad_and_cleanup
+from common.logging import get_logger
 
-logger = logging.getLogger(__name__)
+# Module-level logger - uses global phase context
+logger = get_logger("sae_analyzer")
 
 
 @dataclass

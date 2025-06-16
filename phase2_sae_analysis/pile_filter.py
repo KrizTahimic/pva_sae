@@ -9,7 +9,6 @@ import torch
 import numpy as np
 from typing import List, Tuple, Dict, Optional, Any
 from pathlib import Path
-import logging
 import json
 import random
 from datetime import datetime
@@ -20,8 +19,10 @@ import gc
 from .sae_analyzer import SeparationScores
 from common.utils import torch_memory_cleanup, torch_no_grad_and_cleanup, atomic_file_write
 from common.utils import get_phase_dir
+from common.logging import get_logger
 
-logger = logging.getLogger(__name__)
+# Module-level logger - uses global phase context
+logger = get_logger("pile_filter")
 
 
 class PileFilter:

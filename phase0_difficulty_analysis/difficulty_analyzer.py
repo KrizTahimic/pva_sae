@@ -12,9 +12,8 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-from common.utils import get_timestamp, ensure_directory_exists
-from common.logging import LoggingManager
-from common.utils import get_phase_dir
+from common.utils import get_timestamp, ensure_directory_exists, get_phase_dir
+from common.logging import get_logger
 
 
 def get_cyclomatic_complexity(code: str) -> int:
@@ -59,8 +58,7 @@ class MBPPDifficultyAnalyzer:
             output_dir: Directory to save difficulty mapping
         """
         self.output_dir = Path(output_dir or get_phase_dir(0))
-        logging_manager = LoggingManager(log_dir="data/logs")
-        self.logger = logging_manager.setup_logging(__name__)
+        self.logger = get_logger("difficulty_analyzer", phase="0")
         
         ensure_directory_exists(str(self.output_dir))
         self.logger.info("MBPPDifficultyAnalyzer initialized")

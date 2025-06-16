@@ -5,10 +5,13 @@ This module handles the evaluation of generated code solutions against test case
 to determine correctness according to the pass@1 criterion for dataset building.
 """
 
-import logging
 from typing import Optional, Tuple, List, Dict, Any
 
 from phase1_0_dataset_building.dataset_manager import CodeTestResult
+from common.logging import get_logger
+
+# Module-level logger
+logger = get_logger("solution_evaluator", phase="1.0")
 
 
 class SolutionEvaluator:
@@ -47,7 +50,7 @@ class SolutionEvaluator:
         Returns:
             CodeTestResult: Results of solution evaluation
         """
-        logger = logging.getLogger(__name__)
+        # Use module-level logger
         
         if task_id:
             logger.debug(f"Evaluating solution for task {task_id}")
@@ -77,7 +80,7 @@ class SolutionEvaluator:
         Returns:
             CodeTestResult: Results of solution evaluation
         """
-        logger = logging.getLogger(__name__)
+        # Use module-level logger
         task_id = record['task_id']
         logger.debug(f"PROBLEM:\n{record['text']}")
         
@@ -90,7 +93,7 @@ class SolutionEvaluator:
     @staticmethod
     def _log_evaluation_setup(code: str, test_cases: List[str]):
         """Log evaluation setup information"""
-        logger = logging.getLogger(__name__)
+        # Use module-level logger
         logger.debug(f"CODE TO EVALUATE:\n{code}")
         logger.debug("TEST CASES:")
         for i, test in enumerate(test_cases):
@@ -99,7 +102,7 @@ class SolutionEvaluator:
     @staticmethod
     def _evaluate_test_cases(test_cases: List[str], namespace: dict) -> CodeTestResult:
         """Evaluate all test cases and collect results"""
-        logger = logging.getLogger(__name__)
+        # Use module-level logger
         passed_tests = 0
         total_tests = len(test_cases)
         errors = []
@@ -151,7 +154,7 @@ class SafeSolutionEvaluator(SolutionEvaluator):
         if not hasattr(signal, 'SIGALRM'):
             return SolutionEvaluator.evaluate_solution(code, test_cases, task_id)
         
-        logger = logging.getLogger(__name__)
+        # Use module-level logger
         
         if task_id:
             logger.debug(f"Evaluating solution for task {task_id} with timeout {timeout}s")

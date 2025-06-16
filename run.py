@@ -27,7 +27,7 @@ import torch
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from common.logging import LoggingManager
+from common.logging import LoggingManager, set_logging_phase
 from common.gpu_utils import cleanup_gpu_memory, ensure_gpu_available, setup_cuda_environment
 from common import MAX_NEW_TOKENS
 from common.config import Config
@@ -312,27 +312,26 @@ def run_phase0(config: Config, logger, device: str, dry_run: bool = False):
 
 
 def run_phase1(config: Config, logger, device: str):
-    """Run Phase 1: Dataset Building"""
+    """Run Phase 1: Dataset Building using SAE split"""
     from phase1_0_dataset_building import Phase1Orchestrator
-    from common.utils import discover_latest_phase_output
+    from pathlib import Path
     
     logger.info("Starting Phase 1: Dataset Building")
-    logger.info(f"Model: {config.model_name}, Range: {config.dataset_start_idx}-{config.dataset_end_idx}")
+    logger.info(f"Model: {config.model_name}, Split: sae")
     logger.info("Processing mode: Sequential (use multi_gpu_launcher.py for parallel processing)")
     
     # Log configuration
     logger.info("\n" + config.dump(phase="1"))
     
-    # Verify Phase 0 has been run (enriched dataset must exist)
-    logger.info("Checking for enriched dataset from Phase 0...")
-    enriched_path = discover_latest_phase_output("0")
-    if not enriched_path:
-        logger.error(f"No enriched dataset found in {config.phase0_output_dir}/")
-        logger.error("Phase 1 requires Phase 0 to be completed first.")
-        logger.error("Please run: python3 run.py phase 0")
+    # Verify Phase 0.1 has been run (split files must exist)
+    sae_split_path = Path(config.phase0_1_output_dir) / "sae_mbpp.parquet"
+    if not sae_split_path.exists():
+        logger.error(f"SAE split not found at {sae_split_path}")
+        logger.error("Phase 1 requires Phase 0.1 to be completed first.")
+        logger.error("Please run: python3 run.py phase 0.1")
         sys.exit(1)
     
-    logger.info(f"Found enriched dataset: {enriched_path}")
+    logger.info(f"Found SAE split: {sae_split_path}")
     
     # Setup CUDA environment and cleanup GPUs before starting
     if torch.cuda.is_available():
@@ -346,9 +345,9 @@ def run_phase1(config: Config, logger, device: str):
             logger.warning(f"GPU {gpu_device} not responsive, attempting cleanup...")
             cleanup_gpu_memory(gpu_device)
     
-    # Create orchestrator with unified config (no longer needs difficulty_mapping)
+    # Create orchestrator with SAE split
     orchestrator = Phase1Orchestrator(
-        difficulty_mapping=None,  # No longer needed - complexity in enriched dataset
+        split_name='sae',  # Always use SAE split for Phase 1
         config=config
     )
     
@@ -1368,10 +1367,19 @@ def main():
         parser.print_help()
         sys.exit(1)
     
-    # Setup logging
+    # Set global phase context first
+    phase = args.phase if hasattr(args, 'phase') and args.phase else None
+    if phase is not None:
+        set_logging_phase(phase)
+    
+    # Setup logging with phase context
     log_level = "DEBUG" if hasattr(args, 'verbose') and args.verbose else "INFO"
-    logging_manager = LoggingManager(log_level=log_level, log_dir="data/logs")
-    logger = logging_manager.setup_logging(__name__)
+    logging_manager = LoggingManager(
+        phase=phase,
+        log_level=log_level, 
+        log_dir="data/logs"
+    )
+    logger = logging_manager.setup_logging("main")
     
     # Detect device once for the entire application
     try:

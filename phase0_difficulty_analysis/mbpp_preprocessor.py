@@ -5,12 +5,11 @@ This module provides the main orchestrator for preprocessing the MBPP dataset
 with difficulty analysis before any LLM interaction.
 """
 
-import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
 import pandas as pd
 
-from common.logging import LoggingManager
+from common.logging import get_logger
 from .difficulty_analyzer import MBPPDifficultyAnalyzer
 from common.utils import get_phase_dir
 from datasets import load_dataset
@@ -27,8 +26,7 @@ class MBPPPreprocessor:
             output_dir: Directory to save preprocessed data
         """
         self.output_dir = Path(output_dir or get_phase_dir(0))
-        logging_manager = LoggingManager(log_dir="data/logs")
-        self.logger = logging_manager.setup_logging(__name__)
+        self.logger = get_logger("mbpp_preprocessor", phase="0")
         
         # Initialize difficulty analyzer
         self.difficulty_analyzer = MBPPDifficultyAnalyzer(str(output_dir))

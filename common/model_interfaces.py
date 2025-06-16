@@ -6,7 +6,6 @@ extraction capabilities for seamless use across all project phases.
 """
 
 import torch
-import logging
 from typing import List, Dict, Any, Optional, Union, Tuple
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,9 +21,9 @@ from common.activation_extraction import (
 )
 from common.config import Config
 from common.utils import torch_memory_cleanup
+from common.logging import get_logger
 
-
-logger = logging.getLogger(__name__)
+# No module-level logger - initialized per instance to respect phase context
 
 
 @dataclass
@@ -77,7 +76,7 @@ class UnifiedModelInterface:
         self.model = None
         self.tokenizer = None
         
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger("model_interfaces")  # Create logger per instance
     
     def load_model(self, num_gpus: int = 1, as_transformer_lens: bool = False) -> None:
         """
@@ -294,7 +293,7 @@ class ModelSteeringInterface:
             unified_interface: Initialized UnifiedModelInterface
         """
         self.interface = unified_interface
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger("model_interfaces")  # Create logger per instance
     
     def apply_pva_steering(
         self,

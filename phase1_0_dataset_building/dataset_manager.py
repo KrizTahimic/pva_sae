@@ -6,13 +6,16 @@ loading, prompt template generation, and data validation.
 """
 
 import pandas as pd
-import logging
 from typing import Optional, Any, Dict, List, Tuple
 from dataclasses import dataclass, asdict
 
 # Import common utilities and phase config
 from common.utils import get_phase_dir, discover_latest_phase_output
 from common.prompt_utils import PromptBuilder
+from common.logging import get_logger
+
+# Module-level logger  
+logger = get_logger("dataset_manager", phase="1.0")
 
 # Configuration constants
 DEFAULT_CODE_INITIATOR = "# Your code here:"
@@ -151,52 +154,53 @@ class DatasetManager:
         self.dataset = None
         self.test_data = None
         self._is_loaded = False
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger  # Use module-level logger
     
-    def load_dataset(self, enriched_path: Optional[str] = None):
-        """Load MBPP dataset from local enriched file.
+    def load_dataset(self, split_name: str = 'sae'):
+        """Load MBPP dataset from Phase 0.1 split file.
         
         Args:
-            enriched_path: Optional path to enriched dataset. If None, auto-discovers from Phase 0.
+            split_name: Name of split to load ('sae', 'hyperparams', or 'validation')
             
         Raises:
-            RuntimeError: If enriched dataset is not found or cannot be loaded.
+            RuntimeError: If split file is not found or cannot be loaded.
         """
         if self._is_loaded:
-            self.logger.info("MBPP dataset already loaded")
+            self.logger.info(f"MBPP {split_name} split already loaded")
             return
         
         try:
-            # Auto-discover enriched dataset if path not provided
-            if enriched_path is None:
-                enriched_path = discover_latest_phase_output("0")
-                if not enriched_path:
-                    raise RuntimeError(
-                        "No enriched dataset found. Please run Phase 0 first: python3 run.py phase 0"
-                    )
-                self.logger.info(f"Auto-discovered enriched dataset: {enriched_path}")
+            # Build path to split file
+            from pathlib import Path
+            split_path = Path(get_phase_dir('0.1')) / f"{split_name}_mbpp.parquet"
             
-            # Load enriched dataset
-            self.logger.info(f"Loading enriched MBPP dataset from: {enriched_path}")
-            df = pd.read_parquet(enriched_path)
+            if not split_path.exists():
+                raise RuntimeError(
+                    f"Split file not found: {split_path}. "
+                    f"Please run Phase 0.1 first: python3 run.py phase 0.1"
+                )
+            
+            # Load split dataset
+            self.logger.info(f"Loading {split_name} split from: {split_path}")
+            df = pd.read_parquet(split_path)
             
             # Validate required columns
             required_columns = ['task_id', 'text', 'code', 'test_list', 'cyclomatic_complexity']
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
                 raise RuntimeError(
-                    f"Enriched dataset missing required columns: {missing_columns}. "
-                    "Please re-run Phase 0 with the latest code."
+                    f"Split file missing required columns: {missing_columns}. "
+                    "Please re-run Phase 0.1 with the latest code."
                 )
             
             # Convert DataFrame to list of dicts for compatibility
             self.test_data = df.to_dict('records')
             self._is_loaded = True
-            self.logger.info(f"Enriched MBPP dataset loaded: {len(self.test_data)} examples")
+            self.logger.info(f"Loaded {split_name} split: {len(self.test_data)} problems")
             
         except Exception as e:
-            self.logger.error(f"Failed to load enriched dataset: {str(e)}")
-            raise RuntimeError(f"Failed to load enriched dataset: {str(e)}") from e
+            self.logger.error(f"Failed to load {split_name} split: {str(e)}")
+            raise RuntimeError(f"Failed to load {split_name} split: {str(e)}") from e
     
     def get_record(self, idx: int) -> dict:
         """Retrieve record by index with validation"""

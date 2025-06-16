@@ -8,7 +8,10 @@ focused on building datasets efficiently with clean separation of concerns.
 from os import close as os_close, unlink
 from os.path import join as path_join, exists as path_exists, basename, dirname
 import time
-from logging import getLogger
+from common.logging import get_logger
+
+# Module-level logger will be initialized on first use
+logger = None
 from pandas import DataFrame
 from typing import List, Dict, Any, Optional
 from pathlib import Path
@@ -38,7 +41,7 @@ class DatasetBuilder:
                  model_manager: ModelManager,
                  dataset_manager: DatasetManager,
                  config: Config,
-                 difficulty_mapping: Optional[Dict[str, Any]] = None):
+                 split_name: str):
         """
         Initialize dataset builder with clean configuration.
         
@@ -46,12 +49,12 @@ class DatasetBuilder:
             model_manager: Initialized model manager
             dataset_manager: Initialized dataset manager
             config: Dataset configuration
-            difficulty_mapping: Pre-computed difficulty mapping from Phase 0
+            split_name: Name of split being processed ('sae', 'hyperparams', or 'validation')
         """
         self.model_manager = model_manager
         self.dataset_manager = dataset_manager
         self.config = config
-        self.difficulty_mapping = difficulty_mapping or {}
+        self.split_name = split_name
         
         # Initialize generator
         self.generator = RobustGenerator(
@@ -62,7 +65,12 @@ class DatasetBuilder:
         
         # Tracking
         self.current_results = []
-        self.logger = getLogger(__name__)
+        
+        # Initialize module logger if needed
+        global logger
+        if logger is None:
+            logger = get_logger("dataset_builder", phase="1.0")
+        self.logger = logger
         
         # Setup activation extraction
         self.activation_extractor = None
@@ -323,6 +331,7 @@ class DatasetBuilder:
         metadata = {
             'creation_timestamp': datetime.now().isoformat(),
             'model_name': self.model_manager.config.model_name,
+            'split_name': self.split_name,  # Include split name in metadata
             'total_records': len(results),
             'correct_count': correct_count,
             'incorrect_count': len(results) - correct_count,

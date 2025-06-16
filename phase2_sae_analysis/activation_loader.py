@@ -5,15 +5,16 @@ This module provides utilities for loading saved activations from Phase 1,
 avoiding the need to reload models and re-extract activations.
 """
 
-import logging
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 import torch
 import numpy as np
 
 from common import load_activation_data, ActivationData
+from common.logging import get_logger
 
-logger = logging.getLogger(__name__)
+# Module-level logger - uses global phase context
+logger = get_logger("activation_loader")
 
 
 class ActivationLoader:

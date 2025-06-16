@@ -5,10 +5,13 @@ Simple functions for GPU and memory monitoring to prevent zombie CUDA processes.
 """
 
 import gc
-import logging
 from typing import Dict, Any, Optional
 
 import torch
+from common.logging import get_logger
+
+# Module-level logger
+logger = get_logger("resource_monitor", phase="1.0")
 
 
 def check_gpu_memory() -> Dict[str, Any]:
@@ -42,7 +45,7 @@ def cleanup_gpu_memory():
     """
     Force GPU memory cleanup to prevent zombie processes.
     """
-    logger = logging.getLogger(__name__)
+    # Use module-level logger
     
     if not torch.cuda.is_available():
         return
@@ -73,7 +76,7 @@ def monitor_resources(warn_threshold_gb: float = 25.0) -> bool:
     Returns:
         True if resources are healthy, False if cleanup is recommended
     """
-    logger = logging.getLogger(__name__)
+    # Use module-level logger
     
     if not torch.cuda.is_available():
         return True
@@ -135,7 +138,7 @@ def check_for_zombie_processes() -> bool:
     if not torch.cuda.is_available():
         return False
     
-    logger = logging.getLogger(__name__)
+    # Use module-level logger
     
     try:
         # Check if CUDA is responsive
@@ -166,7 +169,7 @@ def ensure_gpu_available(device_id: int = 0, timeout: float = 5.0) -> bool:
     if not torch.cuda.is_available():
         return False
     
-    logger = logging.getLogger(__name__)
+    # Use module-level logger
     
     try:
         # Set device
@@ -190,7 +193,7 @@ def ensure_gpu_available(device_id: int = 0, timeout: float = 5.0) -> bool:
 
 def log_resource_summary():
     """Log a summary of current resource usage."""
-    logger = logging.getLogger(__name__)
+    # Use module-level logger
     
     # CPU memory
     cpu_mem = get_cpu_memory_usage()

@@ -9,13 +9,14 @@ import torch
 import numpy as np
 from typing import List, Dict, Tuple, Optional
 from pathlib import Path
-import logging
 
 from phase2_sae_analysis.activation_loader import ActivationLoader
 from common.activation_extraction import ActivationData
 from common import load_activation_data
+from common.logging import get_logger
 
-logger = logging.getLogger(__name__)
+# Module-level logger - uses global phase context
+logger = get_logger("temperature_aggregation")
 
 
 class TemperatureActivationLoader(ActivationLoader):

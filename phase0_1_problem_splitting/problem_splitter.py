@@ -14,12 +14,13 @@ import pandas as pd
 from json import dump as json_dump, load as json_load
 from pathlib import Path
 from typing import List, Tuple, Dict, Optional, Union
-from logging import getLogger
 from datetime import datetime
 
 from common.config import Config
+from common.logging import get_logger
 
-logger = getLogger(__name__)
+# Module-level logger
+logger = get_logger("problem_splitter", phase="0.1")
 
 
 def split_problems(

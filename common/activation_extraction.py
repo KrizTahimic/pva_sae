@@ -8,7 +8,6 @@ with memory-efficient extraction and storage.
 import torch
 import torch.nn as nn
 import contextlib
-import logging
 from typing import List, Tuple, Dict, Union, Optional, Any, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,9 +18,9 @@ import numpy as np
 
 from common.utils import torch_memory_cleanup, torch_no_grad_and_cleanup
 from common.config import Config
+from common.logging import get_logger
 
-
-logger = logging.getLogger(__name__)
+# No module-level logger - use get_logger() when needed to respect phase context
 
 
 @dataclass
@@ -76,9 +75,9 @@ def save_activation_data(data: ActivationData, filepath: Path) -> None:
             hook_type=data.hook_type,
             prompt_count=data.prompt_count
         )
-        logger.debug(f"Saved activation data to {filepath}")
+        get_logger("activation_extraction").debug(f"Saved activation data to {filepath}")
     except Exception as e:
-        logger.error(f"Failed to save activation data to {filepath}: {e}")
+        get_logger("activation_extraction").error(f"Failed to save activation data to {filepath}: {e}")
         raise IOError(f"Cannot write to {filepath}: {e}")
 
 
@@ -147,7 +146,7 @@ class ActivationCache:
         """
         self.cache: Dict[str, torch.Tensor] = {}
         self.max_cache_size_gb = max_cache_size_gb
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger("activation_extraction")  # Create logger per instance
     
     def store(self, key: str, activation: torch.Tensor) -> None:
         """Store activation with given key."""
@@ -217,7 +216,7 @@ class BaseActivationExtractor:
         self.device = device
         self.config = config or Config()
         self.cache = ActivationCache(max_cache_size_gb=self.config.activation_max_cache_gb)
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger("activation_extraction")  # Create logger per instance
     
     def clear_cache(self) -> None:
         """Clear activation cache."""

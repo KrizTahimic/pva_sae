@@ -8,12 +8,15 @@ from os import unlink
 from os.path import exists as path_exists, join as path_join, getmtime
 from json import dump as json_dump, load as json_load
 from glob import glob
-from logging import getLogger
 from typing import List, Optional, Any
 from datetime import datetime
 
 from common import atomic_file_write, ensure_directory_exists
 from phase1_0_dataset_building.dataset_manager import CodeGenerationResult, CodeTestResult
+from common.logging import get_logger
+
+# Module-level logger
+logger = get_logger("checkpoint_manager", phase="1.0")
 
 
 def save_checkpoint(results: List[CodeGenerationResult], 
@@ -30,7 +33,7 @@ def save_checkpoint(results: List[CodeGenerationResult],
     Returns:
         Path to saved checkpoint file
     """
-    logger = getLogger(__name__)
+    # Use module-level logger
     
     try:
         ensure_directory_exists(checkpoint_dir)
@@ -69,7 +72,7 @@ def load_checkpoint(checkpoint_path: str) -> List[CodeGenerationResult]:
     Returns:
         List of CodeGenerationResult objects
     """
-    logger = getLogger(__name__)
+    # Use module-level logger
     
     try:
         with open(checkpoint_path, 'r') as f:
@@ -136,7 +139,7 @@ def cleanup_old_checkpoints(checkpoint_dir: str, keep_last: int = 5):
         checkpoint_dir: Directory containing checkpoints
         keep_last: Number of recent checkpoints to keep
     """
-    logger = getLogger(__name__)
+    # Use module-level logger
     
     if not path_exists(checkpoint_dir):
         return

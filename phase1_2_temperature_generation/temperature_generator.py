@@ -12,7 +12,6 @@ from typing import List, Dict, Optional, Tuple
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import logging
 from dataclasses import dataclass, asdict
 import torch
 
@@ -25,9 +24,10 @@ from common.activation_extraction import (
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.utils import torch_memory_cleanup, discover_latest_phase_output
+from common.logging import get_logger
 
-
-logger = logging.getLogger(__name__)
+# Module-level logger
+logger = get_logger("temperature_generator", phase="1.2")
 
 
 @dataclass
@@ -69,7 +69,7 @@ class TemperatureVariationGenerator:
         """
         self.model_manager = model_manager
         self.config = config
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger  # Use module-level logger
         
         # Initialize components
         self.generator = RobustGenerator(model_manager, config)

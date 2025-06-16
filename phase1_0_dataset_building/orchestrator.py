@@ -5,12 +5,12 @@ This module contains a single orchestrator class that coordinates the entire
 dataset building process without complex inheritance.
 """
 
-import logging
 from os.path import join as path_join
 import time
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 from tqdm import tqdm
+import os
 
 from common import (
     LoggingManager,
@@ -29,18 +29,18 @@ class Phase1Orchestrator:
     """Single coordinator for Phase 1 dataset building workflow."""
     
     def __init__(self,
-                 difficulty_mapping: Dict[str, Any],
+                 split_name: str,
                  config: Config):
         """
-        Initialize Phase 1 orchestrator with unified configuration.
+        Initialize Phase 1 orchestrator for specific split.
         
         Args:
-            difficulty_mapping: Pre-computed difficulty mapping from Phase 0 (required)
+            split_name: Name of split to process ('sae', 'hyperparams', or 'validation')
             config: Unified configuration object (required)
         """
         # Store configurations
         self.config = config
-        self.difficulty_mapping = difficulty_mapping
+        self.split_name = split_name
         
         # Components (initialized lazily)
         self.logger = None
@@ -110,12 +110,22 @@ class Phase1Orchestrator:
             raise RuntimeError(f"Dataset building failed: {str(e)}") from e
     
     def _setup_logging(self):
-        """Initialize logging system."""
+        """Initialize logging system with phase context."""
+        # Extract GPU ID from environment if in multi-GPU mode
+        gpu_id = None
+        if 'CUDA_VISIBLE_DEVICES' in os.environ:
+            try:
+                gpu_id = int(os.environ['CUDA_VISIBLE_DEVICES'])
+            except (ValueError, TypeError):
+                pass
+        
         self.logging_manager = LoggingManager(
+            phase="1.0",
+            gpu_id=gpu_id,
             log_dir="data/logs",
             log_level="INFO"
         )
-        self.logger = self.logging_manager.setup_logging("phase1_orchestrator")
+        self.logger = self.logging_manager.setup_logging("orchestrator")
     
     def _log_configuration(self, start_idx: int, end_idx: int):
         """Log experiment configuration."""
@@ -140,12 +150,12 @@ class Phase1Orchestrator:
     
     def _setup_dataset(self):
         """Initialize dataset manager."""
-        self.logger.info("Loading MBPP dataset")
+        self.logger.info(f"Loading MBPP {self.split_name} split")
         self.dataset_manager = DatasetManager()
-        self.dataset_manager.load_dataset()
+        self.dataset_manager.load_dataset(split_name=self.split_name)
         
         dataset_size = self.dataset_manager.get_size()
-        self.logger.info(f"Dataset loaded: {dataset_size} problems")
+        self.logger.info(f"Dataset loaded: {dataset_size} problems from {self.split_name} split")
     
     def _setup_builder(self):
         """Initialize dataset builder."""
@@ -154,7 +164,7 @@ class Phase1Orchestrator:
             model_manager=self.model_manager,
             dataset_manager=self.dataset_manager,
             config=self.config,
-            difficulty_mapping=self.difficulty_mapping
+            split_name=self.split_name
         )
     
     def _check_for_checkpoint(self, start_idx: int, end_idx: int) -> Optional[List[Any]]:

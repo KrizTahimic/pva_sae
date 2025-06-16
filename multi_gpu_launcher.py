@@ -103,17 +103,39 @@ class MultiGPULauncher:
             extra_args: Additional arguments to pass
         """
         # Setup logging
-        logging_manager = LoggingManager(log_dir="data/logs")
+        logging_manager = LoggingManager(
+            phase="1.0",
+            log_dir="data/logs"
+        )
         self.logger = logging_manager.setup_logging("multi_gpu_launcher")
+        
+        # Check SAE split exists
+        sae_split_path = Path(get_phase_dir('0.1')) / "sae_mbpp.parquet"
+        if not sae_split_path.exists():
+            raise FileNotFoundError(
+                f"SAE split not found at {sae_split_path}. "
+                "Please run Phase 0.1 first: python3 run.py phase 0.1"
+            )
+        
+        # Load SAE split to get actual size
+        import pandas as pd
+        sae_df = pd.read_parquet(sae_split_path)
+        actual_size = len(sae_df)
+        
+        # Adjust end_idx if it exceeds actual SAE split size
+        if end_idx >= actual_size:
+            self.logger.info(f"Adjusting end_idx from {end_idx} to {actual_size - 1} (SAE split size: {actual_size})")
+            end_idx = actual_size - 1
         
         # Split workload
         splits = self.split_workload(start_idx, end_idx)
         
         print(f"\n{'='*60}")
-        print(f"MULTI-GPU PARALLEL PROCESSING")
+        print(f"MULTI-GPU PARALLEL PROCESSING - PHASE 1")
         print(f"{'='*60}")
         print(f"Total GPUs: {len(self.gpus)}")
-        print(f"Total range: {start_idx}-{end_idx} ({end_idx - start_idx + 1} items)")
+        print(f"SAE split size: {actual_size} problems")
+        print(f"Processing range: {start_idx}-{end_idx} ({end_idx - start_idx + 1} items)")
         print(f"Model: {model}")
         print(f"\nWorkload distribution:")
         
@@ -179,7 +201,10 @@ class MultiGPULauncher:
             extra_args: Additional arguments to pass
         """
         # Setup logging
-        logging_manager = LoggingManager(log_dir="data/logs")
+        logging_manager = LoggingManager(
+            phase="1.2",
+            log_dir="data/logs"
+        )
         self.logger = logging_manager.setup_logging("multi_gpu_launcher")
         
         # Load validation data to determine workload

@@ -3,10 +3,10 @@ import torch
 import gc
 import os
 import time
-import logging
 from typing import Optional
+from common.logging import get_logger
 
-logger = logging.getLogger(__name__)
+# No module-level logger - get logger when needed to respect phase context
 
 
 def cleanup_gpu_memory(device_id: Optional[int] = None) -> None:
@@ -34,9 +34,9 @@ def cleanup_gpu_memory(device_id: Optional[int] = None) -> None:
                 # Try to reset peak memory stats
                 torch.cuda.reset_peak_memory_stats()
                 
-            logger.info(f"GPU {device} memory cleaned")
+            get_logger("gpu_utils").info(f"GPU {device} memory cleaned")
         except Exception as e:
-            logger.warning(f"Failed to clean GPU {device}: {e}")
+            get_logger("gpu_utils").warning(f"Failed to clean GPU {device}: {e}")
 
 
 def ensure_gpu_available(device_id: int = 0, max_retries: int = 3) -> bool:
@@ -67,7 +67,7 @@ def ensure_gpu_available(device_id: int = 0, max_retries: int = 3) -> bool:
                 return True
                 
         except Exception as e:
-            logger.warning(f"GPU {device_id} test failed (attempt {attempt + 1}/{max_retries}): {e}")
+            get_logger("gpu_utils").warning(f"GPU {device_id} test failed (attempt {attempt + 1}/{max_retries}): {e}")
             if attempt < max_retries - 1:
                 time.sleep(2)  # Wait before retry
                 cleanup_gpu_memory(device_id)
@@ -107,4 +107,4 @@ def setup_cuda_environment():
     # Disable CUDA memory caching if needed
     # os.environ['CUDA_CACHE_DISABLE'] = '1'
     
-    logger.info("CUDA environment configured for stability")
+    get_logger("gpu_utils").info("CUDA environment configured for stability")

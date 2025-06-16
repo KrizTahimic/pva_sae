@@ -25,10 +25,10 @@ This research analyzes how language models internally represent the concept of c
 - Outputs complete parquet files for each split with all MBPP data and complexity scores
 
 ### Phase 1: Dataset Building
-- Uses MBPP dataset with pre-computed difficulty mappings from Phase 0
+- Uses the SAE split (50% of MBPP) from Phase 0.1 for dataset generation
 - Standardized prompt template: problem description + test cases + code initiator
 - Classification: correct (passes all 3 tests) vs incorrect
-- Generates solutions for all 974 problems (splits applied in later phases)
+- Generates solutions for 489 problems in the SAE split only
 
 ### Phase 2: SAE Analysis
 - Utilizes pre-trained SAEs from GemmaScope with JumpReLU architecture
@@ -76,7 +76,7 @@ python3 run.py phase 0
 # Phase 0.1: Split problems by difficulty (auto-discovers from phase0, outputs to data/phase0_1/)
 python3 run.py phase 0.1
 
-# Phase 1: Build dataset (auto-discovers from phase0, outputs to data/phase1_0/)
+# Phase 1: Build dataset (uses SAE split from phase0.1, outputs to data/phase1_0/)
 python3 run.py phase 1 --model google/gemma-2-2b
 
 # Phase 1.2: Generate temperature variations (uses phase0.1 splits, outputs to data/phase1_2/)
@@ -113,7 +113,7 @@ Test mode outputs to `data/test_phase1_2/` to keep production data clean.
 
 #### Other Phase Examples
 ```bash
-# Quick test with small dataset
+# Quick test with small dataset (first 10 problems from SAE split)
 python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 10
 
 # Run phase 0 without saving (dry run)
@@ -183,8 +183,8 @@ ls data/datasets/checkpoints/
 
 ### Production Features
 ```bash
-# Production build with full MBPP dataset
-python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 973 --cleanup
+# Production build with full SAE split (489 problems)
+python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 488 --cleanup
 
 # Enable progress streaming and verbose output
 python3 run.py phase 1 --model google/gemma-2-2b --stream --verbose
@@ -196,11 +196,11 @@ The project supports parallel processing across multiple GPUs for Phase 1 and Ph
 
 ### Phase 1: Dataset Building
 ```bash
-# Auto-detect all available GPUs
-python3 multi_gpu_launcher.py --phase 1 --start 0 --end 973 --model google/gemma-2-2b
+# Auto-detect all available GPUs (processes 489 SAE split problems)
+python3 multi_gpu_launcher.py --phase 1 --start 0 --end 488 --model google/gemma-2-2b
 
 # Use specific GPUs (e.g., GPUs 0, 1, and 2)
-python3 multi_gpu_launcher.py --phase 1 --gpus 0,1,2 --start 0 --end 973 --model google/gemma-2-2b
+python3 multi_gpu_launcher.py --phase 1 --gpus 0,1,2 --start 0 --end 488 --model google/gemma-2-2b
 ```
 
 ### Phase 1.2: Temperature Variations

@@ -104,7 +104,7 @@ This project uses both frameworks for different purposes:
 ## Memories
 - Always use `python3` (not python)
 - Use `python3 run.py test-gpu` to test GPU setup
-- Use `python3 multi_gpu_launcher.py --phase 1 --start 0 --end 973` for multi-GPU generation
+- Use `python3 multi_gpu_launcher.py --phase 1 --start 0 --end 488` for multi-GPU generation
 - Multi-GPU uses index-based work splitting, not batching
 - Phase 0.1 is CPU-only, splits problems based on difficulty from Phase 0
 - Phase 2 is CPU-only, uses saved activations from Phase 1
@@ -120,7 +120,7 @@ This project uses both frameworks for different purposes:
 
 ### Multi-GPU Workflow
 - **Distribution**: Index-based work splitting via multi_gpu_launcher.py (not Ray)
-- **Work allocation**: Each GPU gets contiguous dataset slice (e.g., 0-324, 325-649, 650-973)
+- **Work allocation**: Each GPU gets contiguous dataset slice (e.g., 0-162, 163-325, 326-488 for 3 GPUs)
 - **Process coordination**: Uses subprocess, not distributed computing framework
 - **Memory management**: Extract and save activations during Phase 1, load from disk in Phase 2
 
@@ -148,11 +148,11 @@ pip install accelerate
 # Phase 0: Generate difficulty mapping (outputs to data/phase0/)
 python3 run.py phase 0
 
-# Phase 1.0: Build dataset (single GPU)
+# Phase 1.0: Build dataset (single GPU) - uses SAE split (489 problems)
 python3 run.py phase 1 --model google/gemma-2-2b
 
-# Phase 1.0: Build dataset (multi-GPU)
-python3 multi_gpu_launcher.py --phase 1 --start 0 --end 973 --model google/gemma-2-2b
+# Phase 1.0: Build dataset (multi-GPU) - uses SAE split (489 problems)
+python3 multi_gpu_launcher.py --phase 1 --start 0 --end 488 --model google/gemma-2-2b
 
 # Phase 0.1: Split problems by difficulty
 python3 run.py phase 0.1
@@ -198,12 +198,10 @@ python3 run.py phase 3 --input data/phase2/specific_results.json
 - **YAGNI (You Ain't Gonna Need It)**: Don't add functionality until actually needed
 - **No Backward Compatibility**: Prioritize clean code over maintaining old interfaces
 - Fail fast and early. Avoid Fallbacks.
-- **Minimize Scope**: Declare variables in smallest scope possible, avoid global state
 - **DRY (Don't Repeat Yourself)**: Extract repeated code into reusable functions
-
-#### Implementation Guidelines- Prefer readability over cleverness
 - Avoid over-engineering for hypothetical futures
 - **Single Responsibility**: One clear purpose per function/class
+- **Minimize Scope**: Declare variables in smallest scope possible, avoid global state
 
 ### Problem-Solving Approach
 - **Root cause analysis**: Avoid bandaid fixes and really fix the root of the problem

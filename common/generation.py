@@ -6,16 +6,15 @@ temperature variation support, and advanced error handling for all project phase
 """
 
 import time
-from logging import getLogger
 from typing import Optional, List
 from dataclasses import dataclass
 
 from common.models import ModelManager
 from common.config import Config
 from common.utils import torch_memory_cleanup
+from common.logging import get_logger
 
-
-logger = getLogger(__name__)
+# No module-level logger - initialized per instance to respect phase context
 
 
 @dataclass
@@ -58,7 +57,7 @@ class RobustGenerator:
         self.model_manager = model_manager
         self.config = config or Config()
         self.default_max_new_tokens = default_max_new_tokens
-        self.logger = getLogger(__name__)
+        self.logger = get_logger("generation")  # Create logger per instance
         
         if not self.model_manager.model:
             raise RuntimeError("Model not loaded in ModelManager")

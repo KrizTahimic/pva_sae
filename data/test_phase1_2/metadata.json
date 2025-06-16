@@ -1,42 +1,21 @@
 {
-  "creation_timestamp": "2025-06-15T11:47:42.117153",
+  "creation_timestamp": "2025-06-16T11:33:58.409110",
   "temperatures": [
-    0.3,
-    0.6,
-    0.9,
-    1.2
+    0.5
   ],
-  "samples_per_temperature": 2,
-  "validation_indices": [
+  "samples_per_temperature": 1,
+  "validation_task_ids": [
     1,
-    2
+    5
   ],
   "n_tasks": 2,
-  "n_total_samples": 16,
+  "n_total_samples": 2,
   "temperature_stats": {
-    "0.3": {
-      "n_correct": 2,
+    "0.5": {
+      "n_correct": 0,
       "n_incorrect": 2,
-      "pass_rate": 0.5,
-      "avg_generation_time": 6.131996273994446
-    },
-    "0.6": {
-      "n_correct": 1,
-      "n_incorrect": 3,
-      "pass_rate": 0.25,
-      "avg_generation_time": 8.931761980056763
-    },
-    "0.9": {
-      "n_correct": 0,
-      "n_incorrect": 4,
       "pass_rate": 0.0,
-      "avg_generation_time": 8.00673621892929
-    },
-    "1.2": {
-      "n_correct": 0,
-      "n_incorrect": 4,
-      "pass_rate": 0.0,
-      "avg_generation_time": 24.024463951587677
+      "avg_generation_time": 19.507376432418823
     }
   }
 }
