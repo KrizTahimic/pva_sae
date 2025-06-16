@@ -469,31 +469,29 @@ def run_phase1_2(config: Config, logger, device: str):
         config.phase1_2_output_dir = output_dir
     
     # Check Phase 0.1 outputs exist
-    validation_task_ids_file = Path(config.phase0_1_output_dir) / "validation_task_ids.json"
-    if not validation_task_ids_file.exists():
-        logger.error(f"Validation task IDs not found at {validation_task_ids_file}")
+    validation_file = Path(config.phase0_1_output_dir) / "validation_mbpp.parquet"
+    if not validation_file.exists():
+        logger.error(f"Validation data not found at {validation_file}")
         logger.error("Please run Phase 0.1 first to create problem splits")
         sys.exit(1)
     
     # Handle --samples argument for testing with subset
     if hasattr(config, '_samples') and config._samples:
-        import json
-        with open(validation_task_ids_file, 'r') as f:
-            all_validation_task_ids = json.load(f)
+        import pandas as pd
+        validation_df = pd.read_parquet(validation_file)
         
-        # Take subset of validation task IDs
-        subset_size = min(config._samples, len(all_validation_task_ids))
-        subset_task_ids = all_validation_task_ids[:subset_size]
+        # Take subset of validation data
+        subset_size = min(config._samples, len(validation_df))
+        subset_df = validation_df.head(subset_size)
         
-        logger.info(f"Test mode: Using {subset_size} validation tasks out of {len(all_validation_task_ids)}")
+        logger.info(f"Test mode: Using {subset_size} validation tasks out of {len(validation_df)}")
         
         # Create temporary validation file with subset
         import tempfile
         temp_dir = Path(tempfile.mkdtemp(prefix="phase1_2_test_"))
-        temp_validation_file = temp_dir / "validation_task_ids.json"
+        temp_validation_file = temp_dir / "validation_mbpp.parquet"
         
-        with open(temp_validation_file, 'w') as f:
-            json.dump(subset_task_ids, f)
+        subset_df.to_parquet(temp_validation_file, index=False)
         
         # Update config to use temporary directory
         config.phase0_1_output_dir = str(temp_dir)
@@ -578,15 +576,15 @@ def run_phase2(config: Config, logger, device: str):
     # Force CPU usage for Phase 2
     device = "cpu"
     
-    # Load split task IDs from Phase 0.1
-    split_task_ids_file = Path(config.phase0_1_output_dir) / f"{split_name}_task_ids.json"
-    if not split_task_ids_file.exists():
-        logger.error(f"Split task IDs not found: {split_task_ids_file}")
+    # Load split data from Phase 0.1
+    split_file = Path(config.phase0_1_output_dir) / f"{split_name}_mbpp.parquet"
+    if not split_file.exists():
+        logger.error(f"Split data not found: {split_file}")
         logger.error("Please run Phase 0.1 first to create problem splits")
         sys.exit(1)
     
-    with open(split_task_ids_file, 'r') as f:
-        split_task_ids = json.load(f)
+    split_df = pd.read_parquet(split_file)
+    split_task_ids = split_df['task_id'].tolist()
     logger.info(f"Loaded {len(split_task_ids)} task IDs for {split_name} split")
     
     # Get dataset path from input or auto-discovery

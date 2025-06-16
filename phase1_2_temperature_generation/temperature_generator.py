@@ -25,7 +25,6 @@ from common.activation_extraction import (
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.utils import torch_memory_cleanup, discover_latest_phase_output
-from phase1_0_dataset_building.dataset_manager import DatasetManager
 
 
 logger = logging.getLogger(__name__)
@@ -81,9 +80,6 @@ class TemperatureVariationGenerator:
             config
         )
         
-        # Initialize dataset manager for MBPP data access
-        self.mbpp_dataset = DatasetManager()
-        self.mbpp_dataset.load_dataset()
         
         # Validate temperature configuration
         if not self.config.temperature_variation_temps:
@@ -106,23 +102,22 @@ class TemperatureVariationGenerator:
         """
         self.logger.info("Starting Phase 1.2: Temperature Variation Generation")
         
-        # Load validation task IDs
-        validation_task_ids = self._load_validation_task_ids()
-        self.logger.info(f"Loaded {len(validation_task_ids)} validation task IDs")
+        # Load validation data directly from Phase 0.1
+        validation_data = self._load_validation_data()
+        self.logger.info(f"Loaded {len(validation_data)} validation problems")
+        
+        # Extract task IDs for compatibility
+        validation_task_ids = validation_data['task_id'].tolist()
         
         # Check for multi-GPU task range from environment
         import os
         task_start = int(os.environ.get('TASK_START_IDX', '0'))
-        task_end = int(os.environ.get('TASK_END_IDX', str(len(validation_task_ids))))
+        task_end = int(os.environ.get('TASK_END_IDX', str(len(validation_data))))
         
-        if task_start > 0 or task_end < len(validation_task_ids):
-            self.logger.info(f"Multi-GPU mode: Processing task IDs {task_start}-{task_end-1}")
-            validation_task_ids = validation_task_ids[task_start:task_end]
-        
-        # Load base dataset and filter by task IDs
-        base_dataset = self._load_base_dataset()
-        validation_data = base_dataset[base_dataset['task_id'].isin(validation_task_ids)]
-        self.logger.info(f"Loaded validation data: {len(validation_data)} samples")
+        if task_start > 0 or task_end < len(validation_data):
+            self.logger.info(f"Multi-GPU mode: Processing rows {task_start}-{task_end-1}")
+            validation_data = validation_data.iloc[task_start:task_end].copy()
+            validation_task_ids = validation_data['task_id'].tolist()
         
         # Create output structure
         self._setup_output_directories()
@@ -147,34 +142,18 @@ class TemperatureVariationGenerator:
         self.logger.info("Phase 1.2 completed successfully")
         return metadata
     
-    def _load_validation_task_ids(self) -> List[int]:
-        """Load validation task IDs from Phase 0.1."""
-        task_ids_file = Path(self.config.phase0_1_output_dir) / "validation_task_ids.json"
+    def _load_validation_data(self) -> pd.DataFrame:
+        """Load validation data from Phase 0.1."""
+        validation_file = Path(self.config.phase0_1_output_dir) / "validation_mbpp.parquet"
         
-        if not task_ids_file.exists():
+        if not validation_file.exists():
             raise FileNotFoundError(
-                f"Validation task IDs not found at {task_ids_file}. "
+                f"Validation data not found at {validation_file}. "
                 "Please run Phase 0.1 first."
             )
         
-        with open(task_ids_file, 'r') as f:
-            task_ids = json.load(f)
-        
-        return task_ids
+        return pd.read_parquet(validation_file)
     
-    def _load_base_dataset(self) -> pd.DataFrame:
-        """Load base dataset from Phase 1.0."""
-        # Auto-discover latest dataset
-        dataset_path = discover_latest_phase_output("1")
-        
-        if not dataset_path:
-            raise FileNotFoundError(
-                f"No dataset found in {self.config.phase1_output_dir}. "
-                "Please run Phase 1.0 first."
-            )
-        
-        self.logger.info(f"Loading base dataset from: {dataset_path}")
-        return pd.read_parquet(dataset_path)
     
     def _setup_output_directories(self) -> None:
         """Create output directory structure."""
@@ -235,17 +214,14 @@ class TemperatureVariationGenerator:
         """Generate solution for a single task at given temperature."""
         start_time = time.time()
         
-        # Get the actual MBPP record using task_id
-        mbpp_record = self.mbpp_dataset.get_record(int(row['task_id']))
-        
-        # Create prompt using the same format as Phase 1
+        # Create prompt using data directly from the row
         # Extract test cases from test_list 
         test_cases_str = "\n".join([
-            f"assert {test.strip()}" for test in mbpp_record['test_list']
+            f"assert {test.strip()}" for test in row['test_list']
         ])
         
         prompt = PromptBuilder.build_prompt(
-            problem_description=mbpp_record['text'],
+            problem_description=row['text'],
             test_cases=test_cases_str
         )
         
@@ -264,7 +240,7 @@ class TemperatureVariationGenerator:
             from phase1_0_dataset_building.solution_evaluator import SolutionEvaluator
             eval_result = SolutionEvaluator.evaluate_solution(
                 gen_result.generated_text,
-                mbpp_record['test_list']
+                row['test_list']
             )
             test_passed = eval_result.passed == eval_result.total
             error_message = "; ".join(eval_result.errors) if eval_result.errors else None

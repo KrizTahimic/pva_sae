@@ -22,7 +22,7 @@ This research analyzes how language models internally represent the concept of c
 - Splits MBPP problems into three sets based on difficulty scores from Phase 0
 - Stratified randomized interleaving ensures equal difficulty distribution
 - Creates: 50% SAE analysis, 10% hyperparameter tuning, 40% validation splits
-- Outputs task IDs for each split, enabling consistent experiments
+- Outputs complete parquet files for each split with all MBPP data and complexity scores
 
 ### Phase 1: Dataset Building
 - Uses MBPP dataset with pre-computed difficulty mappings from Phase 0
@@ -132,13 +132,15 @@ pva_sae/
 ├── phase0_difficulty_analysis/     # Phase 0: MBPP complexity preprocessing
 ├── phase1_0_dataset_building/      # Phase 1.0: Dataset generation
 ├── phase0_1_problem_splitting/     # Phase 0.1: Problem splitting
+│   ├── inspect_splits.ipynb       # Notebook to view split contents
+│   └── inspect_splits_simple.ipynb # Alternative simpler version
 ├── phase1_2_temperature_generation/# Phase 1.2: Temperature variations
 ├── phase2_sae_analysis/            # Phase 2: SAE analysis
 ├── phase3_validation/              # Phase 3: Validation
 ├── data/                           # Phase-based data directory
 │   ├── phase0/                    # Difficulty mappings
 │   ├── phase1_0/                  # Generated datasets
-│   ├── phase0_1/                  # Split task IDs
+│   ├── phase0_1/                  # Split parquet files
 │   ├── phase1_2/                  # Temperature variations
 │   ├── phase2/                    # SAE analysis results
 │   ├── phase3/                    # Validation results

@@ -34,9 +34,9 @@ data/
 │       └── incorrect/
 │           └── {task_id}_layer_{n}.npz
 ├── phase0_1/         # Problem splitting
-│   ├── sae_task_ids.json
-│   ├── hyperparams_task_ids.json
-│   ├── validation_task_ids.json
+│   ├── sae_mbpp.parquet         # SAE split with full MBPP data
+│   ├── hyperparams_mbpp.parquet # Hyperparameter split with full MBPP data
+│   ├── validation_mbpp.parquet  # Validation split with full MBPP data
 │   └── split_metadata.json
 ├── phase1_2/         # Temperature variations (validation split only)
 │   ├── dataset_temp_0_3.parquet  # 5 samples per task at temp 0.3

@@ -13,7 +13,7 @@ from numpy.random import seed, shuffle
 import pandas as pd
 from json import dump as json_dump, load as json_load
 from pathlib import Path
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Union
 from logging import getLogger
 from datetime import datetime
 
@@ -250,17 +250,17 @@ def save_splits(
     df: pd.DataFrame
 ) -> None:
     """
-    Save split task_ids and metadata to disk.
+    Save split data as parquet files with full MBPP information.
     
     Creates the following files:
-    - {split_name}_task_ids.json for each split
+    - {split_name}_mbpp.parquet for each split (containing all MBPP columns)
     - split_metadata.json with statistics
     - timestamp.txt with creation time
     
     Args:
         splits: Dictionary mapping split names to task_id lists
         output_dir: Directory to save outputs
-        df: Original dataframe for metadata extraction
+        df: Original dataframe with all MBPP data and cyclomatic complexity
     """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -270,14 +270,21 @@ def save_splits(
     with open(output_path / 'timestamp.txt', 'w') as f:
         f.write(timestamp)
     
-    # Save task_ids for each split
+    # Save each split as a parquet file with full data
     for split_name, task_ids in splits.items():
-        filepath = output_path / f"{split_name}_task_ids.json"
-        # Convert numpy types to Python native types for JSON serialization
-        task_ids_list = [int(task_id) for task_id in task_ids]
-        with open(filepath, 'w') as f:
-            json_dump(task_ids_list, f)
-        logger.info(f"Saved {len(task_ids)} task IDs to {filepath}")
+        # Filter dataframe to get rows for this split
+        split_df = df[df['task_id'].isin(task_ids)].copy()
+        
+        # Ensure the split maintains the task_id order from the splitting algorithm
+        # Create a mapping of task_id to its position in the split
+        task_id_order = {task_id: idx for idx, task_id in enumerate(task_ids)}
+        split_df['_sort_order'] = split_df['task_id'].map(task_id_order)
+        split_df = split_df.sort_values('_sort_order').drop('_sort_order', axis=1)
+        
+        # Save as parquet
+        filepath = output_path / f"{split_name}_mbpp.parquet"
+        split_df.to_parquet(filepath, index=False)
+        logger.info(f"Saved {len(split_df)} problems to {filepath}")
     
     # Calculate and save metadata
     metadata = {
@@ -308,18 +315,19 @@ def save_splits(
     logger.info(f"Saved metadata to {output_path / 'split_metadata.json'}")
 
 
-def load_splits(split_dir: str) -> Dict[str, List[int]]:
+def load_splits(split_dir: str, return_dataframes: bool = False) -> Dict[str, Union[List[int], pd.DataFrame]]:
     """
-    Load previously saved splits from disk.
+    Load previously saved splits from parquet files.
     
     Args:
         split_dir: Directory containing split files
+        return_dataframes: If True, return DataFrames; if False, return task_id lists
         
     Returns:
-        Dictionary mapping split names to task_id lists
+        Dictionary mapping split names to either task_id lists or DataFrames
         
     Raises:
-        FileNotFoundError: If split directory doesn't exist
+        FileNotFoundError: If split directory doesn't exist or no split files found
     """
     split_path = Path(split_dir)
     if not split_path.exists():
@@ -327,12 +335,17 @@ def load_splits(split_dir: str) -> Dict[str, List[int]]:
     
     splits = {}
     
-    # Load each split file
-    for split_file in sorted(split_path.glob("*_task_ids.json")):
-        split_name = split_file.stem.replace("_task_ids", "")
-        with open(split_file, 'r') as f:
-            splits[split_name] = json_load(f)
-        logger.info(f"Loaded {len(splits[split_name])} task IDs for split '{split_name}'")
+    # Load each parquet file
+    for split_file in sorted(split_path.glob("*_mbpp.parquet")):
+        split_name = split_file.stem.replace("_mbpp", "")
+        df = pd.read_parquet(split_file)
+        
+        if return_dataframes:
+            splits[split_name] = df
+        else:
+            splits[split_name] = df['task_id'].tolist()
+        
+        logger.info(f"Loaded {len(df)} problems for split '{split_name}'")
     
     if not splits:
         raise FileNotFoundError(f"No split files found in {split_dir}")

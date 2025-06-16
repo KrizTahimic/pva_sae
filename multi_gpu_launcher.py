@@ -182,20 +182,18 @@ class MultiGPULauncher:
         logging_manager = LoggingManager(log_dir="data/logs")
         self.logger = logging_manager.setup_logging("multi_gpu_launcher")
         
-        # Load validation indices to determine workload
-        import json
-        validation_task_ids_file = Path("data/phase0_1/validation_task_ids.json")
+        # Load validation data to determine workload
+        import pandas as pd
+        validation_file = Path("data/phase0_1/validation_mbpp.parquet")
         
-        if not validation_task_ids_file.exists():
+        if not validation_file.exists():
             raise FileNotFoundError(
-                f"Validation task IDs not found at {validation_task_ids_file}. "
+                f"Validation data not found at {validation_file}. "
                 "Please run Phase 0.1 first."
             )
         
-        with open(validation_task_ids_file, 'r') as f:
-            validation_task_ids = json.load(f)
-        
-        total_tasks = len(validation_task_ids)
+        validation_df = pd.read_parquet(validation_file)
+        total_tasks = len(validation_df)
         
         print(f"\n{'='*60}")
         print(f"MULTI-GPU PHASE 1.2 TEMPERATURE GENERATION")
