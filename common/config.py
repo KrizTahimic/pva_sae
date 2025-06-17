@@ -47,7 +47,7 @@ class Config:
     dataset_end_idx: Optional[int] = None
     
     # === ACTIVATION SETTINGS ===
-    activation_layers: List[int] = field(default_factory=lambda: [8, 10, 12, 14, 16])  # Safe for Gemma-2B (18 layers)
+    activation_layers: List[int] = field(default_factory=lambda: [0, 6, 8, 15, 17])  # GemmaScope available layers for Gemma-2B
     activation_hook_type: str = "resid_post"
     activation_position: int = -1  # Final token
     activation_batch_size: int = 8
@@ -180,7 +180,7 @@ class Config:
         
         # Store special CLI args that aren't in Config fields
         # These are accessed via getattr(config, '_argname', default)
-        special_args = ['input', 'split', 'dry_run', 'generate_report', 
+        special_args = ['input', 'dry_run', 'generate_report', 
                        'samples', 'test_temps', 'test_samples_per_temp']
         for arg_name in special_args:
             if hasattr(args, arg_name):

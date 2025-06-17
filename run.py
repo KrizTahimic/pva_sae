@@ -209,13 +209,6 @@ def setup_argument_parser():
     # Phase 2: SAE Analysis arguments
     phase2_group = phase_parser.add_argument_group('Phase 2: SAE Analysis')
     phase2_group.add_argument(
-        '--split',
-        type=str,
-        choices=['sae', 'hyperparams', 'validation'],
-        default='sae',
-        help='Which data split to analyze (default: sae)'
-    )
-    phase2_group.add_argument(
         '--sae-model',
         type=str,
         help='Path to SAE model'
@@ -565,9 +558,9 @@ def run_phase2(config: Config, logger, device: str):
     logger.info("Starting Phase 2: SAE Analysis (CPU-only)")
     logger.info("Phase 2 now loads saved activations from Phase 1 - no GPU required")
     
-    # Get split to analyze
-    split_name = getattr(config, '_split', 'sae')
-    logger.info(f"Analyzing split: {split_name}")
+    # Phase 2 always analyzes the SAE split to find the best PVA direction
+    split_name = 'sae'
+    logger.info(f"Analyzing SAE split to identify best PVA latent direction")
     
     # Log configuration
     logger.info("\n" + config.dump(phase="2"))
@@ -612,22 +605,8 @@ def run_phase2(config: Config, logger, device: str):
     
     logger.info(f"Split '{split_name}' stats: {len(correct_task_ids)} correct, {len(incorrect_task_ids)} incorrect")
     
-    # Determine activation directory based on split
-    if split_name == 'validation':
-        # Check if temperature variations exist
-        temp_activation_dir = Path(config.phase1_2_output_dir) / "activations"
-        if temp_activation_dir.exists():
-            logger.info("Using temperature-varied activations for validation split")
-            activation_dirs = [temp_activation_dir]
-        else:
-            logger.info("No temperature variations found, using base activations")
-            activation_dirs = [dataset_path.parent / "activations"]
-    else:
-        # Use base activations for SAE and hyperparams splits
-        activation_dirs = [dataset_path.parent / "activations"]
-    
-    # For now, use the first activation directory (we'll enhance this later for temperature aggregation)
-    activation_dir = activation_dirs[0]
+    # Phase 2 always uses base activations from Phase 1.0 (SAE split)
+    activation_dir = dataset_path.parent / "activations"
     if not activation_dir.exists():
         logger.error(f"Activation directory not found: {activation_dir}")
         logger.error("No activation files found. Please run Phase 1 first to generate activations.")
@@ -684,8 +663,11 @@ def run_phase2(config: Config, logger, device: str):
             # Apply SAE encoding
             import torch
             with torch.no_grad():
-                correct_sae_acts = sae.encode(correct_acts)
-                incorrect_sae_acts = sae.encode(incorrect_acts)
+                # Convert to float32 to match SAE dtype
+                correct_acts_f32 = correct_acts.to(torch.float32)
+                incorrect_acts_f32 = incorrect_acts.to(torch.float32)
+                correct_sae_acts = sae.encode(correct_acts_f32)
+                incorrect_sae_acts = sae.encode(incorrect_acts_f32)
             
             # Compute separation scores
             scores = compute_separation_scores(correct_sae_acts, incorrect_sae_acts)
@@ -730,6 +712,9 @@ def run_phase2(config: Config, logger, device: str):
             
         except Exception as e:
             logger.error(f"Failed to analyze layer {layer_idx}: {e}")
+            if config.verbose:
+                import traceback
+                logger.error(f"Traceback:\n{traceback.format_exc()}")
             continue
     
     # Create multi-layer results
@@ -1302,16 +1287,21 @@ def test_phase2(args, logger, device: str):
         print(f"🧠 Initializing SAE pipeline...")
         
         # Initialize pipeline
-        pipeline = EnhancedSAEAnalysisPipeline(model, test_config, device=device)
+        # TODO: EnhancedSAEAnalysisPipeline not implemented - this test function needs updating
+        print("❌ Error: test-sae-gpu function is not currently implemented")
+        print("   Use regular 'phase 2' command instead")
+        return
         
-        print(f"⚙️  Running SAE analysis on layer {args.layer}...")
-        
-        # Run analysis
-        results = pipeline.analyze_all_residual_layers(
-            correct_prompts=correct_prompts,
-            incorrect_prompts=incorrect_prompts,
-            layer_indices=[args.layer]
-        )
+        # pipeline = EnhancedSAEAnalysisPipeline(model, test_config, device=device)
+        # 
+        # print(f"⚙️  Running SAE analysis on layer {args.layer}...")
+        # 
+        # # Run analysis
+        # results = pipeline.analyze_all_residual_layers(
+        #     correct_prompts=correct_prompts,
+        #     incorrect_prompts=incorrect_prompts,
+        #     layer_indices=[args.layer]
+        # )
         
         # Check results
         if len(results.layer_results) > 0:

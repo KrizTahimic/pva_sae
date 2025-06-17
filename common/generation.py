@@ -6,13 +6,14 @@ temperature variation support, and advanced error handling for all project phase
 """
 
 import time
-from typing import Optional, List
+from typing import Optional, List, Dict
 from dataclasses import dataclass
 
 from common.models import ModelManager
 from common.config import Config
 from common.utils import torch_memory_cleanup
 from common.logging import get_logger
+from common.activation_extraction import ActivationData
 
 # No module-level logger - initialized per instance to respect phase context
 
@@ -27,6 +28,7 @@ class GenerationResult:
     success: bool
     error_message: Optional[str] = None
     attempt_count: int = 1
+    activations: Optional[Dict[int, ActivationData]] = None
 
 
 class RobustGenerator:
@@ -67,7 +69,9 @@ class RobustGenerator:
         prompt: str,
         temperature: Optional[float] = None,
         max_new_tokens: Optional[int] = None,
-        retry_on_failure: bool = True
+        retry_on_failure: bool = True,
+        extract_activations: bool = False,
+        activation_layers: Optional[List[int]] = None
     ) -> GenerationResult:
         """
         Generate text with robust error handling and retry logic.
@@ -77,20 +81,26 @@ class RobustGenerator:
             temperature: Generation temperature (None uses model default)
             max_new_tokens: Maximum new tokens to generate
             retry_on_failure: Whether to retry on generation failure
+            extract_activations: Whether to extract activations during generation
+            activation_layers: Layers to extract from (None uses config default)
             
         Returns:
-            GenerationResult with generated text and metadata
+            GenerationResult with generated text, metadata, and optional activations
         """
         temperature = temperature if temperature is not None else self.model_manager.config.model_temperature
         max_new_tokens = max_new_tokens or self.default_max_new_tokens
         
+        # Handle activation layer defaults
+        if extract_activations and activation_layers is None:
+            activation_layers = self.config.activation_layers
+        
         if retry_on_failure:
             return self._generate_with_retry(
-                prompt, temperature, max_new_tokens
+                prompt, temperature, max_new_tokens, extract_activations, activation_layers
             )
         else:
             return self._single_generation_attempt(
-                prompt, temperature, max_new_tokens
+                prompt, temperature, max_new_tokens, extract_activations, activation_layers
             )
     
     def generate_with_temperature_variation(
@@ -136,7 +146,9 @@ class RobustGenerator:
         self,
         prompt: str,
         temperature: float,
-        max_new_tokens: int
+        max_new_tokens: int,
+        extract_activations: bool = False,
+        activation_layers: Optional[List[int]] = None
     ) -> GenerationResult:
         """Generate with retry logic on failure."""
         last_error = None
@@ -144,7 +156,7 @@ class RobustGenerator:
         for attempt in range(self.config.max_retries):
             try:
                 return self._single_generation_attempt(
-                    prompt, temperature, max_new_tokens, attempt + 1
+                    prompt, temperature, max_new_tokens, extract_activations, activation_layers, attempt + 1
                 )
             except Exception as e:
                 last_error = e
@@ -172,7 +184,8 @@ class RobustGenerator:
             temperature=temperature,
             success=False,
             error_message=error_msg,
-            attempt_count=self.config.max_retries
+            attempt_count=self.config.max_retries,
+            activations=None
         )
     
     def _single_generation_attempt(
@@ -180,17 +193,31 @@ class RobustGenerator:
         prompt: str,
         temperature: float,
         max_new_tokens: int,
+        extract_activations: bool = False,
+        activation_layers: Optional[List[int]] = None,
         attempt: int = 1
     ) -> GenerationResult:
         """Single generation attempt with timing and error handling."""
         start_time = time.time()
         
         try:
-            generated_text = self.model_manager.generate(
-                prompt=prompt,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature
-            )
+            if extract_activations and activation_layers:
+                # Use hook-enabled generation
+                generated_text, activations = self.model_manager.generate_with_activation_hooks(
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    activation_layers=activation_layers,
+                    hook_type=self.config.activation_hook_type
+                )
+            else:
+                # Regular generation
+                generated_text = self.model_manager.generate(
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature
+                )
+                activations = None
             
             if not generated_text.strip():
                 raise ValueError("Generated empty text")
@@ -203,7 +230,8 @@ class RobustGenerator:
                 generation_time=generation_time,
                 temperature=temperature,
                 success=True,
-                attempt_count=attempt
+                attempt_count=attempt,
+                activations=activations
             )
             
         except Exception as e:
@@ -217,7 +245,8 @@ class RobustGenerator:
                 temperature=temperature,
                 success=False,
                 error_message=error_msg,
-                attempt_count=attempt
+                attempt_count=attempt,
+                activations=None
             )
 
 

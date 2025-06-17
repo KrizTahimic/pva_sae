@@ -18,7 +18,7 @@ import torch
 from common.models import ModelManager
 from common.generation import RobustGenerator
 from common.activation_extraction import (
-    create_activation_extractor, 
+    ActivationData,
     save_activation_data
 )
 from common.prompt_utils import PromptBuilder
@@ -42,6 +42,7 @@ class TemperatureGenerationResult:
     generation_time: float
     complexity_score: float
     generation_idx: int  # Index of this generation (0-4 for 5 samples)
+    activations: Optional[Dict[int, ActivationData]] = None
 
 
 class TemperatureVariationGenerator:
@@ -73,12 +74,6 @@ class TemperatureVariationGenerator:
         
         # Initialize components
         self.generator = RobustGenerator(model_manager, config)
-        self.extractor = create_activation_extractor(
-            model_manager.model,
-            model_manager.tokenizer,
-            model_manager.device,
-            config
-        )
         
         
         # Validate temperature configuration
@@ -188,8 +183,10 @@ class TemperatureVariationGenerator:
                 result = self._generate_single(row, temperature, sample_idx)
                 results.append(result)
                 
-                # Extract and save activations with sample index
-                self._extract_and_save_activations(result, temperature, sample_idx)
+                # Save activations if they were extracted
+                if result.activations:
+                    self._save_extracted_activations(result.activations, result.task_id, 
+                                                   result.test_passed, temperature, sample_idx)
                 
                 # Periodic cleanup
                 if len(results) % self.config.memory_cleanup_frequency == 0:
@@ -225,11 +222,14 @@ class TemperatureVariationGenerator:
             test_cases=test_cases_str
         )
         
-        # Generate solution
+        # Generate solution with activation extraction (single pass)
+        extract_activations = bool(self.config.activation_layers)
         gen_result = self.generator.generate(
             prompt=prompt,
             temperature=temperature,
-            max_new_tokens=self.config.model_max_new_tokens
+            max_new_tokens=self.config.model_max_new_tokens,
+            extract_activations=extract_activations,
+            activation_layers=self.config.activation_layers if extract_activations else None
         )
         
         # Evaluate solution using SolutionEvaluator
@@ -258,48 +258,42 @@ class TemperatureVariationGenerator:
             error_message=error_message,
             generation_time=generation_time,
             complexity_score=row.get('complexity_score', 0.0),
-            generation_idx=sample_idx
+            generation_idx=sample_idx,
+            activations=gen_result.activations
         )
     
-    def _extract_and_save_activations(
+    def _save_extracted_activations(
         self,
-        result: TemperatureGenerationResult,
+        activations: Dict[int, ActivationData],
+        task_id: str,
+        test_passed: bool,
         temperature: float,
         sample_idx: int = 0
     ) -> None:
-        """Extract and save activations for generated solution."""
-        if not result.generated_code:
-            return
-        
-        # Determine category
-        category = "correct" if result.test_passed else "incorrect"
-        
-        # Temperature string for directory
-        temp_str = f"temp_{temperature}".replace(".", "_")
-        
-        # Extract activations for each layer
-        for layer_idx in self.config.activation_layers:
-            try:
-                # Extract activation
-                activation_data = self.extractor.extract_activations(
-                    prompts=[result.prompt + result.generated_code],
-                    layer_idx=layer_idx,
-                    position=self.config.activation_position,
-                    hook_type=self.config.activation_hook_type
-                )
+        """Save already-extracted activations to disk."""
+        try:
+            # Determine category
+            category = "correct" if test_passed else "incorrect"
+            
+            # Temperature string for directory
+            temp_str = f"temp_{temperature}".replace(".", "_")
+            
+            for layer_idx, activation_data in activations.items():
+                # Validate extracted data
+                if activation_data.activations.numel() == 0:
+                    raise ValueError(f"Empty activations for layer {layer_idx}")
                 
                 # Save to temperature-specific directory with sample index
                 save_path = (
                     Path(self.config.phase1_2_output_dir) / "activations" / temp_str / 
-                    category / f"{result.task_id}_sample{sample_idx}_layer_{layer_idx}.npz"
+                    category / f"{task_id}_sample{sample_idx}_layer_{layer_idx}.npz"
                 )
                 save_activation_data(activation_data, save_path)
                 
-            except Exception as e:
-                self.logger.error(
-                    f"Failed to extract activations for {result.task_id} "
-                    f"layer {layer_idx}: {e}"
-                )
+        except Exception as e:
+            self.logger.error(f"Failed to save activations for {task_id}: {e}")
+            # Fail fast - raise exception to stop processing
+            raise RuntimeError(f"Failed to save activations for {task_id}: {e}") from e
     
     def _save_temperature_results(
         self,

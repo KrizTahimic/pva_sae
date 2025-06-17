@@ -213,18 +213,11 @@ python3 run.py phase 3 --input data/phase2/specific_results.json
 - **Functions**: `get_user_data()`, `validate_email()` (descriptive names)
 - **Constants**: `MAX_RETRIES`, `DEFAULT_TIMEOUT` (UPPER_CASE)
 - **Classes**: `UserManager`, `DatabaseConnection` (PascalCase)
+
 ### Error Handling & Logging
 - Use try-catch blocks with specific exceptions
 - Log errors with context for debugging
 - Fail fast with meaningful error messages
-
-```python
-try:
-    result = risky_operation()
-except SpecificException as e:
-    logger.error(f"Operation failed: {e}")
-    return default_value
-```
 
 ### Python Best Practices
 - **List comprehensions**: `[x*2 for x in nums if x > 0]`

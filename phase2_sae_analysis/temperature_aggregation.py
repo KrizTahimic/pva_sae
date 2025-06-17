@@ -1,5 +1,11 @@
 """
-Temperature aggregation utilities for Phase 2 SAE analysis.
+Temperature aggregation utilities reserved for Phase 3 validation.
+
+NOTE: This module is NOT used in Phase 2. Phase 2 only analyzes the SAE split 
+at temperature=0 to find the best PVA latent direction.
+
+Phase 3 will use these utilities to test the robustness of the chosen direction
+across temperature variations on the validation split.
 
 This module provides functions to aggregate activations across multiple
 temperature variations for robustness analysis.

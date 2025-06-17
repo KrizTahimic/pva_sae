@@ -10,9 +10,7 @@ from .sae_analyzer import (
     PVALatentDirection,
     SAEAnalysisResults,
     MultiLayerSAEResults,
-    EnhancedSAEAnalysisPipeline,
-    compute_separation_scores,
-    find_pva_directions
+    compute_separation_scores
 )
 
 from .pile_filter import PileFilter
@@ -22,8 +20,6 @@ __all__ = [
     'PVALatentDirection', 
     'SAEAnalysisResults',
     'MultiLayerSAEResults',
-    'EnhancedSAEAnalysisPipeline',
     'compute_separation_scores',
-    'find_pva_directions',
     'PileFilter'
 ]

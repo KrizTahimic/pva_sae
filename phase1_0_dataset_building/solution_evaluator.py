@@ -111,7 +111,7 @@ class SolutionEvaluator:
             success, error_msg = SolutionEvaluator._evaluate_single_test(test_case, namespace)
             
             if success:
-                logger.info(f"Test {i+1}: PASSED")
+                logger.debug(f"Test {i+1}: PASSED")
                 passed_tests += 1
             else:
                 status = "FAILED" if error_msg == "Assertion failed" else "ERROR"
@@ -120,7 +120,7 @@ class SolutionEvaluator:
                     log_msg += f" - {error_msg}"
                     errors.append(f"Test {i+1}: {error_msg}")
                 
-                logger.info(log_msg)
+                logger.debug(log_msg)
         
         logger.info(f"Evaluation summary: {passed_tests}/{total_tests} tests passed")
         return CodeTestResult(passed=passed_tests, total=total_tests, errors=errors)

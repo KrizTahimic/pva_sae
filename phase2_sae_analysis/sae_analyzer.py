@@ -205,8 +205,8 @@ class SAEAnalysisResults:
 # Removed unused pipeline classes (YAGNI) - Phase 2 only needs to load saved activations
 # and run them through SAEs. No model loading or activation extraction needed.
 
+@dataclass
 class MultiLayerSAEResults:
-    """Container for multi-layer SAE analysis results"""
     """Container for multi-layer SAE analysis results"""
     layer_results: Dict[int, SAEAnalysisResults]
     layer_indices: List[int]

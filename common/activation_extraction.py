@@ -121,11 +121,11 @@ def load_activation_data(filepath: Path) -> ActivationData:
             prompt_count=int(data['prompt_count'].item())
         )
         
-        logger.debug(f"Loaded activation data from {filepath}")
+        get_logger("activation_extraction").debug(f"Loaded activation data from {filepath}")
         return activation_data
         
     except Exception as e:
-        logger.error(f"Failed to load activation data from {filepath}: {e}")
+        get_logger("activation_extraction").error(f"Failed to load activation data from {filepath}: {e}")
         raise ValueError(f"Invalid activation file format: {e}")
 
 
