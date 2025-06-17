@@ -129,11 +129,11 @@ class LoggingManager:
             self.logger.addHandler(console_handler)
         
         # Log initialization
-        self.logger.info(f"Logging initialized for module: {module_name}")
+        self.logger.debug(f"Logging initialized for module: {module_name}")
         if self.phase:
             self.logger.info(f"Phase: {self.phase}, GPU: {self.gpu_id or 'CPU'}")
         if self.log_file:
-            self.logger.info(f"Log file: {self.log_file}")
+            self.logger.debug(f"Log file: {self.log_file}")
         
         return self.logger
     
@@ -286,8 +286,14 @@ def get_logger(module_name: str, phase: Optional[str] = None, gpu_id: Optional[i
     if cache_key in _phase_managers:
         manager = _phase_managers[cache_key]
     else:
+        # Read and validate LOG_LEVEL environment variable
+        log_level_str = os.environ.get('LOG_LEVEL', 'INFO').upper()
+        valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        if log_level_str not in valid_levels:
+            raise ValueError(f"Invalid LOG_LEVEL '{log_level_str}'. Must be one of: {valid_levels}")
+        
         # Create new manager and cache it
-        manager = LoggingManager(phase=effective_phase, gpu_id=effective_gpu_id)
+        manager = LoggingManager(phase=effective_phase, gpu_id=effective_gpu_id, log_level=log_level_str)
         _phase_managers[cache_key] = manager
     
     # Get logger from the manager

@@ -27,7 +27,7 @@ import torch
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from common.logging import LoggingManager, set_logging_phase
+from common.logging import set_logging_phase, get_logger
 from common.gpu_utils import cleanup_gpu_memory, ensure_gpu_available, setup_cuda_environment
 from common import MAX_NEW_TOKENS
 from common.config import Config
@@ -1372,14 +1372,8 @@ def main():
     if phase is not None:
         set_logging_phase(phase)
     
-    # Setup logging with phase context
-    log_level = "DEBUG" if hasattr(args, 'verbose') and args.verbose else "INFO"
-    logging_manager = LoggingManager(
-        phase=phase,
-        log_level=log_level, 
-        log_dir="data/logs"
-    )
-    logger = logging_manager.setup_logging("main")
+    # Setup logging with phase context (single creation path)
+    logger = get_logger("main")
     
     # Detect device once for the entire application
     try:
