@@ -58,7 +58,7 @@ class MBPPDifficultyAnalyzer:
             output_dir: Directory to save difficulty mapping
         """
         self.output_dir = Path(output_dir or get_phase_dir(0))
-        self.logger = get_logger("difficulty_analyzer", phase="0")
+        self.logger = get_logger("difficulty_analyzer", phase="0.0")
         
         ensure_directory_exists(str(self.output_dir))
         self.logger.info("MBPPDifficultyAnalyzer initialized")

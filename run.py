@@ -1361,8 +1361,8 @@ def main():
     
     # Set global phase context first (before any logging)
     if args.command == 'phase' and hasattr(args, 'phase'):
-        # Normalize phase: 0.0 -> "0", 1.0 -> "1", 0.1 -> "0.1"
-        phase_str = str(int(args.phase)) if args.phase == int(args.phase) else str(args.phase)
+        # Preserve .0 suffix for whole numbers: 0.0 -> "0.0", 1.0 -> "1.0", 0.1 -> "0.1"
+        phase_str = str(args.phase)
         set_logging_phase(phase_str)
     
     # For non-phase commands, create logger without phase context

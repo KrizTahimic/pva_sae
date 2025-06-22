@@ -26,7 +26,7 @@ class MBPPPreprocessor:
             output_dir: Directory to save preprocessed data
         """
         self.output_dir = Path(output_dir or get_phase_dir(0))
-        self.logger = get_logger("mbpp_preprocessor", phase="0")
+        self.logger = get_logger("mbpp_preprocessor", phase="0.0")
         
         # Initialize difficulty analyzer
         self.difficulty_analyzer = MBPPDifficultyAnalyzer(str(output_dir))
