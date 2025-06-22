@@ -31,6 +31,7 @@ from common.logging import set_logging_phase, get_logger
 from common.gpu_utils import cleanup_gpu_memory, ensure_gpu_available, setup_cuda_environment
 from common import MAX_NEW_TOKENS
 from common.config import Config
+from common.sae_config import construct_sae_id, validate_layer
 
 # Import centralized phase directory function
 from common.utils import get_phase_dir
@@ -652,8 +653,9 @@ def run_phase2(config: Config, logger, device: str):
             
             logger.info(f"Loaded activations - correct: {correct_acts.shape}, incorrect: {incorrect_acts.shape}")
             
-            # Load SAE for this layer
-            sae_id = f"layer_{layer_idx}/width_{config.sae_width}/average_l0_{config.sae_sparsity}"
+            # Load SAE for this layer with layer-specific sparsity
+            validate_layer(layer_idx)  # Fail fast if layer not supported
+            sae_id = construct_sae_id(layer_idx)
             sae = load_gemma_scope_sae(
                 repo_id=config.sae_repo_id,
                 sae_id=sae_id,
@@ -1357,22 +1359,31 @@ def main():
         parser.print_help()
         sys.exit(1)
     
-    # Set global phase context first
-    phase = args.phase if hasattr(args, 'phase') and args.phase else None
-    if phase is not None:
-        set_logging_phase(phase)
+    # Set global phase context first (before any logging)
+    if args.command == 'phase' and hasattr(args, 'phase'):
+        # Normalize phase: 0.0 -> "0", 1.0 -> "1", 0.1 -> "0.1"
+        phase_str = str(int(args.phase)) if args.phase == int(args.phase) else str(args.phase)
+        set_logging_phase(phase_str)
     
-    # Setup logging with phase context (single creation path)
-    logger = get_logger("main")
+    # For non-phase commands, create logger without phase context
+    # For phase commands, delay logger creation until after phase is set
+    if args.command != 'phase':
+        logger = get_logger("main")
+    else:
+        # Logger will be created after phase context is fully established
+        logger = None
     
     # Detect device once for the entire application
+    device = "cpu"  # Default to CPU
     try:
         from common.utils import detect_device
         device = str(detect_device())
-        logger.info(f"Detected device: {device}")
+        if logger:
+            logger.info(f"Detected device: {device}")
     except Exception as e:
-        logger.error(f"Device detection failed: {e}")
-        logger.info("Falling back to CPU")
+        if logger:
+            logger.error(f"Device detection failed: {e}")
+            logger.info("Falling back to CPU")
         device = "cpu"
     
     # Handle different commands
@@ -1401,6 +1412,12 @@ def main():
         return
     
     elif args.command == 'phase':
+        # Now create logger after phase context is set
+        logger = get_logger("main")
+        
+        # Log device info now that we have a logger
+        logger.info(f"Detected device: {device}")
+        
         # Create unified config from args
         config = Config.from_args(args, phase=str(args.phase))
         

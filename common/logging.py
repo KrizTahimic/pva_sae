@@ -50,7 +50,61 @@ class LoggingManager:
         self.log_file = None
         self.logger = None
         self.timestamp = None  # Cache timestamp for consistent file naming
+        self.file_handler = None  # Cache file handler for reuse
+        self.console_handler = None  # Cache console handler for reuse
+        self._initialized = False  # Track if handlers are initialized
         
+    def _initialize_handlers(self):
+        """Initialize file and console handlers once for reuse across modules"""
+        if self._initialized:
+            return
+            
+        # Setup file handler with rotation
+        if self.log_to_file:
+            os.makedirs(self.log_dir, exist_ok=True)
+            # Generate timestamp once for consistent file naming
+            if self.timestamp is None:
+                from common.utils import get_readable_timestamp
+                self.timestamp = get_readable_timestamp()
+            
+            # Construct phase-based filename
+            if self.phase:
+                phase_str = f"phase{self.phase.replace('.', '_')}"
+                if self.gpu_id is not None:
+                    filename = f"{phase_str}_gpu{self.gpu_id}_{self.timestamp}.log"
+                else:
+                    filename = f"{phase_str}_{self.timestamp}.log"
+            else:
+                # Fallback for non-phase specific logging
+                filename = f"pva_sae_{self.timestamp}.log"
+            
+            self.log_file = os.path.join(self.log_dir, filename)
+            
+            # Use RotatingFileHandler for automatic rotation
+            self.file_handler = logging.handlers.RotatingFileHandler(
+                self.log_file,
+                maxBytes=self.max_bytes,
+                backupCount=self.backup_count
+            )
+            self.file_handler.setLevel(self.log_level)
+            # Set formatter that uses module_name from record
+            file_formatter = logging.Formatter(
+                '%(asctime)s [%(levelname)s] [%(module_name)s] %(funcName)s:%(lineno)d - %(message)s'
+            )
+            self.file_handler.setFormatter(file_formatter)
+        
+        # Setup console handler
+        if self.log_to_console:
+            self.console_handler = logging.StreamHandler(sys.stdout)
+            self.console_handler.setLevel(self.log_level)
+            # Set formatter that uses module_name from record
+            console_formatter = logging.Formatter(
+                '%(asctime)s [%(levelname)s] [%(module_name)s] %(message)s'
+            )
+            self.console_handler.setFormatter(console_formatter)
+            
+        self._initialized = True
+    
     def setup_logging(self, module_name: str = "main") -> logging.Logger:
         """
         Setup phase-based logging configuration
@@ -61,81 +115,60 @@ class LoggingManager:
         Returns:
             logging.Logger: Configured logger instance
         """
-        # Create logger with unique name to avoid conflicts
-        logger_name = f"pva_sae.{module_name}"
-        self.logger = logging.getLogger(logger_name)
-        self.logger.setLevel(self.log_level)
+        # Initialize handlers on first use
+        self._initialize_handlers()
         
-        # Remove existing handlers to avoid duplicates
-        self.logger.handlers = []
+        # Use a single root logger for all modules in same phase
+        # This ensures all logs go to the same file
+        root_logger_name = "pva_sae"
         
-        # Create formatters with module context
-        detailed_formatter = logging.Formatter(
-            '%(asctime)s [%(levelname)s] [%(module_name)s] %(funcName)s:%(lineno)d - %(message)s',
-            defaults={'module_name': module_name}
-        )
-        simple_formatter = logging.Formatter(
-            '%(asctime)s [%(levelname)s] [%(module_name)s] %(message)s',
-            defaults={'module_name': module_name}
-        )
-        
-        # Setup file handler with rotation
-        if self.log_to_file:
-            os.makedirs(self.log_dir, exist_ok=True)
-            # Use cached timestamp for consistent file naming across modules
-            if self.timestamp is None:
-                from common.utils import get_readable_timestamp
-                self.timestamp = get_readable_timestamp()
-            timestamp = self.timestamp
+        # Get or create the root logger for this phase
+        if not hasattr(self, '_root_logger'):
+            self._root_logger = logging.getLogger(root_logger_name)
+            self._root_logger.setLevel(self.log_level)
+            self._root_logger.handlers = []  # Clear any existing handlers
             
-            # Construct phase-based filename
+            # Add handlers to root logger only once
+            if self.log_to_file and self.file_handler:
+                self._root_logger.addHandler(self.file_handler)
+            
+            if self.log_to_console and self.console_handler:
+                self._root_logger.addHandler(self.console_handler)
+        
+        # Create child logger for this module
+        logger_name = f"{root_logger_name}.{module_name}"
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(self.log_level)
+        
+        # Child loggers inherit handlers from parent, no need to add them
+        # But we need a custom filter to add module name to log records
+        class ModuleNameFilter(logging.Filter):
+            def __init__(self, module_name):
+                self.module_name = module_name
+            
+            def filter(self, record):
+                record.module_name = self.module_name
+                return True
+        
+        # Remove any existing filters and add new one
+        logger.filters = []
+        logger.addFilter(ModuleNameFilter(module_name))
+        
+        # Don't update formatters here - they're shared across all loggers
+        
+        # Log initialization only on first setup for this module
+        if module_name not in getattr(self, '_logged_modules', set()):
+            if not hasattr(self, '_logged_modules'):
+                self._logged_modules = set()
+            self._logged_modules.add(module_name)
+            
+            logger.debug(f"Logging initialized for module: {module_name}")
             if self.phase:
-                phase_str = f"phase{self.phase.replace('.', '_')}"
-                if self.gpu_id is not None:
-                    filename = f"{phase_str}_gpu{self.gpu_id}_{timestamp}.log"
-                else:
-                    filename = f"{phase_str}_{timestamp}.log"
-            else:
-                # Fallback for non-phase specific logging
-                filename = f"pva_sae_{module_name}_{timestamp}.log"
-            
-            self.log_file = os.path.join(self.log_dir, filename)
-            
-            # Use RotatingFileHandler for automatic rotation
-            file_handler = logging.handlers.RotatingFileHandler(
-                self.log_file,
-                maxBytes=self.max_bytes,
-                backupCount=self.backup_count
-            )
-            file_handler.setLevel(self.log_level)
-            
-            # Custom formatter that includes module name
-            file_formatter = logging.Formatter(
-                f'%(asctime)s [%(levelname)s] [{module_name}] %(funcName)s:%(lineno)d - %(message)s'
-            )
-            file_handler.setFormatter(file_formatter)
-            self.logger.addHandler(file_handler)
+                logger.info(f"Phase: {self.phase}, GPU: {self.gpu_id or 'CPU'}")
+            if self.log_file:
+                logger.debug(f"Log file: {self.log_file}")
         
-        # Setup console handler
-        if self.log_to_console:
-            console_handler = logging.StreamHandler(sys.stdout)
-            console_handler.setLevel(self.log_level)
-            
-            # Console formatter with module name
-            console_formatter = logging.Formatter(
-                f'%(asctime)s [%(levelname)s] [{module_name}] %(message)s'
-            )
-            console_handler.setFormatter(console_formatter)
-            self.logger.addHandler(console_handler)
-        
-        # Log initialization
-        self.logger.debug(f"Logging initialized for module: {module_name}")
-        if self.phase:
-            self.logger.info(f"Phase: {self.phase}, GPU: {self.gpu_id or 'CPU'}")
-        if self.log_file:
-            self.logger.debug(f"Log file: {self.log_file}")
-        
-        return self.logger
+        return logger
     
     def log_experiment_info(self, experiment_config: Dict[str, Any]):
         """
@@ -259,6 +292,7 @@ def set_logging_phase(phase: Optional[str], gpu_id: Optional[int] = None):
     global _global_phase, _global_gpu_id
     _global_phase = str(phase) if phase is not None else None
     _global_gpu_id = gpu_id
+    
 
 
 def get_logger(module_name: str, phase: Optional[str] = None, gpu_id: Optional[int] = None) -> logging.Logger:
@@ -281,6 +315,7 @@ def get_logger(module_name: str, phase: Optional[str] = None, gpu_id: Optional[i
     
     # Create cache key
     cache_key = (effective_phase, effective_gpu_id)
+    
     
     # Check if we already have a manager for this phase/gpu combination
     if cache_key in _phase_managers:
