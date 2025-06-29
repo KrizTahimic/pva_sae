@@ -306,93 +306,40 @@ def run_phase0(config: Config, logger, device: str, dry_run: bool = False):
 
 def run_phase1(config: Config, logger, device: str):
     """Run Phase 1: Dataset Building using SAE split"""
-    # Toggle between simplified and original implementation
-    use_simplified = True  # Set to False to use original implementation
+    # Import simplified implementation
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))  # Add project root to path
+    from phase1_simplified.runner import Phase1Runner
     
-    if use_simplified:
-        # Import simplified implementation
-        import sys
-        from pathlib import Path
-        sys.path.insert(0, str(Path(__file__).parent))  # Add project root to path
-        from phase1_simplified.runner import Phase1Runner
-        
-        logger.info("Starting Phase 1: Dataset Building (Simplified Implementation)")
-        logger.info(f"Model: {config.model_name}, Split: sae")
-        logger.info("Processing mode: Sequential (use multi_gpu_launcher.py for parallel processing)")
-        
-        # Log configuration
-        logger.info("\n" + config.dump(phase="1"))
-        
-        # Verify Phase 0.1 has been run (split files must exist)
-        sae_split_path = Path(config.phase0_1_output_dir) / "sae_mbpp.parquet"
-        if not sae_split_path.exists():
-            logger.error(f"SAE split not found at {sae_split_path}")
-            logger.error("Phase 1 requires Phase 0.1 to be completed first.")
-            logger.error("Please run: python3 run.py phase 0.1")
-            sys.exit(1)
-        
-        logger.info(f"Found SAE split: {sae_split_path}")
-        
-        # Setup CUDA environment and cleanup GPUs before starting
-        if torch.cuda.is_available() and device == "cuda":
-            logger.info("Setting up CUDA environment and cleaning GPU memory...")
-            setup_cuda_environment()
-            cleanup_gpu_memory()
-        
-        # Create and run simplified runner
-        runner = Phase1Runner(config)
-        final_df = runner.run(split_name='sae')
-        
-        logger.info("✅ Phase 1 completed successfully")
-        
-    else:
-        # Original implementation
-        from phase1_0_dataset_building import Phase1Orchestrator
-        from pathlib import Path
-        
-        logger.info("Starting Phase 1: Dataset Building (Original Implementation)")
-        logger.info(f"Model: {config.model_name}, Split: sae")
-        logger.info("Processing mode: Sequential (use multi_gpu_launcher.py for parallel processing)")
-        
-        # Log configuration
-        logger.info("\n" + config.dump(phase="1"))
-        
-        # Verify Phase 0.1 has been run (split files must exist)
-        sae_split_path = Path(config.phase0_1_output_dir) / "sae_mbpp.parquet"
-        if not sae_split_path.exists():
-            logger.error(f"SAE split not found at {sae_split_path}")
-            logger.error("Phase 1 requires Phase 0.1 to be completed first.")
-            logger.error("Please run: python3 run.py phase 0.1")
-            sys.exit(1)
-        
-        logger.info(f"Found SAE split: {sae_split_path}")
-        
-        # Setup CUDA environment and cleanup GPUs before starting
-        if torch.cuda.is_available():
-            logger.info("Setting up CUDA environment and cleaning GPU memory...")
-            setup_cuda_environment()
-            cleanup_gpu_memory()
-            
-            # Ensure GPU is responsive
-            gpu_device = int(environ.get('CUDA_VISIBLE_DEVICES', '0'))
-            if not ensure_gpu_available(gpu_device):
-                logger.warning(f"GPU {gpu_device} not responsive, attempting cleanup...")
-                cleanup_gpu_memory(gpu_device)
-        
-        # Create orchestrator with SAE split
-        orchestrator = Phase1Orchestrator(
-            split_name='sae',  # Always use SAE split for Phase 1
-            config=config
-        )
-        
-        # Build dataset
-        dataset_path = orchestrator.build_dataset(
-            start_idx=config.dataset_start_idx,
-            end_idx=config.dataset_end_idx
-        )
-        
-        logger.info("✅ Phase 1 completed successfully")
-        logger.info(f"Dataset saved to: {dataset_path}")
+    logger.info("Starting Phase 1: Dataset Building")
+    logger.info(f"Model: {config.model_name}, Split: sae")
+    logger.info("Processing mode: Sequential (use multi_gpu_launcher.py for parallel processing)")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="1"))
+    
+    # Verify Phase 0.1 has been run (split files must exist)
+    sae_split_path = Path(config.phase0_1_output_dir) / "sae_mbpp.parquet"
+    if not sae_split_path.exists():
+        logger.error(f"SAE split not found at {sae_split_path}")
+        logger.error("Phase 1 requires Phase 0.1 to be completed first.")
+        logger.error("Please run: python3 run.py phase 0.1")
+        sys.exit(1)
+    
+    logger.info(f"Found SAE split: {sae_split_path}")
+    
+    # Setup CUDA environment and cleanup GPUs before starting
+    if torch.cuda.is_available() and device == "cuda":
+        logger.info("Setting up CUDA environment and cleaning GPU memory...")
+        setup_cuda_environment()
+        cleanup_gpu_memory()
+    
+    # Create and run simplified runner
+    runner = Phase1Runner(config)
+    final_df = runner.run(split_name='sae')
+    
+    logger.info("✅ Phase 1 completed successfully")
 
 
 def run_phase0_1(config: Config, logger, device: str):
