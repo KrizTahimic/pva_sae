@@ -1,0 +1,1 @@
+"""Simplified Phase 1 implementation for PVA-SAE."""

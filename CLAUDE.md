@@ -70,42 +70,13 @@ When working with SAELens or TransformerLens, access their official documentatio
 - **GitHub**: https://github.com/jbloomAus/SAELens
 - **Documentation**: https://jbloomaus.github.io/SAELens/
 - **Purpose**: Training and analyzing sparse autoencoders on language models
-- **Key Features**: Pre-trained SAE downloads, custom SAE training, SAE-Vis integration
-
-### TransformerLens  
-- **GitHub**: https://github.com/TransformerLensOrg/TransformerLens
-- **Documentation**: https://transformerlensorg.github.io/TransformerLens/
-- **Purpose**: Mechanistic interpretability of GPT-style language models
-- **Key Features**: 50+ model support, activation caching, intervention capabilities
-
-## Framework Usage Patterns
-
-### Dual HuggingFace/TransformerLens Approach
-This project uses both frameworks for different purposes:
-
-1. **HuggingFace (Primary)** - General model loading and activation extraction
-   - Models loaded via `AutoModelForCausalLM.from_pretrained()`
-   - Custom activation extraction using PyTorch hooks
-   - Broad model support and compatibility
-   - Used for dataset generation and primary inference
-
-2. **TransformerLens (Secondary)** - Mechanistic interpretability experiments
-   - Models loaded via `HookedTransformer.from_pretrained_no_processing()`
-   - Built-in `ActivationCache` for storing activations
-   - Specialized interpretability features (patching, steering)
-   - Used primarily for analysis and intervention experiments
-
-### Activation Extraction Patterns
-- **HuggingFace path**: Custom forward/pre-forward hooks attached to model modules
-- **TransformerLens path**: Built-in activation caching functionality
-- **Storage**: Activations cached to memory-mapped files for efficiency
-- **SAE integration**: Compatible with both frameworks
 
 ## Memories
 - Always use `python3` (not python)
 - Use `python3 run.py test-gpu` to test GPU setup
 - Use `python3 multi_gpu_launcher.py --phase 1 --start 0 --end 488` for multi-GPU generation
-- Multi-GPU uses index-based work splitting, not batching
+- Multi-GPU uses index-based work splitting, no batching
+- Use batching when prompting an LLM
 - Phase 0.1 is CPU-only, splits problems based on difficulty from Phase 0
 - Phase 2 is CPU-only, uses saved activations from Phase 1
 - Checkpoint recovery: Auto-discovers latest checkpoints by timestamp
@@ -124,24 +95,8 @@ This project uses both frameworks for different purposes:
 - **Process coordination**: Uses subprocess, not distributed computing framework
 - **Memory management**: Extract and save activations during Phase 1, load from disk in Phase 2
 
-### Steering Experiments
-- **Coefficient range**: Test multiple values from -1.0 to 1.0
-- **Layer analysis**: Configurable per experiment (examples use layer 20)
-- **Components**: Focus on residual stream (resid_pre, resid_mid, resid_post)
 
 ## Key Commands
-
-### Environment Setup
-```bash
-# Activate conda environment
-conda activate pva_sae
-
-# Install dependencies (if not already installed)
-pip install -r requirements.txt
-
-# For CUDA support, also install:
-pip install accelerate
-```
 
 ### Phase-Based Workflow
 ```bash
@@ -149,7 +104,7 @@ pip install accelerate
 python3 run.py phase 0
 
 # Phase 1.0: Build dataset (single GPU) - uses SAE split (489 problems)
-python3 run.py phase 1 --model google/gemma-2-2b
+python3 run.py phase 1
 
 # Phase 1.0: Build dataset (multi-GPU) - uses SAE split (489 problems)
 python3 multi_gpu_launcher.py --phase 1 --start 0 --end 488 --model google/gemma-2-2b
@@ -158,7 +113,7 @@ python3 multi_gpu_launcher.py --phase 1 --start 0 --end 488 --model google/gemma
 python3 run.py phase 0.1
 
 # Phase 1.2: Generate temperature variations for validation split (single GPU)
-python3 run.py phase 1.2 --model google/gemma-2-2b
+python3 run.py phase 1.2
 
 # Phase 1.2: Generate temperature variations (multi-GPU)
 python3 multi_gpu_launcher.py --phase 1.2 --model google/gemma-2-2b
@@ -200,8 +155,6 @@ python3 run.py phase 3 --input data/phase2/specific_results.json
 - Fail fast and early. Avoid Fallbacks.
 - **DRY (Don't Repeat Yourself)**: Extract repeated code into reusable functions
 - Avoid over-engineering for hypothetical futures
-- **Single Responsibility**: One clear purpose per function/class
-- **Minimize Scope**: Declare variables in smallest scope possible, avoid global state
 
 ### Problem-Solving Approach
 - **Root cause analysis**: Avoid bandaid fixes and really fix the root of the problem
