@@ -9,10 +9,11 @@ from typing import Dict, Optional
 # Use absolute imports since we'll add to path in run.py
 from common.config import Config
 from common.logging import get_logger
+from common.prompt_utils import PromptBuilder
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.activation_hooks import ActivationExtractor
 from common_simplified.helpers import save_activations, get_timestamp, load_mbpp_from_phase0_1
-from phase1_simplified.utils import build_prompt, extract_code, evaluate_code, create_activation_filename
+from phase1_simplified.utils import extract_code, evaluate_code, create_activation_filename
 
 # Use the project's phase-based logger
 logger = get_logger("phase1_simplified.runner", phase="1.0")
@@ -110,8 +111,12 @@ class Phase1Runner:
         task_id = task['task_id']
         logger.info(f"Processing task {task_id}")
         
-        # Build prompt
-        prompt = build_prompt(task)
+        # Build prompt using common PromptBuilder
+        test_cases = '\n'.join(task['test_list'])
+        prompt = PromptBuilder.build_prompt(
+            problem_description=task['text'],
+            test_cases=test_cases
+        )
         
         # Generate and extract activations
         # The activations are from the PROMPT's last token residual stream,

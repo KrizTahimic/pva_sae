@@ -6,37 +6,6 @@ from common.logging import get_logger
 logger = get_logger("phase1_simplified.utils", phase="1.0")
 
 
-def build_prompt(task: Dict[str, str]) -> str:
-    """
-    Build prompt for code generation using the standard template.
-    
-    Args:
-        task: Dictionary with 'text' and 'test_list'
-        
-    Returns:
-        Formatted prompt string
-    """
-    # Format test cases (one per line)
-    test_cases = '\n'.join(task['test_list'])
-    
-    template = """Write a Python function to solve the following problem.
-
-Problem:
-{problem_description}
-
-Your function must pass all of these test cases:
-{test_cases}
-
-Write only the function definition. Do not include test code or explanations.
-
-# Your code here:"""
-    
-    return template.format(
-        problem_description=task['text'],
-        test_cases=test_cases
-    )
-
-
 def extract_code(generated_text: str, prompt: str) -> str:
     """
     Extract generated code from model output.
