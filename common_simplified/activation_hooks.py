@@ -83,6 +83,20 @@ class ActivationExtractor:
     def __del__(self):
         """Clean up hooks on deletion."""
         self.remove_hooks()
+    
+    def __enter__(self):
+        """Enter context manager - setup hooks."""
+        self.setup_hooks()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit context manager - remove hooks."""
+        self.remove_hooks()
+        return False
+    
+    def get_activations(self) -> Dict[int, torch.Tensor]:
+        """Get captured activations."""
+        return self.activations.copy()
 
 
 def extract_activations_simple(

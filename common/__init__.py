@@ -57,13 +57,7 @@ from .activation_extraction import (
     load_activation_data
 )
 
-# Import model interfaces
-from .model_interfaces import (
-    UnifiedModelInterface,
-    ModelSteeringInterface,
-    GenerationWithActivations,
-    create_unified_interface
-)
+# Model interfaces removed - using simplified approach
 
 # Import prompt utilities
 from .prompt_utils import (
@@ -111,12 +105,6 @@ __all__ = [
     'create_activation_extractor',
     'save_activation_data',
     'load_activation_data',
-    
-    # Model interfaces
-    'UnifiedModelInterface',
-    'ModelSteeringInterface',
-    'GenerationWithActivations',
-    'create_unified_interface',
     
     # Prompt utilities
     'PromptBuilder'

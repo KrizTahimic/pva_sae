@@ -138,6 +138,9 @@ class SimplifiedSAEAnalyzer:
                 data = np.load(filepath)
                 # Get the first (and only) array from the npz file
                 activation = torch.from_numpy(data[data.files[0]])
+                # Squeeze out the batch dimension if present (shape should be [d_model])
+                if activation.ndim > 1 and activation.shape[0] == 1:
+                    activation = activation.squeeze(0)
                 activations.append(activation)
                 valid_task_ids.append(task_id)
         

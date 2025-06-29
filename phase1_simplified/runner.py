@@ -12,8 +12,11 @@ from common.logging import get_logger
 from common.prompt_utils import PromptBuilder
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.activation_hooks import ActivationExtractor
-from common_simplified.helpers import save_activations, get_timestamp, load_mbpp_from_phase0_1
-from phase1_simplified.utils import extract_code, evaluate_code, create_activation_filename
+from common_simplified.helpers import (
+    save_activations, get_timestamp, load_mbpp_from_phase0_1,
+    extract_code, evaluate_code
+)
+from phase1_simplified.utils import create_activation_filename
 
 # Use the project's phase-based logger
 logger = get_logger("phase1_simplified.runner", phase="1.0")

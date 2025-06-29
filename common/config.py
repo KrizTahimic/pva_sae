@@ -139,7 +139,7 @@ class Config:
     # === TEMPERATURE VARIATION (Phase 3.5) ===
     temperature_variation_temps: List[float] = field(default_factory=lambda: [0.3, 0.6, 0.9, 1.2])
     temperature_samples_per_temp: int = 5  # Number of samples to generate per temperature
-    temperature_test_layer: int = 8  # Best PVA layer from Phase 2 (hardcoded for now)
+    temperature_test_layer: int = 6  # Best PVA layer from Phase 2 (hardcoded for now)
     phase3_5_output_dir: str = "data/phase3_5"
     
     # === VALIDATION (Phase 3) ===

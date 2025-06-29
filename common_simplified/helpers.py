@@ -75,3 +75,60 @@ def load_mbpp_from_phase0_1(split_name: str, phase0_1_dir: Path) -> pd.DataFrame
     df = pd.read_parquet(split_file)
     logger.info(f"Loaded {len(df)} problems from {split_name} split")
     return df
+
+
+def extract_code(generated_text: str, prompt: str) -> str:
+    """
+    Extract generated code from model output.
+    
+    Args:
+        generated_text: Full text from model including prompt
+        prompt: Original prompt to remove
+        
+    Returns:
+        Extracted code
+    """
+    # Remove the prompt from the beginning
+    code = generated_text[len(prompt):].strip()
+    
+    # Basic cleanup - remove common artifacts
+    if code.startswith("```python"):
+        code = code[9:]  # Remove ```python
+    if code.startswith("```"):
+        code = code[3:]  # Remove ```
+        
+    if code.endswith("```"):
+        code = code[:-3]  # Remove trailing ```
+        
+    return code.strip()
+
+
+def evaluate_code(code: str, test_list: list[str]) -> bool:
+    """
+    Evaluate generated code against test cases.
+    
+    Args:
+        code: Generated code to test
+        test_list: List of test assertion strings
+        
+    Returns:
+        True if all tests pass, False otherwise
+    """
+    # Create namespace for execution
+    namespace = {}
+    
+    # Execute the code
+    try:
+        exec(code, namespace)
+    except Exception:
+        return False
+    
+    # Run each test
+    for test in test_list:
+        try:
+            exec(test, namespace)
+        except Exception:
+            return False
+    
+    # All tests passed
+    return True
