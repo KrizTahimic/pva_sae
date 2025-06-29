@@ -11,7 +11,9 @@ This research analyzes how language models internally represent the concept of c
 3. Analyze model representations using Sparse Autoencoders to identify latent directions
 4. Validate findings through statistical analysis and model steering
 
-## Methodology
+## Phase Execution Order
+
+The project follows a specific phase execution order where each phase depends on outputs from previous phases:
 
 ### Phase 0: Difficulty Analysis
 - Analyzes complexity of all 974 MBPP problems using cyclomatic complexity
@@ -29,25 +31,29 @@ This research analyzes how language models internally represent the concept of c
 - Standardized prompt template: problem description + test cases + code initiator
 - Classification: correct (passes all 3 tests) vs incorrect
 - Generates solutions for 489 problems in the SAE split only
+- **Extracts activations from ALL layers [0, 6, 8, 15, 17] during generation**
 
 ### Phase 2: SAE Analysis
 - Utilizes pre-trained SAEs from GemmaScope with JumpReLU architecture
-- Analyzes residual stream at final token position
+- Analyzes residual stream at final token position using saved activations from Phase 1
 - Computes separation scores to identify distinguishing latent dimensions
-- Filters out general language patterns (>2% activation on Pile dataset)
+- **Identifies the best PVA layer** (e.g., layer 8) for Phase 3.5
 
 ### Phase 3: Validation
 - **Statistical Analysis**: 
   - AUROC: Measures discrimination ability across all thresholds
   - F1 Score: Harmonic mean of precision and recall (optimized on hyperparameter set)
-- **Robustness Analysis**:
-  - Temperature Variation: Tests across temperatures (0.0, 0.3, 0.6, 0.9, 1.2)
-  - Difficulty Variation: Evaluates performance across difficulty levels
 - **Model Steering**: 
   - Manipulates identified latent directions to test causal influence
   - Correction Rate: Proportion of incorrect→correct after steering
   - Corruption Rate: Proportion of correct→incorrect after steering
-  - Binomial Testing: Statistical significance with baseline control steering
+
+### Phase 3.5: Temperature Robustness Testing
+- **MUST run after Phase 2** as it uses the best PVA layer identified
+- Tests robustness on validation split at temperatures [0.3, 0.6, 0.9, 1.2]
+- Generates 5 samples per temperature for each validation task
+- **Extracts activations from ONLY the best layer** (not all layers)
+- Activations come from prompt processing, not generation (temperature only affects sampling)
 
 ## Installation
 
@@ -79,39 +85,29 @@ python3 run.py phase 0.1
 # Phase 1: Build dataset (uses SAE split from phase0.1, outputs to data/phase1_0/)
 python3 run.py phase 1 --model google/gemma-2-2b
 
-# Phase 1.2: Generate temperature variations (uses phase0.1 splits, outputs to data/phase1_2/)
-# Generates 5 samples each at temperatures [0.3, 0.6, 0.9, 1.2] for validation set only
-python3 run.py phase 1.2 --model google/gemma-2-2b
-
 # Phase 2: Analyze with SAEs (auto-discovers from phase1, outputs to data/phase2/)
-# Must specify which split to analyze: sae (50%), hyperparams (10%), or validation (40%)
-python3 run.py phase 2 --split sae
+python3 run.py phase 2
 
 # Phase 3: Run validation (auto-discovers from phase1 & phase2, outputs to data/phase3/)
 python3 run.py phase 3
+
+# Phase 3.5: Temperature robustness testing (requires phase 2 to identify best layer)
+# Tests validation split at multiple temperatures, extracting only from best PVA layer
+python3 run.py phase 3.5 --model google/gemma-2-2b
 ```
 
 The pipeline automatically discovers outputs from previous phases, creating a seamless workflow.
 
+### Simplified Architecture
+
+The project has been refactored to follow KISS (Keep It Simple, Stupid) and YAGNI (You Aren't Gonna Need It) principles:
+
+- **Direct Model Loading**: Replaced complex ModelManager with simple HuggingFace transformers calls
+- **Simple Generation**: Removed RobustGenerator's 267 lines of retry logic in favor of direct generation
+- **Clean Activation Handling**: Eliminated ActivationData wrapper class for direct numpy arrays
+- **60% Less Code**: Refactored from ~1600 lines to ~650 lines while maintaining all functionality
+
 ### Phase-Specific Examples
-
-#### Phase 1.2 Testing
-```bash
-# Test with just 3 validation samples at 2 temperatures
-python3 run.py phase 1.2 --samples 3 --test-temps 0.3 0.6 --test-samples-per-temp 2
-
-# Quick test with 5 samples using default temperatures
-python3 run.py phase 1.2 --samples 5
-
-# Test specific model with limited samples
-python3 run.py phase 1.2 --samples 10 --model google/gemma-2-2b
-
-python3 run.py phase 1.2 --samples 2 --test-samples-per-temp 2
-```
-
-Test mode outputs to `data/test_phase1_2/` to keep production data clean.
-
-#### Other Phase Examples
 ```bash
 # Quick test with small dataset (first 10 problems from SAE split)
 python3 run.py phase 1 --model google/gemma-2-2b --start 0 --end 10
@@ -129,14 +125,13 @@ python3 run.py phase 2 --input data/phase1/specific_dataset.parquet
 ```
 pva_sae/
 ├── common/                         # Shared utilities and configurations
+├── common_simplified/              # Simplified modules following KISS principle
 ├── phase0_difficulty_analysis/     # Phase 0: MBPP complexity preprocessing
-├── phase1_0_dataset_building/      # Phase 1.0: Dataset generation
 ├── phase0_1_problem_splitting/     # Phase 0.1: Problem splitting
-│   ├── inspect_splits.ipynb       # Notebook to view split contents
-│   └── inspect_splits_simple.ipynb # Alternative simpler version
-├── phase1_2_temperature_generation/# Phase 1.2: Temperature variations
-├── phase2_sae_analysis/            # Phase 2: SAE analysis
-├── phase3_validation/              # Phase 3: Validation
+├── phase1_simplified/              # Phase 1: Simplified dataset generation
+├── phase2_simplified/              # Phase 2: Simplified SAE analysis
+├── phase3_validation/              # Phase 3: Validation (not yet implemented)
+├── phase3_5_temperature_robustness/# Phase 3.5: Temperature robustness testing
 ├── data/                           # Phase-based data directory
 │   ├── phase0/                    # Difficulty mappings
 │   ├── phase1_0/                  # Generated datasets

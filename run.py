@@ -92,8 +92,8 @@ def setup_argument_parser():
     phase_parser.add_argument(
         'phase',
         type=float,
-        choices=[0, 0.1, 1, 1.2, 2, 3],
-        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 1.2=Temperature Generation, 2=SAE Analysis, 3=Validation'
+        choices=[0, 0.1, 1, 2, 3, 3.5],
+        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2=SAE Analysis, 3=Validation, 3.5=Temperature Robustness'
     )
     
     # Global arguments (add to phase parser)
@@ -187,23 +187,12 @@ def setup_argument_parser():
         help='Generate split metadata after splitting'
     )
     
-    # Phase 1.2: Temperature Generation arguments
-    phase1_2_group = phase_parser.add_argument_group('Phase 1.2: Temperature Generation')
-    phase1_2_group.add_argument(
+    # Phase 3.5: Temperature Robustness arguments
+    phase3_5_group = phase_parser.add_argument_group('Phase 3.5: Temperature Robustness')
+    phase3_5_group.add_argument(
         '--samples',
         type=int,
         help='Number of validation samples to process (for testing). Default: all'
-    )
-    phase1_2_group.add_argument(
-        '--test-temps',
-        nargs='+',
-        type=float,
-        help='Override temperatures for testing (e.g., --test-temps 0.3 0.6)'
-    )
-    phase1_2_group.add_argument(
-        '--test-samples-per-temp',
-        type=int,
-        help='Override samples per temperature for testing (default: 5)'
     )
     
     # Phase 2: SAE Analysis arguments
@@ -401,337 +390,21 @@ def run_phase0_1(config: Config, logger, device: str):
     logger.info(f"Splits saved to: {config.phase0_1_output_dir}")
 
 
-def run_phase1_2(config: Config, logger, device: str):
-    """Run Phase 1.2: Temperature Variation Generation for validation split"""
-    from phase1_2_temperature_generation import TemperatureVariationGenerator
-    from common.models import ModelManager
-    from common.utils import discover_latest_phase_output
-    from common.gpu_utils import setup_cuda_environment
-    
-    logger.info("Starting Phase 1.2: Temperature Variation Generation")
-    logger.info("This phase generates multiple temperature variations for the validation split")
-    
-    # Log configuration
-    logger.info("\n" + config.dump(phase="1.2"))
-    
-    # Setup CUDA for generation (only for NVIDIA GPUs)
-    if device == "cuda":
-        setup_cuda_environment()
-    
-    # Check for test mode arguments
-    test_mode = False
-    temperatures = config.temperature_variation_temps
-    samples_per_temp = config.temperature_samples_per_temp
-    output_dir = config.phase1_2_output_dir
-    
-    # Override for testing if requested
-    if hasattr(config, '_test_temps') and config._test_temps:
-        temperatures = config._test_temps
-        test_mode = True
-        logger.info(f"Test mode: Using temperatures {temperatures}")
-    
-    if hasattr(config, '_test_samples_per_temp') and config._test_samples_per_temp:
-        samples_per_temp = config._test_samples_per_temp
-        test_mode = True
-        logger.info(f"Test mode: Using {samples_per_temp} samples per temperature")
-    
-    if test_mode:
-        # Use test output directory to avoid mixing with production data
-        output_dir = "data/test_phase1_2"
-        logger.info(f"Test mode: Output will be saved to {output_dir}")
-    
-    # Update config with test mode overrides if needed
-    if hasattr(config, '_test_temps') and config._test_temps:
-        config.temperature_variation_temps = config._test_temps
-    if hasattr(config, '_test_samples_per_temp') and config._test_samples_per_temp:
-        config.temperature_samples_per_temp = config._test_samples_per_temp
-    if test_mode:
-        config.phase1_2_output_dir = output_dir
-    
-    # Check Phase 0.1 outputs exist
-    validation_file = Path(config.phase0_1_output_dir) / "validation_mbpp.parquet"
-    if not validation_file.exists():
-        logger.error(f"Validation data not found at {validation_file}")
-        logger.error("Please run Phase 0.1 first to create problem splits")
-        sys.exit(1)
-    
-    # Handle --samples argument for testing with subset
-    if hasattr(config, '_samples') and config._samples:
-        import pandas as pd
-        validation_df = pd.read_parquet(validation_file)
-        
-        # Take subset of validation data
-        subset_size = min(config._samples, len(validation_df))
-        subset_df = validation_df.head(subset_size)
-        
-        logger.info(f"Test mode: Using {subset_size} validation tasks out of {len(validation_df)}")
-        
-        # Create temporary validation file with subset
-        import tempfile
-        temp_dir = Path(tempfile.mkdtemp(prefix="phase1_2_test_"))
-        temp_validation_file = temp_dir / "validation_mbpp.parquet"
-        
-        subset_df.to_parquet(temp_validation_file, index=False)
-        
-        # Update config to use temporary directory
-        config.phase0_1_output_dir = str(temp_dir)
-        test_mode = True
-    
-    # Initialize model manager
-    logger.info(f"Loading model: {config.model_name}")
-    model_manager = ModelManager(config)
-    
-    try:
-        # Load model
-        model_manager.load_model()
-        logger.info(f"Model loaded successfully on {model_manager.device}")
-        
-        # Create temperature generator
-        generator = TemperatureVariationGenerator(
-            model_manager=model_manager,
-            config=config
-        )
-        
-        # Run generation
-        metadata = generator.run()
-        
-        # Log summary
-        logger.info("\n" + "="*60)
-        logger.info("TEMPERATURE GENERATION SUMMARY")
-        logger.info("="*60)
-        logger.info(f"Temperatures generated: {config.temperature_variation_temps}")
-        logger.info(f"Tasks processed: {metadata['n_tasks']}")
-        logger.info(f"Total samples generated: {metadata['n_total_samples']}")
-        
-        for temp_str, stats in metadata['temperature_stats'].items():
-            logger.info(f"\nTemperature {temp_str}:")
-            logger.info(f"  - Pass rate: {stats['pass_rate']:.1%}")
-            logger.info(f"  - Correct: {stats['n_correct']}")
-            logger.info(f"  - Incorrect: {stats['n_incorrect']}")
-            logger.info(f"  - Avg generation time: {stats['avg_generation_time']:.2f}s")
-        
-        logger.info(f"\n✅ Phase 1.2 completed successfully")
-        logger.info(f"Results saved to: {config.phase1_2_output_dir}")
-        
-    except Exception as e:
-        logger.error(f"Phase 1.2 failed: {e}")
-        # Always show traceback for debugging
-        import traceback
-        logger.error(f"Traceback:\n{traceback.format_exc()}")
-        raise
-    finally:
-        # Cleanup
-        if model_manager:
-            model_manager.cleanup()
-        cleanup_gpu_memory()
-        
-        # Clean up temporary directory if used
-        if test_mode and 'temp_dir' in locals() and temp_dir.exists():
-            import shutil
-            shutil.rmtree(temp_dir)
-            logger.info(f"Cleaned up temporary directory: {temp_dir}")
 
 
 def run_phase2(config: Config, logger, device: str):
-    """Run Phase 2: SAE Analysis (CPU-only, using saved activations)"""
-    import pandas as pd
-    import json
-    from pathlib import Path
-    from phase2_sae_analysis.activation_loader import ActivationLoader
-    from phase2_sae_analysis.sae_analyzer import load_gemma_scope_sae, compute_separation_scores
-    from phase2_sae_analysis.pile_filter import PileFilter
-    # SAELayerConfig removed - using unified Config
-    from common.utils import discover_latest_phase_output
+    """Run Phase 2: SAE Analysis using simplified implementation"""
+    from phase2_simplified.sae_analyzer import SimplifiedSAEAnalyzer
     
-    logger.info("Starting Phase 2: SAE Analysis (CPU-only)")
-    logger.info("Phase 2 now loads saved activations from Phase 1 - no GPU required")
-    
-    # Phase 2 always analyzes the SAE split to find the best PVA direction
-    split_name = 'sae'
-    logger.info(f"Analyzing SAE split to identify best PVA latent direction")
+    logger.info("Starting Phase 2: SAE Analysis")
+    logger.info("Using simplified implementation")
     
     # Log configuration
     logger.info("\n" + config.dump(phase="2"))
     
-    # Force CPU usage for Phase 2
-    device = "cpu"
-    
-    # Load split data from Phase 0.1
-    split_file = Path(config.phase0_1_output_dir) / f"{split_name}_mbpp.parquet"
-    if not split_file.exists():
-        logger.error(f"Split data not found: {split_file}")
-        logger.error("Please run Phase 0.1 first to create problem splits")
-        sys.exit(1)
-    
-    split_df = pd.read_parquet(split_file)
-    split_task_ids = split_df['task_id'].tolist()
-    logger.info(f"Loaded {len(split_task_ids)} task IDs for {split_name} split")
-    
-    # Get dataset path from input or auto-discovery
-    if hasattr(config, '_input_file') and config._input_file:
-        logger.info(f"Using specified dataset: {config._input_file}")
-        dataset_path = config._input_file
-    else:
-        logger.info("Auto-discovering dataset from Phase 1...")
-        dataset_path = discover_latest_phase_output("1")
-        if not dataset_path:
-            logger.error(f"No dataset found in {config.phase1_output_dir}. Please run Phase 1 first or specify --input")
-            sys.exit(1)
-        logger.info(f"Found dataset: {dataset_path}")
-    
-    # Load dataset and filter by split
-    logger.info("Loading dataset metadata...")
-    df = pd.read_parquet(dataset_path)
-    dataset_path = Path(dataset_path)
-    
-    # Filter dataset by split task IDs
-    df_split = df[df['task_id'].isin(split_task_ids)]
-    
-    # Get task IDs by category for this split
-    correct_task_ids = df_split[df_split['test_passed'] == True]['task_id'].tolist()
-    incorrect_task_ids = df_split[df_split['test_passed'] == False]['task_id'].tolist()
-    
-    logger.info(f"Split '{split_name}' stats: {len(correct_task_ids)} correct, {len(incorrect_task_ids)} incorrect")
-    
-    # Phase 2 always uses base activations from Phase 1.0 (SAE split)
-    activation_dir = dataset_path.parent / "activations"
-    if not activation_dir.exists():
-        logger.error(f"Activation directory not found: {activation_dir}")
-        logger.error("No activation files found. Please run Phase 1 first to generate activations.")
-        sys.exit(1)
-    
-    logger.info(f"Loading activations from: {activation_dir}")
-    activation_loader = ActivationLoader(activation_dir)
-    
-    # Show activation summary
-    summary = activation_loader.get_summary()
-    logger.info(f"Found activations: {summary['n_correct_tasks']} correct, "
-                f"{summary['n_incorrect_tasks']} incorrect, "
-                f"{summary['n_layers']} layers: {summary['layers']}")
-    
-    # Use available layers from the activation summary
-    available_layers = summary['layers']
-    
-    # Create results storage
-    from phase2_sae_analysis.sae_analyzer import (
-        SAEAnalysisResults, PVALatentDirection, SeparationScores,
-        MultiLayerSAEResults
-    )
-    
-    layer_results = {}
-    
-    # Process each layer
-    logger.info("Processing SAE analysis for each layer...")
-    for layer_idx in available_layers:
-        logger.info(f"\nAnalyzing layer {layer_idx}...")
-        
-        try:
-            # Load saved activations (use all task IDs from the split)
-            correct_acts = activation_loader.load_batch(
-                correct_task_ids,
-                layer=layer_idx,
-                category="correct"
-            )
-            incorrect_acts = activation_loader.load_batch(
-                incorrect_task_ids,
-                layer=layer_idx,
-                category="incorrect"
-            )
-            
-            logger.info(f"Loaded activations - correct: {correct_acts.shape}, incorrect: {incorrect_acts.shape}")
-            
-            # Load SAE for this layer with layer-specific sparsity
-            validate_layer(layer_idx)  # Fail fast if layer not supported
-            sae_id = construct_sae_id(layer_idx)
-            sae = load_gemma_scope_sae(
-                repo_id=config.sae_repo_id,
-                sae_id=sae_id,
-                device=device
-            )
-            
-            # Apply SAE encoding
-            import torch
-            with torch.no_grad():
-                # Convert to float32 to match SAE dtype
-                correct_acts_f32 = correct_acts.to(torch.float32)
-                incorrect_acts_f32 = incorrect_acts.to(torch.float32)
-                correct_sae_acts = sae.encode(correct_acts_f32)
-                incorrect_sae_acts = sae.encode(incorrect_acts_f32)
-            
-            # Compute separation scores
-            scores = compute_separation_scores(correct_sae_acts, incorrect_sae_acts)
-            
-            # Create PVA directions
-            correct_direction = PVALatentDirection(
-                direction_type="correct",
-                layer=layer_idx,
-                feature_idx=scores.best_correct_idx,
-                separation_score=scores.s_correct[scores.best_correct_idx].item(),
-                f_correct=scores.f_correct[scores.best_correct_idx].item(),
-                f_incorrect=scores.f_incorrect[scores.best_correct_idx].item()
-            )
-            
-            incorrect_direction = PVALatentDirection(
-                direction_type="incorrect",
-                layer=layer_idx,
-                feature_idx=scores.best_incorrect_idx,
-                separation_score=scores.s_incorrect[scores.best_incorrect_idx].item(),
-                f_correct=scores.f_correct[scores.best_incorrect_idx].item(),
-                f_incorrect=scores.f_incorrect[scores.best_incorrect_idx].item()
-            )
-            
-            # Store results
-            layer_results[layer_idx] = SAEAnalysisResults(
-                layer_idx=layer_idx,
-                correct_direction=correct_direction,
-                incorrect_direction=incorrect_direction,
-                separation_scores=scores,
-                correct_sae_activations=correct_sae_acts,
-                incorrect_sae_activations=incorrect_sae_acts
-            )
-            
-            logger.info(f"Layer {layer_idx} - Best correct feature: {correct_direction.feature_idx} "
-                       f"(score: {correct_direction.separation_score:.3f})")
-            logger.info(f"Layer {layer_idx} - Best incorrect feature: {incorrect_direction.feature_idx} "
-                       f"(score: {incorrect_direction.separation_score:.3f})")
-            
-            # Clean up to save memory
-            del sae, correct_acts, incorrect_acts, correct_sae_acts, incorrect_sae_acts
-            torch.cuda.empty_cache() if torch.cuda.is_available() else None
-            
-        except Exception as e:
-            logger.error(f"Failed to analyze layer {layer_idx}: {e}")
-            if config.verbose:
-                import traceback
-                logger.error(f"Traceback:\n{traceback.format_exc()}")
-            continue
-    
-    # Create multi-layer results
-    results = MultiLayerSAEResults(
-        layer_results=layer_results,
-        layer_indices=list(layer_results.keys()),
-        model_name=config.model_name,
-        n_correct_samples=len(correct_task_ids[:100]),
-        n_incorrect_samples=len(incorrect_task_ids[:100]),
-        hook_component=config.sae_hook_component
-    )
-    
-    # Print initial results
-    logger.info("\n" + results.summary())
-    
-    # Save results
-    from datetime import datetime
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    results_file = Path(config.phase2_output_dir) / f"multi_layer_results_{timestamp}.json"
-    results_file.parent.mkdir(parents=True, exist_ok=True)
-    results.save_to_file(str(results_file))
-    logger.info(f"\nResults saved to: {results_file}")
-    
-    # Apply Pile filtering if requested
-    if config.pile_filter_enabled:
-        logger.info(f"\nPile filtering requires loading the model temporarily.")
-        logger.info("Skipping Pile filtering in this CPU-only implementation.")
-        # TODO: Consider pre-computing Pile frequencies in a separate step
+    # Create and run analyzer
+    analyzer = SimplifiedSAEAnalyzer(config)
+    results = analyzer.run()
     
     logger.info("\n✅ Phase 2 completed successfully")
 
@@ -774,6 +447,23 @@ def run_phase3(config: Config, logger, device: str):
     logger.info("Validation not yet implemented")
     logger.info("This phase will run statistical validation and model steering experiments")
     logger.info(f"Results will be saved to {config.phase3_output_dir}/")
+
+
+def run_phase3_5(config: Config, logger, device: str):
+    """Run Phase 3.5: Temperature Robustness Testing"""
+    from phase3_5_temperature_robustness.temperature_runner import TemperatureRobustnessRunner
+    
+    logger.info("Starting Phase 3.5: Temperature Robustness Testing")
+    logger.info(f"Testing robustness on layer {config.temperature_test_layer}")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="3.5"))
+    
+    # Create and run temperature robustness runner
+    runner = TemperatureRobustnessRunner(config)
+    metadata = runner.run()
+    
+    logger.info("\n✅ Phase 3.5 completed successfully")
 
 
 def cleanup_gpu_command(args, logger):
@@ -1436,9 +1126,9 @@ def main():
             0: "Difficulty Analysis",
             0.1: "Problem Splitting",
             1: "Dataset Building",
-            1.2: "Temperature Generation", 
             2: "SAE Analysis",
-            3: "Validation"
+            3: "Validation",
+            3.5: "Temperature Robustness"
         }
         
         print(f"\n{'='*60}")
@@ -1454,12 +1144,12 @@ def main():
                 run_phase1(config, logger, device)
             elif args.phase == 0.1:
                 run_phase0_1(config, logger, device)
-            elif args.phase == 1.2:
-                run_phase1_2(config, logger, device)
             elif args.phase == 2:
                 run_phase2(config, logger, device)
             elif args.phase == 3:
                 run_phase3(config, logger, device)
+            elif args.phase == 3.5:
+                run_phase3_5(config, logger, device)
             
             print(f"✅ Phase {args.phase} completed successfully!")
             

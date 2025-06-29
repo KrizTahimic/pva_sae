@@ -15,6 +15,36 @@ DEFAULT_MODEL_NAME = "google/gemma-2-2b"
 DEFAULT_LOG_DIR = "data/logs"
 MAX_NEW_TOKENS = 2000
 
+# GemmaScope sparsity levels for each layer (16k width)
+GEMMA_2B_SPARSITY = {
+    0: 105,
+    1: 102,
+    2: 142,
+    3: 59,
+    4: 124,
+    5: 68,
+    6: 70,
+    7: 69,
+    8: 71,
+    9: 73,
+    10: 77,
+    11: 80,
+    12: 82,
+    13: 84,
+    14: 84,
+    15: 78,
+    16: 78,
+    17: 77,
+    18: 74,
+    19: 73,
+    20: 71,
+    21: 70,
+    22: 72,
+    23: 74,
+    24: 73,
+    25: 116,
+}
+
 
 @dataclass
 class Config:
@@ -106,9 +136,11 @@ class Config:
     split_n_strata: int = 10
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
-    # === TEMPERATURE VARIATION (Phase 1.2) ===
+    # === TEMPERATURE VARIATION (Phase 3.5) ===
     temperature_variation_temps: List[float] = field(default_factory=lambda: [0.3, 0.6, 0.9, 1.2])
     temperature_samples_per_temp: int = 5  # Number of samples to generate per temperature
+    temperature_test_layer: int = 8  # Best PVA layer from Phase 2 (hardcoded for now)
+    phase3_5_output_dir: str = "data/phase3_5"
     
     # === VALIDATION (Phase 3) ===
     validation_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.5, 1.0, 1.5, 2.0])

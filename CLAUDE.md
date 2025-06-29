@@ -38,23 +38,27 @@ data/
 │   ├── hyperparams_mbpp.parquet # Hyperparameter split with full MBPP data
 │   ├── validation_mbpp.parquet  # Validation split with full MBPP data
 │   └── split_metadata.json
-├── phase1_2/         # Temperature variations (validation split only)
-│   ├── dataset_temp_0_3.parquet  # 5 samples per task at temp 0.3
-│   ├── dataset_temp_0_6.parquet  # 5 samples per task at temp 0.6
-│   ├── dataset_temp_0_9.parquet  # 5 samples per task at temp 0.9
-│   ├── dataset_temp_1_2.parquet  # 5 samples per task at temp 1.2
-│   ├── metadata.json
-│   └── activations/
-│       ├── temp_0_3/
-│       │   ├── correct/
-│       │   │   └── {task_id}_sample{0-4}_layer_{n}.npz
-│       │   └── incorrect/
-│       ├── temp_0_6/
-│       └── temp_0_9/
-│           └── temp_1_2/
-├── phase2/           # SAE analysis results (split-aware)
-└── phase3/           # Validation results
+├── phase2/           # SAE analysis results
+│   ├── sae_analysis_results.json
+│   └── best_layer.json          # Best PVA layer for Phase 3.5
+├── phase3/           # Validation results
+└── phase3_5/         # Temperature robustness (validation split only)
+    ├── dataset_temp_0_3.parquet  # 5 samples per task at temp 0.3
+    ├── dataset_temp_0_6.parquet  # 5 samples per task at temp 0.6
+    ├── dataset_temp_0_9.parquet  # 5 samples per task at temp 0.9
+    ├── dataset_temp_1_2.parquet  # 5 samples per task at temp 1.2
+    ├── metadata.json
+    └── activations/
+        └── task_activations/     # Single layer activations per task
+            └── {task_id}_layer_{best_layer}.npz
 ```
+
+## Simplified Modules
+
+Use common_simplified/ modules instead of common/ for new implementations:
+- model_loader.py instead of ModelManager
+- activation_hooks.py instead of activation_extraction
+- Direct numpy operations instead of ActivationData wrapper
 
 ## Key Project Constraints
 - **Scale**: 974 MBPP problems, 2000 tokens max, 2B parameter model
@@ -79,6 +83,8 @@ When working with SAELens or TransformerLens, access their official documentatio
 - Use batching when prompting an LLM
 - Phase 0.1 is CPU-only, splits problems based on difficulty from Phase 0
 - Phase 2 is CPU-only, uses saved activations from Phase 1
+- Phase 3.5 MUST run after Phase 2 because it needs the best_layer output
+- Phase 3.5 extracts activations from only ONE layer (identified by Phase 2), not all layers like Phase 1
 - Checkpoint recovery: Auto-discovers latest checkpoints by timestamp
 - Memory management: Extract and save activations during Phase 1, load from disk in Phase 2
 
@@ -112,18 +118,18 @@ python3 multi_gpu_launcher.py --phase 1 --start 0 --end 488 --model google/gemma
 # Phase 0.1: Split problems by difficulty
 python3 run.py phase 0.1
 
-# Phase 1.2: Generate temperature variations for validation split (single GPU)
-python3 run.py phase 1.2
-
-# Phase 1.2: Generate temperature variations (multi-GPU)
-python3 multi_gpu_launcher.py --phase 1.2 --model google/gemma-2-2b
-
-# Phase 2: SAE analysis with split selection
-python3 run.py phase 2 --split sae        # Analyze SAE split (default)
-python3 run.py phase 2 --split validation # Analyze validation split (with temperature aggregation)
+# Phase 2: SAE analysis (auto-discovers from phase1, outputs to data/phase2/)
+python3 run.py phase 2
 
 # Phase 3: Validation (auto-discovers from phase1 & phase2, outputs to data/phase3/)
 python3 run.py phase 3
+
+# Phase 3.5: Temperature robustness for validation split (single GPU)
+# Uses best layer from Phase 2 (hardcoded in config as temperature_test_layer)
+python3 run.py phase 3.5
+
+# Phase 3.5: Temperature robustness (multi-GPU)
+python3 multi_gpu_launcher.py --phase 3.5 --model google/gemma-2-2b
 ```
 
 ### Data Cleanup
