@@ -5,7 +5,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from typing import Tuple, Optional
 from common.logging import get_logger
 
-logger = get_logger("common_simplified.model_loader", phase="1.0")
+logger = get_logger("common_simplified.model_loader")
 
 
 def load_model_and_tokenizer(

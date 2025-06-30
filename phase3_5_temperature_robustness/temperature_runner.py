@@ -56,6 +56,8 @@ class TemperatureRobustnessRunner:
             self.model,
             layers=[self.best_layer]  # Only extract from the best layer!
         )
+        # Explicitly setup hooks (Phase 1 does this in setup(), Phase 3.5 needs it too!)
+        self.activation_extractor.setup_hooks()
         
         # Validate configuration
         if not config.temperature_variation_temps:
@@ -73,15 +75,26 @@ class TemperatureRobustnessRunner:
             max_length=2048
         ).to(self.device)
         
+        # Clear previous activations
+        self.activation_extractor.activations.clear()
+        
         # Forward pass to extract activations
-        with self.activation_extractor:
-            with torch.no_grad():
-                # Just run the model forward, don't generate
-                _ = self.model(**inputs)
+        with torch.no_grad():
+            # Just run the model forward, don't generate
+            _ = self.model(**inputs)
         
         # Get captured activations from the single layer
         activations = self.activation_extractor.get_activations()
-        return activations[self.best_layer]
+        
+        # Debug: log what we got
+        if not activations:
+            logger.error("No activations captured! Activation extractor may not be set up correctly.")
+            logger.error(f"Extractor layers: {self.activation_extractor.layers}")
+            logger.error(f"Extractor hooks: {len(self.activation_extractor.hooks)} hooks")
+            raise ValueError("No activations captured from model")
+        
+        # Since we only extract from one layer, just return the first (and only) value
+        return list(activations.values())[0]
     
     def generate_at_temperature(self, prompt: str, temperature: float) -> str:
         """Generate code at specific temperature without re-extracting activations."""
@@ -130,6 +143,9 @@ class TemperatureRobustnessRunner:
             logger.info(f"Multi-GPU mode: Processing rows {task_start}-{task_end-1}")
             validation_data = validation_data.iloc[task_start:task_end].copy()
         
+        # Debug: log the actual output directory being used
+        logger.info(f"DEBUG: phase3_5_output_dir = {self.config.phase3_5_output_dir}")
+        
         # Setup output directories
         self._setup_output_directories()
         
@@ -163,6 +179,7 @@ class TemperatureRobustnessRunner:
     def _setup_output_directories(self) -> None:
         """Create output directory structure."""
         output_dir = Path(self.config.phase3_5_output_dir)
+        logger.info(f"DEBUG: Creating output directory: {output_dir}")
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Create activation directory for task activations
@@ -204,7 +221,10 @@ class TemperatureRobustnessRunner:
                         pbar.update(1)
                         
             except Exception as e:
+                import traceback
                 logger.error(f"Failed to process task {row['task_id']}: {e}")
+                logger.error(f"Exception type: {type(e).__name__}")
+                logger.error(f"Traceback:\n{traceback.format_exc()}")
                 # Add failed results for all temperature/sample combinations
                 for temperature in self.config.temperature_variation_temps:
                     for sample_idx in range(self.config.temperature_samples_per_temp):

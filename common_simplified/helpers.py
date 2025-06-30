@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 from common.logging import get_logger
 
-logger = get_logger("common_simplified.helpers", phase="1.0")
+logger = get_logger("common_simplified.helpers")
 
 
 def save_json(data: Dict[str, Any], filepath: Path) -> None:

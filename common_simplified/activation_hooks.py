@@ -1,10 +1,10 @@
 """Simple activation extraction using PyTorch hooks."""
 
 import torch
-from typing import Dict, List, Callable, Optional
+from typing import Dict, List, Callable
 from common.logging import get_logger
 
-logger = get_logger("common_simplified.activation_hooks", phase="1.0")
+logger = get_logger("common_simplified.activation_hooks")
 
 
 class ActivationExtractor:
@@ -30,13 +30,23 @@ class ActivationExtractor:
         self.remove_hooks()  # Clean up any existing hooks
         
         for layer_idx in self.layers:
-            # Get the layer module
-            layer = self.model.model.layers[layer_idx]
-            
-            # Register pre-hook to capture the residual stream BEFORE layer processing
-            # This gives us the residual stream activations that feed into the layer
-            hook = layer.register_forward_pre_hook(self._create_hook(layer_idx))
-            self.hooks.append(hook)
+            try:
+                # Get the layer module
+                layer = self.model.model.layers[layer_idx]
+                
+                # Register pre-hook to capture the residual stream BEFORE layer processing
+                # This gives us the residual stream activations that feed into the layer
+                hook = layer.register_forward_pre_hook(self._create_hook(layer_idx))
+                self.hooks.append(hook)
+            except (AttributeError, IndexError) as e:
+                logger.error(f"Failed to access layer {layer_idx}: {type(e).__name__}: {e}")
+                logger.error(f"Model type: {type(self.model).__name__}")
+                logger.error(f"Model has 'model' attribute: {hasattr(self.model, 'model')}")
+                if hasattr(self.model, 'model'):
+                    logger.error(f"Model.model has 'layers' attribute: {hasattr(self.model.model, 'layers')}")
+                    if hasattr(self.model.model, 'layers'):
+                        logger.error(f"Number of layers: {len(self.model.model.layers)}")
+                raise
             
         logger.info(f"Set up hooks for {len(self.layers)} layers to capture residual stream")
     
