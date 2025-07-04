@@ -187,100 +187,102 @@ class MultiGPULauncher:
         print(f"Check individual logs in data/logs/gpu_*_output.log")
         print(f"\nPress Ctrl+C to stop all processes\n")
     
-    def launch_phase12_processes(self, 
-                                model: str,
-                                extra_args: List[str] = None):
+    def launch_phase3_5_processes(self,
+                                  start_idx: int,
+                                  end_idx: int,
+                                  model: str,
+                                  extra_args: List[str] = None):
         """
-        Launch Phase 1.2 temperature variation processes on different GPUs
-        
-        For Phase 1.2, we load validation task IDs from Phase 0.1 and split
-        them across GPUs for parallel temperature generation.
+        Launch Phase 3.5 temperature robustness processes on different GPUs
         
         Args:
+            start_idx: Starting index for validation dataset
+            end_idx: Ending index for validation dataset (inclusive)
             model: Model name to use
             extra_args: Additional arguments to pass
         """
         # Setup logging
         logging_manager = LoggingManager(
-            phase="1.2",
+            phase="3.5",
             log_dir="data/logs"
         )
         self.logger = logging_manager.setup_logging("multi_gpu_launcher")
         
-        # Load validation data to determine workload
-        import pandas as pd
+        # Check validation split exists
         validation_file = Path("data/phase0_1/validation_mbpp.parquet")
-        
         if not validation_file.exists():
             raise FileNotFoundError(
                 f"Validation data not found at {validation_file}. "
                 "Please run Phase 0.1 first."
             )
         
+        # Load validation data to check size
+        import pandas as pd
         validation_df = pd.read_parquet(validation_file)
-        total_tasks = len(validation_df)
+        actual_size = len(validation_df)
+        
+        # Adjust end_idx if it exceeds validation size
+        if end_idx >= actual_size:
+            self.logger.info(f"Adjusting end_idx from {end_idx} to {actual_size - 1} (validation size: {actual_size})")
+            end_idx = actual_size - 1
+        
+        # Split workload
+        splits = self.split_workload(start_idx, end_idx)
         
         print(f"\n{'='*60}")
-        print(f"MULTI-GPU PHASE 1.2 TEMPERATURE GENERATION")
+        print(f"MULTI-GPU PARALLEL PROCESSING - PHASE 3.5")
         print(f"{'='*60}")
         print(f"Total GPUs: {len(self.gpus)}")
-        print(f"Total validation tasks: {total_tasks}")
+        print(f"Validation dataset size: {actual_size} problems")
+        print(f"Processing range: {start_idx}-{end_idx} ({end_idx - start_idx + 1} items)")
         print(f"Model: {model}")
-        
-        # Split validation task IDs across GPUs
-        tasks_per_gpu = math.ceil(total_tasks / len(self.gpus))
-        
         print(f"\nWorkload distribution:")
         
+        for i, (gpu_id, (split_start, split_end)) in enumerate(zip(self.gpus, splits)):
+            items = split_end - split_start + 1
+            print(f"  GPU {gpu_id}: {split_start}-{split_end} ({items} items)")
+        
+        print(f"\n{'='*60}")
+        print("Starting processes...\n")
+        
         # Launch processes
-        for i, gpu_id in enumerate(self.gpus):
-            # Calculate indices slice for this GPU
-            start_idx = i * tasks_per_gpu
-            end_idx = min((i + 1) * tasks_per_gpu, total_tasks)
-            
-            if start_idx >= total_tasks:
-                break
-                
-            gpu_task_count = end_idx - start_idx
-            print(f"  GPU {gpu_id}: {gpu_task_count} tasks (indices {start_idx}-{end_idx-1})")
-            
+        for gpu_id, (split_start, split_end) in zip(self.gpus, splits):
             cmd = [
-                "python3", "run.py", "phase", "1.2",
-                "--model", model,
-                # Pass the index range via environment variable since Phase 1.2
-                # doesn't have --start/--end arguments
+                "python3", "run.py", "phase", "3.5",
+                "--start", str(split_start),
+                "--end", str(split_end),
+                "--model", model
             ]
             
             # Add extra arguments
             if extra_args:
                 cmd.extend(extra_args)
             
-            # Set environment for GPU and task range
+            # Set environment for GPU
             env = environ.copy()
             env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
-            env["TASK_START_IDX"] = str(start_idx)
-            env["TASK_END_IDX"] = str(end_idx)
             
             # Create log file for this GPU
             from common.utils import get_readable_timestamp
             timestamp = get_readable_timestamp()
-            log_file = f"data/logs/gpu_{gpu_id}_phase1.2_{timestamp}.log"
+            log_file = f"data/logs/gpu_{gpu_id}_phase3.5_{split_start}-{split_end}_{timestamp}.log"
+            
+            print(f"Launching on GPU {gpu_id}: {split_start}-{split_end}")
+            self.logger.info(f"Launching process on GPU {gpu_id}: {' '.join(cmd)}")
             
             # Launch process
             log_handle = open(log_file, 'w')
             process = Popen(
                 cmd,
+                env=env,
                 stdout=log_handle,
                 stderr=STDOUT,
-                env=env,
                 preexec_fn=setsid  # Create new process group
             )
             self.processes.append((gpu_id, process, log_file, log_handle))
         
-        print(f"\n{'='*60}")
-        print("Starting Phase 1.2 processes...\n")
         print(f"\nAll processes launched. Monitoring progress...")
-        print(f"Check individual logs in data/logs/gpu_*_phase1.2_*.log")
+        print(f"Check individual logs in data/logs/gpu_*_phase3.5_*.log")
         print(f"\nPress Ctrl+C to stop all processes\n")
     
     def monitor_processes(self):
@@ -381,9 +383,9 @@ def main():
     parser.add_argument(
         '--phase',
         type=float,
-        choices=[1, 1.2],
+        choices=[1, 3.5],
         default=1,
-        help='Phase to run (1=Dataset Building, 1.2=Temperature Generation)'
+        help='Phase to run (1=Dataset Building, 3.5=Temperature Robustness)'
     )
     parser.add_argument(
         '--gpus',
@@ -451,14 +453,15 @@ def main():
             extra_args=extra_args
         )
     
-    elif args.phase == 1.2:
-        # Phase 1.2 uses validation task IDs from Phase 0.1
-        # No start/end required
-        if args.start is not None or args.end is not None:
-            print("Warning: Phase 1.2 ignores --start and --end arguments")
+    elif args.phase == 3.5:
+        # Phase 3.5 will auto-detect dataset size if end is None
+        if args.start is None:
+            args.start = 0
         
-        # Launch Phase 1.2 processes
-        launcher.launch_phase12_processes(
+        # Launch Phase 3.5 processes
+        launcher.launch_phase3_5_processes(
+            start_idx=args.start,
+            end_idx=args.end,
             model=args.model,
             extra_args=extra_args
         )

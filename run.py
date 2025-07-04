@@ -120,13 +120,26 @@ def setup_argument_parser():
              'Phase 3: SAE results (.json)'
     )
     
+    # Common dataset range arguments for Phase 1 and Phase 3.5
+    phase_parser.add_argument(
+        '--start',
+        type=int,
+        default=0,
+        help='Starting index for dataset (Phase 1: MBPP dataset, Phase 3.5: validation dataset)'
+    )
+    phase_parser.add_argument(
+        '--end',
+        type=int,
+        default=None,
+        help='Ending index for dataset (inclusive). If not specified, processes to end of dataset'
+    )
+    
     # Phase 0: Difficulty Analysis arguments
     phase0_group = phase_parser.add_argument_group('Phase 0: Difficulty Analysis')
     phase0_group.add_argument(
         '--output-dir',
         type=str,
-        default=get_phase_dir('0'),
-        help='Directory to save difficulty mapping'
+        help='Directory to save difficulty mapping (default: data/phase0)'
     )
     phase0_group.add_argument(
         '--dry-run',
@@ -141,18 +154,6 @@ def setup_argument_parser():
         type=str,
         default='google/gemma-2-2b',
         help='Model name to use for dataset building'
-    )
-    phase1_group.add_argument(
-        '--start',
-        type=int,
-        default=0,
-        help='Starting index for MBPP dataset'
-    )
-    phase1_group.add_argument(
-        '--end',
-        type=int,
-        default=973,
-        help='Ending index for MBPP dataset (inclusive)'
     )
     phase1_group.add_argument(
         '--dataset-dir',
@@ -189,11 +190,6 @@ def setup_argument_parser():
     
     # Phase 3.5: Temperature Robustness arguments
     phase3_5_group = phase_parser.add_argument_group('Phase 3.5: Temperature Robustness')
-    phase3_5_group.add_argument(
-        '--samples',
-        type=int,
-        help='Number of validation samples to process (for testing). Default: all'
-    )
     
     # Phase 2: SAE Analysis arguments
     phase2_group = phase_parser.add_argument_group('Phase 2: SAE Analysis')

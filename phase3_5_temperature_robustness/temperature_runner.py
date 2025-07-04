@@ -134,13 +134,23 @@ class TemperatureRobustnessRunner:
         validation_data = self._load_validation_data()
         logger.info(f"Loaded {len(validation_data)} validation problems")
         
-        # Check for multi-GPU task range
+        # Check for task range from config first, then environment variables
         import os
-        task_start = int(os.environ.get('TASK_START_IDX', '0'))
-        task_end = int(os.environ.get('TASK_END_IDX', str(len(validation_data))))
+        # Use config values if set, otherwise fall back to environment variables
+        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
+            task_start = self.config.dataset_start_idx
+        else:
+            task_start = int(os.environ.get('TASK_START_IDX', '0'))
         
+        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
+            # dataset_end_idx is inclusive, but iloc expects exclusive end
+            task_end = min(self.config.dataset_end_idx + 1, len(validation_data))
+        else:
+            task_end = int(os.environ.get('TASK_END_IDX', str(len(validation_data))))
+        
+        # Apply range filtering if needed
         if task_start > 0 or task_end < len(validation_data):
-            logger.info(f"Multi-GPU mode: Processing rows {task_start}-{task_end-1}")
+            logger.info(f"Processing validation dataset rows {task_start}-{task_end-1} (inclusive)")
             validation_data = validation_data.iloc[task_start:task_end].copy()
         
         # Debug: log the actual output directory being used

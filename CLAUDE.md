@@ -15,11 +15,11 @@ The methodology follows these phases:
 - Phase 0: Difficulty analysis of MBPP problems
 - Phase 0.1: Problem splitting (50% SAE analysis, 10% hyperparameter tuning, 40% validation)
 - Phase 1.0: Dataset building with base generation (temperature=0.0)
-- Phase 1.2: Temperature variation generation for validation split robustness
 - Phase 2: SAE activation analysis using separation scores (split-aware)
 - Phase 3: Validation through both statistical measures and causal intervention via model steering
+- Phase 3.5: Temperature robustness testing on validation split
 
-Each phase outputs to its own directory (data/phase0/, data/phase0_1/, data/phase1_0/, data/phase1_2/, etc.) and automatically discovers inputs from previous phases.
+Each phase outputs to its own directory (data/phase0/, data/phase0_1/, data/phase1_0/, etc.) and automatically discovers inputs from previous phases.
 
 ### Data Output Structure
 ```
@@ -128,8 +128,14 @@ python3 run.py phase 3
 # Uses best layer from Phase 2 (hardcoded in config as temperature_test_layer)
 python3 run.py phase 3.5
 
-# Phase 3.5: Temperature robustness (multi-GPU)
+# Phase 3.5: Temperature robustness (single GPU, specific range)
+python3 run.py phase 3.5 --start 0 --end 50
+
+# Phase 3.5: Temperature robustness (multi-GPU, all validation data)
 python3 multi_gpu_launcher.py --phase 3.5 --model google/gemma-2-2b
+
+# Phase 3.5: Temperature robustness (multi-GPU, specific range)
+python3 multi_gpu_launcher.py --phase 3.5 --start 0 --end 100 --model google/gemma-2-2b
 ```
 
 ### Data Cleanup
@@ -144,7 +150,7 @@ python3 clean_data.py --force
 python3 clean_data.py --dry-run
 ```
 
-### Auto-Discovery and Manual Override
+### Manual Override
 ```bash
 # Override auto-discovery with specific files
 python3 run.py phase 1 --input data/phase0/specific_mapping.parquet
@@ -158,6 +164,7 @@ python3 run.py phase 3 --input data/phase2/specific_results.json
 - **KISS (Keep It Simple)**: Choose the simplest solution that meets requirements
 - **YAGNI (You Ain't Gonna Need It)**: Don't add functionality until actually needed
 - **No Backward Compatibility**: Prioritize clean code over maintaining old interfaces
+- Delete obsolete code
 - Fail fast and early. Avoid Fallbacks.
 - **DRY (Don't Repeat Yourself)**: Extract repeated code into reusable functions
 - Avoid over-engineering for hypothetical futures

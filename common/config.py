@@ -127,7 +127,6 @@ class Config:
     phase0_output_dir: str = "data/phase0"
     phase1_output_dir: str = "data/phase1_0"
     phase0_1_output_dir: str = "data/phase0_1"
-    phase1_2_output_dir: str = "data/phase1_2"
     phase2_output_dir: str = "data/phase2"
     phase3_output_dir: str = "data/phase3"
     
@@ -213,7 +212,7 @@ class Config:
         # Store special CLI args that aren't in Config fields
         # These are accessed via getattr(config, '_argname', default)
         special_args = ['input', 'dry_run', 'generate_report', 
-                       'samples', 'test_temps', 'test_samples_per_temp']
+                       'test_temps', 'test_samples_per_temp']
         for arg_name in special_args:
             if hasattr(args, arg_name):
                 value = getattr(args, arg_name)
@@ -304,7 +303,7 @@ class Config:
         Validate configuration for specific phase.
         
         Args:
-            phase: Phase to validate for ("0", "0.1", "1", "1.2", "2", "3")
+            phase: Phase to validate for ("0", "0.1", "1", "2", "3", "3.5")
             
         Raises:
             ValueError: If configuration is invalid for the phase
@@ -338,8 +337,8 @@ class Config:
             if not 0 < self.split_ratio_tolerance < 1:
                 raise ValueError("split_ratio_tolerance must be between 0 and 1")
         
-        elif phase == "1.2":
-            # Phase 1.2 requires temperature variation settings
+        elif phase == "3.5":
+            # Phase 3.5 requires temperature variation settings
             if not self.temperature_variation_temps:
                 raise ValueError("At least one temperature must be specified")
             
