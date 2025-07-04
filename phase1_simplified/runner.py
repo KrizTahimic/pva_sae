@@ -164,7 +164,15 @@ class Phase1Runner:
         logger.info(f"Processing tasks {start_idx} to {end_idx} ({len(df)} out of {total_tasks} tasks in {split_name} split)")
         
         # Create output directories
-        output_dir = Path(self.config.phase1_output_dir)
+        # Check for environment variable override (for checkpointing)
+        import os
+        output_dir_env = os.environ.get('PHASE1_OUTPUT_DIR')
+        if output_dir_env:
+            output_dir = Path(output_dir_env)
+            logger.info(f"Using output directory from environment: {output_dir}")
+        else:
+            output_dir = Path(self.config.phase1_output_dir)
+        
         output_dir.mkdir(parents=True, exist_ok=True)
         
         activation_dir = output_dir / "activations"

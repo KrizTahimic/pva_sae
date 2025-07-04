@@ -11,23 +11,26 @@ Usage:
 """
 
 import argparse
-from subprocess import Popen, STDOUT, TimeoutExpired
+from subprocess import Popen, STDOUT, TimeoutExpired, run as subprocess_run
 from os import environ, setsid, killpg, getpgid
 import time
 from signal import signal as signal_register, SIGINT, SIGTERM, SIGKILL
 import sys
-from typing import List, Tuple
+from typing import List, Tuple, Optional, Dict
 import math
 import torch
 from pathlib import Path
+import pandas as pd
+import shutil
+import glob
 
 # Add project root to path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from common.logging import LoggingManager
-from common.utils import managed_subprocess
-from common.utils import get_phase_dir
+from common.utils import managed_subprocess, get_phase_dir, get_timestamp
+from common.config import Config
 
 
 class MultiGPULauncher:
@@ -86,12 +89,31 @@ class MultiGPULauncher:
             
         return splits
     
+    def split_into_chunks(self, start: int, end: int, chunk_size: int) -> List[Tuple[int, int]]:
+        """
+        Split range into fixed-size chunks for checkpointing.
+        
+        Args:
+            start: Starting index
+            end: Ending index (inclusive)
+            chunk_size: Size of each chunk
+            
+        Returns:
+            List of (chunk_start, chunk_end) tuples
+        """
+        chunks = []
+        for chunk_start in range(start, end + 1, chunk_size):
+            chunk_end = min(chunk_start + chunk_size - 1, end)
+            chunks.append((chunk_start, chunk_end))
+        return chunks
+    
     def launch_phase1_processes(self, 
                                start_idx: int, 
                                end_idx: int,
                                model: str,
                                dataset_dir: str = "data/datasets",
-                               extra_args: List[str] = None):
+                               extra_args: List[str] = None,
+                               no_checkpoint: bool = False):
         """
         Launch Phase 1 parallel processes on different GPUs
         
@@ -101,6 +123,7 @@ class MultiGPULauncher:
             model: Model name to use
             dataset_dir: Directory for datasets
             extra_args: Additional arguments to pass
+            no_checkpoint: If True, disable checkpointing
         """
         # Setup logging
         logging_manager = LoggingManager(
@@ -118,7 +141,6 @@ class MultiGPULauncher:
             )
         
         # Load SAE split to get actual size
-        import pandas as pd
         sae_df = pd.read_parquet(sae_split_path)
         actual_size = len(sae_df)
         
@@ -130,6 +152,10 @@ class MultiGPULauncher:
         # Split workload
         splits = self.split_workload(start_idx, end_idx)
         
+        # Get checkpoint size from config
+        config = Config()
+        checkpoint_size = config.checkpoint_frequency
+        
         print(f"\n{'='*60}")
         print(f"MULTI-GPU PARALLEL PROCESSING - PHASE 1")
         print(f"{'='*60}")
@@ -137,6 +163,7 @@ class MultiGPULauncher:
         print(f"SAE split size: {actual_size} problems")
         print(f"Processing range: {start_idx}-{end_idx} ({end_idx - start_idx + 1} items)")
         print(f"Model: {model}")
+        print(f"Checkpointing: {'DISABLED' if no_checkpoint else f'ENABLED (chunk size: {checkpoint_size})'}")
         print(f"\nWorkload distribution:")
         
         for i, (gpu_id, (split_start, split_end)) in enumerate(zip(self.gpus, splits)):
@@ -148,16 +175,25 @@ class MultiGPULauncher:
         
         # Launch processes
         for gpu_id, (split_start, split_end) in zip(self.gpus, splits):
-            cmd = [
-                "python3", "run.py", "phase", "1",
-                "--start", str(split_start),
-                "--end", str(split_end),
-                "--model", model,
-                "--dataset-dir", dataset_dir
-            ]
+            if no_checkpoint:
+                # Original behavior - single run
+                cmd = [
+                    "python3", "run.py", "phase", "1",
+                    "--start", str(split_start),
+                    "--end", str(split_end),
+                    "--model", model,
+                    "--dataset-dir", dataset_dir
+                ]
+            else:
+                # New behavior - use chunk runner
+                cmd = [
+                    "python3", "chunk_runner.py",
+                    str(gpu_id), "1", str(split_start), str(split_end),
+                    str(checkpoint_size), model
+                ]
             
-            # Add extra arguments
-            if extra_args:
+            # Add extra arguments (only for direct run)
+            if extra_args and no_checkpoint:
                 cmd.extend(extra_args)
             
             # Set environment for GPU
@@ -165,14 +201,13 @@ class MultiGPULauncher:
             env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
             
             # Create log file for this GPU
-            from common.utils import get_readable_timestamp
-            timestamp = get_readable_timestamp()
-            log_file = f"data/logs/gpu_{gpu_id}_{model.split('/')[-1]}_{split_start}-{split_end}_{timestamp}.log"
+            timestamp = get_timestamp()
+            log_file = f"data/logs/gpu_{gpu_id}_phase1_{split_start}-{split_end}_{timestamp}.log"
             
             print(f"Launching on GPU {gpu_id}: {split_start}-{split_end}")
             self.logger.info(f"Launching process on GPU {gpu_id}: {' '.join(cmd)}")
             
-            # Launch process with context manager
+            # Launch process
             log_handle = open(log_file, 'w')
             process = Popen(
                 cmd,
@@ -184,14 +219,15 @@ class MultiGPULauncher:
             self.processes.append((gpu_id, process, log_file, log_handle))
         
         print(f"\nAll processes launched. Monitoring progress...")
-        print(f"Check individual logs in data/logs/gpu_*_output.log")
+        print(f"Check individual logs in data/logs/")
         print(f"\nPress Ctrl+C to stop all processes\n")
     
     def launch_phase3_5_processes(self,
                                   start_idx: int,
                                   end_idx: int,
                                   model: str,
-                                  extra_args: List[str] = None):
+                                  extra_args: List[str] = None,
+                                  no_checkpoint: bool = False):
         """
         Launch Phase 3.5 temperature robustness processes on different GPUs
         
@@ -200,6 +236,7 @@ class MultiGPULauncher:
             end_idx: Ending index for validation dataset (inclusive)
             model: Model name to use
             extra_args: Additional arguments to pass
+            no_checkpoint: If True, disable checkpointing
         """
         # Setup logging
         logging_manager = LoggingManager(
@@ -217,7 +254,6 @@ class MultiGPULauncher:
             )
         
         # Load validation data to check size
-        import pandas as pd
         validation_df = pd.read_parquet(validation_file)
         actual_size = len(validation_df)
         
@@ -229,6 +265,10 @@ class MultiGPULauncher:
         # Split workload
         splits = self.split_workload(start_idx, end_idx)
         
+        # Get checkpoint size from config
+        config = Config()
+        checkpoint_size = config.checkpoint_frequency
+        
         print(f"\n{'='*60}")
         print(f"MULTI-GPU PARALLEL PROCESSING - PHASE 3.5")
         print(f"{'='*60}")
@@ -236,6 +276,7 @@ class MultiGPULauncher:
         print(f"Validation dataset size: {actual_size} problems")
         print(f"Processing range: {start_idx}-{end_idx} ({end_idx - start_idx + 1} items)")
         print(f"Model: {model}")
+        print(f"Checkpointing: {'DISABLED' if no_checkpoint else f'ENABLED (chunk size: {checkpoint_size})'}")
         print(f"\nWorkload distribution:")
         
         for i, (gpu_id, (split_start, split_end)) in enumerate(zip(self.gpus, splits)):
@@ -247,15 +288,24 @@ class MultiGPULauncher:
         
         # Launch processes
         for gpu_id, (split_start, split_end) in zip(self.gpus, splits):
-            cmd = [
-                "python3", "run.py", "phase", "3.5",
-                "--start", str(split_start),
-                "--end", str(split_end),
-                "--model", model
-            ]
+            if no_checkpoint:
+                # Original behavior - single run
+                cmd = [
+                    "python3", "run.py", "phase", "3.5",
+                    "--start", str(split_start),
+                    "--end", str(split_end),
+                    "--model", model
+                ]
+            else:
+                # New behavior - use chunk runner
+                cmd = [
+                    "python3", "chunk_runner.py",
+                    str(gpu_id), "3.5", str(split_start), str(split_end),
+                    str(checkpoint_size), model
+                ]
             
-            # Add extra arguments
-            if extra_args:
+            # Add extra arguments (only for direct run)
+            if extra_args and no_checkpoint:
                 cmd.extend(extra_args)
             
             # Set environment for GPU
@@ -263,8 +313,7 @@ class MultiGPULauncher:
             env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
             
             # Create log file for this GPU
-            from common.utils import get_readable_timestamp
-            timestamp = get_readable_timestamp()
+            timestamp = get_timestamp()
             log_file = f"data/logs/gpu_{gpu_id}_phase3.5_{split_start}-{split_end}_{timestamp}.log"
             
             print(f"Launching on GPU {gpu_id}: {split_start}-{split_end}")
@@ -282,7 +331,7 @@ class MultiGPULauncher:
             self.processes.append((gpu_id, process, log_file, log_handle))
         
         print(f"\nAll processes launched. Monitoring progress...")
-        print(f"Check individual logs in data/logs/gpu_*_phase3.5_*.log")
+        print(f"Check individual logs in data/logs/")
         print(f"\nPress Ctrl+C to stop all processes\n")
     
     def monitor_processes(self):
@@ -371,6 +420,92 @@ class MultiGPULauncher:
                         process.wait()
                 except Exception as e:
                     print(f"Error terminating process: {e}")
+    
+    def merge_checkpoint_chunks(self, phase: str, gpu_id: int) -> Optional[Path]:
+        """
+        Merge all chunks for a GPU into final dataset.
+        
+        Args:
+            phase: Phase number (e.g., "1" or "3.5")
+            gpu_id: GPU ID
+            
+        Returns:
+            Path to merged dataset file, or None if no chunks found
+        """
+        chunk_base = Path(get_phase_dir(phase)) / "chunks" / f"gpu{gpu_id}"
+        
+        if not chunk_base.exists():
+            self.logger.warning(f"No chunk directory found at {chunk_base}")
+            return None
+        
+        # Find all chunk directories
+        chunk_dirs = sorted([d for d in chunk_base.iterdir() if d.is_dir() and d.name.startswith("chunk_")])
+        
+        if not chunk_dirs:
+            self.logger.warning(f"No chunk directories found in {chunk_base}")
+            return None
+        
+        print(f"\nMerging {len(chunk_dirs)} chunks for GPU {gpu_id}...")
+        
+        # Collect all parquet files from chunk directories
+        dfs = []
+        for chunk_dir in chunk_dirs:
+            parquet_files = list(chunk_dir.glob("dataset_*.parquet"))
+            if parquet_files:
+                # Take the first (should be only) parquet file
+                df = pd.read_parquet(parquet_files[0])
+                dfs.append(df)
+                print(f"  Loaded {chunk_dir.name}: {len(df)} records")
+            else:
+                self.logger.warning(f"  No dataset file found in {chunk_dir}")
+        
+        if not dfs:
+            self.logger.error(f"No valid chunk data found for GPU {gpu_id}")
+            return None
+        
+        # Concatenate all dataframes
+        merged_df = pd.concat(dfs, ignore_index=True)
+        
+        # Save merged file with timestamp
+        timestamp = get_timestamp()
+        output_file = Path(get_phase_dir(phase)) / f"dataset_gpu{gpu_id}_{timestamp}.parquet"
+        merged_df.to_parquet(output_file, index=False)
+        
+        print(f"  Saved merged dataset: {output_file.name} ({len(merged_df)} records)")
+        
+        return output_file
+    
+    def monitor_and_merge(self, phase: str, checkpointing_enabled: bool = True):
+        """
+        Monitor running processes and merge chunks after completion.
+        
+        Args:
+            phase: Phase number for merging
+            checkpointing_enabled: Whether checkpointing was used
+        """
+        # First monitor until all processes complete
+        self.monitor_processes()
+        
+        # If checkpointing was enabled, merge the chunks
+        if checkpointing_enabled:
+            print(f"\n{'='*60}")
+            print("MERGING CHECKPOINT CHUNKS")
+            print(f"{'='*60}")
+            
+            merged_files = []
+            for gpu_id, _, _, _ in self.processes:
+                merged_file = self.merge_checkpoint_chunks(phase, gpu_id)
+                if merged_file:
+                    merged_files.append(merged_file)
+                else:
+                    print(f"WARNING: Failed to merge chunks for GPU {gpu_id}")
+            
+            if merged_files:
+                print(f"\nSuccessfully created {len(merged_files)} merged datasets:")
+                for f in merged_files:
+                    print(f"  - {f}")
+            
+            print(f"{'='*60}\n")
 
 
 def main():
@@ -418,6 +553,11 @@ def main():
         action='store_true',
         help='Run cleanup before processing'
     )
+    parser.add_argument(
+        '--no-checkpoint',
+        action='store_true',
+        help='Disable checkpointing (run entire range at once without chunking)'
+    )
     
     args = parser.parse_args()
     
@@ -450,8 +590,12 @@ def main():
             end_idx=args.end,
             model=args.model,
             dataset_dir=args.dataset_dir,
-            extra_args=extra_args
+            extra_args=extra_args,
+            no_checkpoint=args.no_checkpoint
         )
+        
+        # Monitor and potentially merge
+        launcher.monitor_and_merge(phase="1", checkpointing_enabled=not args.no_checkpoint)
     
     elif args.phase == 3.5:
         # Phase 3.5 will auto-detect dataset size if end is None
@@ -463,11 +607,12 @@ def main():
             start_idx=args.start,
             end_idx=args.end,
             model=args.model,
-            extra_args=extra_args
+            extra_args=extra_args,
+            no_checkpoint=args.no_checkpoint
         )
-    
-    # Monitor until completion
-    launcher.monitor_processes()
+        
+        # Monitor and potentially merge
+        launcher.monitor_and_merge(phase="3.5", checkpointing_enabled=not args.no_checkpoint)
 
 
 if __name__ == "__main__":

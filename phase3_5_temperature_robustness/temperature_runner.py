@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.activation_hooks import ActivationExtractor
-from common_simplified.helpers import evaluate_code
+from common_simplified.helpers import evaluate_code, extract_code
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger
@@ -168,11 +168,8 @@ class TemperatureRobustnessRunner:
             logger.info(f"Processing validation dataset rows {task_start}-{task_end-1} (inclusive)")
             validation_data = validation_data.iloc[task_start:task_end].copy()
         
-        # Debug: log the actual output directory being used
-        logger.info(f"DEBUG: phase3_5_output_dir = {self.config.phase3_5_output_dir}")
-        
         # Setup output directories
-        self._setup_output_directories()
+        self.output_dir = self._setup_output_directories()
         
         # Process all tasks
         all_results = self._process_all_tasks(validation_data)
@@ -201,15 +198,25 @@ class TemperatureRobustnessRunner:
         
         return pd.read_parquet(validation_file)
     
-    def _setup_output_directories(self) -> None:
-        """Create output directory structure."""
-        output_dir = Path(self.config.phase3_5_output_dir)
-        logger.info(f"DEBUG: Creating output directory: {output_dir}")
+    def _setup_output_directories(self) -> Path:
+        """Create output directory structure and return output path."""
+        # Check for environment variable override (for checkpointing)
+        import os
+        output_dir_env = os.environ.get('PHASE3_5_OUTPUT_DIR')
+        if output_dir_env:
+            output_dir = Path(output_dir_env)
+            logger.info(f"Using output directory from environment: {output_dir}")
+        else:
+            output_dir = Path(self.config.phase3_5_output_dir)
+            logger.info(f"Using output directory from config: {output_dir}")
+        
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Create activation directory for task activations
         act_dir = output_dir / "activations" / "task_activations"
         act_dir.mkdir(parents=True, exist_ok=True)
+        
+        return output_dir
     
     def _process_all_tasks(self, validation_data: pd.DataFrame) -> List[Dict]:
         """Process all validation tasks."""
@@ -246,7 +253,6 @@ class TemperatureRobustnessRunner:
                     self._save_task_activations(row['task_id'], task_activations)
                     
                     # Extract code and evaluate
-                    from common_simplified.helpers import extract_code
                     generated_code = extract_code(generated_text, prompt)
                     test_passed = evaluate_code(generated_code, row['test_list'])
                     
@@ -342,7 +348,8 @@ class TemperatureRobustnessRunner:
         
         try:
             # Generate without re-extracting activations
-            generated_code = self.generate_at_temperature(prompt, temperature)
+            generated_text = self.generate_at_temperature(prompt, temperature)
+            generated_code = extract_code(generated_text, prompt)
             
             # Evaluate solution
             test_passed = evaluate_code(generated_code, row['test_list'])
@@ -371,7 +378,7 @@ class TemperatureRobustnessRunner:
     def _save_task_activations(self, task_id: str, activations: torch.Tensor) -> None:
         """Save the single activation for this task."""
         save_path = (
-            Path(self.config.phase3_5_output_dir) / "activations" / 
+            self.output_dir / "activations" / 
             "task_activations" / f"{task_id}_layer_{self.best_layer}.npz"
         )
         
@@ -388,7 +395,7 @@ class TemperatureRobustnessRunner:
         
         # Save to temperature-specific file
         temp_str = f"{temperature}".replace(".", "_")
-        output_file = Path(self.config.phase3_5_output_dir) / f"dataset_temp_{temp_str}.parquet"
+        output_file = self.output_dir / f"dataset_temp_{temp_str}.parquet"
         df.to_parquet(output_file, index=False)
         
         logger.info(f"Saved {len(results)} results to {output_file}")
@@ -425,7 +432,7 @@ class TemperatureRobustnessRunner:
     
     def _save_metadata(self, metadata: Dict) -> None:
         """Save metadata to file."""
-        output_file = Path(self.config.phase3_5_output_dir) / "metadata.json"
+        output_file = self.output_dir / "metadata.json"
         with open(output_file, 'w') as f:
             json.dump(metadata, f, indent=2)
         
