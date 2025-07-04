@@ -51,6 +51,11 @@ def load_activations(filepath: Path) -> Dict[int, np.ndarray]:
     return activations
 
 
+def create_activation_filename(task_id: int, layer: int) -> str:
+    """Create consistent filename for activation storage."""
+    return f"{task_id}_layer_{layer}.npz"
+
+
 def get_timestamp() -> str:
     """Get formatted timestamp for filenames."""
     return datetime.now().strftime("%Y%m%d_%H%M%S")
