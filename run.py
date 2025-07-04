@@ -825,8 +825,7 @@ def validate_system(args, logger):
 def test_phase1(args, logger, device: str):
     """Quick test of Phase 1 with 10 records"""
     import pandas as pd
-    from phase1_0_dataset_building import Phase1Orchestrator
-    from common.utils import discover_latest_phase_output
+    from common.utils import discover_latest_phase_output, get_phase_dir
     
     print(f"\n{'='*50}")
     print("PHASE 1 QUICK TEST")

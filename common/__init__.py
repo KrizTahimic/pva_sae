@@ -35,27 +35,8 @@ from .logging import (
     LoggingManager
 )
 
-# Import model management
-from .models import (
-    ModelManager
-)
-
-# Import generation utilities
-from .generation import (
-    RobustGenerator,
-    GenerationResult,
-    create_generator
-)
-
-# Import activation extraction utilities
-from .activation_extraction import (
-    ActivationData,
-    ActivationCache,
-    HuggingFaceExtractor,
-    create_activation_extractor,
-    save_activation_data,
-    load_activation_data
-)
+# Model management, generation, and activation extraction 
+# have been moved to common_simplified/
 
 # Model interfaces removed - using simplified approach
 
@@ -89,22 +70,6 @@ __all__ = [
     
     # Logging
     'LoggingManager',
-    
-    # Models
-    'ModelManager',
-    
-    # Generation
-    'RobustGenerator',
-    'GenerationResult',
-    'create_generator',
-    
-    # Activation extraction
-    'ActivationData',
-    'ActivationCache',
-    'HuggingFaceExtractor',
-    'create_activation_extractor',
-    'save_activation_data',
-    'load_activation_data',
     
     # Prompt utilities
     'PromptBuilder'
