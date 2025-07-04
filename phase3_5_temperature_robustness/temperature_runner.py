@@ -51,13 +51,12 @@ class TemperatureRobustnessRunner:
         self.best_layer = config.temperature_test_layer
         logger.info(f"Using layer {self.best_layer} for temperature robustness testing")
         
-        # Setup activation extraction for single layer
+        # Initialize activation extractor but don't setup hooks yet
+        # We'll only setup hooks when generating at temperature 0
         self.activation_extractor = ActivationExtractor(
             self.model,
             layers=[self.best_layer]  # Only extract from the best layer!
         )
-        # Explicitly setup hooks (Phase 1 does this in setup(), Phase 3.5 needs it too!)
-        self.activation_extractor.setup_hooks()
         
         # Validate configuration
         if not config.temperature_variation_temps:
@@ -65,36 +64,52 @@ class TemperatureRobustnessRunner:
         if not config.temperature_samples_per_temp or config.temperature_samples_per_temp < 1:
             raise ValueError("temperature_samples_per_temp must be >= 1")
     
-    def extract_prompt_activations(self, prompt: str) -> torch.Tensor:
-        """Extract activations from the prompt's last token position."""
-        # Tokenize input
-        inputs = self.tokenizer(
-            prompt,
-            return_tensors="pt",
-            truncation=True,
-            max_length=2048
-        ).to(self.device)
+    def generate_temp0_with_activations(self, prompt: str) -> Tuple[str, torch.Tensor]:
+        """Generate at temperature 0 and extract activations."""
+        # Setup hooks for this generation
+        self.activation_extractor.setup_hooks()
         
-        # Clear previous activations
-        self.activation_extractor.activations.clear()
-        
-        # Forward pass to extract activations
-        with torch.no_grad():
-            # Just run the model forward, don't generate
-            _ = self.model(**inputs)
-        
-        # Get captured activations from the single layer
-        activations = self.activation_extractor.get_activations()
-        
-        # Debug: log what we got
-        if not activations:
-            logger.error("No activations captured! Activation extractor may not be set up correctly.")
-            logger.error(f"Extractor layers: {self.activation_extractor.layers}")
-            logger.error(f"Extractor hooks: {len(self.activation_extractor.hooks)} hooks")
-            raise ValueError("No activations captured from model")
-        
-        # Since we only extract from one layer, just return the first (and only) value
-        return list(activations.values())[0]
+        try:
+            # Tokenize input
+            inputs = self.tokenizer(
+                prompt,
+                return_tensors="pt",
+                truncation=True,
+                max_length=self.config.activation_max_length
+            ).to(self.device)
+            
+            # Clear previous activations
+            self.activation_extractor.activations.clear()
+            
+            # Generate at temperature 0 with activation extraction
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    temperature=0.0,  # Temperature 0 for deterministic generation
+                    max_new_tokens=self.config.model_max_new_tokens,
+                    do_sample=False,  # No sampling for temperature 0
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id
+                )
+            
+            # Decode generated text
+            generated_text = self.tokenizer.decode(
+                outputs[0][inputs['input_ids'].shape[1]:],
+                skip_special_tokens=True
+            )
+            
+            # Get captured activations from the single layer
+            activations = self.activation_extractor.get_activations()
+            
+            if not activations:
+                raise ValueError("No activations captured from model")
+            
+            # Return generated text and activations
+            return generated_text, list(activations.values())[0]
+            
+        finally:
+            # Always remove hooks after use
+            self.activation_extractor.remove_hooks()
     
     def generate_at_temperature(self, prompt: str, temperature: float) -> str:
         """Generate code at specific temperature without re-extracting activations."""
@@ -103,7 +118,7 @@ class TemperatureRobustnessRunner:
             prompt,
             return_tensors="pt",
             truncation=True,
-            max_length=2048
+            max_length=self.config.activation_max_length
         ).to(self.device)
         
         # Generate without hooks (no activation extraction)
@@ -199,7 +214,13 @@ class TemperatureRobustnessRunner:
     def _process_all_tasks(self, validation_data: pd.DataFrame) -> List[Dict]:
         """Process all validation tasks."""
         all_results = []
-        total_expected = len(validation_data) * self.config.temperature_samples_per_temp * len(self.config.temperature_variation_temps)
+        # Calculate total expected samples
+        total_expected = 0
+        for temp in self.config.temperature_variation_temps:
+            if temp == 0.0:
+                total_expected += len(validation_data)  # Only 1 sample for temp 0
+            else:
+                total_expected += len(validation_data) * self.config.temperature_samples_per_temp
         
         # Progress bar
         pbar = tqdm(total=total_expected, desc="Temperature robustness testing")
@@ -214,15 +235,40 @@ class TemperatureRobustnessRunner:
                 test_cases=test_cases_str
             )
             
-            # Extract activations ONCE for this task
             try:
-                task_activations = self.extract_prompt_activations(prompt)
+                # Process temperature 0 first (with activations, single generation)
+                if 0.0 in self.config.temperature_variation_temps:
+                    start_time = time.time()
+                    generated_text, task_activations = self.generate_temp0_with_activations(prompt)
+                    generation_time = time.time() - start_time
+                    
+                    # Save the activation for this task
+                    self._save_task_activations(row['task_id'], task_activations)
+                    
+                    # Extract code and evaluate
+                    from common_simplified.helpers import extract_code
+                    generated_code = extract_code(generated_text, prompt)
+                    test_passed = evaluate_code(generated_code, row['test_list'])
+                    
+                    # Add temperature 0 result
+                    all_results.append({
+                        'task_id': row['task_id'],
+                        'temperature': 0.0,
+                        'prompt': prompt,
+                        'generated_code': generated_code,
+                        'test_passed': test_passed,
+                        'error_message': None,
+                        'generation_time': generation_time,
+                        'complexity_score': row.get('complexity_score', 0.0),
+                        'generation_idx': 0  # Only one generation for temp 0
+                    })
+                    pbar.update(1)
                 
-                # Save the single activation for this task
-                self._save_task_activations(row['task_id'], task_activations)
-                
-                # Generate at all temperatures using the same prompt
+                # Process other temperatures (without activations, multiple generations)
                 for temperature in self.config.temperature_variation_temps:
+                    if temperature == 0.0:
+                        continue  # Already processed
+                    
                     for sample_idx in range(self.config.temperature_samples_per_temp):
                         result = self._generate_single(
                             row, prompt, temperature, sample_idx
@@ -237,19 +283,35 @@ class TemperatureRobustnessRunner:
                 logger.error(f"Traceback:\n{traceback.format_exc()}")
                 # Add failed results for all temperature/sample combinations
                 for temperature in self.config.temperature_variation_temps:
-                    for sample_idx in range(self.config.temperature_samples_per_temp):
+                    if temperature == 0.0:
+                        # Only 1 failed result for temp 0
                         all_results.append({
                             'task_id': row['task_id'],
-                            'temperature': temperature,
+                            'temperature': 0.0,
                             'prompt': prompt,
                             'generated_code': "",
                             'test_passed': False,
                             'error_message': str(e),
                             'generation_time': 0.0,
                             'complexity_score': row.get('complexity_score', 0.0),
-                            'generation_idx': sample_idx
+                            'generation_idx': 0
                         })
                         pbar.update(1)
+                    else:
+                        # Multiple failed results for other temps
+                        for sample_idx in range(self.config.temperature_samples_per_temp):
+                            all_results.append({
+                                'task_id': row['task_id'],
+                                'temperature': temperature,
+                                'prompt': prompt,
+                                'generated_code': "",
+                                'test_passed': False,
+                                'error_message': str(e),
+                                'generation_time': 0.0,
+                                'complexity_score': row.get('complexity_score', 0.0),
+                                'generation_idx': sample_idx
+                            })
+                            pbar.update(1)
             
             # Memory cleanup
             if (idx + 1) % self.config.memory_cleanup_frequency == 0:

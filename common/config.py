@@ -82,7 +82,7 @@ class Config:
     activation_position: int = -1  # Final token
     activation_batch_size: int = 8
     activation_max_cache_gb: float = 10.0
-    activation_max_length: int = 2048
+    activation_max_length: int = 2048  # Sufficient for MBPP: worst case ~1223 tokens, typical ~200 tokens
     activation_clear_cache_between_layers: bool = True
     activation_cleanup_after_batch: bool = True
     
@@ -136,7 +136,7 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.3, 0.6, 0.9, 1.2])
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.3, 0.6, 0.9, 1.2])
     temperature_samples_per_temp: int = 5  # Number of samples to generate per temperature
     temperature_test_layer: int = 6  # Best PVA layer from Phase 2 (hardcoded for now)
     phase3_5_output_dir: str = "data/phase3_5"
@@ -337,20 +337,6 @@ class Config:
             if not 0 < self.split_ratio_tolerance < 1:
                 raise ValueError("split_ratio_tolerance must be between 0 and 1")
         
-        elif phase == "3.5":
-            # Phase 3.5 requires temperature variation settings
-            if not self.temperature_variation_temps:
-                raise ValueError("At least one temperature must be specified")
-            
-            if any(t < 0 or t > 2.0 for t in self.temperature_variation_temps):
-                raise ValueError("Temperatures must be between 0.0 and 2.0")
-            
-            if 0.0 in self.temperature_variation_temps:
-                raise ValueError("Temperature 0.0 already generated in Phase 1.0. Use temperatures > 0.0")
-            
-            if self.temperature_samples_per_temp <= 0:
-                raise ValueError("temperature_samples_per_temp must be positive")
-        
         elif phase == "2":
             # Phase 2 requires SAE configuration
             if not self.sae_repo_id:
@@ -366,6 +352,17 @@ class Config:
             
             if not self.validation_steering_coeffs:
                 raise ValueError("validation_steering_coeffs required for Phase 3")
+        
+        elif phase == "3.5":
+            # Phase 3.5 requires temperature variation settings
+            if not self.temperature_variation_temps:
+                raise ValueError("At least one temperature must be specified")
+            
+            if any(t < 0 or t > 2.0 for t in self.temperature_variation_temps):
+                raise ValueError("Temperatures must be between 0.0 and 2.0")
+            
+            if self.temperature_samples_per_temp <= 0:
+                raise ValueError("temperature_samples_per_temp must be positive")
     
     def get_phase_output_dir(self, phase: str) -> str:
         """Get output directory for specific phase."""
