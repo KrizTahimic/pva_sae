@@ -74,7 +74,7 @@ Pre-check: Truncate to 128 tokens → "return" still present ✓
 Process: Feed through model → Find "return" at token position 8
 Extract d_model activation vector at position 8
 Save activation
-
+,
 Text #3: "Long text with many tokens... [200+ tokens] ... important conclusion"
 Random word selected: "conclusion"
 Pre-check: Truncate to 128 tokens → "conclusion" NOT present ✗
@@ -108,40 +108,57 @@ def load_pile_data(tokens_to_cache: str) -> Tuple[List[str], List[str]]:
 ### 2. Cache Model Activations (Critical Step!)
 ```python
 # Feed texts through model to extract activations (NOT for generation!)
-def cache_activations(model_base, prompts, substrings, compute_activation_fn, ...):
-    # Process all 10,000 texts in batches
-    for i in range(0, len(prompts), batch_size):  # len(prompts) = 10,000
-        batch_prompts = prompts[i:i+batch_size]
-        batch_substrings = substrings[i:i+batch_size]  # Random words
+def cache_activations(model, tokenizer, texts, substrings, layers, output_dir):
+    """Process texts one at a time for simplicity (KISS principle)."""
+    # Handle start/end indices for multi-GPU processing
+    start_idx = getattr(config, 'dataset_start_idx', 0)
+    end_idx = getattr(config, 'dataset_end_idx', None) or len(texts)
+    
+    processed_count = 0
+    
+    for idx in range(start_idx, end_idx):
+        text = texts[idx]
+        random_word = substrings[idx]
         
-        # STEP 1: Pre-check which texts still contain the random word after truncation
-        # This avoids processing texts where the random word gets cut off
-        inputs_ = tokenizer(batch_prompts, truncation=True, max_length=128)
-        filtered_prompts = []
-        filtered_substrings = []
-        for p in range(len(batch_prompts)):
-            truncated_text = tokenizer.decode(inputs_.input_ids[p])
-            if batch_substrings[p] in truncated_text:  # Random word survived truncation
-                filtered_prompts.append(batch_prompts[p])
-                filtered_substrings.append(batch_substrings[p])
-        
-        # STEP 2: Get activations for texts that passed the filter
-        # compute_activation_fn internally calls _get_activations_fixed_seq_len which:
-        # - Re-tokenizes with: tokenizer(prompts, truncation=True, max_length=128)
-        # - Runs model forward pass
-        # - Extracts activations using hooks
-        input_ids, activations = compute_activation_fn(prompts=filtered_prompts)
-        # activations shape: [batch, n_layers, seq_len, d_model]
-        
-        # STEP 3: Extract activation at the random word position
-        for j, substring in enumerate(filtered_substrings):
-            position = find_string_in_tokens(substring, input_ids[j], tokenizer)
-            if position is not None:
-                # Extract single position activation (n_positions=1 for pile)
-                activation_at_position = activations[j, :, position, :]  # [n_layers, d_model]
-                # Save to .npz file
+        if random_word is None:  # Skip empty texts
+            continue
             
-    # Result: Up to 10,000 activation vectors (less if some random words were truncated)
+        # STEP 1: Check if random word survives truncation
+        inputs = tokenizer(text, truncation=True, max_length=128, return_tensors="pt")
+        truncated_text = tokenizer.decode(inputs.input_ids[0])   
+        
+        if random_word not in truncated_text:
+            continue  # Skip if random word was truncated
+        
+        # STEP 2: Find position of random word in tokens
+        position = find_word_position(random_word, inputs.input_ids[0], tokenizer)
+        if position is None:
+            continue
+        
+        # STEP 3: Extract activation at that specific position for each layer
+        inputs = inputs.to(model.device)
+        
+        with torch.no_grad():
+            # Use specialized hook to extract activation at specific position
+            for layer_idx in layers:
+                hook = PileActivationHook(position)
+                handle = model.model.layers[layer_idx].register_forward_hook(hook.hook_fn)
+                
+                # Run model forward pass
+                _ = model(inputs.input_ids)
+                
+                # Save activation
+                if hook.activation is not None:
+                    save_path = output_dir / f"{idx}_layer_{layer_idx}.npz"
+                    np.savez_compressed(save_path, activation=hook.activation.numpy())
+                
+                handle.remove()
+        
+        processed_count += 1
+        if processed_count % 100 == 0:
+            logger.info(f"Processed {processed_count} texts")
+    
+    logger.info(f"Total processed: {processed_count} texts (from range [{start_idx}, {end_idx}))")
     # Save format: data/phase2_2/pile_activations/{idx}_layer_{layer_idx}.npz
 ```
 
@@ -225,12 +242,17 @@ def apply_pile_filter(sorted_features, pile_frequencies, threshold=0.02, max_fea
 - [ ] Support `--run_count` argument for development (default: 10000)
   - [ ] Development: `--run_count 3` for quick testing
   - [ ] Production: `--run_count 10000` or omit for default
-- [ ] For each text (up to run_count):
+- [ ] Support multi-GPU via `multi_gpu_launcher.py` (like Phase 1):
+  - [ ] Index-based work splitting (e.g., GPU 0: 0-3333, GPU 1: 3334-6666)
+  - [ ] Each GPU processes its slice independently
+- [ ] Process each text one at a time (no batching):
   - [ ] Select a random word from the text
+  - [ ] Check if word survives 128-token truncation
   - [ ] Feed text through model (forward pass only, NO generation)
   - [ ] Find position of random word in tokenized text
   - [ ] Extract residual stream activation at that specific position
-- [ ] Total model runs: run_count (3 for dev, 10,000 for production)
+- [ ] Create specialized `PileActivationHook` for position-specific extraction
+- [ ] Total model runs: up to run_count (skips texts where random word is truncated)
 - [ ] Save to: `data/phase2_2/pile_activations/{idx}_layer_{n}.npz`
 
 ### Phase 2.5: SAE Analysis with Pile Filtering (MODIFY EXISTING Phase 2)
@@ -280,8 +302,10 @@ python3 run.py phase 2.2
 # Or specify custom count:
 python3 run.py phase 2.2 --run_count 1000
 
-# Multi-GPU for production:
+# Multi-GPU for production (splits texts across GPUs, no batching):
 python3 multi_gpu_launcher.py --phase 2.2
+# Or with specific range:
+python3 multi_gpu_launcher.py --phase 2.2 --start 0 --end 5000
 
 # 3. Run Phase 2 with pile filtering (enabled by default)
 python3 run.py phase 2
@@ -295,16 +319,41 @@ python3 run.py phase 3
 ### Implementation Code Structure
 
 ```python
+# phase2_2_pile_setup/pile_activation_hook.py (NEW)
+class PileActivationHook:
+    """Specialized hook for extracting activation at a specific token position."""
+    
+    def __init__(self, position: int):
+        self.position = position
+        self.activation = None
+        
+    def hook_fn(self, module, input, output):
+        # Extract activation at the specific position only
+        # output shape: [batch_size=1, seq_len, d_model]
+        if output.shape[1] > self.position:
+            self.activation = output[0, self.position, :].detach().cpu()
+
 # phase2_2_pile_setup/runner.py (NEW)
 def run_phase2_2(config: Config, logger, device: str):
-    """Cache pile dataset activations for filtering."""
+    """Cache pile dataset activations for filtering - one text at a time."""
     from datasets import load_dataset
     import random
+    from pathlib import Path
+    
+    # Setup
+    output_dir = Path(config.get_phase_output_dir("2.2")) / "pile_activations"
+    output_dir.mkdir(parents=True, exist_ok=True)
     
     # Get run count from config (defaults to 10000)
     run_count = getattr(config, '_run_count', config.pile_samples)
     
+    # Load model and tokenizer
+    from common_simplified.model_loader import load_model_and_tokenizer
+    model, tokenizer = load_model_and_tokenizer(config.model_name, device)
+    model.eval()
+    
     # Load pile-10k dataset
+    logger.info("Loading pile-10k dataset...")
     dataset = load_dataset("NeelNanda/pile-10k")['train']
     texts = dataset['text'][:run_count]  # Use specified count
     
@@ -317,47 +366,71 @@ def run_phase2_2(config: Config, logger, device: str):
         else:
             substrings.append(None)  # Handle empty texts
     
-    logger.info(f"Processing {run_count} pile samples (use --run_count to change)")
+    # Handle start/end indices for multi-GPU processing
+    start_idx = getattr(config, 'dataset_start_idx', 0)
+    end_idx = getattr(config, 'dataset_end_idx', None) or len(texts)
+    end_idx = min(end_idx, len(texts))  # Ensure we don't exceed dataset size
     
-    # Process in batches
-    batch_size = config.activation_batch_size
-    for i in range(0, len(texts), batch_size):
-        batch_texts = texts[i:i+batch_size]
-        batch_substrings = substrings[i:i+batch_size]
+    logger.info(f"Processing pile samples {start_idx} to {end_idx-1} one at a time...")
+    
+    # Process each text individually (KISS principle)
+    processed_count = 0
+    skipped_count = 0
+    
+    for idx in range(start_idx, end_idx):
+        text = texts[idx]
+        random_word = substrings[idx]
         
-        # STEP 1: Pre-filter texts where random word survives truncation
-        inputs_ = tokenizer(batch_texts, truncation=True, max_length=128)
-        filtered_texts = []
-        filtered_substrings = []
-        filtered_indices = []
-        
-        for j, (text, substring) in enumerate(zip(batch_texts, batch_substrings)):
-            if substring is None:
-                continue
-            truncated_text = tokenizer.decode(inputs_.input_ids[j])
-            if substring in truncated_text:
-                filtered_texts.append(text)
-                filtered_substrings.append(substring)
-                filtered_indices.append(i + j)
-        
-        if not filtered_texts:
+        if random_word is None:
+            skipped_count += 1
             continue
             
-        # STEP 2: Extract activations for filtered texts
-        # This will internally tokenize with max_length=128
-        input_ids, activations = extract_activations(
-            model, filtered_texts, tokenizer, config.activation_layers
-        )
+        # Step 1: Check if random word survives truncation
+        inputs = tokenizer(text, truncation=True, max_length=128, return_tensors="pt")
+        truncated_text = tokenizer.decode(inputs.input_ids[0])
         
-        # STEP 3: Save activations at random word positions
-        for j, (substring, idx) in enumerate(zip(filtered_substrings, filtered_indices)):
-            position = find_string_in_tokens(substring, input_ids[j], tokenizer)
-            if position is not None:
-                # Save activation for each layer
-                for layer_idx in config.activation_layers:
-                    activation = activations[j, layer_idx, position, :]  # [d_model]
-                    save_path = f"data/phase2_2/pile_activations/{idx}_layer_{layer_idx}.npz"
-                    np.savez_compressed(save_path, activation=activation.cpu().numpy())
+        if random_word not in truncated_text:
+            skipped_count += 1
+            continue
+        
+        # Step 2: Find position of random word
+        position = find_word_position(random_word, inputs.input_ids[0], tokenizer)
+        if position is None:
+            skipped_count += 1
+            continue
+        
+        # Step 3: Extract activation at that position for each layer
+        inputs = inputs.to(device)
+        
+        with torch.no_grad():
+            for layer_idx in config.activation_layers:
+                # Create hook for this specific position
+                hook = PileActivationHook(position)
+                
+                # Register hook on the appropriate layer
+                if hasattr(model, 'model'):  # Gemma structure
+                    handle = model.model.layers[layer_idx].register_forward_hook(hook.hook_fn)
+                else:
+                    handle = model.layers[layer_idx].register_forward_hook(hook.hook_fn)
+                
+                # Run forward pass
+                _ = model(inputs.input_ids)
+                
+                # Save activation if extracted
+                if hook.activation is not None:
+                    save_path = output_dir / f"{idx}_layer_{layer_idx}.npz"
+                    np.savez_compressed(save_path, activation=hook.activation.numpy())
+                
+                # Remove hook
+                handle.remove()
+        
+        processed_count += 1
+        
+        # Progress update
+        if processed_count % 100 == 0:
+            logger.info(f"Processed {processed_count} texts from range [{start_idx}, {end_idx})")
+    
+    logger.info(f"Completed: {processed_count} processed, {skipped_count} skipped from range [{start_idx}, {end_idx})")
 
 # phase2_simplified/sae_analyzer.py (modify existing)
 def apply_pile_filter(self, top_features: Dict, pile_frequencies: Dict) -> Dict:
@@ -414,32 +487,39 @@ top_features = {
 }
 ```
 
-### Abstraction for Clean Implementation
+### Helper Classes and Functions
 ```python
-# Clean abstraction that hides implementation details
-class PileFrequencyLoader:
-    def __init__(self, model_alias, layers):
-        self.model_alias = model_alias
-        self.layers = layers
-        
-    def load_frequencies(self):
-        """Load generic text activation frequencies for all features."""
-        frequencies = {}
-        for layer in self.layers:
-            layer_data = self._load_layer_data(layer)
-            frequencies[layer] = self._extract_frequencies(layer_data)
-        return frequencies
+# Specialized hook for pile activation extraction
+class PileActivationHook:
+    """Extract activation at a specific token position."""
     
-    def _extract_frequencies(self, layer_data):
-        """Extract feature frequencies from saved data."""
-        # Implementation handles the data format details
-        return [feat['frequency'] for feat in layer_data['features']]
+    def __init__(self, position: int):
+        self.position = position
+        self.activation = None
+        
+    def hook_fn(self, module, input, output):
+        # Extract activation at the specific position only
+        # output shape: [batch_size=1, seq_len, d_model]
+        if output.shape[1] > self.position:
+            self.activation = output[0, self.position, :].detach().cpu()
+
+def find_word_position(word: str, input_ids: torch.Tensor, tokenizer) -> Optional[int]:
+    """Find the position of a word in the tokenized sequence."""
+    # Decode each token and check if it contains the word
+    for pos in range(len(input_ids)):
+        # Decode tokens up to this position
+        decoded = tokenizer.decode(input_ids[:pos+1])
+        if word in decoded and word not in tokenizer.decode(input_ids[:pos]) if pos > 0 else True:
+            return pos
+    return None
 ```
 
 ## Notes
 
 - **Critical Understanding**: The pile texts are fed through the model to extract activations, NOT to generate text
-- **Two-stage tokenization**: First check if random word survives truncation, then only process texts where it does
+- **Two-stage check**: First check if random word survives truncation, then only process texts where it does
+- **No batching**: Process texts one at a time for simplicity (following KISS principle)
+- **Specialized hook**: Use `PileActivationHook` for position-specific extraction instead of modifying existing infrastructure
 - Each text contributes one activation vector from a random position - may be <10,000 if some random words get truncated
 - **Development Mode**: Use `--run_count 3` for quick testing during development
 - **Production Mode**: Use full 10,000 samples (default) for accurate filtering
@@ -448,6 +528,9 @@ class PileFrequencyLoader:
 - Processing order matters: always filter AFTER scoring and sorting in Phase 2
 - All 16k SAE features are computed first, then filtered down to max 20 per category
 - Activation caching is crucial for efficiency - avoids re-running model inference multiple times
+- Process texts one at a time instead of batching for implementation simplicity
+- Use specialized `PileActivationHook` for position-specific extraction
+- Multi-GPU support via index-based work splitting (same as Phase 1)
 - GemmaScope SAEs transform dense d_model activations into sparse 16k features for interpretability
 - The diverse nature of pile texts (web, code, academic, books) ensures comprehensive coverage of general language
 - Pile filtering is enabled by default in Phase 2 but can be disabled with `--no-pile-filter`

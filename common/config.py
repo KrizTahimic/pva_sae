@@ -80,7 +80,6 @@ class Config:
     activation_layers: List[int] = field(default_factory=lambda: [0, 6, 8, 15, 17])  # GemmaScope available layers for Gemma-2B
     activation_hook_type: str = "resid_post"
     activation_position: int = -1  # Final token
-    activation_batch_size: int = 8
     activation_max_cache_gb: float = 10.0
     activation_max_length: int = 2048  # Sufficient for MBPP: worst case ~1223 tokens, typical ~200 tokens
     activation_clear_cache_between_layers: bool = True
