@@ -10,6 +10,7 @@ from typing import Dict, Optional
 from common.config import Config
 from common.logging import get_logger
 from common.prompt_utils import PromptBuilder
+from common.utils import detect_device
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.activation_hooks import ActivationExtractor
 from common_simplified.helpers import (
@@ -33,10 +34,16 @@ class Phase1Runner:
         
     def setup(self):
         """Load model and setup activation hooks."""
+        # Determine device to use
+        device = self.config.model_device if self.config.model_device else None
+        if device is None:
+            device = detect_device()
+            logger.info(f"Auto-detected device: {device}")
+        
         # Load model and tokenizer
         self.model, self.tokenizer = load_model_and_tokenizer(
             model_name=self.config.model_name,
-            device=self.config.model_device,
+            device=device,
             dtype=None,  # Auto-detect
             trust_remote_code=self.config.model_trust_remote_code
         )

@@ -80,7 +80,6 @@ When working with SAELens or TransformerLens, access their official documentatio
 - Use `python3 run.py test-gpu` to test GPU setup
 - Use `python3 multi_gpu_launcher.py --phase 1 --start 0 --end 488` for multi-GPU generation
 - Multi-GPU uses index-based work splitting, no batching
-- Use batching when prompting an LLM
 - Phase 0.1 is CPU-only, splits problems based on difficulty from Phase 0
 - Phase 2 is CPU-only, uses saved activations from Phase 1
 - Phase 3.5 MUST run after Phase 2 because it needs the best_layer output
@@ -172,7 +171,11 @@ python3 run.py phase 3 --input data/phase2/specific_results.json
 ### Problem-Solving Approach
 - **Root cause analysis**: Avoid bandaid fixes and really fix the root of the problem
 - **Systematic debugging**: Use proper debugging techniques rather than quick patches
-- **No Backward Compatibility**: Prioritize clean code over maintaining old interfaces
+
+### Documentation
+- Comment the "why," not the "what"
+- Use docstrings for functions and classes
+- Keep comments current with code changes
 
 ### Naming & Structure
 - **Variables**: `user_count`, `total_price` (snake_case)
@@ -190,13 +193,9 @@ python3 run.py phase 3 --input data/phase2/specific_results.json
 - **Context managers**: `with open('file.txt') as f:`
 - **Type hints**: `def process_data(items: List[str]) -> Dict[str, int]:`
 
-
 ### Logging Standards
 - **Levels**: DEBUG (diagnostics) → INFO (events) → WARNING (recoverable) → ERROR (failures) → CRITICAL (system issues)
 - **Structure with context**: `logger.error(f"Failed to process {item_id}: {str(e)}")`
 
-### Documentation
-- Comment the "why," not the "what"
-- Use docstrings for functions and classes
-- Keep comments current with code changes
+
 

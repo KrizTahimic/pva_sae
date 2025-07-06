@@ -119,7 +119,7 @@ class Config:
     sae_latent_threshold: float = 0.02
     
     # === PILE FILTERING (Phase 2) ===
-    pile_filter_enabled: bool = False
+    pile_filter_enabled: bool = True  # Enabled by default to filter out general language features
     pile_threshold: float = 0.02
     pile_samples: int = 10000
     

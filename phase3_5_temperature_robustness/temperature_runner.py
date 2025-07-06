@@ -21,6 +21,7 @@ from common_simplified.helpers import evaluate_code, extract_code
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger
+from common.utils import detect_device
 
 # Module-level logger
 logger = get_logger("temperature_runner", phase="3.5")
@@ -32,14 +33,21 @@ class TemperatureRobustnessRunner:
     def __init__(self, config: Config):
         """Initialize with configuration."""
         self.config = config
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = detect_device()
         
         # Load model and tokenizer
-        logger.info(f"Loading model {config.model_name}")
+        logger.info(f"Loading model {config.model_name} on device: {self.device}")
         self.model, self.tokenizer = load_model_and_tokenizer(
             config.model_name,
-            device=str(self.device)
+            device=self.device  # Pass device object, not string
         )
+        
+        # Validate model is on correct device
+        actual_device = next(self.model.parameters()).device
+        if actual_device != self.device:
+            logger.warning(f"Model is on {actual_device} but expected {self.device}")
+        else:
+            logger.info(f"Model successfully loaded on {actual_device}")
         
         # Get best layer from config
         if not hasattr(config, 'temperature_test_layer') or config.temperature_test_layer is None:
