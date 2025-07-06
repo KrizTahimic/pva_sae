@@ -164,11 +164,17 @@ class SimplifiedSAEAnalyzer:
         s_correct = f_correct - f_incorrect
         s_incorrect = f_incorrect - f_correct
         
+        # Calculate mean activations
+        mean_correct = correct_features.mean(dim=0)
+        mean_incorrect = incorrect_features.mean(dim=0)
+        
         return {
             'f_correct': f_correct,
             'f_incorrect': f_incorrect,
             's_correct': s_correct,
-            's_incorrect': s_incorrect
+            's_incorrect': s_incorrect,
+            'mean_correct': mean_correct,
+            'mean_incorrect': mean_incorrect
         }
     
     def analyze_layer(self, layer_idx: int) -> Dict:
@@ -199,34 +205,45 @@ class SimplifiedSAEAnalyzer:
         # Compute separation scores
         scores = self.compute_separation_scores(correct_features, incorrect_features)
         
-        # Find best features
-        best_correct_idx = scores['s_correct'].argmax().item()
-        best_incorrect_idx = scores['s_incorrect'].argmax().item()
+        # Store ALL features for global selection
+        num_features = scores['s_correct'].shape[0]
+        features_correct = []
+        features_incorrect = []
+        
+        for i in range(num_features):
+            features_correct.append({
+                'feature_idx': i,
+                'separation_score': scores['s_correct'][i].item(),
+                'f_correct': scores['f_correct'][i].item(),
+                'f_incorrect': scores['f_incorrect'][i].item(),
+                'mean_activation': scores['mean_correct'][i].item()
+            })
+            features_incorrect.append({
+                'feature_idx': i,
+                'separation_score': scores['s_incorrect'][i].item(),
+                'f_correct': scores['f_correct'][i].item(),
+                'f_incorrect': scores['f_incorrect'][i].item(),
+                'mean_activation': scores['mean_incorrect'][i].item()
+            })
         
         # Prepare results
         results = {
             'layer': layer_idx,
             'n_correct': len(correct_activations),
             'n_incorrect': len(incorrect_activations),
-            'correct_direction': {
-                'feature_idx': best_correct_idx,
-                'separation_score': scores['s_correct'][best_correct_idx].item(),
-                'f_correct': scores['f_correct'][best_correct_idx].item(),
-                'f_incorrect': scores['f_incorrect'][best_correct_idx].item()
-            },
-            'incorrect_direction': {
-                'feature_idx': best_incorrect_idx,
-                'separation_score': scores['s_incorrect'][best_incorrect_idx].item(),
-                'f_correct': scores['f_correct'][best_incorrect_idx].item(),
-                'f_incorrect': scores['f_incorrect'][best_incorrect_idx].item()
+            'features': {
+                'correct': features_correct,
+                'incorrect': features_incorrect
             }
         }
         
+        # Log summary statistics
+        max_correct_score = scores['s_correct'].max().item()
+        max_incorrect_score = scores['s_incorrect'].max().item()
         logger.info(
-            f"Layer {layer_idx}: Best correct feature={best_correct_idx} "
-            f"(score={scores['s_correct'][best_correct_idx]:.3f}), "
-            f"Best incorrect feature={best_incorrect_idx} "
-            f"(score={scores['s_incorrect'][best_incorrect_idx]:.3f})"
+            f"Layer {layer_idx}: Processed {num_features} features. "
+            f"Max correct score={max_correct_score:.3f}, "
+            f"Max incorrect score={max_incorrect_score:.3f}"
         )
         
         # Clean up to free memory
@@ -235,6 +252,62 @@ class SimplifiedSAEAnalyzer:
         torch.cuda.empty_cache()
         
         return results
+    
+    def select_top_k_features_globally(self, all_results: Dict, k: int = 20) -> Dict:
+        """Select top k features globally across all layers."""
+        logger.info(f"Selecting top {k} features globally across all layers")
+        
+        # Collect all features from all layers
+        all_features_correct = []
+        all_features_incorrect = []
+        
+        for layer_idx, layer_results in all_results.items():
+            for feature in layer_results['features']['correct']:
+                feature_with_layer = feature.copy()
+                feature_with_layer['layer'] = layer_idx
+                all_features_correct.append(feature_with_layer)
+                
+            for feature in layer_results['features']['incorrect']:
+                feature_with_layer = feature.copy()
+                feature_with_layer['layer'] = layer_idx
+                all_features_incorrect.append(feature_with_layer)
+        
+        # Sort globally by separation score and take top k
+        top_correct = sorted(
+            all_features_correct, 
+            key=lambda x: x['separation_score'], 
+            reverse=True
+        )[:k]
+        
+        top_incorrect = sorted(
+            all_features_incorrect, 
+            key=lambda x: x['separation_score'], 
+            reverse=True
+        )[:k]
+        
+        # Log distribution of top features across layers
+        correct_layer_counts = {}
+        incorrect_layer_counts = {}
+        
+        for feat in top_correct:
+            layer = feat['layer']
+            correct_layer_counts[layer] = correct_layer_counts.get(layer, 0) + 1
+            
+        for feat in top_incorrect:
+            layer = feat['layer']
+            incorrect_layer_counts[layer] = incorrect_layer_counts.get(layer, 0) + 1
+            
+        logger.info(f"Top {k} correct features by layer: {correct_layer_counts}")
+        logger.info(f"Top {k} incorrect features by layer: {incorrect_layer_counts}")
+        
+        return {
+            'correct': top_correct,
+            'incorrect': top_incorrect,
+            'layer_distribution': {
+                'correct': correct_layer_counts,
+                'incorrect': incorrect_layer_counts
+            }
+        }
     
     def run(self) -> Dict:
         """Run SAE analysis on all specified layers."""
@@ -253,8 +326,8 @@ class SimplifiedSAEAnalyzer:
                 logger.error(f"Failed to analyze layer {layer_idx}: {e}")
                 continue
         
-        # Find best layer overall
-        best_layer = self._find_best_layer(all_results)
+        # Select top features globally
+        top_features = self.select_top_k_features_globally(all_results, k=20)
         
         # Prepare final results
         results = {
@@ -262,71 +335,48 @@ class SimplifiedSAEAnalyzer:
             'model_name': self.config.model_name,
             'activation_layers': self.config.activation_layers,
             'layer_results': all_results,
-            'best_layer_for_pva': best_layer,
-            'summary': self._create_summary(all_results, best_layer)
+            'top_20_features': top_features
         }
         
         # Save results
         self._save_results(results)
         
-        logger.info(f"Phase 2 completed. Best PVA layer: {best_layer}")
+        logger.info("Phase 2 completed. Top features selected globally.")
         return results
-    
-    def _find_best_layer(self, all_results: Dict) -> int:
-        """Find the layer with the best PVA separation."""
-        best_score = -float('inf')
-        best_layer = None
-        
-        for layer_idx, results in all_results.items():
-            # Use the maximum of correct and incorrect separation scores
-            max_score = max(
-                results['correct_direction']['separation_score'],
-                results['incorrect_direction']['separation_score']
-            )
-            
-            if max_score > best_score:
-                best_score = max_score
-                best_layer = layer_idx
-        
-        return best_layer
-    
-    def _create_summary(self, all_results: Dict, best_layer: int) -> str:
-        """Create a human-readable summary."""
-        lines = []
-        lines.append("SAE Analysis Summary")
-        lines.append("=" * 50)
-        
-        for layer_idx in sorted(all_results.keys()):
-            results = all_results[layer_idx]
-            is_best = " (BEST)" if layer_idx == best_layer else ""
-            
-            lines.append(f"\nLayer {layer_idx}{is_best}:")
-            lines.append(
-                f"  Correct direction: feature {results['correct_direction']['feature_idx']} "
-                f"(score: {results['correct_direction']['separation_score']:.3f})"
-            )
-            lines.append(
-                f"  Incorrect direction: feature {results['incorrect_direction']['feature_idx']} "
-                f"(score: {results['incorrect_direction']['separation_score']:.3f})"
-            )
-        
-        return "\n".join(lines)
     
     def _save_results(self, results: Dict) -> None:
         """Save analysis results to file."""
         output_dir = Path(self.config.phase2_output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save full results
+        # Save per-layer features (complete rankings)
+        for layer_idx, layer_data in results['layer_results'].items():
+            layer_file = output_dir / f"layer_{layer_idx}_features.json"
+            with open(layer_file, 'w') as f:
+                json.dump({
+                    'layer': layer_idx,
+                    'n_correct': layer_data['n_correct'],
+                    'n_incorrect': layer_data['n_incorrect'],
+                    'features': layer_data['features']
+                }, f, indent=2)
+            logger.info(f"Saved layer {layer_idx} features to {layer_file}")
+        
+        # Save top 20 features
+        top_features_file = output_dir / "top_20_features.json"
+        with open(top_features_file, 'w') as f:
+            json.dump(results['top_20_features'], f, indent=2)
+        logger.info(f"Saved top 20 features to {top_features_file}")
+        
+        # Save summary results (without layer_results to avoid huge file)
+        summary_results = {
+            'creation_timestamp': results['creation_timestamp'],
+            'model_name': results['model_name'],
+            'activation_layers': results['activation_layers'],
+            'top_20_features': results['top_20_features']
+        }
+        
         output_file = output_dir / "sae_analysis_results.json"
         with open(output_file, 'w') as f:
-            json.dump(results, f, indent=2)
+            json.dump(summary_results, f, indent=2)
         
-        logger.info(f"Saved results to {output_file}")
-        
-        # Save best layer info for Phase 3.5
-        best_layer_file = output_dir / "best_layer.json"
-        with open(best_layer_file, 'w') as f:
-            json.dump({'best_layer': results['best_layer_for_pva']}, f)
-        
-        logger.info(f"Saved best layer info to {best_layer_file}")
+        logger.info(f"Saved summary results to {output_file}")
