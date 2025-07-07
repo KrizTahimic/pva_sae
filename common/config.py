@@ -127,6 +127,8 @@ class Config:
     phase1_output_dir: str = "data/phase1_0"
     phase0_1_output_dir: str = "data/phase0_1"
     phase2_output_dir: str = "data/phase2"
+    phase2_2_output_dir: str = "data/phase2.2"
+    phase2_5_output_dir: str = "data/phase2.5"
     phase3_output_dir: str = "data/phase3"
     
     # === PROBLEM SPLITTING (Phase 0.1) ===
@@ -185,7 +187,7 @@ class Config:
             # SAE args
             'sae_model': 'sae_repo_id',
             'latent_threshold': 'sae_latent_threshold',
-            'pile_filter': 'pile_filter_enabled',
+            # 'pile_filter': 'pile_filter_enabled',  # Removed - handled specially below
             'pile_threshold': 'pile_threshold',
             'pile_samples': 'pile_samples',
             
@@ -208,10 +210,14 @@ class Config:
                 if value is not None:
                     setattr(config, config_field, value)
         
+        # Handle --no-pile-filter flag
+        if hasattr(args, 'no_pile_filter') and args.no_pile_filter:
+            config.pile_filter_enabled = False
+        
         # Store special CLI args that aren't in Config fields
         # These are accessed via getattr(config, '_argname', default)
         special_args = ['input', 'dry_run', 'generate_report', 
-                       'test_temps', 'test_samples_per_temp']
+                       'test_temps', 'test_samples_per_temp', 'run_count']
         for arg_name in special_args:
             if hasattr(args, arg_name):
                 value = getattr(args, arg_name)
@@ -302,7 +308,7 @@ class Config:
         Validate configuration for specific phase.
         
         Args:
-            phase: Phase to validate for ("0", "0.1", "1", "2", "3", "3.5")
+            phase: Phase to validate for ("0", "0.1", "1", "2.2", "2.5", "3", "3.5")
             
         Raises:
             ValueError: If configuration is invalid for the phase
@@ -336,13 +342,24 @@ class Config:
             if not 0 < self.split_ratio_tolerance < 1:
                 raise ValueError("split_ratio_tolerance must be between 0 and 1")
         
-        elif phase == "2":
-            # Phase 2 requires SAE configuration
-            if not self.sae_repo_id:
-                raise ValueError("sae_repo_id required for Phase 2")
+        elif phase == "2.2":
+            # Phase 2.2 requires model and pile samples
+            if not self.model_name:
+                raise ValueError("model_name required for Phase 2.2")
+            
+            if self.pile_samples <= 0:
+                raise ValueError("pile_samples must be > 0")
             
             if not self.activation_layers:
-                raise ValueError("activation_layers required for Phase 2")
+                raise ValueError("activation_layers required for Phase 2.2")
+        
+        elif phase == "2.5":
+            # Phase 2.5 requires SAE configuration
+            if not self.sae_repo_id:
+                raise ValueError("sae_repo_id required for Phase 2.5")
+            
+            if not self.activation_layers:
+                raise ValueError("activation_layers required for Phase 2.5")
         
         elif phase == "3":
             # Phase 3 requires validation settings

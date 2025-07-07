@@ -308,14 +308,24 @@ PHASE_CONFIGS = {
         "patterns": "split_metadata.json",
         "exclude_keywords": None
     },
-    "2": {
-        "dir": "data/phase2",
+    "2.2": {
+        "dir": "data/phase2_2",
+        "patterns": "pile_activations/*.npz",
+        "exclude_keywords": None
+    },
+    "2.5": {
+        "dir": "data/phase2_5",
         "patterns": ["sae_analysis_*.json", "multi_layer_results_*.json"],
         "exclude_keywords": None
     },
     "3": {
         "dir": "data/phase3",
         "patterns": ["validation_results_*.json", "steering_results_*.json"],
+        "exclude_keywords": None
+    },
+    "3.5": {
+        "dir": "data/phase3_5",
+        "patterns": ["dataset_temp_*.parquet", "metadata.json"],
         "exclude_keywords": None
     }
 }
@@ -326,7 +336,7 @@ def get_phase_dir(phase: str) -> str:
     Get the directory path for a given phase.
     
     Args:
-        phase: Phase string ("0", "0.1", "1", "2", "3")
+        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5")
         
     Returns:
         str: Directory path for the phase
@@ -335,8 +345,10 @@ def get_phase_dir(phase: str) -> str:
         get_phase_dir("0") -> "data/phase0"
         get_phase_dir("1") -> "data/phase1_0"
         get_phase_dir("0.1") -> "data/phase0_1"
-        get_phase_dir("2") -> "data/phase2"
+        get_phase_dir("2.2") -> "data/phase2_2"
+        get_phase_dir("2.5") -> "data/phase2_5"
         get_phase_dir("3") -> "data/phase3"
+        get_phase_dir("3.5") -> "data/phase3_5"
     """
     if phase not in PHASE_CONFIGS:
         raise ValueError(f"Unknown phase: {phase}. Valid phases are: {list(PHASE_CONFIGS.keys())}")
@@ -349,7 +361,7 @@ def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None) ->
     Discover the latest output file from any phase.
     
     Args:
-        phase: Phase string ("0", "0.1", "1", "2", "3")
+        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5")
         phase_dir: Optional override for phase directory
         
     Returns:

@@ -29,9 +29,12 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
     files_to_delete = {
         "datasets": [],
         "phase0": [],
+        "phase0_1": [],
         "phase1": [],
-        "phase2": [],
+        "phase2_2": [],
+        "phase2_5": [],
         "phase3": [],
+        "phase3_5": [],
         "logs": [],
         "checkpoints": [],
         "test_checkpoints": [],
@@ -58,24 +61,45 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
     
     files_to_delete["phase0"] = [f for pattern in phase0_patterns for f in glob(pattern)]
     
-    # Phase 1 files
+    # Phase 0.1 files (Problem splitting)
+    phase0_1_patterns = [
+        "data/phase0_1/*.json",
+        "data/phase0_1/*.parquet"
+    ]
+    
+    files_to_delete["phase0_1"] = [f for pattern in phase0_1_patterns for f in glob(pattern)]
+    
+    # Phase 1 files (including new structure)
     phase1_patterns = [
         "data/phase1/*.json",
         "data/phase1/*.parquet",
         "data/phase1/dataset_*.parquet",
-        "data/phase1/checkpoints/*.json"
+        "data/phase1/checkpoints/*.json",
+        "data/phase1_0/*.json",
+        "data/phase1_0/*.parquet",
+        "data/phase1_0/dataset_*.parquet",
+        "data/phase1_0/checkpoints/*.json",
+        "data/phase1_0/activations/**/*.npz"
     ]
     
     files_to_delete["phase1"] = [f for pattern in phase1_patterns for f in glob(pattern)]
     
-    # Phase 2 files  
-    phase2_patterns = [
-        "data/phase2/*.json",
-        "data/phase2/checkpoints/*.json",
-        "data/phase2/activation_cache*"
+    # Phase 2.2 files (Pile activation caching)
+    phase2_2_patterns = [
+        "data/phase2_2/*.json",
+        "data/phase2_2/pile_activations/*.npz"
     ]
     
-    files_to_delete["phase2"] = [f for pattern in phase2_patterns for f in glob(pattern)]
+    files_to_delete["phase2_2"] = [f for pattern in phase2_2_patterns for f in glob(pattern)]
+    
+    # Phase 2.5 files (SAE analysis with pile filtering)
+    phase2_5_patterns = [
+        "data/phase2_5/*.json",
+        "data/phase2_5/checkpoints/*.json",
+        "data/phase2_5/activation_cache*"
+    ]
+    
+    files_to_delete["phase2_5"] = [f for pattern in phase2_5_patterns for f in glob(pattern)]
     
     # Phase 3 files
     phase3_patterns = [
@@ -84,6 +108,16 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
     ]
     
     files_to_delete["phase3"] = [f for pattern in phase3_patterns for f in glob(pattern)]
+    
+    # Phase 3.5 files (Temperature robustness)
+    phase3_5_patterns = [
+        "data/phase3_5/*.json",
+        "data/phase3_5/*.parquet",
+        "data/phase3_5/dataset_*.parquet",
+        "data/phase3_5/activations/**/*.npz"
+    ]
+    
+    files_to_delete["phase3_5"] = [f for pattern in phase3_5_patterns for f in glob(pattern)]
     
     # Log files
     log_patterns = [
@@ -100,8 +134,8 @@ def get_files_to_delete(data_dir: str = "data") -> dict:
     
     # Test checkpoint files
     test_checkpoint_patterns = [
-        "data/phase2/test_checkpoints/*.json",
-        "data/phase2/test_checkpoints/*.parquet"
+        "data/phase2_5/test_checkpoints/*.json",
+        "data/phase2_5/test_checkpoints/*.parquet"
     ]
     
     files_to_delete["test_checkpoints"] = [f for pattern in test_checkpoint_patterns for f in glob(pattern)]

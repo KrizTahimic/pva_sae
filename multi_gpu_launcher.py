@@ -222,6 +222,84 @@ class MultiGPULauncher:
         print(f"Check individual logs in data/logs/")
         print(f"\nPress Ctrl+C to stop all processes\n")
     
+    def launch_phase2_2_processes(self,
+                                  start_idx: int,
+                                  end_idx: int,
+                                  model: str,
+                                  extra_args: List[str] = None,
+                                  no_checkpoint: bool = False):
+        """
+        Launch Phase 2.2 pile caching processes on different GPUs
+        
+        Args:
+            start_idx: Starting index for pile dataset
+            end_idx: Ending index for pile dataset (inclusive)
+            model: Model name to use
+            extra_args: Additional arguments to pass
+            no_checkpoint: If True, disable checkpointing
+        """
+        # Setup logging
+        logging_manager = LoggingManager(
+            phase="2.2",
+            log_dir="data/logs"
+        )
+        self.logger = logging_manager.setup_logging("multi_gpu_launcher")
+        
+        # Split workload
+        splits = self.split_workload(start_idx, end_idx)
+        
+        print(f"\n{'='*60}")
+        print(f"MULTI-GPU PARALLEL PROCESSING - PHASE 2.2")
+        print(f"{'='*60}")
+        print(f"Total GPUs: {len(self.gpus)}")
+        print(f"Processing range: {start_idx}-{end_idx} ({end_idx - start_idx + 1} pile samples)")
+        print(f"Model: {model}")
+        print(f"\nWorkload distribution:")
+        
+        for i, (gpu_id, (split_start, split_end)) in enumerate(zip(self.gpus, splits)):
+            items = split_end - split_start + 1
+            print(f"  GPU {gpu_id}: {split_start}-{split_end} ({items} samples)")
+        
+        print(f"\n{'='*60}")
+        print("Starting processes...\n")
+        
+        # Launch processes
+        for gpu_id, (split_start, split_end) in zip(self.gpus, splits):
+            cmd = [
+                "python3", "run.py", "phase", "2.2",
+                "--start", str(split_start),
+                "--end", str(split_end),
+                "--model", model
+            ]
+            
+            # Add extra arguments
+            if extra_args:
+                cmd.extend(extra_args)
+            
+            # Set environment for GPU
+            env = environ.copy()
+            env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+            
+            # Log file for this GPU
+            log_file = f"data/logs/gpu_{gpu_id}_output.log"
+            log_handle = open(log_file, "w")
+            
+            print(f"Launching on GPU {gpu_id}: python3 run.py phase 2.2 --start {split_start} --end {split_end}")
+            
+            # Launch process
+            process = Popen(
+                cmd,
+                env=env,
+                stdout=log_handle,
+                stderr=STDOUT,
+                preexec_fn=setsid  # Create new process group
+            )
+            self.processes.append((gpu_id, process, log_file, log_handle))
+        
+        print(f"\nAll processes launched. Monitoring progress...")
+        print(f"Check individual logs in data/logs/")
+        print(f"\nPress Ctrl+C to stop all processes\n")
+    
     def launch_phase3_5_processes(self,
                                   start_idx: int,
                                   end_idx: int,
@@ -518,9 +596,9 @@ def main():
     parser.add_argument(
         '--phase',
         type=float,
-        choices=[1, 3.5],
+        choices=[1, 2.2, 3.5],
         default=1,
-        help='Phase to run (1=Dataset Building, 3.5=Temperature Robustness)'
+        help='Phase to run (1=Dataset Building, 2.2=Pile Caching, 3.5=Temperature Robustness)'
     )
     parser.add_argument(
         '--gpus',
@@ -596,6 +674,32 @@ def main():
         
         # Monitor and potentially merge
         launcher.monitor_and_merge(phase="1", checkpointing_enabled=not args.no_checkpoint)
+    
+    elif args.phase == 2.2:
+        # Phase 2.2 pile caching
+        if args.start is None:
+            args.start = 0
+        if args.end is None:
+            args.end = 9999  # Default to 10,000 samples (0-9999)
+        
+        # Handle --run-count if provided
+        if '--run-count' in extra_args:
+            idx = extra_args.index('--run-count')
+            if idx + 1 < len(extra_args):
+                run_count = int(extra_args[idx + 1])
+                args.end = min(args.end, run_count - 1)
+        
+        # Launch Phase 2.2 processes
+        launcher.launch_phase2_2_processes(
+            start_idx=args.start,
+            end_idx=args.end,
+            model=args.model,
+            extra_args=extra_args,
+            no_checkpoint=args.no_checkpoint
+        )
+        
+        # Monitor (no merging needed for Phase 2.2)
+        launcher.monitor_and_merge(phase="2.2", checkpointing_enabled=False)
     
     elif args.phase == 3.5:
         # Phase 3.5 will auto-detect dataset size if end is None

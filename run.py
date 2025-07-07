@@ -5,12 +5,12 @@ Single entry point for all PVA-SAE thesis phases.
 Usage:
     python3 run.py phase 0                                      # Difficulty analysis
     python3 run.py phase 1 --model google/gemma-2-2b           # Dataset building (single GPU)
-    python3 run.py phase 2                                      # SAE analysis (auto-discovers input)
+    python3 run.py phase 2.5                                    # SAE analysis with pile filtering (auto-discovers input)
     python3 run.py phase 3                                      # Validation (auto-discovers input)
     
 Manual input override:
     python3 run.py phase 1 --input data/phase0/mapping.parquet  # Use specific difficulty mapping
-    python3 run.py phase 2 --input data/phase1_0/dataset.parquet  # Use specific dataset
+    python3 run.py phase 2.5 --input data/phase1_0/dataset.parquet  # Use specific dataset
     python3 run.py phase 3 --input data/phase2/results.json       # Use specific SAE results
     
 For multi-GPU dataset building, use:
@@ -92,8 +92,8 @@ def setup_argument_parser():
     phase_parser.add_argument(
         'phase',
         type=float,
-        choices=[0, 0.1, 1, 2, 3, 3.5],
-        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2=SAE Analysis, 3=Validation, 3.5=Temperature Robustness'
+        choices=[0, 0.1, 1, 2.2, 2.5, 3, 3.5],
+        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 3=Validation, 3.5=Temperature Robustness'
     )
     
     # Global arguments (add to phase parser)
@@ -116,7 +116,7 @@ def setup_argument_parser():
         type=str,
         help='Input file from previous phase (overrides auto-discovery). '
              'Phase 1: difficulty mapping (.parquet), '
-             'Phase 2: dataset (.parquet), '
+             'Phase 2.5: dataset (.parquet), '
              'Phase 3: SAE results (.json)'
     )
     
@@ -162,6 +162,15 @@ def setup_argument_parser():
         help='Directory for dataset files'
     )
     
+    # Phase 2.2: Pile Activation Caching arguments
+    phase2_2_group = phase_parser.add_argument_group('Phase 2.2: Pile Activation Caching')
+    phase2_2_group.add_argument(
+        '--run-count',
+        type=int,
+        default=10000,
+        help='Number of pile samples to process (default: 10000, use small value for testing)'
+    )
+    
     # Phase 0.1: Problem Splitting arguments
     phase0_1_group = phase_parser.add_argument_group('Phase 0.1: Problem Splitting')
     phase0_1_group.add_argument(
@@ -191,31 +200,31 @@ def setup_argument_parser():
     # Phase 3.5: Temperature Robustness arguments
     phase3_5_group = phase_parser.add_argument_group('Phase 3.5: Temperature Robustness')
     
-    # Phase 2: SAE Analysis arguments
-    phase2_group = phase_parser.add_argument_group('Phase 2: SAE Analysis')
-    phase2_group.add_argument(
+    # Phase 2.5: SAE Analysis arguments
+    phase2_5_group = phase_parser.add_argument_group('Phase 2.5: SAE Analysis with Pile Filtering')
+    phase2_5_group.add_argument(
         '--sae-model',
         type=str,
         help='Path to SAE model'
     )
-    phase2_group.add_argument(
+    phase2_5_group.add_argument(
         '--latent-threshold',
         type=float,
         default=0.02,
         help='Activation threshold for latent filtering'
     )
-    phase2_group.add_argument(
-        '--pile-filter',
+    phase2_5_group.add_argument(
+        '--no-pile-filter',
         action='store_true',
-        help='Apply Pile dataset filtering to remove general language features'
+        help='Disable Pile dataset filtering (enabled by default)'
     )
-    phase2_group.add_argument(
+    phase2_5_group.add_argument(
         '--pile-threshold',
         type=float,
         default=0.02,
         help='Maximum Pile activation frequency (default: 2%%)'
     )
-    phase2_group.add_argument(
+    phase2_5_group.add_argument(
         '--pile-samples',
         type=int,
         default=10000,
@@ -388,11 +397,31 @@ def run_phase0_1(config: Config, logger, device: str):
 
 
 
-def run_phase2(config: Config, logger, device: str):
-    """Run Phase 2: SAE Analysis using simplified implementation"""
-    from phase2_simplified.sae_analyzer import SimplifiedSAEAnalyzer
+def run_phase2_2(config: Config, logger, device: str):
+    """Run Phase 2.2: Cache Pile Activations"""
+    from phase2_2_pile_caching.runner import run_phase2_2_caching
     
-    logger.info("Starting Phase 2: SAE Analysis")
+    logger.info("Starting Phase 2.2: Pile Activation Caching")
+    logger.info("This phase extracts activations from diverse text at random word positions")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="2.2"))
+    
+    # Check if we have a run count override
+    run_count = getattr(config, '_run_count', config.pile_samples)
+    logger.info(f"Will process {run_count} pile samples")
+    
+    # Run the pile caching
+    run_phase2_2_caching(config, device)
+    
+    logger.info("✅ Phase 2.2 completed successfully")
+
+
+def run_phase2_5(config: Config, logger, device: str):
+    """Run Phase 2.5: SAE Analysis with Pile Filtering using simplified implementation"""
+    from phase2_5_simplified.sae_analyzer import SimplifiedSAEAnalyzer
+    
+    logger.info("Starting Phase 2.5: SAE Analysis with Pile Filtering")
     logger.info("Using simplified implementation")
     
     # Log configuration
@@ -402,7 +431,7 @@ def run_phase2(config: Config, logger, device: str):
     analyzer = SimplifiedSAEAnalyzer(config)
     results = analyzer.run()
     
-    logger.info("\n✅ Phase 2 completed successfully")
+    logger.info("\n✅ Phase 2.5 completed successfully")
 
 
 def run_phase3(config: Config, logger, device: str):
@@ -419,10 +448,10 @@ def run_phase3(config: Config, logger, device: str):
         logger.info(f"Using specified SAE results: {config._input_file}")
         sae_results_path = config._input_file
     else:
-        logger.info("Auto-discovering SAE results from Phase 2...")
-        sae_results_path = discover_latest_phase_output("2")
+        logger.info("Auto-discovering SAE results from Phase 2.5...")
+        sae_results_path = discover_latest_phase_output("2.5")
         if not sae_results_path:
-            logger.error(f"No SAE results found in {config.phase2_output_dir}. Please run Phase 2 first or specify --input")
+            logger.error(f"No SAE results found in {config.phase2_5_output_dir}. Please run Phase 2.5 first or specify --input")
             sys.exit(1)
         logger.info(f"Found SAE results: {sae_results_path}")
     
@@ -667,11 +696,11 @@ def show_status(args, logger):
     else:
         placeholder_phases.append(1)
     
-    # Phase 2 - check if run_phase2 has TODO or placeholder text
+    # Phase 2.5 - check if run_phase2_5 has TODO or placeholder text
     if "# TODO: Implement SAE analysis" in current_file_content or "SAE Analysis not yet implemented" in current_file_content:
-        placeholder_phases.append(2)
+        placeholder_phases.append(2.5)
     else:
-        implemented_phases.append(2)
+        implemented_phases.append(2.5)
     
     # Phase 3 - check if run_phase3 has TODO or placeholder text
     if "# TODO: Implement validation" in current_file_content or "Validation not yet implemented" in current_file_content:
@@ -875,18 +904,18 @@ def test_phase1(args, logger, device: str):
 
 
 def test_phase2(args, logger, device: str):
-    """Quick test of Phase 2 SAE analysis with saved activations"""
-    # Phase 2 is CPU-only and loads saved activations
+    """Quick test of Phase 2.5 SAE analysis with saved activations"""
+    # Phase 2.5 is CPU-only and loads saved activations
     device = "cpu"
     
-    # Run simplified version of Phase 2
-    config = Config.from_args(args, phase="2")
+    # Run simplified version of Phase 2.5
+    config = Config.from_args(args, phase="2.5")
     config.dataset_end_idx = 10  # Limit to 10 samples for testing
     
-    run_phase2(config, logger, device)
+    run_phase2_5(config, logger, device)
     
     print(f"\n{'='*50}")
-    print("PHASE 2 QUICK TEST")
+    print("PHASE 2.5 QUICK TEST")
     print(f"{'='*50}")
     
     # Use auto-discovery to find latest dataset from Phase 1
@@ -956,14 +985,14 @@ def test_phase2(args, logger, device: str):
         test_config.activation_layers = [args.layer]  # Test single layer
         test_config.sae_save_after_each_layer = False  # Skip checkpointing for test
         test_config.sae_cleanup_after_layer = True  # Clean up memory
-        test_config.sae_checkpoint_dir = f"{get_phase_dir('2')}/test_checkpoints"  # Separate test dir
+        test_config.sae_checkpoint_dir = f"{get_phase_dir('2.5')}/test_checkpoints"  # Separate test dir
         
         print(f"🧠 Initializing SAE pipeline...")
         
         # Initialize pipeline
         # TODO: EnhancedSAEAnalysisPipeline not implemented - this test function needs updating
         print("❌ Error: test-sae-gpu function is not currently implemented")
-        print("   Use regular 'phase 2' command instead")
+        print("   Use regular 'phase 2.5' command instead")
         return
         
         # pipeline = EnhancedSAEAnalysisPipeline(model, test_config, device=device)
@@ -1104,6 +1133,9 @@ def main():
         if args.phase == 0.1 and hasattr(args, 'generate_report'):
             config._generate_report = args.generate_report
         
+        if args.phase == 2.2 and hasattr(args, 'run_count'):
+            config._run_count = args.run_count
+        
         # Validate config for the phase
         try:
             config.validate(str(args.phase))
@@ -1121,7 +1153,8 @@ def main():
             0: "Difficulty Analysis",
             0.1: "Problem Splitting",
             1: "Dataset Building",
-            2: "SAE Analysis",
+            2.2: "Pile Activation Caching",
+            2.5: "SAE Analysis with Pile Filtering",
             3: "Validation",
             3.5: "Temperature Robustness"
         }
@@ -1139,8 +1172,10 @@ def main():
                 run_phase1(config, logger, device)
             elif args.phase == 0.1:
                 run_phase0_1(config, logger, device)
-            elif args.phase == 2:
-                run_phase2(config, logger, device)
+            elif args.phase == 2.2:
+                run_phase2_2(config, logger, device)
+            elif args.phase == 2.5:
+                run_phase2_5(config, logger, device)
             elif args.phase == 3:
                 run_phase3(config, logger, device)
             elif args.phase == 3.5:

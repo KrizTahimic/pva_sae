@@ -35,7 +35,7 @@ Phase 3: Validation ✓ ALREADY IMPLEMENTED
 - Integrates with existing phase structure
 - Leverages already-cached activations from Phase 1
 - Uses .npz format consistent with current codebase
-
+ 
 ## Understanding Pile Dataset Usage
 
 ### What is pile-10k?
