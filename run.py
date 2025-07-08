@@ -92,8 +92,8 @@ def setup_argument_parser():
     phase_parser.add_argument(
         'phase',
         type=float,
-        choices=[0, 0.1, 1, 2.2, 2.5, 3, 3.5],
-        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 3=Validation, 3.5=Temperature Robustness'
+        choices=[0, 0.1, 1, 2.2, 2.5, 3, 3.5, 3.6, 3.8],
+        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation'
     )
     
     # Global arguments (add to phase parser)
@@ -489,6 +489,70 @@ def run_phase3_5(config: Config, logger, device: str):
     metadata = runner.run()
     
     logger.info("\n✅ Phase 3.5 completed successfully")
+
+
+def run_phase3_6(config: Config, logger, device: str):
+    """Run Phase 3.6: Hyperparameter Tuning Set Processing"""
+    from phase3_6.hyperparameter_runner import HyperparameterDataRunner
+    
+    logger.info("Starting Phase 3.6: Hyperparameter Tuning Set Processing")
+    logger.info("Will auto-discover best layers from Phase 3.5 output")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="3.6"))
+    
+    # Create and run hyperparameter runner
+    runner = HyperparameterDataRunner(config)
+    metadata = runner.run()
+    
+    logger.info("\n✅ Phase 3.6 completed successfully")
+
+
+def run_phase3_8(config: Config, logger, device: str):
+    """Run Phase 3.8: AUROC and F1 Evaluation"""
+    import sys
+    from pathlib import Path
+    
+    logger.info("Starting Phase 3.8: AUROC and F1 Evaluation for PVA-SAE")
+    logger.info("This phase evaluates bidirectional SAE features using AUROC and F1 metrics")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="3.8"))
+    
+    # Set up sys.argv for the auroc_f1_evaluator script
+    original_argv = sys.argv.copy()
+    
+    try:
+        # Build new argv
+        sys.argv = ["auroc_f1_evaluator.py"]
+        
+        # Add optional arguments if provided
+        if hasattr(config, '_input_file') and config._input_file:
+            # Parse input file to determine which phase it's from
+            input_path = Path(config._input_file)
+            if "phase0_1" in str(input_path):
+                sys.argv.extend(["--phase0-1-dir", str(input_path.parent)])
+            elif "phase3_5" in str(input_path):
+                sys.argv.extend(["--phase3-5-dir", str(input_path.parent)])
+            else:
+                logger.warning(f"Input file {input_path} not recognized as Phase 0.1 or 3.5 output")
+        
+        # Use standard phase output directory
+        output_dir = get_phase_dir('3.8')
+        sys.argv.extend(["--output-dir", output_dir])
+        
+        logger.info(f"Running Phase 3.8 evaluator with args: {sys.argv[1:]}")
+        
+        # Import and run the main function directly
+        from phase3_8.auroc_f1_evaluator import main
+        main()
+        
+        logger.info("\n✅ Phase 3.8 completed successfully")
+        logger.info(f"Results saved to: {output_dir}")
+        
+    finally:
+        # Restore original argv
+        sys.argv = original_argv
 
 
 def cleanup_gpu_command(args, logger):
@@ -1156,7 +1220,9 @@ def main():
             2.2: "Pile Activation Caching",
             2.5: "SAE Analysis with Pile Filtering",
             3: "Validation",
-            3.5: "Temperature Robustness"
+            3.5: "Temperature Robustness",
+            3.6: "Hyperparameter Tuning Set Processing",
+            3.8: "AUROC and F1 Evaluation"
         }
         
         print(f"\n{'='*60}")
@@ -1180,6 +1246,10 @@ def main():
                 run_phase3(config, logger, device)
             elif args.phase == 3.5:
                 run_phase3_5(config, logger, device)
+            elif args.phase == 3.6:
+                run_phase3_6(config, logger, device)
+            elif args.phase == 3.8:
+                run_phase3_8(config, logger, device)
             
             print(f"✅ Phase {args.phase} completed successfully!")
             

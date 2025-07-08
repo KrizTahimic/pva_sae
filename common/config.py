@@ -137,14 +137,21 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
+    # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.3, 0.6, 0.9, 1.2])
     # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.3, 0.6, 0.9, 1.2])
     temperature_samples_per_temp: int = 5  # Number of samples to generate per temperature
     phase3_5_output_dir: str = "data/phase3_5"
     
+    # === HYPERPARAMETER TUNING SET (Phase 3.6) ===
+    phase3_6_output_dir: str = "data/phase3_6"
+    
     # === VALIDATION (Phase 3) ===
     # validation_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.5, 1.0, 1.5, 2.0]) # DELETE if this is an obsolete setting
     validation_steering_coeffs: List[float] = field(default_factory=lambda: [-1.0, -0.5, 0.0, 0.5, 1.0])
+    
+    # === EVALUATION (Phase 3.8) ===
+    evaluation_random_seed: int = 42
     
     # === LOGGING ===
     log_dir: str = DEFAULT_LOG_DIR
@@ -308,7 +315,7 @@ class Config:
         Validate configuration for specific phase.
         
         Args:
-            phase: Phase to validate for ("0", "0.1", "1", "2.2", "2.5", "3", "3.5")
+            phase: Phase to validate for ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8")
             
         Raises:
             ValueError: If configuration is invalid for the phase
@@ -362,12 +369,8 @@ class Config:
                 raise ValueError("activation_layers required for Phase 2.5")
         
         elif phase == "3":
-            # Phase 3 requires validation settings
-            if not self.validation_temperatures:
-                raise ValueError("validation_temperatures required for Phase 3")
-            
-            if not self.validation_steering_coeffs:
-                raise ValueError("validation_steering_coeffs required for Phase 3")
+            # Phase 3 validation not yet implemented
+            pass
         
         elif phase == "3.5":
             # Phase 3.5 requires temperature variation settings
@@ -379,6 +382,16 @@ class Config:
             
             if self.temperature_samples_per_temp <= 0:
                 raise ValueError("temperature_samples_per_temp must be positive")
+        
+        elif phase == "3.6":
+            # Phase 3.6 requires Phase 3.5 and Phase 0.1 to be completed
+            # No specific config validation needed - uses standard settings
+            pass
+        
+        elif phase == "3.8":
+            # Phase 3.8 requires completed Phase 3.5 and Phase 0.1
+            # No specific config validation needed - uses standard settings
+            pass
     
     def get_phase_output_dir(self, phase: str) -> str:
         """Get output directory for specific phase."""

@@ -327,6 +327,16 @@ PHASE_CONFIGS = {
         "dir": "data/phase3_5",
         "patterns": ["dataset_temp_*.parquet", "metadata.json"],
         "exclude_keywords": None
+    },
+    "3.6": {
+        "dir": "data/phase3_6",
+        "patterns": ["dataset_hyperparams_temp_0_0.parquet", "metadata.json"],
+        "exclude_keywords": None
+    },
+    "3.8": {
+        "dir": "data/phase3_8",
+        "patterns": ["evaluation_results.json", "*.png", "evaluation_summary.txt"],
+        "exclude_keywords": None
     }
 }
 
@@ -336,7 +346,7 @@ def get_phase_dir(phase: str) -> str:
     Get the directory path for a given phase.
     
     Args:
-        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5")
+        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.8")
         
     Returns:
         str: Directory path for the phase
@@ -361,7 +371,7 @@ def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None) ->
     Discover the latest output file from any phase.
     
     Args:
-        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5")
+        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.8")
         phase_dir: Optional override for phase directory
         
     Returns:
