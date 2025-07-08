@@ -15,7 +15,8 @@ The methodology follows these phases:
 - Phase 0: Difficulty analysis of MBPP problems
 - Phase 0.1: Problem splitting (50% SAE analysis, 10% hyperparameter tuning, 40% validation)
 - Phase 1.0: Dataset building with base generation (temperature=0.0)
-- Phase 2: SAE activation analysis using separation scores (split-aware)
+- Phase 2.2: Pile activation caching for general language feature baseline
+- Phase 2.5: SAE activation analysis with pile filtering using separation scores (split-aware)
 - Phase 3: Validation through both statistical measures and causal intervention via model steering
 - Phase 3.5: Temperature robustness testing on validation split
 
@@ -38,11 +39,17 @@ data/
 │   ├── hyperparams_mbpp.parquet # Hyperparameter split with full MBPP data
 │   ├── validation_mbpp.parquet  # Validation split with full MBPP data
 │   └── split_metadata.json
-├── phase2/           # SAE analysis results
+├── phase2.2/         # Pile activation caching
+│   ├── pile_activations.npz
+│   └── metadata.json
+├── phase2.5/         # SAE analysis results with pile filtering
 │   ├── sae_analysis_results.json
+│   ├── top_20_features.json
+│   ├── layer_{n}_features.json  # Per-layer analysis
 │   └── best_layer.json          # Best PVA layer for Phase 3.5
 ├── phase3/           # Validation results
 └── phase3_5/         # Temperature robustness (validation split only)
+    ├── dataset_temp_0_0.parquet  # 5 samples per task at temp 0.0
     ├── dataset_temp_0_3.parquet  # 5 samples per task at temp 0.3
     ├── dataset_temp_0_6.parquet  # 5 samples per task at temp 0.6
     ├── dataset_temp_0_9.parquet  # 5 samples per task at temp 0.9
@@ -81,9 +88,10 @@ When working with SAELens or TransformerLens, access their official documentatio
 - Use `python3 multi_gpu_launcher.py --phase 1 --start 0 --end 488` for multi-GPU generation
 - Multi-GPU uses index-based work splitting, no batching
 - Phase 0.1 is CPU-only, splits problems based on difficulty from Phase 0
-- Phase 2 is CPU-only, uses saved activations from Phase 1
-- Phase 3.5 MUST run after Phase 2 because it needs the best_layer output
-- Phase 3.5 extracts activations from only ONE layer (identified by Phase 2), not all layers like Phase 1
+- Phase 2.2 is CPU-only, caches pile activations for general language feature baseline
+- Phase 2.5 is CPU-only, uses saved activations from Phase 1 with optional pile filtering
+- Phase 3.5 MUST run after Phase 2.5 because it needs the best_layer output
+- Phase 3.5 extracts activations from only ONE layer (identified by Phase 2.5), not all layers like Phase 1
 - Checkpoint recovery: Auto-discovers latest checkpoints by timestamp
 - Memory management: Extract and save activations during Phase 1, load from disk in Phase 2
 
@@ -98,7 +106,7 @@ When working with SAELens or TransformerLens, access their official documentatio
 - **Distribution**: Index-based work splitting via multi_gpu_launcher.py (not Ray)
 - **Work allocation**: Each GPU gets contiguous dataset slice (e.g., 0-162, 163-325, 326-488 for 3 GPUs)
 - **Process coordination**: Uses subprocess, not distributed computing framework
-- **Memory management**: Extract and save activations during Phase 1, load from disk in Phase 2
+- **Memory management**: Extract and save activations during Phase 1, load from disk in Phase 2.5
 
 
 ## Key Commands
@@ -117,14 +125,23 @@ python3 multi_gpu_launcher.py --phase 1 --start 0 --end 488 --model google/gemma
 # Phase 0.1: Split problems by difficulty
 python3 run.py phase 0.1
 
-# Phase 2: SAE analysis (auto-discovers from phase1, outputs to data/phase2/)
-python3 run.py phase 2
+# Phase 2.2: Cache pile activations for filtering (single GPU, testing)
+python3 run.py phase 2.2 --run-count 100
 
-# Phase 3: Validation (auto-discovers from phase1 & phase2, outputs to data/phase3/)
+# Phase 2.2: Cache pile activations (production, 10k samples)
+python3 run.py phase 2.2
+
+# Phase 2.5: SAE analysis with pile filtering (default enabled)
+python3 run.py phase 2.5
+
+# Phase 2.5: SAE analysis without pile filtering
+python3 run.py phase 2.5 --no-pile-filter
+
+# Phase 3: Validation (auto-discovers from phase1 & phase2.5, outputs to data/phase3/)
 python3 run.py phase 3
 
 # Phase 3.5: Temperature robustness for validation split (single GPU)
-# Uses best layer from Phase 2 (hardcoded in config as temperature_test_layer)
+# Uses best layer from Phase 2.5 (hardcoded in config as temperature_test_layer)
 python3 run.py phase 3.5
 
 # Phase 3.5: Temperature robustness (single GPU, specific range)
@@ -153,8 +170,8 @@ python3 clean_data.py --dry-run
 ```bash
 # Override auto-discovery with specific files
 python3 run.py phase 1 --input data/phase0/specific_mapping.parquet
-python3 run.py phase 2 --input data/phase1_0/specific_dataset.parquet
-python3 run.py phase 3 --input data/phase2/specific_results.json
+python3 run.py phase 2.5 --input data/phase1_0/specific_dataset.parquet
+python3 run.py phase 3 --input data/phase2.5/specific_results.json
 ```
 
 ## Code Quality Guidelines

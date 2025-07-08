@@ -29,5 +29,5 @@ for file_path in matching_files:
     print(f"Records: {len(df)}")
     print(f"Columns: {list(df.columns)}")
     print("\nFirst 5 records:")
-    display(df.head(5))
+    display(df.head(10))
 # %%

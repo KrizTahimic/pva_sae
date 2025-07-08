@@ -137,13 +137,13 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.3, 0.6, 0.9, 1.2])
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
+    # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.3, 0.6, 0.9, 1.2])
     temperature_samples_per_temp: int = 5  # Number of samples to generate per temperature
-    temperature_test_layer: int = 6  # Best PVA layer from Phase 2 (hardcoded for now)
     phase3_5_output_dir: str = "data/phase3_5"
     
     # === VALIDATION (Phase 3) ===
-    validation_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.5, 1.0, 1.5, 2.0])
+    # validation_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.5, 1.0, 1.5, 2.0]) # DELETE if this is an obsolete setting
     validation_steering_coeffs: List[float] = field(default_factory=lambda: [-1.0, -0.5, 0.0, 0.5, 1.0])
     
     # === LOGGING ===

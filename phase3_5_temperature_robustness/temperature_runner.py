@@ -21,7 +21,7 @@ from common_simplified.helpers import evaluate_code, extract_code
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger
-from common.utils import detect_device
+from common.utils import detect_device, discover_latest_phase_output
 
 # Module-level logger
 logger = get_logger("temperature_runner", phase="3.5")
@@ -29,6 +29,54 @@ logger = get_logger("temperature_runner", phase="3.5")
 
 class TemperatureRobustnessRunner:
     """Temperature robustness testing with single-layer activation extraction."""
+    
+    def _discover_best_layers(self) -> Dict[str, int]:
+        """
+        Discover best layers from Phase 2.5 output.
+        
+        Returns:
+            Dict with 'correct' and 'incorrect' best layers
+        """
+        # Find latest Phase 2.5 output
+        phase_2_5_dir = Path(self.config.phase2_5_output_dir)
+        top_features_file = phase_2_5_dir / "top_20_features.json"
+        
+        if not top_features_file.exists():
+            # Try auto-discovery
+            latest_output = discover_latest_phase_output("2.5")
+            if latest_output:
+                # Extract directory from the discovered file
+                output_dir = Path(latest_output).parent
+                top_features_file = output_dir / "top_20_features.json"
+        
+        if not top_features_file.exists():
+            raise FileNotFoundError(
+                f"top_20_features.json not found in {phase_2_5_dir}. "
+                "Please run Phase 2.5 first."
+            )
+        
+        # Read top features
+        with open(top_features_file, 'r') as f:
+            top_features = json.load(f)
+        
+        # Extract best layers (first entry in each list)
+        best_layers = {}
+        
+        if top_features.get('correct') and len(top_features['correct']) > 0:
+            best_layers['correct'] = top_features['correct'][0]['layer']
+            best_layers['correct_feature_idx'] = top_features['correct'][0]['feature_idx']
+        else:
+            raise ValueError("No correct features found in top_20_features.json")
+        
+        if top_features.get('incorrect') and len(top_features['incorrect']) > 0:
+            best_layers['incorrect'] = top_features['incorrect'][0]['layer']
+            best_layers['incorrect_feature_idx'] = top_features['incorrect'][0]['feature_idx']
+        else:
+            raise ValueError("No incorrect features found in top_20_features.json")
+        
+        logger.info(f"Discovered best layers - Correct: layer {best_layers['correct']}, Incorrect: layer {best_layers['incorrect']}")
+        
+        return best_layers
     
     def __init__(self, config: Config):
         """Initialize with configuration."""
@@ -49,21 +97,23 @@ class TemperatureRobustnessRunner:
         else:
             logger.info(f"Model successfully loaded on {actual_device}")
         
-        # Get best layer from config
-        if not hasattr(config, 'temperature_test_layer') or config.temperature_test_layer is None:
-            raise ValueError(
-                "temperature_test_layer must be set in config. "
-                "This should be the best PVA layer identified in Phase 2."
-            )
+        # Discover best layers from Phase 2.5
+        self.best_layers = self._discover_best_layers()
         
-        self.best_layer = config.temperature_test_layer
-        logger.info(f"Using layer {self.best_layer} for temperature robustness testing")
+        # Determine unique layers to extract from
+        unique_layers = list(set([self.best_layers['correct'], self.best_layers['incorrect']]))
+        self.extraction_layers = unique_layers
+        
+        if len(unique_layers) == 1:
+            logger.info(f"Both correct and incorrect features use the same layer: {unique_layers[0]}")
+        else:
+            logger.info(f"Using different layers - Correct: {self.best_layers['correct']}, Incorrect: {self.best_layers['incorrect']}")
         
         # Initialize activation extractor but don't setup hooks yet
         # We'll only setup hooks when generating at temperature 0
         self.activation_extractor = ActivationExtractor(
             self.model,
-            layers=[self.best_layer]  # Only extract from the best layer!
+            layers=self.extraction_layers  # Extract from all unique layers
         )
         
         # Validate configuration
@@ -72,8 +122,8 @@ class TemperatureRobustnessRunner:
         if not config.temperature_samples_per_temp or config.temperature_samples_per_temp < 1:
             raise ValueError("temperature_samples_per_temp must be >= 1")
     
-    def generate_temp0_with_activations(self, prompt: str) -> Tuple[str, torch.Tensor]:
-        """Generate at temperature 0 and extract activations."""
+    def generate_temp0_with_activations(self, prompt: str) -> Tuple[str, Dict[int, torch.Tensor]]:
+        """Generate at temperature 0 and extract activations from all relevant layers."""
         # Setup hooks for this generation
         self.activation_extractor.setup_hooks()
         
@@ -106,14 +156,14 @@ class TemperatureRobustnessRunner:
                 skip_special_tokens=True
             )
             
-            # Get captured activations from the single layer
+            # Get captured activations from all layers
             activations = self.activation_extractor.get_activations()
             
             if not activations:
                 raise ValueError("No activations captured from model")
             
-            # Return generated text and activations
-            return generated_text, list(activations.values())[0]
+            # Return generated text and activations dict {layer_num: tensor}
+            return generated_text, activations
             
         finally:
             # Always remove hooks after use
@@ -151,7 +201,7 @@ class TemperatureRobustnessRunner:
     def run(self) -> Dict[str, any]:
         """Run temperature robustness testing for validation split."""
         logger.info("Starting Phase 3.5: Temperature Robustness Testing")
-        logger.info(f"Extracting activations only from layer {self.best_layer}")
+        logger.info(f"Extracting activations from layers: {self.extraction_layers}")
         
         # Load validation data
         validation_data = self._load_validation_data()
@@ -257,7 +307,7 @@ class TemperatureRobustnessRunner:
                     generated_text, task_activations = self.generate_temp0_with_activations(prompt)
                     generation_time = time.time() - start_time
                     
-                    # Save the activation for this task
+                    # Save activations for this task (only the best layers for correct/incorrect)
                     self._save_task_activations(row['task_id'], task_activations)
                     
                     # Extract code and evaluate
@@ -383,15 +433,17 @@ class TemperatureRobustnessRunner:
             'generation_idx': sample_idx
         }
     
-    def _save_task_activations(self, task_id: str, activations: torch.Tensor) -> None:
-        """Save the single activation for this task."""
-        save_path = (
-            self.output_dir / "activations" / 
-            "task_activations" / f"{task_id}_layer_{self.best_layer}.npz"
-        )
-        
-        # Save as simple numpy array
-        np.savez_compressed(save_path, activations.cpu().numpy())
+    def _save_task_activations(self, task_id: str, activations: Dict[int, torch.Tensor]) -> None:
+        """Save activations for all layers for this task."""
+        # Save each layer's activations separately
+        for layer_num, layer_activations in activations.items():
+            save_path = (
+                self.output_dir / "activations" / 
+                "task_activations" / f"{task_id}_layer_{layer_num}.npz"
+            )
+            
+            # Save as simple numpy array
+            np.savez_compressed(save_path, layer_activations.cpu().numpy())
     
     def _save_temperature_results(
         self,
@@ -416,7 +468,13 @@ class TemperatureRobustnessRunner:
         """Create metadata summary."""
         metadata = {
             "creation_timestamp": datetime.now().isoformat(),
-            "best_layer": self.best_layer,
+            "best_layers": {
+                "correct": self.best_layers['correct'],
+                "incorrect": self.best_layers['incorrect'],
+                "correct_feature_idx": self.best_layers['correct_feature_idx'],
+                "incorrect_feature_idx": self.best_layers['incorrect_feature_idx']
+            },
+            "extraction_layers": self.extraction_layers,
             "temperatures": self.config.temperature_variation_temps,
             "samples_per_temperature": self.config.temperature_samples_per_temp,
             "validation_task_ids": validation_task_ids,

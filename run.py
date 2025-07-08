@@ -479,7 +479,7 @@ def run_phase3_5(config: Config, logger, device: str):
     from phase3_5_temperature_robustness.temperature_runner import TemperatureRobustnessRunner
     
     logger.info("Starting Phase 3.5: Temperature Robustness Testing")
-    logger.info(f"Testing robustness on layer {config.temperature_test_layer}")
+    logger.info("Will auto-discover best layers from Phase 2.5 output")
     
     # Log configuration
     logger.info("\n" + config.dump(phase="3.5"))

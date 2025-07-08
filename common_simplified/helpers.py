@@ -87,14 +87,19 @@ def extract_code(generated_text: str, prompt: str) -> str:
     Extract generated code from model output.
     
     Args:
-        generated_text: Full text from model including prompt
-        prompt: Original prompt to remove
+        generated_text: Generated text (may or may not include prompt)
+        prompt: Original prompt to remove if present
         
     Returns:
         Extracted code
     """
-    # Remove the prompt from the beginning
-    code = generated_text[len(prompt):].strip()
+    # Check if prompt is in generated_text
+    if generated_text.startswith(prompt):
+        # Remove the prompt from the beginning
+        code = generated_text[len(prompt):].strip()
+    else:
+        # Prompt already removed, use generated_text as is
+        code = generated_text.strip()
     
     # Basic cleanup - remove common artifacts
     if code.startswith("```python"):
