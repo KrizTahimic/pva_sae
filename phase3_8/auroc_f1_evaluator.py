@@ -167,12 +167,23 @@ def plot_confusion_matrix(
     plt.close()
 
 
-def plot_comparative_metrics(results: Dict, output_dir: Path) -> None:
+def plot_comparative_metrics(
+    results: Dict, 
+    output_dir: Path,
+    y_true_val_correct: Optional[np.ndarray] = None,
+    scores_val_correct: Optional[np.ndarray] = None,
+    y_true_val_incorrect: Optional[np.ndarray] = None,
+    scores_val_incorrect: Optional[np.ndarray] = None
+) -> None:
     """Create side-by-side comparison of both feature performances.
     
     Args:
         results: Dictionary containing metrics for both features
         output_dir: Directory to save plot
+        y_true_val_correct: True labels for correct feature validation
+        scores_val_correct: Scores for correct feature validation
+        y_true_val_incorrect: True labels for incorrect feature validation
+        scores_val_incorrect: Scores for incorrect feature validation
     """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
     
@@ -214,8 +225,23 @@ def plot_comparative_metrics(results: Dict, output_dir: Path) -> None:
     ax2.set_xlabel('False Positive Rate')
     ax2.set_ylabel('True Positive Rate')
     ax2.set_title('ROC Curves')
-    ax2.plot([0, 1], [0, 1], 'k--', alpha=0.5, label='Random')
-    ax2.legend()
+    ax2.plot([0, 1], [0, 1], 'k--', alpha=0.5, label='Random (AUC = 0.5)')
+    
+    # Plot ROC curve for correct-preferring feature if data provided
+    if y_true_val_correct is not None and scores_val_correct is not None:
+        fpr_correct, tpr_correct, _ = roc_curve(y_true_val_correct, scores_val_correct)
+        auc_correct = results['correct_preferring_feature']['validation_metrics']['metrics']['auroc']
+        ax2.plot(fpr_correct, tpr_correct, color='#2ecc71', linewidth=2, 
+                label=f'Correct-Preferring (AUC = {auc_correct:.3f})')
+    
+    # Plot ROC curve for incorrect-preferring feature if data provided
+    if y_true_val_incorrect is not None and scores_val_incorrect is not None:
+        fpr_incorrect, tpr_incorrect, _ = roc_curve(y_true_val_incorrect, scores_val_incorrect)
+        auc_incorrect = results['incorrect_preferring_feature']['validation_metrics']['metrics']['auroc']
+        ax2.plot(fpr_incorrect, tpr_incorrect, color='#e74c3c', linewidth=2,
+                label=f'Incorrect-Preferring (AUC = {auc_incorrect:.3f})')
+    
+    ax2.legend(loc='lower right')
     ax2.grid(alpha=0.3)
     
     # Save
@@ -230,9 +256,10 @@ def load_split_activations(
     feature_idx: int, 
     feature_type: str,
     phase0_1_dir: Path,
-    phase3_5_dir: Path
+    phase3_5_dir: Path,
+    phase3_6_dir: Path
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Load activations for a specific feature from Phase 3.5 data.
+    """Load activations for a specific feature from appropriate phase data.
     
     Args:
         split_name: 'hyperparams' or 'validation'
@@ -240,7 +267,8 @@ def load_split_activations(
         feature_idx: Index of the specific feature
         feature_type: 'correct' or 'incorrect'
         phase0_1_dir: Directory containing Phase 0.1 outputs
-        phase3_5_dir: Directory containing Phase 3.5 outputs
+        phase3_5_dir: Directory containing Phase 3.5 outputs (validation split)
+        phase3_6_dir: Directory containing Phase 3.6 outputs (hyperparams split)
         
     Returns:
         Tuple of (labels, activations)
@@ -248,8 +276,17 @@ def load_split_activations(
     # Load split data
     split_data = pd.read_parquet(phase0_1_dir / f'{split_name}_mbpp.parquet')
     
-    # Load temperature 0.0 dataset from Phase 3.5
-    temp_data = pd.read_parquet(phase3_5_dir / 'dataset_temp_0_0.parquet')
+    # Select the correct directory based on split type
+    if split_name == 'hyperparams':
+        # Use Phase 3.6 directory for hyperparameter split
+        activation_dir = phase3_6_dir
+        # Load temperature 0.0 dataset from Phase 3.6
+        temp_data = pd.read_parquet(phase3_6_dir / 'dataset_hyperparams_temp_0_0.parquet')
+    else:  # validation
+        # Use Phase 3.5 directory for validation split
+        activation_dir = phase3_5_dir
+        # Load temperature 0.0 dataset from Phase 3.5
+        temp_data = pd.read_parquet(phase3_5_dir / 'dataset_temp_0_0.parquet')
     
     # Detect device and load SAE for encoding
     device = detect_device()
@@ -263,8 +300,8 @@ def load_split_activations(
     for _, row in split_data.iterrows():
         task_id = row['task_id']
         
-        # Load raw activations from Phase 3.5
-        act_file = phase3_5_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.npz'
+        # Load raw activations from appropriate phase
+        act_file = activation_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.npz'
         
         if not act_file.exists():
             missing_tasks.append(task_id)
@@ -322,6 +359,7 @@ def main():
     parser = argparse.ArgumentParser(description="Phase 3.8: AUROC and F1 Evaluation")
     parser.add_argument("--phase0-1-dir", type=str, help="Path to Phase 0.1 output directory")
     parser.add_argument("--phase3-5-dir", type=str, help="Path to Phase 3.5 output directory")
+    parser.add_argument("--phase3-6-dir", type=str, help="Path to Phase 3.6 output directory")
     parser.add_argument("--output-dir", type=str, default=None, 
                        help="Output directory for results")
     args = parser.parse_args()
@@ -353,6 +391,16 @@ def main():
     else:
         phase3_5_dir = Path(args.phase3_5_dir)
     
+    if not args.phase3_6_dir:
+        latest_output = discover_latest_phase_output("3.6")
+        if latest_output:
+            phase3_6_dir = Path(latest_output).parent
+            logger.info(f"Auto-discovered Phase 3.6 output: {phase3_6_dir}")
+        else:
+            raise FileNotFoundError("No Phase 3.6 output found. Please run Phase 3.6 first.")
+    else:
+        phase3_6_dir = Path(args.phase3_6_dir)
+    
     # Create output directory
     if args.output_dir:
         output_dir = Path(args.output_dir)
@@ -383,7 +431,7 @@ def main():
     # Load hyperparameter split for correct feature
     y_true_hp_correct, scores_hp_correct = load_split_activations(
         'hyperparams', correct_layer, correct_feature_idx, 'correct',
-        phase0_1_dir, phase3_5_dir
+        phase0_1_dir, phase3_5_dir, phase3_6_dir
     )
     
     print(f"\nCorrect-preferring feature (hyperparameter split):")
@@ -402,7 +450,7 @@ def main():
     # Load validation split
     y_true_val_correct, scores_val_correct = load_split_activations(
         'validation', correct_layer, correct_feature_idx, 'correct',
-        phase0_1_dir, phase3_5_dir
+        phase0_1_dir, phase3_5_dir, phase3_6_dir
     )
     
     print(f"\nCorrect-preferring feature (validation split):")
@@ -425,7 +473,7 @@ def main():
     # Load hyperparameter split for incorrect feature
     y_true_hp_incorrect, scores_hp_incorrect = load_split_activations(
         'hyperparams', incorrect_layer, incorrect_feature_idx, 'incorrect',
-        phase0_1_dir, phase3_5_dir
+        phase0_1_dir, phase3_5_dir, phase3_6_dir
     )
     
     print(f"\nIncorrect-preferring feature (hyperparameter split):")
@@ -444,7 +492,7 @@ def main():
     # Load validation split
     y_true_val_incorrect, scores_val_incorrect = load_split_activations(
         'validation', incorrect_layer, incorrect_feature_idx, 'incorrect',
-        phase0_1_dir, phase3_5_dir
+        phase0_1_dir, phase3_5_dir, phase3_6_dir
     )
     
     print(f"\nIncorrect-preferring feature (validation split):")
@@ -508,7 +556,11 @@ def main():
     save_json(results, output_dir / 'evaluation_results.json')
     
     # Generate comparative visualization
-    plot_comparative_metrics(results, output_dir)
+    plot_comparative_metrics(
+        results, output_dir,
+        y_true_val_correct, scores_val_correct,
+        y_true_val_incorrect, scores_val_incorrect
+    )
     
     # Generate summary
     summary_lines = [
