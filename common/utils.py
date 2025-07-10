@@ -337,6 +337,16 @@ PHASE_CONFIGS = {
         "dir": "data/phase3_8",
         "patterns": ["evaluation_results.json", "*.png", "evaluation_summary.txt"],
         "exclude_keywords": None
+    },
+    "3.10": {
+        "dir": "data/phase3_10",
+        "patterns": ["temperature_analysis_results.json", "*.png", "temperature_summary.txt"],
+        "exclude_keywords": None
+    },
+    "3.12": {
+        "dir": "data/phase3_12",
+        "patterns": ["difficulty_analysis_results.json", "*.png", "difficulty_summary.txt"],
+        "exclude_keywords": None
     }
 }
 

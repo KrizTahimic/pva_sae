@@ -138,13 +138,22 @@ class Config:
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
     # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.3, 0.6, 0.9, 1.2])
-    # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.3, 0.6, 0.9, 1.2])
+    # temperature_variation_temps: List[float] = None
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.3, 0.6, 0.9, 1.2])
     temperature_samples_per_temp: int = 5  # Number of samples to generate per temperature
     phase3_5_output_dir: str = "data/phase3_5"
     
     # === HYPERPARAMETER TUNING SET (Phase 3.6) ===
     phase3_6_output_dir: str = "data/phase3_6"
+    
+    # === AUROC AND F1 EVALUATION (Phase 3.8) ===
+    phase3_8_output_dir: str = "data/phase3_8"
+    
+    # === TEMPERATURE-BASED AUROC ANALYSIS (Phase 3.10) ===
+    phase3_10_output_dir: str = "data/phase3_10"
+    
+    # === DIFFICULTY-BASED AUROC ANALYSIS (Phase 3.12) ===
+    phase3_12_output_dir: str = "data/phase3_12"
     
     # === VALIDATION (Phase 3) ===
     # validation_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.5, 1.0, 1.5, 2.0]) # DELETE if this is an obsolete setting
@@ -390,6 +399,11 @@ class Config:
         
         elif phase == "3.8":
             # Phase 3.8 requires completed Phase 3.5 and Phase 0.1
+            # No specific config validation needed - uses standard settings
+            pass
+        
+        elif phase == "3.10":
+            # Phase 3.10 requires Phase 3.8 (best features) and 3.5 (temperature data)
             # No specific config validation needed - uses standard settings
             pass
     

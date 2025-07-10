@@ -92,8 +92,8 @@ def setup_argument_parser():
     phase_parser.add_argument(
         'phase',
         type=float,
-        choices=[0, 0.1, 1, 2.2, 2.5, 3, 3.5, 3.6, 3.8],
-        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation'
+        choices=[0, 0.1, 1, 2.2, 2.5, 3, 3.5, 3.6, 3.8, 3.10, 3.12],
+        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.12=Difficulty-Based AUROC Analysis'
     )
     
     # Global arguments (add to phase parser)
@@ -548,6 +548,73 @@ def run_phase3_8(config: Config, logger, device: str):
         main()
         
         logger.info("\n✅ Phase 3.8 completed successfully")
+        logger.info(f"Results saved to: {output_dir}")
+        
+    finally:
+        # Restore original argv
+        sys.argv = original_argv
+
+
+def run_phase3_10(config: Config, logger, device: str):
+    """Run Phase 3.10: Temperature-Based AUROC Analysis"""
+    from phase3_10_temperature_auroc_f1.temperature_evaluator import TemperatureAUROCEvaluator
+    
+    logger.info("Starting Phase 3.10: Temperature-Based AUROC Analysis")
+    logger.info("Using majority vote aggregation for multi-sample tasks")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="3.10"))
+    
+    # Create and run evaluator
+    evaluator = TemperatureAUROCEvaluator(config)
+    results = evaluator.run()
+    
+    logger.info("\n✅ Phase 3.10 completed successfully")
+    logger.info(f"Results saved to: {config.phase3_10_output_dir}")
+
+
+def run_phase3_12(config: Config, logger, device: str):
+    """Run Phase 3.12: Difficulty-Based AUROC Analysis"""
+    import sys
+    from pathlib import Path
+    
+    logger.info("Starting Phase 3.12: Difficulty-Based AUROC Analysis for PVA-SAE")
+    logger.info("This phase evaluates PVA features across different problem difficulty levels")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="3.12"))
+    
+    # Set up sys.argv for the difficulty_evaluator script
+    original_argv = sys.argv.copy()
+    
+    try:
+        # Build new argv
+        sys.argv = ["difficulty_evaluator.py"]
+        
+        # Add optional arguments if provided
+        if hasattr(config, '_input_file') and config._input_file:
+            # Parse input file to determine which phase it's from
+            input_path = Path(config._input_file)
+            if "phase0_1" in str(input_path):
+                sys.argv.extend(["--phase0-1-dir", str(input_path.parent)])
+            elif "phase3_5" in str(input_path):
+                sys.argv.extend(["--phase3-5-dir", str(input_path.parent)])
+            elif "phase3_8" in str(input_path):
+                sys.argv.extend(["--phase3-8-dir", str(input_path.parent)])
+            else:
+                logger.warning(f"Input file {input_path} not recognized as Phase 0.1, 3.5, or 3.8 output")
+        
+        # Use standard phase output directory
+        output_dir = get_phase_dir('3.12')
+        sys.argv.extend(["--output-dir", output_dir])
+        
+        logger.info(f"Running Phase 3.12 evaluator with args: {sys.argv[1:]}")
+        
+        # Import and run the main function directly
+        from phase3_12_difficulty_auroc_f1.difficulty_evaluator import main
+        main()
+        
+        logger.info("\n✅ Phase 3.12 completed successfully")
         logger.info(f"Results saved to: {output_dir}")
         
     finally:
@@ -1127,7 +1194,13 @@ def main():
     # Set global phase context first (before any logging)
     if args.command == 'phase' and hasattr(args, 'phase'):
         # Preserve .0 suffix for whole numbers: 0.0 -> "0.0", 1.0 -> "1.0", 0.1 -> "0.1"
-        phase_str = str(args.phase)
+        # Handle special cases like 3.10 which would become "3.1" with str()
+        if args.phase == 3.10:
+            phase_str = "3.10"
+        elif args.phase == 3.12:
+            phase_str = "3.12"
+        else:
+            phase_str = str(args.phase)
         set_logging_phase(phase_str)
     
     # For non-phase commands, create logger without phase context
@@ -1184,7 +1257,14 @@ def main():
         logger.info(f"Detected device: {device}")
         
         # Create unified config from args
-        config = Config.from_args(args, phase=str(args.phase))
+        # Use the properly formatted phase_str we created earlier
+        if args.phase == 3.10:
+            phase_str_for_config = "3.10"
+        elif args.phase == 3.12:
+            phase_str_for_config = "3.12"
+        else:
+            phase_str_for_config = str(args.phase)
+        config = Config.from_args(args, phase=phase_str_for_config)
         
         # Store input file path if provided
         if args.input:
@@ -1222,11 +1302,15 @@ def main():
             3: "Validation",
             3.5: "Temperature Robustness",
             3.6: "Hyperparameter Tuning Set Processing",
-            3.8: "AUROC and F1 Evaluation"
+            3.8: "AUROC and F1 Evaluation",
+            3.10: "Temperature-Based AUROC Analysis",
+            3.12: "Difficulty-Based AUROC Analysis"
         }
         
         print(f"\n{'='*60}")
-        print(f"PHASE {args.phase}: {phase_names[args.phase].upper()}")
+        # Use properly formatted phase string for display
+        display_phase = "3.10" if args.phase == 3.10 else ("3.12" if args.phase == 3.12 else str(args.phase))
+        print(f"PHASE {display_phase}: {phase_names[args.phase].upper()}")
         print(f"{'='*60}")
         
         try:
@@ -1250,6 +1334,10 @@ def main():
                 run_phase3_6(config, logger, device)
             elif args.phase == 3.8:
                 run_phase3_8(config, logger, device)
+            elif args.phase == 3.10:
+                run_phase3_10(config, logger, device)
+            elif args.phase == 3.12:
+                run_phase3_12(config, logger, device)
             
             print(f"✅ Phase {args.phase} completed successfully!")
             

@@ -41,7 +41,7 @@ Since each task has 5 generated solutions per temperature:
 
 ## Implementation Decisions
 
-1. **Missing Activation Files**: Skip missing tasks with warning, output skipped records to separate file
+1. **Missing Activation Files**: Fail fast if any activation is missing - ensures complete analysis
 2. **SAE Memory Management**: Load SAEs once and reuse across temperatures
 3. **Visualization**: Simple matplotlib plots (following KISS principle)
 4. **Class Imbalance**: Plot NaN/N/A when AUROC cannot be calculated (similar to Phase 3.12)
@@ -51,7 +51,7 @@ Since each task has 5 generated solutions per temperature:
 
 ### Data Processing
 ```python
-def process_temperature_data(temp_dataset, best_features, sae, skipped_tasks):
+def process_temperature_data(temp_dataset, best_features, sae):
     """Process data for a single temperature."""
     # Group by task_id (5 samples per task)
     task_groups = temp_dataset.groupby('task_id')
@@ -63,15 +63,12 @@ def process_temperature_data(temp_dataset, best_features, sae, skipped_tasks):
         # Load pre-saved activation from Phase 3.5
         activation_path = f'data/phase3_5/activations/task_activations/{task_id}_layer_{best_features["layer"]}.npz'
         
-        # Skip if activation file missing
+        # Fail fast if activation file missing
         if not os.path.exists(activation_path):
-            logger.warning(f"Missing activation file for {task_id}")
-            skipped_tasks.append({
-                'task_id': task_id,
-                'reason': 'missing_activation_file',
-                'layer': best_features["layer"]
-            })
-            continue
+            raise FileNotFoundError(
+                f"Missing activation file for task {task_id} at {activation_path}. "
+                f"Phase 3.10 requires all activations from Phase 3.5 to be present."
+            )
         
         try:
             raw_activation = np.load(activation_path)['arr_0']
@@ -90,12 +87,8 @@ def process_temperature_data(temp_dataset, best_features, sae, skipped_tasks):
             task_labels.append(label)
             
         except Exception as e:
-            logger.warning(f"Error processing {task_id}: {str(e)}")
-            skipped_tasks.append({
-                'task_id': task_id,
-                'reason': f'processing_error: {str(e)}',
-                'layer': best_features["layer"]
-            })
+            logger.error(f"Error processing {task_id}: {str(e)}")
+            raise
     
     return np.array(task_features), np.array(task_labels)
 ```
@@ -105,7 +98,6 @@ def process_temperature_data(temp_dataset, best_features, sae, skipped_tasks):
 def evaluate_across_temperatures(best_features, temperatures):
     """Evaluate feature performance at each temperature."""
     results = {}
-    skipped_tasks = []
     
     # Load SAEs once for reuse (Decision #2)
     sae_correct = load_gemma_scope_sae(best_features['correct']['layer'], device)
@@ -123,8 +115,7 @@ def evaluate_across_temperatures(best_features, temperatures):
             features, labels = process_temperature_data(
                 temp_data, 
                 best_features[feature_type],
-                sae,
-                skipped_tasks
+                sae
             )
             
             # Flip labels for correct-preferring features
@@ -158,12 +149,6 @@ def evaluate_across_temperatures(best_features, temperatures):
     # Clean up SAEs
     del sae_correct, sae_incorrect
     torch.cuda.empty_cache()
-    
-    # Save skipped tasks to separate file (Decision #1)
-    if skipped_tasks:
-        save_json({'skipped_tasks': skipped_tasks}, 
-                  Path('data/phase3_10/skipped_tasks.json'))
-        logger.info(f"Skipped {len(skipped_tasks)} tasks total")
     
     return results
 ```
@@ -215,7 +200,6 @@ def plot_temperature_trends(results):
 data/phase3_10/
 ├── temperature_analysis_results.json    # All results in one file (Decision #5)
 ├── temperature_trends.png              # AUROC and F1 trends
-├── skipped_tasks.json                  # Records that were skipped (Decision #1)
 └── temperature_summary.txt             # Human-readable summary
 ```
 
