@@ -185,14 +185,14 @@ python3 run.py phase 3 --input data/phase2.5/specific_results.json
 - **DRY (Don't Repeat Yourself)**: Extract repeated code into reusable functions
 - Avoid over-engineering for hypothetical futures
 
-### Problem-Solving Approach
-- **Root cause analysis**: Avoid bandaid fixes and really fix the root of the problem
-- **Systematic debugging**: Use proper debugging techniques rather than quick patches
-
 ### Documentation
 - Comment the "why," not the "what"
 - Use docstrings for functions and classes
 - Keep comments current with code changes
+
+### Problem-Solving Approach
+- **Root cause analysis**: Avoid bandaid fixes and really fix the root of the problem
+- **Systematic debugging**: Use proper debugging techniques rather than quick patches
 
 ### Naming & Structure
 - **Variables**: `user_count`, `total_price` (snake_case)
