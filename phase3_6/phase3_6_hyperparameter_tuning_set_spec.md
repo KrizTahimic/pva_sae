@@ -110,7 +110,7 @@ python3 run.py phase 3.6
 ### Input Requirements
 1. **Phase 0.1 Output**: `data/phase0_1/hyperparams_mbpp.parquet`
    - Contains 97 hyperparameter tuning problems (10% of MBPP)
-   - Includes task_id, text, test_list, complexity_score columns
+   - Includes task_id, text, test_list, cyclomatic_complexity columns
 
 2. **Phase 3.5 Output**: `data/phase3_5/metadata.json`
    - Contains best_layers with correct and incorrect layer numbers
@@ -366,7 +366,7 @@ Phase 3.6 requires the following completed phases:
 
 1. **Phase 0.1**: Problem Splitting
    - `data/phase0_1/hyperparams_mbpp.parquet` - 97 hyperparameter tuning problems
-   - Contains: task_id, text, test_list, complexity_score columns
+   - Contains: task_id, text, test_list, cyclomatic_complexity columns
 
 2. **Phase 3.5**: Temperature Robustness Testing  
    - `data/phase3_5/metadata.json` - Contains best layers for correct and incorrect features

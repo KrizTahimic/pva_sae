@@ -144,8 +144,6 @@ where $\alpha$ controls the strength of the intervention and $\mathbf{d}_j$ is t
 
 To determine an appropriate steering coefficient $\alpha$, we conduct empirical testing on a hyperparameter tuning set with various coefficient values ranging from 0 to 1200. We observe that values below \_\_\_ produce an inconsistent flip rate, while values above \_\_\_ lead to unintelligible output quality with formatting issues and incoherent responses. We select $\alpha = \_\_\_$, which consistently produces a clear code correction or corruption while maintaining coherent text generation. This range corresponds to approximately twice the typical residual stream norm in relevant model layers.
 
-%%%%%%
-% The transition is not good here.
 To quantify the impact of our model steering, we introduce two flip rate metrics: the Correction Rate and the Corruption Rate. For the correct latent direction, we measure the Correction Rate, which quantifies the proportion of initially incorrect code samples that become correct after steering:
 \begin{equation}
 \text{Correction Rate} = \frac{1}{N^{\text{incorrect}}} \sum_{i=1}^{N^{\text{incorrect}}} \mathbf{1}[\text{IsCorrect}(\text{steered}_i)= \text{True}]

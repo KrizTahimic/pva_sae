@@ -7,10 +7,10 @@
 3. **Metrics**: AUROC (Area Under ROC Curve) and F1 Score for each difficulty level for both feature directions
 4. **Implementation**: Leverage Phase 3.8 infrastructure with difficulty-based data grouping
 5. **Difficulty Grouping**: Three-tier classification based on cyclomatic complexity scores
-6. **Dataset**: Validation split from Phase 0.1 (388 problems) with cyclomatic complexity annotations
+6. **Dataset**: Validation split from Phase 3.5 (388 problems) with cyclomatic complexity annotations
 7. **Feature Analysis**: Evaluate both correct-preferring and incorrect-preferring features per difficulty
 8. **F1 Threshold Strategy**: Use Phase 3.8's global F1-optimal threshold for all difficulty groups
-9. **Data Source**: Phase 3.5 activations and Phase 3.8 best features from validation split
+9. **Data Source**: Phase 3.5 raw model activations from validation split tasks (388 problems) and Phase 3.8 best features
 
 ## Pipeline Sequence
 
@@ -19,7 +19,7 @@
    └─> Read evaluation_results.json → Extract best correct & incorrect features → Note layers & indices → Extract pre-computed F1-optimal thresholds
 
 2. Load validation dataset and group by difficulty
-   a. Load Phase 0.1 validation split with cyclomatic complexity
+   a. Load Phase 3.5 temperature 0.0 dataset with cyclomatic complexity
    b. Group into Easy (complexity=1), Medium (complexity=2-3), Hard (complexity>=4)
    c. Report group sizes and distributions
 
@@ -54,21 +54,25 @@ Phase 3.12 extends Phase 3.8 by adding difficulty stratification:
 - Phase 3.12 leverages Phase 3.8's AUROC calculation infrastructure
 - Phase 3.12 uses the same SAE loading and activation processing logic
 
-### Why Phase 3.12 Depends on Phase 0.1
-- Phase 0.1 provides the validation split with cyclomatic complexity annotations
-- Cyclomatic complexity is pre-calculated and stored in the dataset
-- Phase 0.1 ensures consistent problem splitting across all validation phases
-
 ### Why Phase 3.12 Depends on Phase 3.5
-- Phase 3.5 provides the raw activations for the best PVA layer
+- Phase 3.5 provides raw model activations (residual stream) from validation split tasks
+- These raw activations must be encoded through GemmaScope SAE to get feature values
 - Phase 3.5 provides the temperature 0.0 test results for ground truth labels
-- Phase 3.5 metadata contains the optimal layer selection for activation extraction
+- Phase 3.5 ran on the validation split (388 tasks) which we stratify by difficulty
 
 ### Key Difference from Phase 3.8
 - **Phase 3.8**: Evaluates features on entire validation set
 - **Phase 3.12**: Evaluates features separately on Easy/Medium/Hard subsets to understand complexity effects
 
 ## Understanding the Evaluation Task
+
+### Data Flow Clarification
+Phase 3.12 analyzes the validation split (388 tasks) by:
+1. Loading Phase 3.5 temperature 0.0 dataset which includes cyclomatic complexity
+2. Loading raw model activations saved by Phase 3.5 (from validation split tasks only)
+3. Encoding these raw activations through GemmaScope SAE to extract feature values
+4. Grouping tasks by cyclomatic complexity (Easy/Medium/Hard)
+5. Evaluating AUROC and F1 metrics for each difficulty group
 
 ### Difficulty-Based AUROC Analysis
 Phase 3.12 answers the research question: "Do PVA features work better on simple or complex programming problems?"
@@ -277,7 +281,7 @@ def load_group_activations(group_data, layer_num, feature_idx, feature_type, sae
     for _, row in group_data.iterrows():
         task_id = row['task_id']
         
-        # Load raw activations from Phase 3.5
+        # Load raw model activations from Phase 3.5 (validation split task)
         act_file = f'data/phase3_5/activations/task_activations/{task_id}_layer_{layer_num}.npz'
         
         if not os.path.exists(act_file):
@@ -348,8 +352,10 @@ global_thresholds = {
 print(f"Best correct-preferring feature: idx {best_features['correct_feature_idx']} at layer {best_features['correct']} (threshold: {global_thresholds['correct']:.4f})")
 print(f"Best incorrect-preferring feature: idx {best_features['incorrect_feature_idx']} at layer {best_features['incorrect']} (threshold: {global_thresholds['incorrect']:.4f})")
 
-# Load validation dataset with cyclomatic complexity
-validation_data = pd.read_parquet('data/phase0_1/validation_mbpp.parquet')
+# Load temperature 0.0 dataset which includes cyclomatic complexity
+temp_data = pd.read_parquet('data/phase3_5/dataset_temp_0_0.parquet')
+# Get unique tasks (since there are multiple samples per task)
+validation_data = temp_data.drop_duplicates(subset=['task_id'])[['task_id', 'cyclomatic_complexity']]
 print(f"Validation dataset loaded: {len(validation_data)} tasks")
 print(f"Cyclomatic complexity range: {validation_data['cyclomatic_complexity'].min()}-{validation_data['cyclomatic_complexity'].max()}")
 
@@ -388,8 +394,7 @@ print("\n" + "="*60)
 print("EVALUATING CORRECT-PREFERRING FEATURE ACROSS DIFFICULTY LEVELS")
 print("="*60)
 
-# Load temperature 0.0 dataset once
-temp_data = pd.read_parquet('data/phase3_5/dataset_temp_0_0.parquet')
+# temp_data was already loaded above
 
 # Detect device once
 device = detect_device()
@@ -753,7 +758,7 @@ def plot_auroc_trends(correct_results, incorrect_results, output_dir):
 
 ### Data Loading
 - [ ] Load Phase 3.8 results to get best features and F1-optimal thresholds for both directions
-- [ ] Load Phase 0.1 validation split with cyclomatic complexity
+- [ ] Load Phase 3.5 temperature 0.0 dataset with cyclomatic complexity
 - [ ] Verify cyclomatic complexity column exists and has valid values
 - [ ] Group validation tasks by difficulty (Easy/Medium/Hard)
 
@@ -796,20 +801,16 @@ def plot_auroc_trends(correct_results, incorrect_results, output_dir):
 ### Input Requirements
 Phase 3.12 requires the following completed phases:
 
-1. **Phase 0.1**: Problem splits with cyclomatic complexity
-   - `data/phase0_1/validation_mbpp.parquet` - Validation split with complexity annotations
-   - Must contain `cyclomatic_complexity` column with numeric values
-
-2. **Phase 3.8**: AUROC and F1 evaluation results
+1. **Phase 3.8**: AUROC and F1 evaluation results
    - `data/phase3_8/evaluation_results.json` - Contains best features and F1-optimal thresholds for both directions
    - Provides layer indices, feature indices, and global thresholds for optimal PVA features
 
-3. **Phase 3.5**: Temperature robustness testing
+2. **Phase 3.5**: Temperature robustness testing
+   - `data/phase3_5/dataset_temp_0_0.parquet` - Temperature 0.0 results with test_passed labels and cyclomatic complexity
    - `data/phase3_5/activations/task_activations/{task_id}_layer_{n}.npz` - Raw activation files
-   - `data/phase3_5/dataset_temp_0_0.parquet` - Temperature 0.0 results with test_passed labels
    - Must contain activations for the layers identified in Phase 3.8
 
-4. **GemmaScope SAE Models** (downloaded automatically):
+3. **GemmaScope SAE Models** (downloaded automatically):
    - Loaded from `google/gemma-scope-2b-pt-res` HuggingFace repository
    - Required for encoding raw activations into SAE features
 
@@ -842,7 +843,7 @@ data/phase3_12/
 - Threshold loading and application logic
 
 ### From `common_simplified/helpers.py`:
-- `load_mbpp_from_phase0_1(split_name, phase0_1_dir)` - Load MBPP split data
+- Load validation data directly from Phase 3.5 parquet files
 - `save_json(data, filepath)` - Save results to JSON
 
 ### From `common/utils.py`:
@@ -866,10 +867,10 @@ data/phase3_12/
 
 ## Notes
 
-- **Data Dependencies**: Phase 3.12 requires Phase 3.8 (best features + thresholds), Phase 0.1 (validation split), and Phase 3.5 (activations)
+- **Data Dependencies**: Phase 3.12 requires Phase 3.8 (best features + thresholds) and Phase 3.5 (validation dataset with complexity + activations)
 - **Grouping Strategy**: Three-tier difficulty based on cyclomatic complexity distribution
 - **Dual Metrics**: AUROC (threshold-independent) and F1 (using Phase 3.8's global threshold)
-- **SAE Encoding Required**: Phase 3.5 saves raw activations; Phase 3.12 must encode through GemmaScope SAE
+- **SAE Encoding Required**: Phase 3.5 saves raw model activations (residual stream); Phase 3.12 must encode these through GemmaScope SAE to extract specific feature values identified by Phase 3.8
 - **Comparative Analysis**: Evaluates how problem complexity affects PVA feature effectiveness for both metrics
 - **Research Insights**: Answers whether PVA features work better on simple or complex problems
 - **Memory Management**: Load SAE once per difficulty group, clean up after encoding
@@ -879,7 +880,7 @@ data/phase3_12/
 
 For proper testing of Phase 3.12, ensure:
 - Phase 3.8 has been completed with valid best features and F1-optimal thresholds
-- Phase 0.1 validation split contains cyclomatic complexity annotations
+- Phase 3.5 temperature 0.0 dataset contains cyclomatic complexity annotations
 - Phase 3.5 activations exist for the required layers
 - Each difficulty group has a reasonable mix of correct and incorrect samples
 - Sufficient samples per group for statistically meaningful AUROC and F1 calculations

@@ -92,8 +92,8 @@ def setup_argument_parser():
     phase_parser.add_argument(
         'phase',
         type=float,
-        choices=[0, 0.1, 1, 2.2, 2.5, 3, 3.5, 3.6, 3.8, 3.10, 3.12],
-        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.12=Difficulty-Based AUROC Analysis'
+        choices=[0, 0.1, 1, 2.2, 2.5, 3, 3.5, 3.6, 3.8, 3.10, 3.12, 4.5, 4.8],
+        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.8=Steering Effect Analysis'
     )
     
     # Global arguments (add to phase parser)
@@ -560,7 +560,7 @@ def run_phase3_10(config: Config, logger, device: str):
     from phase3_10_temperature_auroc_f1.temperature_evaluator import TemperatureAUROCEvaluator
     
     logger.info("Starting Phase 3.10: Temperature-Based AUROC Analysis")
-    logger.info("Using majority vote aggregation for multi-sample tasks")
+    logger.info("Using per-sample analysis (no aggregation)")
     
     # Log configuration
     logger.info("\n" + config.dump(phase="3.10"))
@@ -620,6 +620,40 @@ def run_phase3_12(config: Config, logger, device: str):
     finally:
         # Restore original argv
         sys.argv = original_argv
+
+
+def run_phase4_5(config: Config, logger, device: str):
+    """Run Phase 4.5: Steering Coefficient Selection"""
+    from phase4_5_model_steering.steering_coefficient_selector import SteeringCoefficientSelector
+    
+    logger.info("Starting Phase 4.5: Steering Coefficient Selection")
+    logger.info("Will auto-discover PVA features from Phase 2.5 and baseline from Phase 3.6")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="4.5"))
+    
+    # Create and run steering coefficient selector
+    selector = SteeringCoefficientSelector(config)
+    results = selector.run()
+    
+    logger.info("\n✅ Phase 4.5 completed successfully")
+
+
+def run_phase4_8(config: Config, logger, device: str):
+    """Run Phase 4.8: Steering Effect Analysis"""
+    from phase4_8_steering_analysis.steering_effect_analyzer import SteeringEffectAnalyzer
+    
+    logger.info("Starting Phase 4.8: Steering Effect Analysis")
+    logger.info("Will auto-discover PVA features from Phase 2.5 and baseline from Phase 3.5")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="4.8"))
+    
+    # Create and run steering effect analyzer
+    analyzer = SteeringEffectAnalyzer(config)
+    results = analyzer.run()
+    
+    logger.info("\n✅ Phase 4.8 completed successfully")
 
 
 def cleanup_gpu_command(args, logger):
@@ -1304,7 +1338,9 @@ def main():
             3.6: "Hyperparameter Tuning Set Processing",
             3.8: "AUROC and F1 Evaluation",
             3.10: "Temperature-Based AUROC Analysis",
-            3.12: "Difficulty-Based AUROC Analysis"
+            3.12: "Difficulty-Based AUROC Analysis",
+            4.5: "Steering Coefficient Selection",
+            4.8: "Steering Effect Analysis"
         }
         
         print(f"\n{'='*60}")
@@ -1338,6 +1374,10 @@ def main():
                 run_phase3_10(config, logger, device)
             elif args.phase == 3.12:
                 run_phase3_12(config, logger, device)
+            elif args.phase == 4.5:
+                run_phase4_5(config, logger, device)
+            elif args.phase == 4.8:
+                run_phase4_8(config, logger, device)
             
             print(f"✅ Phase {args.phase} completed successfully!")
             

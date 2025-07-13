@@ -4,26 +4,27 @@
 
 1. **Purpose**: Find optimal steering coefficients for PVA features through empirical grid search
 2. **Method**: Add SAE decoder directions to residual stream activations during generation
-3. **Steering Coefficients**: Grid search [1, 5, 10, 15, 20, 30, 50, 100] with manual evaluation
+3. **Steering Coefficients**: Grid search [1, 3, 10, 30, 100, 300, 1000] with manual evaluation
 4. **Application**: Continuous steering throughout generation process
 5. **Evaluation**: Flip rate (pass/fail changes) and generation divergence metrics
-6. **Dataset**: MBPP validation split from Phase 0.1 (20 problems for search)
-7. **Output**: Selected coefficients saved for Phase 4.8 comprehensive analysis
+6. **Dataset**: MBPP hyperparameter tuning split from Phase 3.6 baseline data (10 problems for search)
+7. **Baseline**: Pre-generated results from Phase 3.6 (temperature 0.0, no steering)
+8. **Output**: Selected coefficients saved for Phase 4.8 comprehensive analysis
 
 ## Pipeline Sequence
 
 ```
-1. Load SAE features and decoder directions
-   └─> Load best features from Phase 2.5 → Extract decoder directions → Initialize SAEs
+1. Load dependencies and features
+   └─> Load best features from Phase 2.5 → Load baseline data from Phase 3.6 → Initialize SAEs
 
-2. Prepare MBPP prompts
-   └─> Load validation split → Format problems → Identify steering positions
+2. Prepare MBPP prompts and baseline
+   └─> Load pre-generated baseline from Phase 3.6 (includes prompts and results) → Select problems
 
 3. Set up steering hooks
    └─> Target residual stream (pre-hook) → Add direction * coefficient → Apply during generation
 
 4. Generate steered outputs
-   └─> Baseline generation → Steered generation → Execute tests → Compare results
+   └─> Steered generation → Execute tests → Compare against Phase 3.6 baseline
 
 5. Evaluate steering effect
    └─> Calculate flip rates → Measure generation divergence → Plot coefficient effects → Save selected coefficients
@@ -64,192 +65,66 @@ from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
 logger = get_logger("phase4_5.steering_evaluator")
 ```
 
-### 1. Loading PVA Features
-
-```python
-def load_pva_features(phase2_5_dir: Path) -> Dict:
-    """
-    Load pre-identified PVA features from Phase 2.5.
-    
-    Returns:
-        Dict with 'correct' and 'incorrect' feature information
-    """
-    # Load top features from Phase 2.5
-    top_features = load_json(phase2_5_dir / 'top_20_features.json')
-    
-    # Extract best feature for each type
-    best_correct = top_features['correct'][0]  # Top correct-preferring
-    best_incorrect = top_features['incorrect'][0]  # Top incorrect-preferring
-    
-    return {
-        'correct': {
-            'layer': best_correct['layer'],
-            'feature_idx': best_correct['feature_idx'],
-            'separation_score': best_correct['separation_score']
-        },
-        'incorrect': {
-            'layer': best_incorrect['layer'],
-            'feature_idx': best_incorrect['feature_idx'],
-            'separation_score': best_incorrect['separation_score']
-        }
-    }
-```
-
-### 2. Steering Hook Implementation
+### 1. Steering Hook Implementation
 
 ```python
 def create_steering_hook(sae_decoder_direction: torch.Tensor, 
-                        coeff: float,
-                        position_mask: Optional[torch.Tensor] = None) -> Callable:
+                        coefficient: float) -> Callable:
     """
-    Create a hook function that adds steering during generation.
+    Create a hook that adds SAE decoder direction to residual stream.
     
     Args:
-        sae_decoder_direction: Decoder direction from SAE [d_model]
-        coeff: Steering coefficient
-        position_mask: Boolean mask for positions to steer
+        sae_decoder_direction: Decoder vector from SAE [d_model]
+        coefficient: Scalar multiplier for steering strength
     
     Returns:
-        Hook function for model
+        Hook function for forward_pre_hook
     """
     def hook_fn(module, input):
-        # input[0] is residual stream: [1, seq_len, d_model] (single prompt)
+        # input[0] is residual stream: [1, seq_len, d_model]
         residual = input[0]
         
-        # Calculate steering vector
-        steering = sae_decoder_direction.unsqueeze(0) * coeff
-        
-        # Apply steering to specified positions
-        if position_mask is not None:
-            # For single prompt, mask is [seq_len]
-            if position_mask.dim() == 1:
-                mask = position_mask.unsqueeze(0).unsqueeze(-1)  # [1, seq_len, 1]
-            else:
-                mask = position_mask.unsqueeze(-1)  # Already [1, seq_len]
-            residual = residual + (steering.unsqueeze(0) * mask)
-        else:
-            # Apply to all positions (continuous steering)
-            residual = residual + steering.unsqueeze(0)
+        # Add steering vector scaled by coefficient to all positions
+        steering = sae_decoder_direction.unsqueeze(0).unsqueeze(0) * coefficient
+        residual = residual + steering
         
         return (residual,) + input[1:]
     
     return hook_fn
 ```
 
-### 3. Position Detection for MBPP
+### 2. Class-Based Implementation Structure
 
 ```python
-def get_steering_position(input_ids: torch.Tensor, 
-                         tokenizer) -> int:
-    """
-    Find the position to start steering (end of problem description).
+class SteeringCoefficientSelector:
+    """Select optimal steering coefficients through grid search."""
     
-    For MBPP, this is typically right before the function signature starts.
-    We look for patterns like "\\n\\ndef" or the last token before code.
-    
-    Args:
-        input_ids: Tokenized input [seq_len] (single prompt, no batch)
-        tokenizer: Tokenizer for decoding
+    def __init__(self, config: Config):
+        """Initialize with configuration, load dependencies."""
+        # Load model, PVA features from Phase 2.5, baseline from Phase 3.6
         
-    Returns:
-        Position index for steering
-    """
-    # Convert tokens to text to find code boundary
-    text = tokenizer.decode(input_ids, skip_special_tokens=False)
-    
-    # Find where the code generation should begin
-    # MBPP format: problem description followed by function signature
-    code_markers = ["\\ndef ", "\\nclass ", "\\nimport "]
-    
-    position = len(input_ids) - 1  # Default to last token
-    
-    for marker in code_markers:
-        if marker in text:
-            # Find token position corresponding to this text position
-            marker_pos = text.index(marker)
-            # Convert character position to token position
-            # ... (implementation details)
-            break
-    
-    return position
+    def _load_dependencies(self) -> None:
+        """Load features from Phase 2.5 and baseline data from Phase 3.6."""
+        # Similar to Phase 3.5's _discover_best_layers()
+        
+    def _create_steering_hook(self, decoder_direction: torch.Tensor, 
+                            coefficient: float) -> Callable:
+        """Create steering hook for residual stream modification."""
+        # Returns hook function that adds decoder_direction * coefficient
+        
+    def evaluate_coefficient(self, coefficient: float, 
+                           problems_subset: List[Dict]) -> Dict:
+        """Evaluate a single coefficient on subset of problems."""
+        # For each problem: apply steering, generate, evaluate
+        # Return flip rate and divergence metrics
+        
+    def run(self) -> Dict:
+        """Run coefficient grid search and save results."""
+        # Main loop over coefficients [1, 3, 10, 30, 100, 300, 1000]
+        # Save selected coefficients for Phase 4.8
 ```
 
-### 4. Steering During Generation
-
-```python
-# Set up steering parameters
-steering_config = {
-    'model_name': 'google/gemma-2-2b',
-    'feature_type': 'correct',  # Steer towards correct code
-    'coefficients': [1, 5, 10, 15, 20, 30, 50, 100],
-    'max_new_tokens': 500,
-    # Single prompt processing - no batching
-    'temperature': 0.0  # Deterministic for consistency
-}
-
-# Load PVA features
-pva_features = load_pva_features(phase2_5_dir)
-feature_info = pva_features[steering_config['feature_type']]
-
-# Load SAE for the relevant layer
-sae = load_gemma_scope_sae(feature_info['layer'], device)
-
-# Get decoder direction
-decoder_direction = sae.W_dec[feature_info['feature_idx']]
-
-# For each coefficient in grid search
-for coeff in steering_config['coefficients']:
-    results = []
-    
-    # Process each problem individually (no batching)
-    for idx, problem in enumerate(validation_problems):
-        # Build prompt using common format
-        prompt = prompt_builder.build_prompt(
-            problem_description=problem['text'],
-            test_cases=problem.get('test_list', [])
-        )
-        
-        # Tokenize problem (single prompt)
-        inputs = tokenizer(prompt, return_tensors='pt', 
-                          truncation=True,
-                          max_length=2048).to(device)  # Using standard max length
-        
-        # Generate baseline (no steering)
-        baseline_output = model.generate(**inputs, max_new_tokens=500)
-        baseline_code = tokenizer.decode(baseline_output[0], skip_special_tokens=True)
-        
-        # Apply steering hook for continuous steering
-        # Note: We use continuous steering throughout generation
-        # No need for position detection since we steer at all positions
-        hook = create_steering_hook(decoder_direction, coeff, position_mask=None)
-        hook_handle = model.model.layers[feature_info['layer']].register_forward_pre_hook(hook)
-        
-        # Generate with steering
-        steered_output = model.generate(**inputs, max_new_tokens=500)
-        steered_code = tokenizer.decode(steered_output[0], skip_special_tokens=True)
-        
-        # Remove hook
-        hook_handle.remove()
-        
-        # Evaluate both outputs
-        baseline_passed = run_tests(baseline_code, problem['tests'])
-        steered_passed = run_tests(steered_code, problem['tests'])
-        
-        results.append({
-            'task_id': problem['task_id'],
-            'baseline_passed': baseline_passed,
-            'steered_passed': steered_passed,
-            'flipped': baseline_passed != steered_passed,
-            'baseline_code': baseline_code,
-            'steered_code': steered_code
-        })
-        
-        # Memory cleanup periodically
-        if (idx + 1) % 10 == 0:
-            torch.cuda.empty_cache()
-```
-
-### 5. Evaluation Metrics
+### 3. Evaluation Metrics
 
 ```python
 def calculate_flip_rate(results: List[Dict]) -> float:
@@ -262,274 +137,203 @@ def calculate_flip_rate(results: List[Dict]) -> float:
 def calculate_generation_divergence(results: List[Dict]) -> Dict:
     """
     Measure how different steered generations are from baseline.
+    Uses SequenceMatcher to calculate similarity at token and character levels.
     
     Returns:
-        Dict with multiple divergence metrics
+        Dict with mean similarity metrics
     """
-    import difflib
-    from typing import List
-    
-    divergences = []
-    
-    for result in results:
-        baseline = result['baseline_code']
-        steered = result['steered_code']
-        
-        # Token-level edit distance
-        baseline_tokens = baseline.split()
-        steered_tokens = steered.split()
-        
-        # Calculate Levenshtein distance
-        seq_matcher = difflib.SequenceMatcher(None, baseline_tokens, steered_tokens)
-        similarity_ratio = seq_matcher.ratio()
-        
-        # Character-level differences
-        char_diff = difflib.SequenceMatcher(None, baseline, steered).ratio()
-        
-        divergences.append({
-            'token_similarity': similarity_ratio,
-            'char_similarity': char_diff,
-            'length_ratio': len(steered) / len(baseline) if len(baseline) > 0 else 1.0
-        })
-    
-    return {
-        'mean_token_similarity': np.mean([d['token_similarity'] for d in divergences]),
-        'mean_char_similarity': np.mean([d['char_similarity'] for d in divergences]),
-        'mean_length_ratio': np.mean([d['length_ratio'] for d in divergences])
-    }
+    # Calculate token-level and character-level similarities
+    # Return mean_token_similarity, mean_char_similarity, mean_length_ratio
 ```
+
+## Implementation References
+
+### Reuse from Existing Modules
+
+**From `common_simplified/`:**
+- `model_loader.load_model_and_tokenizer()` - Model initialization
+- `helpers.evaluate_code()` - Test generated code against test cases
+- `helpers.extract_code()` - Extract code from model output
+- `helpers.save_json()`, `helpers.load_json()` - Save/load results
+
+**From `common/`:**
+- `prompt_utils.PromptBuilder` - Build MBPP prompts
+- `logging.get_logger()` - Module logging
+- `utils.discover_latest_phase_output()` - Find previous phase outputs
+- `config.Config` - Configuration management (includes phase4_5_coefficients and phase4_5_problems_per_coeff)
+
+**From `phase2_5_simplified/`:**
+- `sae_analyzer.load_gemma_scope_sae()` - Load SAE models
+- Pattern for loading top features from JSON
+
+**From `phase3_5/`:**
+- Class structure pattern with `__init__` and `run()` methods
+- Pattern for discovering best layers/features from previous phases
+- Single-prompt processing approach
+
+**From `phase3_6/`:**
+- Pattern for loading baseline parquet data
+- Structure for saving results and metadata
+
+### Key Implementation Notes
+
+1. **Steering Hook**: Apply to residual stream using `register_forward_pre_hook()` at the layer identified as best in Phase 2.5 (similar to Phase 3.5's approach)
+2. **Continuous Steering**: Apply to all positions (no position mask needed)
+3. **Single Prompt**: Process one problem at a time (no batching)
+4. **Memory Management**: Clear GPU cache periodically
+5. **Deterministic Generation**: Use temperature=0.0, do_sample=False
 
 ## Experimental Configuration
 
 ### Dataset Setup
 ```python
-# Load validation split from Phase 0.1
-validation_data = pd.read_parquet('data/phase0_1/validation_mbpp.parquet')
+# Load baseline results from Phase 3.6 (includes all MBPP data and pre-generated results)
+phase3_6_output = discover_latest_phase_output('3.6')
+baseline_data = pd.read_parquet(Path(phase3_6_output).parent / 'dataset_hyperparams_temp_0_0.parquet')
 
-# Format prompts for generation using PromptBuilder
-from common.prompt_utils import PromptBuilder
-prompt_builder = PromptBuilder()
+# baseline_data already contains:
+# - task_id: MBPP task identifier
+# - text: Problem description  
+# - test_list: Test cases
+# - prompt: Pre-formatted prompt from Phase 3.6
+# - generated_code: Baseline generated code at temperature 0.0
+# - test_passed: Whether baseline code passed tests
+# - cyclomatic_complexity: Difficulty metric
 
-# Example prompt format:
+# Example prompt already in data:
 # """Problem description..."""
 # def function_name(args):
 ```
 
 ### Steering Parameters
+
+#### Coefficient Selection Methodology
+The coefficient values follow a **logarithmic progression** with approximately 3x increases between consecutive values. This systematic approach:
+
+- **Covers multiple orders of magnitude**: From subtle steering (1) to extreme effects (1000)
+- **Maintains methodological rigor**: Each step represents a meaningful scaling factor
+- **Enables efficient exploration**: Balances comprehensive coverage with computational efficiency
+- **Follows hyperparameter optimization best practices**: Log-scale search is standard for wide parameter ranges
+
+The progression `[1, 3, 10, 30, 100, 300, 1000]` systematically explores:
+- **1-10**: Minimal to moderate steering (likely optimal range)
+- **30-100**: Strong steering (quality vs. effect tradeoffs)  
+- **300-1000**: Extreme steering (saturation and failure mode testing)
+
+#### Configuration Management
+These coefficient values and the number of problems per coefficient (10) will be stored in `common/config.py` following the project's centralized configuration pattern:
+
+```python
+# === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
+phase4_5_coefficients: List[float] = field(default_factory=lambda: [1, 3, 10, 30, 100, 300, 1000])
+phase4_5_problems_per_coeff: int = 10
+phase4_5_output_dir: str = "data/phase4_5"
+```
+
+This approach allows for easy modification without code changes and supports environment variable overrides like other phase configurations.
+
+#### Parameter Configuration
 | Parameter | Value | Purpose |
 |-----------|-------|---------|
-| `coefficients` | [1, 5, 10, 15, 20, 30, 50, 100] | Grid search values |
-| `position_type` | 'problem_end' | Apply steering at end of problem description |
+| `coefficients` | [1, 3, 10, 30, 100, 300, 1000] | Grid search values (logarithmic progression) |
 | `processing` | Sequential | Single prompt at a time (no batching) |
-| `n_examples_per_coeff` | 20 | Examples for coefficient selection |
+| `n_examples_per_coeff` | 10 | Examples for coefficient selection (70 total evaluations) |
 | `n_final_eval` | 100 | Problems for final evaluation |
 | `max_new_tokens` | 500 | Maximum tokens to generate |
 
 ### Evaluation Conditions
-1. **Baseline**: No steering applied
-2. **Correct-steering**: Steer with correct-preferring feature
-3. **Incorrect-steering**: Steer with incorrect-preferring feature
+1. **Baseline**: Pre-generated results from Phase 3.6 (temperature 0.0, no steering)
+2. **Correct-steering**: Steer with the single best correct-preferring feature from Phase 2.5
+3. **Incorrect-steering**: Steer with the single best incorrect-preferring feature from Phase 2.5
+
+Note: We use exactly two features total - the single best feature for each direction (correct/incorrect) as identified in Phase 2.5's top features output.
 
 ## Implementation Workflow
 
-### Phase 1: Feature Preparation
-```python
-# Load best PVA features from Phase 2.5
-phase2_5_output = discover_latest_phase_output('2.5')
-pva_features = load_pva_features(Path(phase2_5_output).parent)
+### Step 1: Initialize SteeringCoefficientSelector
+1. Load configuration and initialize model
+2. Discover and load PVA features from Phase 2.5 output
+3. Load baseline results from Phase 3.6 parquet file
+4. Initialize SAEs for both correct and incorrect features
 
-# Initialize SAEs for both feature types
-sae_correct = load_gemma_scope_sae(pva_features['correct']['layer'], device)
-sae_incorrect = load_gemma_scope_sae(pva_features['incorrect']['layer'], device)
-```
+### Step 2: Run Coefficient Grid Search
+1. For each coefficient in [1, 3, 10, 30, 100, 300, 1000]:
+   - Select 10 problems from Phase 3.6 baseline data using stratified selection to ensure difficulty diversity
+   - For each problem:
+     - Get baseline results from Phase 3.6 data
+     - Apply steering hook with current coefficient
+     - Generate code with steering
+     - Compare against baseline (flip rate)
+   - Calculate metrics (flip rate, generation divergence)
+   - Save examples for manual inspection
 
-### Phase 2: Coefficient Grid Search
-```python
-def evaluate_steering_single_prompt(problem, model, tokenizer, sae, feature_info, 
-                                  coefficient, prompt_builder, device):
-    """Evaluate steering on a single problem."""
-    # Build prompt
-    prompt = prompt_builder.build_prompt(
-        problem_description=problem['text'],
-        test_cases=problem.get('test_list', [])
-    )
-    
-    # Tokenize (single prompt)
-    inputs = tokenizer(prompt, return_tensors='pt').to(device)
-    
-    # Generate baseline
-    with torch.no_grad():
-        baseline_output = model.generate(
-            **inputs, 
-            max_new_tokens=500,
-            temperature=0.0,
-            do_sample=False
-        )
-    baseline_code = tokenizer.decode(baseline_output[0], skip_special_tokens=True)
-    baseline_code = extract_code(baseline_code, prompt)
-    
-    # Get decoder direction
-    decoder_direction = sae.W_dec[feature_info['feature_idx']]
-    
-    # Apply steering hook
-    hook = create_steering_hook(decoder_direction, coefficient)
-    hook_handle = model.model.layers[feature_info['layer']].register_forward_pre_hook(hook)
-    
-    # Generate with steering
-    with torch.no_grad():
-        steered_output = model.generate(
-            **inputs,
-            max_new_tokens=500,
-            temperature=0.0,
-            do_sample=False
-        )
-    
-    # Remove hook
-    hook_handle.remove()
-    
-    steered_code = tokenizer.decode(steered_output[0], skip_special_tokens=True)
-    steered_code = extract_code(steered_code, prompt)
-    
-    # Evaluate
-    baseline_passed = evaluate_code(baseline_code, problem['test_list'])
-    steered_passed = evaluate_code(steered_code, problem['test_list'])
-    
-    return {
-        'task_id': problem['task_id'],
-        'baseline_passed': baseline_passed,
-        'steered_passed': steered_passed,
-        'flipped': baseline_passed != steered_passed,
-        'baseline_code': baseline_code,
-        'steered_code': steered_code
-    }
+Note: Problem selection uses stratified sampling based on cyclomatic complexity to ensure we test across different difficulty levels.
 
-# Test each coefficient on subset of problems
-coefficient_results = {}
+### Step 3: Manual Coefficient Selection
+1. Review flip rates and divergence metrics for each coefficient
+2. Examine generated code examples for quality
+3. Select optimal coefficients balancing:
+   - Meaningful flip rate (20-60%)
+   - Code quality preservation
+   - Avoid syntax corruption
 
-for coeff in [1, 5, 10, 15, 20, 30, 50, 100]:
-    logger.info(f"Testing coefficient: {coeff}")
-    results = []
-    
-    # Process each problem individually
-    for problem in tqdm(validation_problems[:20], desc=f"Coeff {coeff}"):
-        try:
-            result = evaluate_steering_single_prompt(
-                problem, model, tokenizer, sae, feature_info,
-                coeff, prompt_builder, device
-            )
-            results.append(result)
-        except Exception as e:
-            logger.error(f"Failed on {problem['task_id']}: {e}")
-            continue
-    
-    coefficient_results[coeff] = {
-        'flip_rate': calculate_flip_rate(results),
-        'divergence': calculate_generation_divergence(results),
-        'examples': results[:5]  # Save examples for manual inspection
-    }
-```
-
-### Phase 3: Manual Coefficient Selection
-```python
-# Plot flip rates and divergence metrics
-plot_coefficient_effects(coefficient_results)
-
-# Save examples for manual review
-for coeff, data in coefficient_results.items():
-    save_json(
-        data['examples'], 
-        output_dir / f'coefficient_examples/coeff_{coeff}_examples.json'
-    )
-
-# Print summary for manual selection
-print("\nCoefficient Analysis Summary:")
-print("Coeff | Flip Rate | Token Sim | Char Sim | Length Ratio")
-print("-" * 60)
-for coeff, data in sorted(coefficient_results.items()):
-    print(f"{coeff:5d} | {data['flip_rate']:8.1f}% | "
-          f"{data['divergence']['mean_token_similarity']:9.3f} | "
-          f"{data['divergence']['mean_char_similarity']:8.3f} | "
-          f"{data['divergence']['mean_length_ratio']:11.3f}")
-
-# After manual review, save selected coefficients
-selected_coefficients = {
-    'correct': 20,  # Example: manually selected based on analysis
-    'incorrect': 30,  # Example: may need different strength
-    'selection_rationale': {
-        'correct': 'Coefficient 20 showed 35% flip rate with good code quality',
-        'incorrect': 'Coefficient 30 needed for stronger effect on incorrect steering'
-    },
-    'selection_timestamp': datetime.now().isoformat(),
-    'phase': '4.5'
-}
-
-# Save for Phase 4.8
-output_file = output_dir / 'selected_coefficients.json'
-save_json(selected_coefficients, output_file)
-logger.info(f"Saved selected coefficients to {output_file}")
-```
-
-### Phase 4: Output Summary
-```python
-# Create final summary for this phase
-summary = {
-    'phase': '4.5',
-    'purpose': 'Steering Coefficient Selection',
-    'coefficients_tested': [1, 5, 10, 15, 20, 30, 50, 100],
-    'problems_evaluated': 20,
-    'selected_coefficients': selected_coefficients,
-    'coefficient_analysis': coefficient_results,
-    'next_phase': '4.8 - Comprehensive steering effect analysis'
-}
-
-save_json(summary, output_dir / 'phase_4_5_summary.json')
-logger.info("Phase 4.5 complete. Selected coefficients saved for Phase 4.8.")
-```
-
-### Phase 5: Results Visualization
-```python
-# Generate comparison plots
-create_steering_comparison_plots(
-    baseline_results,
-    correct_steering_results,
-    incorrect_steering_results
-)
-
-# Generate flip rate analysis
-analyze_flip_patterns(all_results)
-```
+### Step 4: Save Results
+1. Save selected coefficients to JSON:
+   - Coefficient values for correct/incorrect features
+   - Selection rationale
+   - Timestamp and phase info
+2. Create phase summary with all analysis results
+3. Generate visualization plots (optional)
 
 ## Manual Coefficient Selection Guidelines
 
 ### What to Look For
-1. **Flip Rate Sweet Spot**
-   - Too low (< 10%): Steering too weak
-   - Too high (> 80%): Likely breaking code structure
-   - Ideal: 20-50% shows meaningful influence
+
+Given the logarithmic coefficient progression, expect different behaviors across ranges:
+
+1. **Flip Rate Patterns by Coefficient Range**
+   - **Coefficients 1-10**: Low flip rates (5-25%), subtle effects
+   - **Coefficients 30-100**: Moderate flip rates (20-60%), likely optimal range
+   - **Coefficients 300-1000**: High flip rates (50-90%+), potential code breaking
+   - **Ideal Selection**: Balance flip rate with code quality preservation
 
 2. **Code Quality Indicators**
-   - Check if flipped codes maintain syntactic validity
-   - Look for semantic changes vs. syntax errors
-   - Verify function signatures remain intact
+   - **Low coefficients (1-10)**: Expect minimal structural changes
+   - **Medium coefficients (30-100)**: Semantic changes, preserved syntax
+   - **High coefficients (300-1000)**: Risk of syntax errors, structural corruption
+   - Verify function signatures remain intact across all ranges
 
-3. **Generation Coherence**
-   - Token similarity > 0.5: Structure preserved
-   - Token similarity < 0.3: Major structural changes
-   - Character similarity helps identify formatting changes
+3. **Generation Coherence by Range**
+   - **1-10**: High similarity (>0.8), subtle modifications
+   - **30-100**: Moderate similarity (0.4-0.8), meaningful changes
+   - **300-1000**: Low similarity (<0.5), major alterations or failures
+   - Track where steering effects saturate vs. continue scaling
 
 ### Example Analysis Output
 ```
-Coefficient: 20
-Flip Rate: 35.0%
+Coefficient: 30
+Flip Rate: 42.0%
 Examples of flips:
   - Task 001: Pass→Fail (logic error introduced)
   - Task 005: Fail→Pass (edge case handled)
   - Task 012: Pass→Fail (syntax error in loop)
 
 Generation Quality:
-  - Average token similarity: 0.68
-  - Average character similarity: 0.75
+  - Average token similarity: 0.62
+  - Average character similarity: 0.71
   - Most changes: variable names, operators, control flow
+
+Coefficient: 300
+Flip Rate: 78.0%
+Examples of flips:
+  - Task 003: Pass→Fail (syntax corruption)
+  - Task 007: Fail→Pass (accidental fix)
+  - Task 014: Pass→Fail (function signature broken)
+
+Generation Quality:
+  - Average token similarity: 0.31
+  - Average character similarity: 0.45
+  - Most changes: structural corruption, indentation errors
 ```
 
 ## Key Insights for Coefficient Selection
@@ -550,12 +354,12 @@ Generation Quality:
 
 ### Setup
 - [ ] Load Phase 2.5 outputs for best PVA features
-- [ ] Load validation split from Phase 0.1
+- [ ] Load baseline results from Phase 3.6 (includes all data and pre-generated results)
 - [ ] Initialize SAEs and extract decoder directions
 
 ### Coefficient Search
 - [ ] Implement steering hooks for generation
-- [ ] Run grid search on 20 problems
+- [ ] Run grid search on 10 problems per coefficient (7 coefficients × 10 = 70 total)
 - [ ] Calculate flip rates and divergence metrics
 - [ ] Save examples for manual inspection
 - [ ] Select optimal coefficients
@@ -572,10 +376,32 @@ Generation Quality:
 - [ ] Document generation quality observations
 - [ ] Create final summary report
 
+## Implementation Decisions
+
+This section consolidates key implementation decisions for clarity:
+
+1. **Layer Targeting**: Steering hooks are applied at the specific layer identified as best in Phase 2.5 for each feature type. This follows the same pattern as Phase 3.5, which discovers and uses the best layer from previous phase outputs.
+
+2. **Problem Selection**: The 10 problems per coefficient are selected using stratified sampling based on cyclomatic complexity. This ensures we test steering effects across different difficulty levels, providing a more comprehensive evaluation.
+
+3. **Feature Selection**: We use exactly two features - the single best correct-preferring feature and the single best incorrect-preferring feature from Phase 2.5's top features output. This focused approach allows for cleaner interpretation of steering effects.
+
+## CLI Support
+
+This phase integrates with the project's run.py system and supports:
+
+```bash
+python3 run.py phase 4.5
+```
+
+The implementation will follow existing project patterns and integrate with the centralized configuration and logging systems in `common/config.py` and `common/utils.py`.
+
 ## Notes
 
-- **Generation Time**: Steering during generation is slower than classification
-- **Deterministic Generation**: Use temperature=0.0 for reproducibility
+- **Efficiency Gain**: Uses pre-generated baseline from Phase 3.6, eliminating need for baseline generation
+- **Data Consistency**: Hyperparameter split aligns with Phase 3.6 processing for perfect data alignment
+- **Generation Time**: Steering during generation is slower than classification, but baseline reuse speeds up process
+- **Deterministic Generation**: Use temperature=0.0 for reproducibility (matches Phase 3.6)
 - **Memory Management**: Clear GPU cache between runs
 - **Error Handling**: Some steered code may fail to parse - track these cases
 - **Continuous Steering**: Apply throughout generation, not just at start

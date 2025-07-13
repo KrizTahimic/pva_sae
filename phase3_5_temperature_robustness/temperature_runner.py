@@ -323,8 +323,9 @@ class TemperatureRobustnessRunner:
                         'test_passed': test_passed,
                         'error_message': None,
                         'generation_time': generation_time,
-                        'complexity_score': row.get('complexity_score', 0.0),
-                        'generation_idx': 0  # Only one generation for temp 0
+                        'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
+                        'generation_idx': 0,  # Only one generation for temp 0
+                        'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
                     })
                     pbar.update(1)
                 
@@ -357,8 +358,9 @@ class TemperatureRobustnessRunner:
                             'test_passed': False,
                             'error_message': str(e),
                             'generation_time': 0.0,
-                            'complexity_score': row.get('complexity_score', 0.0),
-                            'generation_idx': 0
+                            'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
+                            'generation_idx': 0,
+                            'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
                         })
                         pbar.update(1)
                     else:
@@ -372,8 +374,9 @@ class TemperatureRobustnessRunner:
                                 'test_passed': False,
                                 'error_message': str(e),
                                 'generation_time': 0.0,
-                                'complexity_score': row.get('complexity_score', 0.0),
-                                'generation_idx': sample_idx
+                                'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
+                                'generation_idx': sample_idx,
+                                'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
                             })
                             pbar.update(1)
             
@@ -429,8 +432,9 @@ class TemperatureRobustnessRunner:
             'test_passed': test_passed,
             'error_message': error_message,
             'generation_time': generation_time,
-            'complexity_score': row.get('complexity_score', 0.0),
-            'generation_idx': sample_idx
+            'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
+            'generation_idx': sample_idx,
+            'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
         }
     
     def _save_task_activations(self, task_id: str, activations: Dict[int, torch.Tensor]) -> None:

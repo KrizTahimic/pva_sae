@@ -2,7 +2,7 @@
 Temperature-Based AUROC Analysis for PVA-SAE (Phase 3.10).
 
 Analyzes how PVA feature effectiveness varies across different temperature settings
-in Python code generation, using majority vote aggregation for multi-sample tasks.
+in Python code generation using per-sample analysis.
 """
 
 import os
@@ -24,7 +24,7 @@ from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
 
 
 class TemperatureAUROCEvaluator:
-    """Evaluates PVA feature performance across different temperatures."""
+    """Evaluates PVA feature performance across different temperatures using per-sample analysis."""
     
     def __init__(self, config: Config):
         """Initialize evaluator with configuration."""
@@ -33,9 +33,9 @@ class TemperatureAUROCEvaluator:
         self.device = detect_device()
         self.logger.info(f"Using device: {self.device}")
         
-        # Temperature levels to analyze
-        self.temperatures = [0.0, 0.3, 0.6, 0.9, 1.2]
-        self.logger.info(f"Will analyze {len(self.temperatures)} temperature levels")
+        # Temperature levels to analyze from config
+        self.temperatures = config.phase3_10_temperatures
+        self.logger.info(f"Will analyze {len(self.temperatures)} temperature levels: {self.temperatures}")
         
         # Discover dependencies
         self._discover_dependencies()
@@ -43,6 +43,8 @@ class TemperatureAUROCEvaluator:
         # Output directory
         self.output_dir = Path(config.phase3_10_output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # No aggregation tracking needed for per-sample analysis
     
     def _discover_dependencies(self) -> None:
         """Discover and load dependencies from previous phases."""
@@ -136,55 +138,59 @@ class TemperatureAUROCEvaluator:
         sae: Any,
         temperature: float
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Process data for a single temperature with majority vote aggregation (except temp 0.0)."""
-        # Group by task_id (1 sample for temp 0.0, 5 samples for others)
-        task_groups = temp_dataset.groupby('task_id')
+        """Process data for a single temperature using per-sample analysis."""
+        sample_features = []
+        sample_labels = []
         
-        task_features = []
-        task_labels = []
+        # Cache for activation values to avoid redundant loading
+        activation_cache = {}
         
-        for task_id, samples in tqdm(task_groups, desc="Processing tasks"):
-            # Load pre-saved activation from Phase 3.5
-            activation_path = (self.phase3_5_dir / "activations" / "task_activations" / 
-                             f"{task_id}_layer_{best_features['layer']}.npz")
+        # Process each row as an individual sample
+        for _, row in tqdm(temp_dataset.iterrows(), total=len(temp_dataset), desc="Processing samples"):
+            task_id = row['task_id']
             
-            # Fail fast if activation file missing
-            if not activation_path.exists():
-                raise FileNotFoundError(
-                    f"Missing activation file for task {task_id} at {activation_path}. "
-                    f"Phase 3.10 requires all activations from Phase 3.5 to be present."
-                )
+            # Check cache first
+            if task_id in activation_cache:
+                feature_value = activation_cache[task_id]
+            else:
+                # Load pre-saved activation from Phase 3.5
+                activation_path = (self.phase3_5_dir / "activations" / "task_activations" / 
+                                 f"{task_id}_layer_{best_features['layer']}.npz")
+                
+                # Fail fast if activation file missing
+                if not activation_path.exists():
+                    raise FileNotFoundError(
+                        f"Missing activation file for task {task_id} at {activation_path}. "
+                        f"Phase 3.10 requires all activations from Phase 3.5 to be present."
+                    )
+                
+                try:
+                    # Load activation
+                    raw_activation = np.load(activation_path)['arr_0']
+                    
+                    # Encode through SAE to get feature value
+                    with torch.no_grad():
+                        raw_tensor = torch.from_numpy(raw_activation).to(self.device)
+                        # Ensure correct shape
+                        if raw_tensor.ndim == 1:
+                            raw_tensor = raw_tensor.unsqueeze(0)
+                        sae_features = sae.encode(raw_tensor)
+                        feature_value = sae_features[0, best_features['feature_idx']].item()
+                    
+                    # Cache the feature value for this task
+                    activation_cache[task_id] = feature_value
+                    
+                except Exception as e:
+                    self.logger.error(f"Error processing {task_id}: {str(e)}")
+                    raise
             
-            try:
-                # Load activation
-                raw_activation = np.load(activation_path)['arr_0']
-                
-                # Encode through SAE to get feature value
-                with torch.no_grad():
-                    raw_tensor = torch.from_numpy(raw_activation).to(self.device)
-                    # Ensure correct shape
-                    if raw_tensor.ndim == 1:
-                        raw_tensor = raw_tensor.unsqueeze(0)
-                    sae_features = sae.encode(raw_tensor)
-                    feature_value = sae_features[0, best_features['feature_idx']].item()
-                
-                # Apply majority vote only for temperatures > 0.0
-                if temperature == 0.0:
-                    # Temperature 0.0: single sample per task, use actual result
-                    label = int(samples['test_passed'].iloc[0])
-                else:
-                    # Other temperatures: majority vote (≥3 out of 5)
-                    passes = samples['test_passed'].sum()
-                    label = int(passes >= 3)
-                
-                task_features.append(feature_value)
-                task_labels.append(label)
-                
-            except Exception as e:
-                self.logger.error(f"Error processing {task_id}: {str(e)}")
-                raise
+            # Each sample has its own label
+            label = int(row['test_passed'])
+            
+            sample_features.append(feature_value)
+            sample_labels.append(label)
         
-        return np.array(task_features), np.array(task_labels)
+        return np.array(sample_features), np.array(sample_labels)
     
     def evaluate_across_temperatures(self, best_features: Dict[str, Dict]) -> Dict:
         """Evaluate feature performance at each temperature."""
@@ -238,7 +244,7 @@ class TemperatureAUROCEvaluator:
                 results[temp][feature_type] = {
                     'auroc': auroc,
                     'f1': f1,
-                    'n_tasks': len(features),
+                    'n_samples': len(features),  # Changed from n_tasks to n_samples
                     'n_positive': n_positive,
                     'n_negative': n_negative,
                     'feature_values': features.tolist(),
@@ -255,7 +261,7 @@ class TemperatureAUROCEvaluator:
         return results
     
     def plot_temperature_trends(self, results: Dict) -> None:
-        """Create temperature vs metric plots."""
+        """Create temperature vs metric plots with enhanced visualizations."""
         temperatures = sorted(results.keys())
         
         # Extract metrics, handling NaN values
@@ -264,8 +270,8 @@ class TemperatureAUROCEvaluator:
         correct_f1s = [results[t]['correct']['f1'] for t in temperatures]
         incorrect_f1s = [results[t]['incorrect']['f1'] for t in temperatures]
         
-        # Create figure with subplots
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+        # Create figure with 2x2 subplots
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
         
         # AUROC plot
         ax1.plot(temperatures, correct_aurocs, 'b-o', label='Correct-preferring', markersize=8)
@@ -289,6 +295,36 @@ class TemperatureAUROCEvaluator:
         ax2.set_ylim(0, 1.05)
         ax2.set_xticks(temperatures)
         
+        # Sample distribution plot
+        n_positive_correct = [results[t]['correct']['n_positive'] for t in temperatures]
+        n_negative_correct = [results[t]['correct']['n_negative'] for t in temperatures]
+        
+        x = np.arange(len(temperatures))
+        width = 0.35
+        
+        ax3.bar(x - width/2, n_positive_correct, width, label='Positive', alpha=0.7, color='green')
+        ax3.bar(x + width/2, n_negative_correct, width, label='Negative', alpha=0.7, color='red')
+        ax3.set_xlabel('Temperature')
+        ax3.set_ylabel('Number of Samples')
+        ax3.set_title('Sample Distribution (Correct-preferring Feature)')
+        ax3.set_xticks(x)
+        ax3.set_xticklabels(temperatures)
+        ax3.legend()
+        ax3.grid(True, alpha=0.3)
+        
+        # Feature value distribution
+        feature_data = []
+        for temp in temperatures:
+            feature_vals = results[temp]['correct']['feature_values']
+            feature_data.append(feature_vals)
+        
+        ax4.boxplot(feature_data, positions=range(len(temperatures)), widths=0.6)
+        ax4.set_xticklabels(temperatures)
+        ax4.set_xlabel('Temperature')
+        ax4.set_ylabel('Feature Value')
+        ax4.set_title('Feature Value Distribution (Correct-preferring)')
+        ax4.grid(True, alpha=0.3)
+        
         plt.tight_layout()
         output_path = self.output_dir / 'temperature_trends.png'
         plt.savefig(output_path, dpi=150)
@@ -309,6 +345,12 @@ class TemperatureAUROCEvaluator:
                     f"Feature {best_features['correct']['feature_idx']}")
         lines.append(f"  Incorrect-preferring: Layer {best_features['incorrect']['layer']}, "
                     f"Feature {best_features['incorrect']['feature_idx']}")
+        lines.append("")
+        
+        # Methodology information
+        lines.append("METHODOLOGY:")
+        lines.append(f"  Analysis method: Per-sample (no aggregation)")
+        lines.append(f"  Total samples per temperature: Varies by dataset")
         lines.append("")
         
         # Temperature analysis
@@ -399,9 +441,8 @@ class TemperatureAUROCEvaluator:
             'best_features': best_features,
             'results_by_temperature': results,
             'methodology': {
-                'aggregation': 'majority_vote',
-                'samples_per_task': 5,
-                'majority_threshold': 3
+                'analysis_method': 'per_sample',
+                'description': 'Each generated sample analyzed independently'
             }
         }
         
@@ -419,6 +460,7 @@ class TemperatureAUROCEvaluator:
     def run(self) -> Dict:
         """Run the complete temperature-based AUROC analysis."""
         self.logger.info("Starting Phase 3.10: Temperature-Based AUROC Analysis")
+        self.logger.info("Using per-sample analysis (no aggregation)")
         
         # Load best features from Phase 3.8
         best_features = self.load_best_features()

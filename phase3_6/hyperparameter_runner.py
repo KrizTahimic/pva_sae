@@ -232,7 +232,8 @@ class HyperparameterDataRunner:
             'test_passed': test_passed,
             'error_message': error_message,
             'generation_time': generation_time,
-            'complexity_score': row.get('complexity_score', 0.0)
+            'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
+            'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
         }
     
     def run(self) -> Dict[str, any]:
@@ -287,7 +288,8 @@ class HyperparameterDataRunner:
                     'test_passed': False,
                     'error_message': str(e),
                     'generation_time': 0.0,
-                    'complexity_score': row.get('complexity_score', 0.0)
+                    'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
+                    'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
                 })
             
             pbar.update(1)

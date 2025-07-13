@@ -39,10 +39,10 @@ data/
 │   ├── hyperparams_mbpp.parquet # Hyperparameter split with full MBPP data
 │   ├── validation_mbpp.parquet  # Validation split with full MBPP data
 │   └── split_metadata.json
-├── phase2.2/         # Pile activation caching
+├── phase2_2/         # Pile activation caching
 │   ├── pile_activations.npz
 │   └── metadata.json
-├── phase2.5/         # SAE analysis results with pile filtering
+├── phase2_5/         # SAE analysis results with pile filtering
 │   ├── sae_analysis_results.json
 │   ├── top_20_features.json
 │   ├── layer_{n}_features.json  # Per-layer analysis
@@ -73,15 +73,6 @@ Use common_simplified/ modules instead of common/ for new implementations:
 - **Checkpointing**: Save every 50 records, autosave every 100 with 3 versions retained
 - **Activations**: Extract during Phase 1 generation, save to disk for Phase 2 analysis
 
-## Library Documentation Resources
-
-When working with SAELens or TransformerLens, access their official documentation:
-
-### SAELens
-- **GitHub**: https://github.com/jbloomAus/SAELens
-- **Documentation**: https://jbloomaus.github.io/SAELens/
-- **Purpose**: Training and analyzing sparse autoencoders on language models
-
 ## Memories
 - Always use `python3` (not python)
 - Use `python3 run.py test-gpu` to test GPU setup
@@ -94,6 +85,7 @@ When working with SAELens or TransformerLens, access their official documentatio
 - Phase 3.5 extracts activations from only ONE layer (identified by Phase 2.5), not all layers like Phase 1
 - Checkpoint recovery: Auto-discovers latest checkpoints by timestamp
 - Memory management: Extract and save activations during Phase 1, load from disk in Phase 2
+- Use the full python path directly  ~/miniconda3/envs/pva_sae/bin/python run.py phase 4.5
 
 ## Project-Specific Patterns
 
@@ -171,7 +163,7 @@ python3 clean_data.py --dry-run
 # Override auto-discovery with specific files
 python3 run.py phase 1 --input data/phase0/specific_mapping.parquet
 python3 run.py phase 2.5 --input data/phase1_0/specific_dataset.parquet
-python3 run.py phase 3 --input data/phase2.5/specific_results.json
+python3 run.py phase 3 --input data/phase2_5/specific_results.json
 ```
 
 ## Code Quality Guidelines
@@ -185,14 +177,14 @@ python3 run.py phase 3 --input data/phase2.5/specific_results.json
 - **DRY (Don't Repeat Yourself)**: Extract repeated code into reusable functions
 - Avoid over-engineering for hypothetical futures
 
+### Problem-Solving Approach
+- **Root cause analysis**: Avoid bandaid fixes and really fix the root of the problem
+- **Systematic debugging**: Use proper debugging techniques rather than quick patches
+
 ### Documentation
 - Comment the "why," not the "what"
 - Use docstrings for functions and classes
 - Keep comments current with code changes
-
-### Problem-Solving Approach
-- **Root cause analysis**: Avoid bandaid fixes and really fix the root of the problem
-- **Systematic debugging**: Use proper debugging techniques rather than quick patches
 
 ### Naming & Structure
 - **Variables**: `user_count`, `total_price` (snake_case)
@@ -213,6 +205,5 @@ python3 run.py phase 3 --input data/phase2.5/specific_results.json
 ### Logging Standards
 - **Levels**: DEBUG (diagnostics) → INFO (events) → WARNING (recoverable) → ERROR (failures) → CRITICAL (system issues)
 - **Structure with context**: `logger.error(f"Failed to process {item_id}: {str(e)}")`
-
 
 

@@ -315,7 +315,7 @@ PHASE_CONFIGS = {
     },
     "2.5": {
         "dir": "data/phase2_5",
-        "patterns": ["sae_analysis_*.json", "multi_layer_results_*.json"],
+        "patterns": ["sae_analysis_results.json", "top_20_features.json"],
         "exclude_keywords": None
     },
     "3": {
@@ -347,6 +347,11 @@ PHASE_CONFIGS = {
         "dir": "data/phase3_12",
         "patterns": ["difficulty_analysis_results.json", "*.png", "difficulty_summary.txt"],
         "exclude_keywords": None
+    },
+    "4.5": {
+        "dir": "data/phase4_5",
+        "patterns": ["selected_coefficients.json", "phase_4_5_summary.json"],
+        "exclude_keywords": None
     }
 }
 
@@ -356,7 +361,7 @@ def get_phase_dir(phase: str) -> str:
     Get the directory path for a given phase.
     
     Args:
-        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.8")
+        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8", "3.10", "3.12", "4.5")
         
     Returns:
         str: Directory path for the phase
@@ -369,6 +374,7 @@ def get_phase_dir(phase: str) -> str:
         get_phase_dir("2.5") -> "data/phase2_5"
         get_phase_dir("3") -> "data/phase3"
         get_phase_dir("3.5") -> "data/phase3_5"
+        get_phase_dir("4.5") -> "data/phase4_5"
     """
     if phase not in PHASE_CONFIGS:
         raise ValueError(f"Unknown phase: {phase}. Valid phases are: {list(PHASE_CONFIGS.keys())}")
@@ -381,7 +387,7 @@ def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None) ->
     Discover the latest output file from any phase.
     
     Args:
-        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.8")
+        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8", "3.10", "3.12", "4.5")
         phase_dir: Optional override for phase directory
         
     Returns:

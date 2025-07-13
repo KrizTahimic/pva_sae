@@ -1,4 +1,4 @@
-# Phase 3.10: Temperature-Based AUROC Analysis for PVA-SAE
+# Phase 3.10: Temperature-Based AUROC Analysis for PVA-SAE (Revised)
 
 ## Executive Summary
 
@@ -9,7 +9,17 @@
 2. At what temperature do features lose reliability for predicting code correctness?
 3. How do correct vs incorrect-preferring features respond to temperature changes?
 
-**Approach**: Evaluate AUROC and F1 metrics for best PVA features across 5 temperature levels using Phase 3.5 validation data with majority vote aggregation
+**Approach**: Evaluate AUROC and F1 metrics for best PVA features across temperature levels using per-sample analysis of Phase 3.5 validation data
+
+## Critical Change: Per-Sample Analysis
+
+**Problem**: The original majority voting approach caused severe class imbalance at higher temperatures, making AUROC/F1 calculation impossible when nearly all tasks were classified as "correct".
+
+**Solution**: Treat each generated sample independently:
+- 5 samples per task × 50 tasks = 250 data points per temperature
+- Each sample has its own pass/fail label
+- Samples from same task share activation values (identical prompt)
+- No aggregation - cleaner, simpler, more statistically robust
 
 ## Pipeline Overview
 
@@ -18,12 +28,12 @@
    └─> Extract layer indices, feature indices, and F1-optimal thresholds
 
 2. Load Phase 3.5 temperature datasets
-   └─> Process all 5 temperature levels (0.0, 0.3, 0.6, 0.9, 1.2)
+   └─> Process temperature levels: [0.0, 0.2, 0.4, 0.6, 0.8]
    └─> Each task has 5 generated solutions per temperature
 
-3. Aggregate labels using majority vote
-   └─> Task passes if ≥3/5 samples pass tests
-   └─> Activations are identical across samples (same prompt)
+3. Process each sample independently
+   └─> No aggregation - each sample is a data point
+   └─> Same activation values for samples from same task
 
 4. Evaluate features across temperatures
    └─> Calculate AUROC and F1 for each temperature
@@ -32,19 +42,19 @@
 5. Output comprehensive analysis to data/phase3_10/
 ```
 
-## Key Design Decision: Majority Vote
+## Temperature Range Decision
 
-Since each task has 5 generated solutions per temperature:
-- **Activations**: Same for all 5 samples (deterministic prompt processing)
-- **Labels**: Use majority vote - task passes if ≥3 out of 5 samples pass
-- **Rationale**: Captures "reliable capability" rather than "lucky success"
+Using [0.0, 0.2, 0.4, 0.6, 0.8] instead of [0.0, 0.3, 0.6, 0.9, 1.2]:
+- Better granularity in the critical 0.0-0.8 range
+- Avoids extreme temperatures where most code fails
+- Maintains sufficient variation for analysis
 
 ## Implementation Decisions
 
 1. **Missing Activation Files**: Fail fast if any activation is missing - ensures complete analysis
 2. **SAE Memory Management**: Load SAEs once and reuse across temperatures
 3. **Visualization**: Simple matplotlib plots (following KISS principle)
-4. **Class Imbalance**: Plot NaN/N/A when AUROC cannot be calculated (similar to Phase 3.12)
+4. **Class Imbalance**: With per-sample analysis, we expect better balance
 5. **Results Structure**: One final JSON with all results
 
 ## Core Implementation Structure
@@ -52,14 +62,14 @@ Since each task has 5 generated solutions per temperature:
 ### Data Processing
 ```python
 def process_temperature_data(temp_dataset, best_features, sae):
-    """Process data for a single temperature."""
-    # Group by task_id (5 samples per task)
-    task_groups = temp_dataset.groupby('task_id')
+    """Process data for a single temperature using per-sample analysis."""
+    sample_features = []
+    sample_labels = []
     
-    task_features = []
-    task_labels = []
-    
-    for task_id, samples in task_groups:
+    # Process each row as an individual sample
+    for _, row in temp_dataset.iterrows():
+        task_id = row['task_id']
+        
         # Load pre-saved activation from Phase 3.5
         activation_path = f'data/phase3_5/activations/task_activations/{task_id}_layer_{best_features["layer"]}.npz'
         
@@ -79,27 +89,27 @@ def process_temperature_data(temp_dataset, best_features, sae):
                 sae_features = sae.encode(raw_tensor)
                 feature_value = sae_features[0, best_features['feature_idx']].item()
             
-            # Majority vote for label
-            passes = samples['test_passed'].sum()
-            label = int(passes >= 3)  # 1 if majority pass, 0 otherwise
+            # Each sample has its own label
+            label = int(row['test_passed'])
             
-            task_features.append(feature_value)
-            task_labels.append(label)
+            sample_features.append(feature_value)
+            sample_labels.append(label)
             
         except Exception as e:
             logger.error(f"Error processing {task_id}: {str(e)}")
             raise
     
-    return np.array(task_features), np.array(task_labels)
+    return np.array(sample_features), np.array(sample_labels)
 ```
 
 ### Main Evaluation Loop
 ```python
-def evaluate_across_temperatures(best_features, temperatures):
+def evaluate_across_temperatures(best_features):
     """Evaluate feature performance at each temperature."""
+    temperatures = [0.0, 0.2, 0.4, 0.6, 0.8]  # Fixed temperature range
     results = {}
     
-    # Load SAEs once for reuse (Decision #2)
+    # Load SAEs once for reuse
     sae_correct = load_gemma_scope_sae(best_features['correct']['layer'], device)
     sae_incorrect = load_gemma_scope_sae(best_features['incorrect']['layer'], device)
     
@@ -107,6 +117,8 @@ def evaluate_across_temperatures(best_features, temperatures):
         # Load temperature dataset
         temp_data = load_temperature_dataset(temp)
         results[temp] = {}
+        
+        logger.info(f"Processing temperature {temp}: {len(temp_data)} samples")
         
         # Process for both feature types
         for feature_type in ['correct', 'incorrect']:
@@ -122,15 +134,17 @@ def evaluate_across_temperatures(best_features, temperatures):
             if feature_type == 'correct':
                 labels = 1 - labels
             
-            # Calculate metrics with edge case handling (Decision #4)
+            # Calculate metrics
             n_positive = sum(labels)
             n_negative = len(labels) - n_positive
             
+            logger.info(f"  {feature_type}: {n_positive} positive, {n_negative} negative samples")
+            
             if n_positive < 2 or n_negative < 2:
-                # Not enough samples for AUROC
+                # Still check for extreme imbalance
                 logger.warning(f"Class imbalance at temp {temp} for {feature_type}: "
                              f"pos={n_positive}, neg={n_negative}")
-                auroc = float('nan')  # Plot as NaN
+                auroc = float('nan')
                 f1 = float('nan')
             else:
                 auroc = roc_auc_score(labels, features)
@@ -141,9 +155,11 @@ def evaluate_across_temperatures(best_features, temperatures):
             results[temp][feature_type] = {
                 'auroc': auroc,
                 'f1': f1,
-                'n_tasks': len(features),
+                'n_samples': len(features),  # Total samples, not tasks
                 'n_positive': n_positive,
-                'n_negative': n_negative
+                'n_negative': n_negative,
+                'feature_values': features.tolist(),  # Store for detailed analysis
+                'labels': labels.tolist()
             }
     
     # Clean up SAEs
@@ -156,23 +172,23 @@ def evaluate_across_temperatures(best_features, temperatures):
 ### Visualization Functions
 ```python
 def plot_temperature_trends(results):
-    """Create temperature vs metric plots using matplotlib (Decision #3)."""
+    """Create temperature vs metric plots."""
     import matplotlib.pyplot as plt
     
     temperatures = sorted(results.keys())
     
-    # Extract metrics, handling NaN values
+    # Extract metrics
     correct_aurocs = [results[t]['correct']['auroc'] for t in temperatures]
     incorrect_aurocs = [results[t]['incorrect']['auroc'] for t in temperatures]
     correct_f1s = [results[t]['correct']['f1'] for t in temperatures]
     incorrect_f1s = [results[t]['incorrect']['f1'] for t in temperatures]
     
     # Create figure with subplots
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
     
     # AUROC plot
-    ax1.plot(temperatures, correct_aurocs, 'b-o', label='Correct-preferring')
-    ax1.plot(temperatures, incorrect_aurocs, 'r-s', label='Incorrect-preferring')
+    ax1.plot(temperatures, correct_aurocs, 'b-o', label='Correct-preferring', markersize=8)
+    ax1.plot(temperatures, incorrect_aurocs, 'r-s', label='Incorrect-preferring', markersize=8)
     ax1.set_xlabel('Temperature')
     ax1.set_ylabel('AUROC')
     ax1.set_title('AUROC vs Temperature')
@@ -181,14 +197,37 @@ def plot_temperature_trends(results):
     ax1.set_ylim(0, 1.05)
     
     # F1 plot
-    ax2.plot(temperatures, correct_f1s, 'b-o', label='Correct-preferring')
-    ax2.plot(temperatures, incorrect_f1s, 'r-s', label='Incorrect-preferring')
+    ax2.plot(temperatures, correct_f1s, 'b-o', label='Correct-preferring', markersize=8)
+    ax2.plot(temperatures, incorrect_f1s, 'r-s', label='Incorrect-preferring', markersize=8)
     ax2.set_xlabel('Temperature')
     ax2.set_ylabel('F1 Score')
     ax2.set_title('F1 Score vs Temperature')
     ax2.legend()
     ax2.grid(True, alpha=0.3)
     ax2.set_ylim(0, 1.05)
+    
+    # Sample distribution plot
+    n_positive_correct = [results[t]['correct']['n_positive'] for t in temperatures]
+    n_negative_correct = [results[t]['correct']['n_negative'] for t in temperatures]
+    
+    ax3.bar(temperatures, n_positive_correct, width=0.15, label='Positive', alpha=0.7)
+    ax3.bar(temperatures, n_negative_correct, width=0.15, bottom=n_positive_correct, 
+            label='Negative', alpha=0.7)
+    ax3.set_xlabel('Temperature')
+    ax3.set_ylabel('Number of Samples')
+    ax3.set_title('Sample Distribution (Correct-preferring Feature)')
+    ax3.legend()
+    ax3.grid(True, alpha=0.3)
+    
+    # Feature value distribution
+    for i, temp in enumerate(temperatures):
+        feature_vals = results[temp]['correct']['feature_values']
+        ax4.boxplot(feature_vals, positions=[i], widths=0.6)
+    ax4.set_xticklabels(temperatures)
+    ax4.set_xlabel('Temperature')
+    ax4.set_ylabel('Feature Value')
+    ax4.set_title('Feature Value Distribution (Correct-preferring)')
+    ax4.grid(True, alpha=0.3)
     
     plt.tight_layout()
     plt.savefig('data/phase3_10/temperature_trends.png', dpi=150)
@@ -198,9 +237,40 @@ def plot_temperature_trends(results):
 ## Output Structure
 ```
 data/phase3_10/
-├── temperature_analysis_results.json    # All results in one file (Decision #5)
-├── temperature_trends.png              # AUROC and F1 trends
+├── temperature_analysis_results.json    # All results including per-sample data
+├── temperature_trends.png              # AUROC, F1, and distribution plots
 └── temperature_summary.txt             # Human-readable summary
+```
+
+## Results JSON Structure
+```json
+{
+  "creation_timestamp": "...",
+  "phase": "3.10",
+  "description": "Temperature-Based AUROC Analysis (Per-Sample)",
+  "temperatures_analyzed": [0.0, 0.2, 0.4, 0.6, 0.8],
+  "analysis_method": "per_sample",
+  "samples_per_task": 5,
+  "best_features": {
+    "correct": {...},
+    "incorrect": {...}
+  },
+  "results_by_temperature": {
+    "0.0": {
+      "correct": {
+        "auroc": 0.75,
+        "f1": 0.68,
+        "n_samples": 250,
+        "n_positive": 120,
+        "n_negative": 130,
+        "feature_values": [...],  // 250 values
+        "labels": [...]           // 250 labels
+      },
+      "incorrect": {...}
+    },
+    ...
+  }
+}
 ```
 
 ## Dependencies
@@ -214,11 +284,11 @@ data/phase3_10/
 ## Implementation Checklist
 
 - [ ] Load Phase 3.8 results (best features + thresholds)
-- [ ] Implement majority vote aggregation for labels
+- [ ] Implement per-sample data processing (no aggregation)
 - [ ] Load pre-saved activations from Phase 3.5 activation files
 - [ ] Encode raw activations through GemmaScope SAE
 - [ ] Calculate AUROC and F1 metrics for each temperature
-- [ ] Generate temperature trend visualizations
+- [ ] Generate enhanced visualizations including sample distributions
 - [ ] Identify critical temperature thresholds
 - [ ] Create comprehensive output report
 
@@ -226,12 +296,12 @@ data/phase3_10/
 
 1. **Temperature Tolerance**: Identify temperature where AUROC drops below 0.7
 2. **Feature Robustness**: Compare stability of correct vs incorrect features
-3. **Reliability Threshold**: Temperature range for practical PVA usage
-4. **Degradation Pattern**: Linear vs exponential performance decline
+3. **Sample-Level Patterns**: Understand variation within tasks at same temperature
+4. **Reliability Threshold**: Temperature range for practical PVA usage
 
 ## Reusable Components
 
-Following DRY principle, Phase 3.10 should reuse these existing functions/classes:
+Following DRY principle, Phase 3.10 reuses these existing functions/classes:
 
 ### From `common/utils.py`:
 - `detect_device()` - Device detection
@@ -280,7 +350,7 @@ def run_phase3_10(config: Config, logger, device: str):
     from phase3_10_temperature_auroc_f1.temperature_evaluator import TemperatureAUROCEvaluator
     
     logger.info("Starting Phase 3.10: Temperature-Based AUROC Analysis")
-    logger.info("Using majority vote aggregation for multi-sample tasks")
+    logger.info("Using per-sample analysis (no aggregation)")
     
     # Log configuration
     logger.info("\n" + config.dump(phase="3.10"))
