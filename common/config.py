@@ -127,8 +127,8 @@ class Config:
     phase1_output_dir: str = "data/phase1_0"
     phase0_1_output_dir: str = "data/phase0_1"
     phase2_output_dir: str = "data/phase2"
-    phase2_2_output_dir: str = "data/phase2.2"
-    phase2_5_output_dir: str = "data/phase2.5"
+    phase2_2_output_dir: str = "data/phase2_2"
+    phase2_5_output_dir: str = "data/phase2_5"
     phase3_output_dir: str = "data/phase3"
     
     # === PROBLEM SPLITTING (Phase 0.1) ===
@@ -137,10 +137,9 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
-    # temperature_variation_temps: List[float] = None
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.3, 0.6, 0.9, 1.2])
-    temperature_samples_per_temp: int = 5  # Number of samples to generate per temperature
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.2, 0.4, 0.8])
+    # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8])
+    temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
     phase3_5_output_dir: str = "data/phase3_5"
     
     # === HYPERPARAMETER TUNING SET (Phase 3.6) ===
@@ -151,9 +150,21 @@ class Config:
     
     # === TEMPERATURE-BASED AUROC ANALYSIS (Phase 3.10) ===
     phase3_10_output_dir: str = "data/phase3_10"
+    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8])
     
     # === DIFFICULTY-BASED AUROC ANALYSIS (Phase 3.12) ===
     phase3_12_output_dir: str = "data/phase3_12"
+    
+    # === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
+    phase4_5_coefficients: List[float] = field(default_factory=lambda: [1, 3, 10, 30, 100, 300, 1000])
+    # phase4_5_problems_per_coeff: int = 10
+    phase4_5_problems_per_coeff: int = 1 # Reduced for testing purposes
+    phase4_5_output_dir: str = "data/phase4_5"
+    
+    # === STEERING EFFECT ANALYSIS (Phase 4.8) ===
+    phase4_8_correct_coefficient: float = 30.0
+    phase4_8_incorrect_coefficient: float = 30.0
+    phase4_8_output_dir: str = "data/phase4_8"
     
     # === VALIDATION (Phase 3) ===
     # validation_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.5, 1.0, 1.5, 2.0]) # DELETE if this is an obsolete setting
