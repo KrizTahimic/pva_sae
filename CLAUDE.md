@@ -19,6 +19,12 @@ The methodology follows these phases:
 - Phase 2.5: SAE activation analysis with pile filtering using separation scores (split-aware)
 - Phase 3: Validation through both statistical measures and causal intervention via model steering
 - Phase 3.5: Temperature robustness testing on validation split
+- Phase 3.6: Hyperparameter tuning set processing with baseline generation
+- Phase 3.8: AUROC and F1 evaluation for PVA features
+- Phase 3.10: Temperature-based AUROC analysis across different temperatures
+- Phase 3.12: Difficulty-based AUROC analysis across problem difficulty levels
+- Phase 4.5: Steering coefficient selection for model interventions
+- Phase 4.8: Steering effect analysis with correction/corruption experiments
 
 Each phase outputs to its own directory (data/phase0/, data/phase0_1/, data/phase1_0/, etc.) and automatically discovers inputs from previous phases.
 
@@ -48,16 +54,54 @@ data/
 │   ├── layer_{n}_features.json  # Per-layer analysis
 │   └── best_layer.json          # Best PVA layer for Phase 3.5
 ├── phase3/           # Validation results
-└── phase3_5/         # Temperature robustness (validation split only)
-    ├── dataset_temp_0_0.parquet  # 5 samples per task at temp 0.0
-    ├── dataset_temp_0_3.parquet  # 5 samples per task at temp 0.3
-    ├── dataset_temp_0_6.parquet  # 5 samples per task at temp 0.6
-    ├── dataset_temp_0_9.parquet  # 5 samples per task at temp 0.9
-    ├── dataset_temp_1_2.parquet  # 5 samples per task at temp 1.2
-    ├── metadata.json
-    └── activations/
-        └── task_activations/     # Single layer activations per task
-            └── {task_id}_layer_{best_layer}.npz
+├── phase3_5/         # Temperature robustness (validation split only)
+│   ├── dataset_temp_0_0.parquet  # 5 samples per task at temp 0.0
+│   ├── dataset_temp_0_3.parquet  # 5 samples per task at temp 0.3
+│   ├── dataset_temp_0_6.parquet  # 5 samples per task at temp 0.6
+│   ├── dataset_temp_0_9.parquet  # 5 samples per task at temp 0.9
+│   ├── dataset_temp_1_2.parquet  # 5 samples per task at temp 1.2
+│   ├── metadata.json
+│   └── activations/
+│       └── task_activations/     # Single layer activations per task
+│           └── {task_id}_layer_{best_layer}.npz
+├── phase3_6/         # Hyperparameter tuning set processing
+│   ├── dataset_hyperparams_temp_0_0.parquet
+│   ├── metadata.json
+│   └── activations/
+│       └── task_activations/
+│           └── {task_id}_layer_{best_layer}.npz
+├── phase3_8/         # AUROC and F1 evaluation
+│   ├── evaluation_results.json
+│   ├── evaluation_summary.txt
+│   ├── comparative_metrics.png
+│   ├── confusion_matrix_correct.png
+│   ├── confusion_matrix_incorrect.png
+│   ├── f1_threshold_plot_correct.png
+│   └── f1_threshold_plot_incorrect.png
+├── phase3_10/        # Temperature-based AUROC analysis
+│   ├── temperature_analysis_results.json
+│   └── temperature_trends.png
+├── phase3_12/        # Difficulty-based AUROC analysis
+│   ├── difficulty_analysis_results.json
+│   ├── difficulty_summary.txt
+│   ├── difficulty_distribution.png
+│   ├── metrics_comparison_by_difficulty.png
+│   └── roc_curves_by_difficulty_{correct/incorrect}.png
+├── phase4_5/         # Steering coefficient selection
+│   ├── coefficient_analysis.json
+│   ├── selected_coefficients.json
+│   ├── phase_4_5_summary.json
+│   ├── selected_problems_correct_steering.parquet
+│   └── selected_problems_incorrect_steering.parquet
+└── phase4_8/         # Steering effect analysis
+    ├── steering_effect_analysis.json
+    ├── steering_effect_analysis.png
+    ├── phase_4_8_summary.json
+    ├── selected_correct_problems.parquet
+    ├── selected_incorrect_problems.parquet
+    └── examples/
+        ├── corrected_examples.json
+        └── corrupted_examples.json
 ```
 
 ## Simplified Modules
@@ -83,6 +127,12 @@ Use common_simplified/ modules instead of common/ for new implementations:
 - Phase 2.5 is CPU-only, uses saved activations from Phase 1 with optional pile filtering
 - Phase 3.5 MUST run after Phase 2.5 because it needs the best_layer output
 - Phase 3.5 extracts activations from only ONE layer (identified by Phase 2.5), not all layers like Phase 1
+- Phase 3.6 processes hyperparameter tuning split, requires Phase 2.5 for best_layer
+- Phase 3.8 evaluates AUROC/F1 metrics, requires Phase 0.1 (splits) and Phase 3.5 or Phase 3.6 data
+- Phase 3.10 analyzes AUROC across temperatures, requires Phase 3.8 and Phase 3.5
+- Phase 3.12 analyzes AUROC across difficulty levels, requires Phase 3.8 and Phase 0.1
+- Phase 4.5 selects steering coefficients, requires Phase 2.5 (features) and Phase 3.6 (baseline)
+- Phase 4.8 analyzes steering effects, requires Phase 2.5 (features) and Phase 3.5 (validation data)
 - Checkpoint recovery: Auto-discovers latest checkpoints by timestamp
 - Memory management: Extract and save activations during Phase 1, load from disk in Phase 2
 - Use the full python path directly  ~/miniconda3/envs/pva_sae/bin/python run.py phase 4.5
@@ -144,6 +194,24 @@ python3 multi_gpu_launcher.py --phase 3.5 --model google/gemma-2-2b
 
 # Phase 3.5: Temperature robustness (multi-GPU, specific range)
 python3 multi_gpu_launcher.py --phase 3.5 --start 0 --end 100 --model google/gemma-2-2b
+
+# Phase 3.6: Hyperparameter tuning set processing
+python3 run.py phase 3.6
+
+# Phase 3.8: AUROC and F1 evaluation (auto-discovers from phase 0.1 & phase 3.5)
+python3 run.py phase 3.8
+
+# Phase 3.10: Temperature-based AUROC analysis
+python3 run.py phase 3.10
+
+# Phase 3.12: Difficulty-based AUROC analysis
+python3 run.py phase 3.12
+
+# Phase 4.5: Steering coefficient selection
+python3 run.py phase 4.5
+
+# Phase 4.8: Steering effect analysis
+python3 run.py phase 4.8
 ```
 
 ### Data Cleanup
