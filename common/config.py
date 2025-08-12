@@ -137,7 +137,7 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0])
     # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8])
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
     phase3_5_output_dir: str = "data/phase3_5"
@@ -150,25 +150,23 @@ class Config:
     
     # === TEMPERATURE-BASED AUROC ANALYSIS (Phase 3.10) ===
     phase3_10_output_dir: str = "data/phase3_10"
-    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8])
+    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
     
     # === DIFFICULTY-BASED AUROC ANALYSIS (Phase 3.12) ===
     phase3_12_output_dir: str = "data/phase3_12"
     
     # === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
-    phase4_5_coefficients: List[float] = field(default_factory=lambda: [1, 3, 10, 30, 100, 300, 1000])
-    # phase4_5_problems_per_coeff: int = 10
-    phase4_5_problems_per_coeff: int = 1 # Reduced for testing purposes
+    # Grid search coefficients from 10 to 100 in increments of 10
+    phase4_5_initial_points: List[float] = field(default_factory=lambda: list(range(10, 101, 10)))
+    phase4_5_search_tolerance: float = 2.0  # Stop binary search when range < tolerance
+    phase4_5_meaningful_effect_threshold: float = 5.0  # Minimum % for meaningful effect
+    phase4_5_plateau_threshold: float = 2.0  # Max % change to consider plateaued
     phase4_5_output_dir: str = "data/phase4_5"
     
     # === STEERING EFFECT ANALYSIS (Phase 4.8) ===
-    phase4_8_correct_coefficient: float = 30.0
-    phase4_8_incorrect_coefficient: float = 30.0
+    phase4_8_correct_coefficient: float = 45.0
+    phase4_8_incorrect_coefficient: float = 45.0
     phase4_8_output_dir: str = "data/phase4_8"
-    
-    # === VALIDATION (Phase 3) ===
-    # validation_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.5, 1.0, 1.5, 2.0]) # DELETE if this is an obsolete setting
-    validation_steering_coeffs: List[float] = field(default_factory=lambda: [-1.0, -0.5, 0.0, 0.5, 1.0])
     
     # === EVALUATION (Phase 3.8) ===
     evaluation_random_seed: int = 42

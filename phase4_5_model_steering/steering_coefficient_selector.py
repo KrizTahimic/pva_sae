@@ -1,7 +1,7 @@
 """
 Steering coefficient selector for Phase 4.5.
 
-Finds optimal steering coefficients for PVA features through empirical grid search.
+Finds optimal steering coefficients for PVA features through adaptive search.
 Modifies model activations by adding SAE decoder directions to residual stream.
 """
 
@@ -14,8 +14,6 @@ import numpy as np
 from datetime import datetime
 import torch
 from tqdm import tqdm
-from difflib import SequenceMatcher
-
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger
 from common.utils import (
@@ -24,6 +22,13 @@ from common.utils import (
     detect_device
 )
 from common.config import Config
+from common.steering_metrics import (
+    create_steering_hook,
+    calculate_correction_rate,
+    calculate_corruption_rate,
+    calculate_preservation_rate,
+    calculate_code_similarity
+)
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.helpers import evaluate_code, extract_code, load_json, save_json
 from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
@@ -31,33 +36,8 @@ from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
 logger = get_logger("phase4_5.steering_evaluator")
 
 
-def create_steering_hook(sae_decoder_direction: torch.Tensor, 
-                        coefficient: float) -> Callable:
-    """
-    Create a hook that adds SAE decoder direction to residual stream.
-    
-    Args:
-        sae_decoder_direction: Decoder vector from SAE [d_model]
-        coefficient: Scalar multiplier for steering strength
-    
-    Returns:
-        Hook function for forward_pre_hook
-    """
-    def hook_fn(module, input):
-        # input[0] is residual stream: [1, seq_len, d_model]
-        residual = input[0]
-        
-        # Add steering vector scaled by coefficient to all positions
-        steering = sae_decoder_direction.unsqueeze(0).unsqueeze(0) * coefficient
-        residual = residual + steering.to(residual.device)
-        
-        return (residual,) + input[1:]
-    
-    return hook_fn
-
-
 class SteeringCoefficientSelector:
-    """Select optimal steering coefficients through grid search."""
+    """Select optimal steering coefficients through adaptive search."""
     
     def __init__(self, config: Config):
         """Initialize with configuration, load dependencies."""
@@ -83,8 +63,6 @@ class SteeringCoefficientSelector:
         # Load dependencies
         self._load_dependencies()
         
-        # PromptBuilder is a static class, no initialization needed
-        
         logger.info("SteeringCoefficientSelector initialized successfully")
         
     def _load_dependencies(self) -> None:
@@ -103,8 +81,6 @@ class SteeringCoefficientSelector:
         self.top_features = load_json(features_file)
         
         # Extract best correct and incorrect features
-        # Features are already sorted by separation score in descending order
-        # The JSON has 'correct' and 'incorrect' arrays at the top level
         if 'correct' not in self.top_features or 'incorrect' not in self.top_features:
             raise ValueError("Expected 'correct' and 'incorrect' keys in top_20_features.json")
         
@@ -136,12 +112,36 @@ class SteeringCoefficientSelector:
         self.baseline_data = pd.read_parquet(baseline_file)
         logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.6 baseline")
         
+        # Apply --start and --end arguments if provided for testing
+        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
+            start_idx = self.config.dataset_start_idx
+        else:
+            start_idx = 0
+        
+        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
+            # dataset_end_idx is inclusive
+            end_idx = min(self.config.dataset_end_idx + 1, len(self.baseline_data))
+        else:
+            end_idx = len(self.baseline_data)
+        
+        # Apply range filtering for testing
+        if start_idx > 0 or end_idx < len(self.baseline_data):
+            logger.info(f"Limiting dataset for testing: rows {start_idx}-{end_idx-1} (inclusive)")
+            self.baseline_data = self.baseline_data.iloc[start_idx:end_idx].copy()
+            logger.info(f"Reduced to {len(self.baseline_data)} problems for testing")
+        
         # Split baseline data by initial correctness for proper experimental design
+        # Use ALL problems in the (potentially limited) dataset
         self.initially_correct_data = self.baseline_data[self.baseline_data['test_passed'] == True].copy()
         self.initially_incorrect_data = self.baseline_data[self.baseline_data['test_passed'] == False].copy()
         
         logger.info(f"Split baseline: {len(self.initially_correct_data)} initially correct, "
                    f"{len(self.initially_incorrect_data)} initially incorrect problems")
+        
+        if start_idx > 0 or end_idx < len(pd.read_parquet(baseline_file)):
+            logger.info("Using LIMITED dataset for testing - results may not be representative")
+        else:
+            logger.info("Using ALL problems for evaluation (no sampling)")
         
         # Load SAEs for both features
         logger.info("Loading SAE models...")
@@ -164,83 +164,23 @@ class SteeringCoefficientSelector:
         
         logger.info("Dependencies loaded successfully")
         
-    def _create_steering_hook(self, decoder_direction: torch.Tensor, 
-                            coefficient: float) -> Callable:
-        """Create steering hook for residual stream modification."""
-        return create_steering_hook(decoder_direction, coefficient)
-        
-    def _stratified_problem_selection(self, n_problems: int, steering_type: str) -> pd.DataFrame:
+    def evaluate_single_dataset(self, coefficient: float, 
+                               problems_df: pd.DataFrame,
+                               steering_type: str,
+                               show_progress: bool = True) -> List[Dict]:
         """
-        Select problems using stratified sampling based on cyclomatic complexity.
-        Uses appropriate baseline subset based on steering type.
-        
-        Args:
-            n_problems: Number of problems to select
-            steering_type: 'correct' (uses initially_incorrect) or 'incorrect' (uses initially_correct)
-            
-        Returns:
-            Selected subset of appropriate baseline data
-        """
-        # Select appropriate baseline subset based on experimental design
-        if steering_type == 'correct':
-            # Correct steering: test on initially incorrect problems to measure Correction Rate
-            source_data = self.initially_incorrect_data
-            logger.info(f"Selecting from {len(source_data)} initially incorrect problems for correct steering")
-        elif steering_type == 'incorrect':
-            # Incorrect steering: test on initially correct problems to measure Corruption Rate  
-            source_data = self.initially_correct_data
-            logger.info(f"Selecting from {len(source_data)} initially correct problems for incorrect steering")
-        else:
-            raise ValueError(f"Invalid steering_type: {steering_type}. Must be 'correct' or 'incorrect'")
-        
-        if len(source_data) == 0:
-            raise ValueError(f"No problems available for {steering_type} steering")
-        
-        # Limit selection to available problems
-        n_problems = min(n_problems, len(source_data))
-        
-        # Sort by complexity for stratified sampling
-        sorted_data = source_data.sort_values('cyclomatic_complexity')
-        
-        # Calculate stratum size
-        n_strata = min(5, n_problems)  # Use up to 5 strata
-        stratum_size = len(sorted_data) // n_strata
-        
-        selected_problems = []
-        problems_per_stratum = n_problems // n_strata
-        extra_problems = n_problems % n_strata
-        
-        for i in range(n_strata):
-            start_idx = i * stratum_size
-            end_idx = (i + 1) * stratum_size if i < n_strata - 1 else len(sorted_data)
-            
-            stratum = sorted_data.iloc[start_idx:end_idx]
-            
-            # Select problems from this stratum
-            n_select = problems_per_stratum + (1 if i < extra_problems else 0)
-            selected = stratum.sample(n=min(n_select, len(stratum)), random_state=42 + i)
-            selected_problems.append(selected)
-        
-        result = pd.concat(selected_problems).reset_index(drop=True)
-        logger.info(f"Selected {len(result)} problems with stratified sampling for {steering_type} steering")
-        
-        return result
-        
-    def evaluate_coefficient(self, coefficient: float, 
-                           problems_subset: pd.DataFrame,
-                           steering_type: str) -> Dict:
-        """
-        Evaluate a single coefficient on subset of problems.
+        Evaluate a single coefficient on one dataset.
         
         Args:
             coefficient: Steering coefficient to evaluate
-            problems_subset: Subset of problems to test on
+            problems_df: Dataset to test on
             steering_type: 'correct' or 'incorrect'
+            show_progress: Whether to show progress bar
             
         Returns:
-            Evaluation results including flip rate and examples
+            List of result dictionaries for each problem
         """
-        logger.info(f"Evaluating coefficient {coefficient} for {steering_type} steering...")
+        logger.info(f"Evaluating on {len(problems_df)} problems...")
         
         # Select decoder direction and target layer
         if steering_type == 'correct':
@@ -251,7 +191,7 @@ class SteeringCoefficientSelector:
             target_layer = self.best_incorrect_feature['layer']
         
         # Create steering hook
-        hook_fn = self._create_steering_hook(decoder_direction, coefficient)
+        hook_fn = create_steering_hook(decoder_direction, coefficient)
         
         # Register hook on target layer
         target_module = self.model.model.layers[target_layer]
@@ -260,9 +200,12 @@ class SteeringCoefficientSelector:
         results = []
         
         try:
-            for idx, row in tqdm(problems_subset.iterrows(), 
-                               total=len(problems_subset),
-                               desc=f"Coefficient {coefficient}"):
+            iterator = problems_df.iterrows()
+            if show_progress:
+                iterator = tqdm(iterator, total=len(problems_df), 
+                              desc=f"Coefficient {coefficient}")
+            
+            for idx, row in iterator:
                 # Generate with steering
                 prompt = row['prompt']
                 
@@ -300,18 +243,9 @@ class SteeringCoefficientSelector:
                 steered_passed = test_passed
                 flipped = baseline_passed != steered_passed
                 
-                # Calculate similarity with baseline
+                # Calculate similarity with baseline using token-based approach
                 baseline_code = row['generated_code']
-                token_similarity = SequenceMatcher(
-                    None, 
-                    baseline_code.split(), 
-                    generated_code.split()
-                ).ratio()
-                char_similarity = SequenceMatcher(
-                    None, 
-                    baseline_code, 
-                    generated_code
-                ).ratio()
+                code_similarity = calculate_code_similarity(baseline_code, generated_code)
                 
                 result = {
                     'task_id': row['task_id'],
@@ -319,8 +253,7 @@ class SteeringCoefficientSelector:
                     'steered_passed': steered_passed,
                     'flipped': flipped,
                     'flip_direction': f"{'pass' if baseline_passed else 'fail'}→{'pass' if steered_passed else 'fail'}",
-                    'token_similarity': token_similarity,
-                    'char_similarity': char_similarity,
+                    'code_similarity': code_similarity,
                     'baseline_code': baseline_code,
                     'steered_code': generated_code,
                     'error': ''
@@ -336,66 +269,91 @@ class SteeringCoefficientSelector:
             # Remove hook
             hook_handle.remove()
         
-        # Calculate appropriate metric based on steering type
-        if steering_type == 'correct':
-            metric_rate = self.calculate_correction_rate(results)
-            metric_name = 'correction_rate'
-        elif steering_type == 'incorrect':
-            metric_rate = self.calculate_corruption_rate(results)
-            metric_name = 'corruption_rate'
-        else:
-            raise ValueError(f"Invalid steering_type: {steering_type}")
-            
-        divergence = self.calculate_generation_divergence(results)
+        return results
+    
+    def evaluate_coefficient_correction_only(self, coefficient: float, 
+                                            show_progress: bool = True) -> Dict:
+        """
+        Evaluate correct steering ONLY for correction rate on initially incorrect problems.
+        Simplified version that doesn't measure preservation.
+        
+        Returns:
+            Dictionary with correction rate and results
+        """
+        logger.info(f"\nEvaluating CORRECT steering with coefficient {coefficient}")
+        
+        # Only evaluate on initially incorrect problems for correction rate
+        logger.info("Testing on initially incorrect problems (correction rate only)...")
+        incorrect_results = self.evaluate_single_dataset(
+            coefficient, 
+            self.initially_incorrect_data,
+            'correct',
+            show_progress
+        )
+        correction_rate = calculate_correction_rate(incorrect_results) if incorrect_results else 0.0
+        
+        # Calculate divergence
+        divergence = self.calculate_generation_divergence(incorrect_results)
+        
+        logger.info(f"  Correction rate: {correction_rate:.1f}% (from {len(incorrect_results)} incorrect problems)")
         
         return {
             'coefficient': coefficient,
-            'steering_type': steering_type,
-            metric_name: metric_rate,
+            'steering_type': 'correct',
+            'metrics': {
+                'correction_rate': correction_rate
+            },
+            'divergence': divergence,
+            'n_problems': len(incorrect_results),
+            'results': incorrect_results
+        }
+    
+    def evaluate_coefficient_incorrect_steering(self, coefficient: float,
+                                               show_progress: bool = True) -> Dict:
+        """
+        Evaluate incorrect steering on initially correct problems.
+        
+        Returns:
+            Dictionary with corruption rate and similarity metrics
+        """
+        logger.info(f"\nEvaluating INCORRECT steering with coefficient {coefficient}")
+        
+        # Evaluate on initially correct problems to get corruption rate
+        logger.info("Testing on initially correct problems (for corruption rate)...")
+        results = self.evaluate_single_dataset(
+            coefficient,
+            self.initially_correct_data,
+            'incorrect',
+            show_progress
+        )
+        
+        corruption_rate = calculate_corruption_rate(results) if results else 0.0
+        
+        # Calculate average similarity for corrupted cases
+        corrupted_results = [r for r in results if r['baseline_passed'] and not r['steered_passed']]
+        avg_similarity = np.mean([r['code_similarity'] for r in corrupted_results]) * 100 if corrupted_results else 0
+        
+        # Composite score balances corruption and maintaining structure
+        composite_score = (corruption_rate + avg_similarity) / 2
+        
+        divergence = self.calculate_generation_divergence(results)
+        
+        logger.info(f"  Corruption rate: {corruption_rate:.1f}% (from {len(results)} correct problems)")
+        logger.info(f"  Avg similarity: {avg_similarity:.1f}%")
+        logger.info(f"  Composite score: {composite_score:.1f}%")
+        
+        return {
+            'coefficient': coefficient,
+            'steering_type': 'incorrect',
+            'metrics': {
+                'corruption_rate': corruption_rate,
+                'avg_similarity': avg_similarity,
+                'composite_score': composite_score
+            },
             'divergence': divergence,
             'n_problems': len(results),
             'results': results
         }
-        
-    def calculate_correction_rate(self, results: List[Dict]) -> float:
-        """
-        Calculate Correction Rate for correct steering on initially incorrect problems.
-        
-        Correction Rate = (# initially incorrect that became correct) / (# initially incorrect)
-        """
-        # All problems should be initially incorrect for correct steering
-        if not results:
-            return 0.0
-            
-        # Count how many became correct after steering
-        corrected = sum(1 for r in results if not r['baseline_passed'] and r['steered_passed'])
-        total_incorrect = sum(1 for r in results if not r['baseline_passed'])
-        
-        if total_incorrect == 0:
-            logger.warning("No initially incorrect problems found for correction rate calculation")
-            return 0.0
-            
-        return (corrected / total_incorrect) * 100
-    
-    def calculate_corruption_rate(self, results: List[Dict]) -> float:
-        """
-        Calculate Corruption Rate for incorrect steering on initially correct problems.
-        
-        Corruption Rate = (# initially correct that became incorrect) / (# initially correct)
-        """
-        # All problems should be initially correct for incorrect steering
-        if not results:
-            return 0.0
-            
-        # Count how many became incorrect after steering
-        corrupted = sum(1 for r in results if r['baseline_passed'] and not r['steered_passed'])
-        total_correct = sum(1 for r in results if r['baseline_passed'])
-        
-        if total_correct == 0:
-            logger.warning("No initially correct problems found for corruption rate calculation")
-            return 0.0
-            
-        return (corrupted / total_correct) * 100
         
     def calculate_generation_divergence(self, results: List[Dict]) -> Dict:
         """
@@ -406,13 +364,11 @@ class SteeringCoefficientSelector:
         """
         if not results:
             return {
-                'mean_token_similarity': 0.0,
-                'mean_char_similarity': 0.0,
+                'mean_code_similarity': 0.0,
                 'mean_length_ratio': 0.0
             }
         
-        token_sims = [r['token_similarity'] for r in results]
-        char_sims = [r['char_similarity'] for r in results]
+        code_sims = [r['code_similarity'] for r in results]
         
         # Calculate length ratios
         length_ratios = []
@@ -425,138 +381,202 @@ class SteeringCoefficientSelector:
                 length_ratios.append(1.0)
         
         return {
-            'mean_token_similarity': np.mean(token_sims),
-            'mean_char_similarity': np.mean(char_sims),
+            'mean_code_similarity': np.mean(code_sims),
             'mean_length_ratio': np.mean(length_ratios)
+        }
+        
+    def simple_grid_search(self, steering_type: str) -> Tuple[float, Dict]:
+        """
+        Simple grid search for optimal coefficient from 10 to 100 in increments of 10.
+        
+        Args:
+            steering_type: 'correct' or 'incorrect'
+            
+        Returns:
+            Tuple of (optimal_coefficient, full_results_dict)
+        """
+        logger.info(f"\n{'='*60}")
+        logger.info(f"Starting simple grid search for {steering_type} steering")
+        logger.info(f"{'='*60}")
+        
+        # Use grid points from config
+        grid_points = self.config.phase4_5_initial_points
+        logger.info(f"Testing coefficients: {grid_points}")
+        
+        # Log dataset info
+        if steering_type == 'correct':
+            logger.info(f"Will evaluate correction rate on {len(self.initially_incorrect_data)} initially incorrect problems")
+            logger.info("NOTE: Preservation rate is NOT being measured in this simplified approach")
+        else:
+            logger.info(f"Will evaluate corruption rate on {len(self.initially_correct_data)} initially correct problems")
+        
+        # Evaluate each coefficient
+        search_results = []
+        best_coefficient = grid_points[0]
+        best_score = 0
+        best_result = None
+        found_peak = False  # Track if we've found any positive score
+        
+        for coeff in grid_points:
+            if steering_type == 'correct':
+                # Use simplified evaluation (correction rate only)
+                result = self.evaluate_coefficient_correction_only(coeff, show_progress=True)
+                score = result['metrics']['correction_rate']
+                metric_name = "correction rate"
+            else:
+                # Keep incorrect steering as-is
+                result = self.evaluate_coefficient_incorrect_steering(coeff, show_progress=True)
+                score = result['metrics']['corruption_rate']
+                metric_name = "corruption rate"
+            
+            search_results.append(result)
+            
+            logger.info(f"  Coefficient {coeff}: {metric_name} = {score:.1f}%")
+            
+            # Update best if improved
+            if score > best_score:
+                best_score = score
+                best_coefficient = coeff
+                best_result = result
+            
+            # Check for early stopping
+            if best_score > 0:
+                found_peak = True
+            
+            # Stop if we've found a peak and performance dropped
+            if found_peak and score < best_score:
+                logger.info(f"  Early stopping: performance dropped from {best_score:.1f}% to {score:.1f}%")
+                logger.info(f"  Stopping search to save compute credits")
+                break
+        
+        logger.info(f"\n{'='*60}")
+        logger.info(f"Grid search complete for {steering_type} steering")
+        logger.info(f"Optimal coefficient: {best_coefficient}")
+        logger.info(f"Best {metric_name}: {best_score:.1f}%")
+        logger.info(f"{'='*60}\n")
+        
+        return best_coefficient, {
+            'optimal_coefficient': best_coefficient,
+            'best_result': best_result,
+            'search_history': search_results
         }
         
     def save_coefficient_examples(self, coefficient: float, 
                                 steering_type: str,
-                                results: List[Dict]) -> None:
+                                results: Dict) -> None:
         """Save example generations for manual inspection."""
         coeff_dir = self.examples_dir / f"{steering_type}_coeff_{coefficient}"
         ensure_directory_exists(coeff_dir)
         
-        # Save all results
-        save_json(results, coeff_dir / "all_results.json")
-        
-        # Save examples that changed outcome separately
+        # Handle different result structures
         if steering_type == 'correct':
-            # For correct steering: save cases where initially incorrect became correct
-            changed_examples = [r for r in results if not r['baseline_passed'] and r['steered_passed']]
-            metric_rate = self.calculate_correction_rate(results)
-            metric_name = 'correction_rate'
-            example_type = 'corrected_examples'
+            # Simplified: only has results from incorrect dataset
+            all_results = results if isinstance(results, list) else []
+            
+            # Save corrected examples (incorrect→correct)
+            corrected_examples = [r for r in all_results 
+                                 if not r['baseline_passed'] and r['steered_passed']][:10]
+            if corrected_examples:
+                save_json(corrected_examples, coeff_dir / "corrected_examples.json")
+                
         else:
-            # For incorrect steering: save cases where initially correct became incorrect
-            changed_examples = [r for r in results if r['baseline_passed'] and not r['steered_passed']]
-            metric_rate = self.calculate_corruption_rate(results)
-            metric_name = 'corruption_rate'
-            example_type = 'corrupted_examples'
+            # Incorrect steering has single result list
+            all_results = results if isinstance(results, list) else []
+            
+            # Save corrupted examples (correct→incorrect)
+            corrupted_examples = [r for r in all_results 
+                                if r['baseline_passed'] and not r['steered_passed']][:10]
+            if corrupted_examples:
+                save_json(corrupted_examples, coeff_dir / "corrupted_examples.json")
         
-        if changed_examples:
-            save_json(changed_examples, coeff_dir / f"{example_type}.json")
-        
-        # Save summary with appropriate metric
-        summary = {
-            'coefficient': coefficient,
-            'steering_type': steering_type,
-            'total_problems': len(results),
-            'changed_count': len(changed_examples),
-            metric_name: metric_rate,
-            'divergence': self.calculate_generation_divergence(results)
-        }
-        save_json(summary, coeff_dir / "summary.json")
+        # Save all results if available
+        if all_results:
+            save_json(all_results, coeff_dir / "all_results.json")
         
     def run(self) -> Dict:
-        """Run coefficient grid search and save results."""
+        """Run simple grid search and save results."""
         start_time = time.time()
-        logger.info(f"Starting coefficient grid search with {len(self.config.phase4_5_coefficients)} coefficients")
+        logger.info("Starting Phase 4.5: Simple Grid Search Coefficient Selection")
+        logger.info(f"Using ALL problems from hyperparameter tuning set")
+        logger.info("SIMPLIFIED: Only measuring correction rate, NOT preservation rate")
         
-        all_results = {
-            'correct_steering': [],
-            'incorrect_steering': []
-        }
+        all_results = {}
+        selected_coefficients = {}
         
-        # Evaluate each coefficient for both steering types with appropriate baseline subsets
+        # Run simple grid search for both steering types
         for steering_type in ['correct', 'incorrect']:
-            logger.info(f"\nEvaluating {steering_type} steering...")
+            logger.info(f"\n{'='*80}")
+            logger.info(f"Evaluating {steering_type.upper()} steering")
+            logger.info(f"{'='*80}")
             
-            # Select appropriate problems for this steering type
-            problems_subset = self._stratified_problem_selection(
-                self.config.phase4_5_problems_per_coeff,
-                steering_type
+            # Run simple grid search
+            optimal_coeff, search_results = self.simple_grid_search(steering_type)
+            
+            # Save results
+            all_results[f'{steering_type}_steering'] = search_results
+            
+            # Determine primary metric based on steering type
+            if steering_type == 'correct':
+                primary_metric = 'correction_rate'
+                metric_value = search_results['best_result']['metrics']['correction_rate']
+            else:
+                primary_metric = 'corruption_rate'
+                metric_value = search_results['best_result']['metrics'].get('corruption_rate', 
+                                                                          search_results['best_result']['metrics'].get('composite_score', 0))
+            
+            # Save selected coefficient with metadata
+            selected_coefficients[steering_type] = {
+                'coefficient': optimal_coeff,
+                'layer': self.best_correct_feature['layer'] if steering_type == 'correct' else self.best_incorrect_feature['layer'],
+                'feature_index': self.best_correct_feature['feature_idx'] if steering_type == 'correct' else self.best_incorrect_feature['feature_idx'],
+                primary_metric: metric_value,
+                'metrics': search_results['best_result']['metrics'],
+                'n_problems_evaluated': search_results['best_result']['n_problems'],
+                'n_coefficients_tested': len(search_results['search_history']),
+                'early_stopped': len(search_results['search_history']) < len(self.config.phase4_5_initial_points),
+                'rationale': f"Optimal coefficient found via simple grid search with {primary_metric} {metric_value:.1f}%"
+            }
+            
+            # Save examples for the optimal coefficient
+            self.save_coefficient_examples(
+                optimal_coeff,
+                steering_type,
+                search_results['best_result'].get('results', {})
             )
             
-            # Save selected problems for this steering type
-            subset_filename = f"selected_problems_{steering_type}_steering.parquet"
-            problems_subset.to_parquet(self.output_dir / subset_filename)
+            # Save the evaluation dataset used
+            if steering_type == 'correct':
+                eval_data = self.initially_incorrect_data
+            else:
+                eval_data = self.initially_correct_data
             
-            for coefficient in self.config.phase4_5_coefficients:
-                logger.info(f"\nCoefficient {coefficient}:")
-                
-                # Evaluate coefficient
-                coeff_results = self.evaluate_coefficient(
-                    coefficient, 
-                    problems_subset,
-                    steering_type
-                )
-                
-                # Save examples
-                self.save_coefficient_examples(
-                    coefficient, 
-                    steering_type,
-                    coeff_results['results']
-                )
-                
-                # Log results with appropriate metric
-                if steering_type == 'correct':
-                    logger.info(f"  Correction rate: {coeff_results['correction_rate']:.1f}%")
-                else:
-                    logger.info(f"  Corruption rate: {coeff_results['corruption_rate']:.1f}%")
-                logger.info(f"  Token similarity: {coeff_results['divergence']['mean_token_similarity']:.3f}")
-                logger.info(f"  Char similarity: {coeff_results['divergence']['mean_char_similarity']:.3f}")
-                
-                all_results[f'{steering_type}_steering'].append(coeff_results)
-                
-                # Clear GPU cache
-                torch.cuda.empty_cache()
+            subset_filename = f"selected_problems_{steering_type}_steering.parquet"
+            eval_data.to_parquet(self.output_dir / subset_filename)
+            logger.info(f"Saved {len(eval_data)} evaluation problems to {subset_filename}")
+            
+            # Clear GPU cache
+            torch.cuda.empty_cache()
         
         # Save all results
         save_json(all_results, self.output_dir / "coefficient_analysis.json")
-        
-        # Manual selection placeholder
-        # In practice, this would be done through manual review
-        selected_coefficients = {
-            'correct': {
-                'coefficient': 30,  # Placeholder - should be selected based on analysis
-                'layer': self.best_correct_feature['layer'],
-                'feature_index': self.best_correct_feature['feature_idx'],
-                'rationale': "Balanced flip rate with preserved code quality"
-            },
-            'incorrect': {
-                'coefficient': 30,  # Placeholder - should be selected based on analysis
-                'layer': self.best_incorrect_feature['layer'], 
-                'feature_index': self.best_incorrect_feature['feature_idx'],
-                'rationale': "Balanced flip rate with preserved code quality"
-            }
-        }
-        
         save_json(selected_coefficients, self.output_dir / "selected_coefficients.json")
         
         # Create phase summary
         summary = {
             'phase': '4.5',
-            'description': 'Steering Coefficient Selection',
-            'start_time': datetime.now().isoformat(),
+            'description': 'Simple Grid Search Coefficient Selection',
+            'timestamp': datetime.now().isoformat(),
             'duration_seconds': time.time() - start_time,
+            'method': 'simple_grid_search_with_early_stopping',
             'config': {
-                'coefficients': self.config.phase4_5_coefficients,
-                'problems_per_coeff': self.config.phase4_5_problems_per_coeff,
-                'model': self.config.model_name
+                'grid_points': self.config.phase4_5_initial_points,
+                'model': self.config.model_name,
+                'initially_correct_count': len(self.initially_correct_data),
+                'initially_incorrect_count': len(self.initially_incorrect_data),
+                'simplified_approach': 'correction_rate_only',
+                'early_stopping_enabled': True
             },
             'results': {
-                'total_evaluations': len(self.config.phase4_5_coefficients) * 2,
                 'selected_coefficients': selected_coefficients,
                 'best_correct_feature': self.best_correct_feature,
                 'best_incorrect_feature': self.best_incorrect_feature
@@ -565,7 +585,29 @@ class SteeringCoefficientSelector:
         
         save_json(summary, self.output_dir / "phase_4_5_summary.json")
         
+        # Log final summary
+        logger.info(f"\n{'='*80}")
+        logger.info("PHASE 4.5 RESULTS SUMMARY")
+        logger.info(f"{'='*80}")
+        logger.info(f"Correct steering:")
+        logger.info(f"  - Optimal coefficient: {selected_coefficients['correct']['coefficient']}")
+        if 'correction_rate' in selected_coefficients['correct']:
+            logger.info(f"  - Correction rate: {selected_coefficients['correct']['correction_rate']:.1f}%")
+        elif 'correction_rate' in selected_coefficients['correct']['metrics']:
+            logger.info(f"  - Correction rate: {selected_coefficients['correct']['metrics']['correction_rate']:.1f}%")
+        logger.info("  - NOTE: Preservation rate NOT measured in simplified approach")
+        
+        logger.info(f"\nIncorrect steering:")
+        logger.info(f"  - Optimal coefficient: {selected_coefficients['incorrect']['coefficient']}")
+        if 'corruption_rate' in selected_coefficients['incorrect']:
+            logger.info(f"  - Corruption rate: {selected_coefficients['incorrect']['corruption_rate']:.1f}%")
+        elif 'corruption_rate' in selected_coefficients['incorrect']['metrics']:
+            logger.info(f"  - Corruption rate: {selected_coefficients['incorrect']['metrics']['corruption_rate']:.1f}%")
+            if 'avg_similarity' in selected_coefficients['incorrect']['metrics']:
+                logger.info(f"  - Avg similarity: {selected_coefficients['incorrect']['metrics']['avg_similarity']:.1f}%")
+        
         logger.info(f"\nPhase 4.5 completed in {time.time() - start_time:.1f} seconds")
         logger.info(f"Results saved to: {self.output_dir}")
+        logger.info(f"{'='*80}\n")
         
         return summary
