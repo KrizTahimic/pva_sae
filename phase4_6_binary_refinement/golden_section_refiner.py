@@ -515,75 +515,61 @@ class GoldenSectionCoefficientRefiner:
         logger.info(f"Initial scores: f({x1})={f1:.1f}%, f({x2})={f2:.1f}%")
         logger.info(f"Initial best: {best_coeff} with {best_score:.1f}%")
         
-        # Golden section search iterations - stop when consecutive integers
+        # Golden section search iterations
+        # Continue until we have consecutive integers (width <= 1)
         while b_int - a_int > 1:
             iteration += 1
             
-            # Special handling for narrow bounds to avoid golden point issues
+            # Special handling for narrow bounds (width=2) - the final search step
+            # When we have exactly 3 consecutive integers to test, we can determine
+            # the optimum directly without further golden section iterations
             if b_int - a_int == 2:
-                # For [a, a+2], test all three points: a, a+1, a+2
-                middle = a_int + 1
+                logger.info(f"  Final search step: testing all 3 points in [{a_int}, {b_int}]")
                 
-                # Get scores for all three points
-                score_a = self.get_score(a_int, steering_type)
-                score_middle = self.get_score(middle, steering_type)
-                score_b = self.get_score(b_int, steering_type)
+                # Test all three consecutive integers using list comprehension
+                test_points = [a_int, a_int + 1, b_int]
+                scores = [self.get_score(p, steering_type) for p in test_points]
                 
-                logger.info(f"  Special narrow bounds handling: a={a_int}({score_a:.1f}%), "
-                           f"middle={middle}({score_middle:.1f}%), b={b_int}({score_b:.1f}%)")
+                # Log the scores
+                score_str = ", ".join(f"{p}={s:.1f}%" for p, s in zip(test_points, scores))
+                logger.info(f"    Scores: {score_str}")
                 
-                # Find the best of the three points
-                max_score = max(score_a, score_middle, score_b)
-                
-                # Update global best if needed
-                if max_score > best_score:
-                    if score_a == max_score:
-                        best_coeff = a_int
-                    elif score_middle == max_score:
-                        best_coeff = middle
-                    else:
-                        best_coeff = b_int
-                    best_score = max_score
-                    logger.info(f"  New best: {best_coeff} with {best_score:.1f}%")
-                
-                # Determine how to narrow bounds based on where the best point is
-                if score_middle >= max(score_a, score_b):
-                    # Middle is best - we've found the optimum
-                    best_coeff = middle
-                    best_score = score_middle
-                    logger.info(f"  Middle point {middle} is optimal with {best_score:.1f}%")
-                    break
-                elif score_a > score_b:
-                    # Best is towards a, narrow to [a, middle]
-                    b_int = middle
-                    logger.info(f"  Narrowing bounds to [{a_int}, {b_int}] (towards a)")
-                else:
-                    # Best is towards b, narrow to [middle, b]
-                    a_int = middle
-                    logger.info(f"  Narrowing bounds to [{a_int}, {b_int}] (towards b)")
-                
-                # Check if we've converged
-                if b_int - a_int <= 1:
-                    break
-                
-                # Recalculate golden points for the new bounds
-                x1, x2 = self._get_integer_golden_points(a_int, b_int)
-                f1 = self.get_score(x1, steering_type)
-                f2 = self.get_score(x2, steering_type)
+                # Find the best coefficient and update global best if needed
+                best_local_coeff, best_local_score = max(zip(test_points, scores), key=lambda x: x[1])
+                if best_local_score > best_score:
+                    best_score = best_local_score
+                    best_coeff = best_local_coeff
+                    logger.info(f"    New global best: {best_coeff} with {best_score:.1f}%")
                 
                 # Add to search history
                 search_history.append({
                     'iteration': iteration,
                     'bounds': [a_int, b_int],
-                    'special_case': 'narrow_bounds_width_2',
-                    'tested_points': [a_int, middle, b_int],
-                    'scores': [score_a, score_middle, score_b],
+                    'special_case': 'final_width_2',
+                    'tested_points': test_points,
+                    'scores': scores,
                     'best_score': best_score,
                     'best_coefficient': best_coeff
                 })
                 
-                continue  # Skip the normal golden section logic
+                # Determine next action based on which point scored best
+                best_idx = scores.index(max(scores))
+                
+                if best_idx == 1:  # Middle point is best
+                    logger.info(f"    Optimum found at interior point {test_points[1]}")
+                    break
+                elif best_idx == 0:  # Left boundary is best
+                    b_int = test_points[1]  # Narrow to [a_int, middle]
+                    logger.info(f"    Best at left boundary, converging to [{a_int}, {b_int}]")
+                else:  # Right boundary is best
+                    a_int = test_points[1]  # Narrow to [middle, b_int]
+                    logger.info(f"    Best at right boundary, converging to [{a_int}, {b_int}]")
+                
+                # At this point we have consecutive integers - search is complete
+                # The while loop condition (b_int - a_int > 1) will fail on next iteration
             
+            # Normal golden section search for wider intervals (width > 2)
+            # This uses the golden ratio to efficiently narrow the search space
             if f1 > f2:
                 # Maximum is in [a_int, x2], eliminate [x2, b_int]
                 b_int = x2
@@ -633,21 +619,23 @@ class GoldenSectionCoefficientRefiner:
                 'best_coefficient': best_coeff
             })
             
-            # Safety check to prevent infinite loops
+            # Convergence check: stop if we've reached consecutive integers
             if b_int - a_int <= 1:
+                logger.debug(f"  Converged to consecutive integers: [{a_int}, {b_int}]")
                 break
             
             # Clear GPU cache
             torch.cuda.empty_cache()
         
-        # Final evaluation: test the remaining integers in the final bounds
+        # Final evaluation: test any remaining candidates (consecutive integers)
+        # This handles the case where we exited with width=1 without testing both points
         final_candidates = []
         for coeff in range(a_int, b_int + 1):
             score = self.get_score(coeff, steering_type)
             final_candidates.append((coeff, score))
-            logger.info(f"Final candidate: {coeff} = {score:.1f}%")
+            logger.info(f"Final candidate evaluation: {coeff} = {score:.1f}%")
         
-        # Select the best from final candidates
+        # Select the best coefficient from all final candidates
         optimal_coeff, optimal_score = max(final_candidates, key=lambda x: x[1])
         
         logger.info(f"\n{'='*60}")
