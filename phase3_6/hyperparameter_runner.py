@@ -23,6 +23,7 @@ from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger
 from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists
+from common.retry_utils import retry_generation, create_exclusion_summary
 
 # Module-level logger
 logger = get_logger("hyperparameter_runner", phase="3.6")
@@ -194,8 +195,12 @@ class HyperparameterDataRunner:
         
         return output_dir
     
-    def _process_single_task(self, row: pd.Series) -> Dict:
-        """Process a single hyperparameter task at temperature 0.0."""
+    def _process_single_task(self, row: pd.Series) -> Optional[Dict]:
+        """Process a single hyperparameter task at temperature 0.0 with retry logic.
+        
+        Returns:
+            Dict with results if successful, None if task failed after all retries
+        """
         # Build prompt
         test_cases_str = "\n".join([
             f"assert {test.strip()}" for test in row['test_list']
@@ -205,36 +210,44 @@ class HyperparameterDataRunner:
             test_cases=test_cases_str
         )
         
-        start_time = time.time()
-        
-        try:
+        # Define generation function for retry logic
+        def generate_task():
+            start_time = time.time()
+            
             # Generate with activations
             generated_text, activations = self.generate_with_activations(prompt, row['task_id'])
             
             # Extract code and evaluate
             generated_code = extract_code(generated_text, prompt)
             test_passed = evaluate_code(generated_code, row['test_list'])
-            error_message = None
             
-        except Exception as e:
-            logger.warning(f"Generation failed for {row['task_id']}: {e}")
-            generated_code = ""
-            test_passed = False
-            error_message = str(e)
+            generation_time = time.time() - start_time
+            
+            return {
+                'task_id': row['task_id'],
+                'temperature': 0.0,
+                'prompt': prompt,
+                'generated_code': generated_code,
+                'test_passed': test_passed,
+                'error_message': None,
+                'generation_time': generation_time,
+                'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
+                'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
+            }
         
-        generation_time = time.time() - start_time
+        # Attempt generation with retry logic
+        success, result, error_msg = retry_generation(
+            generate_task,
+            row['task_id'],
+            self.config,
+            "hyperparameter generation"
+        )
         
-        return {
-            'task_id': row['task_id'],
-            'temperature': 0.0,
-            'prompt': prompt,
-            'generated_code': generated_code,
-            'test_passed': test_passed,
-            'error_message': error_message,
-            'generation_time': generation_time,
-            'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
-            'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
-        }
+        if success:
+            return result
+        else:
+            logger.warning(f"Task {row['task_id']} failed after {self.config.max_retries} attempts: {error_msg}")
+            return None
     
     def run(self) -> Dict[str, any]:
         """Run hyperparameter split processing at temperature 0.0."""
@@ -265,32 +278,27 @@ class HyperparameterDataRunner:
         # Setup output directories
         self.output_dir = self._setup_output_directories()
         
-        # Process all tasks
+        # Process all tasks with retry logic
         all_results = []
+        excluded_tasks = []
         
         # Progress bar
         pbar = tqdm(total=len(hyperparams_data), desc="Hyperparameter data generation")
         
         for idx, row in hyperparams_data.iterrows():
-            try:
-                result = self._process_single_task(row)
+            # Process task with retry logic
+            result = self._process_single_task(row)
+            
+            if result is not None:
+                # Task succeeded - add to results
                 all_results.append(result)
-            except Exception as e:
-                import traceback
-                logger.error(f"Failed to process task {row['task_id']}: {e}")
-                logger.error(f"Traceback:\n{traceback.format_exc()}")
-                # Add failed result
-                all_results.append({
+            else:
+                # Task failed after all retries - exclude from dataset
+                excluded_tasks.append({
                     'task_id': row['task_id'],
-                    'temperature': 0.0,
-                    'prompt': "",
-                    'generated_code': "",
-                    'test_passed': False,
-                    'error_message': str(e),
-                    'generation_time': 0.0,
-                    'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
-                    'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
+                    'error': 'Failed after retry attempts'
                 })
+                logger.debug(f"Excluding task {row['task_id']} from hyperparameter dataset")
             
             pbar.update(1)
             
@@ -300,15 +308,39 @@ class HyperparameterDataRunner:
         
         pbar.close()
         
+        # Handle case where no tasks succeeded
+        if not all_results:
+            logger.error("No hyperparameter tasks were successfully processed!")
+            if excluded_tasks:
+                exclusion_file = self.output_dir / "excluded_tasks.json"
+                exclusion_summary = create_exclusion_summary(excluded_tasks, len(hyperparams_data))
+                save_json(exclusion_summary, exclusion_file)
+                logger.info(f"Saved exclusion summary to {exclusion_file}")
+            raise RuntimeError("Phase 3.6 failed: no hyperparameter tasks were successfully processed")
+        
         # Save results
         self._save_results(all_results)
         
-        # Create and save metadata
-        metadata = self._create_metadata(all_results, hyperparams_data['task_id'].tolist())
+        # Save exclusion information
+        if excluded_tasks:
+            exclusion_summary = create_exclusion_summary(excluded_tasks, len(hyperparams_data))
+            exclusion_file = self.output_dir / "excluded_tasks.json"
+            save_json(exclusion_summary, exclusion_file)
+            logger.info(f"Saved exclusion summary to {exclusion_file}")
+        
+        # Create and save metadata (with exclusion info)
+        metadata = self._create_metadata(all_results, hyperparams_data['task_id'].tolist(), excluded_tasks)
         self._save_metadata(metadata)
         
-        # Log summary
+        # Log summary including exclusions
+        n_attempted = len(hyperparams_data)
+        n_excluded = len(excluded_tasks)
+        n_included = len(all_results)
         correct = sum(1 for r in all_results if r['test_passed'])
+        
+        logger.info(f"Tasks processed: {n_included}/{n_attempted} ({n_excluded} excluded)")
+        if excluded_tasks:
+            logger.warning(f"Excluded tasks: {[t['task_id'] for t in excluded_tasks]}")
         logger.info(
             f"Temperature 0.0: {correct}/{len(all_results)} passed "
             f"({correct/len(all_results):.1%})"
@@ -330,10 +362,14 @@ class HyperparameterDataRunner:
     def _create_metadata(
         self,
         all_results: List[Dict],
-        hyperparams_task_ids: List[str]
+        hyperparams_task_ids: List[str],
+        excluded_tasks: List[Dict]
     ) -> Dict:
         """Create metadata summary."""
         correct_count = sum(1 for r in all_results if r['test_passed'])
+        n_attempted = len(hyperparams_task_ids)
+        n_excluded = len(excluded_tasks)
+        n_included = len(all_results)
         
         metadata = {
             "creation_timestamp": datetime.now().isoformat(),
@@ -346,7 +382,11 @@ class HyperparameterDataRunner:
             "extraction_layers": self.extraction_layers,
             "temperature": 0.0,
             "hyperparams_task_ids": hyperparams_task_ids,
-            "n_tasks": len(hyperparams_task_ids),
+            "n_tasks_attempted": n_attempted,
+            "n_tasks_included": n_included,
+            "n_tasks_excluded": n_excluded,
+            "exclusion_rate_percent": round((n_excluded / n_attempted * 100) if n_attempted > 0 else 0, 2),
+            "excluded_task_ids": [t['task_id'] for t in excluded_tasks],
             "n_total_samples": len(all_results),
             "stats": {
                 "n_correct": correct_count,

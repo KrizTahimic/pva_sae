@@ -31,6 +31,7 @@ from common.steering_metrics import (
     calculate_preservation_rate,
     calculate_code_similarity
 )
+from common.retry_utils import retry_generation, create_exclusion_summary
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.helpers import evaluate_code, extract_code, load_json, save_json
 from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
@@ -329,6 +330,7 @@ class GoldenSectionCoefficientRefiner:
         hook_handle = target_module.register_forward_pre_hook(hook_fn)
         
         results = []
+        excluded_tasks = []
         
         try:
             iterator = problems_df.iterrows()
@@ -337,57 +339,80 @@ class GoldenSectionCoefficientRefiner:
                               desc=f"Coeff {coefficient:.2f}")
             
             for idx, row in iterator:
-                # Generate with steering
-                prompt = row['prompt']
-                
-                inputs = self.tokenizer(
-                    prompt,
-                    return_tensors="pt",
-                    truncation=True,
-                    max_length=self.config.activation_max_length
-                ).to(self.device)
-                
-                with torch.no_grad():
-                    outputs = self.model.generate(
-                        **inputs,
-                        max_new_tokens=self.config.model_max_new_tokens,
-                        temperature=0.0,
-                        do_sample=False,
-                        pad_token_id=self.tokenizer.pad_token_id
+                # Define generation function for retry logic
+                def generate_steered():
+                    prompt = row['prompt']
+                    
+                    inputs = self.tokenizer(
+                        prompt,
+                        return_tensors="pt",
+                        truncation=True,
+                        max_length=self.config.activation_max_length
+                    ).to(self.device)
+                    
+                    with torch.no_grad():
+                        outputs = self.model.generate(
+                            **inputs,
+                            max_new_tokens=self.config.model_max_new_tokens,
+                            temperature=0.0,
+                            do_sample=False,
+                            pad_token_id=self.tokenizer.pad_token_id
+                        )
+                    
+                    # Extract generated code
+                    generated_text = self.tokenizer.decode(
+                        outputs[0][inputs['input_ids'].shape[1]:], 
+                        skip_special_tokens=True
                     )
+                    generated_code = extract_code(generated_text, prompt)
+                    
+                    # Evaluate code
+                    test_passed = evaluate_code(
+                        generated_code,
+                        json.loads(row['test_list'])
+                    )
+                    
+                    return {
+                        'generated_code': generated_code,
+                        'test_passed': test_passed
+                    }
                 
-                # Extract generated code
-                generated_text = self.tokenizer.decode(
-                    outputs[0][inputs['input_ids'].shape[1]:], 
-                    skip_special_tokens=True
+                # Attempt generation with retry logic
+                success, generation_result, error_msg = retry_generation(
+                    generate_steered,
+                    row['task_id'],
+                    self.config,
+                    f"{steering_type} steering refinement (coeff {coefficient:.2f})"
                 )
-                generated_code = extract_code(generated_text, prompt)
                 
-                # Evaluate code
-                test_passed = evaluate_code(
-                    generated_code,
-                    json.loads(row['test_list'])
-                )
-                
-                # Check if result flipped from baseline
-                baseline_passed = row['test_passed']
-                steered_passed = test_passed
-                
-                # Calculate similarity
-                baseline_code = row['generated_code']
-                code_similarity = calculate_code_similarity(baseline_code, generated_code)
-                
-                result = {
-                    'task_id': row['task_id'],
-                    'baseline_passed': baseline_passed,
-                    'steered_passed': steered_passed,
-                    'flipped': baseline_passed != steered_passed,
-                    'code_similarity': code_similarity,
-                    'baseline_code': baseline_code,
-                    'steered_code': generated_code
-                }
-                
-                results.append(result)
+                if success:
+                    # Check if result flipped from baseline
+                    baseline_passed = row['test_passed']
+                    steered_passed = generation_result['test_passed']
+                    
+                    # Calculate similarity
+                    baseline_code = row['generated_code']
+                    generated_code = generation_result['generated_code']
+                    code_similarity = calculate_code_similarity(baseline_code, generated_code)
+                    
+                    result = {
+                        'task_id': row['task_id'],
+                        'baseline_passed': baseline_passed,
+                        'steered_passed': steered_passed,
+                        'flipped': baseline_passed != steered_passed,
+                        'code_similarity': code_similarity,
+                        'baseline_code': baseline_code,
+                        'steered_code': generated_code
+                    }
+                    
+                    results.append(result)
+                else:
+                    # Task failed after all retries - exclude from results
+                    excluded_tasks.append({
+                        'task_id': row['task_id'],
+                        'error': error_msg
+                    })
+                    logger.debug(f"Excluding task {row['task_id']} from {steering_type} steering refinement")
                 
                 # Clear GPU cache periodically
                 if idx % 10 == 0:
@@ -396,6 +421,14 @@ class GoldenSectionCoefficientRefiner:
         finally:
             # Remove hook
             hook_handle.remove()
+            
+        # Log exclusions if any
+        if excluded_tasks:
+            logger.warning(f"Excluded {len(excluded_tasks)} tasks from {steering_type} steering "
+                          f"refinement (coefficient {coefficient:.2f})")
+        
+        logger.debug(f"Successfully evaluated {len(results)}/{len(problems_df)} problems "
+                    f"({len(excluded_tasks)} excluded)")
         
         # Calculate score based on steering type
         if steering_type == 'correct':

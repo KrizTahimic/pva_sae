@@ -157,11 +157,17 @@ class Config:
     
     # === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
     # Grid search coefficients from 10 to 100 in increments of 10
-    phase4_5_initial_points: List[float] = field(default_factory=lambda: list(range(10, 101, 10)))
+    phase4_5_initial_points: List[float] = field(default_factory=lambda: [20.0, 30.0, 40.0, 50.0])
+    # phase4_5_initial_points: List[float] = field(default_factory=lambda: list(range(10, 101, 10)))
+
     phase4_5_search_tolerance: float = 2.0  # Stop binary search when range < tolerance
     phase4_5_meaningful_effect_threshold: float = 5.0  # Minimum % for meaningful effect
     phase4_5_plateau_threshold: float = 2.0  # Max % change to consider plateaued
     phase4_5_output_dir: str = "data/phase4_5"
+    
+    # === GOLDEN SECTION SEARCH COEFFICIENT REFINEMENT (Phase 4.6) ===
+    phase4_6_tolerance: float = 1.0  # Stop when range < tolerance (no max_iterations - runs to convergence)
+    phase4_6_output_dir: str = "data/phase4_6"
     
     # === STEERING EFFECT ANALYSIS (Phase 4.8) ===
     phase4_8_correct_coefficient: float = 45.0
@@ -415,6 +421,11 @@ class Config:
             # Phase 3.10 requires Phase 3.8 (best features) and 3.5 (temperature data)
             # No specific config validation needed - uses standard settings
             pass
+        
+        elif phase == "4.6":
+            # Phase 4.6 requires Phase 4.5 results for search bounds
+            if self.phase4_6_tolerance <= 0:
+                raise ValueError("phase4_6_tolerance must be > 0")
     
     def get_phase_output_dir(self, phase: str) -> str:
         """Get output directory for specific phase."""

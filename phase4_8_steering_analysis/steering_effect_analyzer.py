@@ -27,10 +27,15 @@ from common.utils import (
     detect_device
 )
 from common.config import Config
+from common.steering_metrics import (
+    create_steering_hook,
+    calculate_correction_rate,
+    calculate_corruption_rate
+)
+from common.retry_utils import retry_generation, create_exclusion_summary
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.helpers import evaluate_code, extract_code, load_json, save_json
 from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
-from phase4_5_model_steering.steering_coefficient_selector import create_steering_hook
 
 logger = get_logger("phase4_8.steering_effect_analyzer")
 
@@ -170,8 +175,8 @@ class SteeringEffectAnalyzer:
         
     def _apply_steering(self, problems_df: pd.DataFrame, 
                        steering_type: str, 
-                       coefficient: float) -> List[Dict]:
-        """Apply steering to problems and evaluate results."""
+                       coefficient: float) -> pd.DataFrame:
+        """Apply steering to problems and evaluate results. Returns DataFrame with steering results."""
         logger.info(f"Applying {steering_type} steering with coefficient {coefficient} to {len(problems_df)} problems")
         
         # Select decoder direction and target layer based on steering type
@@ -192,60 +197,87 @@ class SteeringEffectAnalyzer:
         hook_handle = target_module.register_forward_pre_hook(hook_fn)
         
         results = []
+        excluded_tasks = []
         
         try:
             for idx, row in tqdm(problems_df.iterrows(), 
                                total=len(problems_df),
                                desc=f"{steering_type.capitalize()} steering"):
-                # Build prompt from row data
-                test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-                prompt = row['prompt']  # Prompt already built in Phase 3.5
                 
-                # Generate with steering
-                inputs = self.tokenizer(
-                    prompt,
-                    return_tensors="pt",
-                    truncation=True,
-                    max_length=self.config.activation_max_length
-                ).to(self.device)
-                
-                with torch.no_grad():
-                    outputs = self.model.generate(
-                        **inputs,
-                        max_new_tokens=self.config.model_max_new_tokens,
-                        temperature=0.0,  # Deterministic generation
-                        do_sample=False,
-                        pad_token_id=self.tokenizer.pad_token_id,
-                        eos_token_id=self.tokenizer.eos_token_id
+                # Define generation function for retry logic
+                def generate_steered_code():
+                    # Build prompt from row data
+                    test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                    prompt = row['prompt']  # Prompt already built in Phase 3.5
+                    
+                    # Generate with steering
+                    inputs = self.tokenizer(
+                        prompt,
+                        return_tensors="pt",
+                        truncation=True,
+                        max_length=self.config.activation_max_length
+                    ).to(self.device)
+                    
+                    with torch.no_grad():
+                        outputs = self.model.generate(
+                            **inputs,
+                            max_new_tokens=self.config.model_max_new_tokens,
+                            temperature=0.0,  # Deterministic generation
+                            do_sample=False,
+                            pad_token_id=self.tokenizer.pad_token_id,
+                            eos_token_id=self.tokenizer.eos_token_id
+                        )
+                    
+                    # Extract generated code
+                    generated_text = self.tokenizer.decode(
+                        outputs[0][inputs['input_ids'].shape[1]:], 
+                        skip_special_tokens=True
                     )
+                    generated_code = extract_code(generated_text, prompt)
+                    
+                    # Evaluate code
+                    test_passed = evaluate_code(generated_code, test_cases)
+                    
+                    return {
+                        'generated_code': generated_code,
+                        'test_passed': test_passed,
+                        'test_cases': test_cases,
+                        'prompt': prompt
+                    }
                 
-                # Extract generated code
-                generated_text = self.tokenizer.decode(
-                    outputs[0][inputs['input_ids'].shape[1]:], 
-                    skip_special_tokens=True
+                # Attempt generation with retry logic
+                success, generation_result, error_msg = retry_generation(
+                    generate_steered_code,
+                    row['task_id'],
+                    self.config,
+                    f"{steering_type} steering"
                 )
-                generated_code = extract_code(generated_text, prompt)
                 
-                # Evaluate code
-                test_passed = evaluate_code(generated_code, test_cases)
-                
-                # Check if result flipped from baseline
-                baseline_passed = row['test_passed']
-                flipped = baseline_passed != test_passed
-                
-                result = {
-                    'task_id': row['task_id'],
-                    'baseline_passed': baseline_passed,
-                    'steered_passed': test_passed,
-                    'flipped': flipped,
-                    'flip_direction': f"{'pass' if baseline_passed else 'fail'}→{'pass' if test_passed else 'fail'}",
-                    'baseline_code': row['generated_code'],
-                    'steered_code': generated_code,
-                    'steering_type': steering_type,
-                    'coefficient': coefficient
-                }
-                
-                results.append(result)
+                if success:
+                    # Check if result flipped from baseline
+                    baseline_passed = row['test_passed']
+                    steered_passed = generation_result['test_passed']
+                    flipped = baseline_passed != steered_passed
+                    
+                    result = {
+                        'task_id': row['task_id'],
+                        'test_passed': baseline_passed,  # unsteered version
+                        'steered_passed': steered_passed,
+                        'flipped': flipped,
+                        'baseline_code': row['generated_code'],
+                        'steered_code': generation_result['generated_code'],
+                        'steering_type': steering_type,
+                        'coefficient': coefficient
+                    }
+                    
+                    results.append(result)
+                else:
+                    # Task failed after all retries - exclude from dataset
+                    excluded_tasks.append({
+                        'task_id': row['task_id'],
+                        'error': error_msg
+                    })
+                    logger.warning(f"Excluding task {row['task_id']} from {steering_type} steering results")
                 
                 # Clear GPU cache periodically
                 if idx % 10 == 0:
@@ -255,13 +287,46 @@ class SteeringEffectAnalyzer:
             # Always remove hook after use
             hook_handle.remove()
             
-        logger.info(f"Completed {steering_type} steering: {sum(r['flipped'] for r in results)} flipped out of {len(results)}")
+        # Log results summary including exclusions
+        n_flipped = sum(r['flipped'] for r in results)
+        n_successful = len(results)
+        n_attempted = len(problems_df)
+        n_excluded = len(excluded_tasks)
         
-        return results
+        logger.info(f"Completed {steering_type} steering: {n_flipped} flipped out of {n_successful} successful "
+                   f"({n_attempted} attempted, {n_excluded} excluded)")
         
-    def evaluate_steering_effects(self) -> Tuple[List[Dict], List[Dict]]:
+        if excluded_tasks:
+            logger.warning(f"Excluded {n_excluded} tasks from {steering_type} steering: "
+                          f"{[t['task_id'] for t in excluded_tasks]}")
+        
+        # Save excluded tasks for debugging
+        if excluded_tasks:
+            excluded_file = self.output_dir / f"excluded_tasks_{steering_type}_steering.json"
+            save_json(excluded_tasks, excluded_file)
+            logger.info(f"Saved excluded tasks to {excluded_file}")
+        
+        # Convert results to DataFrame
+        results_df = pd.DataFrame(results)
+        
+        # Merge results with original problems_df on task_id to ensure proper alignment
+        steered_df = problems_df.merge(
+            results_df[['task_id', 'steered_code', 'steered_passed', 'flipped']],
+            on='task_id',
+            how='left'
+        )
+        
+        # Rename steered_code to steered_generated_code for consistency
+        steered_df.rename(columns={'steered_code': 'steered_generated_code'}, inplace=True)
+        
+        return steered_df
+        
+    def evaluate_steering_effects(self) -> Tuple[pd.DataFrame, pd.DataFrame, dict]:
         """Evaluate both correct and incorrect steering effects."""
         logger.info("Evaluating steering effects...")
+        
+        n_initially_incorrect = len(self.initially_incorrect_data)
+        n_initially_correct = len(self.initially_correct_data)
         
         # Apply correct steering to initially incorrect problems
         # Goal: Measure correction rate (incorrect→correct)
@@ -279,52 +344,62 @@ class SteeringEffectAnalyzer:
             coefficient=self.config.phase4_8_incorrect_coefficient
         )
         
-        return correction_results, corruption_results
+        # Calculate exclusion summary
+        correction_excluded = n_initially_incorrect - len(correction_results)
+        corruption_excluded = n_initially_correct - len(corruption_results)
+        total_excluded = correction_excluded + corruption_excluded
+        total_attempted = n_initially_incorrect + n_initially_correct
         
-    def calculate_correction_rate(self, results: List[Dict]) -> float:
-        """Calculate percentage of incorrect→correct transitions."""
-        if not results:
-            return 0.0
-            
-        # Count how many initially incorrect problems became correct after steering
-        corrected = sum(1 for r in results if not r['baseline_passed'] and r['steered_passed'])
-        total_incorrect = sum(1 for r in results if not r['baseline_passed'])
+        exclusion_summary = {
+            'total_tasks_attempted': total_attempted,
+            'tasks_included': len(correction_results) + len(corruption_results),
+            'tasks_excluded': total_excluded,
+            'exclusion_rate_percent': round((total_excluded / total_attempted * 100) if total_attempted > 0 else 0, 2),
+            'correction_experiment': {
+                'attempted': n_initially_incorrect,
+                'included': len(correction_results),
+                'excluded': correction_excluded
+            },
+            'corruption_experiment': {
+                'attempted': n_initially_correct,
+                'included': len(corruption_results),  
+                'excluded': corruption_excluded
+            }
+        }
         
-        if total_incorrect == 0:
-            logger.warning("No initially incorrect problems found for correction rate calculation")
-            return 0.0
-            
-        correction_rate = (corrected / total_incorrect) * 100
-        logger.info(f"Correction rate: {corrected}/{total_incorrect} = {correction_rate:.1f}%")
+        logger.info(f"Exclusion summary: {total_excluded}/{total_attempted} tasks excluded "
+                   f"({exclusion_summary['exclusion_rate_percent']}%)")
         
-        return correction_rate
+        # Save parquet files with steering results (only successful tasks)
+        logger.info("Saving parquet files with steering results...")
         
-    def calculate_corruption_rate(self, results: List[Dict]) -> float:
-        """Calculate percentage of correct→incorrect transitions."""
-        if not results:
-            return 0.0
-            
-        # Count how many initially correct problems became incorrect after steering
-        corrupted = sum(1 for r in results if r['baseline_passed'] and not r['steered_passed'])
-        total_correct = sum(1 for r in results if r['baseline_passed'])
+        # Save initially incorrect problems with correct steering results
+        if len(correction_results) > 0:
+            incorrect_output_file = self.output_dir / "selected_incorrect_problems.parquet"
+            correction_results.to_parquet(incorrect_output_file, index=False)
+            logger.info(f"Saved {len(correction_results)} initially incorrect problems to {incorrect_output_file}")
+        else:
+            logger.warning("No successful correction results to save")
         
-        if total_correct == 0:
-            logger.warning("No initially correct problems found for corruption rate calculation")
-            return 0.0
-            
-        corruption_rate = (corrupted / total_correct) * 100
-        logger.info(f"Corruption rate: {corrupted}/{total_correct} = {corruption_rate:.1f}%")
+        # Save initially correct problems with incorrect steering results
+        if len(corruption_results) > 0:
+            correct_output_file = self.output_dir / "selected_correct_problems.parquet"
+            corruption_results.to_parquet(correct_output_file, index=False)
+            logger.info(f"Saved {len(corruption_results)} initially correct problems to {correct_output_file}")
+        else:
+            logger.warning("No successful corruption results to save")
         
-        return corruption_rate
+        return correction_results, corruption_results, exclusion_summary
         
-    def run_statistical_tests(self, correction_results: List[Dict], 
-                            corruption_results: List[Dict]) -> Dict:
+        
+    def run_statistical_tests(self, correction_results: pd.DataFrame, 
+                            corruption_results: pd.DataFrame) -> Dict:
         """Run binomial tests for statistical significance."""
         logger.info("Running statistical tests...")
         
         # Test correction effect
-        correction_successes = sum(1 for r in correction_results if not r['baseline_passed'] and r['steered_passed'])
-        correction_trials = sum(1 for r in correction_results if not r['baseline_passed'])
+        correction_successes = len(correction_results[(correction_results['test_passed'] == False) & correction_results['steered_passed']])
+        correction_trials = len(correction_results[correction_results['test_passed'] == False])
         
         if correction_trials > 0:
             # Null hypothesis: no effect (p = 0)
@@ -337,8 +412,8 @@ class SteeringEffectAnalyzer:
             correction_significant = False
             
         # Test corruption effect  
-        corruption_successes = sum(1 for r in corruption_results if r['baseline_passed'] and not r['steered_passed'])
-        corruption_trials = sum(1 for r in corruption_results if r['baseline_passed'])
+        corruption_successes = len(corruption_results[corruption_results['test_passed'] & (corruption_results['steered_passed'] == False)])
+        corruption_trials = len(corruption_results[corruption_results['test_passed']])
         
         if corruption_trials > 0:
             # Null hypothesis: no effect (p = 0)
@@ -385,8 +460,15 @@ class SteeringEffectAnalyzer:
         ax1.bar(['Correction Rate'], [correction_rate], color='green' if correction_sig else 'gray', alpha=0.7)
         ax1.set_ylabel('Percentage (%)')
         ax1.set_title(f'Correction Rate (Incorrect→Correct)\np={correction_pvalue:.4f} {"*" if correction_sig else "n.s."}')
-        ax1.set_ylim(0, max(correction_rate * 1.2, 20))
-        ax1.text(0, correction_rate + 1, f'{correction_rate:.1f}%', ha='center', va='bottom', fontweight='bold')
+        ax1.set_ylim(0, 100)
+        
+        # Dynamic text positioning to avoid overlap
+        if correction_rate < 90:
+            ax1.text(0, correction_rate + 2, f'{correction_rate:.1f}%', 
+                     ha='center', va='bottom', fontweight='bold')
+        else:
+            ax1.text(0, correction_rate - 5, f'{correction_rate:.1f}%', 
+                     ha='center', va='top', fontweight='bold', color='white')
         
         # Plot corruption rate
         corruption_rate = metrics['statistical_tests']['corruption']['rate']
@@ -396,8 +478,15 @@ class SteeringEffectAnalyzer:
         ax2.bar(['Corruption Rate'], [corruption_rate], color='red' if corruption_sig else 'gray', alpha=0.7)
         ax2.set_ylabel('Percentage (%)')
         ax2.set_title(f'Corruption Rate (Correct→Incorrect)\np={corruption_pvalue:.4f} {"*" if corruption_sig else "n.s."}')
-        ax2.set_ylim(0, max(corruption_rate * 1.2, 20))
-        ax2.text(0, corruption_rate + 1, f'{corruption_rate:.1f}%', ha='center', va='bottom', fontweight='bold')
+        ax2.set_ylim(0, 100)
+        
+        # Dynamic text positioning to avoid overlap
+        if corruption_rate < 90:
+            ax2.text(0, corruption_rate + 2, f'{corruption_rate:.1f}%', 
+                     ha='center', va='bottom', fontweight='bold')
+        else:
+            ax2.text(0, corruption_rate - 5, f'{corruption_rate:.1f}%', 
+                     ha='center', va='top', fontweight='bold', color='white')
         
         # Add main title
         fig.suptitle(f'Steering Effect Analysis\nCorrect Coefficient: {metrics["coefficients"]["correct"]}, '
@@ -418,32 +507,36 @@ class SteeringEffectAnalyzer:
         
         logger.info(f"Saved visualization to {output_file}")
         
-    def save_examples(self, correction_results: List[Dict], 
-                     corruption_results: List[Dict]) -> None:
+    def save_examples(self, correction_results: pd.DataFrame, 
+                     corruption_results: pd.DataFrame) -> None:
         """Save example generations that flipped."""
         # Extract corrected examples (incorrect→correct)
+        corrected_df = correction_results[
+            (correction_results['test_passed'] == False) & correction_results['steered_passed']
+        ].head(10)
+        
         corrected_examples = [
             {
-                'task_id': r['task_id'],
-                'flip_direction': r['flip_direction'],
-                'baseline_code': r['baseline_code'],
-                'steered_code': r['steered_code']
+                'task_id': row['task_id'],
+                'baseline_code': row['generated_code'],
+                'steered_code': row['steered_generated_code']
             }
-            for r in correction_results 
-            if not r['baseline_passed'] and r['steered_passed']
-        ][:10]  # Save up to 10 examples
+            for _, row in corrected_df.iterrows()
+        ]
         
         # Extract corrupted examples (correct→incorrect)
+        corrupted_df = corruption_results[
+            corruption_results['test_passed'] & (corruption_results['steered_passed'] == False)
+        ].head(10)
+        
         corrupted_examples = [
             {
-                'task_id': r['task_id'],
-                'flip_direction': r['flip_direction'],
-                'baseline_code': r['baseline_code'],
-                'steered_code': r['steered_code']
+                'task_id': row['task_id'],
+                'baseline_code': row['generated_code'],
+                'steered_code': row['steered_generated_code']
             }
-            for r in corruption_results 
-            if r['baseline_passed'] and not r['steered_passed']
-        ][:10]  # Save up to 10 examples
+            for _, row in corrupted_df.iterrows()
+        ]
         
         # Save corrected examples
         if corrected_examples:
@@ -514,11 +607,11 @@ class SteeringEffectAnalyzer:
                    f"Incorrect: {self.config.phase4_8_incorrect_coefficient}")
         
         # Apply steering and evaluate effects
-        correction_results, corruption_results = self.evaluate_steering_effects()
+        correction_results, corruption_results, exclusion_summary = self.evaluate_steering_effects()
         
         # Calculate rates
-        correction_rate = self.calculate_correction_rate(correction_results)
-        corruption_rate = self.calculate_corruption_rate(corruption_results)
+        correction_rate = calculate_correction_rate(correction_results)
+        corruption_rate = calculate_corruption_rate(corruption_results)
         
         # Run statistical tests
         statistical_tests = self.run_statistical_tests(correction_results, corruption_results)
@@ -537,15 +630,10 @@ class SteeringEffectAnalyzer:
                 'initially_incorrect': len(self.initially_incorrect_data),
                 'total': len(self.baseline_data)
             },
+            'exclusion_summary': exclusion_summary,
             'detailed_results': {
-                'correction': [
-                    {k: v for k, v in r.items() if k != 'baseline_code' and k != 'steered_code'}
-                    for r in correction_results
-                ],
-                'corruption': [
-                    {k: v for k, v in r.items() if k != 'baseline_code' and k != 'steered_code'}
-                    for r in corruption_results
-                ]
+                'correction': correction_results[['task_id', 'test_passed', 'steered_passed', 'flipped']].to_dict('records') if not correction_results.empty else [],
+                'corruption': corruption_results[['task_id', 'test_passed', 'steered_passed', 'flipped']].to_dict('records') if not corruption_results.empty else []
             }
         }
         
@@ -563,6 +651,12 @@ class SteeringEffectAnalyzer:
         logger.info("\n" + "="*60)
         logger.info("PHASE 4.8 RESULTS SUMMARY")
         logger.info("="*60)
+        logger.info(f"Tasks processed: {exclusion_summary['tasks_included']}/{exclusion_summary['total_tasks_attempted']} "
+                   f"({exclusion_summary['exclusion_rate_percent']}% excluded)")
+        logger.info(f"Correction experiment: {exclusion_summary['correction_experiment']['included']}/{exclusion_summary['correction_experiment']['attempted']} "
+                   f"({exclusion_summary['correction_experiment']['excluded']} excluded)")
+        logger.info(f"Corruption experiment: {exclusion_summary['corruption_experiment']['included']}/{exclusion_summary['corruption_experiment']['attempted']} "
+                   f"({exclusion_summary['corruption_experiment']['excluded']} excluded)")
         logger.info(f"Correction Rate: {correction_rate:.1f}% {'✓' if correction_rate > 10 else '✗'}")
         logger.info(f"Corruption Rate: {corruption_rate:.1f}% {'✓' if corruption_rate > 10 else '✗'}")
         logger.info(f"Correction p-value: {statistical_tests['correction']['pvalue']:.4f} "

@@ -23,7 +23,8 @@ The methodology follows these phases:
 - Phase 3.8: AUROC and F1 evaluation for PVA features
 - Phase 3.10: Temperature-based AUROC analysis across different temperatures
 - Phase 3.12: Difficulty-based AUROC analysis across problem difficulty levels
-- Phase 4.5: Steering coefficient selection for model interventions
+- Phase 4.5: Adaptive steering coefficient selection using coarse-to-fine search
+- Phase 4.6: Binary search refinement of steering coefficients for higher precision
 - Phase 4.8: Steering effect analysis with correction/corruption experiments
 
 Each phase outputs to its own directory (data/phase0/, data/phase0_1/, data/phase1_0/, etc.) and automatically discovers inputs from previous phases.
@@ -87,12 +88,18 @@ data/
 │   ├── difficulty_distribution.png
 │   ├── metrics_comparison_by_difficulty.png
 │   └── roc_curves_by_difficulty_{correct/incorrect}.png
-├── phase4_5/         # Steering coefficient selection
-│   ├── coefficient_analysis.json
-│   ├── selected_coefficients.json
+├── phase4_5/         # Adaptive steering coefficient selection
+│   ├── coefficient_analysis.json      # Full search history and results
+│   ├── selected_coefficients.json     # Optimal coefficients found
 │   ├── phase_4_5_summary.json
-│   ├── selected_problems_correct_steering.parquet
-│   └── selected_problems_incorrect_steering.parquet
+│   ├── selected_problems_correct_steering.parquet   # All hyperparams initially incorrect
+│   ├── selected_problems_incorrect_steering.parquet # All hyperparams initially correct
+│   └── coefficient_examples/           # Example steered generations
+├── phase4_6/         # Binary search coefficient refinement
+│   ├── refinement_history.json        # Binary search history
+│   ├── refined_coefficients.json      # Refined optimal coefficients
+│   ├── phase_4_6_summary.json
+│   └── refinement_examples/            # Example generations at refined coefficients
 └── phase4_8/         # Steering effect analysis
     ├── steering_effect_analysis.json
     ├── steering_effect_analysis.png
@@ -110,6 +117,14 @@ Use common_simplified/ modules instead of common/ for new implementations:
 - model_loader.py instead of ModelManager
 - activation_hooks.py instead of activation_extraction
 - Direct numpy operations instead of ActivationData wrapper
+
+## Common Modules for Steering
+
+Use common/steering_metrics.py for steering-related calculations:
+- `calculate_correction_rate()`: Measures incorrect→correct transitions
+- `calculate_corruption_rate()`: Measures correct→incorrect transitions
+- `calculate_preservation_rate()`: Inverse of corruption rate
+- `create_steering_hook()`: Creates hook for residual stream modification
 
 ## Key Project Constraints
 - **Scale**: 974 MBPP problems, 2000 tokens max, 2B parameter model
@@ -131,7 +146,8 @@ Use common_simplified/ modules instead of common/ for new implementations:
 - Phase 3.8 evaluates AUROC/F1 metrics, requires Phase 0.1 (splits) and Phase 3.5 or Phase 3.6 data
 - Phase 3.10 analyzes AUROC across temperatures, requires Phase 3.8 and Phase 3.5
 - Phase 3.12 analyzes AUROC across difficulty levels, requires Phase 3.8 and Phase 0.1
-- Phase 4.5 selects steering coefficients, requires Phase 2.5 (features) and Phase 3.6 (baseline)
+- Phase 4.5 adaptively selects steering coefficients using ALL hyperparams data, requires Phase 2.5 (features) and Phase 3.6 (baseline)
+- Phase 4.6 refines steering coefficients using binary search, requires Phase 4.5 (initial coefficients), Phase 2.5 (features) and Phase 3.6 (baseline)
 - Phase 4.8 analyzes steering effects, requires Phase 2.5 (features) and Phase 3.5 (validation data)
 - Checkpoint recovery: Auto-discovers latest checkpoints by timestamp
 - Memory management: Extract and save activations during Phase 1, load from disk in Phase 2
@@ -207,8 +223,13 @@ python3 run.py phase 3.10
 # Phase 3.12: Difficulty-based AUROC analysis
 python3 run.py phase 3.12
 
-# Phase 4.5: Steering coefficient selection
+# Phase 4.5: Adaptive steering coefficient selection (uses ALL hyperparams data)
+# Now uses adaptive search instead of fixed grid, evaluates on full dataset
 python3 run.py phase 4.5
+
+# Phase 4.6: Binary search coefficient refinement
+# Refines Phase 4.5 coefficients for higher precision
+python3 run.py phase 4.6
 
 # Phase 4.8: Steering effect analysis
 python3 run.py phase 4.8

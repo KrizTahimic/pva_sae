@@ -11,6 +11,7 @@ from common.config import Config
 from common.logging import get_logger
 from common.prompt_utils import PromptBuilder
 from common.utils import detect_device
+from common.retry_utils import retry_generation, create_exclusion_summary
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.activation_hooks import ActivationExtractor
 from common_simplified.helpers import (
@@ -115,10 +116,15 @@ class Phase1Runner:
         
         return generated_text, activations
         
-    def process_task(self, task: Dict) -> Dict:
-        """Process a single task: generate, evaluate, extract activations."""
+    def process_task(self, task: Dict) -> Optional[Dict]:
+        """
+        Process a single task: generate, evaluate, extract activations.
+        
+        Returns:
+            Dict with results if successful, None if task failed after all retries
+        """
         task_id = task['task_id']
-        logger.info(f"Processing task {task_id}")
+        logger.debug(f"Processing task {task_id}")
         
         # Build prompt using common PromptBuilder
         test_cases = '\n'.join(task['test_list'])
@@ -127,26 +133,43 @@ class Phase1Runner:
             test_cases=test_cases
         )
         
-        # Generate and extract activations
-        # The activations are from the PROMPT's last token residual stream,
-        # capturing how the model encodes the problem description
-        start_time = time.time()
-        generated_text, activations = self.generate_and_extract(prompt)
-        generation_time = time.time() - start_time
+        # Define generation function for retry logic
+        def generate_task():
+            # Generate and extract activations
+            # The activations are from the PROMPT's last token residual stream,
+            # capturing how the model encodes the problem description
+            start_time = time.time()
+            generated_text, activations = self.generate_and_extract(prompt)
+            generation_time = time.time() - start_time
+            
+            # Extract code from generated text
+            generated_code = extract_code(generated_text, prompt)
+            
+            # Evaluate code
+            test_passed = evaluate_code(generated_code, task['test_list'])
+            
+            return {
+                'generated_code': generated_code,
+                'test_passed': test_passed,
+                'activations': activations,  # Residual stream from prompt processing
+                'generation_time': generation_time
+            }
         
-        # Extract code from generated text
-        generated_code = extract_code(generated_text, prompt)
+        # Attempt generation with retry logic
+        success, result, error_msg = retry_generation(
+            generate_task,
+            task_id,
+            self.config,
+            "code generation"
+        )
         
-        # Evaluate code
-        test_passed = evaluate_code(generated_code, task['test_list'])
-        
-        logger.info(f"Task {task_id}: {'PASS' if test_passed else 'FAIL'} ({generation_time:.2f}s)")
-        
-        return {
-            'generated_code': generated_code,
-            'test_passed': test_passed,
-            'activations': activations  # Residual stream from prompt processing
-        }
+        if success:
+            logger.info(f"Task {task_id}: {'PASS' if result['test_passed'] else 'FAIL'} "
+                       f"({result['generation_time']:.2f}s)")
+            return result
+        else:
+            logger.warning(f"Task {task_id} failed after {self.config.max_retries} attempts: {error_msg}")
+            return None
     
     def run(self, split_name: str = "sae"):
         """Run Phase 1 dataset building for specified split."""
@@ -190,11 +213,14 @@ class Phase1Runner:
         from tqdm import tqdm
         
         results = []
+        excluded_tasks = []
+        
         for idx, task in tqdm(df.iterrows(), total=len(df), desc="Processing tasks"):
-            try:
-                # Process task (generation + activation extraction happens here)
-                result = self.process_task(task)
-                
+            # Process task with retry logic
+            result = self.process_task(task)
+            
+            if result is not None:
+                # Task succeeded - save activations and add to results
                 # Save residual stream activations to disk
                 # Activations are saved separately by correctness for Phase 2 analysis
                 category = "correct" if result['test_passed'] else "incorrect"
@@ -203,34 +229,58 @@ class Phase1Runner:
                     filepath = activation_dir / category / filename
                     save_activations({layer: activation}, filepath)
                 
-                # Add results to dataframe
+                # Add results to dataset
                 results.append({
                     'task_id': task['task_id'],
                     'generated_code': result['generated_code'],
                     'test_passed': result['test_passed']
                 })
-                    
-            except Exception as e:
-                logger.error(f"Error processing task {task['task_id']}: {e}")
-                # Add failed result
-                results.append({
+            else:
+                # Task failed after all retries - exclude from dataset
+                excluded_tasks.append({
                     'task_id': task['task_id'],
-                    'generated_code': '',
-                    'test_passed': False
+                    'error': 'Failed after retry attempts'
                 })
+                logger.debug(f"Excluding task {task['task_id']} from dataset")
         
-        # Create results dataframe
+        # Handle exclusions and create final dataset
+        total_attempted = len(df)
+        n_excluded = len(excluded_tasks)
+        n_included = len(results)
+        
+        if n_included == 0:
+            logger.error("No tasks were successfully processed! All tasks failed.")
+            # Still save the exclusion info for debugging
+            if excluded_tasks:
+                exclusion_file = output_dir / "excluded_tasks.json"
+                exclusion_summary = create_exclusion_summary(excluded_tasks, total_attempted)
+                from common_simplified.helpers import save_json
+                save_json(exclusion_summary, exclusion_file)
+                logger.info(f"Saved exclusion summary to {exclusion_file}")
+            raise RuntimeError("Phase 1 failed: no tasks were successfully processed")
+        
+        # Create results dataframe from successful tasks only
         results_df = pd.DataFrame(results)
         
-        # Merge with original data
-        final_df = df.merge(results_df, on='task_id', how='left')
+        # Merge with original data (only successful tasks)
+        successful_task_ids = set(results_df['task_id'])
+        successful_original_data = df[df['task_id'].isin(successful_task_ids)].copy()
+        final_df = successful_original_data.merge(results_df, on='task_id', how='inner')
         
-        # Save dataset
+        # Save dataset (only successful tasks)
         timestamp = get_timestamp()
         output_file = output_dir / f"dataset_{split_name}_{timestamp}.parquet"
         final_df.to_parquet(output_file, index=False)
         
         logger.info(f"Dataset saved to {output_file}")
+        
+        # Save exclusion summary for transparency
+        if excluded_tasks:
+            exclusion_summary = create_exclusion_summary(excluded_tasks, total_attempted)
+            from common_simplified.helpers import save_json
+            exclusion_file = output_dir / "excluded_tasks.json"
+            save_json(exclusion_summary, exclusion_file)
+            logger.info(f"Saved exclusion summary to {exclusion_file}")
         
         # Summary statistics
         n_correct = final_df['test_passed'].sum()
@@ -242,11 +292,15 @@ class Phase1Runner:
         logger.info("\n" + "="*60)
         logger.info("PHASE 1 SUMMARY")
         logger.info("="*60)
-        logger.info(f"Total tasks processed: {n_total}")
+        logger.info(f"Tasks attempted: {total_attempted}")
+        logger.info(f"Tasks included in dataset: {n_included}")
+        logger.info(f"Tasks excluded: {n_excluded} ({n_excluded/total_attempted*100:.1f}%)")
         logger.info(f"Correct solutions: {n_correct} ({pass_rate:.1f}%)")
         logger.info(f"Incorrect solutions: {n_incorrect} ({100-pass_rate:.1f}%)")
         logger.info(f"\nDataset saved to: {output_file}")
         logger.info(f"Activations saved to: {activation_dir}/")
+        if excluded_tasks:
+            logger.warning(f"Excluded tasks: {[t['task_id'] for t in excluded_tasks]}")
         logger.info("="*60 + "\n")
         
         # Cleanup hooks to free memory

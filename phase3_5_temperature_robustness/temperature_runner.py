@@ -22,6 +22,7 @@ from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger
 from common.utils import detect_device, discover_latest_phase_output
+from common.retry_utils import retry_generation, create_exclusion_summary
 
 # Module-level logger
 logger = get_logger("temperature_runner", phase="3.5")
@@ -230,7 +231,7 @@ class TemperatureRobustnessRunner:
         self.output_dir = self._setup_output_directories()
         
         # Process all tasks
-        all_results = self._process_all_tasks(validation_data)
+        all_results, excluded_tasks = self._process_all_tasks(validation_data)
         
         # Save results by temperature
         for temperature in self.config.temperature_variation_temps:
@@ -238,8 +239,16 @@ class TemperatureRobustnessRunner:
             self._save_temperature_results(temp_results, temperature)
         
         # Save metadata
-        metadata = self._create_metadata(all_results, validation_data['task_id'].tolist())
+        metadata = self._create_metadata(all_results, validation_data['task_id'].tolist(), excluded_tasks)
         self._save_metadata(metadata)
+        
+        # Save exclusion information
+        if excluded_tasks:
+            exclusion_summary = create_exclusion_summary(excluded_tasks, len(validation_data))
+            from common_simplified.helpers import save_json
+            exclusion_file = self.output_dir / "excluded_tasks.json"
+            save_json(exclusion_summary, exclusion_file)
+            logger.info(f"Saved exclusion summary to {exclusion_file}")
         
         logger.info("Phase 3.5 completed successfully")
         return metadata
@@ -276,9 +285,15 @@ class TemperatureRobustnessRunner:
         
         return output_dir
     
-    def _process_all_tasks(self, validation_data: pd.DataFrame) -> List[Dict]:
-        """Process all validation tasks."""
+    def _process_all_tasks(self, validation_data: pd.DataFrame) -> Tuple[List[Dict], List[Dict]]:
+        """Process all validation tasks with retry logic.
+        
+        Returns:
+            Tuple of (all_results, excluded_tasks)
+        """
         all_results = []
+        excluded_tasks = []
+        
         # Calculate total expected samples
         total_expected = 0
         for temp in self.config.temperature_variation_temps:
@@ -300,85 +315,96 @@ class TemperatureRobustnessRunner:
                 test_cases=test_cases_str
             )
             
-            try:
-                # Process temperature 0 first (with activations, single generation)
-                if 0.0 in self.config.temperature_variation_temps:
+            task_failed = False
+            
+            # Process temperature 0 first (with activations, single generation)
+            if 0.0 in self.config.temperature_variation_temps:
+                def generate_temp0():
                     start_time = time.time()
                     generated_text, task_activations = self.generate_temp0_with_activations(prompt)
                     generation_time = time.time() - start_time
                     
-                    # Save activations for this task (only the best layers for correct/incorrect)
-                    self._save_task_activations(row['task_id'], task_activations)
-                    
                     # Extract code and evaluate
                     generated_code = extract_code(generated_text, prompt)
                     test_passed = evaluate_code(generated_code, row['test_list'])
+                    
+                    return {
+                        'generated_text': generated_text,
+                        'task_activations': task_activations,
+                        'generated_code': generated_code,
+                        'test_passed': test_passed,
+                        'generation_time': generation_time
+                    }
+                
+                # Attempt temperature 0 generation with retry
+                success, temp0_result, error_msg = retry_generation(
+                    generate_temp0,
+                    row['task_id'],
+                    self.config,
+                    "temperature 0 generation"
+                )
+                
+                if success:
+                    # Save activations for this task (only if temp 0 succeeded)
+                    self._save_task_activations(row['task_id'], temp0_result['task_activations'])
                     
                     # Add temperature 0 result
                     all_results.append({
                         'task_id': row['task_id'],
                         'temperature': 0.0,
                         'prompt': prompt,
-                        'generated_code': generated_code,
-                        'test_passed': test_passed,
+                        'generated_code': temp0_result['generated_code'],
+                        'test_passed': temp0_result['test_passed'],
                         'error_message': None,
-                        'generation_time': generation_time,
+                        'generation_time': temp0_result['generation_time'],
                         'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
                         'generation_idx': 0,  # Only one generation for temp 0
                         'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
                     })
-                    pbar.update(1)
+                else:
+                    # Temperature 0 failed - exclude entire task
+                    task_failed = True
+                    logger.warning(f"Temperature 0 generation failed for task {row['task_id']}, excluding entire task")
                 
-                # Process other temperatures (without activations, multiple generations)
+                pbar.update(1)
+            
+            # Process other temperatures (without activations, multiple generations)
+            if not task_failed:
                 for temperature in self.config.temperature_variation_temps:
                     if temperature == 0.0:
                         continue  # Already processed
                     
                     for sample_idx in range(self.config.temperature_samples_per_temp):
-                        result = self._generate_single(
-                            row, prompt, temperature, sample_idx
-                        )
-                        all_results.append(result)
-                        pbar.update(1)
+                        def generate_at_temp():
+                            return self._generate_single(row, prompt, temperature, sample_idx)
                         
-            except Exception as e:
-                import traceback
-                logger.error(f"Failed to process task {row['task_id']}: {e}")
-                logger.error(f"Exception type: {type(e).__name__}")
-                logger.error(f"Traceback:\n{traceback.format_exc()}")
-                # Add failed results for all temperature/sample combinations
-                for temperature in self.config.temperature_variation_temps:
-                    if temperature == 0.0:
-                        # Only 1 failed result for temp 0
-                        all_results.append({
-                            'task_id': row['task_id'],
-                            'temperature': 0.0,
-                            'prompt': prompt,
-                            'generated_code': "",
-                            'test_passed': False,
-                            'error_message': str(e),
-                            'generation_time': 0.0,
-                            'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
-                            'generation_idx': 0,
-                            'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
-                        })
+                        # Attempt generation with retry
+                        success, result, error_msg = retry_generation(
+                            generate_at_temp,
+                            f"{row['task_id']}_temp_{temperature}_sample_{sample_idx}",
+                            self.config,
+                            f"temperature {temperature} generation"
+                        )
+                        
+                        if success:
+                            all_results.append(result)
+                        # Note: individual temperature/sample failures don't exclude the entire task
+                        # We only exclude if temperature 0 fails (needed for activations)
+                        
                         pbar.update(1)
-                    else:
-                        # Multiple failed results for other temps
-                        for sample_idx in range(self.config.temperature_samples_per_temp):
-                            all_results.append({
-                                'task_id': row['task_id'],
-                                'temperature': temperature,
-                                'prompt': prompt,
-                                'generated_code': "",
-                                'test_passed': False,
-                                'error_message': str(e),
-                                'generation_time': 0.0,
-                                'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
-                                'generation_idx': sample_idx,
-                                'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
-                            })
-                            pbar.update(1)
+            else:
+                # Task failed at temperature 0 - skip all other temperatures and record exclusion
+                excluded_tasks.append({
+                    'task_id': row['task_id'],
+                    'error': error_msg if 'error_msg' in locals() else 'Temperature 0 generation failed'
+                })
+                
+                # Still need to update progress bar for skipped samples
+                skip_count = sum(
+                    self.config.temperature_samples_per_temp if temp != 0.0 else 0
+                    for temp in self.config.temperature_variation_temps
+                )
+                pbar.update(skip_count)
             
             # Memory cleanup
             if (idx + 1) % self.config.memory_cleanup_frequency == 0:
@@ -386,16 +412,25 @@ class TemperatureRobustnessRunner:
         
         pbar.close()
         
-        # Log summary
+        # Log summary including exclusions
+        n_attempted = len(validation_data)
+        n_excluded = len(excluded_tasks)
+        n_included = n_attempted - n_excluded
+        
+        logger.info(f"Tasks processed: {n_included}/{n_attempted} ({n_excluded} excluded)")
+        
+        if excluded_tasks:
+            logger.warning(f"Excluded tasks: {[t['task_id'] for t in excluded_tasks]}")
+        
         for temp in self.config.temperature_variation_temps:
             temp_results = [r for r in all_results if r['temperature'] == temp]
             correct = sum(1 for r in temp_results if r['test_passed'])
             logger.info(
                 f"Temperature {temp}: {correct}/{len(temp_results)} passed "
-                f"({correct/len(temp_results):.1%})"
+                f"({correct/len(temp_results):.1%})" if len(temp_results) > 0 else f"Temperature {temp}: 0/0 passed (0%)"
             )
         
-        return all_results
+        return all_results, excluded_tasks
     
     def _generate_single(
         self,
@@ -467,9 +502,14 @@ class TemperatureRobustnessRunner:
     def _create_metadata(
         self,
         all_results: List[Dict],
-        validation_task_ids: List[str]
+        validation_task_ids: List[str],
+        excluded_tasks: List[Dict]
     ) -> Dict:
         """Create metadata summary."""
+        n_attempted = len(validation_task_ids)
+        n_excluded = len(excluded_tasks)
+        n_included = n_attempted - n_excluded
+        
         metadata = {
             "creation_timestamp": datetime.now().isoformat(),
             "best_layers": {
@@ -482,7 +522,11 @@ class TemperatureRobustnessRunner:
             "temperatures": self.config.temperature_variation_temps,
             "samples_per_temperature": self.config.temperature_samples_per_temp,
             "validation_task_ids": validation_task_ids,
-            "n_tasks": len(validation_task_ids),
+            "n_tasks_attempted": n_attempted,
+            "n_tasks_included": n_included,
+            "n_tasks_excluded": n_excluded,
+            "exclusion_rate_percent": round((n_excluded / n_attempted * 100) if n_attempted > 0 else 0, 2),
+            "excluded_task_ids": [t['task_id'] for t in excluded_tasks],
             "n_total_samples": len(all_results),
             "temperature_stats": {}
         }

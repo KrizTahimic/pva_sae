@@ -53,14 +53,18 @@ class ActivationExtractor:
     def _create_hook(self, layer_idx: int) -> Callable:
         """Create a hook function for a specific layer."""
         def hook_fn(module, input):
-            # For pre-hooks, input is a tuple with the residual stream
-            # input[0] is the residual stream tensor: (batch_size, seq_len, hidden_size)
-            residual_stream = input[0]
-            
-            # Get activation at specified position (usually -1 for last token)
-            # This extracts the residual stream activation for the last token in the prompt
-            activation = residual_stream[:, self.position, :].detach()
-            self.activations[layer_idx] = activation
+            # Only capture if we haven't captured for this layer yet
+            # This ensures we only capture activations from the first forward pass (prompt processing)
+            # and ignore subsequent forward passes during autoregressive generation
+            if layer_idx not in self.activations:
+                # For pre-hooks, input is a tuple with the residual stream
+                # input[0] is the residual stream tensor: (batch_size, seq_len, hidden_size)
+                residual_stream = input[0]
+                
+                # Get activation at specified position (usually -1 for last token)
+                # This extracts the residual stream activation for the last token in the prompt
+                activation = residual_stream[:, self.position, :].detach()
+                self.activations[layer_idx] = activation
             
         return hook_fn
     
