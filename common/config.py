@@ -137,8 +137,8 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0])
-    # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8])
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
+    # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0])
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
     phase3_5_output_dir: str = "data/phase3_5"
     
@@ -173,6 +173,12 @@ class Config:
     phase4_8_correct_coefficient: float = 45.0
     phase4_8_incorrect_coefficient: float = 45.0
     phase4_8_output_dir: str = "data/phase4_8"
+    
+    # === WEIGHT ORTHOGONALIZATION (Phase 5.3) ===
+    phase5_3_output_dir: str = "data/phase5_3"
+    orthogonalization_target_weights: List[str] = field(
+        default_factory=lambda: ['embed', 'attn_o', 'mlp_down']
+    )
     
     # === EVALUATION (Phase 3.8) ===
     evaluation_random_seed: int = 42
