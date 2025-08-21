@@ -149,10 +149,12 @@ def plot_confusion_matrix(
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(8, 6))
     
-    # Adjust labels based on feature type
+    # Adjust labels based on what we're predicting
     if feature_type == 'correct':
+        # Predicting correctness
         labels = ['Incorrect', 'Correct']
     else:
+        # Predicting incorrectness
         labels = ['Correct', 'Incorrect']
     
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
@@ -306,6 +308,12 @@ def load_split_activations(
         if not act_file.exists():
             missing_tasks.append(task_id)
             continue
+        
+        # Get test result from temperature 0.0 dataset FIRST
+        task_results = temp_data[temp_data['task_id'] == task_id]['test_passed'].values
+        if len(task_results) == 0:
+            logger.warning(f"No test results found for task {task_id}")
+            continue
             
         act_data = np.load(act_file)
         
@@ -321,23 +329,17 @@ def load_split_activations(
         # Extract specific feature value
         feature_activation = sae_features[0, feature_idx].item()
         activations.append(feature_activation)
-        
-        # Get test result from temperature 0.0 dataset
-        task_results = temp_data[temp_data['task_id'] == task_id]['test_passed'].values
-        if len(task_results) == 0:
-            logger.warning(f"No test results found for task {task_id}")
-            continue
             
         # Use the first sample at temperature 0.0
         test_passed = task_results[0]
         
-        # Create label based on feature type
+        # Create label based on what we're predicting
         if feature_type == 'correct':
-            # For correct-preferring: 1=correct, 0=incorrect (flipped)
+            # Predicting correctness: 1=correct, 0=incorrect
             label = 1 if test_passed else 0
         else:
-            # For incorrect-preferring: 1=incorrect, 0=correct (standard)
-            label = 0 if test_passed else 1
+            # Predicting incorrectness: 1=incorrect, 0=correct
+            label = 1 if not test_passed else 0
         
         labels.append(label)
     
