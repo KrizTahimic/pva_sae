@@ -274,16 +274,15 @@ class SimplifiedSAEAnalyzer:
                 all_features_incorrect.append(feature_with_layer)
         
         # Sort globally by separation score and take top k
+        # Use layer and feature_idx as secondary keys for deterministic ordering
         top_correct = sorted(
             all_features_correct, 
-            key=lambda x: x['separation_score'], 
-            reverse=True
+            key=lambda x: (-x['separation_score'], x['layer'], x['feature_idx'])
         )[:k]
         
         top_incorrect = sorted(
             all_features_incorrect, 
-            key=lambda x: x['separation_score'], 
-            reverse=True
+            key=lambda x: (-x['separation_score'], x['layer'], x['feature_idx'])
         )[:k]
         
         # Log distribution of top features across layers
