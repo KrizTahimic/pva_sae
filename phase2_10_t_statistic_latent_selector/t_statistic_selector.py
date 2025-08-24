@@ -191,6 +191,10 @@ class TStatisticSelector:
         logger.info(f"  Non-zero correct: {(correct_activations != 0).sum()}/{correct_activations.numel()}")
         logger.info(f"  Non-zero incorrect: {(incorrect_activations != 0).sum()}/{incorrect_activations.numel()}")
         
+        # Ensure dtype matches SAE parameters for matrix multiplication
+        correct_activations = correct_activations.to(sae.W_enc.dtype)
+        incorrect_activations = incorrect_activations.to(sae.W_enc.dtype)
+        
         # Encode activations through SAE
         with torch.no_grad():
             correct_features = sae.encode(correct_activations)
@@ -428,6 +432,9 @@ class TStatisticSelector:
                     if pile_activations is not None:
                         # Load SAE for this layer
                         sae = load_gemma_scope_sae(layer_idx, self.device)
+                        
+                        # Ensure dtype matches SAE parameters for matrix multiplication
+                        pile_activations = pile_activations.to(sae.W_enc.dtype)
                         
                         # Encode pile activations through SAE
                         with torch.no_grad():
