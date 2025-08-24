@@ -63,8 +63,9 @@ class ActivationExtractor:
                 
                 # Get activation at specified position (usually -1 for last token)
                 # This extracts the residual stream activation for the last token in the prompt
-                activation = residual_stream[:, self.position, :].detach()
+                activation = residual_stream[:, self.position, :].detach().clone().cpu()
                 self.activations[layer_idx] = activation
+                logger.debug(f"Layer {layer_idx}: Captured activation with mean={activation.mean():.6f}, std={activation.std():.6f}, first_val={activation[0,0]:.6f}")
             
         return hook_fn
     

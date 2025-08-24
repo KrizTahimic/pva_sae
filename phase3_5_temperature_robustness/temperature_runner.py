@@ -33,28 +33,45 @@ class TemperatureRobustnessRunner:
     
     def _discover_best_layers(self) -> Dict[str, int]:
         """
-        Discover best layers from Phase 2.5 output.
+        Discover best layers from Phase 2.10 or Phase 2.5 output.
         
         Returns:
             Dict with 'correct' and 'incorrect' best layers
         """
-        # Find latest Phase 2.5 output
-        phase_2_5_dir = Path(self.config.phase2_5_output_dir)
-        top_features_file = phase_2_5_dir / "top_20_features.json"
+        # Try Phase 2.10 first (t-statistic selection)
+        phase_2_10_dir = Path(getattr(self.config, 'phase2_10_output_dir', 'data/phase2_10'))
+        top_features_file = phase_2_10_dir / "top_20_features.json"
+        phase_source = "2.10"
         
         if not top_features_file.exists():
-            # Try auto-discovery
-            latest_output = discover_latest_phase_output("2.5")
+            # Try auto-discovery for Phase 2.10
+            latest_output = discover_latest_phase_output("2.10")
             if latest_output:
                 # Extract directory from the discovered file
                 output_dir = Path(latest_output).parent
                 top_features_file = output_dir / "top_20_features.json"
         
+        # Fall back to Phase 2.5 if Phase 2.10 not found
+        if not top_features_file.exists():
+            phase_2_5_dir = Path(self.config.phase2_5_output_dir)
+            top_features_file = phase_2_5_dir / "top_20_features.json"
+            phase_source = "2.5"
+            
+            if not top_features_file.exists():
+                # Try auto-discovery for Phase 2.5
+                latest_output = discover_latest_phase_output("2.5")
+                if latest_output:
+                    # Extract directory from the discovered file
+                    output_dir = Path(latest_output).parent
+                    top_features_file = output_dir / "top_20_features.json"
+        
         if not top_features_file.exists():
             raise FileNotFoundError(
-                f"top_20_features.json not found in {phase_2_5_dir}. "
-                "Please run Phase 2.5 first."
+                f"top_20_features.json not found. "
+                "Please run Phase 2.10 or Phase 2.5 first."
             )
+        
+        logger.info(f"Using features from Phase {phase_source}: {top_features_file}")
         
         # Read top features
         with open(top_features_file, 'r') as f:
@@ -482,7 +499,7 @@ class TemperatureRobustnessRunner:
             )
             
             # Save as simple numpy array
-            np.savez_compressed(save_path, layer_activations.cpu().numpy())
+            np.savez_compressed(save_path, layer_activations.clone().cpu().numpy())
     
     def _save_temperature_results(
         self,

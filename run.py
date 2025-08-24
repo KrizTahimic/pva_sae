@@ -92,8 +92,8 @@ def setup_argument_parser():
     phase_parser.add_argument(
         'phase',
         type=float,
-        choices=[0, 0.1, 1, 2.2, 2.5, 3, 3.5, 3.6, 3.8, 3.10, 3.12, 4.5, 4.6, 4.8, 5.3],
-        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.6=Golden Section Search Coefficient Refinement, 4.8=Steering Effect Analysis, 5.3=Weight Orthogonalization'
+        choices=[0, 0.1, 1, 2.2, 2.5, 2.10, 3, 3.5, 3.6, 3.8, 3.10, 3.12, 4.5, 4.6, 4.8, 5.3],
+        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 2.10=T-Statistic Latent Selection, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.6=Golden Section Search Coefficient Refinement, 4.8=Steering Effect Analysis, 5.3=Weight Orthogonalization'
     )
     
     # Global arguments (add to phase parser)
@@ -230,6 +230,16 @@ def setup_argument_parser():
         default=10000,
         help='Number of Pile samples to use (default: 10000)'
     )
+    
+    # Phase 2.10: T-Statistic Latent Selection
+    phase2_10_group = phase_parser.add_argument_group('Phase 2.10: T-Statistic Latent Selection')
+    phase2_10_group.add_argument(
+        '--t-min-samples',
+        type=int,
+        default=10,
+        help='Minimum samples for reliable t-test (default: 10)'
+    )
+    # Note: Phase 2.10 reuses pile filtering args from Phase 2.5
     
     # Phase 3: Validation arguments
     phase3_group = phase_parser.add_argument_group('Phase 3: Validation')
@@ -432,6 +442,23 @@ def run_phase2_5(config: Config, logger, device: str):
     results = analyzer.run()
     
     logger.info("\n✅ Phase 2.5 completed successfully")
+
+
+def run_phase2_10(config: Config, logger, device: str):
+    """Run Phase 2.10: T-Statistic based latent selection"""
+    from phase2_10_t_statistic_latent_selector.t_statistic_selector import TStatisticSelector
+    
+    logger.info("Starting Phase 2.10: T-Statistic Based Latent Selection")
+    logger.info("Using Welch's t-test for feature selection")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="2.10"))
+    
+    # Create and run selector
+    selector = TStatisticSelector(config)
+    results = selector.run()
+    
+    logger.info("\n✅ Phase 2.10 completed successfully")
 
 
 def run_phase3(config: Config, logger, device: str):
@@ -902,6 +929,12 @@ def show_status(args, logger):
     else:
         implemented_phases.append(2.5)
     
+    # Phase 2.10 - check if run_phase2_10 has real implementation
+    if "run_phase2_10" in current_file_content and "TStatisticSelector" in current_file_content:
+        implemented_phases.append(2.10)
+    else:
+        placeholder_phases.append(2.10)
+    
     # Phase 3 - check if run_phase3 has TODO or placeholder text
     if "# TODO: Implement validation" in current_file_content or "Validation not yet implemented" in current_file_content:
         placeholder_phases.append(3)
@@ -1368,6 +1401,7 @@ def main():
             1: "Dataset Building",
             2.2: "Pile Activation Caching",
             2.5: "SAE Analysis with Pile Filtering",
+            2.10: "T-Statistic Latent Selection",
             3: "Validation",
             3.5: "Temperature Robustness",
             3.6: "Hyperparameter Tuning Set Processing",
@@ -1382,8 +1416,20 @@ def main():
         
         print(f"\n{'='*60}")
         # Use properly formatted phase string for display
-        display_phase = "3.10" if args.phase == 3.10 else ("3.12" if args.phase == 3.12 else str(args.phase))
-        print(f"PHASE {display_phase}: {phase_names[args.phase].upper()}")
+        # Handle float precision issues (2.10 becomes 2.1, 3.10 becomes 3.1, etc.)
+        if abs(args.phase - 2.1) < 0.01:
+            display_phase = "2.10"
+            phase_key = 2.10
+        elif abs(args.phase - 3.1) < 0.01:
+            display_phase = "3.10"
+            phase_key = 3.10
+        elif abs(args.phase - 3.12) < 0.01:
+            display_phase = "3.12"
+            phase_key = 3.12
+        else:
+            display_phase = str(args.phase)
+            phase_key = args.phase
+        print(f"PHASE {display_phase}: {phase_names[phase_key].upper()}")
         print(f"{'='*60}")
         
         try:
@@ -1399,6 +1445,8 @@ def main():
                 run_phase2_2(config, logger, device)
             elif args.phase == 2.5:
                 run_phase2_5(config, logger, device)
+            elif args.phase == 2.10:
+                run_phase2_10(config, logger, device)
             elif args.phase == 3:
                 run_phase3(config, logger, device)
             elif args.phase == 3.5:

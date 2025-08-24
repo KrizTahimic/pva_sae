@@ -180,7 +180,7 @@ class HyperparameterDataRunner:
             )
             
             # Save as simple numpy array (matching Phase 3.5 format)
-            np.savez_compressed(save_path, layer_activations.cpu().numpy())
+            np.savez_compressed(save_path, layer_activations.clone().cpu().numpy())
     
     def _setup_output_directories(self) -> Path:
         """Create output directory structure and return output path."""

@@ -77,7 +77,7 @@ class Config:
     dataset_end_idx: Optional[int] = None
     
     # === ACTIVATION SETTINGS ===
-    activation_layers: List[int] = field(default_factory=lambda: [0, 6, 8, 15, 17])  # GemmaScope available layers for Gemma-2B
+    activation_layers: List[int] = field(default_factory=lambda: [1, 6, 8, 15, 17])  # GemmaScope available layers for Gemma-2B
     activation_hook_type: str = "resid_post"
     activation_position: int = -1  # Final token
     activation_max_cache_gb: float = 10.0
@@ -105,6 +105,7 @@ class Config:
     progress_log_frequency: int = 10
     show_progress_bar: bool = True
     enable_timing_stats: bool = True
+
     
     # === SAE SETTINGS (Phase 2) ===
     sae_repo_id: str = "google/gemma-scope-2b-pt-res"
@@ -122,6 +123,9 @@ class Config:
     pile_threshold: float = 0.02
     pile_samples: int = 10000
     
+    # === T-STATISTIC SELECTION (Phase 2.10) ===
+    t_statistic_min_samples: int = 10  # Minimum samples for reliable t-test
+    
     # === PHASE-SPECIFIC OUTPUT DIRECTORIES ===
     phase0_output_dir: str = "data/phase0"
     phase1_output_dir: str = "data/phase1_0"
@@ -129,6 +133,7 @@ class Config:
     phase2_output_dir: str = "data/phase2"
     phase2_2_output_dir: str = "data/phase2_2"
     phase2_5_output_dir: str = "data/phase2_5"
+    phase2_10_output_dir: str = "data/phase2_10"
     phase3_output_dir: str = "data/phase3"
     
     # === PROBLEM SPLITTING (Phase 0.1) ===
@@ -137,7 +142,7 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.4, 0.6])
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
     # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
     phase3_5_output_dir: str = "data/phase3_5"

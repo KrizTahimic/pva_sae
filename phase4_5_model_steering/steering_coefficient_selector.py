@@ -191,8 +191,8 @@ class SteeringCoefficientSelector:
             decoder_direction = self.incorrect_decoder_direction
             target_layer = self.best_incorrect_feature['layer']
         
-        # Create steering hook
-        hook_fn = create_steering_hook(decoder_direction, coefficient)
+        # Create steering hook with optimized memory usage
+        hook_fn = create_steering_hook(decoder_direction.to(self.device), coefficient)
         
         # Register hook on target layer
         target_module = self.model.model.layers[target_layer]
@@ -286,9 +286,13 @@ class SteeringCoefficientSelector:
                     })
                     logger.debug(f"Excluding task {row['task_id']} from {steering_type} steering evaluation")
                 
-                # Clear GPU cache periodically
+                # Clear GPU cache periodically (works for CUDA and MPS)
                 if idx % 10 == 0:
-                    torch.cuda.empty_cache()
+                    if self.device.type == "cuda":
+                        torch.cuda.empty_cache()
+                    elif self.device.type == "mps":
+                        # MPS doesn't have empty_cache, but we can sync to free memory
+                        torch.mps.synchronize()
                     
         finally:
             # Remove hook
@@ -588,7 +592,10 @@ class SteeringCoefficientSelector:
             logger.info(f"Saved {len(eval_data)} evaluation problems to {subset_filename}")
             
             # Clear GPU cache
-            torch.cuda.empty_cache()
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
+            elif self.device.type == "mps":
+                torch.mps.synchronize()
         
         # Save all results
         save_json(all_results, self.output_dir / "coefficient_analysis.json")

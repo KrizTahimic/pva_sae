@@ -36,7 +36,7 @@ class PileActivationHook:
         # output shape: [batch_size=1, seq_len, d_model]
         if output.shape[1] > self.position:
             # Extract and detach to prevent memory issues
-            self.activation = output[0, self.position, :].detach().cpu()
+            self.activation = output[0, self.position, :].detach().clone().cpu()
         else:
             # Position is out of bounds - this shouldn't happen if preprocessing is correct
             self.activation = None

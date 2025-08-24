@@ -57,7 +57,6 @@ class Phase1Runner:
             layers=self.config.activation_layers,
             position=self.config.activation_position  # -1 = last token of the prompt
         )
-        self.activation_extractor.setup_hooks()
         
         logger.info(f"Model loaded: {self.config.model_name}")
         logger.info(f"Extracting residual stream from layers: {self.config.activation_layers}")
@@ -135,25 +134,32 @@ class Phase1Runner:
         
         # Define generation function for retry logic
         def generate_task():
-            # Generate and extract activations
-            # The activations are from the PROMPT's last token residual stream,
-            # capturing how the model encodes the problem description
-            start_time = time.time()
-            generated_text, activations = self.generate_and_extract(prompt)
-            generation_time = time.time() - start_time
+            # Setup fresh hooks for this task to prevent state pollution
+            self.activation_extractor.setup_hooks()
             
-            # Extract code from generated text
-            generated_code = extract_code(generated_text, prompt)
-            
-            # Evaluate code
-            test_passed = evaluate_code(generated_code, task['test_list'])
-            
-            return {
-                'generated_code': generated_code,
-                'test_passed': test_passed,
-                'activations': activations,  # Residual stream from prompt processing
-                'generation_time': generation_time
-            }
+            try:
+                # Generate and extract activations
+                # The activations are from the PROMPT's last token residual stream,
+                # capturing how the model encodes the problem description
+                start_time = time.time()
+                generated_text, activations = self.generate_and_extract(prompt)
+                generation_time = time.time() - start_time
+                
+                # Extract code from generated text
+                generated_code = extract_code(generated_text, prompt)
+                
+                # Evaluate code
+                test_passed = evaluate_code(generated_code, task['test_list'])
+                
+                return {
+                    'generated_code': generated_code,
+                    'test_passed': test_passed,
+                    'activations': activations,  # Residual stream from prompt processing
+                    'generation_time': generation_time
+                }
+            finally:
+                # Always clean up hooks after task to prevent interference
+                self.activation_extractor.remove_hooks()
         
         # Attempt generation with retry logic
         success, result, error_msg = retry_generation(

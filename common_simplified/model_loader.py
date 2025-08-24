@@ -38,6 +38,9 @@ def load_model_and_tokenizer(
         if device.type == "cuda":
             # Use bfloat16 for GPU if available, else float16
             dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+        elif device.type == "mps":
+            # Use float16 for MPS - much faster and more memory efficient
+            dtype = torch.float16
         else:
             dtype = torch.float32
     
