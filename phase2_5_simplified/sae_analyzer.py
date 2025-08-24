@@ -202,6 +202,10 @@ class SimplifiedSAEAnalyzer:
             f"{len(incorrect_activations)} incorrect activations"
         )
         
+        # Ensure dtype matches SAE parameters for matrix multiplication
+        correct_activations = correct_activations.to(sae.W_enc.dtype)
+        incorrect_activations = incorrect_activations.to(sae.W_enc.dtype)
+        
         # Encode activations through SAE
         with torch.no_grad():
             correct_features = sae.encode(correct_activations)
@@ -423,6 +427,9 @@ class SimplifiedSAEAnalyzer:
                     if pile_activations is not None:
                         # Load SAE for this layer
                         sae = load_gemma_scope_sae(layer_idx, self.device)
+                        
+                        # Ensure dtype matches SAE parameters for matrix multiplication
+                        pile_activations = pile_activations.to(sae.W_enc.dtype)
                         
                         # Encode pile activations through SAE
                         with torch.no_grad():

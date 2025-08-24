@@ -321,6 +321,9 @@ def load_split_activations(
         # Shape: (1, 2304) - raw residual stream activation
         raw_activation = torch.from_numpy(act_data['arr_0']).to(device)
         
+        # Ensure dtype matches SAE parameters for matrix multiplication
+        raw_activation = raw_activation.to(sae.W_enc.dtype)
+        
         # Encode through SAE to get features
         # Shape: (1, 16384) - SAE feature activations
         with torch.no_grad():

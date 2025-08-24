@@ -98,6 +98,9 @@ def load_group_activations(
         act_data = np.load(act_file)
         raw_activation = torch.from_numpy(act_data['arr_0']).to(device)
         
+        # Ensure dtype matches SAE parameters for matrix multiplication
+        raw_activation = raw_activation.to(sae.W_enc.dtype)
+        
         with torch.no_grad():
             sae_features = sae.encode(raw_activation)
         
