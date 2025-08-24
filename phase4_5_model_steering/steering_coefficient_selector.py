@@ -155,13 +155,18 @@ class SteeringCoefficientSelector:
             self.device
         )
         
-        # Extract decoder directions
+        # Extract decoder directions and ensure consistent dtype
         self.correct_decoder_direction = self.correct_sae.W_dec[
             self.best_correct_feature['feature_idx']
         ].detach()
         self.incorrect_decoder_direction = self.incorrect_sae.W_dec[
             self.best_incorrect_feature['feature_idx']
         ].detach()
+        
+        # Ensure decoder directions are in the same dtype as the model
+        model_dtype = next(self.model.parameters()).dtype
+        self.correct_decoder_direction = self.correct_decoder_direction.to(dtype=model_dtype)
+        self.incorrect_decoder_direction = self.incorrect_decoder_direction.to(dtype=model_dtype)
         
         logger.info("Dependencies loaded successfully")
         
@@ -191,8 +196,8 @@ class SteeringCoefficientSelector:
             decoder_direction = self.incorrect_decoder_direction
             target_layer = self.best_incorrect_feature['layer']
         
-        # Create steering hook with optimized memory usage
-        hook_fn = create_steering_hook(decoder_direction.to(self.device), coefficient)
+        # Create steering hook
+        hook_fn = create_steering_hook(decoder_direction, coefficient)
         
         # Register hook on target layer
         target_module = self.model.model.layers[target_layer]
@@ -235,11 +240,19 @@ class SteeringCoefficientSelector:
                     )
                     generated_code = extract_code(generated_text, prompt)
                     
+                    # Debug logging for code extraction
+                    logger.debug(f"Task {row['task_id']} extraction:")
+                    logger.debug(f"  Generated text length: {len(generated_text)}")
+                    logger.debug(f"  First 100 chars of generated: {repr(generated_text[:100])}")
+                    logger.debug(f"  Extracted code length: {len(generated_code)}")
+                    logger.debug(f"  First 100 chars of code: {repr(generated_code[:100])}")
+                    
                     # Evaluate code
-                    test_passed = evaluate_code(
-                        generated_code,
-                        json.loads(row['test_list'])
-                    )
+                    test_list = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                    logger.debug(f"  Number of tests: {len(test_list)}")
+                    
+                    test_passed = evaluate_code(generated_code, test_list)
+                    logger.debug(f"  Evaluation result: {'PASS' if test_passed else 'FAIL'}")
                     
                     return {
                         'generated_code': generated_code,
@@ -467,6 +480,10 @@ class SteeringCoefficientSelector:
                 metric_name = "corruption rate"
             
             search_results.append(result)
+            
+            # Initialize best_result with first evaluation if not set
+            if best_result is None:
+                best_result = result
             
             logger.info(f"  Coefficient {coeff}: {metric_name} = {score:.1f}%")
             
