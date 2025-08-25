@@ -163,8 +163,8 @@ class Config:
     
     # === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
     # Grid search coefficients from 10 to 100 in increments of 10
-    # phase4_5_initial_points: List[float] = field(default_factory=lambda: [45.0])
-    phase4_5_initial_points: List[float] = field(default_factory=lambda: [400.0])
+    phase4_5_initial_points: List[float] = field(default_factory=lambda: [35.0])
+    # phase4_5_initial_points: List[float] = field(default_factory=lambda: [400.0])
 
 
     # phase4_5_initial_points: List[float] = field(default_factory=lambda: [35.0, 100.0, 400.0, 500.0])

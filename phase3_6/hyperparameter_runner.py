@@ -32,31 +32,68 @@ logger = get_logger("hyperparameter_runner", phase="3.6")
 class HyperparameterDataRunner:
     """Hyperparameter split processing with best layer activation extraction."""
     
-    def _discover_best_layers_from_phase3_5(self) -> Dict[str, int]:
+    def _discover_best_layers(self) -> Dict[str, int]:
         """
-        Discover best layers from Phase 3.5 metadata.
-        
-        Note: Phase 3.5 already handles the case where both best layers might be the same
-        layer elegantly using set() for deduplication. We copy this exact approach.
+        Discover best layers from Phase 2.10 or Phase 2.5 output.
         
         Returns:
-            Dict with 'correct' and 'incorrect' layer numbers and feature indices
+            Dict with 'correct' and 'incorrect' best layers
         """
-        # Auto-discover Phase 3.5 output directory
-        phase3_5_output = discover_latest_phase_output("3.5")
-        if not phase3_5_output:
-            raise FileNotFoundError("Phase 3.5 metadata not found. Run Phase 3.5 first.")
+        # Try Phase 2.10 first (t-statistic selection)
+        phase_2_10_dir = Path(getattr(self.config, 'phase2_10_output_dir', 'data/phase2_10'))
+        top_features_file = phase_2_10_dir / "top_20_features.json"
+        phase_source = "2.10"
         
-        # Load metadata and extract best layers
-        metadata_file = Path(phase3_5_output).parent / "metadata.json"
-        if not metadata_file.exists():
-            raise FileNotFoundError(f"Phase 3.5 metadata.json not found at {metadata_file}")
+        if not top_features_file.exists():
+            # Try auto-discovery for Phase 2.10
+            latest_output = discover_latest_phase_output("2.10")
+            if latest_output:
+                # Extract directory from the discovered file
+                output_dir = Path(latest_output).parent
+                top_features_file = output_dir / "top_20_features.json"
+        
+        # Fall back to Phase 2.5 if Phase 2.10 not found
+        if not top_features_file.exists():
+            phase_2_5_dir = Path(self.config.phase2_5_output_dir)
+            top_features_file = phase_2_5_dir / "top_20_features.json"
+            phase_source = "2.5"
             
-        with open(metadata_file, 'r') as f:
-            metadata = json.load(f)
+            if not top_features_file.exists():
+                # Try auto-discovery for Phase 2.5
+                latest_output = discover_latest_phase_output("2.5")
+                if latest_output:
+                    # Extract directory from the discovered file
+                    output_dir = Path(latest_output).parent
+                    top_features_file = output_dir / "top_20_features.json"
         
-        best_layers = metadata['best_layers']
-        logger.info(f"Using best layers - Correct: {best_layers['correct']}, Incorrect: {best_layers['incorrect']}")
+        if not top_features_file.exists():
+            raise FileNotFoundError(
+                f"top_20_features.json not found. "
+                "Please run Phase 2.10 or Phase 2.5 first."
+            )
+        
+        logger.info(f"Using features from Phase {phase_source}: {top_features_file}")
+        
+        # Read top features
+        with open(top_features_file, 'r') as f:
+            top_features = json.load(f)
+        
+        # Extract best layers (first entry in each list)
+        best_layers = {}
+        
+        if top_features.get('correct') and len(top_features['correct']) > 0:
+            best_layers['correct'] = top_features['correct'][0]['layer']
+            best_layers['correct_feature_idx'] = top_features['correct'][0]['feature_idx']
+        else:
+            raise ValueError("No correct features found in top_20_features.json")
+        
+        if top_features.get('incorrect') and len(top_features['incorrect']) > 0:
+            best_layers['incorrect'] = top_features['incorrect'][0]['layer']
+            best_layers['incorrect_feature_idx'] = top_features['incorrect'][0]['feature_idx']
+        else:
+            raise ValueError("No incorrect features found in top_20_features.json")
+        
+        logger.info(f"Discovered best layers - Correct: layer {best_layers['correct']}, Incorrect: layer {best_layers['incorrect']}")
         
         return best_layers
     
@@ -79,8 +116,8 @@ class HyperparameterDataRunner:
         else:
             logger.info(f"Model successfully loaded on {actual_device}")
         
-        # Discover best layers from Phase 3.5
-        self.best_layers = self._discover_best_layers_from_phase3_5()
+        # Discover best layers from Phase 2.10 or 2.5
+        self.best_layers = self._discover_best_layers()
         
         # Setup activation extraction layers (copying Phase 3.5's elegant same/different layer handling)
         self._setup_activation_extraction()
@@ -88,8 +125,6 @@ class HyperparameterDataRunner:
     def _setup_activation_extraction(self):
         """
         Setup activation extraction layers, handling same/different layer cases.
-        
-        This copies Phase 3.5's elegant approach for handling coincidental same layers.
         """
         # Determine unique layers to extract from (same logic as Phase 3.5)
         unique_layers = list(set([self.best_layers['correct'], self.best_layers['incorrect']]))
