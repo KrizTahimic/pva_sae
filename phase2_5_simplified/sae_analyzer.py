@@ -58,7 +58,8 @@ def load_gemma_scope_sae(layer_idx: int, device: str) -> JumpReLUSAE:
     # Path within repository for this layer
     sae_path = f"layer_{layer_idx}/width_16k/average_l0_{sparsity}/params.npz"
     
-    logger.info(f"Loading from path: {sae_path}")
+    logger.info(f"Loading from HuggingFace: {repo_id}/{sae_path}")
+    logger.info(f"This may take a while if the model is not cached...")
     
     # Download parameters
     path_to_params = hf_hub_download(
@@ -66,6 +67,7 @@ def load_gemma_scope_sae(layer_idx: int, device: str) -> JumpReLUSAE:
         filename=sae_path,
         force_download=False,
     )
+    logger.info(f"Download complete, loading from: {path_to_params}")
     
     # Load parameters with appropriate dtype for device
     params = np.load(path_to_params)

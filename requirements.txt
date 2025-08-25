@@ -5,6 +5,7 @@ transformers
 radon
 einops
 jaxtyping
+psutil  # For memory monitoring
 
 # If cuda
 accelerate

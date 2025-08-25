@@ -13,7 +13,7 @@ import os
 # Default values - shared across phases
 DEFAULT_MODEL_NAME = "google/gemma-2-2b"
 DEFAULT_LOG_DIR = "data/logs"
-MAX_NEW_TOKENS = 2000 # 2000 is too long and lengthens generation time significantly
+MAX_NEW_TOKENS = 800 # Reduced from 2000 to prevent excessively long generations
 
 # GemmaScope sparsity levels for each layer (16k width)
 GEMMA_2B_SPARSITY = {
@@ -143,7 +143,7 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.6, 0.8, 1.0])
     # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
     phase3_5_output_dir: str = "data/phase3_5"
@@ -157,6 +157,7 @@ class Config:
     # === TEMPERATURE-BASED AUROC ANALYSIS (Phase 3.10) ===
     phase3_10_output_dir: str = "data/phase3_10"
     phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
+
     
     # === DIFFICULTY-BASED AUROC ANALYSIS (Phase 3.12) ===
     phase3_12_output_dir: str = "data/phase3_12"

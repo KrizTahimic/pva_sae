@@ -123,9 +123,31 @@ def extract_code(generated_text: str, prompt: str) -> str:
     return code.strip()
 
 
+import signal
+import contextlib
+
+@contextlib.contextmanager
+def timeout(seconds):
+    """
+    Context manager for timeout protection.
+    Note: Only works on Unix/Mac systems (uses SIGALRM).
+    """
+    def timeout_handler(signum, frame):
+        raise TimeoutError(f"Code execution exceeded {seconds} seconds")
+    
+    # Set up the timeout
+    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        # Restore previous handler and cancel alarm
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
+
 def evaluate_code(code: str, test_list: list[str]) -> bool:
     """
-    Evaluate generated code against test cases.
+    Evaluate generated code against test cases with timeout protection.
     
     Args:
         code: Generated code to test
@@ -137,17 +159,23 @@ def evaluate_code(code: str, test_list: list[str]) -> bool:
     # Create namespace for execution
     namespace = {}
     
-    # Execute the code
+    # Execute the code with timeout
     try:
-        exec(code, namespace)
+        with timeout(5):  # 5 second timeout for code execution
+            exec(code, namespace)
+    except TimeoutError:
+        # Code took too long (likely blocked on input() or infinite loop)
+        return False
     except Exception:
+        # Other execution errors
         return False
     
-    # Run each test
+    # Run each test with timeout
     for test in test_list:
         try:
-            exec(test, namespace)
-        except Exception:
+            with timeout(5):  # 5 second timeout per test
+                exec(test, namespace)
+        except (TimeoutError, Exception):
             return False
     
     # All tests passed

@@ -1,10 +1,12 @@
 """Simplified Phase 1 runner for dataset building."""
 
+import gc
 import time
 import torch
 import pandas as pd
 from pathlib import Path
 from typing import Dict, Optional
+import psutil  # For memory monitoring
 
 # Use absolute imports since we'll add to path in run.py
 from common.config import Config
@@ -24,7 +26,10 @@ logger = get_logger("phase1_simplified.runner", phase="1.0")
 
 
 class Phase1Runner:
-    """Simple runner for Phase 1 dataset building."""
+    """Simple runner for Phase 1 dataset building with checkpointing support."""
+    
+    # Tasks known to cause hanging during generation
+    PROBLEMATIC_TASKS = [108]  # Task 108 consistently hangs at generation
     
     def __init__(self, config: Config):
         """Initialize with centralized config."""
@@ -32,6 +37,10 @@ class Phase1Runner:
         self.model = None
         self.tokenizer = None
         self.activation_extractor = None
+        
+        # Checkpoint settings
+        self.checkpoint_frequency = 50  # Save every 50 tasks
+        self.memory_warning_threshold = 85  # Warn if RAM usage > 85%
         
     def setup(self):
         """Load model and setup activation hooks."""
@@ -61,7 +70,7 @@ class Phase1Runner:
         logger.info(f"Model loaded: {self.config.model_name}")
         logger.info(f"Extracting residual stream from layers: {self.config.activation_layers}")
         
-    def generate_and_extract(self, prompt: str) -> tuple[str, Dict[int, torch.Tensor]]:
+    def generate_and_extract(self, prompt: str, task_id: str = None) -> tuple[str, Dict[int, torch.Tensor]]:
         """
         Generate code and extract activations in one pass.
         
@@ -88,19 +97,33 @@ class Phase1Runner:
         # This ensures we only capture activations from this generation
         self.activation_extractor.activations.clear()
         
+        # Log before generation
+        if task_id:
+            logger.debug(f"Starting generation for task {task_id}")
+        
         # Generate with activation extraction
         # IMPORTANT: During the first forward pass of generation, when the model
         # processes the prompt tokens, our pre-hooks capture the residual stream
         # activations at the last token position (position=-1)
-        with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=self.config.model_max_new_tokens,
-                temperature=self.config.model_temperature,
-                do_sample=self.config.model_temperature > 0,
-                pad_token_id=self.tokenizer.pad_token_id,
-                eos_token_id=self.tokenizer.eos_token_id,
-            )
+        try:
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=self.config.model_max_new_tokens,
+                    temperature=self.config.model_temperature,
+                    do_sample=self.config.model_temperature > 0,
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    # Add max_length as a hard limit
+                    max_length=inputs['input_ids'].shape[1] + self.config.model_max_new_tokens,
+                )
+                
+            if task_id:
+                logger.debug(f"Generation completed for task {task_id}")
+                
+        except Exception as e:
+            logger.error(f"Generation failed for task {task_id}: {e}")
+            raise
         
         # At this point, we have the residual stream activations from the prompt
         # Format: {layer_idx: tensor(batch_size=1, hidden_size)}
@@ -142,11 +165,19 @@ class Phase1Runner:
                 # The activations are from the PROMPT's last token residual stream,
                 # capturing how the model encodes the problem description
                 start_time = time.time()
-                generated_text, activations = self.generate_and_extract(prompt)
+                generated_text, activations = self.generate_and_extract(prompt, task_id)
                 generation_time = time.time() - start_time
+                
+                # Warn if generation took too long (likely incorrect/verbose code)
+                if generation_time > 60:  # More than 1 minute
+                    logger.warning(f"Task {task_id}: Generation took {generation_time:.1f}s - likely verbose/incorrect output")
                 
                 # Extract code from generated text
                 generated_code = extract_code(generated_text, prompt)
+                
+                # Log if code is unusually long
+                if len(generated_code) > 3000:  # Arbitrary threshold for "too long"
+                    logger.warning(f"Task {task_id}: Generated {len(generated_code)} chars of code - likely incorrect")
                 
                 # Evaluate code
                 test_passed = evaluate_code(generated_code, task['test_list'])
@@ -176,6 +207,61 @@ class Phase1Runner:
         else:
             logger.warning(f"Task {task_id} failed after {self.config.max_retries} attempts: {error_msg}")
             return None
+    
+    def save_checkpoint(self, results: list, excluded_tasks: list, 
+                       checkpoint_num: int, output_dir: Path) -> None:
+        """Save checkpoint to disk and clear memory."""
+        if not results:
+            return
+            
+        # Save current results to checkpoint file
+        checkpoint_file = output_dir / f"checkpoint_{checkpoint_num:04d}.parquet"
+        pd.DataFrame(results).to_parquet(checkpoint_file, index=False)
+        logger.info(f"Saved checkpoint {checkpoint_num} with {len(results)} tasks to {checkpoint_file}")
+        
+        # Save exclusions if any
+        if excluded_tasks:
+            exclusion_file = output_dir / f"checkpoint_{checkpoint_num:04d}_exclusions.json"
+            from common_simplified.helpers import save_json
+            save_json(excluded_tasks, exclusion_file)
+        
+    def load_checkpoints(self, output_dir: Path) -> tuple[list, list, set]:
+        """Load existing checkpoints if any."""
+        checkpoint_files = sorted(output_dir.glob("checkpoint_*.parquet"))
+        
+        if not checkpoint_files:
+            return [], [], set()
+        
+        logger.info(f"Found {len(checkpoint_files)} existing checkpoint(s)")
+        
+        all_results = []
+        all_excluded = []
+        processed_task_ids = set()
+        
+        for checkpoint_file in checkpoint_files:
+            df = pd.read_parquet(checkpoint_file)
+            all_results.extend(df.to_dict('records'))
+            processed_task_ids.update(df['task_id'].tolist())
+            
+            # Load exclusions if they exist
+            exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
+            if exclusion_file.exists():
+                from common_simplified.helpers import load_json
+                exclusions = load_json(exclusion_file)
+                all_excluded.extend(exclusions)
+                processed_task_ids.update([e['task_id'] for e in exclusions])
+        
+        logger.info(f"Loaded {len(all_results)} results and {len(all_excluded)} exclusions from checkpoints")
+        return all_results, all_excluded, processed_task_ids
+    
+    def check_memory_usage(self) -> float:
+        """Check current memory usage and warn if high."""
+        memory_percent = psutil.virtual_memory().percent
+        
+        if memory_percent > self.memory_warning_threshold:
+            logger.warning(f"⚠️ High memory usage: {memory_percent:.1f}% of RAM")
+        
+        return memory_percent
     
     def run(self, split_name: str = "sae"):
         """Run Phase 1 dataset building for specified split."""
@@ -215,13 +301,52 @@ class Phase1Runner:
         (activation_dir / "correct").mkdir(parents=True, exist_ok=True)
         (activation_dir / "incorrect").mkdir(parents=True, exist_ok=True)
         
+        # Load existing checkpoints if any
+        checkpoint_results, checkpoint_excluded, processed_task_ids = self.load_checkpoints(output_dir)
+        
+        # Filter out already processed tasks
+        if processed_task_ids:
+            logger.info(f"Skipping {len(processed_task_ids)} already processed tasks")
+            df = df[~df['task_id'].isin(processed_task_ids)]
+            logger.info(f"Remaining tasks to process: {len(df)}")
+        
         # Process tasks with progress bar
         from tqdm import tqdm
         
-        results = []
-        excluded_tasks = []
+        # Initialize with checkpoint data
+        results = []  # Current batch results
+        excluded_tasks = []  # Current batch exclusions
+        all_results = checkpoint_results  # All results including checkpoints
+        all_excluded = checkpoint_excluded  # All exclusions including checkpoints
+        
+        checkpoint_counter = len(list(output_dir.glob("checkpoint_*.parquet")))
+        tasks_since_checkpoint = 0
+        
+        # Calculate total attempted BEFORE the loop (needed for logging)
+        total_attempted = len(df) + len(processed_task_ids)
         
         for idx, task in tqdm(df.iterrows(), total=len(df), desc="Processing tasks"):
+            # Log which task we're about to process (helps identify hanging tasks)
+            task_number = len(all_results) + len(results) + 1  # Current position in overall processing
+            logger.info(f"Starting task {task_number}/{total_attempted}: {task['task_id']}")
+            
+            # Skip known problematic tasks that cause hanging
+            if task['task_id'] in self.PROBLEMATIC_TASKS:
+                logger.warning(f"⚠️ Skipping known problematic task {task['task_id']} that causes hanging")
+                excluded_tasks.append({
+                    'task_id': task['task_id'],
+                    'error': 'Known to cause hanging during generation - skipped'
+                })
+                tasks_since_checkpoint += 1
+                continue
+            
+            # Check memory before processing
+            memory_percent = self.check_memory_usage()
+            if memory_percent > 95:
+                logger.error(f"Critical memory usage: {memory_percent:.1f}%. Saving checkpoint and exiting.")
+                self.save_checkpoint(results, excluded_tasks, checkpoint_counter + 1, output_dir)
+                raise MemoryError(f"RAM usage critical: {memory_percent:.1f}%")
+            
             # Process task with retry logic
             result = self.process_task(task)
             
@@ -234,8 +359,13 @@ class Phase1Runner:
                     filename = create_activation_filename(task['task_id'], layer)
                     filepath = activation_dir / category / filename
                     save_activations({layer: activation}, filepath)
+                    # Explicitly delete the activation tensor to free memory
+                    del activation
                 
-                # Add results to dataset
+                # Clear activations from result to save memory
+                del result['activations']
+                
+                # Add results to current batch
                 results.append({
                     'task_id': task['task_id'],
                     'generated_code': result['generated_code'],
@@ -248,11 +378,41 @@ class Phase1Runner:
                     'error': 'Failed after retry attempts'
                 })
                 logger.debug(f"Excluding task {task['task_id']} from dataset")
+            
+            tasks_since_checkpoint += 1
+            
+            # Save checkpoint periodically
+            if tasks_since_checkpoint >= self.checkpoint_frequency and results:
+                checkpoint_counter += 1
+                self.save_checkpoint(results, excluded_tasks, checkpoint_counter, output_dir)
+                
+                # Add to all results and clear current batch
+                all_results.extend(results)
+                all_excluded.extend(excluded_tasks)
+                results = []
+                excluded_tasks = []
+                tasks_since_checkpoint = 0
+                
+                # Force garbage collection to free memory
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                elif hasattr(torch, 'mps') and torch.backends.mps.is_available():
+                    torch.mps.empty_cache()
+                
+                logger.info(f"Memory after checkpoint: {psutil.virtual_memory().percent:.1f}%")
+        
+        # Save final checkpoint if there are remaining results
+        if results:
+            checkpoint_counter += 1
+            self.save_checkpoint(results, excluded_tasks, checkpoint_counter, output_dir)
+            all_results.extend(results)
+            all_excluded.extend(excluded_tasks)
         
         # Handle exclusions and create final dataset
-        total_attempted = len(df)
-        n_excluded = len(excluded_tasks)
-        n_included = len(results)
+        # total_attempted was already calculated before the loop
+        n_excluded = len(all_excluded)
+        n_included = len(all_results)
         
         if n_included == 0:
             logger.error("No tasks were successfully processed! All tasks failed.")
@@ -265,12 +425,16 @@ class Phase1Runner:
                 logger.info(f"Saved exclusion summary to {exclusion_file}")
             raise RuntimeError("Phase 1 failed: no tasks were successfully processed")
         
-        # Create results dataframe from successful tasks only
-        results_df = pd.DataFrame(results)
+        # Create results dataframe from all successful tasks (including checkpoints)
+        results_df = pd.DataFrame(all_results)
         
         # Merge with original data (only successful tasks)
+        # Need to reload full dataset to get all original data including checkpointed tasks
+        full_df = load_mbpp_from_phase0_1(split_name, Path(self.config.phase0_1_output_dir))
+        full_df = full_df.iloc[start_idx:end_idx + 1]  # Apply original range
+        
         successful_task_ids = set(results_df['task_id'])
-        successful_original_data = df[df['task_id'].isin(successful_task_ids)].copy()
+        successful_original_data = full_df[full_df['task_id'].isin(successful_task_ids)].copy()
         final_df = successful_original_data.merge(results_df, on='task_id', how='inner')
         
         # Save dataset (only successful tasks)
@@ -281,8 +445,8 @@ class Phase1Runner:
         logger.info(f"Dataset saved to {output_file}")
         
         # Save exclusion summary for transparency
-        if excluded_tasks:
-            exclusion_summary = create_exclusion_summary(excluded_tasks, total_attempted)
+        if all_excluded:
+            exclusion_summary = create_exclusion_summary(all_excluded, total_attempted)
             from common_simplified.helpers import save_json
             exclusion_file = output_dir / "excluded_tasks.json"
             save_json(exclusion_summary, exclusion_file)
@@ -305,8 +469,25 @@ class Phase1Runner:
         logger.info(f"Incorrect solutions: {n_incorrect} ({100-pass_rate:.1f}%)")
         logger.info(f"\nDataset saved to: {output_file}")
         logger.info(f"Activations saved to: {activation_dir}/")
-        if excluded_tasks:
-            logger.warning(f"Excluded tasks: {[t['task_id'] for t in excluded_tasks]}")
+        
+        # Clean up checkpoint files after successful completion
+        checkpoint_files = list(output_dir.glob("checkpoint_*.parquet"))
+        if checkpoint_files:
+            logger.info(f"Cleaning up {len(checkpoint_files)} checkpoint files...")
+            for checkpoint_file in checkpoint_files:
+                checkpoint_file.unlink()
+                # Also remove exclusion files
+                exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
+                if exclusion_file.exists():
+                    exclusion_file.unlink()
+        
+        if all_excluded:
+            logger.warning(f"Excluded tasks: {[t['task_id'] for t in all_excluded]}")
+            # Specifically note problematic tasks
+            problematic_excluded = [t for t in all_excluded if 'hanging' in t.get('error', '')]
+            if problematic_excluded:
+                logger.warning(f"⚠️ Skipped {len(problematic_excluded)} known problematic tasks to prevent hanging: "
+                             f"{[t['task_id'] for t in problematic_excluded]}")
         logger.info("="*60 + "\n")
         
         # Cleanup hooks to free memory
