@@ -101,15 +101,25 @@ def extract_code(generated_text: str, prompt: str) -> str:
         # Prompt already removed, use generated_text as is
         code = generated_text.strip()
     
-    # Basic cleanup - remove common artifacts
-    if code.startswith("```python"):
-        code = code[9:]  # Remove ```python
-    if code.startswith("```"):
-        code = code[3:]  # Remove ```
-        
-    if code.endswith("```"):
-        code = code[:-3]  # Remove trailing ```
-        
+    # # Find where function definition starts
+    # def_index = code.find('def ')
+    # if def_index == -1:
+    #     # No function definition found, return as is
+    #     return code.strip()
+    
+    # # Look for pattern: \n followed by non-space/non-tab after the def
+    # # This indicates end of function (test cases, main function, etc.)
+    # search_start = def_index + 4  # Skip past "def "
+    
+    # for i in range(search_start, len(code) - 1):
+    #     if code[i] == '\n' and i + 1 < len(code):
+    #         next_char = code[i + 1]
+    #         if next_char not in ' \t\n':
+    #             # Found newline followed by non-whitespace
+    #             # This is where function ends
+    #             return code[:i].rstrip()
+    
+    # No such pattern found, return entire code
     return code.strip()
 
 

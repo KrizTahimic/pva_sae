@@ -13,7 +13,7 @@ import os
 # Default values - shared across phases
 DEFAULT_MODEL_NAME = "google/gemma-2-2b"
 DEFAULT_LOG_DIR = "data/logs"
-MAX_NEW_TOKENS = 2000
+MAX_NEW_TOKENS = 2000 # 2000 is too long and lengthens generation time significantly
 
 # GemmaScope sparsity levels for each layer (16k width)
 GEMMA_2B_SPARSITY = {
@@ -77,7 +77,8 @@ class Config:
     dataset_end_idx: Optional[int] = None
     
     # === ACTIVATION SETTINGS ===
-    activation_layers: List[int] = field(default_factory=lambda: [1, 6, 8, 15, 17])  # GemmaScope available layers for Gemma-2B
+    # activation_layers: List[int] = field(default_factory=lambda: [6, 8, 10, 12, 14])  # GemmaScope available layers for Gemma-2B
+    activation_layers: List[int] = field(default_factory=lambda: list(range(1, 26, 1)))  # All layers for GemmaScope
     activation_hook_type: str = "resid_post"
     activation_position: int = -1  # Final token
     activation_max_cache_gb: float = 10.0
@@ -162,7 +163,11 @@ class Config:
     
     # === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
     # Grid search coefficients from 10 to 100 in increments of 10
-    phase4_5_initial_points: List[float] = field(default_factory=lambda: [20.0, 30.0, 40.0, 50.0])
+    # phase4_5_initial_points: List[float] = field(default_factory=lambda: [45.0])
+    phase4_5_initial_points: List[float] = field(default_factory=lambda: [400.0])
+
+
+    # phase4_5_initial_points: List[float] = field(default_factory=lambda: [35.0, 100.0, 400.0, 500.0])
     # phase4_5_initial_points: List[float] = field(default_factory=lambda: list(range(10, 101, 10)))
 
     phase4_5_search_tolerance: float = 2.0  # Stop binary search when range < tolerance
@@ -175,8 +180,8 @@ class Config:
     phase4_6_output_dir: str = "data/phase4_6"
     
     # === STEERING EFFECT ANALYSIS (Phase 4.8) ===
-    phase4_8_correct_coefficient: float = 45.0
-    phase4_8_incorrect_coefficient: float = 45.0
+    # phase4_8_correct_coefficient: float = 45.0
+    # phase4_8_incorrect_coefficient: float = 45.0
     phase4_8_output_dir: str = "data/phase4_8"
     
     # === WEIGHT ORTHOGONALIZATION (Phase 5.3) ===

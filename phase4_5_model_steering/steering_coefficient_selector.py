@@ -240,19 +240,10 @@ class SteeringCoefficientSelector:
                     )
                     generated_code = extract_code(generated_text, prompt)
                     
-                    # Debug logging for code extraction
-                    logger.debug(f"Task {row['task_id']} extraction:")
-                    logger.debug(f"  Generated text length: {len(generated_text)}")
-                    logger.debug(f"  First 100 chars of generated: {repr(generated_text[:100])}")
-                    logger.debug(f"  Extracted code length: {len(generated_code)}")
-                    logger.debug(f"  First 100 chars of code: {repr(generated_code[:100])}")
-                    
                     # Evaluate code
                     test_list = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-                    logger.debug(f"  Number of tests: {len(test_list)}")
                     
                     test_passed = evaluate_code(generated_code, test_list)
-                    logger.debug(f"  Evaluation result: {'PASS' if test_passed else 'FAIL'}")
                     
                     return {
                         'generated_code': generated_code,
@@ -268,6 +259,9 @@ class SteeringCoefficientSelector:
                 )
                 
                 if success:
+                    logger.info(f"Task {row['task_id']}: {'PASS' if generation_result['test_passed'] else 'FAIL'} "
+                               f"(steering: {steering_type}, coeff: {coefficient})")
+                    
                     # Check if result flipped from baseline
                     baseline_passed = row['test_passed']
                     steered_passed = generation_result['test_passed']

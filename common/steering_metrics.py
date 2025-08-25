@@ -239,7 +239,7 @@ def create_steering_hook(sae_decoder_direction: torch.Tensor,
         
         # Add steering vector scaled by coefficient to all positions
         steering = sae_decoder_direction.unsqueeze(0).unsqueeze(0) * coefficient
-        residual = residual + steering.to(residual.device)
+        residual = residual + steering.to(residual.device, residual.dtype)
         
         return (residual,) + input[1:]
     

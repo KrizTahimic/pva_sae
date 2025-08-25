@@ -17,24 +17,32 @@ class PromptBuilder:
 # Problem:
 # {problem_description}
 
-# Your function must pass all of these test cases:
+# Tests:
 # {test_cases}
 
 # Write only the function definition. Do not include test code or explanations.
 
-# {code_initiator}"""
+# {code_initiator}
+
+# """
     TEMPLATE = """{problem_description}
 
-    {test_cases}
-    
-    {code_initiator}"""
+{test_cases}
+
+{code_initiator}"""
+#     TEMPLATE = """{problem_description}
+
+# {test_cases}"""
+
     
     @classmethod
     def build_prompt(
         cls,
         problem_description: str,
         test_cases: str,
-        code_initiator: str = "# Your code here:"
+        # code_initiator: str = "# Write your function definition here:"
+        # code_initiator: str = "# Your code here:"
+        code_initiator: str = "# Solution:"
     ) -> str:
         """
         Build prompt template.
