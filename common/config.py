@@ -157,7 +157,9 @@ class Config:
     
     # === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
     # Grid search coefficients from 10 to 100 in increments of 10
-    phase4_5_initial_points: List[float] = field(default_factory=lambda: [20.0, 30.0, 40.0, 50.0])
+    # phase4_5_initial_points: List[float] = field(default_factory=lambda: [20.0, 30.0, 40.0, 50.0])
+    phase4_5_initial_points: List[float] = field(default_factory=lambda: [35.0])
+
     # phase4_5_initial_points: List[float] = field(default_factory=lambda: list(range(10, 101, 10)))
 
     phase4_5_search_tolerance: float = 2.0  # Stop binary search when range < tolerance
