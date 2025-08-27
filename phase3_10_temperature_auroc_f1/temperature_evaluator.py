@@ -13,8 +13,9 @@ import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
-from sklearn.metrics import roc_auc_score, f1_score
+from sklearn.metrics import roc_auc_score, f1_score, roc_curve, precision_recall_curve
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 from common.config import Config
 from common.logging import get_logger
@@ -170,7 +171,9 @@ class TemperatureAUROCEvaluator:
                     
                     # Encode through SAE to get feature value
                     with torch.no_grad():
-                        raw_tensor = torch.from_numpy(raw_activation).to(self.device)
+                        # Get SAE dtype to ensure compatibility
+                        sae_dtype = next(sae.parameters()).dtype
+                        raw_tensor = torch.from_numpy(raw_activation).to(dtype=sae_dtype, device=self.device)
                         # Ensure correct shape
                         if raw_tensor.ndim == 1:
                             raw_tensor = raw_tensor.unsqueeze(0)
@@ -221,12 +224,18 @@ class TemperatureAUROCEvaluator:
                     temp
                 )
                 
-                # Flip labels for correct-preferring features
-                if feature_type == 'correct':
-                    labels = 1 - labels
+                # Count original distribution (before any flipping)
+                n_correct = sum(labels)  # test_passed = 1
+                n_incorrect = len(labels) - n_correct  # test_passed = 0
+                
+                # For AUROC: we want high feature values to predict class 1
+                # Correct-preferring: high activation = correct code (already label=1)
+                # Incorrect-preferring: high activation = incorrect code (need to flip)
+                if feature_type == 'incorrect':
+                    labels = 1 - labels  # Flip so high activation → 1 (incorrect)
                 
                 # Calculate metrics with edge case handling
-                n_positive = sum(labels)
+                n_positive = sum(labels)  # After flip for AUROC
                 n_negative = len(labels) - n_positive
                 
                 if n_positive < 2 or n_negative < 2:
@@ -235,20 +244,34 @@ class TemperatureAUROCEvaluator:
                                       f"pos={n_positive}, neg={n_negative}")
                     auroc = float('nan')
                     f1 = float('nan')
+                    fpr = np.array([0, 1])
+                    tpr = np.array([0, 1])
+                    precision = np.array([0, 1])
+                    recall = np.array([0, 1])
                 else:
                     auroc = roc_auc_score(labels, features)
                     threshold = best_features[feature_type]['threshold']
                     predictions = (features > threshold).astype(int)
                     f1 = f1_score(labels, predictions)
+                    # Calculate ROC curve
+                    fpr, tpr, _ = roc_curve(labels, features)
+                    # Calculate Precision-Recall curve
+                    precision, recall, _ = precision_recall_curve(labels, features)
                 
                 results[temp][feature_type] = {
                     'auroc': auroc,
                     'f1': f1,
                     'n_samples': len(features),  # Changed from n_tasks to n_samples
-                    'n_positive': n_positive,
-                    'n_negative': n_negative,
+                    'n_correct': n_correct,  # Original correct samples
+                    'n_incorrect': n_incorrect,  # Original incorrect samples
+                    'n_positive': n_positive,  # For AUROC (after flip if correct-preferring)
+                    'n_negative': n_negative,  # For AUROC (after flip if correct-preferring)
                     'feature_values': features.tolist(),
-                    'labels': labels.tolist()
+                    'labels': labels.tolist(),
+                    'fpr': fpr.tolist(),  # Store for ROC curve plotting
+                    'tpr': tpr.tolist(),   # Store for ROC curve plotting
+                    'precision': precision.tolist(),  # Store for PR curve plotting
+                    'recall': recall.tolist()         # Store for PR curve plotting
                 }
                 
                 self.logger.info(f"Temperature {temp}, {feature_type}: "
@@ -295,18 +318,18 @@ class TemperatureAUROCEvaluator:
         ax2.set_ylim(0, 1.05)
         ax2.set_xticks(temperatures)
         
-        # Sample distribution plot
-        n_positive_correct = [results[t]['correct']['n_positive'] for t in temperatures]
-        n_negative_correct = [results[t]['correct']['n_negative'] for t in temperatures]
+        # Sample distribution plot (using original correct/incorrect counts)
+        n_correct = [results[t]['correct']['n_correct'] for t in temperatures]
+        n_incorrect = [results[t]['correct']['n_incorrect'] for t in temperatures]
         
         x = np.arange(len(temperatures))
         width = 0.35
         
-        ax3.bar(x - width/2, n_positive_correct, width, label='Positive', alpha=0.7, color='green')
-        ax3.bar(x + width/2, n_negative_correct, width, label='Negative', alpha=0.7, color='red')
+        ax3.bar(x - width/2, n_correct, width, label='Correct (test passed)', alpha=0.7, color='green')
+        ax3.bar(x + width/2, n_incorrect, width, label='Incorrect (test failed)', alpha=0.7, color='red')
         ax3.set_xlabel('Temperature')
         ax3.set_ylabel('Number of Samples')
-        ax3.set_title('Sample Distribution (Correct-preferring Feature)')
+        ax3.set_title('Original Sample Distribution')
         ax3.set_xticks(x)
         ax3.set_xticklabels(temperatures)
         ax3.legend()
@@ -331,6 +354,166 @@ class TemperatureAUROCEvaluator:
         plt.close()
         
         self.logger.info(f"Saved temperature trends plot to {output_path}")
+    
+    def plot_roc_curves(self, results: Dict) -> None:
+        """Plot ROC curves for all temperatures."""
+        temperatures = sorted(results.keys())
+        
+        # Create figure with 1x2 subplots
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+        
+        # Create color map for temperatures (blue to red gradient)
+        colors = cm.coolwarm(np.linspace(0.2, 0.8, len(temperatures)))
+        
+        # Plot for correct-preferring feature
+        for i, temp in enumerate(temperatures):
+            fpr = np.array(results[temp]['correct']['fpr'])
+            tpr = np.array(results[temp]['correct']['tpr'])
+            auroc = results[temp]['correct']['auroc']
+            
+            if not np.isnan(auroc):
+                ax1.plot(fpr, tpr, color=colors[i], linewidth=2,
+                        label=f'Temp {temp:.1f} (AUC={auroc:.3f})')
+        
+        # Add diagonal reference line
+        ax1.plot([0, 1], [0, 1], 'k--', alpha=0.5, linewidth=1, label='Random (AUC=0.5)')
+        ax1.set_xlabel('False Positive Rate')
+        ax1.set_ylabel('True Positive Rate')
+        ax1.set_title('ROC Curves - Correct-Preferring Feature')
+        ax1.legend(loc='lower right', fontsize=9)
+        ax1.grid(True, alpha=0.3)
+        ax1.set_xlim([-0.01, 1.01])
+        ax1.set_ylim([-0.01, 1.01])
+        
+        # Plot for incorrect-preferring feature
+        for i, temp in enumerate(temperatures):
+            fpr = np.array(results[temp]['incorrect']['fpr'])
+            tpr = np.array(results[temp]['incorrect']['tpr'])
+            auroc = results[temp]['incorrect']['auroc']
+            
+            if not np.isnan(auroc):
+                ax2.plot(fpr, tpr, color=colors[i], linewidth=2,
+                        label=f'Temp {temp:.1f} (AUC={auroc:.3f})')
+        
+        # Add diagonal reference line
+        ax2.plot([0, 1], [0, 1], 'k--', alpha=0.5, linewidth=1, label='Random (AUC=0.5)')
+        ax2.set_xlabel('False Positive Rate')
+        ax2.set_ylabel('True Positive Rate')
+        ax2.set_title('ROC Curves - Incorrect-Preferring Feature')
+        ax2.legend(loc='lower right', fontsize=9)
+        ax2.grid(True, alpha=0.3)
+        ax2.set_xlim([-0.01, 1.01])
+        ax2.set_ylim([-0.01, 1.01])
+        
+        # Add overall title
+        fig.suptitle('ROC Curves Across Different Temperatures', fontsize=14, y=1.02)
+        
+        # Add color bar to show temperature gradient
+        sm = cm.ScalarMappable(cmap=cm.coolwarm, 
+                               norm=plt.Normalize(vmin=min(temperatures), vmax=max(temperatures)))
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=[ax1, ax2], orientation='horizontal', 
+                           pad=0.1, aspect=50, shrink=0.5)
+        cbar.set_label('Temperature', fontsize=10)
+        
+        plt.tight_layout()
+        output_path = self.output_dir / 'roc_curves_by_temperature.png'
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        self.logger.info(f"Saved ROC curves plot to {output_path}")
+    
+    def plot_precision_recall_curves(self, results: Dict) -> None:
+        """Plot Precision-Recall curves for all temperatures."""
+        from sklearn.metrics import average_precision_score
+        
+        temperatures = sorted(results.keys())
+        
+        # Create figure with 1x2 subplots
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+        
+        # Create color map for temperatures (blue to red gradient)
+        colors = cm.coolwarm(np.linspace(0.2, 0.8, len(temperatures)))
+        
+        # Plot for correct-preferring feature
+        for i, temp in enumerate(temperatures):
+            precision = np.array(results[temp]['correct']['precision'])
+            recall = np.array(results[temp]['correct']['recall'])
+            labels = np.array(results[temp]['correct']['labels'])
+            features = np.array(results[temp]['correct']['feature_values'])
+            
+            # Calculate AUC-PR (Average Precision Score)
+            if len(np.unique(labels)) > 1:  # Check if we have both classes
+                auc_pr = average_precision_score(labels, features)
+                ax1.plot(recall, precision, color=colors[i], linewidth=2,
+                        label=f'Temp {temp:.1f} (AUC-PR={auc_pr:.3f})')
+        
+        # Add baseline (random performance = positive class ratio)
+        if temperatures:
+            # Use first temperature to get baseline positive ratio
+            first_temp = temperatures[0]
+            n_positive = results[first_temp]['correct']['n_positive']
+            n_total = results[first_temp]['correct']['n_samples']
+            baseline = n_positive / n_total if n_total > 0 else 0.5
+            ax1.axhline(y=baseline, color='k', linestyle='--', alpha=0.5, linewidth=1,
+                       label=f'Random (AP={baseline:.3f})')
+        
+        ax1.set_xlabel('Recall')
+        ax1.set_ylabel('Precision')
+        ax1.set_title('Precision-Recall Curves - Correct-Preferring Feature')
+        ax1.legend(loc='lower left', fontsize=9)
+        ax1.grid(True, alpha=0.3)
+        ax1.set_xlim([-0.01, 1.01])
+        ax1.set_ylim([-0.01, 1.01])
+        
+        # Plot for incorrect-preferring feature
+        for i, temp in enumerate(temperatures):
+            precision = np.array(results[temp]['incorrect']['precision'])
+            recall = np.array(results[temp]['incorrect']['recall'])
+            labels = np.array(results[temp]['incorrect']['labels'])
+            features = np.array(results[temp]['incorrect']['feature_values'])
+            
+            # Calculate AUC-PR (Average Precision Score)
+            if len(np.unique(labels)) > 1:  # Check if we have both classes
+                auc_pr = average_precision_score(labels, features)
+                ax2.plot(recall, precision, color=colors[i], linewidth=2,
+                        label=f'Temp {temp:.1f} (AUC-PR={auc_pr:.3f})')
+        
+        # Add baseline (random performance = positive class ratio)
+        if temperatures:
+            # Use first temperature to get baseline positive ratio
+            first_temp = temperatures[0]
+            n_positive = results[first_temp]['incorrect']['n_positive']
+            n_total = results[first_temp]['incorrect']['n_samples']
+            baseline = n_positive / n_total if n_total > 0 else 0.5
+            ax2.axhline(y=baseline, color='k', linestyle='--', alpha=0.5, linewidth=1,
+                       label=f'Random (AP={baseline:.3f})')
+        
+        ax2.set_xlabel('Recall')
+        ax2.set_ylabel('Precision')
+        ax2.set_title('Precision-Recall Curves - Incorrect-Preferring Feature')
+        ax2.legend(loc='lower left', fontsize=9)
+        ax2.grid(True, alpha=0.3)
+        ax2.set_xlim([-0.01, 1.01])
+        ax2.set_ylim([-0.01, 1.01])
+        
+        # Add overall title
+        fig.suptitle('Precision-Recall Curves Across Different Temperatures', fontsize=14, y=1.02)
+        
+        # Add color bar to show temperature gradient
+        sm = cm.ScalarMappable(cmap=cm.coolwarm, 
+                               norm=plt.Normalize(vmin=min(temperatures), vmax=max(temperatures)))
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=[ax1, ax2], orientation='horizontal', 
+                           pad=0.1, aspect=50, shrink=0.5)
+        cbar.set_label('Temperature', fontsize=10)
+        
+        plt.tight_layout()
+        output_path = self.output_dir / 'precision_recall_curves_by_temperature.png'
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        self.logger.info(f"Saved Precision-Recall curves plot to {output_path}")
     
     def generate_summary(self, results: Dict, best_features: Dict[str, Dict]) -> str:
         """Generate human-readable summary of results."""
@@ -373,8 +556,8 @@ class TemperatureAUROCEvaluator:
                         f"F1={results[temp]['correct']['f1']:.3f}")
             lines.append(f"  Incorrect-preferring: AUROC={incorrect_auroc:.3f}, "
                         f"F1={results[temp]['incorrect']['f1']:.3f}")
-            lines.append(f"  Sample distribution: {results[temp]['correct']['n_positive']} positive, "
-                        f"{results[temp]['correct']['n_negative']} negative")
+            lines.append(f"  Sample distribution: {results[temp]['correct']['n_correct']} correct (test passed), "
+                        f"{results[temp]['correct']['n_incorrect']} incorrect (test failed)")
             lines.append("")
             
             # Track critical temperatures
@@ -402,21 +585,25 @@ class TemperatureAUROCEvaluator:
         # Performance degradation analysis
         lines.append("PERFORMANCE DEGRADATION:")
         
-        # Calculate degradation percentages
-        correct_degradation = ((results[0.0]['correct']['auroc'] - results[1.2]['correct']['auroc']) / 
-                             results[0.0]['correct']['auroc'] * 100)
-        incorrect_degradation = ((results[0.0]['incorrect']['auroc'] - results[1.2]['incorrect']['auroc']) / 
-                               results[0.0]['incorrect']['auroc'] * 100)
+        # Get min and max temperatures from results
+        min_temp = min(temperatures)
+        max_temp = max(temperatures)
         
-        lines.append(f"  Correct-preferring:   {correct_degradation:.1f}% degradation from temp 0.0 to 1.2")
-        lines.append(f"  Incorrect-preferring: {incorrect_degradation:.1f}% degradation from temp 0.0 to 1.2")
+        # Calculate degradation percentages
+        correct_degradation = ((results[min_temp]['correct']['auroc'] - results[max_temp]['correct']['auroc']) / 
+                             results[min_temp]['correct']['auroc'] * 100)
+        incorrect_degradation = ((results[min_temp]['incorrect']['auroc'] - results[max_temp]['incorrect']['auroc']) / 
+                               results[min_temp]['incorrect']['auroc'] * 100)
+        
+        lines.append(f"  Correct-preferring:   {correct_degradation:.1f}% degradation from temp {min_temp} to {max_temp}")
+        lines.append(f"  Incorrect-preferring: {incorrect_degradation:.1f}% degradation from temp {min_temp} to {max_temp}")
         
         lines.append("")
         lines.append("RECOMMENDATIONS:")
         
         # Determine recommended temperature range
         if correct_critical_temp is None and incorrect_critical_temp is None:
-            lines.append("  - Both features remain reliable across all tested temperatures (0.0 - 1.2)")
+            lines.append(f"  - Both features remain reliable across all tested temperatures ({min_temp} - {max_temp})")
         elif correct_critical_temp is not None and incorrect_critical_temp is not None:
             recommended_max = min(correct_critical_temp, incorrect_critical_temp) - 0.3
             lines.append(f"  - Recommend using temperatures <= {recommended_max} for reliable PVA analysis")
@@ -470,6 +657,8 @@ class TemperatureAUROCEvaluator:
         
         # Generate visualizations
         self.plot_temperature_trends(results)
+        self.plot_roc_curves(results)
+        self.plot_precision_recall_curves(results)
         
         # Save all results
         self.save_results(results, best_features)

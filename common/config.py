@@ -143,7 +143,7 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.6, 0.8, 1.0])
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [1.4])
     # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
     phase3_5_output_dir: str = "data/phase3_5"
@@ -156,7 +156,7 @@ class Config:
     
     # === TEMPERATURE-BASED AUROC ANALYSIS (Phase 3.10) ===
     phase3_10_output_dir: str = "data/phase3_10"
-    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
+    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.5, 2.0])
 
     
     # === DIFFICULTY-BASED AUROC ANALYSIS (Phase 3.12) ===
@@ -164,7 +164,7 @@ class Config:
     
     # === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
     # Grid search coefficients from 10 to 100 in increments of 10
-    phase4_5_initial_points: List[float] = field(default_factory=lambda: [35.0])
+    phase4_5_initial_points: List[float] = field(default_factory=lambda: [20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0])
     # phase4_5_initial_points: List[float] = field(default_factory=lambda: [400.0])
 
 

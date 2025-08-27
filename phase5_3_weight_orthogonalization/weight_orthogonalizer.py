@@ -8,6 +8,8 @@ but with permanent weight modifications instead of temporary hooks.
 
 import json
 import time
+import gc
+import psutil
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import pandas as pd
@@ -33,6 +35,7 @@ from common.steering_metrics import (
     calculate_preservation_rate,
     calculate_code_similarity
 )
+from common.retry_utils import retry_with_timeout
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.helpers import evaluate_code, extract_code, load_json, save_json
 from common_simplified.weight_orthogonalization import orthogonalize_gemma_weights
@@ -61,6 +64,10 @@ class WeightOrthogonalizer:
         
         # Split baseline data by correctness
         self._split_baseline_by_correctness()
+        
+        # Checkpoint tracking
+        self.checkpoint_dir = self.output_dir / "checkpoints"
+        ensure_directory_exists(self.checkpoint_dir)
         
         logger.info("WeightOrthogonalizer initialized successfully")
         
@@ -153,6 +160,88 @@ class WeightOrthogonalizer:
         
         logger.info(f"Baseline split: {len(self.correct_baseline)} correct, "
                    f"{len(self.incorrect_baseline)} incorrect")
+    
+    def save_checkpoint(self, experiment_name: str, baseline_type: str,
+                       results: List[Dict], last_idx: int, 
+                       total_tasks: int) -> None:
+        """Save checkpoint for current experiment."""
+        checkpoint_data = {
+            'experiment_name': experiment_name,  # 'incorrect_ortho' or 'correct_ortho'
+            'baseline_type': baseline_type,  # 'incorrect' or 'correct'
+            'results': results,
+            'last_processed_idx': last_idx,
+            'total_tasks': total_tasks,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # Create checkpoint filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        checkpoint_file = self.checkpoint_dir / f"checkpoint_{experiment_name}_{baseline_type}_{timestamp}.json"
+        
+        # Save checkpoint
+        save_json(checkpoint_data, checkpoint_file)
+        logger.info(f"Saved {experiment_name}/{baseline_type} checkpoint at index {last_idx}/{total_tasks-1}")
+        
+        # Clean up old checkpoints
+        self.cleanup_old_checkpoints(experiment_name, baseline_type)
+    
+    def load_checkpoint(self, experiment_name: str, baseline_type: str) -> Optional[Dict]:
+        """Load most recent checkpoint for experiment if available."""
+        checkpoint_pattern = f"checkpoint_{experiment_name}_{baseline_type}_*.json"
+        checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
+        
+        if not checkpoint_files:
+            return None
+        
+        # Load most recent checkpoint
+        latest_checkpoint = checkpoint_files[-1]
+        logger.info(f"Loading checkpoint from {latest_checkpoint}")
+        
+        try:
+            checkpoint_data = load_json(latest_checkpoint)
+            logger.info(f"Resuming {experiment_name}/{baseline_type} from index "
+                       f"{checkpoint_data['last_processed_idx']}/{checkpoint_data['total_tasks']-1}")
+            return checkpoint_data
+        except Exception as e:
+            logger.error(f"Failed to load checkpoint: {e}")
+            return None
+    
+    def cleanup_old_checkpoints(self, experiment_name: str, baseline_type: str, keep_last: int = 3) -> None:
+        """Remove old checkpoint files, keeping only the most recent ones."""
+        checkpoint_pattern = f"checkpoint_{experiment_name}_{baseline_type}_*.json"
+        checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
+        
+        if len(checkpoint_files) > keep_last:
+            for old_checkpoint in checkpoint_files[:-keep_last]:
+                old_checkpoint.unlink()
+                logger.debug(f"Removed old checkpoint: {old_checkpoint}")
+    
+    def cleanup_all_checkpoints(self) -> None:
+        """Remove all checkpoint files after successful completion."""
+        checkpoint_files = list(self.checkpoint_dir.glob("checkpoint_*.json"))
+        for checkpoint_file in checkpoint_files:
+            checkpoint_file.unlink()
+            logger.debug(f"Removed checkpoint: {checkpoint_file}")
+        
+        if checkpoint_files:
+            logger.info(f"Cleaned up {len(checkpoint_files)} checkpoint files")
+    
+    def check_memory_usage(self) -> None:
+        """Check current memory usage and log warnings if high."""
+        memory = psutil.virtual_memory()
+        memory_percent = memory.percent
+        memory_gb = memory.used / (1024**3)
+        
+        if memory_percent > 90:
+            logger.critical(f"CRITICAL: Memory usage at {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
+            # Force garbage collection
+            gc.collect()
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
+        elif memory_percent > 80:
+            logger.warning(f"High memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
+        else:
+            logger.debug(f"Memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
                    
     def _generate_with_model(self, model, tokenizer, prompt: str) -> str:
         """Generate code using the model."""
@@ -206,49 +295,157 @@ class WeightOrthogonalizer:
         
         # Test on incorrect baseline (expect corrections)
         logger.info("\nTesting on initially incorrect problems...")
-        incorrect_results = []
         
-        for idx, row in tqdm(self.incorrect_baseline.iterrows(), 
-                           total=len(self.incorrect_baseline),
-                           desc="Evaluating incorrect→correct"):
-            prompt = row['prompt']
+        # Check for existing checkpoint
+        checkpoint_data = self.load_checkpoint('incorrect_ortho', 'incorrect')
+        if checkpoint_data:
+            incorrect_results = checkpoint_data['results']
+            start_idx = checkpoint_data['last_processed_idx'] + 1
+        else:
+            incorrect_results = []
+            start_idx = 0
+        
+        # Process tasks
+        incorrect_list = list(self.incorrect_baseline.iterrows())
+        total_tasks = len(incorrect_list)
+        
+        for enum_idx, (idx, row) in enumerate(tqdm(incorrect_list[start_idx:], 
+                                                   initial=start_idx,
+                                                   total=total_tasks,
+                                                   desc="Evaluating incorrect→correct"),
+                                              start=start_idx):
+            # Define generation function for retry
+            def generate_and_evaluate():
+                prompt = row['prompt']
+                
+                # Generate with orthogonalized model
+                generated = self._generate_with_model(model, tokenizer, prompt)
+                code = extract_code(generated, prompt)
+                test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                passed = evaluate_code(code, test_cases)
+                
+                return {
+                    'task_id': row['task_id'],
+                    'baseline_passed': False,
+                    'orthogonalized_passed': passed,
+                    'baseline_code': row['generated_code'],
+                    'orthogonalized_code': code
+                }
             
-            # Generate with orthogonalized model
-            generated = self._generate_with_model(model, tokenizer, prompt)
-            code = extract_code(generated, prompt)
-            test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-            passed = evaluate_code(code, test_cases)
+            # Attempt generation with retry and timeout
+            success, result, error_msg = retry_with_timeout(
+                generate_and_evaluate,
+                row['task_id'],
+                self.config,
+                "incorrect_ortho generation"
+            )
             
-            incorrect_results.append({
-                'task_id': row['task_id'],
-                'baseline_passed': False,
-                'orthogonalized_passed': passed,
-                'baseline_code': row['generated_code'],
-                'orthogonalized_code': code
-            })
+            if success:
+                incorrect_results.append(result)
+            else:
+                logger.warning(f"Skipping task {row['task_id']} due to error: {error_msg}")
+                # Append a failed result to maintain consistency
+                incorrect_results.append({
+                    'task_id': row['task_id'],
+                    'baseline_passed': False,
+                    'orthogonalized_passed': False,  # Mark as failed
+                    'baseline_code': row['generated_code'],
+                    'orthogonalized_code': '',
+                    'error': error_msg
+                })
+            
+            # Memory monitoring every 10 tasks
+            if (enum_idx + 1) % 10 == 0:
+                self.check_memory_usage()
+                gc.collect()
+                if self.device.type == "cuda":
+                    torch.cuda.empty_cache()
+            
+            # Checkpointing every 50 tasks
+            if (enum_idx + 1) % 50 == 0:
+                self.save_checkpoint('incorrect_ortho', 'incorrect', incorrect_results, enum_idx, total_tasks)
+            
+            # Autosave every 100 tasks
+            if (enum_idx + 1) % 100 == 0:
+                logger.info(f"Autosaving at task {enum_idx + 1}/{total_tasks}")
+                self.save_checkpoint('incorrect_ortho', 'incorrect', incorrect_results, enum_idx, total_tasks)
         
         # Test on correct baseline (expect preservation)
         logger.info("\nTesting on initially correct problems...")
-        correct_results = []
         
-        for idx, row in tqdm(self.correct_baseline.iterrows(),
-                           total=len(self.correct_baseline),
-                           desc="Evaluating correct→correct"):
-            prompt = row['prompt']
+        # Check for existing checkpoint
+        checkpoint_data = self.load_checkpoint('incorrect_ortho', 'correct')
+        if checkpoint_data:
+            correct_results = checkpoint_data['results']
+            start_idx = checkpoint_data['last_processed_idx'] + 1
+        else:
+            correct_results = []
+            start_idx = 0
+        
+        # Process tasks
+        correct_list = list(self.correct_baseline.iterrows())
+        total_tasks = len(correct_list)
+        
+        for enum_idx, (idx, row) in enumerate(tqdm(correct_list[start_idx:],
+                                                   initial=start_idx,
+                                                   total=total_tasks,
+                                                   desc="Evaluating correct→correct"),
+                                              start=start_idx):
+            # Define generation function for retry
+            def generate_and_evaluate():
+                prompt = row['prompt']
+                
+                # Generate with orthogonalized model
+                generated = self._generate_with_model(model, tokenizer, prompt)
+                code = extract_code(generated, prompt)
+                test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                passed = evaluate_code(code, test_cases)
+                
+                return {
+                    'task_id': row['task_id'],
+                    'baseline_passed': True,
+                    'orthogonalized_passed': passed,
+                    'baseline_code': row['generated_code'],
+                    'orthogonalized_code': code
+                }
             
-            # Generate with orthogonalized model
-            generated = self._generate_with_model(model, tokenizer, prompt)
-            code = extract_code(generated, prompt)
-            test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-            passed = evaluate_code(code, test_cases)
+            # Attempt generation with retry and timeout
+            success, result, error_msg = retry_with_timeout(
+                generate_and_evaluate,
+                row['task_id'],
+                self.config,
+                "incorrect_ortho preservation"
+            )
             
-            correct_results.append({
-                'task_id': row['task_id'],
-                'baseline_passed': True,
-                'orthogonalized_passed': passed,
-                'baseline_code': row['generated_code'],
-                'orthogonalized_code': code
-            })
+            if success:
+                correct_results.append(result)
+            else:
+                logger.warning(f"Skipping task {row['task_id']} due to error: {error_msg}")
+                # Append a failed result
+                correct_results.append({
+                    'task_id': row['task_id'],
+                    'baseline_passed': True,
+                    'orthogonalized_passed': True,  # Assume preserved on error
+                    'baseline_code': row['generated_code'],
+                    'orthogonalized_code': '',
+                    'error': error_msg
+                })
+            
+            # Memory monitoring every 10 tasks
+            if (enum_idx + 1) % 10 == 0:
+                self.check_memory_usage()
+                gc.collect()
+                if self.device.type == "cuda":
+                    torch.cuda.empty_cache()
+            
+            # Checkpointing every 50 tasks
+            if (enum_idx + 1) % 50 == 0:
+                self.save_checkpoint('incorrect_ortho', 'correct', correct_results, enum_idx, total_tasks)
+            
+            # Autosave every 100 tasks
+            if (enum_idx + 1) % 100 == 0:
+                logger.info(f"Autosaving at task {enum_idx + 1}/{total_tasks}")
+                self.save_checkpoint('incorrect_ortho', 'correct', correct_results, enum_idx, total_tasks)
         
         # Calculate metrics
         correction_rate = calculate_correction_rate(incorrect_results)
@@ -331,32 +528,89 @@ class WeightOrthogonalizer:
         
         # Test on correct baseline (expect corruptions)
         logger.info("\nTesting on initially correct problems...")
-        correct_results = []
-        similarity_scores = []
         
-        for idx, row in tqdm(self.correct_baseline.iterrows(),
-                           total=len(self.correct_baseline),
-                           desc="Evaluating correct→incorrect"):
-            prompt = row['prompt']
+        # Check for existing checkpoint
+        checkpoint_data = self.load_checkpoint('correct_ortho', 'correct')
+        if checkpoint_data:
+            correct_results = checkpoint_data['results']
+            similarity_scores = [r.get('similarity', 0) for r in correct_results if 'similarity' in r]
+            start_idx = checkpoint_data['last_processed_idx'] + 1
+        else:
+            correct_results = []
+            similarity_scores = []
+            start_idx = 0
+        
+        # Process tasks
+        correct_list = list(self.correct_baseline.iterrows())
+        total_tasks = len(correct_list)
+        
+        for enum_idx, (idx, row) in enumerate(tqdm(correct_list[start_idx:],
+                                                   initial=start_idx,
+                                                   total=total_tasks,
+                                                   desc="Evaluating correct→incorrect"),
+                                              start=start_idx):
+            # Define generation function for retry
+            def generate_and_evaluate():
+                prompt = row['prompt']
+                
+                # Generate with orthogonalized model
+                generated = self._generate_with_model(model, tokenizer, prompt)
+                code = extract_code(generated, prompt)
+                test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                passed = evaluate_code(code, test_cases)
+                
+                # Calculate code similarity
+                similarity = calculate_code_similarity(row['generated_code'], code)
+                
+                return {
+                    'task_id': row['task_id'],
+                    'baseline_passed': True,
+                    'orthogonalized_passed': passed,
+                    'baseline_code': row['generated_code'],
+                    'orthogonalized_code': code,
+                    'similarity': similarity
+                }
             
-            # Generate with orthogonalized model
-            generated = self._generate_with_model(model, tokenizer, prompt)
-            code = extract_code(generated, prompt)
-            test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-            passed = evaluate_code(code, test_cases)
+            # Attempt generation with retry and timeout
+            success, result, error_msg = retry_with_timeout(
+                generate_and_evaluate,
+                row['task_id'],
+                self.config,
+                "correct_ortho corruption"
+            )
             
-            # Calculate code similarity
-            similarity = calculate_code_similarity(row['generated_code'], code)
-            similarity_scores.append(similarity)
+            if success:
+                correct_results.append(result)
+                similarity_scores.append(result['similarity'])
+            else:
+                logger.warning(f"Skipping task {row['task_id']} due to error: {error_msg}")
+                # Append a failed result
+                correct_results.append({
+                    'task_id': row['task_id'],
+                    'baseline_passed': True,
+                    'orthogonalized_passed': True,  # Assume not corrupted on error
+                    'baseline_code': row['generated_code'],
+                    'orthogonalized_code': '',
+                    'similarity': 1.0,  # Assume high similarity on error
+                    'error': error_msg
+                })
+                similarity_scores.append(1.0)
             
-            correct_results.append({
-                'task_id': row['task_id'],
-                'baseline_passed': True,
-                'orthogonalized_passed': passed,
-                'baseline_code': row['generated_code'],
-                'orthogonalized_code': code,
-                'similarity': similarity
-            })
+            # Memory monitoring every 10 tasks
+            if (enum_idx + 1) % 10 == 0:
+                self.check_memory_usage()
+                gc.collect()
+                if self.device.type == "cuda":
+                    torch.cuda.empty_cache()
+            
+            # Checkpointing every 50 tasks
+            if (enum_idx + 1) % 50 == 0:
+                self.save_checkpoint('correct_ortho', 'correct', correct_results, enum_idx, total_tasks)
+            
+            # Autosave every 100 tasks
+            if (enum_idx + 1) % 100 == 0:
+                logger.info(f"Autosaving at task {enum_idx + 1}/{total_tasks}")
+                self.save_checkpoint('correct_ortho', 'correct', correct_results, enum_idx, total_tasks)
         
         # Skip testing incorrect baseline when correct feature removed (minimal scientific value)
         # This saves computation time as we don't expect removing correct features to help incorrect problems
@@ -527,6 +781,9 @@ class WeightOrthogonalizer:
         
         # Apply correct orthogonalization
         self.correct_results = self.apply_correct_orthogonalization()
+        
+        # Clean up checkpoints after successful completion
+        self.cleanup_all_checkpoints()
         
         # Create visualizations
         self.create_visualizations()

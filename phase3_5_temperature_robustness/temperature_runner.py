@@ -5,6 +5,7 @@ Generates code solutions at multiple temperatures for validation split,
 extracting activations only from the best layer identified in Phase 2.
 """
 
+import gc
 import json
 import time
 from pathlib import Path
@@ -14,15 +15,16 @@ import numpy as np
 from datetime import datetime
 import torch
 from tqdm import tqdm
+import psutil  # For memory monitoring
 
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.activation_hooks import ActivationExtractor
-from common_simplified.helpers import evaluate_code, extract_code
+from common_simplified.helpers import evaluate_code, extract_code, save_json, load_json
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger
 from common.utils import detect_device, discover_latest_phase_output
-from common.retry_utils import retry_generation, create_exclusion_summary
+from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
 # Module-level logger
 logger = get_logger("temperature_runner", phase="3.5")
@@ -100,6 +102,10 @@ class TemperatureRobustnessRunner:
         """Initialize with configuration."""
         self.config = config
         self.device = detect_device()
+        
+        # Checkpoint settings
+        self.checkpoint_frequency = 10  # Save every 10 tasks (each task generates ~10 samples)
+        self.memory_warning_threshold = 85  # Warn if RAM usage > 85%
         
         # Load model and tokenizer
         logger.info(f"Loading model {config.model_name} on device: {self.device}")
@@ -262,10 +268,20 @@ class TemperatureRobustnessRunner:
         # Save exclusion information
         if excluded_tasks:
             exclusion_summary = create_exclusion_summary(excluded_tasks, len(validation_data))
-            from common_simplified.helpers import save_json
             exclusion_file = self.output_dir / "excluded_tasks.json"
             save_json(exclusion_summary, exclusion_file)
             logger.info(f"Saved exclusion summary to {exclusion_file}")
+        
+        # Clean up checkpoint files after successful completion
+        checkpoint_files = list(self.output_dir.glob("checkpoint_*.parquet"))
+        if checkpoint_files:
+            logger.info(f"Cleaning up {len(checkpoint_files)} checkpoint files...")
+            for checkpoint_file in checkpoint_files:
+                checkpoint_file.unlink()
+                # Also remove exclusion files
+                exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
+                if exclusion_file.exists():
+                    exclusion_file.unlink()
         
         logger.info("Phase 3.5 completed successfully")
         return metadata
@@ -302,16 +318,89 @@ class TemperatureRobustnessRunner:
         
         return output_dir
     
+    def save_checkpoint(self, results: list, excluded_tasks: list, 
+                       checkpoint_num: int, output_dir: Path) -> None:
+        """Save checkpoint to disk and clear memory."""
+        if not results:
+            return
+            
+        # Save current results to checkpoint file
+        checkpoint_file = output_dir / f"checkpoint_{checkpoint_num:04d}.parquet"
+        pd.DataFrame(results).to_parquet(checkpoint_file, index=False)
+        logger.info(f"Saved checkpoint {checkpoint_num} with {len(results)} results to {checkpoint_file}")
+        
+        # Save exclusions if any
+        if excluded_tasks:
+            exclusion_file = output_dir / f"checkpoint_{checkpoint_num:04d}_exclusions.json"
+            save_json(excluded_tasks, exclusion_file)
+    
+    def load_checkpoints(self, output_dir: Path) -> tuple[list, list, set]:
+        """Load existing checkpoints if any."""
+        checkpoint_files = sorted(output_dir.glob("checkpoint_*.parquet"))
+        
+        if not checkpoint_files:
+            return [], [], set()
+        
+        logger.info(f"Found {len(checkpoint_files)} existing checkpoint(s)")
+        
+        all_results = []
+        all_excluded = []
+        processed_task_ids = set()
+        
+        for checkpoint_file in checkpoint_files:
+            df = pd.read_parquet(checkpoint_file)
+            all_results.extend(df.to_dict('records'))
+            # Extract unique task IDs from this checkpoint
+            processed_task_ids.update(df['task_id'].unique())
+            
+            # Load exclusions if they exist
+            exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
+            if exclusion_file.exists():
+                exclusions = load_json(exclusion_file)
+                all_excluded.extend(exclusions)
+                processed_task_ids.update([e['task_id'] for e in exclusions])
+        
+        logger.info(f"Loaded {len(all_results)} results from {len(processed_task_ids)} tasks")
+        return all_results, all_excluded, processed_task_ids
+    
+    def check_memory_usage(self) -> float:
+        """Check current memory usage and warn if high."""
+        memory_percent = psutil.virtual_memory().percent
+        
+        if memory_percent > self.memory_warning_threshold:
+            logger.warning(f"⚠️ High memory usage: {memory_percent:.1f}% of RAM")
+        
+        return memory_percent
+    
     def _process_all_tasks(self, validation_data: pd.DataFrame) -> Tuple[List[Dict], List[Dict]]:
         """Process all validation tasks with retry logic.
         
         Returns:
             Tuple of (all_results, excluded_tasks)
         """
-        all_results = []
-        excluded_tasks = []
+        # Get output directory (needs to be set before loading checkpoints)
+        output_dir = self.output_dir if hasattr(self, 'output_dir') else self._setup_output_directories()
         
-        # Calculate total expected samples
+        # Load existing checkpoints if any
+        checkpoint_results, checkpoint_excluded, processed_task_ids = self.load_checkpoints(output_dir)
+        
+        # Filter out already processed tasks
+        original_len = len(validation_data)
+        if processed_task_ids:
+            logger.info(f"Skipping {len(processed_task_ids)} already processed tasks: {sorted(processed_task_ids)}")
+            validation_data = validation_data[~validation_data['task_id'].isin(processed_task_ids)]
+            logger.info(f"Remaining tasks to process: {len(validation_data)} out of {original_len}")
+        
+        # Initialize with checkpoint data
+        results = []  # Current batch results
+        excluded_tasks = []  # Current batch exclusions
+        all_results = checkpoint_results  # All results including checkpoints
+        all_excluded = checkpoint_excluded  # All exclusions including checkpoints
+        
+        checkpoint_counter = len(list(output_dir.glob("checkpoint_*.parquet")))
+        tasks_since_checkpoint = 0
+        
+        # Calculate total expected samples for remaining tasks
         total_expected = 0
         for temp in self.config.temperature_variation_temps:
             if temp == 0.0:
@@ -353,20 +442,21 @@ class TemperatureRobustnessRunner:
                         'generation_time': generation_time
                     }
                 
-                # Attempt temperature 0 generation with retry
-                success, temp0_result, error_msg = retry_generation(
+                # Attempt temperature 0 generation with retry and timeout protection
+                success, temp0_result, error_msg = retry_with_timeout(
                     generate_temp0,
                     row['task_id'],
                     self.config,
-                    "temperature 0 generation"
+                    timeout_seconds=self.config.timeout_per_record,  # 300 seconds (5 minutes)
+                    operation_name="temperature 0 generation"
                 )
                 
                 if success:
                     # Save activations for this task (only if temp 0 succeeded)
                     self._save_task_activations(row['task_id'], temp0_result['task_activations'])
                     
-                    # Add temperature 0 result
-                    all_results.append({
+                    # Add temperature 0 result to current batch
+                    results.append({
                         'task_id': row['task_id'],
                         'temperature': 0.0,
                         'prompt': prompt,
@@ -395,16 +485,17 @@ class TemperatureRobustnessRunner:
                         def generate_at_temp():
                             return self._generate_single(row, prompt, temperature, sample_idx)
                         
-                        # Attempt generation with retry
-                        success, result, error_msg = retry_generation(
+                        # Attempt generation with retry and timeout protection
+                        success, result, error_msg = retry_with_timeout(
                             generate_at_temp,
                             f"{row['task_id']}_temp_{temperature}_sample_{sample_idx}",
                             self.config,
-                            f"temperature {temperature} generation"
+                            timeout_seconds=self.config.timeout_per_record,  # 300 seconds (5 minutes)
+                            operation_name=f"temperature {temperature} generation"
                         )
                         
                         if success:
-                            all_results.append(result)
+                            results.append(result)  # Add to current batch, not all_results
                         # Note: individual temperature/sample failures don't exclude the entire task
                         # We only exclude if temperature 0 fails (needed for activations)
                         
@@ -423,21 +514,55 @@ class TemperatureRobustnessRunner:
                 )
                 pbar.update(skip_count)
             
-            # Memory cleanup
-            if (idx + 1) % self.config.memory_cleanup_frequency == 0:
-                torch.cuda.empty_cache()
+            # Increment task counter
+            tasks_since_checkpoint += 1
+            
+            # Check memory before continuing
+            memory_percent = self.check_memory_usage()
+            if memory_percent > 95:
+                logger.error(f"Critical memory usage: {memory_percent:.1f}%. Saving checkpoint and exiting.")
+                self.save_checkpoint(results, excluded_tasks, checkpoint_counter + 1, output_dir)
+                raise MemoryError(f"RAM usage critical: {memory_percent:.1f}%")
+            
+            # Save checkpoint periodically (after completing N tasks)
+            if tasks_since_checkpoint >= self.checkpoint_frequency and results:
+                checkpoint_counter += 1
+                self.save_checkpoint(results, excluded_tasks, checkpoint_counter, output_dir)
+                
+                # Add to all results and clear current batch
+                all_results.extend(results)
+                all_excluded.extend(excluded_tasks)
+                results = []
+                excluded_tasks = []
+                tasks_since_checkpoint = 0
+                
+                # Force garbage collection to free memory
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                elif hasattr(torch, 'mps') and torch.backends.mps.is_available():
+                    torch.mps.empty_cache()
+                
+                logger.info(f"Memory after checkpoint: {psutil.virtual_memory().percent:.1f}%")
         
         pbar.close()
         
+        # Save final checkpoint if there are remaining results
+        if results:
+            checkpoint_counter += 1
+            self.save_checkpoint(results, excluded_tasks, checkpoint_counter, output_dir)
+            all_results.extend(results)
+            all_excluded.extend(excluded_tasks)
+        
         # Log summary including exclusions
-        n_attempted = len(validation_data)
-        n_excluded = len(excluded_tasks)
+        n_attempted = original_len  # Use original count before filtering
+        n_excluded = len(all_excluded)
         n_included = n_attempted - n_excluded
         
         logger.info(f"Tasks processed: {n_included}/{n_attempted} ({n_excluded} excluded)")
         
-        if excluded_tasks:
-            logger.warning(f"Excluded tasks: {[t['task_id'] for t in excluded_tasks]}")
+        if all_excluded:
+            logger.warning(f"Excluded tasks: {[t['task_id'] for t in all_excluded]}")
         
         for temp in self.config.temperature_variation_temps:
             temp_results = [r for r in all_results if r['temperature'] == temp]
@@ -447,7 +572,7 @@ class TemperatureRobustnessRunner:
                 f"({correct/len(temp_results):.1%})" if len(temp_results) > 0 else f"Temperature {temp}: 0/0 passed (0%)"
             )
         
-        return all_results, excluded_tasks
+        return all_results, all_excluded
     
     def _generate_single(
         self,

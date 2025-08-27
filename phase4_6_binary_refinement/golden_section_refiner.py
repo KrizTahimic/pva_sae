@@ -5,6 +5,7 @@ Refines the coefficients found in Phase 4.5 using golden section search,
 which is mathematically optimal for finding the maximum of unimodal functions.
 """
 
+import gc
 import json
 import time
 import math
@@ -15,6 +16,7 @@ import numpy as np
 from datetime import datetime
 import torch
 from tqdm import tqdm
+import psutil
 
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger
@@ -31,7 +33,7 @@ from common.steering_metrics import (
     calculate_preservation_rate,
     calculate_code_similarity
 )
-from common.retry_utils import retry_generation, create_exclusion_summary
+from common.retry_utils import retry_generation, retry_with_timeout, create_exclusion_summary
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.helpers import evaluate_code, extract_code, load_json, save_json
 from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
@@ -74,6 +76,84 @@ class GoldenSectionCoefficientRefiner:
         self._load_phase4_5_results()
         
         logger.info("GoldenSectionCoefficientRefiner initialized successfully")
+        
+        # Checkpoint configuration
+        self.checkpoint_frequency = 1  # Save after each iteration
+        self.memory_warning_threshold = 85  # Warn at 85% memory usage
+        self.memory_critical_threshold = 95  # Critical at 95% memory usage
+        
+    def save_checkpoint(self, steering_type: str, iteration: int, 
+                       search_history: List[Dict], cached_scores: Dict,
+                       current_bounds: Tuple[int, int], best_coefficient: int,
+                       best_score: float) -> None:
+        """Save checkpoint for golden section search."""
+        checkpoint_dir = self.output_dir / f"checkpoints_{steering_type}"
+        ensure_directory_exists(checkpoint_dir)
+        
+        checkpoint_data = {
+            'steering_type': steering_type,
+            'iteration': iteration,
+            'search_history': search_history,
+            'cached_scores': cached_scores,
+            'current_bounds': list(current_bounds),
+            'best_coefficient': best_coefficient,
+            'best_score': best_score,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        checkpoint_file = checkpoint_dir / f"checkpoint_iter_{iteration}.json"
+        save_json(checkpoint_data, checkpoint_file)
+        logger.info(f"Saved checkpoint for {steering_type} steering, iteration {iteration}")
+    
+    def load_checkpoints(self, steering_type: str) -> Optional[Dict]:
+        """Load latest checkpoint for a steering type."""
+        checkpoint_dir = self.output_dir / f"checkpoints_{steering_type}"
+        if not checkpoint_dir.exists():
+            return None
+        
+        # Find latest checkpoint by iteration number
+        checkpoint_files = list(checkpoint_dir.glob("checkpoint_iter_*.json"))
+        if not checkpoint_files:
+            return None
+        
+        # Sort by iteration number and get the latest
+        latest_checkpoint = max(checkpoint_files, 
+                               key=lambda f: int(f.stem.split('_')[-1]))
+        
+        logger.info(f"Loading checkpoint from {latest_checkpoint}")
+        return load_json(latest_checkpoint)
+    
+    def check_memory_usage(self) -> None:
+        """Check and warn about memory usage."""
+        memory_percent = psutil.virtual_memory().percent
+        
+        if memory_percent > self.memory_critical_threshold:
+            logger.error(f"CRITICAL: Memory usage at {memory_percent:.1f}%. Consider stopping.")
+            # Force garbage collection
+            gc.collect()
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
+            elif self.device.type == "mps":
+                torch.mps.synchronize()
+        elif memory_percent > self.memory_warning_threshold:
+            logger.warning(f"Memory usage at {memory_percent:.1f}%")
+            # Proactive garbage collection
+            gc.collect()
+    
+    def cleanup_checkpoints(self, steering_type: str) -> None:
+        """Remove checkpoint files after successful completion."""
+        checkpoint_dir = self.output_dir / f"checkpoints_{steering_type}"
+        if checkpoint_dir.exists():
+            checkpoint_files = list(checkpoint_dir.glob("checkpoint_iter_*.json"))
+            for checkpoint_file in checkpoint_files:
+                checkpoint_file.unlink()
+            # Remove directory if empty
+            try:
+                checkpoint_dir.rmdir()
+                logger.info(f"Cleaned up checkpoints for {steering_type} steering")
+            except OSError:
+                # Directory not empty, leave it
+                pass
         
     def _load_dependencies(self) -> None:
         """Load features from Phase 2.5 and baseline data from Phase 3.6."""
@@ -322,23 +402,27 @@ class GoldenSectionCoefficientRefiner:
             decoder_direction = self.incorrect_decoder_direction
             target_layer = self.best_incorrect_feature['layer']
         
-        # Create steering hook
-        hook_fn = create_steering_hook(decoder_direction, coefficient)
-        
-        # Register hook on target layer
-        target_module = self.model.model.layers[target_layer]
-        hook_handle = target_module.register_forward_pre_hook(hook_fn)
-        
         results = []
         excluded_tasks = []
+        task_counter = 0
         
-        try:
-            iterator = problems_df.iterrows()
-            if show_progress:
-                iterator = tqdm(iterator, total=len(problems_df), 
-                              desc=f"Coeff {coefficient:.2f}")
+        iterator = problems_df.iterrows()
+        if show_progress:
+            iterator = tqdm(iterator, total=len(problems_df), 
+                          desc=f"Coeff {coefficient:.2f}")
+        
+        for idx, row in iterator:
+            task_counter += 1
             
-            for idx, row in iterator:
+            # Check memory usage every 10 tasks
+            if task_counter % 10 == 0:
+                self.check_memory_usage()
+            # Setup hook for this specific task
+            hook_fn = create_steering_hook(decoder_direction, coefficient)
+            target_module = self.model.model.layers[target_layer]
+            hook_handle = target_module.register_forward_pre_hook(hook_fn)
+            
+            try:
                 # Define generation function for retry logic
                 def generate_steered():
                     prompt = row['prompt']
@@ -377,12 +461,13 @@ class GoldenSectionCoefficientRefiner:
                         'test_passed': test_passed
                     }
                 
-                # Attempt generation with retry logic
-                success, generation_result, error_msg = retry_generation(
+                # Attempt generation with retry logic and timeout protection
+                success, generation_result, error_msg = retry_with_timeout(
                     generate_steered,
                     row['task_id'],
                     self.config,
-                    f"{steering_type} steering refinement (coeff {coefficient:.2f})"
+                    timeout_seconds=self.config.timeout_per_record,  # 5 minutes default
+                    operation_name=f"{steering_type} steering refinement (coeff {coefficient:.2f})"
                 )
                 
                 if success:
@@ -414,13 +499,16 @@ class GoldenSectionCoefficientRefiner:
                     })
                     logger.debug(f"Excluding task {row['task_id']} from {steering_type} steering refinement")
                 
-                # Clear GPU cache periodically
-                if idx % 10 == 0:
+            finally:
+                # Always remove hook after each task to ensure isolation
+                hook_handle.remove()
+                
+                # Clear GPU cache after each task
+                if self.device.type == "cuda":
                     torch.cuda.empty_cache()
-                    
-        finally:
-            # Remove hook
-            hook_handle.remove()
+                elif self.device.type == "mps":
+                    # MPS doesn't have empty_cache, but we can sync to free memory
+                    torch.mps.synchronize()
             
         # Log exclusions if any
         if excluded_tasks:
@@ -501,9 +589,40 @@ class GoldenSectionCoefficientRefiner:
         logger.info(f"Golden ratio: {self.phi:.6f}")
         logger.info("Using integer-only coefficients for discrete optimization")
         
-        # Convert to integer bounds
-        a_int = self._round_to_integer(a)
-        b_int = self._round_to_integer(b)
+        # Try to load checkpoint
+        checkpoint = self.load_checkpoints(steering_type)
+        if checkpoint:
+            logger.info(f"Resuming from checkpoint at iteration {checkpoint['iteration']}")
+            search_history = checkpoint['search_history']
+            self.cached_scores[steering_type].update(checkpoint['cached_scores'])
+            a_int, b_int = checkpoint['current_bounds']
+            best_coefficient = checkpoint['best_coefficient']
+            best_score = checkpoint['best_score']
+            iteration = checkpoint['iteration']
+            
+            # Reconstruct x1, x2, f1, f2 from last iteration if needed
+            if iteration > 0 and search_history:
+                last_entry = search_history[-1]
+                if 'points' in last_entry and len(last_entry['points']) == 2:
+                    x1, x2 = last_entry['points']
+                    f1, f2 = last_entry['scores']
+                else:
+                    # Re-calculate golden points if not available
+                    x1, x2 = self._get_integer_golden_points(a_int, b_int)
+                    f1 = self.get_score(x1, steering_type)
+                    f2 = self.get_score(x2, steering_type)
+            else:
+                # Start fresh if no valid history
+                x1, x2 = self._get_integer_golden_points(a_int, b_int)
+                f1 = self.get_score(x1, steering_type)
+                f2 = self.get_score(x2, steering_type)
+        else:
+            # No checkpoint, start from beginning
+            # Convert to integer bounds
+            a_int = self._round_to_integer(a)
+            b_int = self._round_to_integer(b)
+            search_history = []
+            iteration = 0
         
         # Check if already at consecutive integers
         if b_int - a_int <= 1:
@@ -520,33 +639,38 @@ class GoldenSectionCoefficientRefiner:
         
         logger.info(f"Integer bounds: [{a_int}, {b_int}] (width: {b_int - a_int})")
         
-        # Calculate initial golden section points as integers
-        x1, x2 = self._get_integer_golden_points(a_int, b_int)
+        # If no checkpoint, set up initial search
+        if not checkpoint:
+            # Calculate initial golden section points as integers
+            x1, x2 = self._get_integer_golden_points(a_int, b_int)
+            
+            logger.info(f"Initial integer golden points: x1={x1}, x2={x2}")
+            
+            # Evaluate initial points
+            f1 = self.get_score(x1, steering_type)
+            f2 = self.get_score(x2, steering_type)
+            
+            best_score = max(f1, f2)
+            best_coeff = x1 if f1 > f2 else x2
         
-        logger.info(f"Initial integer golden points: x1={x1}, x2={x2}")
-        
-        # Evaluate initial points
-        f1 = self.get_score(x1, steering_type)
-        f2 = self.get_score(x2, steering_type)
-        
-        # Track search history
-        search_history = []
-        iteration = 0
-        best_score = max(f1, f2)
-        best_coeff = x1 if f1 > f2 else x2
-        
-        # Add initial evaluation to history
-        search_history.append({
-            'iteration': 0,
-            'bounds': [a_int, b_int],
-            'points': [x1, x2],
-            'scores': [f1, f2],
-            'best_score': best_score,
-            'best_coefficient': best_coeff
-        })
-        
-        logger.info(f"Initial scores: f({x1})={f1:.1f}%, f({x2})={f2:.1f}%")
-        logger.info(f"Initial best: {best_coeff} with {best_score:.1f}%")
+        # Add initial evaluation to history only if starting fresh
+        if not checkpoint:
+            search_history.append({
+                'iteration': 0,
+                'bounds': [a_int, b_int],
+                'points': [x1, x2],
+                'scores': [f1, f2],
+                'best_score': best_score,
+                'best_coefficient': best_coeff
+            })
+            
+            logger.info(f"Initial scores: f({x1})={f1:.1f}%, f({x2})={f2:.1f}%")
+            logger.info(f"Initial best: {best_coeff} with {best_score:.1f}%")
+            
+            # Save initial checkpoint
+            self.save_checkpoint(steering_type, 0, search_history, 
+                               self.cached_scores[steering_type],
+                               (a_int, b_int), best_coeff, best_score)
         
         # Golden section search iterations
         # Continue until we have consecutive integers (width <= 1)
@@ -584,6 +708,11 @@ class GoldenSectionCoefficientRefiner:
                     'best_score': best_score,
                     'best_coefficient': best_coeff
                 })
+                
+                # Save checkpoint after this iteration
+                self.save_checkpoint(steering_type, iteration, search_history,
+                                   self.cached_scores[steering_type],
+                                   (a_int, b_int), best_coeff, best_score)
                 
                 # Determine next action based on which point scored best
                 best_idx = scores.index(max(scores))
@@ -652,6 +781,14 @@ class GoldenSectionCoefficientRefiner:
                 'best_coefficient': best_coeff
             })
             
+            # Save checkpoint after each iteration
+            self.save_checkpoint(steering_type, iteration, search_history,
+                               self.cached_scores[steering_type],
+                               (a_int, b_int), best_coeff, best_score)
+            
+            # Check memory usage periodically
+            self.check_memory_usage()
+            
             # Convergence check: stop if we've reached consecutive integers
             if b_int - a_int <= 1:
                 logger.debug(f"  Converged to consecutive integers: [{a_int}, {b_int}]")
@@ -678,6 +815,9 @@ class GoldenSectionCoefficientRefiner:
         logger.info(f"Optimal integer coefficient: {optimal_coeff}")
         logger.info(f"Best score achieved: {optimal_score:.1f}%")
         logger.info(f"{'='*60}\n")
+        
+        # Cleanup checkpoints after successful completion
+        self.cleanup_checkpoints(steering_type)
         
         return optimal_coeff, search_history
     

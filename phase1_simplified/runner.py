@@ -13,7 +13,7 @@ from common.config import Config
 from common.logging import get_logger
 from common.prompt_utils import PromptBuilder
 from common.utils import detect_device
-from common.retry_utils import retry_generation, create_exclusion_summary
+from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.activation_hooks import ActivationExtractor
 from common_simplified.helpers import (
@@ -27,9 +27,6 @@ logger = get_logger("phase1_simplified.runner", phase="1.0")
 
 class Phase1Runner:
     """Simple runner for Phase 1 dataset building with checkpointing support."""
-    
-    # Tasks known to cause hanging during generation
-    PROBLEMATIC_TASKS = [108]  # Task 108 consistently hangs at generation
     
     def __init__(self, config: Config):
         """Initialize with centralized config."""
@@ -192,12 +189,13 @@ class Phase1Runner:
                 # Always clean up hooks after task to prevent interference
                 self.activation_extractor.remove_hooks()
         
-        # Attempt generation with retry logic
-        success, result, error_msg = retry_generation(
+        # Attempt generation with retry logic and timeout protection
+        success, result, error_msg = retry_with_timeout(
             generate_task,
             task_id,
             self.config,
-            "code generation"
+            timeout_seconds=self.config.timeout_per_record,  # 300 seconds (5 minutes)
+            operation_name="code generation"
         )
         
         if success:
@@ -329,16 +327,6 @@ class Phase1Runner:
             # Log which task we're about to process (helps identify hanging tasks)
             task_number = len(all_results) + len(results) + 1  # Current position in overall processing
             logger.info(f"Starting task {task_number}/{total_attempted}: {task['task_id']}")
-            
-            # Skip known problematic tasks that cause hanging
-            if task['task_id'] in self.PROBLEMATIC_TASKS:
-                logger.warning(f"⚠️ Skipping known problematic task {task['task_id']} that causes hanging")
-                excluded_tasks.append({
-                    'task_id': task['task_id'],
-                    'error': 'Known to cause hanging during generation - skipped'
-                })
-                tasks_since_checkpoint += 1
-                continue
             
             # Check memory before processing
             memory_percent = self.check_memory_usage()
@@ -483,11 +471,6 @@ class Phase1Runner:
         
         if all_excluded:
             logger.warning(f"Excluded tasks: {[t['task_id'] for t in all_excluded]}")
-            # Specifically note problematic tasks
-            problematic_excluded = [t for t in all_excluded if 'hanging' in t.get('error', '')]
-            if problematic_excluded:
-                logger.warning(f"⚠️ Skipped {len(problematic_excluded)} known problematic tasks to prevent hanging: "
-                             f"{[t['task_id'] for t in problematic_excluded]}")
         logger.info("="*60 + "\n")
         
         # Cleanup hooks to free memory

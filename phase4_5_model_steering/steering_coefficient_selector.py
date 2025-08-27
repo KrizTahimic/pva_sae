@@ -5,6 +5,7 @@ Finds optimal steering coefficients for PVA features through adaptive search.
 Modifies model activations by adding SAE decoder directions to residual stream.
 """
 
+import gc
 import json
 import time
 from pathlib import Path
@@ -14,6 +15,8 @@ import numpy as np
 from datetime import datetime
 import torch
 from tqdm import tqdm
+import psutil  # For memory monitoring
+
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger
 from common.utils import (
@@ -29,7 +32,7 @@ from common.steering_metrics import (
     calculate_preservation_rate,
     calculate_code_similarity
 )
-from common.retry_utils import retry_generation, create_exclusion_summary
+from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.helpers import evaluate_code, extract_code, load_json, save_json
 from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
@@ -44,6 +47,10 @@ class SteeringCoefficientSelector:
         """Initialize with configuration, load dependencies."""
         self.config = config
         self.device = detect_device()
+        
+        # Checkpoint settings
+        self.checkpoint_frequency = 50  # Save every 50 problems
+        self.memory_warning_threshold = 85  # Warn if RAM usage > 85%
         
         # Phase output directories
         self.output_dir = Path(config.phase4_5_output_dir)
@@ -76,6 +83,7 @@ class SteeringCoefficientSelector:
         
         # Load top features
         features_file = Path(phase2_5_output).parent / "top_20_features.json"
+        logger.info(f"Loading features from: {features_file}")
         if not features_file.exists():
             raise FileNotFoundError(f"Top features file not found: {features_file}")
         
@@ -146,14 +154,19 @@ class SteeringCoefficientSelector:
         
         # Load SAEs for both features
         logger.info("Loading SAE models...")
+        logger.info(f"Loading SAE for correct feature (layer {self.best_correct_feature['layer']})...")
         self.correct_sae = load_gemma_scope_sae(
             self.best_correct_feature['layer'], 
             self.device
         )
+        logger.info(f"Correct feature SAE loaded successfully")
+        
+        logger.info(f"Loading SAE for incorrect feature (layer {self.best_incorrect_feature['layer']})...")
         self.incorrect_sae = load_gemma_scope_sae(
             self.best_incorrect_feature['layer'], 
             self.device
         )
+        logger.info(f"Incorrect feature SAE loaded successfully")
         
         # Extract decoder directions and ensure consistent dtype
         self.correct_decoder_direction = self.correct_sae.W_dec[
@@ -169,6 +182,62 @@ class SteeringCoefficientSelector:
         self.incorrect_decoder_direction = self.incorrect_decoder_direction.to(dtype=model_dtype)
         
         logger.info("Dependencies loaded successfully")
+    
+    def save_checkpoint(self, results: list, excluded_tasks: list, 
+                       checkpoint_num: int, checkpoint_dir: Path) -> None:
+        """Save checkpoint to disk and clear memory."""
+        if not results:
+            return
+            
+        # Save current results to checkpoint file
+        checkpoint_file = checkpoint_dir / f"checkpoint_{checkpoint_num:04d}.parquet"
+        pd.DataFrame(results).to_parquet(checkpoint_file, index=False)
+        logger.info(f"Saved checkpoint {checkpoint_num} with {len(results)} results to {checkpoint_file}")
+        
+        # Save exclusions if any
+        if excluded_tasks:
+            exclusion_file = checkpoint_dir / f"checkpoint_{checkpoint_num:04d}_exclusions.json"
+            save_json(excluded_tasks, exclusion_file)
+    
+    def load_checkpoints(self, checkpoint_dir: Path) -> tuple[list, list, set]:
+        """Load existing checkpoints if any."""
+        if not checkpoint_dir.exists():
+            return [], [], set()
+            
+        checkpoint_files = sorted(checkpoint_dir.glob("checkpoint_*.parquet"))
+        
+        if not checkpoint_files:
+            return [], [], set()
+        
+        logger.info(f"Found {len(checkpoint_files)} existing checkpoint(s) in {checkpoint_dir}")
+        
+        all_results = []
+        all_excluded = []
+        processed_task_ids = set()
+        
+        for checkpoint_file in checkpoint_files:
+            df = pd.read_parquet(checkpoint_file)
+            all_results.extend(df.to_dict('records'))
+            processed_task_ids.update(df['task_id'].tolist())
+            
+            # Load exclusions if they exist
+            exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
+            if exclusion_file.exists():
+                exclusions = load_json(exclusion_file)
+                all_excluded.extend(exclusions)
+                processed_task_ids.update([e['task_id'] for e in exclusions])
+        
+        logger.info(f"Loaded {len(all_results)} results and {len(all_excluded)} exclusions from checkpoints")
+        return all_results, all_excluded, processed_task_ids
+    
+    def check_memory_usage(self) -> float:
+        """Check current memory usage and warn if high."""
+        memory_percent = psutil.virtual_memory().percent
+        
+        if memory_percent > self.memory_warning_threshold:
+            logger.warning(f"⚠️ High memory usage: {memory_percent:.1f}% of RAM")
+        
+        return memory_percent
         
     def evaluate_single_dataset(self, coefficient: float, 
                                problems_df: pd.DataFrame,
@@ -186,6 +255,20 @@ class SteeringCoefficientSelector:
         Returns:
             List of result dictionaries for each problem
         """
+        # Create checkpoint directory for this specific coefficient
+        checkpoint_dir = self.output_dir / f"checkpoints_{steering_type}_coeff_{int(coefficient)}"
+        ensure_directory_exists(checkpoint_dir)
+        
+        # Load existing checkpoints if any
+        checkpoint_results, checkpoint_excluded, processed_task_ids = self.load_checkpoints(checkpoint_dir)
+        
+        # Filter out already processed tasks
+        original_len = len(problems_df)
+        if processed_task_ids:
+            logger.info(f"Skipping {len(processed_task_ids)} already processed tasks")
+            problems_df = problems_df[~problems_df['task_id'].isin(processed_task_ids)]
+            logger.info(f"Remaining tasks to process: {len(problems_df)} out of {original_len}")
+        
         logger.info(f"Evaluating on {len(problems_df)} problems...")
         
         # Select decoder direction and target layer
@@ -196,26 +279,36 @@ class SteeringCoefficientSelector:
             decoder_direction = self.incorrect_decoder_direction
             target_layer = self.best_incorrect_feature['layer']
         
-        # Create steering hook
-        hook_fn = create_steering_hook(decoder_direction, coefficient)
+        # Initialize with checkpoint data
+        results = []  # Current batch
+        excluded_tasks = []  # Current batch exclusions
+        all_results = checkpoint_results  # All results including checkpoints
+        all_excluded = checkpoint_excluded  # All exclusions including checkpoints
         
-        # Register hook on target layer
-        target_module = self.model.model.layers[target_layer]
-        hook_handle = target_module.register_forward_pre_hook(hook_fn)
+        checkpoint_counter = len(list(checkpoint_dir.glob("checkpoint_*.parquet")))
+        tasks_since_checkpoint = 0
         
-        results = []
-        excluded_tasks = []
+        iterator = problems_df.iterrows()
+        if show_progress:
+            iterator = tqdm(iterator, total=len(problems_df), 
+                          desc=f"Coefficient {coefficient}")
         
-        try:
-            iterator = problems_df.iterrows()
-            if show_progress:
-                iterator = tqdm(iterator, total=len(problems_df), 
-                              desc=f"Coefficient {coefficient}")
+        for task_idx, row in iterator:
+            # Log every 10th task for debugging
+            if task_idx % 10 == 0:
+                logger.info(f"Processing task {task_idx}/{len(problems_df)}: {row['task_id']}")
             
-            for idx, row in iterator:
+            
+            # Setup hook for this specific task
+            hook_fn = create_steering_hook(decoder_direction, coefficient)
+            target_module = self.model.model.layers[target_layer]
+            hook_handle = target_module.register_forward_pre_hook(hook_fn)
+            
+            try:
                 # Define generation function for retry logic
-                def generate_steered():
+                def generate_steered(current_idx=task_idx):
                     prompt = row['prompt']
+                    
                     
                     inputs = self.tokenizer(
                         prompt,
@@ -223,6 +316,7 @@ class SteeringCoefficientSelector:
                         truncation=True,
                         max_length=self.config.activation_max_length
                     ).to(self.device)
+                    
                     
                     with torch.no_grad():
                         outputs = self.model.generate(
@@ -232,6 +326,7 @@ class SteeringCoefficientSelector:
                             do_sample=False,
                             pad_token_id=self.tokenizer.pad_token_id
                         )
+                    
                     
                     # Extract generated code
                     generated_text = self.tokenizer.decode(
@@ -250,12 +345,13 @@ class SteeringCoefficientSelector:
                         'test_passed': test_passed
                     }
                 
-                # Attempt generation with retry logic
-                success, generation_result, error_msg = retry_generation(
+                # Attempt generation with retry logic and timeout protection
+                success, generation_result, error_msg = retry_with_timeout(
                     generate_steered,
                     row['task_id'],
                     self.config,
-                    f"{steering_type} steering (coeff {coefficient})"
+                    timeout_seconds=self.config.timeout_per_record,  # 300 seconds (5 minutes)
+                    operation_name=f"{steering_type} steering (coeff {coefficient})"
                 )
                 
                 if success:
@@ -293,27 +389,75 @@ class SteeringCoefficientSelector:
                     })
                     logger.debug(f"Excluding task {row['task_id']} from {steering_type} steering evaluation")
                 
-                # Clear GPU cache periodically (works for CUDA and MPS)
-                if idx % 10 == 0:
-                    if self.device.type == "cuda":
-                        torch.cuda.empty_cache()
-                    elif self.device.type == "mps":
-                        # MPS doesn't have empty_cache, but we can sync to free memory
-                        torch.mps.synchronize()
-                    
-        finally:
-            # Remove hook
-            hook_handle.remove()
+            finally:
+                # Always remove hook after each task to ensure isolation
+                hook_handle.remove()
+                
+                # Clear GPU cache after each task (works for CUDA and MPS)
+                if self.device.type == "cuda":
+                    torch.cuda.empty_cache()
+                elif self.device.type == "mps":
+                    # MPS doesn't have empty_cache, but we can sync to free memory
+                    torch.mps.synchronize()
             
+            # Increment task counter
+            tasks_since_checkpoint += 1
+            
+            # Check memory before continuing
+            memory_percent = self.check_memory_usage()
+            if memory_percent > 95:
+                logger.error(f"Critical memory usage: {memory_percent:.1f}%. Saving checkpoint and exiting.")
+                self.save_checkpoint(results, excluded_tasks, checkpoint_counter + 1, checkpoint_dir)
+                raise MemoryError(f"RAM usage critical: {memory_percent:.1f}%")
+            
+            # Save checkpoint periodically
+            if tasks_since_checkpoint >= self.checkpoint_frequency and results:
+                checkpoint_counter += 1
+                self.save_checkpoint(results, excluded_tasks, checkpoint_counter, checkpoint_dir)
+                
+                # Add to all results and clear current batch
+                all_results.extend(results)
+                all_excluded.extend(excluded_tasks)
+                results = []
+                excluded_tasks = []
+                tasks_since_checkpoint = 0
+                
+                # Force garbage collection to free memory
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                elif hasattr(torch, 'mps') and torch.backends.mps.is_available():
+                    torch.mps.empty_cache()
+                
+                logger.info(f"Memory after checkpoint: {psutil.virtual_memory().percent:.1f}%")
+        
+        # Save final checkpoint if there are remaining results
+        if results:
+            checkpoint_counter += 1
+            self.save_checkpoint(results, excluded_tasks, checkpoint_counter, checkpoint_dir)
+            all_results.extend(results)
+            all_excluded.extend(excluded_tasks)
+        
         # Log exclusions
-        if excluded_tasks:
-            logger.warning(f"Excluded {len(excluded_tasks)} tasks from {steering_type} steering "
-                          f"(coefficient {coefficient}): {[t['task_id'] for t in excluded_tasks]}")
+        if all_excluded:
+            logger.warning(f"Excluded {len(all_excluded)} tasks from {steering_type} steering "
+                          f"(coefficient {coefficient}): {[t['task_id'] for t in all_excluded]}")
         
-        logger.info(f"Successfully evaluated {len(results)}/{len(problems_df)} problems "
-                   f"({len(excluded_tasks)} excluded)")
+        logger.info(f"Successfully evaluated {len(all_results)}/{original_len} problems "
+                   f"({len(all_excluded)} excluded)")
         
-        return results
+        # Clean up checkpoint files after successful completion
+        checkpoint_files = list(checkpoint_dir.glob("checkpoint_*.parquet"))
+        if checkpoint_files:
+            logger.info(f"Cleaning up {len(checkpoint_files)} checkpoint files...")
+            for checkpoint_file in checkpoint_files:
+                checkpoint_file.unlink()
+                # Also remove exclusion files
+                exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
+                if exclusion_file.exists():
+                    exclusion_file.unlink()
+        
+        return all_results
     
     def evaluate_coefficient_correction_only(self, coefficient: float, 
                                             show_progress: bool = True) -> Dict:

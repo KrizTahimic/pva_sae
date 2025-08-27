@@ -6,6 +6,7 @@ extracting activations from the best layers identified in Phase 3.5.
 This phase provides activation data for F1-optimal threshold selection in Phase 3.8.
 """
 
+import gc
 import json
 import time
 from pathlib import Path
@@ -15,15 +16,16 @@ import numpy as np
 from datetime import datetime
 import torch
 from tqdm import tqdm
+import psutil  # For memory monitoring
 
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.activation_hooks import ActivationExtractor
-from common_simplified.helpers import evaluate_code, extract_code, save_json, format_time
+from common_simplified.helpers import evaluate_code, extract_code, save_json, format_time, load_json
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger
 from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists
-from common.retry_utils import retry_generation, create_exclusion_summary
+from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
 # Module-level logger
 logger = get_logger("hyperparameter_runner", phase="3.6")
@@ -101,6 +103,10 @@ class HyperparameterDataRunner:
         """Initialize with configuration."""
         self.config = config
         self.device = detect_device()
+        
+        # Checkpoint settings
+        self.checkpoint_frequency = 50  # Save every 50 tasks
+        self.memory_warning_threshold = 85  # Warn if RAM usage > 85%
         
         # Load model and tokenizer
         logger.info(f"Loading model {config.model_name} on device: {self.device}")
@@ -270,12 +276,13 @@ class HyperparameterDataRunner:
                 'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
             }
         
-        # Attempt generation with retry logic
-        success, result, error_msg = retry_generation(
+        # Attempt generation with retry logic and timeout protection
+        success, result, error_msg = retry_with_timeout(
             generate_task,
             row['task_id'],
             self.config,
-            "hyperparameter generation"
+            timeout_seconds=self.config.timeout_per_record,  # 300 seconds (5 minutes)
+            operation_name="hyperparameter generation"
         )
         
         if success:
@@ -283,6 +290,59 @@ class HyperparameterDataRunner:
         else:
             logger.warning(f"Task {row['task_id']} failed after {self.config.max_retries} attempts: {error_msg}")
             return None
+    
+    def save_checkpoint(self, results: list, excluded_tasks: list, 
+                       checkpoint_num: int, output_dir: Path) -> None:
+        """Save checkpoint to disk and clear memory."""
+        if not results:
+            return
+            
+        # Save current results to checkpoint file
+        checkpoint_file = output_dir / f"checkpoint_{checkpoint_num:04d}.parquet"
+        pd.DataFrame(results).to_parquet(checkpoint_file, index=False)
+        logger.info(f"Saved checkpoint {checkpoint_num} with {len(results)} tasks to {checkpoint_file}")
+        
+        # Save exclusions if any
+        if excluded_tasks:
+            exclusion_file = output_dir / f"checkpoint_{checkpoint_num:04d}_exclusions.json"
+            save_json(excluded_tasks, exclusion_file)
+    
+    def load_checkpoints(self, output_dir: Path) -> tuple[list, list, set]:
+        """Load existing checkpoints if any."""
+        checkpoint_files = sorted(output_dir.glob("checkpoint_*.parquet"))
+        
+        if not checkpoint_files:
+            return [], [], set()
+        
+        logger.info(f"Found {len(checkpoint_files)} existing checkpoint(s)")
+        
+        all_results = []
+        all_excluded = []
+        processed_task_ids = set()
+        
+        for checkpoint_file in checkpoint_files:
+            df = pd.read_parquet(checkpoint_file)
+            all_results.extend(df.to_dict('records'))
+            processed_task_ids.update(df['task_id'].tolist())
+            
+            # Load exclusions if they exist
+            exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
+            if exclusion_file.exists():
+                exclusions = load_json(exclusion_file)
+                all_excluded.extend(exclusions)
+                processed_task_ids.update([e['task_id'] for e in exclusions])
+        
+        logger.info(f"Loaded {len(all_results)} results and {len(all_excluded)} exclusions from checkpoints")
+        return all_results, all_excluded, processed_task_ids
+    
+    def check_memory_usage(self) -> float:
+        """Check current memory usage and warn if high."""
+        memory_percent = psutil.virtual_memory().percent
+        
+        if memory_percent > self.memory_warning_threshold:
+            logger.warning(f"⚠️ High memory usage: {memory_percent:.1f}% of RAM")
+        
+        return memory_percent
     
     def run(self) -> Dict[str, any]:
         """Run hyperparameter split processing at temperature 0.0."""
@@ -313,20 +373,48 @@ class HyperparameterDataRunner:
         # Setup output directories
         self.output_dir = self._setup_output_directories()
         
-        # Process all tasks with retry logic
-        all_results = []
-        excluded_tasks = []
+        # Load existing checkpoints if any
+        checkpoint_results, checkpoint_excluded, processed_task_ids = self.load_checkpoints(self.output_dir)
+        
+        # Filter out already processed tasks
+        if processed_task_ids:
+            logger.info(f"Skipping {len(processed_task_ids)} already processed tasks")
+            hyperparams_data = hyperparams_data[~hyperparams_data['task_id'].isin(processed_task_ids)]
+            logger.info(f"Remaining tasks to process: {len(hyperparams_data)}")
+        
+        # Initialize with checkpoint data
+        results = []  # Current batch results
+        excluded_tasks = []  # Current batch exclusions
+        all_results = checkpoint_results  # All results including checkpoints
+        all_excluded = checkpoint_excluded  # All exclusions including checkpoints
+        
+        checkpoint_counter = len(list(self.output_dir.glob("checkpoint_*.parquet")))
+        tasks_since_checkpoint = 0
+        
+        # Calculate total attempted BEFORE the loop (needed for logging)
+        total_attempted = len(hyperparams_data) + len(processed_task_ids)
         
         # Progress bar
         pbar = tqdm(total=len(hyperparams_data), desc="Hyperparameter data generation")
         
         for idx, row in hyperparams_data.iterrows():
+            # Log which task we're about to process (helps identify hanging tasks)
+            task_number = len(all_results) + len(results) + 1  # Current position in overall processing
+            logger.info(f"Starting task {task_number}/{total_attempted}: {row['task_id']}")
+            
+            # Check memory before processing
+            memory_percent = self.check_memory_usage()
+            if memory_percent > 95:
+                logger.error(f"Critical memory usage: {memory_percent:.1f}%. Saving checkpoint and exiting.")
+                self.save_checkpoint(results, excluded_tasks, checkpoint_counter + 1, self.output_dir)
+                raise MemoryError(f"RAM usage critical: {memory_percent:.1f}%")
+            
             # Process task with retry logic
             result = self._process_single_task(row)
             
             if result is not None:
                 # Task succeeded - add to results
-                all_results.append(result)
+                results.append(result)
             else:
                 # Task failed after all retries - exclude from dataset
                 excluded_tasks.append({
@@ -335,20 +423,45 @@ class HyperparameterDataRunner:
                 })
                 logger.debug(f"Excluding task {row['task_id']} from hyperparameter dataset")
             
+            tasks_since_checkpoint += 1
             pbar.update(1)
             
-            # Memory cleanup
-            if (idx + 1) % self.config.memory_cleanup_frequency == 0:
-                torch.cuda.empty_cache()
+            # Save checkpoint periodically
+            if tasks_since_checkpoint >= self.checkpoint_frequency and results:
+                checkpoint_counter += 1
+                self.save_checkpoint(results, excluded_tasks, checkpoint_counter, self.output_dir)
+                
+                # Add to all results and clear current batch
+                all_results.extend(results)
+                all_excluded.extend(excluded_tasks)
+                results = []
+                excluded_tasks = []
+                tasks_since_checkpoint = 0
+                
+                # Force garbage collection to free memory
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                elif hasattr(torch, 'mps') and torch.backends.mps.is_available():
+                    torch.mps.empty_cache()
+                
+                logger.info(f"Memory after checkpoint: {psutil.virtual_memory().percent:.1f}%")
         
         pbar.close()
+        
+        # Save final checkpoint if there are remaining results
+        if results:
+            checkpoint_counter += 1
+            self.save_checkpoint(results, excluded_tasks, checkpoint_counter, self.output_dir)
+            all_results.extend(results)
+            all_excluded.extend(excluded_tasks)
         
         # Handle case where no tasks succeeded
         if not all_results:
             logger.error("No hyperparameter tasks were successfully processed!")
-            if excluded_tasks:
+            if all_excluded:
                 exclusion_file = self.output_dir / "excluded_tasks.json"
-                exclusion_summary = create_exclusion_summary(excluded_tasks, len(hyperparams_data))
+                exclusion_summary = create_exclusion_summary(all_excluded, total_attempted)
                 save_json(exclusion_summary, exclusion_file)
                 logger.info(f"Saved exclusion summary to {exclusion_file}")
             raise RuntimeError("Phase 3.6 failed: no hyperparameter tasks were successfully processed")
@@ -357,29 +470,58 @@ class HyperparameterDataRunner:
         self._save_results(all_results)
         
         # Save exclusion information
-        if excluded_tasks:
-            exclusion_summary = create_exclusion_summary(excluded_tasks, len(hyperparams_data))
+        if all_excluded:
+            exclusion_summary = create_exclusion_summary(all_excluded, total_attempted)
             exclusion_file = self.output_dir / "excluded_tasks.json"
             save_json(exclusion_summary, exclusion_file)
             logger.info(f"Saved exclusion summary to {exclusion_file}")
         
+        # Get original task IDs for metadata
+        original_hyperparams_data = self._load_hyperparameter_data()
+        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
+            start_idx = self.config.dataset_start_idx
+        else:
+            start_idx = 0
+        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
+            end_idx = min(self.config.dataset_end_idx + 1, len(original_hyperparams_data))
+        else:
+            end_idx = len(original_hyperparams_data)
+        original_hyperparams_data = original_hyperparams_data.iloc[start_idx:end_idx]
+        
         # Create and save metadata (with exclusion info)
-        metadata = self._create_metadata(all_results, hyperparams_data['task_id'].tolist(), excluded_tasks)
+        metadata = self._create_metadata(all_results, original_hyperparams_data['task_id'].tolist(), all_excluded)
         self._save_metadata(metadata)
         
         # Log summary including exclusions
-        n_attempted = len(hyperparams_data)
-        n_excluded = len(excluded_tasks)
+        n_excluded = len(all_excluded)
         n_included = len(all_results)
         correct = sum(1 for r in all_results if r['test_passed'])
         
-        logger.info(f"Tasks processed: {n_included}/{n_attempted} ({n_excluded} excluded)")
-        if excluded_tasks:
-            logger.warning(f"Excluded tasks: {[t['task_id'] for t in excluded_tasks]}")
-        logger.info(
-            f"Temperature 0.0: {correct}/{len(all_results)} passed "
-            f"({correct/len(all_results):.1%})"
-        )
+        # Print clear summary
+        logger.info("\n" + "="*60)
+        logger.info("PHASE 3.6 SUMMARY")
+        logger.info("="*60)
+        logger.info(f"Tasks attempted: {total_attempted}")
+        logger.info(f"Tasks included in dataset: {n_included}")
+        logger.info(f"Tasks excluded: {n_excluded} ({n_excluded/total_attempted*100:.1f}%)")
+        logger.info(f"Temperature 0.0: {correct}/{len(all_results)} passed ({correct/len(all_results):.1%})")
+        logger.info(f"\nDataset saved to: {self.output_dir / 'dataset_hyperparams_temp_0_0.parquet'}")
+        logger.info(f"Activations saved to: {self.output_dir / 'activations'}/")
+        
+        # Clean up checkpoint files after successful completion
+        checkpoint_files = list(self.output_dir.glob("checkpoint_*.parquet"))
+        if checkpoint_files:
+            logger.info(f"Cleaning up {len(checkpoint_files)} checkpoint files...")
+            for checkpoint_file in checkpoint_files:
+                checkpoint_file.unlink()
+                # Also remove exclusion files
+                exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
+                if exclusion_file.exists():
+                    exclusion_file.unlink()
+        
+        if all_excluded:
+            logger.warning(f"Excluded tasks: {[t['task_id'] for t in all_excluded]}")
+        logger.info("="*60 + "\n")
         
         logger.info("Phase 3.6 completed successfully")
         return metadata

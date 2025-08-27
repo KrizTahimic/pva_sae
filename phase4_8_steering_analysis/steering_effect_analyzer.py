@@ -8,6 +8,8 @@ Validates that SAE features capture program validity awareness.
 
 import json
 import time
+import gc
+import psutil
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import pandas as pd
@@ -32,7 +34,7 @@ from common.steering_metrics import (
     calculate_correction_rate,
     calculate_corruption_rate
 )
-from common.retry_utils import retry_generation, create_exclusion_summary
+from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.helpers import evaluate_code, extract_code, load_json, save_json
 from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
@@ -69,6 +71,12 @@ class SteeringEffectAnalyzer:
         
         # Split baseline data by correctness
         self._split_baseline_by_correctness()
+        
+        # Checkpoint tracking
+        self.checkpoint_dir = self.output_dir / "checkpoints"
+        ensure_directory_exists(self.checkpoint_dir)
+        self.checkpoint_counter = 0
+        self.autosave_counter = 0
         
         logger.info("SteeringEffectAnalyzer initialized successfully")
         
@@ -158,6 +166,89 @@ class SteeringEffectAnalyzer:
         
         logger.info("Dependencies loaded successfully")
         
+    def save_checkpoint(self, steering_type: str, results: List[Dict], 
+                       excluded_tasks: List[Dict], last_idx: int, 
+                       total_tasks: int) -> None:
+        """Save checkpoint for current steering experiment."""
+        checkpoint_data = {
+            'steering_type': steering_type,
+            'results': results,
+            'excluded_tasks': excluded_tasks,
+            'last_processed_idx': last_idx,
+            'total_tasks': total_tasks,
+            'timestamp': datetime.now().isoformat(),
+            'checkpoint_version': 1
+        }
+        
+        # Create checkpoint filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        checkpoint_file = self.checkpoint_dir / f"checkpoint_{steering_type}_{timestamp}.json"
+        
+        # Save checkpoint
+        save_json(checkpoint_data, checkpoint_file)
+        logger.info(f"Saved {steering_type} checkpoint at index {last_idx}/{total_tasks-1}")
+        
+        # Clean up old checkpoints (keep only last 3)
+        self.cleanup_old_checkpoints(steering_type)
+    
+    def load_checkpoint(self, steering_type: str) -> Optional[Dict]:
+        """Load most recent checkpoint for steering type if available."""
+        checkpoint_pattern = f"checkpoint_{steering_type}_*.json"
+        checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
+        
+        if not checkpoint_files:
+            return None
+        
+        # Load most recent checkpoint
+        latest_checkpoint = checkpoint_files[-1]
+        logger.info(f"Loading checkpoint from {latest_checkpoint}")
+        
+        try:
+            checkpoint_data = load_json(latest_checkpoint)
+            logger.info(f"Resuming {steering_type} steering from index "
+                       f"{checkpoint_data['last_processed_idx']}/{checkpoint_data['total_tasks']-1}")
+            return checkpoint_data
+        except Exception as e:
+            logger.error(f"Failed to load checkpoint: {e}")
+            return None
+    
+    def cleanup_old_checkpoints(self, steering_type: str, keep_last: int = 3) -> None:
+        """Remove old checkpoint files, keeping only the most recent ones."""
+        checkpoint_pattern = f"checkpoint_{steering_type}_*.json"
+        checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
+        
+        if len(checkpoint_files) > keep_last:
+            for old_checkpoint in checkpoint_files[:-keep_last]:
+                old_checkpoint.unlink()
+                logger.debug(f"Removed old checkpoint: {old_checkpoint}")
+    
+    def cleanup_all_checkpoints(self) -> None:
+        """Remove all checkpoint files after successful completion."""
+        checkpoint_files = list(self.checkpoint_dir.glob("checkpoint_*.json"))
+        for checkpoint_file in checkpoint_files:
+            checkpoint_file.unlink()
+            logger.debug(f"Removed checkpoint: {checkpoint_file}")
+        
+        if checkpoint_files:
+            logger.info(f"Cleaned up {len(checkpoint_files)} checkpoint files")
+    
+    def check_memory_usage(self) -> None:
+        """Check current memory usage and log warnings if high."""
+        memory = psutil.virtual_memory()
+        memory_percent = memory.percent
+        memory_gb = memory.used / (1024**3)
+        
+        if memory_percent > 90:
+            logger.critical(f"CRITICAL: Memory usage at {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
+            # Force garbage collection
+            gc.collect()
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
+        elif memory_percent > 80:
+            logger.warning(f"High memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
+        else:
+            logger.debug(f"Memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
+    
     def _split_baseline_by_correctness(self) -> None:
         """Split baseline data into initially correct and incorrect subsets."""
         # Split baseline data by initial correctness
@@ -189,21 +280,34 @@ class SteeringEffectAnalyzer:
         else:
             raise ValueError(f"Invalid steering_type: {steering_type}. Must be 'correct' or 'incorrect'")
         
-        # Create steering hook
-        hook_fn = create_steering_hook(decoder_direction, coefficient)
+        # Check for existing checkpoint
+        checkpoint_data = self.load_checkpoint(steering_type)
+        if checkpoint_data:
+            results = checkpoint_data['results']
+            excluded_tasks = checkpoint_data['excluded_tasks']
+            start_idx = checkpoint_data['last_processed_idx'] + 1
+            logger.info(f"Resuming from checkpoint at index {start_idx}")
+        else:
+            results = []
+            excluded_tasks = []
+            start_idx = 0
         
-        # Register hook on target layer
-        target_module = self.model.model.layers[target_layer]
-        hook_handle = target_module.register_forward_pre_hook(hook_fn)
+        # Process tasks with index tracking
+        problems_list = list(problems_df.iterrows())
+        total_tasks = len(problems_list)
         
-        results = []
-        excluded_tasks = []
-        
-        try:
-            for idx, row in tqdm(problems_df.iterrows(), 
-                               total=len(problems_df),
-                               desc=f"{steering_type.capitalize()} steering"):
-                
+        for enum_idx, (idx, row) in enumerate(tqdm(problems_list[start_idx:], 
+                                                   initial=start_idx,
+                                                   total=total_tasks,
+                                                   desc=f"{steering_type.capitalize()} steering"),
+                                              start=start_idx):
+            
+            # Setup hook for this specific task
+            hook_fn = create_steering_hook(decoder_direction, coefficient)
+            target_module = self.model.model.layers[target_layer]
+            hook_handle = target_module.register_forward_pre_hook(hook_fn)
+            
+            try:
                 # Define generation function for retry logic
                 def generate_steered_code():
                     # Build prompt from row data
@@ -245,8 +349,8 @@ class SteeringEffectAnalyzer:
                         'prompt': prompt
                     }
                 
-                # Attempt generation with retry logic
-                success, generation_result, error_msg = retry_generation(
+                # Attempt generation with retry logic using timeout
+                success, generation_result, error_msg = retry_with_timeout(
                     generate_steered_code,
                     row['task_id'],
                     self.config,
@@ -279,13 +383,30 @@ class SteeringEffectAnalyzer:
                     })
                     logger.warning(f"Excluding task {row['task_id']} from {steering_type} steering results")
                 
-                # Clear GPU cache periodically
-                if idx % 10 == 0:
+            finally:
+                # Always remove hook after each task to ensure isolation
+                hook_handle.remove()
+                
+                # Clear GPU cache after each task
+                if self.device.type == "cuda":
                     torch.cuda.empty_cache()
-                    
-        finally:
-            # Always remove hook after use
-            hook_handle.remove()
+                elif self.device.type == "mps":
+                    # MPS doesn't have empty_cache, but we can sync to free memory
+                    torch.mps.synchronize()
+            
+            # Memory monitoring every 10 tasks
+            if (enum_idx + 1) % 10 == 0:
+                self.check_memory_usage()
+                gc.collect()
+            
+            # Checkpointing every 50 tasks
+            if (enum_idx + 1) % 50 == 0:
+                self.save_checkpoint(steering_type, results, excluded_tasks, enum_idx, total_tasks)
+            
+            # Autosave every 100 tasks  
+            if (enum_idx + 1) % 100 == 0:
+                logger.info(f"Autosaving at task {enum_idx + 1}/{total_tasks}")
+                self.save_checkpoint(steering_type, results, excluded_tasks, enum_idx, total_tasks)
             
         # Log results summary including exclusions
         n_flipped = sum(r['flipped'] for r in results)
@@ -343,6 +464,9 @@ class SteeringEffectAnalyzer:
             steering_type='incorrect',
             coefficient=self.config.phase4_8_incorrect_coefficient
         )
+        
+        # Clean up checkpoints after successful completion
+        self.cleanup_all_checkpoints()
         
         # Calculate exclusion summary
         correction_excluded = n_initially_incorrect - len(correction_results)
