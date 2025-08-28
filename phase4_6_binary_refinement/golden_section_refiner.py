@@ -10,7 +10,7 @@ import json
 import time
 import math
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -53,6 +53,10 @@ class GoldenSectionCoefficientRefiner:
         self.phi = (1 + math.sqrt(5)) / 2  # Golden ratio ≈ 1.618034
         self.resphi = 2 - self.phi         # ≈ 0.381966
         
+        # Memory monitoring thresholds
+        self.memory_warning_threshold = 80   # Warn at 80% RAM usage
+        self.memory_critical_threshold = 90  # Critical at 90% RAM usage
+        
         # Phase output directories
         self.output_dir = Path(config.phase4_6_output_dir)
         ensure_directory_exists(self.output_dir)
@@ -76,6 +80,46 @@ class GoldenSectionCoefficientRefiner:
         self._load_phase4_5_results()
         
         logger.info("GoldenSectionCoefficientRefiner initialized successfully")
+    
+    def save_intermediate_results(self, steering_type: str, result: Dict) -> None:
+        """Save results after each steering type completes."""
+        intermediate_file = self.output_dir / "intermediate_results.json"
+        
+        # Load existing intermediate results if they exist
+        if intermediate_file.exists():
+            existing_results = load_json(intermediate_file)
+        else:
+            existing_results = {}
+        
+        # Add or update the result for this steering type
+        existing_results[f'{steering_type}_steering'] = result
+        existing_results['last_updated'] = datetime.now().isoformat()
+        
+        # Save back to file
+        save_json(existing_results, intermediate_file)
+        logger.info(f"Saved intermediate results for {steering_type} steering to {intermediate_file}")
+    
+    def load_existing_results(self) -> Dict:
+        """Load any previously completed steering results."""
+        intermediate_file = self.output_dir / "intermediate_results.json"
+        
+        if intermediate_file.exists():
+            logger.info(f"Loading existing results from {intermediate_file}")
+            results = load_json(intermediate_file)
+            
+            # Log what we found
+            completed_types = []
+            if 'correct_steering' in results:
+                completed_types.append('correct')
+                logger.info(f"Found completed correct steering with coefficient {results['correct_steering'].get('optimal_coefficient', 'unknown')}")
+            if 'incorrect_steering' in results:
+                completed_types.append('incorrect')
+                logger.info(f"Found completed incorrect steering with coefficient {results['incorrect_steering'].get('optimal_coefficient', 'unknown')}")
+            
+            return results
+        else:
+            logger.info("No existing intermediate results found, starting fresh")
+            return {}
         
         # Checkpoint configuration
         self.checkpoint_frequency = 1  # Save after each iteration
@@ -381,18 +425,20 @@ class GoldenSectionCoefficientRefiner:
     def evaluate_coefficient(self, coefficient: float, 
                             problems_df: pd.DataFrame,
                             steering_type: str,
-                            show_progress: bool = False) -> float:
+                            show_progress: bool = False,
+                            return_full_results: bool = False) -> Union[float, Dict]:
         """
-        Evaluate a single coefficient and return the score.
+        Evaluate a single coefficient and return the score or full results.
         
         Args:
             coefficient: Steering coefficient to evaluate
             problems_df: Dataset to test on  
             steering_type: 'correct' or 'incorrect'
             show_progress: Whether to show progress bar
+            return_full_results: If True, return full results dict; if False, just score
             
         Returns:
-            Score (correction_rate or composite_score)
+            Score (float) or full results dictionary including score, results list, and metrics
         """
         # Select decoder direction and target layer
         if steering_type == 'correct':
@@ -438,8 +484,7 @@ class GoldenSectionCoefficientRefiner:
                         outputs = self.model.generate(
                             **inputs,
                             max_new_tokens=self.config.model_max_new_tokens,
-                            temperature=0.0,
-                            do_sample=False,
+                            do_sample=False,  # Deterministic generation
                             pad_token_id=self.tokenizer.pad_token_id
                         )
                     
@@ -520,16 +565,48 @@ class GoldenSectionCoefficientRefiner:
         
         # Calculate score based on steering type
         if steering_type == 'correct':
-            score = calculate_correction_rate(results)
+            correction_rate = calculate_correction_rate(results)
+            score = correction_rate
+            
+            if return_full_results:
+                return {
+                    'coefficient': coefficient,
+                    'score': score,
+                    'metrics': {
+                        'correction_rate': correction_rate,
+                        'n_corrected': sum(1 for r in results if not r['baseline_passed'] and r['steered_passed']),
+                        'n_total': len(results)
+                    },
+                    'results': results,
+                    'excluded_tasks': excluded_tasks
+                }
         else:
             corruption_rate = calculate_corruption_rate(results)
+            preservation_rate = calculate_preservation_rate(results)
             
             # Calculate average similarity for corrupted cases
             corrupted_results = [r for r in results if r['baseline_passed'] and not r['steered_passed']]
-            avg_similarity = np.mean([r['code_similarity'] for r in corrupted_results]) * 100 if corrupted_results else 0
+            avg_similarity = np.mean([r['code_similarity'] for r in corrupted_results]) if corrupted_results else 0
             
-            # Composite score
-            score = (corruption_rate + avg_similarity) / 2
+            # Composite score (similar to Phase 4.5)
+            score = (corruption_rate + avg_similarity * 100) / 2
+            
+            if return_full_results:
+                return {
+                    'coefficient': coefficient,
+                    'score': score,
+                    'metrics': {
+                        'composite_score': score,
+                        'corruption_rate': corruption_rate,
+                        'preservation_rate': preservation_rate,
+                        'avg_similarity': avg_similarity,
+                        'n_corrupted': sum(1 for r in results if r['baseline_passed'] and not r['steered_passed']),
+                        'n_preserved': sum(1 for r in results if r['baseline_passed'] and r['steered_passed']),
+                        'n_total': len(results)
+                    },
+                    'results': results,
+                    'excluded_tasks': excluded_tasks
+                }
         
         # Cache the result for future use
         if isinstance(coefficient, int):
@@ -538,7 +615,9 @@ class GoldenSectionCoefficientRefiner:
             cache_key = self._round_coefficient(coefficient)
         self.cached_scores[steering_type][cache_key] = score
         
-        return score
+        # Return score if not returning full results
+        if not return_full_results:
+            return score
     
     def get_score(self, coefficient: float, steering_type: str) -> float:
         """Get score for coefficient, using cache if available or evaluating if needed."""
@@ -816,8 +895,8 @@ class GoldenSectionCoefficientRefiner:
         logger.info(f"Best score achieved: {optimal_score:.1f}%")
         logger.info(f"{'='*60}\n")
         
-        # Cleanup checkpoints after successful completion
-        self.cleanup_checkpoints(steering_type)
+        # Don't cleanup checkpoints here - let run() method handle it after both complete
+        # self.cleanup_checkpoints(steering_type)  # REMOVED - moved to end of run()
         
         return optimal_coeff, search_history
     
@@ -825,6 +904,7 @@ class GoldenSectionCoefficientRefiner:
                                 steering_type: str,
                                 results: List[Dict]) -> None:
         """Save example generations for manual inspection."""
+        # Save in subdirectory for this specific coefficient
         coeff_dir = self.examples_dir / f"{steering_type}_golden_{coefficient:.2f}"
         ensure_directory_exists(coeff_dir)
         
@@ -834,12 +914,16 @@ class GoldenSectionCoefficientRefiner:
                                  if not r['baseline_passed'] and r['steered_passed']][:10]
             if corrected_examples:
                 save_json(corrected_examples, coeff_dir / "corrected_examples.json")
+                # Also save in root examples directory
+                save_json(corrected_examples, self.examples_dir / "corrected_examples.json")
         else:
             # Save corrupted examples (correct→incorrect)
             corrupted_examples = [r for r in results 
                                 if r['baseline_passed'] and not r['steered_passed']][:10]
             if corrupted_examples:
                 save_json(corrupted_examples, coeff_dir / "corrupted_examples.json")
+                # Also save in root examples directory
+                save_json(corrupted_examples, self.examples_dir / "corrupted_examples.json")
         
         # Save summary
         summary = {
@@ -857,11 +941,40 @@ class GoldenSectionCoefficientRefiner:
         logger.info("Starting Phase 4.6: Golden Section Search Coefficient Refinement")
         logger.info("Will refine coefficients found in Phase 4.5 using golden section search")
         
-        refinement_results = {}
+        # Load any existing intermediate results
+        existing_results = self.load_existing_results()
+        refinement_results = existing_results.copy() if existing_results else {}
         refined_coefficients = {}
         
-        # Run refinement for both steering types
+        # Determine which steering types need to be processed
+        steering_types_to_process = []
         for steering_type in ['correct', 'incorrect']:
+            if f'{steering_type}_steering' in refinement_results:
+                logger.info(f"Skipping {steering_type} steering - already completed")
+                # Extract the coefficient info for the summary
+                result = refinement_results[f'{steering_type}_steering']
+                if steering_type == 'correct':
+                    feature = self.best_correct_feature
+                else:
+                    feature = self.best_incorrect_feature
+                
+                phase4_5_optimal = self.search_bounds[steering_type]['optimal_from_phase4_5']
+                refined_coefficients[steering_type] = {
+                    'refined_coefficient': result['optimal_coefficient'],
+                    'phase4_5_coefficient': phase4_5_optimal,
+                    'improvement': result['optimal_coefficient'] - phase4_5_optimal,
+                    'layer': feature['layer'],
+                    'feature_index': feature['feature_idx'],
+                    'best_score': result.get('best_score', 0),
+                    'search_iterations': len(result.get('search_history', [])),
+                    'search_bounds': self.search_bounds[steering_type],
+                    'method': 'golden_section_search'
+                }
+            else:
+                steering_types_to_process.append(steering_type)
+        
+        # Run refinement for steering types that haven't been completed
+        for steering_type in steering_types_to_process:
             logger.info(f"\n{'='*80}")
             logger.info(f"Refining {steering_type.upper()} steering coefficient")
             logger.info(f"{'='*80}")
@@ -873,14 +986,7 @@ class GoldenSectionCoefficientRefiner:
                 logger.warning(f"Could not refine {steering_type} steering coefficient")
                 continue
             
-            # Save results
-            refinement_results[f'{steering_type}_steering'] = {
-                'optimal_coefficient': optimal_coeff,
-                'search_history': search_history,
-                'method': 'golden_section_search'
-            }
-            
-            # Get final evaluation for saving examples
+            # Get full evaluation results for the optimal coefficient
             if steering_type == 'correct':
                 eval_data = self.initially_incorrect_data
                 feature = self.best_correct_feature
@@ -888,8 +994,40 @@ class GoldenSectionCoefficientRefiner:
                 eval_data = self.initially_correct_data
                 feature = self.best_incorrect_feature
             
-            # Get final score and examples
-            final_score = self.get_score(optimal_coeff, steering_type)
+            # Get final score and full results
+            final_evaluation = self.evaluate_coefficient(
+                optimal_coeff, eval_data, steering_type, 
+                show_progress=False, return_full_results=True
+            )
+            
+            # Save results
+            refinement_results[f'{steering_type}_steering'] = {
+                'optimal_coefficient': optimal_coeff,
+                'search_history': search_history,
+                'best_score': final_evaluation['score'],
+                'metrics': final_evaluation['metrics'],
+                'method': 'golden_section_search'
+            }
+            
+            # Save intermediate results after this steering type completes
+            self.save_intermediate_results(steering_type, refinement_results[f'{steering_type}_steering'])
+            
+            # Save example generations
+            self.save_refinement_examples(optimal_coeff, steering_type, final_evaluation['results'])
+            
+            # Save the problems dataset
+            problems_filename = f"selected_problems_{steering_type}_steering.parquet"
+            eval_data.to_parquet(self.output_dir / problems_filename)
+            logger.info(f"Saved {len(eval_data)} problems to {problems_filename}")
+            
+            # Get feature info for metadata
+            if steering_type == 'correct':
+                feature = self.best_correct_feature
+            else:
+                feature = self.best_incorrect_feature
+            
+            # Use the score from the refinement results
+            final_score = refinement_results[f'{steering_type}_steering']['best_score']
             
             # Save refined coefficient with metadata
             phase4_5_optimal = self.search_bounds[steering_type]['optimal_from_phase4_5']
@@ -905,23 +1043,25 @@ class GoldenSectionCoefficientRefiner:
                 'method': 'golden_section_search'
             }
             
-            # Save examples for the refined coefficient
-            # We need to do a full evaluation to get the results for examples
-            final_result = self.evaluate_coefficient(
-                optimal_coeff, eval_data, steering_type, show_progress=False
-            )
-            # Convert the returned score to a full result dict with 'results' key
-            if steering_type == 'correct':
-                # For correct steering, we need to reconstruct results from recent evaluation
-                # The score was calculated from the last evaluation stored in the method
-                pass  # We'll use the cached evaluation data
-            
-            # Clear GPU cache
-            torch.cuda.empty_cache()
+            # Clear GPU cache after processing each steering type
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         
         # Save all results
-        save_json(refinement_results, self.output_dir / "golden_section_history.json")
+        save_json(refinement_results, self.output_dir / "refinement_analysis.json")  # Full analysis
+        save_json(refinement_results, self.output_dir / "golden_section_history.json")  # Keep for compatibility
         save_json(refined_coefficients, self.output_dir / "refined_coefficients.json")
+        
+        # Clean up all checkpoints now that both steering types are complete
+        logger.info("Cleaning up checkpoints after successful completion")
+        self.cleanup_checkpoints('correct')
+        self.cleanup_checkpoints('incorrect')
+        
+        # Remove intermediate results file since we're done
+        intermediate_file = self.output_dir / "intermediate_results.json"
+        if intermediate_file.exists():
+            intermediate_file.unlink()
+            logger.info("Removed intermediate results file")
         
         # Create phase summary
         summary = {
