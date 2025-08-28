@@ -56,6 +56,7 @@ class GoldenSectionCoefficientRefiner:
         # Memory monitoring thresholds
         self.memory_warning_threshold = 80   # Warn at 80% RAM usage
         self.memory_critical_threshold = 90  # Critical at 90% RAM usage
+        self.evaluation_checkpoint_frequency = 20  # Save every 20 tasks during evaluation
         
         # Phase output directories
         self.output_dir = Path(config.phase4_6_output_dir)
@@ -175,14 +176,95 @@ class GoldenSectionCoefficientRefiner:
             logger.error(f"CRITICAL: Memory usage at {memory_percent:.1f}%. Consider stopping.")
             # Force garbage collection
             gc.collect()
-            if self.device.type == "cuda":
-                torch.cuda.empty_cache()
-            elif self.device.type == "mps":
-                torch.mps.synchronize()
+            self.clear_gpu_memory()
         elif memory_percent > self.memory_warning_threshold:
             logger.warning(f"Memory usage at {memory_percent:.1f}%")
             # Proactive garbage collection
             gc.collect()
+            self.clear_gpu_memory()
+    
+    def clear_gpu_memory(self) -> None:
+        """Clear GPU/MPS memory cache."""
+        if self.device.type == "cuda":
+            torch.cuda.empty_cache()
+        elif self.device.type == "mps":
+            # Try MPS empty_cache if available (PyTorch 2.0+)
+            if hasattr(torch.mps, 'empty_cache'):
+                torch.mps.empty_cache()
+            else:
+                # Fallback: Force garbage collection
+                gc.collect()
+    
+    def save_evaluation_checkpoint(self, results: list, excluded_tasks: list,
+                                  checkpoint_num: int, checkpoint_dir: Path) -> None:
+        """Save evaluation results checkpoint to disk."""
+        if not results and not excluded_tasks:
+            return
+            
+        # Save results if any
+        if results:
+            checkpoint_file = checkpoint_dir / f"eval_checkpoint_{checkpoint_num:04d}.parquet"
+            pd.DataFrame(results).to_parquet(checkpoint_file, index=False)
+            logger.debug(f"Saved evaluation checkpoint {checkpoint_num} with {len(results)} results")
+        
+        # Save exclusions if any
+        if excluded_tasks:
+            exclusion_file = checkpoint_dir / f"eval_checkpoint_{checkpoint_num:04d}_exclusions.json"
+            save_json(excluded_tasks, exclusion_file)
+            logger.debug(f"Saved {len(excluded_tasks)} exclusions to checkpoint {checkpoint_num}")
+    
+    def load_evaluation_checkpoints(self, checkpoint_dir: Path) -> Tuple[list, list, set]:
+        """Load existing evaluation checkpoints if any."""
+        if not checkpoint_dir.exists():
+            return [], [], set()
+            
+        checkpoint_files = sorted(checkpoint_dir.glob("eval_checkpoint_*.parquet"))
+        exclusion_files = sorted(checkpoint_dir.glob("eval_checkpoint_*_exclusions.json"))
+        
+        if not checkpoint_files and not exclusion_files:
+            return [], [], set()
+        
+        logger.info(f"Found {len(checkpoint_files)} existing evaluation checkpoint(s)")
+        
+        all_results = []
+        all_excluded = []
+        processed_task_ids = set()
+        
+        # Load result checkpoints
+        for checkpoint_file in checkpoint_files:
+            df = pd.read_parquet(checkpoint_file)
+            results = df.to_dict('records')
+            all_results.extend(results)
+            processed_task_ids.update(r['task_id'] for r in results)
+        
+        # Load exclusion checkpoints
+        for exclusion_file in exclusion_files:
+            excluded = load_json(exclusion_file)
+            all_excluded.extend(excluded)
+            processed_task_ids.update(e['task_id'] for e in excluded)
+        
+        logger.info(f"Loaded {len(all_results)} results and {len(all_excluded)} exclusions from checkpoints")
+        return all_results, all_excluded, processed_task_ids
+    
+    def cleanup_evaluation_checkpoints(self, checkpoint_dir: Path) -> None:
+        """Clean up evaluation checkpoint files after successful completion."""
+        if not checkpoint_dir.exists():
+            return
+            
+        checkpoint_files = list(checkpoint_dir.glob("eval_checkpoint_*.parquet"))
+        exclusion_files = list(checkpoint_dir.glob("eval_checkpoint_*_exclusions.json"))
+        
+        total_files = len(checkpoint_files) + len(exclusion_files)
+        if total_files > 0:
+            logger.debug(f"Cleaning up {total_files} evaluation checkpoint files...")
+            for f in checkpoint_files + exclusion_files:
+                f.unlink()
+            
+            # Remove directory if empty
+            try:
+                checkpoint_dir.rmdir()
+            except OSError:
+                pass  # Directory not empty, that's fine
     
     def cleanup_checkpoints(self, steering_type: str) -> None:
         """Remove checkpoint files after successful completion."""
@@ -440,6 +522,20 @@ class GoldenSectionCoefficientRefiner:
         Returns:
             Score (float) or full results dictionary including score, results list, and metrics
         """
+        # Create checkpoint directory for this evaluation
+        checkpoint_dir = self.output_dir / f"eval_checkpoints_{steering_type}_coeff_{int(coefficient)}"
+        ensure_directory_exists(checkpoint_dir)
+        
+        # Load existing checkpoints if any
+        all_results, all_excluded, processed_task_ids = self.load_evaluation_checkpoints(checkpoint_dir)
+        
+        # Filter out already processed tasks
+        original_len = len(problems_df)
+        if processed_task_ids:
+            logger.debug(f"Skipping {len(processed_task_ids)} already processed tasks")
+            problems_df = problems_df[~problems_df['task_id'].isin(processed_task_ids)]
+            logger.debug(f"Remaining tasks: {len(problems_df)} out of {original_len}")
+        
         # Select decoder direction and target layer
         if steering_type == 'correct':
             decoder_direction = self.correct_decoder_direction
@@ -448,9 +544,11 @@ class GoldenSectionCoefficientRefiner:
             decoder_direction = self.incorrect_decoder_direction
             target_layer = self.best_incorrect_feature['layer']
         
-        results = []
-        excluded_tasks = []
+        results = []  # Current batch of results
+        excluded_tasks = []  # Current batch of exclusions
         task_counter = 0
+        checkpoint_counter = len(list(checkpoint_dir.glob("eval_checkpoint_*.parquet")))
+        tasks_since_checkpoint = 0
         
         iterator = problems_df.iterrows()
         if show_progress:
@@ -459,10 +557,28 @@ class GoldenSectionCoefficientRefiner:
         
         for idx, row in iterator:
             task_counter += 1
+            tasks_since_checkpoint += 1
             
             # Check memory usage every 10 tasks
             if task_counter % 10 == 0:
                 self.check_memory_usage()
+            
+            # Save checkpoint periodically to free RAM
+            if tasks_since_checkpoint >= self.evaluation_checkpoint_frequency and (results or excluded_tasks):
+                checkpoint_counter += 1
+                self.save_evaluation_checkpoint(results, excluded_tasks, checkpoint_counter, checkpoint_dir)
+                
+                # Add to all results and clear current batch from RAM
+                all_results.extend(results)
+                all_excluded.extend(excluded_tasks)
+                results = []  # Clear from RAM!
+                excluded_tasks = []
+                tasks_since_checkpoint = 0
+                
+                # Force garbage collection after checkpoint
+                gc.collect()
+                self.clear_gpu_memory()
+                
             # Setup hook for this specific task
             hook_fn = create_steering_hook(decoder_direction, coefficient)
             target_module = self.model.model.layers[target_layer]
@@ -549,19 +665,26 @@ class GoldenSectionCoefficientRefiner:
                 hook_handle.remove()
                 
                 # Clear GPU cache after each task
-                if self.device.type == "cuda":
-                    torch.cuda.empty_cache()
-                elif self.device.type == "mps":
-                    # MPS doesn't have empty_cache, but we can sync to free memory
-                    torch.mps.synchronize()
+                self.clear_gpu_memory()
             
+        # Save final checkpoint if there are remaining results
+        if results or excluded_tasks:
+            checkpoint_counter += 1
+            self.save_evaluation_checkpoint(results, excluded_tasks, checkpoint_counter, checkpoint_dir)
+            all_results.extend(results)
+            all_excluded.extend(excluded_tasks)
+        
         # Log exclusions if any
-        if excluded_tasks:
-            logger.warning(f"Excluded {len(excluded_tasks)} tasks from {steering_type} steering "
+        if all_excluded:
+            logger.warning(f"Excluded {len(all_excluded)} tasks from {steering_type} steering "
                           f"refinement (coefficient {coefficient:.2f})")
         
-        logger.debug(f"Successfully evaluated {len(results)}/{len(problems_df)} problems "
-                    f"({len(excluded_tasks)} excluded)")
+        logger.debug(f"Successfully evaluated {len(all_results)} problems "
+                    f"({len(all_excluded)} excluded)")
+        
+        # Use all_results instead of results for calculations
+        results = all_results
+        excluded_tasks = all_excluded
         
         # Calculate score based on steering type
         if steering_type == 'correct':
@@ -607,6 +730,9 @@ class GoldenSectionCoefficientRefiner:
                     'results': results,
                     'excluded_tasks': excluded_tasks
                 }
+        
+        # Clean up checkpoint files after successful evaluation
+        self.cleanup_evaluation_checkpoints(checkpoint_dir)
         
         # Cache the result for future use
         if isinstance(coefficient, int):
@@ -874,7 +1000,7 @@ class GoldenSectionCoefficientRefiner:
                 break
             
             # Clear GPU cache
-            torch.cuda.empty_cache()
+            self.clear_gpu_memory()
         
         # Final evaluation: test any remaining candidates (consecutive integers)
         # This handles the case where we exited with width=1 without testing both points
