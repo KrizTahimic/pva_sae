@@ -37,6 +37,10 @@ from common.steering_metrics import (
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.helpers import evaluate_code, extract_code, load_json, save_json
+from common_simplified.activation_hooks import (
+    AttentionExtractor,
+    save_raw_attention_with_boundaries
+)
 from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
 
 logger = get_logger("phase4_8.steering_effect_analyzer")
@@ -71,6 +75,18 @@ class SteeringEffectAnalyzer:
         
         # Split baseline data by correctness
         self._split_baseline_by_correctness()
+        
+        # Initialize attention extractor for best layers
+        unique_layers = list(set([
+            self.best_correct_feature['layer'],
+            self.best_incorrect_feature['layer']
+        ]))
+        self.attention_extractor = AttentionExtractor(
+            self.model,
+            layers=unique_layers,
+            position=-1  # Last prompt token
+        )
+        logger.info(f"Initialized AttentionExtractor for layers {unique_layers}")
         
         # Checkpoint tracking
         self.checkpoint_dir = self.output_dir / "checkpoints"
@@ -263,6 +279,27 @@ class SteeringEffectAnalyzer:
             raise ValueError("No initially correct problems found in baseline data")
         if len(self.initially_incorrect_data) == 0:
             raise ValueError("No initially incorrect problems found in baseline data")
+    
+    def _save_steered_attention(self, task_id: str, steering_type: str,
+                                attention_patterns: Dict[int, torch.Tensor],
+                                tokenized_prompt: torch.Tensor) -> None:
+        """Save attention patterns from steered generation."""
+        # Create attention directory for this steering type
+        attention_dir = self.output_dir / "attention_patterns" / f"{steering_type}_steering"
+        attention_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save attention for each layer
+        for layer_idx, attention_tensor in attention_patterns.items():
+            save_raw_attention_with_boundaries(
+                task_id=task_id,
+                attention_tensor=attention_tensor,
+                tokenized_prompt=tokenized_prompt,
+                tokenizer=self.tokenizer,
+                output_dir=attention_dir,
+                layer_idx=layer_idx
+            )
+        
+        logger.debug(f"Saved {steering_type} steering attention for task {task_id} in {len(attention_patterns)} layers")
         
     def _apply_steering(self, problems_df: pd.DataFrame, 
                        steering_type: str, 
@@ -296,7 +333,7 @@ class SteeringEffectAnalyzer:
         problems_list = list(problems_df.iterrows())
         total_tasks = len(problems_list)
         
-        for enum_idx, (idx, row) in enumerate(tqdm(problems_list[start_idx:], 
+        for enum_idx, (_, row) in enumerate(tqdm(problems_list[start_idx:], 
                                                    initial=start_idx,
                                                    total=total_tasks,
                                                    desc=f"{steering_type.capitalize()} steering"),
@@ -307,6 +344,9 @@ class SteeringEffectAnalyzer:
             target_module = self.model.model.layers[target_layer]
             hook_handle = target_module.register_forward_pre_hook(hook_fn)
             
+            # Setup attention extraction
+            self.attention_extractor.setup_hooks()
+            
             try:
                 # Define generation function for retry logic
                 def generate_steered_code():
@@ -314,13 +354,16 @@ class SteeringEffectAnalyzer:
                     test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
                     prompt = row['prompt']  # Prompt already built in Phase 3.5
                     
-                    # Generate with steering
+                    # Generate with steering and attention capture
                     inputs = self.tokenizer(
                         prompt,
                         return_tensors="pt",
                         truncation=True,
                         max_length=self.config.activation_max_length
                     ).to(self.device)
+                    
+                    # Store tokenized prompt for boundary calculation
+                    tokenized_prompt = inputs['input_ids']
                     
                     with torch.no_grad():
                         outputs = self.model.generate(
@@ -329,15 +372,20 @@ class SteeringEffectAnalyzer:
                             temperature=0.0,  # Deterministic generation
                             do_sample=False,
                             pad_token_id=self.tokenizer.pad_token_id,
-                            eos_token_id=self.tokenizer.eos_token_id
+                            eos_token_id=self.tokenizer.eos_token_id,
+                            output_attentions=True,  # Enable attention output
+                            return_dict_in_generate=True
                         )
                     
                     # Extract generated code
                     generated_text = self.tokenizer.decode(
-                        outputs[0][inputs['input_ids'].shape[1]:], 
+                        outputs.sequences[0][inputs['input_ids'].shape[1]:], 
                         skip_special_tokens=True
                     )
                     generated_code = extract_code(generated_text, prompt)
+                    
+                    # Get captured attention patterns
+                    attention_patterns = self.attention_extractor.get_attention_patterns()
                     
                     # Evaluate code
                     test_passed = evaluate_code(generated_code, test_cases)
@@ -346,7 +394,9 @@ class SteeringEffectAnalyzer:
                         'generated_code': generated_code,
                         'test_passed': test_passed,
                         'test_cases': test_cases,
-                        'prompt': prompt
+                        'prompt': prompt,
+                        'attention_patterns': attention_patterns,
+                        'tokenized_prompt': tokenized_prompt
                     }
                 
                 # Attempt generation with retry logic using timeout
@@ -358,6 +408,15 @@ class SteeringEffectAnalyzer:
                 )
                 
                 if success:
+                    # Save attention patterns if captured
+                    if generation_result.get('attention_patterns'):
+                        self._save_steered_attention(
+                            row['task_id'], 
+                            steering_type,
+                            generation_result['attention_patterns'],
+                            generation_result['tokenized_prompt']
+                        )
+                    
                     # Check if result flipped from baseline
                     baseline_passed = row['test_passed']
                     steered_passed = generation_result['test_passed']
@@ -384,8 +443,9 @@ class SteeringEffectAnalyzer:
                     logger.warning(f"Excluding task {row['task_id']} from {steering_type} steering results")
                 
             finally:
-                # Always remove hook after each task to ensure isolation
+                # Always remove hooks after each task to ensure isolation
                 hook_handle.remove()
+                self.attention_extractor.remove_hooks()
                 
                 # Clear GPU cache after each task
                 if self.device.type == "cuda":

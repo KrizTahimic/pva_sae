@@ -18,7 +18,11 @@ from tqdm import tqdm
 import psutil  # For memory monitoring
 
 from common_simplified.model_loader import load_model_and_tokenizer
-from common_simplified.activation_hooks import ActivationExtractor
+from common_simplified.activation_hooks import (
+    ActivationExtractor, 
+    AttentionExtractor,
+    save_raw_attention_with_boundaries
+)
 from common_simplified.helpers import evaluate_code, extract_code, save_json, load_json
 from common.prompt_utils import PromptBuilder
 from common.config import Config
@@ -140,16 +144,32 @@ class TemperatureRobustnessRunner:
             layers=self.extraction_layers  # Extract from all unique layers
         )
         
+        # Initialize attention extractor for the same layers
+        self.attention_extractor = AttentionExtractor(
+            self.model,
+            layers=self.extraction_layers,  # Same layers as activations
+            position=-1  # Last prompt token
+        )
+        
         # Validate configuration
         if not config.temperature_variation_temps:
             raise ValueError("temperature_variation_temps must be specified")
         if not config.temperature_samples_per_temp or config.temperature_samples_per_temp < 1:
             raise ValueError("temperature_samples_per_temp must be >= 1")
     
-    def generate_temp0_with_activations(self, prompt: str) -> Tuple[str, Dict[int, torch.Tensor]]:
-        """Generate at temperature 0 and extract activations from all relevant layers."""
-        # Setup hooks for this generation
+    def generate_temp0_with_activations(self, prompt: str) -> Tuple[str, Dict[int, torch.Tensor], Dict[int, torch.Tensor]]:
+        """
+        Generate at temperature 0, extracting both activations and attention patterns.
+        
+        Args:
+            prompt: The input prompt for generation
+        
+        Returns:
+            Tuple of (generated_text, activations_dict, attention_dict)
+        """
+        # Setup hooks for both activation and attention extraction
         self.activation_extractor.setup_hooks()
+        self.attention_extractor.setup_hooks()
         
         try:
             # Tokenize input
@@ -160,10 +180,13 @@ class TemperatureRobustnessRunner:
                 max_length=self.config.activation_max_length
             ).to(self.device)
             
-            # Clear previous activations
+            # Store tokenized prompt for boundary calculation
+            self.last_tokenized_prompt = inputs['input_ids']
+            
+            # Clear previous activations and attention patterns
             self.activation_extractor.activations.clear()
             
-            # Generate at temperature 0 with activation extraction
+            # Generate at temperature 0 with activation and attention extraction
             with torch.no_grad():
                 outputs = self.model.generate(
                     **inputs,
@@ -171,12 +194,14 @@ class TemperatureRobustnessRunner:
                     max_new_tokens=self.config.model_max_new_tokens,
                     do_sample=False,  # No sampling for temperature 0
                     pad_token_id=self.tokenizer.pad_token_id,
-                    eos_token_id=self.tokenizer.eos_token_id
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    output_attentions=True,  # Enable attention output
+                    return_dict_in_generate=True
                 )
             
             # Decode generated text
             generated_text = self.tokenizer.decode(
-                outputs[0][inputs['input_ids'].shape[1]:],
+                outputs.sequences[0][inputs['input_ids'].shape[1]:],
                 skip_special_tokens=True
             )
             
@@ -186,12 +211,16 @@ class TemperatureRobustnessRunner:
             if not activations:
                 raise ValueError("No activations captured from model")
             
-            # Return generated text and activations dict {layer_num: tensor}
-            return generated_text, activations
+            # Get captured attention patterns
+            attention_patterns = self.attention_extractor.get_attention_patterns()
+            
+            # Return generated text, activations, and attention patterns
+            return generated_text, activations, attention_patterns
             
         finally:
             # Always remove hooks after use
             self.activation_extractor.remove_hooks()
+            self.attention_extractor.remove_hooks()
     
     def generate_at_temperature(self, prompt: str, temperature: float) -> str:
         """Generate code at specific temperature without re-extracting activations."""
@@ -207,7 +236,7 @@ class TemperatureRobustnessRunner:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                temperature=temperature if temperature > 0 else 1.0,
+                temperature=temperature,
                 max_new_tokens=self.config.model_max_new_tokens,
                 do_sample=temperature > 0,
                 pad_token_id=self.tokenizer.pad_token_id,
@@ -427,7 +456,7 @@ class TemperatureRobustnessRunner:
             if 0.0 in self.config.temperature_variation_temps:
                 def generate_temp0():
                     start_time = time.time()
-                    generated_text, task_activations = self.generate_temp0_with_activations(prompt)
+                    generated_text, task_activations, attention_patterns = self.generate_temp0_with_activations(prompt)
                     generation_time = time.time() - start_time
                     
                     # Extract code and evaluate
@@ -437,6 +466,7 @@ class TemperatureRobustnessRunner:
                     return {
                         'generated_text': generated_text,
                         'task_activations': task_activations,
+                        'attention_patterns': attention_patterns,
                         'generated_code': generated_code,
                         'test_passed': test_passed,
                         'generation_time': generation_time
@@ -454,6 +484,10 @@ class TemperatureRobustnessRunner:
                 if success:
                     # Save activations for this task (only if temp 0 succeeded)
                     self._save_task_activations(row['task_id'], temp0_result['task_activations'])
+                    
+                    # Save attention patterns if captured
+                    if temp0_result.get('attention_patterns'):
+                        self._save_task_attention(row['task_id'], temp0_result['attention_patterns'])
                     
                     # Add temperature 0 result to current batch
                     results.append({
@@ -625,6 +659,24 @@ class TemperatureRobustnessRunner:
             
             # Save as simple numpy array
             np.savez_compressed(save_path, layer_activations.clone().cpu().numpy())
+    
+    def _save_task_attention(self, task_id: str, attention_patterns: Dict[int, torch.Tensor]) -> None:
+        """Save raw attention patterns with section boundaries."""
+        attention_dir = self.output_dir / "activations" / "attention_patterns"
+        attention_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save attention for each layer
+        for layer_idx, attention_tensor in attention_patterns.items():
+            save_raw_attention_with_boundaries(
+                task_id=task_id,
+                attention_tensor=attention_tensor,
+                tokenized_prompt=self.last_tokenized_prompt,
+                tokenizer=self.tokenizer,
+                output_dir=attention_dir,
+                layer_idx=layer_idx
+            )
+        
+        logger.debug(f"Saved attention patterns for task {task_id} in {len(attention_patterns)} layers")
     
     def _save_temperature_results(
         self,
