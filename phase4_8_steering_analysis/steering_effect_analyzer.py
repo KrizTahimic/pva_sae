@@ -76,17 +76,8 @@ class SteeringEffectAnalyzer:
         # Split baseline data by correctness
         self._split_baseline_by_correctness()
         
-        # Initialize attention extractor for best layers
-        unique_layers = list(set([
-            self.best_correct_feature['layer'],
-            self.best_incorrect_feature['layer']
-        ]))
-        self.attention_extractor = AttentionExtractor(
-            self.model,
-            layers=unique_layers,
-            position=-1  # Last prompt token
-        )
-        logger.info(f"Initialized AttentionExtractor for layers {unique_layers}")
+        # Note: AttentionExtractor will be created dynamically in _apply_steering
+        # to avoid hook conflicts between steering and attention capture
         
         # Checkpoint tracking
         self.checkpoint_dir = self.output_dir / "checkpoints"
@@ -180,6 +171,12 @@ class SteeringEffectAnalyzer:
             self.best_incorrect_feature['feature_idx']
         ].detach()
         
+        # Ensure decoder directions are in the same dtype as the model
+        model_dtype = next(self.model.parameters()).dtype
+        self.correct_decoder_direction = self.correct_decoder_direction.to(dtype=model_dtype)
+        self.incorrect_decoder_direction = self.incorrect_decoder_direction.to(dtype=model_dtype)
+        
+        logger.info(f"Decoder directions converted to model dtype: {model_dtype}")
         logger.info("Dependencies loaded successfully")
         
     def save_checkpoint(self, steering_type: str, results: List[Dict], 
@@ -317,6 +314,15 @@ class SteeringEffectAnalyzer:
         else:
             raise ValueError(f"Invalid steering_type: {steering_type}. Must be 'correct' or 'incorrect'")
         
+        # Create AttentionExtractor for ONLY the layer being steered
+        # This avoids hook conflicts between steering and attention capture
+        attention_extractor = AttentionExtractor(
+            self.model,
+            layers=[target_layer],  # Only capture attention from the steered layer
+            position=-1  # Last prompt token
+        )
+        logger.info(f"Created AttentionExtractor for {steering_type} steering on layer {target_layer}")
+        
         # Check for existing checkpoint
         checkpoint_data = self.load_checkpoint(steering_type)
         if checkpoint_data:
@@ -345,7 +351,7 @@ class SteeringEffectAnalyzer:
             hook_handle = target_module.register_forward_pre_hook(hook_fn)
             
             # Setup attention extraction
-            self.attention_extractor.setup_hooks()
+            attention_extractor.setup_hooks()
             
             try:
                 # Define generation function for retry logic
@@ -371,21 +377,20 @@ class SteeringEffectAnalyzer:
                             max_new_tokens=self.config.model_max_new_tokens,
                             temperature=0.0,  # Deterministic generation
                             do_sample=False,
-                            pad_token_id=self.tokenizer.pad_token_id,
-                            eos_token_id=self.tokenizer.eos_token_id,
-                            output_attentions=True,  # Enable attention output
-                            return_dict_in_generate=True
+                            pad_token_id=self.tokenizer.pad_token_id
+                            # Now identical to Phase 4.5/4.6 generation parameters
                         )
                     
                     # Extract generated code
+                    # Using outputs[0] since return_dict_in_generate is False (default)
                     generated_text = self.tokenizer.decode(
-                        outputs.sequences[0][inputs['input_ids'].shape[1]:], 
+                        outputs[0][inputs['input_ids'].shape[1]:], 
                         skip_special_tokens=True
                     )
                     generated_code = extract_code(generated_text, prompt)
                     
                     # Get captured attention patterns
-                    attention_patterns = self.attention_extractor.get_attention_patterns()
+                    attention_patterns = attention_extractor.get_attention_patterns()
                     
                     # Evaluate code
                     test_passed = evaluate_code(generated_code, test_cases)
@@ -445,7 +450,7 @@ class SteeringEffectAnalyzer:
             finally:
                 # Always remove hooks after each task to ensure isolation
                 hook_handle.remove()
-                self.attention_extractor.remove_hooks()
+                attention_extractor.remove_hooks()
                 
                 # Clear GPU cache after each task
                 if self.device.type == "cuda":
@@ -459,12 +464,8 @@ class SteeringEffectAnalyzer:
                 self.check_memory_usage()
                 gc.collect()
             
-            # Checkpointing every 50 tasks
-            if (enum_idx + 1) % 50 == 0:
-                self.save_checkpoint(steering_type, results, excluded_tasks, enum_idx, total_tasks)
-            
             # Autosave every 100 tasks  
-            if (enum_idx + 1) % 100 == 0:
+            if (enum_idx + 1) % 50 == 0:
                 logger.info(f"Autosaving at task {enum_idx + 1}/{total_tasks}")
                 self.save_checkpoint(steering_type, results, excluded_tasks, enum_idx, total_tasks)
             
@@ -500,6 +501,10 @@ class SteeringEffectAnalyzer:
         # Rename steered_code to steered_generated_code for consistency
         steered_df.rename(columns={'steered_code': 'steered_generated_code'}, inplace=True)
         
+        # Clean up AttentionExtractor hooks
+        attention_extractor.remove_hooks()
+        # No need for del - Python's garbage collector handles it when out of scope
+        
         return steered_df
         
     def evaluate_steering_effects(self) -> Tuple[pd.DataFrame, pd.DataFrame, dict]:
@@ -517,6 +522,15 @@ class SteeringEffectAnalyzer:
             coefficient=self.config.phase4_8_correct_coefficient
         )
         
+        # Save correction results immediately for debugging
+        if not correction_results.empty:
+            correction_data = correction_results[
+                ['task_id', 'test_passed', 'steered_passed', 'flipped', 
+                 'generated_code', 'steered_generated_code']
+            ].to_dict('records')
+            save_json(correction_data, self.output_dir / "all_correction_results.json")
+            logger.info(f"Saved {len(correction_data)} correction steering results to all_correction_results.json")
+        
         # Apply incorrect steering to initially correct problems  
         # Goal: Measure corruption rate (correct→incorrect)
         corruption_results = self._apply_steering(
@@ -524,6 +538,15 @@ class SteeringEffectAnalyzer:
             steering_type='incorrect',
             coefficient=self.config.phase4_8_incorrect_coefficient
         )
+        
+        # Save corruption results immediately for debugging
+        if not corruption_results.empty:
+            corruption_data = corruption_results[
+                ['task_id', 'test_passed', 'steered_passed', 'flipped',
+                 'generated_code', 'steered_generated_code']
+            ].to_dict('records')
+            save_json(corruption_data, self.output_dir / "all_corruption_results.json")
+            logger.info(f"Saved {len(corruption_data)} corruption steering results to all_corruption_results.json")
         
         # Clean up checkpoints after successful completion
         self.cleanup_all_checkpoints()
@@ -691,6 +714,13 @@ class SteeringEffectAnalyzer:
         
         logger.info(f"Saved visualization to {output_file}")
         
+    def save_all_results(self, correction_results: pd.DataFrame, 
+                        corruption_results: pd.DataFrame) -> None:
+        """Save all steering results for debugging."""
+        # NOTE: Results are now saved immediately in evaluate_steering_effects()
+        # This method is kept for compatibility but no longer needed
+        pass
+    
     def save_examples(self, correction_results: pd.DataFrame, 
                      corruption_results: pd.DataFrame) -> None:
         """Save example generations that flipped."""
@@ -823,6 +853,9 @@ class SteeringEffectAnalyzer:
         
         # Create visualizations
         self.create_visualizations(metrics)
+        
+        # Save ALL steering results for debugging
+        self.save_all_results(correction_results, corruption_results)
         
         # Save example generations
         self.save_examples(correction_results, corruption_results)

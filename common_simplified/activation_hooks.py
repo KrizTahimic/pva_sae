@@ -69,6 +69,11 @@ class ActivationExtractor:
                 self.activations[layer_idx] = activation
                 logger.debug(f"Layer {layer_idx}: Captured activation with mean={activation.mean():.6f}, std={activation.std():.6f}, first_val={activation[0,0]:.6f}")
             
+            # CRITICAL: Return the input unchanged so steering hooks can still work
+            # If we don't return anything (None), PyTorch will use the original unmodified input,
+            # which would cancel out any steering modifications from previous hooks
+            return input
+            
         return hook_fn
     
     def extract(self, input_ids: torch.Tensor) -> Dict[int, torch.Tensor]:
