@@ -612,10 +612,13 @@ class SteeringCoefficientSelector:
                 score = result['metrics']['correction_rate']
                 metric_name = "correction rate"
             else:
-                # Keep incorrect steering as-is
+                # For incorrect steering, use composite_score for early stopping decisions
                 result = self.evaluate_coefficient_incorrect_steering(coeff, show_progress=True)
-                score = result['metrics']['corruption_rate']
-                metric_name = "corruption rate"
+                score = result['metrics']['composite_score']  # Use composite_score, not corruption_rate
+                corruption_rate = result['metrics']['corruption_rate']
+                metric_name = "composite score"
+                # Log both metrics for incorrect steering
+                logger.info(f"  Coefficient {coeff}: corruption rate = {corruption_rate:.1f}%, composite score = {score:.1f}%")
             
             search_results.append(result)
             
@@ -623,21 +626,21 @@ class SteeringCoefficientSelector:
             if best_result is None:
                 best_result = result
             
-            logger.info(f"  Coefficient {coeff}: {metric_name} = {score:.1f}%")
+            # Log the score being used for decisions (only for correct steering, incorrect already logged above)
+            if steering_type == 'correct':
+                logger.info(f"  Coefficient {coeff}: {metric_name} = {score:.1f}%")
             
             # Update best if improved
             if score > best_score:
                 best_score = score
                 best_coefficient = coeff
                 best_result = result
-            
-            # Check for early stopping
-            if best_score > 0:
-                found_peak = True
+                found_peak = True  # Set found_peak when we find any improvement
             
             # Stop if we've found a peak and performance dropped
+            # Use a more robust early stopping: stop after first drop from the best score
             if found_peak and score < best_score:
-                logger.info(f"  Early stopping: performance dropped from {best_score:.1f}% to {score:.1f}%")
+                logger.info(f"  Early stopping: {metric_name} dropped from {best_score:.1f}% to {score:.1f}%")
                 logger.info(f"  Stopping search to save compute credits")
                 break
         
@@ -712,9 +715,9 @@ class SteeringCoefficientSelector:
                 primary_metric = 'correction_rate'
                 metric_value = search_results['best_result']['metrics']['correction_rate']
             else:
-                primary_metric = 'corruption_rate'
-                metric_value = search_results['best_result']['metrics'].get('corruption_rate', 
-                                                                          search_results['best_result']['metrics'].get('composite_score', 0))
+                # Use composite_score as primary metric for incorrect steering (used for early stopping)
+                primary_metric = 'composite_score'
+                metric_value = search_results['best_result']['metrics']['composite_score']
             
             # Save selected coefficient with metadata
             selected_coefficients[steering_type] = {

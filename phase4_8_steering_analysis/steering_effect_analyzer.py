@@ -404,7 +404,7 @@ class SteeringEffectAnalyzer:
                     generate_steered_code,
                     row['task_id'],
                     self.config,
-                    f"{steering_type} steering"
+                    operation_name=f"{steering_type} steering"
                 )
                 
                 if success:

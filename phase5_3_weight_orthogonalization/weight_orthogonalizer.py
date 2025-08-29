@@ -337,7 +337,7 @@ class WeightOrthogonalizer:
                 generate_and_evaluate,
                 row['task_id'],
                 self.config,
-                "incorrect_ortho generation"
+                operation_name="incorrect_ortho generation"
             )
             
             if success:
@@ -414,7 +414,7 @@ class WeightOrthogonalizer:
                 generate_and_evaluate,
                 row['task_id'],
                 self.config,
-                "incorrect_ortho preservation"
+                operation_name="incorrect_ortho preservation"
             )
             
             if success:
@@ -576,7 +576,7 @@ class WeightOrthogonalizer:
                 generate_and_evaluate,
                 row['task_id'],
                 self.config,
-                "correct_ortho corruption"
+                operation_name="correct_ortho corruption"
             )
             
             if success:

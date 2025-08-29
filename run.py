@@ -92,8 +92,8 @@ def setup_argument_parser():
     phase_parser.add_argument(
         'phase',
         type=float,
-        choices=[0, 0.1, 1, 2.2, 2.5, 2.10, 3, 3.5, 3.6, 3.8, 3.10, 3.12, 4.5, 4.6, 4.8, 5.3],
-        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 2.10=T-Statistic Latent Selection, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.6=Golden Section Search Coefficient Refinement, 4.8=Steering Effect Analysis, 5.3=Weight Orthogonalization'
+        choices=[0, 0.1, 1, 2.2, 2.5, 2.10, 3, 3.5, 3.6, 3.8, 3.10, 3.12, 4.5, 4.6, 4.8, 5.3, 6.3],
+        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 2.10=T-Statistic Latent Selection, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.6=Golden Section Search Coefficient Refinement, 4.8=Steering Effect Analysis, 5.3=Weight Orthogonalization, 6.3=Attention Pattern Analysis'
     )
     
     # Global arguments (add to phase parser)
@@ -716,6 +716,23 @@ def run_phase5_3(config: Config, logger, device: str):
     results = orthogonalizer.run()
     
     logger.info("\n✅ Phase 5.3 completed successfully")
+
+
+def run_phase6_3(config: Config, logger, device: str):
+    """Run Phase 6.3: Attention Pattern Analysis"""
+    from phase6_3_attention_analysis.attention_analyzer import AttentionAnalyzer
+    
+    logger.info("Starting Phase 6.3: Attention Pattern Analysis")
+    logger.info("Will analyze attention from Phase 3.5 (baseline) and Phase 4.8 (steered)")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="6.3"))
+    
+    # Create and run analyzer
+    analyzer = AttentionAnalyzer(config)
+    results = analyzer.run()
+    
+    logger.info("\n✅ Phase 6.3 completed successfully")
 
 
 def cleanup_gpu_command(args, logger):
@@ -1411,7 +1428,8 @@ def main():
             4.5: "Steering Coefficient Selection",
             4.6: "Golden Section Search Coefficient Refinement",
             4.8: "Steering Effect Analysis",
-            5.3: "Weight Orthogonalization Analysis"
+            5.3: "Weight Orthogonalization Analysis",
+            6.3: "Attention Pattern Analysis"
         }
         
         print(f"\n{'='*60}")
@@ -1467,6 +1485,8 @@ def main():
                 run_phase4_8(config, logger, device)
             elif args.phase == 5.3:
                 run_phase5_3(config, logger, device)
+            elif args.phase == 6.3:
+                run_phase6_3(config, logger, device)
             
             print(f"✅ Phase {args.phase} completed successfully!")
             
