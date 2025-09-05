@@ -92,8 +92,8 @@ def setup_argument_parser():
     phase_parser.add_argument(
         'phase',
         type=float,
-        choices=[0, 0.1, 1, 2.2, 2.5, 2.10, 3, 3.5, 3.6, 3.8, 3.10, 3.12, 4.5, 4.6, 4.8, 5.3, 6.3],
-        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 2.10=T-Statistic Latent Selection, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.6=Golden Section Search Coefficient Refinement, 4.8=Steering Effect Analysis, 5.3=Weight Orthogonalization, 6.3=Attention Pattern Analysis'
+        choices=[0, 0.1, 1, 2.2, 2.5, 2.10, 3, 3.5, 3.6, 3.8, 3.10, 3.12, 4.5, 4.6, 4.8, 5.3, 6.3, 7.3, 7.6],
+        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 2.10=T-Statistic Latent Selection, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.6=Golden Section Search Coefficient Refinement, 4.8=Steering Effect Analysis, 5.3=Weight Orthogonalization, 6.3=Attention Pattern Analysis, 7.3=Instruction-Tuned Model Baseline, 7.6=Instruction-Tuned Model Steering Analysis'
     )
     
     # Global arguments (add to phase parser)
@@ -132,6 +132,23 @@ def setup_argument_parser():
         type=int,
         default=None,
         help='Ending index for dataset (inclusive). If not specified, processes to end of dataset'
+    )
+    
+    # Common steering experiment mode arguments for Phases 4.5, 4.6, and 4.8
+    phase_parser.add_argument(
+        '--correction-only',
+        action='store_true',
+        help='Run only correction experiment (applies to phases 4.5, 4.6, 4.8)'
+    )
+    phase_parser.add_argument(
+        '--corruption-only',
+        action='store_true',
+        help='Run only corruption experiment (applies to phases 4.5, 4.6, 4.8)'
+    )
+    phase_parser.add_argument(
+        '--preservation-only',
+        action='store_true',
+        help='Run only preservation experiment (applies to phase 4.8)'
     )
     
     # Phase 0: Difficulty Analysis arguments
@@ -257,6 +274,18 @@ def setup_argument_parser():
         default=[-1.0, -0.5, 0.0, 0.5, 1.0],
         help='Steering coefficients'
     )
+    
+    # Phase 4.5: Steering Coefficient Selection arguments
+    # (experiment mode arguments are defined at top level)
+    phase4_5_group = phase_parser.add_argument_group('Phase 4.5: Steering Coefficient Selection')
+    
+    # Phase 4.6: Golden Section Search Refinement arguments  
+    # (experiment mode arguments are defined at top level)
+    phase4_6_group = phase_parser.add_argument_group('Phase 4.6: Golden Section Search Refinement')
+    
+    # Phase 4.8: Steering Effect Analysis arguments
+    # (experiment mode arguments are defined at top level)
+    phase4_8_group = phase_parser.add_argument_group('Phase 4.8: Steering Effect Analysis')
     
     return parser
 
@@ -535,6 +564,43 @@ def run_phase3_6(config: Config, logger, device: str):
     logger.info("\n✅ Phase 3.6 completed successfully")
 
 
+def run_phase7_3(config: Config, logger, device: str):
+    """Run Phase 7.3: Instruction-Tuned Model Baseline Generation"""
+    from phase7_3_instruct_baseline.instruct_baseline_runner import InstructBaselineRunner
+    
+    logger.info("Starting Phase 7.3: Instruction-Tuned Model Baseline Generation")
+    logger.info("Will auto-discover best layers from Phase 2.5/2.10 output")
+    logger.info("Using validation split from Phase 0.1 (388 problems)")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="7.3"))
+    
+    # Create and run instruction-tuned baseline runner
+    runner = InstructBaselineRunner(config)
+    metadata = runner.run()
+    
+    logger.info("\n✅ Phase 7.3 completed successfully")
+
+
+def run_phase7_6(config: Config, logger, device: str):
+    """Run Phase 7.6: Instruction-Tuned Model Steering Analysis"""
+    from phase7_6_instruct_steering.instruct_steering_analyzer import InstructSteeringAnalyzer
+    
+    logger.info("Starting Phase 7.6: Instruction-Tuned Model Steering Analysis")
+    logger.info("Will test PVA feature transfer on instruction-tuned model")
+    logger.info("Using Phase 7.3 baseline and Phase 2.5 PVA features")
+    logger.info(f"Steering coefficients - Correct: {config.phase4_8_correct_coefficient}, Incorrect: {config.phase4_8_incorrect_coefficient}")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="7.6"))
+    
+    # Create and run instruction-tuned steering analyzer
+    analyzer = InstructSteeringAnalyzer(config)
+    results = analyzer.run()
+    
+    logger.info("\n✅ Phase 7.6 completed successfully")
+
+
 def run_phase3_8(config: Config, logger, device: str):
     """Run Phase 3.8: AUROC and F1 Evaluation"""
     import sys
@@ -654,6 +720,7 @@ def run_phase4_5(config: Config, logger, device: str):
     from phase4_5_model_steering.steering_coefficient_selector import SteeringCoefficientSelector
     
     logger.info("Starting Phase 4.5: Steering Coefficient Selection")
+    logger.info(f"Experiment mode: {config.phase4_5_experiment_mode}")
     logger.info("Will auto-discover PVA features from Phase 2.5 and baseline from Phase 3.6")
     
     # Log configuration
@@ -671,6 +738,7 @@ def run_phase4_6(config: Config, logger, device: str):
     from phase4_6_binary_refinement.golden_section_refiner import GoldenSectionCoefficientRefiner
     
     logger.info("Starting Phase 4.6: Golden Section Search Coefficient Refinement")
+    logger.info(f"Experiment mode: {config.phase4_6_experiment_mode}")
     logger.info("Will refine coefficients found in Phase 4.5 using golden section search")
     
     # Log configuration
@@ -688,6 +756,7 @@ def run_phase4_8(config: Config, logger, device: str):
     from phase4_8_steering_analysis.steering_effect_analyzer import SteeringEffectAnalyzer
     
     logger.info("Starting Phase 4.8: Steering Effect Analysis")
+    logger.info(f"Experiment mode: {config.phase4_8_experiment_mode}")
     logger.info("Will auto-discover PVA features from Phase 2.5 and baseline from Phase 3.5")
     
     # Log configuration
@@ -1399,6 +1468,35 @@ def main():
         if args.phase == 2.2 and hasattr(args, 'run_count'):
             config._run_count = args.run_count
         
+        # Handle Phase 4.5 experiment mode arguments
+        if args.phase == 4.5:
+            if hasattr(args, 'correction_only') and args.correction_only:
+                config.phase4_5_experiment_mode = 'correction'
+            elif hasattr(args, 'corruption_only') and args.corruption_only:
+                config.phase4_5_experiment_mode = 'corruption'
+            else:
+                config.phase4_5_experiment_mode = 'all'
+        
+        # Handle Phase 4.6 experiment mode arguments
+        if args.phase == 4.6:
+            if hasattr(args, 'correction_only') and args.correction_only:
+                config.phase4_6_experiment_mode = 'correction'
+            elif hasattr(args, 'corruption_only') and args.corruption_only:
+                config.phase4_6_experiment_mode = 'corruption'
+            else:
+                config.phase4_6_experiment_mode = 'all'
+        
+        # Handle Phase 4.8 experiment mode arguments
+        if args.phase == 4.8:
+            if hasattr(args, 'preservation_only') and args.preservation_only:
+                config.phase4_8_experiment_mode = 'preservation'
+            elif hasattr(args, 'correction_only') and args.correction_only:
+                config.phase4_8_experiment_mode = 'correction'
+            elif hasattr(args, 'corruption_only') and args.corruption_only:
+                config.phase4_8_experiment_mode = 'corruption'
+            else:
+                config.phase4_8_experiment_mode = 'all'
+        
         # Validate config for the phase
         try:
             config.validate(str(args.phase))
@@ -1429,7 +1527,9 @@ def main():
             4.6: "Golden Section Search Coefficient Refinement",
             4.8: "Steering Effect Analysis",
             5.3: "Weight Orthogonalization Analysis",
-            6.3: "Attention Pattern Analysis"
+            6.3: "Attention Pattern Analysis",
+            7.3: "Instruction-Tuned Model Baseline",
+            7.6: "Instruction-Tuned Model Steering Analysis"
         }
         
         print(f"\n{'='*60}")
@@ -1487,6 +1587,10 @@ def main():
                 run_phase5_3(config, logger, device)
             elif args.phase == 6.3:
                 run_phase6_3(config, logger, device)
+            elif args.phase == 7.3:
+                run_phase7_3(config, logger, device)
+            elif args.phase == 7.6:
+                run_phase7_6(config, logger, device)
             
             print(f"✅ Phase {args.phase} completed successfully!")
             

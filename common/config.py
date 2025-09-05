@@ -143,46 +143,54 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
-    # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.6, 0.8, 1.0])
+    # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
+
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
     phase3_5_output_dir: str = "data/phase3_5"
     
     # === HYPERPARAMETER TUNING SET (Phase 3.6) ===
     phase3_6_output_dir: str = "data/phase3_6"
     
+    # === INSTRUCTION-TUNED BASELINE (Phase 7.3) ===
+    phase7_3_output_dir: str = "data/phase7_3"
+    phase7_3_model_name: str = "google/gemma-2-2b-it"
+    
+    # === INSTRUCTION-TUNED MODEL STEERING (Phase 7.6) ===
+    phase7_6_output_dir: str = "data/phase7_6"
+    phase7_6_model_name: str = "google/gemma-2-2b-it"
+    
     # === AUROC AND F1 EVALUATION (Phase 3.8) ===
     phase3_8_output_dir: str = "data/phase3_8"
     
     # === TEMPERATURE-BASED AUROC ANALYSIS (Phase 3.10) ===
     phase3_10_output_dir: str = "data/phase3_10"
-    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.5, 2.0])
+    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
 
     
     # === DIFFICULTY-BASED AUROC ANALYSIS (Phase 3.12) ===
     phase3_12_output_dir: str = "data/phase3_12"
     
     # === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
-    # Grid search coefficients from 10 to 100 in increments of 10
-    phase4_5_initial_points: List[float] = field(default_factory=lambda: [20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0])
-    # phase4_5_initial_points: List[float] = field(default_factory=lambda: [400.0])
-
-
-    # phase4_5_initial_points: List[float] = field(default_factory=lambda: [35.0, 100.0, 400.0, 500.0])
-    # phase4_5_initial_points: List[float] = field(default_factory=lambda: list(range(10, 101, 10)))
-
+    # Separate coefficient grids for correct vs incorrect steering
+    phase4_5_correct_coefficients: List[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0])
+    phase4_5_incorrect_coefficients: List[float] = field(default_factory=lambda: [100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
+    
     phase4_5_search_tolerance: float = 2.0  # Stop binary search when range < tolerance
     phase4_5_meaningful_effect_threshold: float = 5.0  # Minimum % for meaningful effect
     phase4_5_plateau_threshold: float = 2.0  # Max % change to consider plateaued
     phase4_5_output_dir: str = "data/phase4_5"
+    phase4_5_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption'
     
     # === GOLDEN SECTION SEARCH COEFFICIENT REFINEMENT (Phase 4.6) ===
     phase4_6_tolerance: float = 1.0  # Stop when range < tolerance (no max_iterations - runs to convergence)
     phase4_6_output_dir: str = "data/phase4_6"
+    phase4_6_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption'
     
     # === STEERING EFFECT ANALYSIS (Phase 4.8) ===
-    phase4_8_correct_coefficient: float = 37.0
-    phase4_8_incorrect_coefficient: float = 46.0
+    phase4_8_correct_coefficient: float = 29
+    phase4_8_incorrect_coefficient: float = 287
+    phase4_8_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption', 'preservation'
     phase4_8_output_dir: str = "data/phase4_8"
     
     # === WEIGHT ORTHOGONALIZATION (Phase 5.3) ===

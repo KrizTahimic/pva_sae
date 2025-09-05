@@ -362,6 +362,16 @@ PHASE_CONFIGS = {
         "dir": "data/phase6_3",
         "patterns": ["attention_analysis_results.json", "phase_6_3_summary.json"],
         "exclude_keywords": None
+    },
+    "7.3": {
+        "dir": "data/phase7_3",
+        "patterns": ["dataset_instruct_temp_0_0.parquet", "metadata.json"],
+        "exclude_keywords": None
+    },
+    "7.6": {
+        "dir": "data/phase7_6",
+        "patterns": ["steering_effect_analysis.json", "phase_7_6_summary.json"],
+        "exclude_keywords": None
     }
 }
 
