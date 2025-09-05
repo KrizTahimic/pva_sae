@@ -517,11 +517,11 @@ class SteeringCoefficientSelector:
         
         corruption_rate = calculate_corruption_rate(results) if results else 0.0
         
-        # Calculate average similarity for corrupted cases
-        corrupted_results = [r for r in results if r['baseline_passed'] and not r['steered_passed']]
-        avg_similarity = np.mean([r['code_similarity'] for r in corrupted_results]) * 100 if corrupted_results else 0
+        # Calculate average similarity for all results
+        avg_similarity = np.mean([r['code_similarity'] for r in results]) * 100 if results else 100
         
-        # Composite score balances corruption and maintaining structure
+        # For composite score: want high corruption rate (more effective) and high similarity (less disruptive)
+        # When no corruption occurs, similarity should still be meaningful
         composite_score = (corruption_rate + avg_similarity) / 2
         
         divergence = self.calculate_generation_divergence(results)
@@ -587,8 +587,11 @@ class SteeringCoefficientSelector:
         logger.info(f"Starting simple grid search for {steering_type} steering")
         logger.info(f"{'='*60}")
         
-        # Use grid points from config
-        grid_points = self.config.phase4_5_initial_points
+        # Use appropriate grid points from config based on steering type
+        if steering_type == 'correct':
+            grid_points = self.config.phase4_5_correct_coefficients
+        else:
+            grid_points = self.config.phase4_5_incorrect_coefficients
         logger.info(f"Testing coefficients: {grid_points}")
         
         # Log dataset info
@@ -695,11 +698,23 @@ class SteeringCoefficientSelector:
         logger.info(f"Using ALL problems from hyperparameter tuning set")
         logger.info("SIMPLIFIED: Only measuring correction rate, NOT preservation rate")
         
+        # Get experiment mode from config
+        experiment_mode = getattr(self.config, 'phase4_5_experiment_mode', 'all')
+        logger.info(f"Running experiments in '{experiment_mode}' mode")
+        
+        # Determine which steering types to evaluate
+        if experiment_mode == 'correction':
+            steering_types = ['correct']
+        elif experiment_mode == 'corruption':
+            steering_types = ['incorrect']
+        else:
+            steering_types = ['correct', 'incorrect']
+        
         all_results = {}
         selected_coefficients = {}
         
-        # Run simple grid search for both steering types
-        for steering_type in ['correct', 'incorrect']:
+        # Run simple grid search for selected steering types
+        for steering_type in steering_types:
             logger.info(f"\n{'='*80}")
             logger.info(f"Evaluating {steering_type.upper()} steering")
             logger.info(f"{'='*80}")
@@ -728,7 +743,7 @@ class SteeringCoefficientSelector:
                 'metrics': search_results['best_result']['metrics'],
                 'n_problems_evaluated': search_results['best_result']['n_problems'],
                 'n_coefficients_tested': len(search_results['search_history']),
-                'early_stopped': len(search_results['search_history']) < len(self.config.phase4_5_initial_points),
+                'early_stopped': len(search_results['search_history']) < len(self.config.phase4_5_correct_coefficients if steering_type == 'correct' else self.config.phase4_5_incorrect_coefficients),
                 'rationale': f"Optimal coefficient found via simple grid search with {primary_metric} {metric_value:.1f}%"
             }
             
@@ -767,7 +782,8 @@ class SteeringCoefficientSelector:
             'duration_seconds': time.time() - start_time,
             'method': 'simple_grid_search_with_early_stopping',
             'config': {
-                'grid_points': self.config.phase4_5_initial_points,
+                'correct_grid_points': self.config.phase4_5_correct_coefficients,
+                'incorrect_grid_points': self.config.phase4_5_incorrect_coefficients,
                 'model': self.config.model_name,
                 'initially_correct_count': len(self.initially_correct_data),
                 'initially_incorrect_count': len(self.initially_incorrect_data),

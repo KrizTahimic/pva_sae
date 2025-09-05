@@ -125,31 +125,40 @@ class TemperatureRobustnessRunner:
         else:
             logger.info(f"Model successfully loaded on {actual_device}")
         
-        # Discover best layers from Phase 2.5
-        self.best_layers = self._discover_best_layers()
-        
-        # Determine unique layers to extract from
-        unique_layers = list(set([self.best_layers['correct'], self.best_layers['incorrect']]))
-        self.extraction_layers = unique_layers
-        
-        if len(unique_layers) == 1:
-            logger.info(f"Both correct and incorrect features use the same layer: {unique_layers[0]}")
+        # Only setup extraction if temperature 0.0 is in config
+        if 0.0 in config.temperature_variation_temps:
+            # Discover best layers from Phase 2.5
+            self.best_layers = self._discover_best_layers()
+            
+            # Determine unique layers to extract from
+            unique_layers = list(set([self.best_layers['correct'], self.best_layers['incorrect']]))
+            self.extraction_layers = unique_layers
+            
+            if len(unique_layers) == 1:
+                logger.info(f"Both correct and incorrect features use the same layer: {unique_layers[0]}")
+            else:
+                logger.info(f"Using different layers - Correct: {self.best_layers['correct']}, Incorrect: {self.best_layers['incorrect']}")
+            
+            # Initialize activation extractor but don't setup hooks yet
+            # We'll only setup hooks when generating at temperature 0
+            self.activation_extractor = ActivationExtractor(
+                self.model,
+                layers=self.extraction_layers  # Extract from all unique layers
+            )
+            
+            # Initialize attention extractor for the same layers
+            self.attention_extractor = AttentionExtractor(
+                self.model,
+                layers=self.extraction_layers,  # Same layers as activations
+                position=-1  # Last prompt token
+            )
         else:
-            logger.info(f"Using different layers - Correct: {self.best_layers['correct']}, Incorrect: {self.best_layers['incorrect']}")
-        
-        # Initialize activation extractor but don't setup hooks yet
-        # We'll only setup hooks when generating at temperature 0
-        self.activation_extractor = ActivationExtractor(
-            self.model,
-            layers=self.extraction_layers  # Extract from all unique layers
-        )
-        
-        # Initialize attention extractor for the same layers
-        self.attention_extractor = AttentionExtractor(
-            self.model,
-            layers=self.extraction_layers,  # Same layers as activations
-            position=-1  # Last prompt token
-        )
+            # Skip extraction setup if temperature 0.0 not in config
+            self.best_layers = None
+            self.extraction_layers = []
+            self.activation_extractor = None
+            self.attention_extractor = None
+            logger.info("Temperature 0.0 not in config, skipping activation/attention extraction setup")
         
         # Validate configuration
         if not config.temperature_variation_temps:
@@ -254,7 +263,10 @@ class TemperatureRobustnessRunner:
     def run(self) -> Dict[str, any]:
         """Run temperature robustness testing for validation split."""
         logger.info("Starting Phase 3.5: Temperature Robustness Testing")
-        logger.info(f"Extracting activations from layers: {self.extraction_layers}")
+        if self.extraction_layers:
+            logger.info(f"Extracting activations from layers: {self.extraction_layers}")
+        else:
+            logger.info("No activation/attention extraction (temperature 0.0 not in config)")
         
         # Load validation data
         validation_data = self._load_validation_data()
@@ -707,11 +719,11 @@ class TemperatureRobustnessRunner:
         metadata = {
             "creation_timestamp": datetime.now().isoformat(),
             "best_layers": {
-                "correct": self.best_layers['correct'],
-                "incorrect": self.best_layers['incorrect'],
-                "correct_feature_idx": self.best_layers['correct_feature_idx'],
-                "incorrect_feature_idx": self.best_layers['incorrect_feature_idx']
-            },
+                "correct": self.best_layers['correct'] if self.best_layers else None,
+                "incorrect": self.best_layers['incorrect'] if self.best_layers else None,
+                "correct_feature_idx": self.best_layers.get('correct_feature_idx') if self.best_layers else None,
+                "incorrect_feature_idx": self.best_layers.get('incorrect_feature_idx') if self.best_layers else None
+            } if self.best_layers else None,
             "extraction_layers": self.extraction_layers,
             "temperatures": self.config.temperature_variation_temps,
             "samples_per_temperature": self.config.temperature_samples_per_temp,

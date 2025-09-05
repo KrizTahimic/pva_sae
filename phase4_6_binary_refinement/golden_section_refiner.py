@@ -404,50 +404,32 @@ class GoldenSectionCoefficientRefiner:
                 self.cached_scores[steering_type][coeff] = score
                 logger.debug(f"Cached {steering_type} coefficient {coeff}: {score:.1f}%")
             
-            # Determine search bounds with intelligent boundary extension
-            tested_coeffs = [r['coefficient'] for r in search_history]
-            tested_coeffs.sort()
-            
-            if len(tested_coeffs) < 2:
-                logger.warning(f"Not enough coefficients tested for {steering_type} steering")
-                self.search_bounds[steering_type] = None
-                continue
-            
-            # Extend bounds intelligently based on optimal position
-            lower, upper = self._determine_search_bounds(tested_coeffs, optimal_coeff, steering_type)
+            # Determine search bounds based on steering type
+            lower, upper = self._determine_search_bounds(optimal_coeff, steering_type)
             
             self.search_bounds[steering_type] = {
                 'lower': lower,
                 'upper': upper,
-                'optimal_from_phase4_5': optimal_coeff,
-                'tested_coefficients': tested_coeffs
+                'optimal_from_phase4_5': optimal_coeff
             }
             
             logger.info(f"{steering_type.capitalize()} steering search bounds: "
                        f"[{lower}, {upper}] (Phase 4.5 optimal: {optimal_coeff})")
     
-    def _determine_search_bounds(self, tested_coeffs: List[float], 
-                                optimal_coeff: float, steering_type: str) -> Tuple[float, float]:
-        """Intelligently determine search bounds with boundary extension."""
-        optimal_idx = tested_coeffs.index(optimal_coeff)
+    def _determine_search_bounds(self, optimal_coeff: float, steering_type: str) -> Tuple[float, float]:
+        """Determine search bounds based on steering type using fixed extensions."""
         
-        if optimal_idx == 0:
-            # Optimal at lower boundary - extend search below
-            interval = tested_coeffs[1] - tested_coeffs[0]
-            lower = max(1.0, tested_coeffs[0] - interval)  # Don't go below 1.0
-            upper = tested_coeffs[1]
-            logger.info(f"  Optimal at lower boundary - extending below: [{lower}, {upper}]")
-        elif optimal_idx == len(tested_coeffs) - 1:
-            # Optimal at upper boundary - extend search above
-            interval = tested_coeffs[-1] - tested_coeffs[-2]
-            lower = tested_coeffs[-2]
-            upper = tested_coeffs[-1] + interval
-            logger.info(f"  Optimal at upper boundary - extending above: [{lower}, {upper}]")
+        # Use different bounds based on steering type
+        if steering_type == 'correct':
+            # Correct steering: smaller search range appropriate for 10-100 coefficient range
+            extension = 10
         else:
-            # Optimal in middle - search between neighbors
-            lower = tested_coeffs[optimal_idx - 1]
-            upper = tested_coeffs[optimal_idx + 1]
-            logger.info(f"  Optimal in middle - searching neighbors: [{lower}, {upper}]")
+            # Incorrect steering: larger search range appropriate for 100-500 coefficient range
+            extension = 100
+        
+        lower = max(1.0, optimal_coeff - extension)
+        upper = optimal_coeff + extension
+        logger.info(f"  Using ±{extension} bounds around optimal {optimal_coeff}: [{lower}, {upper}]")
         
         return lower, upper
     
@@ -1067,14 +1049,26 @@ class GoldenSectionCoefficientRefiner:
         logger.info("Starting Phase 4.6: Golden Section Search Coefficient Refinement")
         logger.info("Will refine coefficients found in Phase 4.5 using golden section search")
         
+        # Get experiment mode from config
+        experiment_mode = getattr(self.config, 'phase4_6_experiment_mode', 'all')
+        logger.info(f"Running experiments in '{experiment_mode}' mode")
+        
         # Load any existing intermediate results
         existing_results = self.load_existing_results()
         refinement_results = existing_results.copy() if existing_results else {}
         refined_coefficients = {}
         
+        # Determine which steering types to check based on experiment mode
+        if experiment_mode == 'correction':
+            steering_types_to_check = ['correct']
+        elif experiment_mode == 'corruption':
+            steering_types_to_check = ['incorrect']
+        else:
+            steering_types_to_check = ['correct', 'incorrect']
+        
         # Determine which steering types need to be processed
         steering_types_to_process = []
-        for steering_type in ['correct', 'incorrect']:
+        for steering_type in steering_types_to_check:
             if f'{steering_type}_steering' in refinement_results:
                 logger.info(f"Skipping {steering_type} steering - already completed")
                 # Extract the coefficient info for the summary

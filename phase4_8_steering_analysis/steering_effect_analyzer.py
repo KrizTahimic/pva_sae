@@ -277,6 +277,38 @@ class SteeringEffectAnalyzer:
         if len(self.initially_incorrect_data) == 0:
             raise ValueError("No initially incorrect problems found in baseline data")
     
+    def _load_or_empty(self, experiment_type: str) -> pd.DataFrame:
+        """Load existing results or return empty DataFrame for skipped experiments."""
+        # Map experiment types to file names
+        file_map = {
+            'correction': 'all_correction_results.json',
+            'corruption': 'all_corruption_results.json',
+            'preservation': 'all_preservation_results.json'
+        }
+        
+        if experiment_type not in file_map:
+            logger.warning(f"Unknown experiment type: {experiment_type}, returning empty DataFrame")
+            return pd.DataFrame(columns=['task_id', 'test_passed', 'steered_passed', 'flipped', 
+                                        'generated_code', 'steered_generated_code'])
+        
+        result_file = self.output_dir / file_map[experiment_type]
+        
+        if result_file.exists():
+            logger.info(f"Loading existing {experiment_type} results from {result_file}")
+            try:
+                data = load_json(result_file)
+                df = pd.DataFrame(data)
+                logger.info(f"Loaded {len(df)} {experiment_type} results from file")
+                return df
+            except Exception as e:
+                logger.warning(f"Failed to load {experiment_type} results: {e}, returning empty DataFrame")
+        else:
+            logger.info(f"No existing {experiment_type} results found at {result_file}, returning empty DataFrame")
+        
+        # Return empty DataFrame with correct columns
+        return pd.DataFrame(columns=['task_id', 'test_passed', 'steered_passed', 'flipped',
+                                    'generated_code', 'steered_generated_code'])
+    
     def _save_steered_attention(self, task_id: str, steering_type: str,
                                 attention_patterns: Dict[int, torch.Tensor],
                                 tokenized_prompt: torch.Tensor) -> None:
@@ -308,11 +340,15 @@ class SteeringEffectAnalyzer:
         if steering_type == 'correct':
             decoder_direction = self.correct_decoder_direction
             target_layer = self.best_correct_feature['layer']
+        elif steering_type == 'preservation':
+            # Use same correct feature for preservation
+            decoder_direction = self.correct_decoder_direction
+            target_layer = self.best_correct_feature['layer']
         elif steering_type == 'incorrect':
             decoder_direction = self.incorrect_decoder_direction
             target_layer = self.best_incorrect_feature['layer']
         else:
-            raise ValueError(f"Invalid steering_type: {steering_type}. Must be 'correct' or 'incorrect'")
+            raise ValueError(f"Invalid steering_type: {steering_type}. Must be 'correct', 'preservation', or 'incorrect'")
         
         # Create AttentionExtractor for ONLY the layer being steered
         # This avoids hook conflicts between steering and attention capture
@@ -377,14 +413,16 @@ class SteeringEffectAnalyzer:
                             max_new_tokens=self.config.model_max_new_tokens,
                             temperature=0.0,  # Deterministic generation
                             do_sample=False,
-                            pad_token_id=self.tokenizer.pad_token_id
-                            # Now identical to Phase 4.5/4.6 generation parameters
+                            pad_token_id=self.tokenizer.pad_token_id,
+                            eos_token_id=self.tokenizer.eos_token_id,
+                            output_attentions=True,  # Enable attention weight retention
+                            return_dict_in_generate=True  # Return structured output
                         )
                     
                     # Extract generated code
-                    # Using outputs[0] since return_dict_in_generate is False (default)
+                    # Using outputs.sequences[0] since return_dict_in_generate is True
                     generated_text = self.tokenizer.decode(
-                        outputs[0][inputs['input_ids'].shape[1]:], 
+                        outputs.sequences[0][inputs['input_ids'].shape[1]:], 
                         skip_special_tokens=True
                     )
                     generated_code = extract_code(generated_text, prompt)
@@ -507,59 +545,105 @@ class SteeringEffectAnalyzer:
         
         return steered_df
         
-    def evaluate_steering_effects(self) -> Tuple[pd.DataFrame, pd.DataFrame, dict]:
-        """Evaluate both correct and incorrect steering effects."""
+    def evaluate_steering_effects(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
+        """Evaluate correct and incorrect steering effects, including preservation."""
         logger.info("Evaluating steering effects...")
         
         n_initially_incorrect = len(self.initially_incorrect_data)
         n_initially_correct = len(self.initially_correct_data)
         
+        # Get experiment mode from config
+        experiment_mode = getattr(self.config, 'phase4_8_experiment_mode', 'all')
+        logger.info(f"Running experiments in '{experiment_mode}' mode")
+        
         # Apply correct steering to initially incorrect problems
         # Goal: Measure correction rate (incorrect→correct)
-        correction_results = self._apply_steering(
-            self.initially_incorrect_data,
-            steering_type='correct',
-            coefficient=self.config.phase4_8_correct_coefficient
-        )
-        
-        # Save correction results immediately for debugging
-        if not correction_results.empty:
-            correction_data = correction_results[
-                ['task_id', 'test_passed', 'steered_passed', 'flipped', 
-                 'generated_code', 'steered_generated_code']
-            ].to_dict('records')
-            save_json(correction_data, self.output_dir / "all_correction_results.json")
-            logger.info(f"Saved {len(correction_data)} correction steering results to all_correction_results.json")
+        if experiment_mode in ['all', 'correction']:
+            logger.info("Running correction experiment (correct steering on incorrect data)...")
+            correction_results = self._apply_steering(
+                self.initially_incorrect_data,
+                steering_type='correct',
+                coefficient=self.config.phase4_8_correct_coefficient
+            )
+            
+            # Save correction results immediately for debugging
+            if not correction_results.empty:
+                correction_data = correction_results[
+                    ['task_id', 'test_passed', 'steered_passed', 'flipped', 
+                     'generated_code', 'steered_generated_code']
+                ].to_dict('records')
+                save_json(correction_data, self.output_dir / "all_correction_results.json")
+                logger.info(f"Saved {len(correction_data)} correction steering results to all_correction_results.json")
+        else:
+            logger.info("Skipping correction experiment, loading existing results...")
+            correction_results = self._load_or_empty('correction')
         
         # Apply incorrect steering to initially correct problems  
         # Goal: Measure corruption rate (correct→incorrect)
-        corruption_results = self._apply_steering(
-            self.initially_correct_data,
-            steering_type='incorrect',
-            coefficient=self.config.phase4_8_incorrect_coefficient
-        )
+        if experiment_mode in ['all', 'corruption']:
+            logger.info("Running corruption experiment (incorrect steering on correct data)...")
+            corruption_results = self._apply_steering(
+                self.initially_correct_data,
+                steering_type='incorrect',
+                coefficient=self.config.phase4_8_incorrect_coefficient
+            )
+            
+            # Save corruption results immediately for debugging
+            if not corruption_results.empty:
+                corruption_data = corruption_results[
+                    ['task_id', 'test_passed', 'steered_passed', 'flipped',
+                     'generated_code', 'steered_generated_code']
+                ].to_dict('records')
+                save_json(corruption_data, self.output_dir / "all_corruption_results.json")
+                logger.info(f"Saved {len(corruption_data)} corruption steering results to all_corruption_results.json")
+        else:
+            logger.info("Skipping corruption experiment, loading existing results...")
+            corruption_results = self._load_or_empty('corruption')
         
-        # Save corruption results immediately for debugging
-        if not corruption_results.empty:
-            corruption_data = corruption_results[
+        # Apply correct steering to initially correct problems
+        # Goal: Measure preservation rate (correct→correct)
+        if experiment_mode in ['all', 'preservation']:
+            logger.info("Running preservation experiment (correct steering on correct data)...")
+            preservation_results = self._apply_steering(
+                self.initially_correct_data,
+                steering_type='preservation',
+                coefficient=self.config.phase4_8_correct_coefficient
+            )
+        else:
+            logger.info("Skipping preservation experiment, loading existing results...")
+            preservation_results = self._load_or_empty('preservation')
+        
+        # Save preservation results immediately for debugging
+        if not preservation_results.empty:
+            preservation_data = preservation_results[
                 ['task_id', 'test_passed', 'steered_passed', 'flipped',
                  'generated_code', 'steered_generated_code']
             ].to_dict('records')
-            save_json(corruption_data, self.output_dir / "all_corruption_results.json")
-            logger.info(f"Saved {len(corruption_data)} corruption steering results to all_corruption_results.json")
+            save_json(preservation_data, self.output_dir / "all_preservation_results.json")
+            logger.info(f"Saved {len(preservation_data)} preservation steering results to all_preservation_results.json")
         
         # Clean up checkpoints after successful completion
         self.cleanup_all_checkpoints()
         
-        # Calculate exclusion summary
-        correction_excluded = n_initially_incorrect - len(correction_results)
-        corruption_excluded = n_initially_correct - len(corruption_results)
-        total_excluded = correction_excluded + corruption_excluded
-        total_attempted = n_initially_incorrect + n_initially_correct
+        # Calculate exclusion summary (only for experiments that were actually run)
+        correction_excluded = 0 if experiment_mode not in ['all', 'correction'] else n_initially_incorrect - len(correction_results)
+        corruption_excluded = 0 if experiment_mode not in ['all', 'corruption'] else n_initially_correct - len(corruption_results)
+        preservation_excluded = 0 if experiment_mode not in ['all', 'preservation'] else n_initially_correct - len(preservation_results)
+        
+        # Calculate total attempted based on which experiments were run
+        total_attempted = 0
+        if experiment_mode in ['all', 'correction']:
+            total_attempted += n_initially_incorrect
+        if experiment_mode in ['all', 'corruption']:
+            total_attempted += n_initially_correct
+        if experiment_mode in ['all', 'preservation']:
+            total_attempted += n_initially_correct
+        
+        total_excluded = correction_excluded + corruption_excluded + preservation_excluded
         
         exclusion_summary = {
             'total_tasks_attempted': total_attempted,
-            'tasks_included': len(correction_results) + len(corruption_results),
+            'tasks_included': len(correction_results) + len(corruption_results) + len(preservation_results),
             'tasks_excluded': total_excluded,
             'exclusion_rate_percent': round((total_excluded / total_attempted * 100) if total_attempted > 0 else 0, 2),
             'correction_experiment': {
@@ -571,6 +655,11 @@ class SteeringEffectAnalyzer:
                 'attempted': n_initially_correct,
                 'included': len(corruption_results),  
                 'excluded': corruption_excluded
+            },
+            'preservation_experiment': {
+                'attempted': n_initially_correct,
+                'included': len(preservation_results),
+                'excluded': preservation_excluded
             }
         }
         
@@ -596,11 +685,20 @@ class SteeringEffectAnalyzer:
         else:
             logger.warning("No successful corruption results to save")
         
-        return correction_results, corruption_results, exclusion_summary
+        # Save initially correct problems with correct steering results (preservation)
+        if len(preservation_results) > 0:
+            preservation_output_file = self.output_dir / "preservation_problems.parquet"
+            preservation_results.to_parquet(preservation_output_file, index=False)
+            logger.info(f"Saved {len(preservation_results)} preservation results to {preservation_output_file}")
+        else:
+            logger.warning("No successful preservation results to save")
+        
+        return correction_results, corruption_results, preservation_results, exclusion_summary
         
         
     def run_statistical_tests(self, correction_results: pd.DataFrame, 
-                            corruption_results: pd.DataFrame) -> Dict:
+                            corruption_results: pd.DataFrame,
+                            preservation_results: pd.DataFrame) -> Dict:
         """Run binomial tests for statistical significance."""
         logger.info("Running statistical tests...")
         
@@ -632,6 +730,20 @@ class SteeringEffectAnalyzer:
             corruption_pvalue = 1.0
             corruption_significant = False
             
+        # Test preservation effect
+        preservation_successes = len(preservation_results[preservation_results['test_passed'] & preservation_results['steered_passed']])
+        preservation_trials = len(preservation_results[preservation_results['test_passed']])
+        
+        if preservation_trials > 0:
+            # Null hypothesis: random chance (p = 0.5) - we expect at least 50% to remain correct
+            # Alternative: greater (one-tailed test) - we test if preservation is better than random
+            preservation_test = binomtest(preservation_successes, preservation_trials, p=0.5, alternative='greater')
+            preservation_pvalue = preservation_test.pvalue
+            preservation_significant = preservation_pvalue < 0.05
+        else:
+            preservation_pvalue = 1.0
+            preservation_significant = False
+            
         results = {
             'correction': {
                 'successes': correction_successes,
@@ -646,18 +758,26 @@ class SteeringEffectAnalyzer:
                 'rate': (corruption_successes / corruption_trials * 100) if corruption_trials > 0 else 0,
                 'pvalue': corruption_pvalue,
                 'significant': corruption_significant
+            },
+            'preservation': {
+                'successes': preservation_successes,
+                'trials': preservation_trials,
+                'rate': (preservation_successes / preservation_trials * 100) if preservation_trials > 0 else 0,
+                'pvalue': preservation_pvalue,
+                'significant': preservation_significant
             }
         }
         
         logger.info(f"Correction effect: {correction_successes}/{correction_trials} = {results['correction']['rate']:.1f}%, p={correction_pvalue:.4f} {'(significant)' if correction_significant else '(not significant)'}")
         logger.info(f"Corruption effect: {corruption_successes}/{corruption_trials} = {results['corruption']['rate']:.1f}%, p={corruption_pvalue:.4f} {'(significant)' if corruption_significant else '(not significant)'}")
+        logger.info(f"Preservation effect: {preservation_successes}/{preservation_trials} = {results['preservation']['rate']:.1f}%, p={preservation_pvalue:.4f} {'(significant)' if preservation_significant else '(not significant)'}")
         
         return results
         
     def create_visualizations(self, metrics: Dict) -> None:
         """Create visualization plots for steering effects."""
         plt.style.use('seaborn-v0_8')
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
         
         # Plot correction rate
         correction_rate = metrics['statistical_tests']['correction']['rate']
@@ -695,15 +815,40 @@ class SteeringEffectAnalyzer:
             ax2.text(0, corruption_rate - 5, f'{corruption_rate:.1f}%', 
                      ha='center', va='top', fontweight='bold', color='white')
         
+        # Plot preservation rate
+        preservation_rate = metrics['statistical_tests']['preservation']['rate']
+        preservation_pvalue = metrics['statistical_tests']['preservation']['pvalue']
+        preservation_sig = metrics['statistical_tests']['preservation']['significant']
+        
+        ax3.bar(['Preservation Rate'], [preservation_rate], color='blue' if preservation_sig else 'gray', alpha=0.7)
+        ax3.set_ylabel('Percentage (%)')
+        ax3.set_title(f'Preservation Rate (Correct→Correct)\np={preservation_pvalue:.4f} {"*" if preservation_sig else "n.s."}')
+        ax3.set_ylim(0, 100)
+        
+        # Dynamic text positioning to avoid overlap
+        if preservation_rate < 90:
+            ax3.text(0, preservation_rate + 2, f'{preservation_rate:.1f}%', 
+                     ha='center', va='bottom', fontweight='bold')
+        else:
+            ax3.text(0, preservation_rate - 5, f'{preservation_rate:.1f}%', 
+                     ha='center', va='top', fontweight='bold', color='white')
+        
         # Add main title
         fig.suptitle(f'Steering Effect Analysis\nCorrect Coefficient: {metrics["coefficients"]["correct"]}, '
                     f'Incorrect Coefficient: {metrics["coefficients"]["incorrect"]}', 
                     fontsize=14, fontweight='bold')
         
-        # Add success criteria line at 10%
-        for ax in [ax1, ax2]:
-            ax.axhline(y=10, color='black', linestyle='--', alpha=0.5, label='Success threshold (10%)')
-            ax.legend()
+        # Add success criteria lines
+        ax1.axhline(y=10, color='black', linestyle='--', alpha=0.5, label='Success threshold (10%)')
+        ax1.legend()
+        
+        ax2.axhline(y=10, color='black', linestyle='--', alpha=0.5, label='Success threshold (10%)')
+        ax2.legend()
+        
+        # For preservation, we expect high percentage (>50% is better than random)
+        ax3.axhline(y=50, color='black', linestyle='--', alpha=0.5, label='Random chance (50%)')
+        ax3.axhline(y=90, color='green', linestyle='--', alpha=0.3, label='Good preservation (90%)')
+        ax3.legend()
         
         plt.tight_layout()
         
@@ -722,8 +867,9 @@ class SteeringEffectAnalyzer:
         pass
     
     def save_examples(self, correction_results: pd.DataFrame, 
-                     corruption_results: pd.DataFrame) -> None:
-        """Save example generations that flipped."""
+                     corruption_results: pd.DataFrame,
+                     preservation_results: pd.DataFrame) -> None:
+        """Save example generations that flipped or were preserved."""
         # Extract corrected examples (incorrect→correct)
         corrected_df = correction_results[
             (correction_results['test_passed'] == False) & correction_results['steered_passed']
@@ -752,6 +898,20 @@ class SteeringEffectAnalyzer:
             for _, row in corrupted_df.iterrows()
         ]
         
+        # Extract preserved examples (correct→correct)
+        preserved_df = preservation_results[
+            preservation_results['test_passed'] & preservation_results['steered_passed']
+        ].head(10)
+        
+        preserved_examples = [
+            {
+                'task_id': row['task_id'],
+                'baseline_code': row['generated_code'],
+                'steered_code': row['steered_generated_code']
+            }
+            for _, row in preserved_df.iterrows()
+        ]
+        
         # Save corrected examples
         if corrected_examples:
             save_json(corrected_examples, self.examples_dir / "corrected_examples.json")
@@ -761,6 +921,11 @@ class SteeringEffectAnalyzer:
         if corrupted_examples:
             save_json(corrupted_examples, self.examples_dir / "corrupted_examples.json")
             logger.info(f"Saved {len(corrupted_examples)} corrupted examples")
+        
+        # Save preserved examples
+        if preserved_examples:
+            save_json(preserved_examples, self.examples_dir / "preserved_examples.json")
+            logger.info(f"Saved {len(preserved_examples)} preserved examples")
         
     def save_results(self, metrics: Dict, duration: float) -> None:
         """Save all results and create phase summary."""
@@ -781,17 +946,22 @@ class SteeringEffectAnalyzer:
             'results': {
                 'correction_rate': metrics['correction_rate'],
                 'corruption_rate': metrics['corruption_rate'],
+                'preservation_rate': metrics['preservation_rate'],
                 'statistical_tests': metrics['statistical_tests'],
                 'success_criteria_met': {
                     'correction_rate_above_10%': metrics['correction_rate'] > 10,
                     'corruption_rate_above_10%': metrics['corruption_rate'] > 10,
+                    'preservation_rate_above_50%': metrics['preservation_rate'] > 50,
                     'correction_significant': metrics['statistical_tests']['correction']['significant'],
                     'corruption_significant': metrics['statistical_tests']['corruption']['significant'],
+                    'preservation_significant': metrics['statistical_tests']['preservation']['significant'],
                     'all_criteria_met': (
                         metrics['correction_rate'] > 10 and
                         metrics['corruption_rate'] > 10 and
+                        metrics['preservation_rate'] > 50 and
                         metrics['statistical_tests']['correction']['significant'] and
-                        metrics['statistical_tests']['corruption']['significant']
+                        metrics['statistical_tests']['corruption']['significant'] and
+                        metrics['statistical_tests']['preservation']['significant']
                     )
                 }
             },
@@ -821,19 +991,28 @@ class SteeringEffectAnalyzer:
                    f"Incorrect: {self.config.phase4_8_incorrect_coefficient}")
         
         # Apply steering and evaluate effects
-        correction_results, corruption_results, exclusion_summary = self.evaluate_steering_effects()
+        correction_results, corruption_results, preservation_results, exclusion_summary = self.evaluate_steering_effects()
         
         # Calculate rates
         correction_rate = calculate_correction_rate(correction_results)
         corruption_rate = calculate_corruption_rate(corruption_results)
         
+        # Calculate preservation rate directly (percentage of correct that stay correct)
+        if not preservation_results.empty:
+            preserved_count = len(preservation_results[preservation_results['test_passed'] & preservation_results['steered_passed']])
+            total_correct = len(preservation_results[preservation_results['test_passed']])
+            preservation_rate = (preserved_count / total_correct * 100) if total_correct > 0 else 0.0
+        else:
+            preservation_rate = 0.0
+        
         # Run statistical tests
-        statistical_tests = self.run_statistical_tests(correction_results, corruption_results)
+        statistical_tests = self.run_statistical_tests(correction_results, corruption_results, preservation_results)
         
         # Compile metrics
         metrics = {
             'correction_rate': correction_rate,
             'corruption_rate': corruption_rate,
+            'preservation_rate': preservation_rate,
             'coefficients': {
                 'correct': self.config.phase4_8_correct_coefficient,
                 'incorrect': self.config.phase4_8_incorrect_coefficient
@@ -847,7 +1026,8 @@ class SteeringEffectAnalyzer:
             'exclusion_summary': exclusion_summary,
             'detailed_results': {
                 'correction': correction_results[['task_id', 'test_passed', 'steered_passed', 'flipped']].to_dict('records') if not correction_results.empty else [],
-                'corruption': corruption_results[['task_id', 'test_passed', 'steered_passed', 'flipped']].to_dict('records') if not corruption_results.empty else []
+                'corruption': corruption_results[['task_id', 'test_passed', 'steered_passed', 'flipped']].to_dict('records') if not corruption_results.empty else [],
+                'preservation': preservation_results[['task_id', 'test_passed', 'steered_passed', 'flipped']].to_dict('records') if not preservation_results.empty else []
             }
         }
         
@@ -858,7 +1038,7 @@ class SteeringEffectAnalyzer:
         self.save_all_results(correction_results, corruption_results)
         
         # Save example generations
-        self.save_examples(correction_results, corruption_results)
+        self.save_examples(correction_results, corruption_results, preservation_results)
         
         # Save all results
         duration = time.time() - start_time
@@ -874,18 +1054,25 @@ class SteeringEffectAnalyzer:
                    f"({exclusion_summary['correction_experiment']['excluded']} excluded)")
         logger.info(f"Corruption experiment: {exclusion_summary['corruption_experiment']['included']}/{exclusion_summary['corruption_experiment']['attempted']} "
                    f"({exclusion_summary['corruption_experiment']['excluded']} excluded)")
+        logger.info(f"Preservation experiment: {exclusion_summary['preservation_experiment']['included']}/{exclusion_summary['preservation_experiment']['attempted']} "
+                   f"({exclusion_summary['preservation_experiment']['excluded']} excluded)")
         logger.info(f"Correction Rate: {correction_rate:.1f}% {'✓' if correction_rate > 10 else '✗'}")
         logger.info(f"Corruption Rate: {corruption_rate:.1f}% {'✓' if corruption_rate > 10 else '✗'}")
+        logger.info(f"Preservation Rate: {preservation_rate:.1f}% {'✓' if preservation_rate > 50 else '✗'}")
         logger.info(f"Correction p-value: {statistical_tests['correction']['pvalue']:.4f} "
                    f"{'✓ significant' if statistical_tests['correction']['significant'] else '✗ not significant'}")
         logger.info(f"Corruption p-value: {statistical_tests['corruption']['pvalue']:.4f} "
                    f"{'✓ significant' if statistical_tests['corruption']['significant'] else '✗ not significant'}")
+        logger.info(f"Preservation p-value: {statistical_tests['preservation']['pvalue']:.4f} "
+                   f"{'✓ significant' if statistical_tests['preservation']['significant'] else '✗ not significant'}")
         
         all_criteria_met = (
             correction_rate > 10 and 
             corruption_rate > 10 and
+            preservation_rate > 50 and  # Preservation should be better than random
             statistical_tests['correction']['significant'] and
-            statistical_tests['corruption']['significant']
+            statistical_tests['corruption']['significant'] and
+            statistical_tests['preservation']['significant']
         )
         
         logger.info(f"\nAll success criteria met: {'✓ YES' if all_criteria_met else '✗ NO'}")

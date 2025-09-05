@@ -10,31 +10,11 @@ from typing import Optional
 
 class PromptBuilder:
     """Simplified prompt builder focused on standard prompt generation."""
-    
-    # Standard prompt template
-#     TEMPLATE = """Write a Python function to solve the following problem.
-
-# Problem:
-# {problem_description}
-
-# Tests:
-# {test_cases}
-
-# Write only the function definition. Do not include test code or explanations.
-
-# {code_initiator}
-
-# """
     TEMPLATE = """{problem_description}
 
 {test_cases}
 
 {code_initiator}"""
-#     TEMPLATE = """{problem_description}
-
-# {test_cases}"""
-
-    
     @classmethod
     def build_prompt(
         cls,
