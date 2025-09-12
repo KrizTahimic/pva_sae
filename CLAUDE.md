@@ -26,6 +26,8 @@ The methodology follows these phases:
 - Phase 4.5: Adaptive steering coefficient selection using coarse-to-fine search
 - Phase 4.6: Binary search refinement of steering coefficients for higher precision
 - Phase 4.8: Steering effect analysis with correction/corruption experiments
+- Phase 4.10: Random PVA feature selection for statistical baseline control
+- Phase 4.12: Random steering analysis to validate targeted steering effectiveness
 
 Each phase outputs to its own directory (data/phase0/, data/phase0_1/, data/phase1_0/, etc.) and automatically discovers inputs from previous phases.
 
@@ -100,15 +102,26 @@ data/
 │   ├── refined_coefficients.json      # Refined optimal coefficients
 │   ├── phase_4_6_summary.json
 │   └── refinement_examples/            # Example generations at refined coefficients
-└── phase4_8/         # Steering effect analysis
-    ├── steering_effect_analysis.json
-    ├── steering_effect_analysis.png
-    ├── phase_4_8_summary.json
-    ├── selected_correct_problems.parquet
-    ├── selected_incorrect_problems.parquet
-    └── examples/
-        ├── corrected_examples.json
-        └── corrupted_examples.json
+├── phase4_8/         # Steering effect analysis
+│   ├── steering_effect_analysis.json
+│   ├── steering_effect_analysis.png
+│   ├── phase_4_8_summary.json
+│   ├── selected_correct_problems.parquet
+│   ├── selected_incorrect_problems.parquet
+│   └── examples/
+│       ├── corrected_examples.json
+│       └── corrupted_examples.json
+├── phase4_10/        # Random PVA feature selection
+│   ├── random_features.json           # Selected random features with metadata
+│   └── random_features_summary.json   # Summary without decoder directions
+└── phase4_12/        # Random steering analysis
+    ├── random_steering_analysis.json  # Complete three-condition comparison results
+    ├── random_steering_summary.json   # Statistical validation summary
+    ├── three_condition_comparison.png # Visualization of baseline vs random vs targeted
+    ├── baseline_results.json          # No steering results
+    ├── random_steering_results.json   # Random feature steering results
+    ├── targeted_correct_steering_results.json   # Targeted correct steering results
+    └── targeted_incorrect_steering_results.json # Targeted incorrect steering results
 ```
 
 ## Simplified Modules
@@ -149,6 +162,8 @@ Use common/steering_metrics.py for steering-related calculations:
 - Phase 4.5 adaptively selects steering coefficients using ALL hyperparams data, requires Phase 2.5 (features) and Phase 3.6 (baseline)
 - Phase 4.6 refines steering coefficients using binary search, requires Phase 4.5 (initial coefficients), Phase 2.5 (features) and Phase 3.6 (baseline)
 - Phase 4.8 analyzes steering effects, requires Phase 2.5 (features) and Phase 3.5 (validation data)
+- Phase 4.10 selects random baseline features with zero PVA discrimination, requires Phase 1 (activations) and excludes Phase 2.5 discriminative features
+- Phase 4.12 applies statistical control via random steering, requires Phase 4.10 (random features), Phase 2.5 (discriminative features), and Phase 3.5 (validation data)
 - Checkpoint recovery: Auto-discovers latest checkpoints by timestamp
 - Memory management: Extract and save activations during Phase 1, load from disk in Phase 2
 - Use the full python path directly  ~/miniconda3/envs/pva_sae/bin/python run.py phase 4.5
@@ -233,6 +248,12 @@ python3 run.py phase 4.6
 
 # Phase 4.8: Steering effect analysis
 python3 run.py phase 4.8
+
+# Phase 4.10: Random PVA feature selection (CPU-only)
+python3 run.py phase 4.10
+
+# Phase 4.12: Random steering analysis (statistical control)
+python3 run.py phase 4.12
 ```
 
 ### Data Cleanup

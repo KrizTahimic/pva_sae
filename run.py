@@ -92,8 +92,8 @@ def setup_argument_parser():
     phase_parser.add_argument(
         'phase',
         type=float,
-        choices=[0, 0.1, 1, 2.2, 2.5, 2.10, 3, 3.5, 3.6, 3.8, 3.10, 3.12, 4.5, 4.6, 4.8, 5.3, 6.3, 7.3, 7.6],
-        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 2.10=T-Statistic Latent Selection, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.6=Golden Section Search Coefficient Refinement, 4.8=Steering Effect Analysis, 5.3=Weight Orthogonalization, 6.3=Attention Pattern Analysis, 7.3=Instruction-Tuned Model Baseline, 7.6=Instruction-Tuned Model Steering Analysis'
+        choices=[0, 0.1, 1, 2.2, 2.5, 2.10, 3, 3.5, 3.6, 3.8, 3.10, 3.12, 4.5, 4.6, 4.8, 4.10, 4.12, 4.14, 5.3, 5.6, 5.9, 6.3, 7.3, 7.6],
+        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 2.10=T-Statistic Latent Selection, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.6=Golden Section Search Coefficient Refinement, 4.8=Steering Effect Analysis, 4.10=Zero-Discrimination Feature Selection, 4.12=Zero-Discrimination Steering Generation, 4.14=Statistical Significance Testing, 5.3=Weight Orthogonalization, 5.6=Zero-Discrimination Weight Orthogonalization, 5.9=Weight Orthogonalization Statistical Significance, 6.3=Attention Pattern Analysis, 7.3=Instruction-Tuned Model Baseline, 7.6=Instruction-Tuned Model Steering Analysis'
     )
     
     # Global arguments (add to phase parser)
@@ -769,6 +769,60 @@ def run_phase4_8(config: Config, logger, device: str):
     logger.info("\n✅ Phase 4.8 completed successfully")
 
 
+def run_phase4_10(config: Config, logger, device: str):
+    """Run Phase 4.10: Zero-Discrimination Feature Selection"""
+    from phase4_10_zero_discrimination.zero_discrimination_selector import ZeroDiscriminationSelector
+    
+    logger.info("Starting Phase 4.10: Zero-Discrimination Feature Selection")
+    logger.info("Will identify SAE features with zero separation scores between correct/incorrect code")
+    logger.info("These features serve as rigorous baseline controls for steering experiments")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="4.10"))
+    
+    # Create and run zero-discrimination feature selector
+    selector = ZeroDiscriminationSelector(config)
+    results = selector.run()
+    
+    logger.info("\n✅ Phase 4.10 completed successfully")
+
+
+def run_phase4_12(config: Config, logger, device: str):
+    """Run Phase 4.12: Zero-Discrimination Steering Generation"""
+    from phase4_12_zero_disc_steering.zero_disc_steering_generator import ZeroDiscSteeringGenerator
+    
+    logger.info("Starting Phase 4.12: Zero-Discrimination Steering Generation")
+    logger.info("Will apply zero-discrimination features as statistical control vs targeted steering")
+    logger.info("This validates that PVA features have specific causal effects on program correctness")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="4.12"))
+    
+    # Create and run zero-discrimination steering generator
+    generator = ZeroDiscSteeringGenerator(config)
+    results = generator.run()
+    
+    logger.info("\n✅ Phase 4.12 completed successfully")
+
+
+def run_phase4_14(config: Config, logger, device: str):
+    """Run Phase 4.14: Statistical Significance Testing"""
+    from phase4_14_statistical_significance.significance_tester import SignificanceTester
+    
+    logger.info("Starting Phase 4.14: Statistical Significance Testing")
+    logger.info("Will compare targeted vs zero-discrimination steering using binomial tests")
+    logger.info("This validates that PVA features have specific causal effects")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="4.14"))
+    
+    # Create and run significance tester
+    tester = SignificanceTester(config)
+    results = tester.run()
+    
+    logger.info("\n✅ Phase 4.14 completed successfully")
+
+
 def run_phase5_3(config: Config, logger, device: str):
     """Run Phase 5.3: Weight Orthogonalization Analysis"""
     from phase5_3_weight_orthogonalization.weight_orthogonalizer import WeightOrthogonalizer
@@ -785,6 +839,42 @@ def run_phase5_3(config: Config, logger, device: str):
     results = orthogonalizer.run()
     
     logger.info("\n✅ Phase 5.3 completed successfully")
+
+
+def run_phase5_6(config: Config, logger, device: str):
+    """Run Phase 5.6: Zero-Discrimination Weight Orthogonalization"""
+    from phase5_6_zero_disc_orthogonalization.zero_disc_weight_orthogonalizer import ZeroDiscWeightOrthogonalizer
+    
+    logger.info("Starting Phase 5.6: Zero-Discrimination Weight Orthogonalization")
+    logger.info("Control experiment using zero-disc features from Phase 4.10")
+    logger.info("Expected: minimal effects compared to Phase 5.3 PVA orthogonalization")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="5.6"))
+    
+    # Create and run orthogonalizer
+    orthogonalizer = ZeroDiscWeightOrthogonalizer(config)
+    results = orthogonalizer.run()
+    
+    logger.info("\n✅ Phase 5.6 completed successfully")
+
+
+def run_phase5_9(config: Config, logger, device: str):
+    """Run Phase 5.9: Weight Orthogonalization Statistical Significance"""
+    from phase5_9_orthogonalization_significance.orthogonalization_significance_tester import OrthogonalizationSignificanceTester
+    
+    logger.info("Starting Phase 5.9: Weight Orthogonalization Statistical Significance Testing")
+    logger.info("Triangulation analysis comparing baseline, zero-disc, and PVA orthogonalization")
+    logger.info("Will perform 6 binomial tests to validate causal effects")
+    
+    # Log configuration
+    logger.info("\n" + config.dump(phase="5.9"))
+    
+    # Create and run significance tester
+    tester = OrthogonalizationSignificanceTester(config)
+    results = tester.run()
+    
+    logger.info("\n✅ Phase 5.9 completed successfully")
 
 
 def run_phase6_3(config: Config, logger, device: str):
@@ -1526,7 +1616,12 @@ def main():
             4.5: "Steering Coefficient Selection",
             4.6: "Golden Section Search Coefficient Refinement",
             4.8: "Steering Effect Analysis",
+            4.10: "Random PVA Feature Selection",
+            4.12: "Random Steering Analysis",
+            4.14: "Statistical Significance Testing",
             5.3: "Weight Orthogonalization Analysis",
+            5.6: "Zero-Discrimination Weight Orthogonalization",
+            5.9: "Weight Orthogonalization Statistical Significance",
             6.3: "Attention Pattern Analysis",
             7.3: "Instruction-Tuned Model Baseline",
             7.6: "Instruction-Tuned Model Steering Analysis"
@@ -1583,8 +1678,18 @@ def main():
                 run_phase4_6(config, logger, device)
             elif args.phase == 4.8:
                 run_phase4_8(config, logger, device)
+            elif args.phase == 4.10:
+                run_phase4_10(config, logger, device)
+            elif args.phase == 4.12:
+                run_phase4_12(config, logger, device)
+            elif args.phase == 4.14:
+                run_phase4_14(config, logger, device)
             elif args.phase == 5.3:
                 run_phase5_3(config, logger, device)
+            elif args.phase == 5.6:
+                run_phase5_6(config, logger, device)
+            elif args.phase == 5.9:
+                run_phase5_9(config, logger, device)
             elif args.phase == 6.3:
                 run_phase6_3(config, logger, device)
             elif args.phase == 7.3:

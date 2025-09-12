@@ -414,12 +414,21 @@ def main():
         output_dir = Path(get_phase_dir('3.8'))
     ensure_directory_exists(output_dir)
     
-    # Phase 1: Load Phase 3.5 metadata and best features
-    logger.info("Loading Phase 3.5 metadata...")
-    metadata = load_json(phase3_5_dir / 'metadata.json')
-    best_features = metadata['best_layers']
+    # Phase 1: Load best features from Phase 2.10 (t-statistic based selection)
+    logger.info("Loading best features from Phase 2.10...")
     
-    # Extract feature information
+    # Auto-discover Phase 2.10 output
+    phase2_10_dir = discover_latest_phase_output("2.10")
+    if not phase2_10_dir:
+        raise FileNotFoundError("No Phase 2.10 output found. Please run Phase 2.10 first.")
+    phase2_10_dir = Path(phase2_10_dir).parent
+    
+    # Load best features from Phase 2.10
+    best_layer_file = phase2_10_dir / 'best_layer.json'
+    if not best_layer_file.exists():
+        raise FileNotFoundError(f"best_layer.json not found in {phase2_10_dir}. Please run Phase 2.10 first.")
+    
+    best_features = load_json(best_layer_file)
     correct_layer = best_features['correct']
     correct_feature_idx = best_features['correct_feature_idx']
     incorrect_layer = best_features['incorrect']

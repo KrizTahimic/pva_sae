@@ -318,6 +318,11 @@ PHASE_CONFIGS = {
         "patterns": ["sae_analysis_results.json", "top_20_features.json"],
         "exclude_keywords": None
     },
+    "2.10": {  # Phase 2.10 - T-Statistic Feature Selection
+        "dir": "data/phase2_10",
+        "patterns": ["best_layer.json", "sae_analysis_results.json", "top_20_features.json"],
+        "exclude_keywords": None
+    },
     "3": {
         "dir": "data/phase3",
         "patterns": ["validation_results_*.json", "steering_results_*.json"],
@@ -358,6 +363,36 @@ PHASE_CONFIGS = {
         "patterns": ["steering_effect_analysis.json", "phase_4_8_summary.json"],
         "exclude_keywords": None
     },
+    "4.10": {
+        "dir": "data/phase4_10",
+        "patterns": ["zero_discrimination_features.json", "zero_discrimination_summary.json"],
+        "exclude_keywords": None
+    },
+    "4.12": {
+        "dir": "data/phase4_12",
+        "patterns": ["zero_disc_steering_results.json", "random_steering_results.json"],
+        "exclude_keywords": None
+    },
+    "4.14": {
+        "dir": "data/phase4_14",
+        "patterns": ["significance_test_results.json", "significance_summary.json", "triangulation_analysis.json"],
+        "exclude_keywords": None
+    },
+    "5.3": {
+        "dir": "data/phase5_3",
+        "patterns": ["orthogonalization_results.json", "phase_5_3_summary.json"],
+        "exclude_keywords": None
+    },
+    "5.6": {
+        "dir": "data/phase5_6",
+        "patterns": ["zero_disc_orthogonalization_results.json", "phase_5_6_summary.json"],
+        "exclude_keywords": None
+    },
+    "5.9": {
+        "dir": "data/phase5_9",
+        "patterns": ["orthogonalization_triangulation.json", "phase_5_9_summary.json"],
+        "exclude_keywords": None
+    },
     "6.3": {
         "dir": "data/phase6_3",
         "patterns": ["attention_analysis_results.json", "phase_6_3_summary.json"],
@@ -381,7 +416,7 @@ def get_phase_dir(phase: str) -> str:
     Get the directory path for a given phase.
     
     Args:
-        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8", "3.10", "3.12", "4.5", "4.8", "6.3")
+        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8", "3.10", "3.12", "4.5", "4.8", "4.10", "4.12", "4.14", "5.3", "5.6", "5.9", "6.3", "7.3", "7.6")
         
     Returns:
         str: Directory path for the phase
@@ -409,7 +444,7 @@ def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None) ->
     Discover the latest output file from any phase.
     
     Args:
-        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8", "3.10", "3.12", "4.5", "4.8", "6.3")
+        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8", "3.10", "3.12", "4.5", "4.8", "4.10", "4.12", "4.14", "5.3", "5.6", "5.9", "6.3", "7.3", "7.6")
         phase_dir: Optional override for phase directory
         
     Returns:

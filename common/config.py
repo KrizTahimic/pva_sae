@@ -143,7 +143,7 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.6, 0.8, 1.0])
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [1.4])
     # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
 
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
@@ -165,7 +165,7 @@ class Config:
     
     # === TEMPERATURE-BASED AUROC ANALYSIS (Phase 3.10) ===
     phase3_10_output_dir: str = "data/phase3_10"
-    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
+    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4]) # 
 
     
     # === DIFFICULTY-BASED AUROC ANALYSIS (Phase 3.12) ===
@@ -193,11 +193,31 @@ class Config:
     phase4_8_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption', 'preservation'
     phase4_8_output_dir: str = "data/phase4_8"
     
+    # === ZERO-DISCRIMINATION FEATURE SELECTION (Phase 4.10) ===
+    phase4_10_n_features: int = 10  # Number of zero-discrimination features to select
+    phase4_10_separation_threshold: float = 0.01  # Maximum separation score for zero-discrimination (increased from 0.001)
+    phase4_10_min_activation_freq: float = 0.001  # Minimum activation frequency to consider (decreased from 0.01)
+    phase4_10_output_dir: str = "data/phase4_10"
+    
+    # === ZERO-DISCRIMINATION STEERING (Phase 4.12) ===
+    phase4_12_output_dir: str = "data/phase4_12"
+    
+    # === STATISTICAL SIGNIFICANCE TESTING (Phase 4.14) ===
+    phase4_14_significance_level: float = 0.05  # Alpha level for statistical tests
+    phase4_14_output_dir: str = "data/phase4_14"
+    
     # === WEIGHT ORTHOGONALIZATION (Phase 5.3) ===
     phase5_3_output_dir: str = "data/phase5_3"
     orthogonalization_target_weights: List[str] = field(
         default_factory=lambda: ['embed', 'attn_o', 'mlp_down']
     )
+    
+    # === ZERO-DISC WEIGHT ORTHOGONALIZATION (Phase 5.6) ===
+    phase5_6_output_dir: str = "data/phase5_6"
+    
+    # === WEIGHT ORTHOGONALIZATION SIGNIFICANCE (Phase 5.9) ===
+    phase5_9_significance_level: float = 0.05  # Alpha level for statistical tests
+    phase5_9_output_dir: str = "data/phase5_9"
     
     # === ATTENTION ANALYSIS (Phase 6.3) ===
     phase6_3_output_dir: str = "data/phase6_3"

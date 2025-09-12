@@ -36,66 +36,43 @@ class HyperparameterDataRunner:
     
     def _discover_best_layers(self) -> Dict[str, int]:
         """
-        Discover best layers from Phase 2.10 or Phase 2.5 output.
+        Discover best layers from Phase 2.10 (required).
         
         Returns:
             Dict with 'correct' and 'incorrect' best layers
         """
-        # Try Phase 2.10 first (t-statistic selection)
+        # Use Phase 2.10 (t-statistic selection) - no fallback
         phase_2_10_dir = Path(getattr(self.config, 'phase2_10_output_dir', 'data/phase2_10'))
-        top_features_file = phase_2_10_dir / "top_20_features.json"
-        phase_source = "2.10"
+        best_layer_file = phase_2_10_dir / "best_layer.json"
         
-        if not top_features_file.exists():
+        if not best_layer_file.exists():
             # Try auto-discovery for Phase 2.10
             latest_output = discover_latest_phase_output("2.10")
             if latest_output:
                 # Extract directory from the discovered file
                 output_dir = Path(latest_output).parent
-                top_features_file = output_dir / "top_20_features.json"
+                best_layer_file = output_dir / "best_layer.json"
         
-        # Fall back to Phase 2.5 if Phase 2.10 not found
-        if not top_features_file.exists():
-            phase_2_5_dir = Path(self.config.phase2_5_output_dir)
-            top_features_file = phase_2_5_dir / "top_20_features.json"
-            phase_source = "2.5"
-            
-            if not top_features_file.exists():
-                # Try auto-discovery for Phase 2.5
-                latest_output = discover_latest_phase_output("2.5")
-                if latest_output:
-                    # Extract directory from the discovered file
-                    output_dir = Path(latest_output).parent
-                    top_features_file = output_dir / "top_20_features.json"
-        
-        if not top_features_file.exists():
+        if not best_layer_file.exists():
             raise FileNotFoundError(
-                f"top_20_features.json not found. "
-                "Please run Phase 2.10 or Phase 2.5 first."
+                f"best_layer.json not found in Phase 2.10. "
+                "Please run Phase 2.10 first."
             )
         
-        logger.info(f"Using features from Phase {phase_source}: {top_features_file}")
+        logger.info(f"Using features from Phase 2.10: {best_layer_file}")
         
-        # Read top features
-        with open(top_features_file, 'r') as f:
-            top_features = json.load(f)
+        # Read best layer info directly from Phase 2.10
+        with open(best_layer_file, 'r') as f:
+            best_layers = json.load(f)
         
-        # Extract best layers (first entry in each list)
-        best_layers = {}
+        # Validate that we have all required fields
+        required_fields = ['correct', 'incorrect', 'correct_feature_idx', 'incorrect_feature_idx']
+        for field in required_fields:
+            if field not in best_layers:
+                raise ValueError(f"Missing required field '{field}' in best_layer.json")
         
-        if top_features.get('correct') and len(top_features['correct']) > 0:
-            best_layers['correct'] = top_features['correct'][0]['layer']
-            best_layers['correct_feature_idx'] = top_features['correct'][0]['feature_idx']
-        else:
-            raise ValueError("No correct features found in top_20_features.json")
-        
-        if top_features.get('incorrect') and len(top_features['incorrect']) > 0:
-            best_layers['incorrect'] = top_features['incorrect'][0]['layer']
-            best_layers['incorrect_feature_idx'] = top_features['incorrect'][0]['feature_idx']
-        else:
-            raise ValueError("No incorrect features found in top_20_features.json")
-        
-        logger.info(f"Discovered best layers - Correct: layer {best_layers['correct']}, Incorrect: layer {best_layers['incorrect']}")
+        logger.info(f"Discovered best layers from Phase 2.10 - Correct: layer {best_layers['correct']} (feature {best_layers['correct_feature_idx']}), "
+                   f"Incorrect: layer {best_layers['incorrect']} (feature {best_layers['incorrect_feature_idx']})")
         
         return best_layers
     
