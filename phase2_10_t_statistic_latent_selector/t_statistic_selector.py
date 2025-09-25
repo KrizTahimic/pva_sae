@@ -467,18 +467,6 @@ class TStatisticSelector:
                 'layer_distribution': top_features_unfiltered.get('layer_distribution', {})
             }
         
-        # Determine best layer (the one with most features in top 20)
-        layer_counts = {}
-        for feat in top_features['correct'] + top_features['incorrect']:
-            layer = feat['layer']
-            layer_counts[layer] = layer_counts.get(layer, 0) + 1
-        
-        best_layer = max(layer_counts.items(), key=lambda x: x[1])[0] if layer_counts else self.config.activation_layers[0]
-        
-        # Find best feature indices for the best layer
-        best_correct_feature = next((f for f in top_features['correct'] if f['layer'] == best_layer), top_features['correct'][0])
-        best_incorrect_feature = next((f for f in top_features['incorrect'] if f['layer'] == best_layer), top_features['incorrect'][0])
-        
         # Prepare final results
         results = {
             'creation_timestamp': datetime.now().isoformat(),
@@ -488,13 +476,7 @@ class TStatisticSelector:
             'top_20_features': top_features,
             'pile_filter_enabled': self.config.pile_filter_enabled,
             'pile_threshold': self.config.pile_threshold if self.config.pile_filter_enabled else None,
-            'selection_method': 't_statistic',  # Mark this as t-statistic selection
-            'best_layer': {
-                'correct': best_layer,
-                'incorrect': best_layer,
-                'correct_feature_idx': best_correct_feature['feature_idx'],
-                'incorrect_feature_idx': best_incorrect_feature['feature_idx']
-            }
+            'selection_method': 't_statistic'  # Mark this as t-statistic selection
         }
         
         # Save results
@@ -526,20 +508,13 @@ class TStatisticSelector:
             json.dump(results['top_20_features'], f, indent=2)
         logger.info(f"Saved top 20 features to {top_features_file}")
         
-        # Save best layer info (for Phase 3.5 compatibility)
-        best_layer_file = output_dir / "best_layer.json"
-        with open(best_layer_file, 'w') as f:
-            json.dump(results['best_layer'], f, indent=2)
-        logger.info(f"Saved best layer info to {best_layer_file}")
-        
         # Save summary results (without layer_results to avoid huge file)
         summary_results = {
             'creation_timestamp': results['creation_timestamp'],
             'model_name': results['model_name'],
             'activation_layers': results['activation_layers'],
             'top_20_features': results['top_20_features'],
-            'selection_method': results['selection_method'],
-            'best_layer': results['best_layer']
+            'selection_method': results['selection_method']
         }
         
         output_file = output_dir / "sae_analysis_results.json"

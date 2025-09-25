@@ -417,13 +417,22 @@ class SignificanceTester:
         else:
             findings.append("Targeted steering does not significantly correct errors")
         
-        if comparisons['targeted_vs_control']['significant']:
-            effect = comparisons['targeted_vs_control']['effect_size']
-            findings.append(f"Targeted outperforms control features ({effect:.1%} advantage, "
-                          f"p={comparisons['targeted_vs_control']['p_value']:.2e})")
+        if comparisons['zero_disc_vs_targeted']['significant']:
+            effect = comparisons['zero_disc_vs_targeted']['effect_size']
+            findings.append(f"Targeted outperforms random features ({effect:.1%} advantage, "
+                          f"p={comparisons['zero_disc_vs_targeted']['p_value']:.2e})")
         else:
-            findings.append("Targeted and control features perform similarly for correction")
+            findings.append("Targeted and random features perform similarly")
         
+        if comparisons['baseline_vs_zero_disc']['significant']:
+            effect = comparisons['baseline_vs_zero_disc']['effect_size']
+            if effect > 0.03:
+                findings.append(f"WARNING: Random features show unexpected correction ({effect:.1%}, "
+                              f"p={comparisons['baseline_vs_zero_disc']['p_value']:.2e})")
+            else:
+                findings.append(f"Random features show minimal correction ({effect:.1%})")
+        else:
+            findings.append("Random features have no significant correction effect (expected)")
         
         return " | ".join(findings)
         
@@ -438,13 +447,22 @@ class SignificanceTester:
         else:
             findings.append("Incorrect-preferring features do not significantly corrupt")
         
-        if comparisons['targeted_vs_control']['significant']:
-            effect = comparisons['targeted_vs_control']['effect_size']
-            findings.append(f"Targeted corruption exceeds control (unexpected: {effect:.1%}, "
-                          f"p={comparisons['targeted_vs_control']['p_value']:.2e})")
+        if comparisons['zero_disc_vs_targeted']['significant']:
+            effect = comparisons['zero_disc_vs_targeted']['effect_size']
+            findings.append(f"Targeted corruption exceeds random ({effect:.1%} more, "
+                          f"p={comparisons['zero_disc_vs_targeted']['p_value']:.2e})")
         else:
-            findings.append("Targeted does NOT corrupt more than control (64.66% vs 100%, non-significant)")
+            findings.append("Targeted and random corruption rates similar")
         
+        if comparisons['baseline_vs_zero_disc']['significant']:
+            effect = comparisons['baseline_vs_zero_disc']['effect_size']
+            if effect > 0.03:
+                findings.append(f"WARNING: Random features corrupt unexpectedly ({effect:.1%}, "
+                              f"p={comparisons['baseline_vs_zero_disc']['p_value']:.2e})")
+            else:
+                findings.append(f"Random features show minimal corruption ({effect:.1%})")
+        else:
+            findings.append("Random features have no significant corruption effect (expected)")
         
         return " | ".join(findings)
 
@@ -459,13 +477,19 @@ class SignificanceTester:
         else:
             findings.append("Targeted steering maintains similar preservation to baseline")
 
-        if comparisons['targeted_vs_control']['significant']:
-            effect = comparisons['targeted_vs_control']['effect_size']
-            findings.append(f"Targeted preserves better than control ({effect:.1%} advantage, "
-                          f"p={comparisons['targeted_vs_control']['p_value']:.2e})")
+        if comparisons['zero_disc_vs_targeted']['significant']:
+            effect = comparisons['zero_disc_vs_targeted']['effect_size']
+            findings.append(f"Preservation differs between targeted and random ({effect:.1%} difference, "
+                          f"p={comparisons['zero_disc_vs_targeted']['p_value']:.2e})")
         else:
-            findings.append("Targeted and control features preserve similarly")
+            findings.append("Targeted and random features preserve similarly")
 
+        if comparisons['baseline_vs_zero_disc']['significant']:
+            effect = comparisons['baseline_vs_zero_disc']['effect_size']
+            findings.append(f"Random features reduce preservation from baseline ({effect:.1%}, "
+                          f"p={comparisons['baseline_vs_zero_disc']['p_value']:.2e})")
+        else:
+            findings.append("Random features maintain near-baseline preservation")
 
         return " | ".join(findings)
 
@@ -474,43 +498,52 @@ class SignificanceTester:
         fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
 
         # Correction plot (WITHOUT baseline)
-        correction_conditions = ['Control', 'Correct\nDirection']
+        conditions = ['Zero-Disc\n(Random)', 'Targeted\n(PVA)']
         correction_rates = [
             correction_tri['rates']['zero_discrimination'] * 100,
             correction_tri['rates']['targeted'] * 100
         ]
 
-        bars1 = ax1.bar(correction_conditions, correction_rates, color=['orange', 'green'])
+        bars1 = ax1.bar(conditions, correction_rates, color=['orange', 'green'])
         ax1.set_ylabel('Correction Rate (%)', fontsize=12)
-        ax1.set_title('Correction Experiments (Incorrect→Correct)', fontsize=14)
-        ax1.set_ylim(0, 105)
+        ax1.set_title('Correction Experiments (Incorrect→Correct)', fontsize=14, fontweight='bold')
+        ax1.set_ylim(0, max(correction_rates) * 1.3 if max(correction_rates) > 0 else 10)
 
+        # Add significance indicator between zero-disc and targeted
+        if correction_tri['comparisons']['zero_disc_vs_targeted']['significant']:
+            ax1.plot([0, 1], [max(correction_rates)*1.1]*2, 'k-', linewidth=1)
+            ax1.text(0.5, max(correction_rates)*1.15, '**', ha='center', fontsize=14)
+        
         # Add value labels on bars
         for bar, rate in zip(bars1, correction_rates):
             height = bar.get_height()
-            ax1.text(bar.get_x() + bar.get_width()/2., height + 1,
+            ax1.text(bar.get_x() + bar.get_width()/2., height + 0.5,
                     f'{rate:.1f}%', ha='center', va='bottom', fontsize=10)
 
         # Corruption plot (WITHOUT baseline)
-        corruption_conditions = ['Control', 'Incorrect\nDirection']
         corruption_rates = [
             corruption_tri['rates']['zero_discrimination'] * 100,
             corruption_tri['rates']['targeted'] * 100
         ]
 
-        bars2 = ax2.bar(corruption_conditions, corruption_rates, color=['orange', 'red'])
+        bars2 = ax2.bar(conditions, corruption_rates, color=['orange', 'red'])
         ax2.set_ylabel('Corruption Rate (%)', fontsize=12)
-        ax2.set_title('Corruption Experiments (Correct→Incorrect)', fontsize=14)
-        ax2.set_ylim(0, 105)
+        ax2.set_title('Corruption Experiments (Correct→Incorrect)', fontsize=14, fontweight='bold')
+        ax2.set_ylim(0, max(corruption_rates) * 1.3 if max(corruption_rates) > 0 else 10)
 
+        # Add significance indicator between zero-disc and targeted
+        if corruption_tri['comparisons']['zero_disc_vs_targeted']['significant']:
+            ax2.plot([0, 1], [max(corruption_rates)*1.1]*2, 'k-', linewidth=1)
+            ax2.text(0.5, max(corruption_rates)*1.15, '**', ha='center', fontsize=14)
+        
         # Add value labels on bars
         for bar, rate in zip(bars2, corruption_rates):
             height = bar.get_height()
-            ax2.text(bar.get_x() + bar.get_width()/2., height + 1,
+            ax2.text(bar.get_x() + bar.get_width()/2., height + 0.1,
                     f'{rate:.1f}%', ha='center', va='bottom', fontsize=10)
 
         # Preservation plot (WITH all three conditions)
-        preservation_conditions = ['Baseline', 'Control', 'Targeted']
+        preservation_conditions = ['Baseline\n(No Steering)', 'Zero-Disc\n(Random)', 'Targeted\n(PVA)']
         preservation_rates = [
             preservation_tri['rates']['baseline'] * 100,
             preservation_tri['rates']['zero_discrimination'] * 100,
@@ -519,13 +552,22 @@ class SignificanceTester:
 
         bars3 = ax3.bar(preservation_conditions, preservation_rates, color=['gray', 'orange', 'blue'])
         ax3.set_ylabel('Preservation Rate (%)', fontsize=12)
-        ax3.set_title('Preservation Experiments (Correct→Correct)', fontsize=14)
-        ax3.set_ylim(0, 105)
+        ax3.set_title('Preservation Experiments (Correct→Correct)', fontsize=14, fontweight='bold')
+        ax3.set_ylim(0, 105)  # Max 105% to show 100% baseline clearly
+
+        # Add significance indicators for preservation
+        if preservation_tri['comparisons']['baseline_vs_targeted']['significant']:
+            ax3.plot([0, 2], [102]*2, 'k-', linewidth=1)
+            ax3.text(1, 103, '*', ha='center', fontsize=14)
+
+        if preservation_tri['comparisons']['zero_disc_vs_targeted']['significant']:
+            ax3.plot([1, 2], [99]*2, 'k-', linewidth=1)
+            ax3.text(1.5, 100, '*', ha='center', fontsize=14)
 
         # Add value labels on bars
         for bar, rate in zip(bars3, preservation_rates):
             height = bar.get_height()
-            ax3.text(bar.get_x() + bar.get_width()/2., height + 1,
+            ax3.text(bar.get_x() + bar.get_width()/2., height + 0.5,
                     f'{rate:.1f}%', ha='center', va='bottom', fontsize=10)
 
         plt.suptitle('Statistical Triangulation: Three-Condition Comparison',
@@ -607,28 +649,34 @@ class SignificanceTester:
                 'validity_checks': interpretation['validity_checks'],
                 'correction_p_values': {
                     'baseline_vs_targeted': correction_triangulation['comparisons']['baseline_vs_targeted']['p_value'],
-                    'targeted_vs_control': correction_triangulation['comparisons']['targeted_vs_control']['p_value'],
+                    'zero_disc_vs_targeted': correction_triangulation['comparisons']['zero_disc_vs_targeted']['p_value'],
+                    'baseline_vs_zero_disc': correction_triangulation['comparisons']['baseline_vs_zero_disc']['p_value']
                 },
                 'corruption_p_values': {
                     'baseline_vs_targeted': corruption_triangulation['comparisons']['baseline_vs_targeted']['p_value'],
-                    'targeted_vs_control': corruption_triangulation['comparisons']['targeted_vs_control']['p_value'],
+                    'zero_disc_vs_targeted': corruption_triangulation['comparisons']['zero_disc_vs_targeted']['p_value'],
+                    'baseline_vs_zero_disc': corruption_triangulation['comparisons']['baseline_vs_zero_disc']['p_value']
                 },
                 'preservation_p_values': {
                     'baseline_vs_targeted': preservation_triangulation['comparisons']['baseline_vs_targeted']['p_value'],
-                    'targeted_vs_control': preservation_triangulation['comparisons']['targeted_vs_control']['p_value'],
+                    'zero_disc_vs_targeted': preservation_triangulation['comparisons']['zero_disc_vs_targeted']['p_value'],
+                    'baseline_vs_zero_disc': preservation_triangulation['comparisons']['baseline_vs_zero_disc']['p_value']
                 },
                 'effect_sizes': {
                     'correction': {
                         'baseline_to_targeted': correction_triangulation['comparisons']['baseline_vs_targeted']['effect_size'],
-                        'zero_disc_to_targeted': correction_triangulation['comparisons']['targeted_vs_control']['effect_size'],
+                        'zero_disc_to_targeted': correction_triangulation['comparisons']['zero_disc_vs_targeted']['effect_size'],
+                        'baseline_to_zero_disc': correction_triangulation['comparisons']['baseline_vs_zero_disc']['effect_size']
                     },
                     'corruption': {
                         'baseline_to_targeted': corruption_triangulation['comparisons']['baseline_vs_targeted']['effect_size'],
-                        'zero_disc_to_targeted': corruption_triangulation['comparisons']['targeted_vs_control']['effect_size'],
+                        'zero_disc_to_targeted': corruption_triangulation['comparisons']['zero_disc_vs_targeted']['effect_size'],
+                        'baseline_to_zero_disc': corruption_triangulation['comparisons']['baseline_vs_zero_disc']['effect_size']
                     },
                     'preservation': {
                         'baseline_to_targeted': preservation_triangulation['comparisons']['baseline_vs_targeted']['effect_size'],
-                        'zero_disc_to_targeted': preservation_triangulation['comparisons']['targeted_vs_control']['effect_size'],
+                        'zero_disc_to_targeted': preservation_triangulation['comparisons']['zero_disc_vs_targeted']['effect_size'],
+                        'baseline_to_zero_disc': preservation_triangulation['comparisons']['baseline_vs_zero_disc']['effect_size']
                     }
                 }
             }
@@ -706,8 +754,10 @@ class SignificanceTester:
             "Statistical Tests:",
             f"  Baseline→Targeted: p={corr_tri['comparisons']['baseline_vs_targeted']['p_value']:.2e} "
             f"{'(SIGNIFICANT)' if corr_tri['comparisons']['baseline_vs_targeted']['significant'] else '(not significant)'}",
-            f"  Targeted vs Control: p={corr_tri['comparisons']['targeted_vs_control']['p_value']:.2e} "
-            f"{'(SIGNIFICANT)' if corr_tri['comparisons']['targeted_vs_control']['significant'] else '(not significant)'}",
+            f"  Zero-disc→Targeted: p={corr_tri['comparisons']['zero_disc_vs_targeted']['p_value']:.2e} "
+            f"{'(SIGNIFICANT)' if corr_tri['comparisons']['zero_disc_vs_targeted']['significant'] else '(not significant)'}",
+            f"  Baseline→Zero-disc: p={corr_tri['comparisons']['baseline_vs_zero_disc']['p_value']:.2e} "
+            f"{'(SIGNIFICANT)' if corr_tri['comparisons']['baseline_vs_zero_disc']['significant'] else '(not significant)'}",
             "",
             f"Interpretation: {results['interpretation']['detailed_findings']['correction']}",
             "",
@@ -724,8 +774,10 @@ class SignificanceTester:
             "Statistical Tests:",
             f"  Baseline→Targeted: p={corr_tri['comparisons']['baseline_vs_targeted']['p_value']:.2e} "
             f"{'(SIGNIFICANT)' if corr_tri['comparisons']['baseline_vs_targeted']['significant'] else '(not significant)'}",
-            f"  Targeted vs Control: p={corr_tri['comparisons']['targeted_vs_control']['p_value']:.2e} "
-            f"{'(SIGNIFICANT)' if corr_tri['comparisons']['targeted_vs_control']['significant'] else '(not significant)'}",
+            f"  Zero-disc→Targeted: p={corr_tri['comparisons']['zero_disc_vs_targeted']['p_value']:.2e} "
+            f"{'(SIGNIFICANT)' if corr_tri['comparisons']['zero_disc_vs_targeted']['significant'] else '(not significant)'}",
+            f"  Baseline→Zero-disc: p={corr_tri['comparisons']['baseline_vs_zero_disc']['p_value']:.2e} "
+            f"{'(SIGNIFICANT)' if corr_tri['comparisons']['baseline_vs_zero_disc']['significant'] else '(not significant)'}",
             "",
             f"Interpretation: {results['interpretation']['detailed_findings']['corruption']}",
             "",
@@ -742,8 +794,10 @@ class SignificanceTester:
             "Statistical Tests:",
             f"  Baseline→Targeted: p={pres_tri['comparisons']['baseline_vs_targeted']['p_value']:.2e} "
             f"{'(SIGNIFICANT)' if pres_tri['comparisons']['baseline_vs_targeted']['significant'] else '(not significant)'}",
-            f"  Targeted vs Control: p={pres_tri['comparisons']['targeted_vs_control']['p_value']:.2e} "
-            f"{'(SIGNIFICANT)' if pres_tri['comparisons']['targeted_vs_control']['significant'] else '(not significant)'}",
+            f"  Zero-disc→Targeted: p={pres_tri['comparisons']['zero_disc_vs_targeted']['p_value']:.2e} "
+            f"{'(SIGNIFICANT)' if pres_tri['comparisons']['zero_disc_vs_targeted']['significant'] else '(not significant)'}",
+            f"  Baseline→Zero-disc: p={pres_tri['comparisons']['baseline_vs_zero_disc']['p_value']:.2e} "
+            f"{'(SIGNIFICANT)' if pres_tri['comparisons']['baseline_vs_zero_disc']['significant'] else '(not significant)'}",
             "",
             f"Interpretation: {results['interpretation']['detailed_findings']['preservation']}",
             "",

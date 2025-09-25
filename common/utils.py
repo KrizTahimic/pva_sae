@@ -320,7 +320,7 @@ PHASE_CONFIGS = {
     },
     "2.10": {  # Phase 2.10 - T-Statistic Feature Selection
         "dir": "data/phase2_10",
-        "patterns": ["best_layer.json", "sae_analysis_results.json", "top_20_features.json"],
+        "patterns": ["sae_analysis_results.json", "top_20_features.json"],
         "exclude_keywords": None
     },
     "3": {
@@ -407,6 +407,11 @@ PHASE_CONFIGS = {
         "dir": "data/phase7_6",
         "patterns": ["steering_effect_analysis.json", "phase_7_6_summary.json"],
         "exclude_keywords": None
+    },
+    "7.12": {
+        "dir": "data/phase7_12",
+        "patterns": ["evaluation_results.json", "evaluation_summary.txt"],
+        "exclude_keywords": None
     }
 }
 
@@ -416,7 +421,7 @@ def get_phase_dir(phase: str) -> str:
     Get the directory path for a given phase.
     
     Args:
-        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8", "3.10", "3.12", "4.5", "4.8", "4.10", "4.12", "4.14", "5.3", "5.6", "5.9", "6.3", "7.3", "7.6")
+        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8", "3.10", "3.12", "4.5", "4.8", "4.10", "4.12", "4.14", "5.3", "5.6", "5.9", "6.3", "7.3", "7.6", "7.12")
         
     Returns:
         str: Directory path for the phase
@@ -444,7 +449,7 @@ def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None) ->
     Discover the latest output file from any phase.
     
     Args:
-        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8", "3.10", "3.12", "4.5", "4.8", "4.10", "4.12", "4.14", "5.3", "5.6", "5.9", "6.3", "7.3", "7.6")
+        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8", "3.10", "3.12", "4.5", "4.8", "4.10", "4.12", "4.14", "5.3", "5.6", "5.9", "6.3", "7.3", "7.6", "7.12")
         phase_dir: Optional override for phase directory
         
     Returns:

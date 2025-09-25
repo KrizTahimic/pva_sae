@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """
-Single entry point for all PVA-SAE thesis phases.
 
 Usage:
     python3 run.py phase 0                                      # Difficulty analysis
@@ -39,7 +38,7 @@ from common.utils import get_phase_dir
 def setup_argument_parser():
     """Setup command line argument parser with phase-specific argument groups"""
     parser = ArgumentParser(
-        description="Run PVA-SAE thesis phases",
+        description="Run phases",
         formatter_class=ArgumentDefaultsHelpFormatter
     )
     
@@ -92,8 +91,8 @@ def setup_argument_parser():
     phase_parser.add_argument(
         'phase',
         type=float,
-        choices=[0, 0.1, 1, 2.2, 2.5, 2.10, 3, 3.5, 3.6, 3.8, 3.10, 3.12, 4.5, 4.6, 4.8, 4.10, 4.12, 4.14, 5.3, 5.6, 5.9, 6.3, 7.3, 7.6],
-        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 2.10=T-Statistic Latent Selection, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.6=Golden Section Search Coefficient Refinement, 4.8=Steering Effect Analysis, 4.10=Zero-Discrimination Feature Selection, 4.12=Zero-Discrimination Steering Generation, 4.14=Statistical Significance Testing, 5.3=Weight Orthogonalization, 5.6=Zero-Discrimination Weight Orthogonalization, 5.9=Weight Orthogonalization Statistical Significance, 6.3=Attention Pattern Analysis, 7.3=Instruction-Tuned Model Baseline, 7.6=Instruction-Tuned Model Steering Analysis'
+        choices=[0, 0.1, 1, 2.2, 2.5, 2.10, 3, 3.5, 3.6, 3.8, 3.10, 3.11, 3.12, 4.5, 4.6, 4.8, 4.10, 4.12, 4.14, 5.3, 5.6, 5.9, 6.3, 7.3, 7.6, 7.12],
+        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 2.10=T-Statistic Latent Selection, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.11=Temperature Trends Visualization Update, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.6=Golden Section Search Coefficient Refinement, 4.8=Steering Effect Analysis, 4.10=Zero-Discrimination Feature Selection, 4.12=Zero-Discrimination Steering Generation, 4.14=Statistical Significance Testing, 5.3=Weight Orthogonalization, 5.6=Zero-Discrimination Weight Orthogonalization, 5.9=Weight Orthogonalization Statistical Significance, 6.3=Attention Pattern Analysis, 7.3=Instruction-Tuned Model Baseline, 7.6=Instruction-Tuned Model Steering Analysis, 7.12=Instruction-Tuned Model AUROC/F1 Evaluation'
     )
     
     # Global arguments (add to phase parser)
@@ -601,11 +600,57 @@ def run_phase7_6(config: Config, logger, device: str):
     logger.info("\n✅ Phase 7.6 completed successfully")
 
 
+def run_phase7_12(config: Config, logger, device: str):
+    """Run Phase 7.12: AUROC and F1 Evaluation for Instruction-Tuned Model"""
+    import sys
+    from pathlib import Path
+
+    logger.info("Starting Phase 7.12: AUROC and F1 Evaluation for Instruction-Tuned Model")
+    logger.info("This phase evaluates PVA features on instruction-tuned model outputs from Phase 7.3")
+
+    # Log configuration
+    logger.info("\n" + config.dump(phase="7.12"))
+
+    # Set up sys.argv for the instruct_auroc_f1_evaluator script
+    original_argv = sys.argv.copy()
+
+    try:
+        # Build new argv
+        sys.argv = ["instruct_auroc_f1_evaluator.py"]
+
+        # Add optional arguments if provided
+        if hasattr(config, '_input_file') and config._input_file:
+            input_path = Path(config._input_file)
+            if "phase0_1" in str(input_path):
+                sys.argv.extend(["--phase0-1-dir", str(input_path.parent)])
+            elif "phase7_3" in str(input_path):
+                sys.argv.extend(["--phase7-3-dir", str(input_path.parent)])
+            else:
+                logger.warning(f"Input file {input_path} not recognized as Phase 0.1 or 7.3 output")
+
+        # Use standard phase output directory
+        output_dir = get_phase_dir('7.12')
+        sys.argv.extend(["--output-dir", output_dir])
+
+        logger.info(f"Running Phase 7.12 evaluator with args: {sys.argv[1:]}")
+
+        # Import and run the main function directly
+        from phase7_12.instruct_auroc_f1_evaluator import main
+        main()
+
+        logger.info("\n✅ Phase 7.12 completed successfully")
+        logger.info(f"Results saved to: {output_dir}")
+
+    finally:
+        # Restore original argv
+        sys.argv = original_argv
+
+
 def run_phase3_8(config: Config, logger, device: str):
     """Run Phase 3.8: AUROC and F1 Evaluation"""
     import sys
     from pathlib import Path
-    
+
     logger.info("Starting Phase 3.8: AUROC and F1 Evaluation for PVA-SAE")
     logger.info("This phase evaluates bidirectional SAE features using AUROC and F1 metrics")
     
@@ -651,19 +696,37 @@ def run_phase3_8(config: Config, logger, device: str):
 def run_phase3_10(config: Config, logger, device: str):
     """Run Phase 3.10: Temperature-Based AUROC Analysis"""
     from phase3_10_temperature_auroc_f1.temperature_evaluator import TemperatureAUROCEvaluator
-    
+
     logger.info("Starting Phase 3.10: Temperature-Based AUROC Analysis")
     logger.info("Using per-sample analysis (no aggregation)")
-    
+
     # Log configuration
     logger.info("\n" + config.dump(phase="3.10"))
-    
+
     # Create and run evaluator
     evaluator = TemperatureAUROCEvaluator(config)
     results = evaluator.run()
-    
+
     logger.info("\n✅ Phase 3.10 completed successfully")
     logger.info(f"Results saved to: {config.phase3_10_output_dir}")
+
+
+def run_phase3_11(config: Config, logger, device: str):
+    """Run Phase 3.11: Temperature Trends Visualization Update"""
+    from phase3_11_temperature_trends_updated.temperature_trends_visualizer import TemperatureTrendsVisualizer
+
+    logger.info("Starting Phase 3.11: Temperature Trends Visualization Update")
+    logger.info("Updating legend terminology: 'preferring' → 'predicting'")
+
+    # Log configuration
+    logger.info("\n" + config.dump(phase="3.11"))
+
+    # Create and run visualizer
+    visualizer = TemperatureTrendsVisualizer(config)
+    visualizer.run()
+
+    logger.info("\n✅ Phase 3.11 completed successfully")
+    logger.info(f"Results saved to: {config.phase3_11_output_dir}")
 
 
 def run_phase3_12(config: Config, logger, device: str):
@@ -1475,6 +1538,8 @@ def main():
         # Handle special cases like 3.10 which would become "3.1" with str()
         if args.phase == 3.10:
             phase_str = "3.10"
+        elif args.phase == 3.11:
+            phase_str = "3.11"
         elif args.phase == 3.12:
             phase_str = "3.12"
         else:
@@ -1538,6 +1603,8 @@ def main():
         # Use the properly formatted phase_str we created earlier
         if args.phase == 3.10:
             phase_str_for_config = "3.10"
+        elif args.phase == 3.11:
+            phase_str_for_config = "3.11"
         elif args.phase == 3.12:
             phase_str_for_config = "3.12"
         else:
@@ -1612,6 +1679,7 @@ def main():
             3.6: "Hyperparameter Tuning Set Processing",
             3.8: "AUROC and F1 Evaluation",
             3.10: "Temperature-Based AUROC Analysis",
+            3.11: "Temperature Trends Visualization Update",
             3.12: "Difficulty-Based AUROC Analysis",
             4.5: "Steering Coefficient Selection",
             4.6: "Golden Section Search Coefficient Refinement",
@@ -1624,7 +1692,8 @@ def main():
             5.9: "Weight Orthogonalization Statistical Significance",
             6.3: "Attention Pattern Analysis",
             7.3: "Instruction-Tuned Model Baseline",
-            7.6: "Instruction-Tuned Model Steering Analysis"
+            7.6: "Instruction-Tuned Model Steering Analysis",
+            7.12: "Instruction-Tuned Model AUROC/F1 Evaluation"
         }
         
         print(f"\n{'='*60}")
@@ -1636,6 +1705,9 @@ def main():
         elif abs(args.phase - 3.1) < 0.01:
             display_phase = "3.10"
             phase_key = 3.10
+        elif abs(args.phase - 3.11) < 0.01:
+            display_phase = "3.11"
+            phase_key = 3.11
         elif abs(args.phase - 3.12) < 0.01:
             display_phase = "3.12"
             phase_key = 3.12
@@ -1670,6 +1742,8 @@ def main():
                 run_phase3_8(config, logger, device)
             elif args.phase == 3.10:
                 run_phase3_10(config, logger, device)
+            elif args.phase == 3.11:
+                run_phase3_11(config, logger, device)
             elif args.phase == 3.12:
                 run_phase3_12(config, logger, device)
             elif args.phase == 4.5:
@@ -1696,7 +1770,9 @@ def main():
                 run_phase7_3(config, logger, device)
             elif args.phase == 7.6:
                 run_phase7_6(config, logger, device)
-            
+            elif args.phase == 7.12:
+                run_phase7_12(config, logger, device)
+
             print(f"✅ Phase {args.phase} completed successfully!")
             
         except Exception as e:

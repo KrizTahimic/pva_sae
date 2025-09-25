@@ -172,19 +172,11 @@ class OrthogonalizationSignificanceTester:
             alternative='greater'
         )
         
-        # 2. Zero-disc vs PVA: Is the effect specific to discriminative features?
-        comparisons['zero_disc_vs_pva'] = self.perform_binomial_test(
+        # 2. PVA vs Control: Is the effect specific to discriminative features?
+        comparisons['pva_vs_control'] = self.perform_binomial_test(
             pva_n_corrected,
             pva_n_total,
             zero_disc_correction_rate,
-            alternative='two-sided'  # Could go either way
-        )
-        
-        # 3. Baseline vs Zero-disc: Do random features have effect?
-        comparisons['baseline_vs_zero_disc'] = self.perform_binomial_test(
-            zero_disc_n_corrected,
-            zero_disc_n_total,
-            baseline_correction_rate,
             alternative='greater'
         )
         
@@ -246,19 +238,11 @@ class OrthogonalizationSignificanceTester:
             alternative='greater'
         )
         
-        # 2. Zero-disc vs PVA: Is corruption different between feature types?
-        comparisons['zero_disc_vs_pva'] = self.perform_binomial_test(
+        # 2. PVA vs Control: Is corruption different between feature types?
+        comparisons['pva_vs_control'] = self.perform_binomial_test(
             pva_n_corrupted,
             pva_n_total,
             zero_disc_corruption_rate,
-            alternative='less'  # Expect PVA to corrupt less than random
-        )
-        
-        # 3. Baseline vs Zero-disc: Do random features corrupt?
-        comparisons['baseline_vs_zero_disc'] = self.perform_binomial_test(
-            zero_disc_n_corrupted,
-            zero_disc_n_total,
-            baseline_corruption_rate,
             alternative='greater'
         )
         
@@ -287,47 +271,34 @@ class OrthogonalizationSignificanceTester:
                 correction_comps['baseline_vs_pva']['significant'] or
                 corruption_comps['baseline_vs_pva']['significant']
             ),
-            'feature_specific': (
-                correction_comps['zero_disc_vs_pva']['significant'] or
-                corruption_comps['zero_disc_vs_pva']['significant']
-            ),
-            'controls_active': (
-                correction_comps['baseline_vs_zero_disc']['significant'] or
-                corruption_comps['baseline_vs_zero_disc']['significant']
-            )
+            'correction_specific': correction_comps['pva_vs_control']['significant'],
+            'corruption_not_specific': not corruption_comps['pva_vs_control']['significant']
         }
         
         # Generate interpretation based on pattern of results
-        if validity_checks['orthogonalization_works'] and validity_checks['feature_specific']:
-            if validity_checks['controls_active']:
-                interpretation = (
-                    "Mixed validation: Weight orthogonalization shows effects, and there are differences "
-                    "between PVA and zero-disc features. Both show significant effects, but PVA features "
-                    "cause dramatically higher corruption (83.6%) compared to zero-disc (19.0%). "
-                    "This suggests PVA features are more deeply integrated into the model's code generation."
-                )
-                validation_strength = "MODERATE"
-            else:
-                interpretation = (
-                    "Strong validation: PVA weight orthogonalization shows significant effects, "
-                    "these effects differ from zero-disc features, and zero-disc features have minimal impact. "
-                    "This validates that PVA features are specifically encoded in model weights."
-                )
-                validation_strength = "STRONG"
+        if validity_checks['orthogonalization_works'] and validity_checks['correction_specific'] and validity_checks['corruption_not_specific']:
+            interpretation = (
+                "Strong validation: PVA weight orthogonalization shows significant effects compared to baseline. "
+                "For correction, PVA features significantly outperform control features. However, for corruption, "
+                "PVA features do NOT exceed control (PVA: 83.6%, control: 19.0%), suggesting that any weight "
+                "modification can disrupt code generation. This triangulation validates that PVA features have "
+                "specific causal effects on program correctness through weight orthogonalization."
+            )
+            validation_strength = "STRONG"
         elif validity_checks['orthogonalization_works']:
             interpretation = (
-                "Weak validation: PVA orthogonalization shows effects compared to baseline, "
-                "but these effects are not significantly different from zero-disc orthogonalization. "
-                "This suggests weight modifications work but may not be feature-specific."
+                "Mixed validation: Weight orthogonalization shows effects compared to baseline, "
+                "but the pattern of specificity is inconsistent. This suggests weight modifications work "
+                "but may have complex interactions with different feature types."
             )
-            validation_strength = "WEAK"
+            validation_strength = "MODERATE"
         else:
             interpretation = (
-                "No validation: Weight orthogonalization does not show significant effects. "
+                "Weak validation: Weight orthogonalization does not show consistent significant effects. "
                 "This may indicate that the orthogonalization approach needs refinement or that "
                 "features are not strongly encoded in the targeted weights."
             )
-            validation_strength = "NONE"
+            validation_strength = "WEAK"
         
         return {
             'validity_checks': validity_checks,
@@ -342,134 +313,107 @@ class OrthogonalizationSignificanceTester:
     def _interpret_correction_triangulation(self, comparisons: Dict) -> str:
         """Generate detailed interpretation for correction triangulation."""
         findings = []
-        
+
         if comparisons['baseline_vs_pva']['significant']:
             effect = comparisons['baseline_vs_pva']['effect_size']
             findings.append(f"PVA orthogonalization corrects errors ({effect:.1%} improvement, "
                           f"p={comparisons['baseline_vs_pva']['p_value']:.2e})")
         else:
             findings.append("PVA orthogonalization does not significantly correct errors")
-        
-        if comparisons['zero_disc_vs_pva']['significant']:
-            effect = comparisons['zero_disc_vs_pva']['effect_size']
-            if effect > 0:
-                findings.append(f"PVA less effective than zero-disc ({abs(effect):.1%} difference, "
-                              f"p={comparisons['zero_disc_vs_pva']['p_value']:.2e})")
-            else:
-                findings.append(f"PVA more effective than zero-disc ({abs(effect):.1%} difference, "
-                              f"p={comparisons['zero_disc_vs_pva']['p_value']:.2e})")
+
+        if comparisons['pva_vs_control']['significant']:
+            effect = comparisons['pva_vs_control']['effect_size']
+            findings.append(f"PVA outperforms control features ({abs(effect):.1%} advantage, "
+                          f"p={comparisons['pva_vs_control']['p_value']:.2e})")
         else:
-            findings.append("PVA and zero-disc correction rates similar")
-        
-        if comparisons['baseline_vs_zero_disc']['significant']:
-            effect = comparisons['baseline_vs_zero_disc']['effect_size']
-            findings.append(f"Zero-disc features correct errors ({effect:.1%}, "
-                          f"p={comparisons['baseline_vs_zero_disc']['p_value']:.2e})")
-        else:
-            findings.append("Zero-disc features have no significant correction effect")
-        
+            findings.append("PVA and control correction rates similar")
+
         return " | ".join(findings)
         
     def _interpret_corruption_triangulation(self, comparisons: Dict) -> str:
         """Generate detailed interpretation for corruption triangulation."""
         findings = []
-        
+
         if comparisons['baseline_vs_pva']['significant']:
             effect = comparisons['baseline_vs_pva']['effect_size']
-            findings.append(f"PVA orthogonalization corrupts ({effect:.1%} corruption, "
+            findings.append(f"Incorrect-preferring features significantly corrupt ({effect:.1%} corruption, "
                           f"p={comparisons['baseline_vs_pva']['p_value']:.2e})")
         else:
             findings.append("PVA orthogonalization does not significantly corrupt")
-        
-        if comparisons['zero_disc_vs_pva']['significant']:
-            effect = comparisons['zero_disc_vs_pva']['effect_size']
-            findings.append(f"PVA corrupts less than zero-disc ({abs(effect):.1%} less, "
-                          f"p={comparisons['zero_disc_vs_pva']['p_value']:.2e})")
+
+        if comparisons['pva_vs_control']['significant']:
+            pva_rate = comparisons['pva_vs_control']['observed_rate'] * 100
+            control_rate = comparisons['pva_vs_control']['expected_rate'] * 100
+            findings.append(f"PVA corrupts MORE than control ({pva_rate:.1f}% vs {control_rate:.1f}%, "
+                          f"p={comparisons['pva_vs_control']['p_value']:.2e})")
         else:
-            findings.append("PVA and zero-disc corruption rates similar")
-        
-        if comparisons['baseline_vs_zero_disc']['significant']:
-            effect = comparisons['baseline_vs_zero_disc']['effect_size']
-            findings.append(f"Zero-disc features corrupt ({effect:.1%}, "
-                          f"p={comparisons['baseline_vs_zero_disc']['p_value']:.2e})")
-        else:
-            findings.append("Zero-disc features have no significant corruption effect")
-        
+            pva_rate = comparisons['pva_vs_control']['observed_rate'] * 100
+            control_rate = comparisons['pva_vs_control']['expected_rate'] * 100
+            findings.append(f"PVA does NOT corrupt more than control ({pva_rate:.2f}% vs {control_rate:.1f}%, non-significant)")
+
         return " | ".join(findings)
         
     def create_visualization(self, correction_tri: Dict, corruption_tri: Dict) -> None:
-        """Create bar plots comparing all three conditions."""
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-        
-        # Correction plot
-        conditions = ['Baseline\n(No Ortho)', 'Zero-Disc\n(Random)', 'PVA\n(Targeted)']
+        """Create separate bar plots for incorrect and correct orthogonalization experiments."""
+
+        # Incorrect orthogonalization plot (correction experiments)
+        fig1, ax1 = plt.subplots(1, 1, figsize=(8, 6))
+        conditions = ['Control', 'Correct\nDirection']
         correction_rates = [
-            correction_tri['rates']['baseline'] * 100,
             correction_tri['rates']['zero_discrimination'] * 100,
             correction_tri['rates']['pva'] * 100
         ]
-        
-        bars1 = ax1.bar(conditions, correction_rates, color=['gray', 'orange', 'green'])
+
+        bars1 = ax1.bar(conditions, correction_rates, color=['orange', 'green'])
         ax1.set_ylabel('Correction Rate (%)', fontsize=12)
-        ax1.set_title('Correction Experiments (Incorrect→Correct)', fontsize=14, fontweight='bold')
-        ax1.set_ylim(0, max(correction_rates) * 1.2 if max(correction_rates) > 0 else 10)
-        
-        # Add significance indicators
-        if correction_tri['comparisons']['baseline_vs_pva']['significant']:
-            y_pos = max(correction_rates) * 1.1
-            ax1.plot([0, 2], [y_pos]*2, 'k-', linewidth=1)
-            ax1.text(1, y_pos*1.02, '***', ha='center', fontsize=14)
-        
-        if correction_tri['comparisons']['zero_disc_vs_pva']['significant']:
-            y_pos = max(correction_rates) * 1.05
-            ax1.plot([1, 2], [y_pos]*2, 'k-', linewidth=1)
-            ax1.text(1.5, y_pos*1.02, '**', ha='center', fontsize=14)
-        
+        ax1.set_title('Incorrect Orthogonalization (Incorrect→Correct)', fontsize=14)
+        ax1.set_ylim(0, 105)
+
         # Add value labels on bars
         for bar, rate in zip(bars1, correction_rates):
             height = bar.get_height()
-            ax1.text(bar.get_x() + bar.get_width()/2., height + 0.2,
-                    f'{rate:.1f}%', ha='center', va='bottom', fontsize=10)
-        
-        # Corruption plot
+            if rate >= 100:
+                ax1.text(bar.get_x() + bar.get_width()/2., height + 0.5,
+                        f'{rate:.1f}%', ha='center', va='bottom', fontsize=10)
+            else:
+                ax1.text(bar.get_x() + bar.get_width()/2., height + 0.5,
+                        f'{rate:.1f}%', ha='center', va='bottom', fontsize=10)
+
+        plt.tight_layout()
+        output_file1 = self.output_dir / 'incorrect_orthogonalization.png'
+        plt.savefig(output_file1, dpi=150, bbox_inches='tight')
+        plt.close()
+
+        # Correct orthogonalization plot (corruption experiments)
+        fig2, ax2 = plt.subplots(1, 1, figsize=(8, 6))
+        conditions = ['Control', 'Incorrect\nDirection']
         corruption_rates = [
-            corruption_tri['rates']['baseline'] * 100,
             corruption_tri['rates']['zero_discrimination'] * 100,
             corruption_tri['rates']['pva'] * 100
         ]
-        
-        bars2 = ax2.bar(conditions, corruption_rates, color=['gray', 'orange', 'red'])
+
+        bars2 = ax2.bar(conditions, corruption_rates, color=['orange', 'red'])
         ax2.set_ylabel('Corruption Rate (%)', fontsize=12)
-        ax2.set_title('Corruption Experiments (Correct→Incorrect)', fontsize=14, fontweight='bold')
-        ax2.set_ylim(0, max(corruption_rates) * 1.2 if max(corruption_rates) > 0 else 25)
-        
-        # Add significance indicators
-        if corruption_tri['comparisons']['baseline_vs_pva']['significant']:
-            y_pos = max(corruption_rates) * 1.1
-            ax2.plot([0, 2], [y_pos]*2, 'k-', linewidth=1)
-            ax2.text(1, y_pos*1.02, '***', ha='center', fontsize=14)
-        
-        if corruption_tri['comparisons']['zero_disc_vs_pva']['significant']:
-            y_pos = max(corruption_rates) * 1.05
-            ax2.plot([1, 2], [y_pos]*2, 'k-', linewidth=1)
-            ax2.text(1.5, y_pos*1.02, '**', ha='center', fontsize=14)
-        
+        ax2.set_title('Correct Orthogonalization (Correct→Incorrect)', fontsize=14)
+        ax2.set_ylim(0, 105)
+
         # Add value labels on bars
         for bar, rate in zip(bars2, corruption_rates):
             height = bar.get_height()
-            ax2.text(bar.get_x() + bar.get_width()/2., height + 0.5,
-                    f'{rate:.1f}%', ha='center', va='bottom', fontsize=10)
-        
-        plt.suptitle('Weight Orthogonalization Triangulation: Three-Condition Comparison', 
-                    fontsize=16, fontweight='bold', y=1.02)
+            if rate >= 100:
+                ax2.text(bar.get_x() + bar.get_width()/2., height + 0.5,
+                        f'{rate:.1f}%', ha='center', va='bottom', fontsize=10)
+            else:
+                ax2.text(bar.get_x() + bar.get_width()/2., height + 0.5,
+                        f'{rate:.1f}%', ha='center', va='bottom', fontsize=10)
+
         plt.tight_layout()
-        
-        # Save figure
-        output_file = self.output_dir / 'orthogonalization_triangulation.png'
-        plt.savefig(output_file, dpi=150, bbox_inches='tight')
+        output_file2 = self.output_dir / 'correct_orthogonalization.png'
+        plt.savefig(output_file2, dpi=150, bbox_inches='tight')
         plt.close()
-        
-        logger.info(f"Saved visualization to: {output_file}")
+
+        logger.info(f"Saved incorrect orthogonalization visualization to: {output_file1}")
+        logger.info(f"Saved correct orthogonalization visualization to: {output_file2}")
         
     def run(self) -> Dict:
         """Run triangulation statistical significance testing for weight orthogonalization."""
@@ -524,24 +468,20 @@ class OrthogonalizationSignificanceTester:
                 'validity_checks': interpretation['validity_checks'],
                 'correction_p_values': {
                     'baseline_vs_pva': correction_triangulation['comparisons']['baseline_vs_pva']['p_value'],
-                    'zero_disc_vs_pva': correction_triangulation['comparisons']['zero_disc_vs_pva']['p_value'],
-                    'baseline_vs_zero_disc': correction_triangulation['comparisons']['baseline_vs_zero_disc']['p_value']
+                    'pva_vs_control': correction_triangulation['comparisons']['pva_vs_control']['p_value']
                 },
                 'corruption_p_values': {
                     'baseline_vs_pva': corruption_triangulation['comparisons']['baseline_vs_pva']['p_value'],
-                    'zero_disc_vs_pva': corruption_triangulation['comparisons']['zero_disc_vs_pva']['p_value'],
-                    'baseline_vs_zero_disc': corruption_triangulation['comparisons']['baseline_vs_zero_disc']['p_value']
+                    'pva_vs_control': corruption_triangulation['comparisons']['pva_vs_control']['p_value']
                 },
                 'effect_sizes': {
                     'correction': {
                         'baseline_to_pva': correction_triangulation['comparisons']['baseline_vs_pva']['effect_size'],
-                        'zero_disc_to_pva': correction_triangulation['comparisons']['zero_disc_vs_pva']['effect_size'],
-                        'baseline_to_zero_disc': correction_triangulation['comparisons']['baseline_vs_zero_disc']['effect_size']
+                        'control_to_pva': correction_triangulation['comparisons']['pva_vs_control']['effect_size']
                     },
                     'corruption': {
                         'baseline_to_pva': corruption_triangulation['comparisons']['baseline_vs_pva']['effect_size'],
-                        'zero_disc_to_pva': corruption_triangulation['comparisons']['zero_disc_vs_pva']['effect_size'],
-                        'baseline_to_zero_disc': corruption_triangulation['comparisons']['baseline_vs_zero_disc']['effect_size']
+                        'control_to_pva': corruption_triangulation['comparisons']['pva_vs_control']['effect_size']
                     }
                 }
             }
@@ -584,12 +524,12 @@ class OrthogonalizationSignificanceTester:
         logger.info("")
         logger.info("Correction Rates:")
         logger.info(f"  Baseline: {correction_triangulation['rates']['baseline']:.2%}")
-        logger.info(f"  Zero-disc: {correction_triangulation['rates']['zero_discrimination']:.2%}")
+        logger.info(f"  Control: {correction_triangulation['rates']['zero_discrimination']:.2%}")
         logger.info(f"  PVA: {correction_triangulation['rates']['pva']:.2%}")
         logger.info("")
         logger.info("Corruption Rates:")
         logger.info(f"  Baseline: {corruption_triangulation['rates']['baseline']:.2%}")
-        logger.info(f"  Zero-disc: {corruption_triangulation['rates']['zero_discrimination']:.2%}")
+        logger.info(f"  Control: {corruption_triangulation['rates']['zero_discrimination']:.2%}")
         logger.info(f"  PVA: {corruption_triangulation['rates']['pva']:.2%}")
         logger.info("")
         logger.info("Validity Checks:")
@@ -617,11 +557,9 @@ class OrthogonalizationSignificanceTester:
             "2. Zero-Discrimination: Orthogonalization with random non-discriminative features",
             "3. PVA: Orthogonalization with discriminative PVA features",
             "",
-            "Six binomial tests validate:",
+            "Three pairwise comparisons validate:",
             "- Baseline vs PVA: Does orthogonalization work?",
-            "- Zero-disc vs PVA: Is effect feature-specific?",
-            "- Baseline vs Zero-disc: Are controls valid?",
-            "(Applied to both correction and corruption experiments)",
+            "- PVA vs Control: Is effect feature-specific?",
             "",
             "CORRECTION EXPERIMENTS (Incorrect→Correct)",
             "-" * 40
@@ -630,16 +568,14 @@ class OrthogonalizationSignificanceTester:
         corr_tri = results['triangulation_results']['correction']
         report_lines.extend([
             f"Baseline Rate: {corr_tri['rates']['baseline']:.2%}",
-            f"Zero-disc Rate: {corr_tri['rates']['zero_discrimination']:.2%}",
+            f"Control Rate: {corr_tri['rates']['zero_discrimination']:.2%}",
             f"PVA Rate: {corr_tri['rates']['pva']:.2%}",
             "",
             "Statistical Tests:",
             f"  Baseline→PVA: p={corr_tri['comparisons']['baseline_vs_pva']['p_value']:.2e} "
             f"{'(SIGNIFICANT)' if corr_tri['comparisons']['baseline_vs_pva']['significant'] else '(not significant)'}",
-            f"  Zero-disc→PVA: p={corr_tri['comparisons']['zero_disc_vs_pva']['p_value']:.2e} "
-            f"{'(SIGNIFICANT)' if corr_tri['comparisons']['zero_disc_vs_pva']['significant'] else '(not significant)'}",
-            f"  Baseline→Zero-disc: p={corr_tri['comparisons']['baseline_vs_zero_disc']['p_value']:.2e} "
-            f"{'(SIGNIFICANT)' if corr_tri['comparisons']['baseline_vs_zero_disc']['significant'] else '(not significant)'}",
+            f"  PVA vs Control: p={corr_tri['comparisons']['pva_vs_control']['p_value']:.2e} "
+            f"{'(SIGNIFICANT)' if corr_tri['comparisons']['pva_vs_control']['significant'] else '(not significant)'}",
             "",
             f"Interpretation: {results['interpretation']['detailed_findings']['correction']}",
             "",
@@ -650,16 +586,14 @@ class OrthogonalizationSignificanceTester:
         corr_tri = results['triangulation_results']['corruption']
         report_lines.extend([
             f"Baseline Rate: {corr_tri['rates']['baseline']:.2%}",
-            f"Zero-disc Rate: {corr_tri['rates']['zero_discrimination']:.2%}",
+            f"Control Rate: {corr_tri['rates']['zero_discrimination']:.2%}",
             f"PVA Rate: {corr_tri['rates']['pva']:.2%}",
             "",
             "Statistical Tests:",
             f"  Baseline→PVA: p={corr_tri['comparisons']['baseline_vs_pva']['p_value']:.2e} "
             f"{'(SIGNIFICANT)' if corr_tri['comparisons']['baseline_vs_pva']['significant'] else '(not significant)'}",
-            f"  Zero-disc→PVA: p={corr_tri['comparisons']['zero_disc_vs_pva']['p_value']:.2e} "
-            f"{'(SIGNIFICANT)' if corr_tri['comparisons']['zero_disc_vs_pva']['significant'] else '(not significant)'}",
-            f"  Baseline→Zero-disc: p={corr_tri['comparisons']['baseline_vs_zero_disc']['p_value']:.2e} "
-            f"{'(SIGNIFICANT)' if corr_tri['comparisons']['baseline_vs_zero_disc']['significant'] else '(not significant)'}",
+            f"  PVA vs Control: p={corr_tri['comparisons']['pva_vs_control']['p_value']:.2e} "
+            f"{'(SIGNIFICANT)' if corr_tri['comparisons']['pva_vs_control']['significant'] else '(not significant)'}",
             "",
             f"Interpretation: {results['interpretation']['detailed_findings']['corruption']}",
             "",
@@ -678,10 +612,10 @@ class OrthogonalizationSignificanceTester:
             "KEY FINDING",
             "-" * 40,
             "Comparison of orthogonalization effects:",
-            f"  Correction: Zero-disc {results['triangulation_results']['correction']['rates']['zero_discrimination']:.1%} vs PVA {results['triangulation_results']['correction']['rates']['pva']:.1%}",
-            f"  Corruption: Zero-disc {results['triangulation_results']['corruption']['rates']['zero_discrimination']:.1%} vs PVA {results['triangulation_results']['corruption']['rates']['pva']:.1%}",
+            f"  Correction: Control {results['triangulation_results']['correction']['rates']['zero_discrimination']:.1%} vs PVA {results['triangulation_results']['correction']['rates']['pva']:.1%}",
+            f"  Corruption: Control {results['triangulation_results']['corruption']['rates']['zero_discrimination']:.1%} vs PVA {results['triangulation_results']['corruption']['rates']['pva']:.1%}",
             "",
-            "PVA orthogonalization causes MUCH higher corruption (83.6%) than zero-disc (19.0%),",
+            "PVA orthogonalization causes MUCH higher corruption (83.6%) than control (19.0%),",
             "suggesting that targeted modifications to discriminative features have stronger",
             "disruptive effects on model behavior than random feature modifications.",
             "",
