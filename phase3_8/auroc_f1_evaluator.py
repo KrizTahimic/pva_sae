@@ -1,6 +1,6 @@
 """Phase 3.8: AUROC and F1 Evaluation for PVA-SAE Features.
 
-This script evaluates bidirectional SAE features (correct-preferring and incorrect-preferring)
+This script evaluates bidirectional SAE features (correct-predicting and incorrect-predicting)
 using AUROC and F1 metrics on the validation split from Phase 3.5 data.
 """
 
@@ -18,7 +18,7 @@ import os
 
 from sklearn.metrics import (
     roc_auc_score, f1_score, precision_score, recall_score,
-    confusion_matrix, roc_curve
+    confusion_matrix, roc_curve, precision_recall_curve, auc
 )
 
 from common.logging import get_logger
@@ -30,13 +30,13 @@ logger = get_logger("phase3_8.auroc_f1_evaluator")
 
 
 def calculate_metrics(
-    y_true: np.ndarray, 
-    scores: np.ndarray, 
-    threshold: float, 
-    feature_type: str, 
+    y_true: np.ndarray,
+    scores: np.ndarray,
+    threshold: float,
+    feature_type: str,
     output_dir: Path
 ) -> Dict[str, float]:
-    """Calculate metrics for either correct or incorrect preferring features.
+    """Calculate metrics for either correct or incorrect predicting features.
     
     Args:
         y_true: Ground truth labels
@@ -59,7 +59,7 @@ def calculate_metrics(
     recall = recall_score(y_true, y_pred, zero_division=0)
     f1 = f1_score(y_true, y_pred, zero_division=0)
     
-    logger.info(f"\nMetrics for {feature_type}-preferring feature:")
+    logger.info(f"\nMetrics for {feature_type}-predicting feature:")
     logger.info(f"Precision: {precision:.4f}")
     logger.info(f"Recall: {recall:.4f}")
     logger.info(f"F1 Score: {f1:.4f}")
@@ -108,34 +108,73 @@ def find_optimal_threshold(
     optimal_f1_threshold = thresholds[optimal_idx]
     max_f1_score = f1_scores[optimal_idx]
     
-    # Plot F1 scores against thresholds
-    plt.figure(figsize=(10, 6))
-    plt.plot(thresholds, f1_scores, linewidth=2)
-    plt.xlabel('Threshold')
-    plt.ylabel('F1 Score')
-    plt.title(f'F1 Scores vs Thresholds - {feature_type.capitalize()}-Preferring Feature')
-    plt.grid(True, alpha=0.3)
-    plt.axvline(x=optimal_f1_threshold, color='r', linestyle='--', 
-               label=f'Optimal F1 Threshold: {optimal_f1_threshold:.3f}')
-    plt.axhline(y=max_f1_score, color='g', linestyle='--', 
-               label=f'Max F1 Score: {max_f1_score:.3f}')
-    plt.legend()
-    
-    # Save plot
-    plt.savefig(output_dir / f'f1_threshold_plot_{feature_type}.png', dpi=150, bbox_inches='tight')
-    plt.close()
-    
+    # Store threshold data for later combined plotting
+    # Individual plots will be created after both features are processed
+
     # Evaluate at optimal threshold
-    logger.info(f'\nF1 optimal for {feature_type}-preferring feature:')
+    logger.info(f'\nF1 optimal for {feature_type}-predicting feature:')
     metrics = calculate_metrics(y_true, scores, optimal_f1_threshold, feature_type, output_dir)
+
+    # Return threshold data for combined plotting
+    metrics['threshold_range'] = (float(scores.min()), float(scores.max()))
+    metrics['f1_curve'] = {'thresholds': thresholds.tolist(), 'f1_scores': f1_scores}
     
     return optimal_f1_threshold, metrics
 
 
+def plot_combined_f1_thresholds(
+    correct_metrics: Dict,
+    incorrect_metrics: Dict,
+    output_dir: Path
+) -> None:
+    """Create combined F1 threshold plot for both features (Phase 3.11 style).
+
+    Args:
+        correct_metrics: Metrics dict for correct-predicting feature with f1_curve data
+        incorrect_metrics: Metrics dict for incorrect-predicting feature with f1_curve data
+        output_dir: Directory to save plot
+    """
+    plt.figure(figsize=(10, 6))
+
+    # Extract data
+    correct_thresholds = np.array(correct_metrics['f1_curve']['thresholds'])
+    correct_f1s = np.array(correct_metrics['f1_curve']['f1_scores'])
+    incorrect_thresholds = np.array(incorrect_metrics['f1_curve']['thresholds'])
+    incorrect_f1s = np.array(incorrect_metrics['f1_curve']['f1_scores'])
+
+    # Plot both curves
+    plt.plot(correct_thresholds, correct_f1s, 'b-', linewidth=2, label='Correct-predicting')
+    plt.plot(incorrect_thresholds, incorrect_f1s, 'r-', linewidth=2, label='Incorrect-predicting')
+
+    # Mark optimal points
+    correct_optimal_threshold = correct_metrics['threshold']
+    correct_optimal_f1 = correct_metrics['f1']
+    incorrect_optimal_threshold = incorrect_metrics['threshold']
+    incorrect_optimal_f1 = incorrect_metrics['f1']
+
+    plt.plot(correct_optimal_threshold, correct_optimal_f1, 'bo', markersize=10,
+             label=f'Correct optimal: {correct_optimal_f1:.3f}')
+    plt.plot(incorrect_optimal_threshold, incorrect_optimal_f1, 'rs', markersize=10,
+             label=f'Incorrect optimal: {incorrect_optimal_f1:.3f}')
+
+    plt.xlabel('Threshold')
+    plt.ylabel('F1 Score')
+    plt.title('F1 Score vs Threshold')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+
+    # Save plot
+    plt.savefig(output_dir / 'f1_threshold_plot_combined.png', dpi=150, bbox_inches='tight')
+    plt.close()
+
+    logger.info(f"Saved combined F1 threshold plot to {output_dir / 'f1_threshold_plot_combined.png'}")
+
+
 def plot_confusion_matrix(
-    y_true: np.ndarray, 
-    y_pred: np.ndarray, 
-    feature_type: str, 
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    feature_type: str,
     output_dir: Path
 ) -> None:
     """Plot confusion matrix with appropriate labels for feature type.
@@ -160,7 +199,7 @@ def plot_confusion_matrix(
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                 xticklabels=labels, yticklabels=labels,
                 cbar_kws={'label': 'Count'})
-    plt.title(f'Confusion Matrix - {feature_type.capitalize()}-Preferring Feature')
+    plt.title(f'Confusion Matrix - {feature_type.capitalize()}-Predicting Feature')
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
     
@@ -192,20 +231,20 @@ def plot_comparative_metrics(
     # Extract metrics
     metrics = ['AUROC', 'F1', 'Precision', 'Recall']
     correct_vals = [
-        results['correct_preferring_feature']['validation_metrics']['metrics'][m.lower()]
+        results['correct_predicting_feature']['validation_metrics']['metrics'][m.lower()]
         for m in metrics
     ]
     incorrect_vals = [
-        results['incorrect_preferring_feature']['validation_metrics']['metrics'][m.lower()]
+        results['incorrect_predicting_feature']['validation_metrics']['metrics'][m.lower()]
         for m in metrics
     ]
-    
+
     # Plot bars
     x = np.arange(len(metrics))
     width = 0.35
-    
-    bars1 = ax1.bar(x - width/2, correct_vals, width, label='Correct-Preferring', color='#2ecc71')
-    bars2 = ax1.bar(x + width/2, incorrect_vals, width, label='Incorrect-Preferring', color='#e74c3c')
+
+    bars1 = ax1.bar(x - width/2, correct_vals, width, label='Correct-predicting', color='blue')
+    bars2 = ax1.bar(x + width/2, incorrect_vals, width, label='Incorrect-predicting', color='red')
     
     # Add value labels on bars
     for bars in [bars1, bars2]:
@@ -229,19 +268,19 @@ def plot_comparative_metrics(
     ax2.set_title('ROC Curves')
     ax2.plot([0, 1], [0, 1], 'k--', alpha=0.5, label='Random (AUC = 0.5)')
     
-    # Plot ROC curve for correct-preferring feature if data provided
+    # Plot ROC curve for correct-predicting feature if data provided
     if y_true_val_correct is not None and scores_val_correct is not None:
         fpr_correct, tpr_correct, _ = roc_curve(y_true_val_correct, scores_val_correct)
-        auc_correct = results['correct_preferring_feature']['validation_metrics']['metrics']['auroc']
-        ax2.plot(fpr_correct, tpr_correct, color='#2ecc71', linewidth=2, 
-                label=f'Correct-Preferring (AUC = {auc_correct:.3f})')
-    
-    # Plot ROC curve for incorrect-preferring feature if data provided
+        auc_correct = results['correct_predicting_feature']['validation_metrics']['metrics']['auroc']
+        ax2.plot(fpr_correct, tpr_correct, color='blue', linewidth=2,
+                label=f'Correct-predicting (AUC = {auc_correct:.3f})')
+
+    # Plot ROC curve for incorrect-predicting feature if data provided
     if y_true_val_incorrect is not None and scores_val_incorrect is not None:
         fpr_incorrect, tpr_incorrect, _ = roc_curve(y_true_val_incorrect, scores_val_incorrect)
-        auc_incorrect = results['incorrect_preferring_feature']['validation_metrics']['metrics']['auroc']
-        ax2.plot(fpr_incorrect, tpr_incorrect, color='#e74c3c', linewidth=2,
-                label=f'Incorrect-Preferring (AUC = {auc_incorrect:.3f})')
+        auc_incorrect = results['incorrect_predicting_feature']['validation_metrics']['metrics']['auroc']
+        ax2.plot(fpr_incorrect, tpr_incorrect, color='red', linewidth=2,
+                label=f'Incorrect-predicting (AUC = {auc_incorrect:.3f})')
     
     ax2.legend(loc='lower right')
     ax2.grid(alpha=0.3)
@@ -250,6 +289,60 @@ def plot_comparative_metrics(
     plt.tight_layout()
     plt.savefig(output_dir / 'comparative_metrics.png', dpi=150, bbox_inches='tight')
     plt.close()
+
+
+def plot_precision_recall_curves(
+    output_dir: Path,
+    y_true_val_correct: np.ndarray,
+    scores_val_correct: np.ndarray,
+    y_true_val_incorrect: np.ndarray,
+    scores_val_incorrect: np.ndarray
+) -> None:
+    """Create standalone precision-recall curves figure for both features.
+
+    This generates a single, self-contained plot suitable for inclusion in papers.
+
+    Args:
+        output_dir: Directory to save plot
+        y_true_val_correct: True labels for correct-predicting feature
+        scores_val_correct: Prediction scores for correct-predicting feature
+        y_true_val_incorrect: True labels for incorrect-predicting feature
+        scores_val_incorrect: Prediction scores for incorrect-predicting feature
+    """
+    plt.figure(figsize=(8, 6))
+
+    # Compute and plot PR curve for correct-predicting feature
+    precision_correct, recall_correct, _ = precision_recall_curve(
+        y_true_val_correct, scores_val_correct
+    )
+    ap_correct = auc(recall_correct, precision_correct)
+    plt.plot(recall_correct, precision_correct, 'b-', linewidth=2,
+            label=f'Correct-predicting (AP = {ap_correct:.3f})')
+
+    # Compute and plot PR curve for incorrect-predicting feature
+    precision_incorrect, recall_incorrect, _ = precision_recall_curve(
+        y_true_val_incorrect, scores_val_incorrect
+    )
+    ap_incorrect = auc(recall_incorrect, precision_incorrect)
+    plt.plot(recall_incorrect, precision_incorrect, 'r-', linewidth=2,
+            label=f'Incorrect-predicting (AP = {ap_incorrect:.3f})')
+
+    # Formatting
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.title('Precision-Recall Curves')
+    plt.legend(loc='best')
+    plt.grid(True, alpha=0.3)
+    plt.xlim([0, 1.05])
+    plt.ylim([0, 1.05])
+    plt.tight_layout()
+
+    # Save as standalone PNG
+    output_path = output_dir / 'precision_recall_curves.png'
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+
+    logger.info(f"Saved precision-recall curves to {output_path}")
 
 
 def load_split_activations(
@@ -446,12 +539,12 @@ def main():
     incorrect_layer = best_incorrect['layer']
     incorrect_feature_idx = best_incorrect['feature_idx']
     
-    logger.info(f"Best correct-preferring feature: idx {correct_feature_idx} at layer {correct_layer}")
-    logger.info(f"Best incorrect-preferring feature: idx {incorrect_feature_idx} at layer {incorrect_layer}")
-    
-    # Phase 2: Evaluate Correct-Preferring Feature
+    logger.info(f"Best correct-predicting feature: idx {correct_feature_idx} at layer {correct_layer}")
+    logger.info(f"Best incorrect-predicting feature: idx {incorrect_feature_idx} at layer {incorrect_layer}")
+
+    # Phase 2: Evaluate Correct-Predicting Feature
     logger.info("\n" + "="*60)
-    logger.info("EVALUATING CORRECT-PREFERRING FEATURE")
+    logger.info("EVALUATING CORRECT-PREDICTING FEATURE")
     logger.info("="*60)
     
     # Load hyperparameter split for correct feature
@@ -460,7 +553,7 @@ def main():
         phase0_1_dir, phase3_5_dir, phase3_6_dir
     )
     
-    print(f"\nCorrect-preferring feature (hyperparameter split):")
+    print(f"\nCorrect-predicting feature (hyperparameter split):")
     print(f"Total samples: {len(y_true_hp_correct)}")
     print(f"Positive class (correct code): {sum(y_true_hp_correct == 1)}")
     print(f"Negative class (incorrect code): {sum(y_true_hp_correct == 0)}")
@@ -479,7 +572,7 @@ def main():
         phase0_1_dir, phase3_5_dir, phase3_6_dir
     )
     
-    print(f"\nCorrect-preferring feature (validation split):")
+    print(f"\nCorrect-predicting feature (validation split):")
     print(f"Total samples: {len(y_true_val_correct)}")
     
     # Evaluate on validation set
@@ -491,9 +584,9 @@ def main():
         output_dir
     )
     
-    # Phase 3: Evaluate Incorrect-Preferring Feature
+    # Phase 3: Evaluate Incorrect-Predicting Feature
     logger.info("\n" + "="*60)
-    logger.info("EVALUATING INCORRECT-PREFERRING FEATURE")
+    logger.info("EVALUATING INCORRECT-PREDICTING FEATURE")
     logger.info("="*60)
     
     # Load hyperparameter split for incorrect feature
@@ -502,7 +595,7 @@ def main():
         phase0_1_dir, phase3_5_dir, phase3_6_dir
     )
     
-    print(f"\nIncorrect-preferring feature (hyperparameter split):")
+    print(f"\nIncorrect-predicting feature (hyperparameter split):")
     print(f"Total samples: {len(y_true_hp_incorrect)}")
     print(f"Positive class (incorrect code): {sum(y_true_hp_incorrect == 1)}")
     print(f"Negative class (correct code): {sum(y_true_hp_incorrect == 0)}")
@@ -521,7 +614,7 @@ def main():
         phase0_1_dir, phase3_5_dir, phase3_6_dir
     )
     
-    print(f"\nIncorrect-preferring feature (validation split):")
+    print(f"\nIncorrect-predicting feature (validation split):")
     print(f"Total samples: {len(y_true_val_incorrect)}")
     
     # Evaluate on validation set
@@ -533,15 +626,22 @@ def main():
         output_dir
     )
     
-    # Phase 4: Save Combined Results
+    # Phase 4: Generate Combined F1 Threshold Plot
+    logger.info("\n" + "="*60)
+    logger.info("GENERATING COMBINED F1 THRESHOLD PLOT")
+    logger.info("="*60)
+
+    plot_combined_f1_thresholds(hp_metrics_correct, hp_metrics_incorrect, output_dir)
+
+    # Phase 5: Save Combined Results
     logger.info("\n" + "="*60)
     logger.info("SAVING RESULTS")
     logger.info("="*60)
-    
+
     # Compile results for both features
     results = {
         'phase': '3.8',
-        'correct_preferring_feature': {
+        'correct_predicting_feature': {
             'feature': {
                 'idx': int(correct_feature_idx),
                 'layer': int(correct_layer)
@@ -558,7 +658,7 @@ def main():
                 'metrics': val_metrics_correct
             }
         },
-        'incorrect_preferring_feature': {
+        'incorrect_predicting_feature': {
             'feature': {
                 'idx': int(incorrect_feature_idx),
                 'layer': int(incorrect_layer)
@@ -587,19 +687,30 @@ def main():
         y_true_val_correct, scores_val_correct,
         y_true_val_incorrect, scores_val_incorrect
     )
-    
+
+    # Generate precision-recall curves (standalone figure for paper)
+    logger.info("\n" + "="*60)
+    logger.info("GENERATING PRECISION-RECALL CURVES")
+    logger.info("="*60)
+
+    plot_precision_recall_curves(
+        output_dir,
+        y_true_val_correct, scores_val_correct,
+        y_true_val_incorrect, scores_val_incorrect
+    )
+
     # Generate summary
     summary_lines = [
         "=" * 60,
         "PHASE 3.8 FINAL RESULTS SUMMARY",
         "=" * 60,
-        f"\nCorrect-Preferring Feature (Layer {correct_layer}, Feature {correct_feature_idx}):",
+        f"\nCorrect-Predicting Feature (Layer {correct_layer}, Feature {correct_feature_idx}):",
         f"  Hyperparameter Optimal Threshold: {optimal_threshold_correct:.4f}",
         f"  Validation AUROC: {val_metrics_correct['auroc']:.4f}",
         f"  Validation F1: {val_metrics_correct['f1']:.4f}",
         f"  Validation Precision: {val_metrics_correct['precision']:.4f}",
         f"  Validation Recall: {val_metrics_correct['recall']:.4f}",
-        f"\nIncorrect-Preferring Feature (Layer {incorrect_layer}, Feature {incorrect_feature_idx}):",
+        f"\nIncorrect-Predicting Feature (Layer {incorrect_layer}, Feature {incorrect_feature_idx}):",
         f"  Hyperparameter Optimal Threshold: {optimal_threshold_incorrect:.4f}",
         f"  Validation AUROC: {val_metrics_incorrect['auroc']:.4f}",
         f"  Validation F1: {val_metrics_incorrect['f1']:.4f}",

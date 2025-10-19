@@ -1,0 +1,274 @@
+% !TEX root = main.tex
+
+\chapter{Result and Discussion}
+\label{sec:results}
+
+This chapter presents the results of our mechanistic analysis of code correctness directions in the Gemma-2-2b model. Following the methodology detailed in Chapter~\ref{sec:methodology}, we analyze the identified prediction and steering directions through multiple validation techniques: statistical analysis, activation steering, attention weight analysis, weight orthogonalization, and persistence testing across model variants. We present both quantitative results and qualitative interpretations to understand how these directions function and what they reveal about the model's internal representations of code correctness.
+
+Searching across all 26 model layers, we select features with maximum t-statistics for prediction and maximum separation scores for steering.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{rcccl}
+\hline
+\textbf{Feature} & \textbf{Layer} & \textbf{Index} & \textbf{Metric} & \textbf{Used in} \\
+\hline
+Correct Predicting & 16 & 14439 & t-stat: 5.086 & \ref{sec:prediction}, \ref{sec:logit-lens}, \ref{sec:persistence}  \\
+Incorrect Predicting & 19 & 5441 & t-stat: 5.680 & \ref{sec:prediction}, \ref{sec:logit-lens}, \ref{sec:persistence} \\
+Correct Steering & 16 & 11225 & sep: 0.221 & \ref{sec:steering}, \ref{sec:logit-lens}, \ref{sec:test-cases}, \ref{sec:generation}, \ref{sec:persistence} \\
+Incorrect Steering & 25 & 2853 & sep: 0.201 & \ref{sec:steering}, \ref{sec:logit-lens}, \ref{sec:test-cases}, \ref{sec:generation}, \ref{sec:persistence} \\
+\hline
+\end{tabular}
+\caption{Key features identified for mechanistic analysis with their usage across sections.}
+\label{tab:feature_analysis}
+\end{table}
+
+\section{Mechanistic Analysis}
+\subsection{Prediction Directions Predict Errors Reliably}\label{sec:prediction}
+Predictor directions reveal that models develop anomaly predictors rather than correctness assessors. Despite similar AUROC scores ($\sim$0.6), incorrect-preferring features achieve F1=0.821 while correct-preferring features reach only 0.504.
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}{0.35\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/correct-predicting.png}
+    \end{minipage}
+    \hspace{1cm}
+    \begin{minipage}{0.35\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/incorrect-predicting.png}
+    \end{minipage}
+    \caption{Logit lens analysis: Top 10 tokens with the highest logit contributions from predictor features. \textbf{Left:} Correct-predicting feature (L16-14439). \textbf{Right:} Incorrect-predicting feature (L19-5441).}
+    \label{fig:predicting-logits}
+\end{figure}
+
+Inspecting the top positive logits uncovers what these features predict. The incorrect-predicting feature activates on anomalous patterns such as null indicators, achieving 0.985 recall and 0.703 precision by predicting irregularities characteristic of errors. Unexpectedly, it also responds to foreign language tokens, providing empirical evidence that while SAEs decompose into sparse features, they do not fully solve polysemanticity. Correct-preferring features show worse specificity, activating on formatting tokens rather than semantic patterns. This produces extensive false positives as the feature mistakes well-formatted incorrect code for correct implementations. The metrics confirm this failure: while recall reaches 0.828 from predicting structured code, precision drops to 0.362 due to false positives, resulting in an F1 of 0.504 that shows the limitations of surface-level prediction. The confusion matrices reveal the source of this asymmetry: correct-predicting generates 169 false positives against only 96 true positives, while incorrect-predicting achieves 268 true positives with merely 4 false negatives.
+
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}{0.45\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/confusion_matrix_correct.png}
+    \end{minipage}
+    \hspace{0.5cm}
+    \begin{minipage}{0.45\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/confusion_matrix_incorrect.png}
+    \end{minipage}
+    \caption{Confusion matrices. \textbf{Left:} Correct-predicting feature (L16-14439). \textbf{Right:} Incorrect-predicting feature (L19-5441).}
+    \label{fig:confusion-matrices}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\linewidth]{figures/precision_recall_curves.png}
+    \caption{Precision-recall curves. Blue: Correct-predicting (AP=0.475). Red: Incorrect-predicting (AP=0.825).}
+    \label{fig:pr-curves}
+\end{figure}
+
+Precision-recall curves confirm this disparity holds across all classification thresholds, with incorrect-predicting maintaining high precision (AP=0.825) while correct-predicting faces fundamental tradeoffs (AP=0.475).
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}{0.45\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/AUROC-temperature.png}
+    \end{minipage}
+    \hspace{1cm}
+    \begin{minipage}{0.45\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/F1-temperature.png}
+    \end{minipage}
+    \caption{Temperature robustness analysis from T=0.0 to T=1.4. \textbf{Left:} AUROC scores. \textbf{Right:} F1 scores.}
+    \label{fig:temperature-variation}
+\end{figure}
+
+This error prediction mechanism remains stable. Temperature variations (0.0-1.4) leave error prediction intact or improved (F1: 0.821→0.986), as anomalies remain predictable regardless of sampling randomness. Meanwhile, formatting-based correct prediction degrades, confirming its superficial nature.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\linewidth]{figures/metrics_comparison_by_difficulty.png}
+    \caption{Performance across problem complexity levels (Easy: cyclomatic complexity = 1, Medium: 2-3, Hard: $\geq$4). \textbf{Left:} AUROC scores. \textbf{Right:} F1 scores}
+    \label{fig:complexity-variation}
+\end{figure}
+
+Problem complexity further reveals this asymmetry. While AUROC scores remain stable ($\sim$0.6) across difficulty levels, F1 scores diverge dramatically. Error prediction improves from 0.720 (easy) to 0.902 (hard) as incorrect-predicting features detect increasingly complex anomalies. Conversely, correctness prediction degrades from 0.638 to 0.361, as formatting-based heuristics fail on more sophisticated implementations. This scaling pattern confirms that error detection generalizes to complex code while correctness assessment remains superficial.
+
+These findings reveal an asymmetry: models encode incorrect code as predictable anomalies but lack corresponding representations for correctness. While this prevents using these features as general confidence indicators, the reliable error prediction (F1: 0.821) suggests practical utility as an alarm system, flagging generations that require review.
+
+\subsection{Steering Directions Achieve Modest Corrections}\label{sec:steering}
+
+Transitioning from correlational identification to causal validation, we apply activation steering interventions (detailed in Section~\ref{sec:activation-steering}) to test whether the identified steering directions causally influence code generation. Using optimized coefficients ($\alpha=29$ for correct steering, $\alpha=287$ for incorrect steering), we evaluate the impact on code correctness.
+
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}[b]{0.35\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/correction-rates.png}
+        \caption{}
+        \label{fig:correction-rates}
+    \end{subfigure}
+    \hspace{1cm}
+    \begin{subfigure}[b]{0.35\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/corruption-rates.png}
+        \caption{}
+        \label{fig:corruption-rates}
+    \end{subfigure}
+
+    \vspace{0.3cm}
+    \begin{subfigure}[b]{\linewidth}
+        \centering
+        \small
+        \begin{tabular}{ccc}
+        \hline
+        \textbf{Statistical Comparison} & \textbf{Correction} & \textbf{Corruption} \\
+        \hline
+        Steering Directions vs Baseline & $p<0.001$ & $p<0.001$ \\
+        Steering Directions vs Control & $p<0.001$ & $p=1.0$ \\
+        \hline
+        \end{tabular}
+        \caption{}
+        \label{fig:stats-table}
+    \end{subfigure}
+    \caption{(a) Correction rates. (b) Corruption rates. (c) Statistical comparison using one-tailed (greater) binomial tests.}
+    \label{fig:statistical-comparison}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\begin{minipage}[t]{0.41\linewidth}
+\centering
+\begin{minted}[fontsize=\scriptsize]{python}
+# Before steering
+def char_frequency(string):
+    return dict.fromkeys(string, 0)
+
+# After steering  
+def char_frequency(string):
+    frequency = {}
+    for char in string:
+        if char in frequency:
+            frequency[char] += 1
+        else:
+            frequency[char] = 1
+    return frequency
+\end{minted}
+\end{minipage}
+\hspace{1cm}
+\begin{minipage}[t]{0.41\linewidth}
+\centering
+\begin{minted}[fontsize=\scriptsize]{python}
+# Before steering
+def volume_sphere(r):
+    return (4/3)*3.141592653589793*r**3
+
+# After steering
+def volume_sphere(r):
+    return 8888888888888888888...
+\end{minted}
+\end{minipage}
+\caption{\textbf{Left:} Correct-steering example. \textbf{Right:} Incorrect-steering example.}
+\label{fig:steering-example}
+\end{figure}
+
+Steering interventions validate causal influence while revealing inherent tradeoffs. Correct-steering achieves 4.04\% correction rate on initially incorrect code (p$<$0.001), with Figure~\ref{fig:steering-example} providing a concrete example. Yet this same intervention corrupts 14.66\% of initially correct code. This degradation rate exceeds the correction rate nearly fourfold, suggesting selected steering rather than constant steering. Logit analysis reveals that correct-steering amplifies formatting tokens (spaces, tabs, comments), yet corrected code samples demonstrate semantic improvements, including bug fixes and algorithm implementations. The gap between formatting-related logits and semantic corrections illustrates why steering experiments are more informative than logit analysis alone.
+
+\begin{figure}[h]
+    \centering
+    \begin{minipage}{0.35\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/correct-steering.png}
+    \end{minipage}
+    \hspace{1cm}
+    \begin{minipage}{0.35\linewidth}
+        \centering
+        \includegraphics[width=0.9\linewidth]{figures/incorrect-steering.png}
+    \end{minipage}
+    \caption{Logit lens analysis: Top 10 tokens with the highest logit increases from steering features. \textbf{Left:} Correct-steering feature (L16-11225). \textbf{Right:} Incorrect-steering feature (L25-2853).}
+    \label{fig:steering-logits}
+\end{figure}
+
+Incorrect-steering's failure is more straightforward, with '8' token repetition in steered code (Figure~\ref{fig:steering-example}), confirming that separation scores are ineffective at identifying incorrect features. This is further supported by Figure~\ref{fig:steering-logits}, where the tokens are predominantly variations of 'eight'. This failure pattern explains why the steering coefficient search algorithm settles on the comparatively large value of 287, nearly 10-fold larger than the correct steering coefficient of 29. Such large magnitudes mean that even control features produce a substantial impact when steered at this coefficient, explaining their complete degeneracy.
+
+\subsection{Test Cases Matter More Than Problem Descriptions}\label{sec:test-cases}
+
+To understand the mechanism underlying steering effects, we analyze how interventions redistribute attention across prompt components. Figure~\ref{fig:attention-effects} shows the percentage point changes in attention allocation under steering.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.75\linewidth]{figures/attention_delta_plots.png}
+    \caption{Percentage point changes in attention to problem descriptions, test cases, and code initiator under steering interventions.}
+    \label{fig:attention-effects}
+\end{figure}
+
+Test cases exhibit the largest differential at 27.29 points between correct (+14.60) and incorrect (-12.69) steering. Problem descriptions decrease regardless of steering direction, never exceeding an 8-point reduction. The code initiator, a prompt artifact less relevant than problem descriptions and test cases, receives increased attention (+17.54) under incorrect-steering, confirming these features disrupt information processing. These patterns demonstrate that successful code generation depends on attending to test cases rather than problem descriptions. This mechanism suggests that prompting strategies should prioritize concrete test examples over detailed problem descriptions. 
+
+\subsection{Correct Directions Prove Necessary for Generation}\label{sec:generation}
+
+To test whether the identified steering directions are necessary for code generation, we apply weight orthogonalization interventions (detailed in Section~\ref{sec:methodology}) that permanently prevent the model from writing these directions to the residual stream. Figure~\ref{fig:orthogonalization-results} presents the results.
+
+Correct orthogonalization corrupts 83.6\% of initially correct solutions, compared to only 19.0\% for control features (p$<$0.001), a 4.4-fold difference. As shown in Figure~\ref{fig:orthogonalization-results}(a), functional code degrades to comments or empty strings when these features are removed. The model retains task knowledge (evidenced by relevant comments) but cannot produce executable code. This demonstrates that correct-steering features are necessary for code generation.
+
+Incorrect orthogonalization shows contrasting results. We expected removing incorrect steering directions would reduce errors, but achieved only a 2.2\% correction rate, below control features at 5.5\%. This indicates our failure to identify effective incorrect-preferring directions, consistent with Section~\ref{sec:steering}, where separation scores proved ineffective for finding incorrect features.
+
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}[b]{0.32\linewidth}
+        \centering
+        \begin{minted}[fontsize=\tiny,breaklines]{python}
+# Before correct orthogonalization
+def square_perimeter(side):
+    return side * 4
+
+# After correct orthogonalization
+def square_perimeter(side):
+    # The perimeter of a square is the sum of the lengths of all its sides.
+        \end{minted}
+        \caption{}
+        \label{fig:ortho-example}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/incorrect_orthogonalization.png}
+        \caption{}
+        \label{fig:ortho-correction}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/correct_orthogonalization.png}
+        \caption{}
+        \label{fig:ortho-corruption}
+    \end{subfigure}
+
+    \vspace{0.3cm}
+    \begin{subfigure}[b]{0.6\linewidth}
+        \centering
+        \small
+        \begin{tabular}{lcc}
+        \hline
+        \textbf{Statistical Comparison} & \textbf{Correction} & \textbf{Corruption} \\
+        \hline
+        Steering Directions vs Baseline & $p<0.001$ & $p<0.001$ \\
+        Steering Directions vs Control & $p=0.998$ & $p<0.001$ \\
+        \hline
+        \end{tabular}
+        \caption{}
+        \label{fig:ortho-stats-table}
+    \end{subfigure}
+    \caption{(a) Code example before and after correct orthogonalization. (b) Incorrect orthogonalization correction rates. (c) Correct orthogonalization corruption rates. (d) Statistical comparison using one-tailed (greater) binomial tests.}
+    \label{fig:orthogonalization-results}
+\end{figure}
+
+\subsection{Mechanisms Persist from Base to Chat Models}\label{sec:persistence}
+
+GemmaScope SAEs were trained exclusively on the base model using pre-training data, yet SAE-derived directions retain their effectiveness in the instruction-tuned model. This persistence occurs despite instruction-tuning improving baseline performance from 29.9\% to 38.4\% pass rate on MBPP.
+
+Error prediction remains reliable across both models. The incorrect-preferring feature (L19-5441) achieves F1=0.821 in the base model and F1=0.772 after instruction-tuning. Both models maintain F1$>$0.75 for incorrect prediction, preserving the reliability threshold established in Section~\ref{sec:prediction}.
+
+Steering interventions retain statistical significance. Correct-steering achieves 4.04\% correction rate in the base model (p$<$0.001) and 2.93\% in the instruction-tuned model (p$<$0.001). While the rate decreases, both models demonstrate statistically significant correction ability using identical features and coefficients.
+
+These results indicate code correctness mechanisms learned during pre-training persist through instruction-tuning. Rather than developing new mechanisms, fine-tuning appears to refine existing representations while maintaining their fundamental structure. This persistence enables SAEs trained on base models to identify causally relevant features in their instruction-tuned counterparts.
