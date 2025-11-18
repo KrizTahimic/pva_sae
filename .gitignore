@@ -4,29 +4,30 @@ __pycache__/
 *$py.class
 *.so
 
-# Data directories and files - TRACKING ENABLED FOR ICLR BRANCH
-# Uncomment below lines to ignore data files again if needed
-# data/logs/*
-# data/datasets/*
-# !data/logs/.gitkeep
-# !data/datasets/.gitkeep
-# data/**/*.parquet
-# data/**/*.npz
-# data/**/*.json
-# data/**/*.pkl
-# data/**/*.csv
-# data/**/*.txt
-# data/**/*.log
-# data/**/*.png
-# data/**/*.jpg
-# data/**/*.html
-# !data/**/.gitkeep
-# data/phase*/**
-# !data/phase*/.gitkeep
-# !data/phase*/README.md
-# data/test_phase*/**
-# !data/test_phase*/.gitkeep
-# !data/test_phase*/README.md
+# Data directories and files - IGNORING NEW DATA ON HUMANEVAL BRANCH
+# Original ICLR data is already committed in main branch history
+# This prevents committing new experimental data from HumanEval experiments
+data/logs/*
+data/datasets/*
+!data/logs/.gitkeep
+!data/datasets/.gitkeep
+data/**/*.parquet
+data/**/*.npz
+data/**/*.json
+data/**/*.pkl
+data/**/*.csv
+data/**/*.txt
+data/**/*.log
+data/**/*.png
+data/**/*.jpg
+data/**/*.html
+!data/**/.gitkeep
+data/phase*/**
+!data/phase*/.gitkeep
+!data/phase*/README.md
+data/test_phase*/**
+!data/test_phase*/.gitkeep
+!data/test_phase*/README.md
 
 # IDE and editor files
 .vscode/
