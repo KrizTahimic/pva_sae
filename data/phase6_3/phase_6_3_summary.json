@@ -1,0 +1,52 @@
+{
+  "timestamp": "2025-10-19T17:38:02.586804",
+  "n_tasks_analyzed": 388,
+  "layers_analyzed": {
+    "correct": 16,
+    "incorrect": 25
+  },
+  "key_findings": {
+    "correct_steering": {
+      "significant_sections": [
+        {
+          "section": "problem",
+          "mean_change": -7.747756004333496,
+          "p_value": 2.129936059543859e-82
+        },
+        {
+          "section": "tests",
+          "mean_change": 14.595391273498535,
+          "p_value": 3.6398752511681444e-302
+        },
+        {
+          "section": "solution_marker",
+          "mean_change": -6.8476362228393555,
+          "p_value": 3.6848778369564925e-66
+        }
+      ],
+      "test_case_change": 14.595391273498535,
+      "test_case_significant": "True"
+    },
+    "incorrect_steering": {
+      "significant_sections": [
+        {
+          "section": "problem",
+          "mean_change": -4.853961944580078,
+          "p_value": 5.498619333319311e-07
+        },
+        {
+          "section": "tests",
+          "mean_change": -12.687070846557617,
+          "p_value": 1.905222719156403e-88
+        },
+        {
+          "section": "solution_marker",
+          "mean_change": 17.541032791137695,
+          "p_value": 1.891805972511515e-74
+        }
+      ],
+      "test_case_change": -12.687070846557617,
+      "test_case_significant": "True"
+    }
+  }
+}

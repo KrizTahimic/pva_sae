@@ -117,9 +117,9 @@ def load_group_activations(
         
         # Create label based on feature type
         if feature_type == 'correct':
-            label = 1 if test_passed else 0  # Flipped for correct-preferring
+            label = 1 if test_passed else 0  # Flipped for correct-predicting
         else:
-            label = 0 if test_passed else 1  # Standard for incorrect-preferring
+            label = 0 if test_passed else 1  # Standard for incorrect-predicting
         
         labels.append(label)
     
@@ -130,10 +130,10 @@ def load_group_activations(
     n_positive = sum(labels)
     n_negative = len(labels) - n_positive
     if n_positive == 0 or n_negative == 0:
-        logger.warning(f"WARNING: {feature_type}-preferring feature has imbalanced classes - "
+        logger.warning(f"WARNING: {feature_type}-predicting feature has imbalanced classes - "
                       f"positive: {n_positive}, negative: {n_negative}")
     elif n_positive < 5 or n_negative < 5:
-        logger.warning(f"WARNING: {feature_type}-preferring feature has very few samples in one class - "
+        logger.warning(f"WARNING: {feature_type}-predicting feature has very few samples in one class - "
                       f"positive: {n_positive}, negative: {n_negative}")
     
     return np.array(labels), np.array(activations)
@@ -169,7 +169,7 @@ def calculate_difficulty_metrics(
     results = {}
     
     for group_name, group_data in difficulty_groups.items():
-        logger.info(f"\nEvaluating {feature_type}-preferring feature on {group_name} group:")
+        logger.info(f"\nEvaluating {feature_type}-predicting feature on {group_name} group:")
         
         # Get feature info
         if feature_type == 'correct':
@@ -203,7 +203,7 @@ def calculate_difficulty_metrics(
         plt.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Random Classifier')
         plt.xlabel('False Positive Rate')
         plt.ylabel('True Positive Rate')
-        plt.title(f'ROC Curve - {feature_type.capitalize()}-Preferring Feature ({group_name.capitalize()} Group)')
+        plt.title(f'ROC Curve - {feature_type.capitalize()}-Predicting Feature ({group_name.capitalize()} Group)')
         plt.legend()
         plt.grid(True, alpha=0.3)
         plt.savefig(output_dir / f'roc_curve_{feature_type}_{group_name}.png', dpi=150, bbox_inches='tight')
@@ -222,7 +222,7 @@ def calculate_difficulty_metrics(
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                     xticklabels=labels, yticklabels=labels,
                     cbar_kws={'label': 'Count'})
-        plt.title(f'Confusion Matrix - {feature_type.capitalize()}-Preferring Feature ({group_name.capitalize()} Group)')
+        plt.title(f'Confusion Matrix - {feature_type.capitalize()}-Predicting Feature ({group_name.capitalize()} Group)')
         plt.ylabel('True Label')
         plt.xlabel('Predicted Label')
         plt.savefig(output_dir / f'confusion_matrix_{feature_type}_{group_name}.png', dpi=150, bbox_inches='tight')
@@ -314,7 +314,7 @@ def plot_roc_curves_by_difficulty(
     plt.plot([0, 1], [0, 1], 'k--', linewidth=1, alpha=0.5, label='Random Classifier')
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title(f'ROC Curves by Difficulty - {feature_type.capitalize()}-Preferring Feature')
+    plt.title(f'ROC Curves by Difficulty - {feature_type.capitalize()}-Predicting Feature')
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -362,12 +362,12 @@ def plot_auroc_trends(
     correct_aurocs = [correct_results[d]['auroc'] for d in difficulties]
     incorrect_aurocs = [incorrect_results[d]['auroc'] for d in difficulties]
     
-    # Handle NaN values for correct-preferring
+    # Handle NaN values for correct-predicting
     valid_correct_idx = [i for i, val in enumerate(correct_aurocs) if not np.isnan(val)]
     valid_correct_diff = [difficulties[i] for i in valid_correct_idx]
     valid_correct_aurocs = [correct_aurocs[i] for i in valid_correct_idx]
-    
-    # Handle NaN values for incorrect-preferring
+
+    # Handle NaN values for incorrect-predicting
     valid_incorrect_idx = [i for i, val in enumerate(incorrect_aurocs) if not np.isnan(val)]
     valid_incorrect_diff = [difficulties[i] for i in valid_incorrect_idx]
     valid_incorrect_aurocs = [incorrect_aurocs[i] for i in valid_incorrect_idx]
@@ -375,10 +375,10 @@ def plot_auroc_trends(
     # Plot valid points
     if valid_correct_aurocs:
         plt.plot(valid_correct_diff, valid_correct_aurocs, marker='o', linewidth=2, markersize=8,
-                 label='Correct-Preferring Feature', color='blue')
+                 label='Correct-predicting', color='blue')
     if valid_incorrect_aurocs:
         plt.plot(valid_incorrect_diff, valid_incorrect_aurocs, marker='s', linewidth=2, markersize=8,
-                 label='Incorrect-Preferring Feature', color='red')
+                 label='Incorrect-predicting', color='red')
     
     # Mark NaN points
     for i, (c_auroc, i_auroc) in enumerate(zip(correct_aurocs, incorrect_aurocs)):
@@ -473,9 +473,9 @@ def main():
         'incorrect': phase3_8_results['incorrect_preferring_feature']['threshold_optimization']['optimal_threshold']
     }
     
-    logger.info(f"Best correct-preferring feature: idx {best_features['correct_feature_idx']} "
+    logger.info(f"Best correct-predicting feature: idx {best_features['correct_feature_idx']} "
                f"at layer {best_features['correct']} (threshold: {global_thresholds['correct']:.4f})")
-    logger.info(f"Best incorrect-preferring feature: idx {best_features['incorrect_feature_idx']} "
+    logger.info(f"Best incorrect-predicting feature: idx {best_features['incorrect_feature_idx']} "
                f"at layer {best_features['incorrect']} (threshold: {global_thresholds['incorrect']:.4f})")
     
     # Load temperature 0.0 dataset which includes cyclomatic complexity
@@ -499,12 +499,12 @@ def main():
     device = detect_device()
     logger.info(f"Using device: {device}")
     
-    # Phase 3: Evaluate Correct-Preferring Feature
+    # Phase 3: Evaluate Correct-Predicting Feature
     logger.info("\n" + "="*60)
-    logger.info("EVALUATING CORRECT-PREFERRING FEATURE ACROSS DIFFICULTY LEVELS")
+    logger.info("EVALUATING CORRECT-PREDICTING FEATURE ACROSS DIFFICULTY LEVELS")
     logger.info("="*60)
-    
-    # Load SAE for correct-preferring feature
+
+    # Load SAE for correct-predicting feature
     correct_layer = best_features['correct']
     sae_correct = load_gemma_scope_sae(correct_layer, device)
     logger.info(f"Loaded SAE for layer {correct_layer} on {device}")
@@ -526,67 +526,14 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     
-    # Generate comparative visualization for correct-preferring
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-    difficulties = list(correct_results.keys())
-    aurocs = [correct_results[d]['auroc'] for d in difficulties]
-    f1s = [correct_results[d]['f1'] for d in difficulties]
+    # Store correct results for later combined visualization
     
-    # AUROC plot - handle NaN values
-    valid_indices = [i for i, val in enumerate(aurocs) if not np.isnan(val)]
-    valid_difficulties = [difficulties[i] for i in valid_indices]
-    valid_aurocs = [aurocs[i] for i in valid_indices]
-    
-    # Plot only valid points
-    if valid_aurocs:
-        ax1.plot(valid_difficulties, valid_aurocs, marker='o', linewidth=2, markersize=8, 
-                 label='Correct-Preferring Feature', color='blue')
-    
-    # Mark NaN points with a different marker
-    nan_indices = [i for i, val in enumerate(aurocs) if np.isnan(val)]
-    for idx in nan_indices:
-        ax1.plot(idx, 0.5, 'x', markersize=10, color='red', 
-                label='Undefined (single class)' if idx == nan_indices[0] else '')
-        ax1.text(idx, 0.45, 'N/A', ha='center', va='top', color='red', fontsize=9)
-    
-    ax1.set_xlabel('Difficulty Level')
-    ax1.set_ylabel('AUROC')
-    ax1.set_title('AUROC Performance by Difficulty Level - Correct-Preferring Feature')
-    ax1.grid(True, alpha=0.3)
-    ax1.set_ylim(0, 1)
-    ax1.set_xticks(range(len(difficulties)))
-    ax1.set_xticklabels([d.capitalize() for d in difficulties])
-    ax1.legend()
-    
-    # Add value labels for valid points
-    for i, auroc in enumerate(aurocs):
-        if not np.isnan(auroc):
-            ax1.text(i, auroc + 0.02, f'{auroc:.3f}', ha='center', va='bottom')
-    
-    # F1 plot
-    ax2.plot(difficulties, f1s, marker='o', linewidth=2, markersize=8, 
-             label='Correct-Preferring Feature', color='green')
-    ax2.set_xlabel('Difficulty Level')
-    ax2.set_ylabel('F1 Score')
-    ax2.set_title('F1 Performance by Difficulty Level - Correct-Preferring Feature')
-    ax2.grid(True, alpha=0.3)
-    ax2.set_ylim(0, 1)
-    ax2.legend()
-    
-    # Add value labels
-    for i, f1 in enumerate(f1s):
-        ax2.text(i, f1 + 0.02, f'{f1:.3f}', ha='center', va='bottom')
-    
-    plt.tight_layout()
-    plt.savefig(output_dir / 'metrics_by_difficulty_correct.png', dpi=150, bbox_inches='tight')
-    plt.close()
-    
-    # Phase 4: Evaluate Incorrect-Preferring Feature
+    # Phase 4: Evaluate Incorrect-Predicting Feature
     logger.info("\n" + "="*60)
-    logger.info("EVALUATING INCORRECT-PREFERRING FEATURE ACROSS DIFFICULTY LEVELS")
+    logger.info("EVALUATING INCORRECT-PREDICTING FEATURE ACROSS DIFFICULTY LEVELS")
     logger.info("="*60)
-    
-    # Load SAE for incorrect-preferring feature
+
+    # Load SAE for incorrect-predicting feature
     incorrect_layer = best_features['incorrect']
     sae_incorrect = load_gemma_scope_sae(incorrect_layer, device)
     logger.info(f"Loaded SAE for layer {incorrect_layer} on {device}")
@@ -608,134 +555,47 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     
-    # Generate comparative visualization for incorrect-preferring
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-    difficulties = list(incorrect_results.keys())
-    aurocs = [incorrect_results[d]['auroc'] for d in difficulties]
-    f1s = [incorrect_results[d]['f1'] for d in difficulties]
-    
-    # AUROC plot - handle NaN values
-    valid_indices = [i for i, val in enumerate(aurocs) if not np.isnan(val)]
-    valid_difficulties = [difficulties[i] for i in valid_indices]
-    valid_aurocs = [aurocs[i] for i in valid_indices]
-    
-    # Plot only valid points
-    if valid_aurocs:
-        ax1.plot(valid_difficulties, valid_aurocs, marker='s', linewidth=2, markersize=8, 
-                 label='Incorrect-Preferring Feature', color='red')
-    
-    # Mark NaN points with a different marker
-    nan_indices = [i for i, val in enumerate(aurocs) if np.isnan(val)]
-    for idx in nan_indices:
-        ax1.plot(idx, 0.5, 'x', markersize=10, color='darkred', 
-                label='Undefined (single class)' if idx == nan_indices[0] else '')
-        ax1.text(idx, 0.45, 'N/A', ha='center', va='top', color='darkred', fontsize=9)
-    
-    ax1.set_xlabel('Difficulty Level')
-    ax1.set_ylabel('AUROC')
-    ax1.set_title('AUROC Performance by Difficulty Level - Incorrect-Preferring Feature')
-    ax1.grid(True, alpha=0.3)
-    ax1.set_ylim(0, 1)
-    ax1.set_xticks(range(len(difficulties)))
-    ax1.set_xticklabels([d.capitalize() for d in difficulties])
-    ax1.legend()
-    
-    # Add value labels for valid points
-    for i, auroc in enumerate(aurocs):
-        if not np.isnan(auroc):
-            ax1.text(i, auroc + 0.02, f'{auroc:.3f}', ha='center', va='bottom')
-    
-    # F1 plot
-    ax2.plot(difficulties, f1s, marker='s', linewidth=2, markersize=8, 
-             label='Incorrect-Preferring Feature', color='orange')
-    ax2.set_xlabel('Difficulty Level')
-    ax2.set_ylabel('F1 Score')
-    ax2.set_title('F1 Performance by Difficulty Level - Incorrect-Preferring Feature')
-    ax2.grid(True, alpha=0.3)
-    ax2.set_ylim(0, 1)
-    ax2.legend()
-    
-    # Add value labels
-    for i, f1 in enumerate(f1s):
-        ax2.text(i, f1 + 0.02, f'{f1:.3f}', ha='center', va='bottom')
-    
-    plt.tight_layout()
-    plt.savefig(output_dir / 'metrics_by_difficulty_incorrect.png', dpi=150, bbox_inches='tight')
-    plt.close()
+    # Store incorrect results for later combined visualization
     
     # Phase 5: Comparative Analysis and Results
     logger.info("\n" + "="*60)
     logger.info("GENERATING COMPARATIVE ANALYSIS")
     logger.info("="*60)
-    
-    # Generate side-by-side comparison
+
+    # Generate combined line plot (like Phase 3.11 style)
     difficulties = list(correct_results.keys())
     correct_aurocs = [correct_results[d]['auroc'] for d in difficulties]
     incorrect_aurocs = [incorrect_results[d]['auroc'] for d in difficulties]
     correct_f1s = [correct_results[d]['f1'] for d in difficulties]
     incorrect_f1s = [incorrect_results[d]['f1'] for d in difficulties]
-    
-    # Create side-by-side comparison for both metrics
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-    
-    x = np.arange(len(difficulties))
-    width = 0.35
-    
-    # AUROC comparison - handle NaN values
-    # Replace NaN with 0 for bar height, but mark them differently
-    correct_aurocs_plot = [val if not np.isnan(val) else 0 for val in correct_aurocs]
-    incorrect_aurocs_plot = [val if not np.isnan(val) else 0 for val in incorrect_aurocs]
-    
-    bars1 = ax1.bar(x - width/2, correct_aurocs_plot, width, label='Correct-Preferring', color='blue', alpha=0.7)
-    bars2 = ax1.bar(x + width/2, incorrect_aurocs_plot, width, label='Incorrect-Preferring', color='red', alpha=0.7)
-    
-    # Mark NaN bars with hatching
-    for i, (c_auroc, i_auroc) in enumerate(zip(correct_aurocs, incorrect_aurocs)):
-        if np.isnan(c_auroc):
-            bars1[i].set_hatch('///')
-            bars1[i].set_alpha(0.3)
-        if np.isnan(i_auroc):
-            bars2[i].set_hatch('///')
-            bars2[i].set_alpha(0.3)
-    
+
+    # Create combined line plot for both metrics (Phase 3.11 style)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+    # AUROC plot - combined lines
+    ax1.plot(difficulties, correct_aurocs, 'b-o', label='Correct-predicting', markersize=8)
+    ax1.plot(difficulties, incorrect_aurocs, 'r-s', label='Incorrect-predicting', markersize=8)
     ax1.set_xlabel('Difficulty Level')
     ax1.set_ylabel('AUROC')
-    ax1.set_title('AUROC Performance Comparison Across Difficulty Levels')
-    ax1.set_xticks(x)
-    ax1.set_xticklabels([d.capitalize() for d in difficulties])
+    ax1.set_title('AUROC vs Difficulty Level')
     ax1.legend()
     ax1.grid(True, alpha=0.3)
-    ax1.set_ylim(0, 1)
-    
-    # Add value labels for AUROC
-    for i, (c_auroc, i_auroc) in enumerate(zip(correct_aurocs, incorrect_aurocs)):
-        if not np.isnan(c_auroc):
-            ax1.text(i - width/2, c_auroc + 0.01, f'{c_auroc:.3f}', ha='center', va='bottom', fontsize=9)
-        else:
-            ax1.text(i - width/2, 0.05, 'N/A', ha='center', va='bottom', fontsize=8, color='darkblue')
-        
-        if not np.isnan(i_auroc):
-            ax1.text(i + width/2, i_auroc + 0.01, f'{i_auroc:.3f}', ha='center', va='bottom', fontsize=9)
-        else:
-            ax1.text(i + width/2, 0.05, 'N/A', ha='center', va='bottom', fontsize=8, color='darkred')
-    
-    # F1 comparison
-    ax2.bar(x - width/2, correct_f1s, width, label='Correct-Preferring', color='green', alpha=0.7)
-    ax2.bar(x + width/2, incorrect_f1s, width, label='Incorrect-Preferring', color='orange', alpha=0.7)
+    ax1.set_ylim(0, 1.05)
+    ax1.set_xticks(range(len(difficulties)))
+    ax1.set_xticklabels([d.capitalize() for d in difficulties])
+
+    # F1 plot - combined lines
+    ax2.plot(difficulties, correct_f1s, 'b-o', label='Correct-predicting', markersize=8)
+    ax2.plot(difficulties, incorrect_f1s, 'r-s', label='Incorrect-predicting', markersize=8)
     ax2.set_xlabel('Difficulty Level')
     ax2.set_ylabel('F1 Score')
-    ax2.set_title('F1 Performance Comparison Across Difficulty Levels')
-    ax2.set_xticks(x)
-    ax2.set_xticklabels([d.capitalize() for d in difficulties])
+    ax2.set_title('F1 Score vs Difficulty Level')
     ax2.legend()
     ax2.grid(True, alpha=0.3)
-    ax2.set_ylim(0, 1)
-    
-    # Add value labels for F1
-    for i, (c_f1, i_f1) in enumerate(zip(correct_f1s, incorrect_f1s)):
-        ax2.text(i - width/2, c_f1 + 0.01, f'{c_f1:.3f}', ha='center', va='bottom', fontsize=9)
-        ax2.text(i + width/2, i_f1 + 0.01, f'{i_f1:.3f}', ha='center', va='bottom', fontsize=9)
-    
+    ax2.set_ylim(0, 1.05)
+    ax2.set_xticks(range(len(difficulties)))
+    ax2.set_xticklabels([d.capitalize() for d in difficulties])
+
     plt.tight_layout()
     plt.savefig(output_dir / 'metrics_comparison_by_difficulty.png', dpi=150, bbox_inches='tight')
     plt.close()
@@ -781,8 +641,8 @@ def main():
             'correct': float(global_thresholds['correct']),
             'incorrect': float(global_thresholds['incorrect'])
         },
-        'correct_preferring_results': correct_results,
-        'incorrect_preferring_results': incorrect_results,
+        'correct_predicting_results': correct_results,
+        'incorrect_predicting_results': incorrect_results,
         'insights': {
             'correct_feature_trend': calculate_trend(correct_aurocs),
             'incorrect_feature_trend': calculate_trend(incorrect_aurocs),
@@ -810,18 +670,18 @@ def main():
         f"Difficulty Groups: Easy ({len(difficulty_groups['easy'])}), "
         f"Medium ({len(difficulty_groups['medium'])}), "
         f"Hard ({len(difficulty_groups['hard'])})",
-        f"\nCorrect-Preferring Feature (Layer {best_features['correct']}, "
+        f"\nCorrect-Predicting Feature (Layer {best_features['correct']}, "
         f"Feature {best_features['correct_feature_idx']}):"
     ]
-    
+
     for difficulty, result in correct_results.items():
         summary_lines.append(
             f"  {difficulty.capitalize()}: AUROC = {result['auroc']:.4f}, "
             f"F1 = {result['f1']:.4f} (n={result['n_samples']})"
         )
-    
+
     summary_lines.append(
-        f"\nIncorrect-Preferring Feature (Layer {best_features['incorrect']}, "
+        f"\nIncorrect-Predicting Feature (Layer {best_features['incorrect']}, "
         f"Feature {best_features['incorrect_feature_idx']}):"
     )
     
@@ -833,14 +693,14 @@ def main():
     
     summary_lines.extend([
         "\nInsights:",
-        f"  Correct-preferring feature trend: {results['insights']['correct_feature_trend']}",
-        f"  Incorrect-preferring feature trend: {results['insights']['incorrect_feature_trend']}",
+        f"  Correct-predicting feature trend: {results['insights']['correct_feature_trend']}",
+        f"  Incorrect-predicting feature trend: {results['insights']['incorrect_feature_trend']}",
         f"  Most effective difficulty (AUROC):",
-        f"    Correct-preferring: {results['insights']['most_effective_difficulty']['correct']}",
-        f"    Incorrect-preferring: {results['insights']['most_effective_difficulty']['incorrect']}",
+        f"    Correct-predicting: {results['insights']['most_effective_difficulty']['correct']}",
+        f"    Incorrect-predicting: {results['insights']['most_effective_difficulty']['incorrect']}",
         f"  Most effective difficulty (F1):",
-        f"    Correct-preferring: {results['insights']['most_effective_difficulty_f1']['correct']}",
-        f"    Incorrect-preferring: {results['insights']['most_effective_difficulty_f1']['incorrect']}",
+        f"    Correct-predicting: {results['insights']['most_effective_difficulty_f1']['correct']}",
+        f"    Incorrect-predicting: {results['insights']['most_effective_difficulty_f1']['incorrect']}",
         "\n" + "=" * 60
     ])
     

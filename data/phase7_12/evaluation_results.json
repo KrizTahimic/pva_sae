@@ -1,0 +1,41 @@
+{
+  "phase": "7.12",
+  "model_type": "instruction-tuned (gemma-2-2b-it)",
+  "correct_preferring_feature": {
+    "feature": {
+      "idx": 14439,
+      "layer": 16
+    },
+    "validation_metrics": {
+      "split": "validation",
+      "n_samples": 388,
+      "optimal_threshold": 0.0,
+      "metrics": {
+        "auroc": 0.5554603914520795,
+        "f1": 0.3817427385892116,
+        "precision": 0.5,
+        "recall": 0.3087248322147651,
+        "threshold": 0.0
+      }
+    }
+  },
+  "incorrect_preferring_feature": {
+    "feature": {
+      "idx": 5441,
+      "layer": 19
+    },
+    "validation_metrics": {
+      "split": "validation",
+      "n_samples": 388,
+      "optimal_threshold": 12.090047624376085,
+      "metrics": {
+        "auroc": 0.6465417988823678,
+        "f1": 0.7723440134907251,
+        "precision": 0.6468926553672316,
+        "recall": 0.9581589958158996,
+        "threshold": 12.090047624376085
+      }
+    }
+  },
+  "creation_timestamp": "2025-09-23T18:28:54.668168"
+}

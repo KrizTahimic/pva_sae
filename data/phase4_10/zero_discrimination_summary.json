@@ -1,0 +1,99 @@
+{
+  "metadata": {
+    "phase": "4.10",
+    "description": "Zero-discrimination PVA features for baseline control",
+    "selection_criteria": "Minimum absolute separation between correct/incorrect",
+    "separation_threshold": 0.01,
+    "min_activation_freq": 0.001,
+    "n_features_requested": 10,
+    "n_features_selected": 10,
+    "n_candidates_evaluated": 2735,
+    "n_discriminative_excluded": 40,
+    "timestamp": "2025-09-05T18:41:43.623032"
+  },
+  "features_summary": [
+    {
+      "layer": 1,
+      "feature_idx": 4801,
+      "feature_id": "L1F4801",
+      "separation_score": 0.0,
+      "freq_correct": 1.0,
+      "freq_incorrect": 1.0
+    },
+    {
+      "layer": 1,
+      "feature_idx": 6483,
+      "feature_id": "L1F6483",
+      "separation_score": 0.0,
+      "freq_correct": 1.0,
+      "freq_incorrect": 1.0
+    },
+    {
+      "layer": 1,
+      "feature_idx": 9317,
+      "feature_id": "L1F9317",
+      "separation_score": 0.0,
+      "freq_correct": 1.0,
+      "freq_incorrect": 1.0
+    },
+    {
+      "layer": 1,
+      "feature_idx": 10118,
+      "feature_id": "L1F10118",
+      "separation_score": 0.0,
+      "freq_correct": 1.0,
+      "freq_incorrect": 1.0
+    },
+    {
+      "layer": 1,
+      "feature_idx": 11070,
+      "feature_id": "L1F11070",
+      "separation_score": 0.0,
+      "freq_correct": 1.0,
+      "freq_incorrect": 1.0
+    },
+    {
+      "layer": 1,
+      "feature_idx": 11461,
+      "feature_id": "L1F11461",
+      "separation_score": 0.0,
+      "freq_correct": 1.0,
+      "freq_incorrect": 1.0
+    },
+    {
+      "layer": 1,
+      "feature_idx": 12054,
+      "feature_id": "L1F12054",
+      "separation_score": 0.0,
+      "freq_correct": 1.0,
+      "freq_incorrect": 1.0
+    },
+    {
+      "layer": 1,
+      "feature_idx": 12371,
+      "feature_id": "L1F12371",
+      "separation_score": 0.0,
+      "freq_correct": 1.0,
+      "freq_incorrect": 1.0
+    },
+    {
+      "layer": 1,
+      "feature_idx": 12539,
+      "feature_id": "L1F12539",
+      "separation_score": 0.0,
+      "freq_correct": 1.0,
+      "freq_incorrect": 1.0
+    },
+    {
+      "layer": 1,
+      "feature_idx": 13412,
+      "feature_id": "L1F13412",
+      "separation_score": 0.0,
+      "freq_correct": 1.0,
+      "freq_incorrect": 1.0
+    }
+  ],
+  "layer_distribution": {
+    "1": 10
+  }
+}

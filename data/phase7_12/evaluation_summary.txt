@@ -1,0 +1,20 @@
+============================================================
+PHASE 7.12 FINAL RESULTS SUMMARY
+INSTRUCTION-TUNED MODEL (gemma-2-2b-it)
+============================================================
+
+Correct-Preferring Feature (Layer 16, Feature 14439):
+  Optimal Threshold: 0.0000
+  AUROC: 0.5555
+  F1: 0.3817
+  Precision: 0.5000
+  Recall: 0.3087
+
+Incorrect-Preferring Feature (Layer 19, Feature 5441):
+  Optimal Threshold: 12.0900
+  AUROC: 0.6465
+  F1: 0.7723
+  Precision: 0.6469
+  Recall: 0.9582
+
+============================================================

@@ -1,7 +1,0 @@
-Gemma-2-2b Configuration
-========================================
-
-Number of attention heads: 8
-Number of hidden layers: 26
-Hidden size: 2304
-Number of key-value heads: 4

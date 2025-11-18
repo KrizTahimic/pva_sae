@@ -1,0 +1,68 @@
+{
+  "timestamp": "2025-10-19T17:38:02.586804",
+  "n_tasks_analyzed": 388,
+  "layers_analyzed": {
+    "correct": 16,
+    "incorrect": 25
+  },
+  "statistical_results": {
+    "correct_steering": {
+      "problem": {
+        "mean_change": -7.747756004333496,
+        "std_change": 17.996337890625,
+        "median_change": -3.9122467041015625,
+        "t_statistic": -20.07804559980647,
+        "p_value": 2.129936059543859e-82,
+        "significant": "True",
+        "n_samples": 2176
+      },
+      "tests": {
+        "mean_change": 14.595391273498535,
+        "std_change": 15.499533653259277,
+        "median_change": 6.839195251464844,
+        "t_statistic": 43.916401736702255,
+        "p_value": 3.6398752511681444e-302,
+        "significant": "True",
+        "n_samples": 2176
+      },
+      "solution_marker": {
+        "mean_change": -6.8476362228393555,
+        "std_change": 17.9583740234375,
+        "median_change": -0.11709034442901611,
+        "t_statistic": -17.782929828527674,
+        "p_value": 3.6848778369564925e-66,
+        "significant": "True",
+        "n_samples": 2176
+      }
+    },
+    "incorrect_steering": {
+      "problem": {
+        "mean_change": -4.853961944580078,
+        "std_change": 29.302560806274414,
+        "median_change": -7.177616119384766,
+        "t_statistic": -5.043484109838208,
+        "p_value": 5.498619333319311e-07,
+        "significant": "True",
+        "n_samples": 928
+      },
+      "tests": {
+        "mean_change": -12.687070846557617,
+        "std_change": 17.332448959350586,
+        "median_change": -13.663668632507324,
+        "t_statistic": -22.286469707755533,
+        "p_value": 1.905222719156403e-88,
+        "significant": "True",
+        "n_samples": 928
+      },
+      "solution_marker": {
+        "mean_change": 17.541032791137695,
+        "std_change": 26.661346435546875,
+        "median_change": 14.056013107299805,
+        "t_statistic": 20.03147594007006,
+        "p_value": 1.891805972511515e-74,
+        "significant": "True",
+        "n_samples": 928
+      }
+    }
+  }
+}

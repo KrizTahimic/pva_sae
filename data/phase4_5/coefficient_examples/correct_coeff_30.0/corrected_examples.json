@@ -1,0 +1,57 @@
+[
+  {
+    "task_id": 178,
+    "baseline_passed": false,
+    "steered_passed": true,
+    "flipped": true,
+    "flip_direction": "fail\u2192pass",
+    "code_similarity": 0.6666666666666666,
+    "baseline_code": "def string_literals(strings, target):\n    for string in strings:\n        if string.find(target) != -1:\n            return 'Matched!'\n        else:\n            return 'Not Matched!'",
+    "steered_code": "def string_literals(literals, string):\n    for literal in literals:\n        if literal in string:\n            return 'Matched!'\n        else:\n            return 'Not Matched!'",
+    "error": ""
+  },
+  {
+    "task_id": 350,
+    "baseline_passed": false,
+    "steered_passed": true,
+    "flipped": true,
+    "flip_direction": "fail\u2192pass",
+    "code_similarity": 0.3783783783783784,
+    "baseline_code": "def minimum_Length(s):\n    if len(s) == 1:\n        return 1\n    else:\n        return len(s) - 1",
+    "steered_code": "def minimum_Length(s):\n    # Write your code here\n    count = {}\n    for i in s:\n        if i in count:\n            count[i] += 1\n        else:\n            count[i] = 1\n    \n    min_length = len(s)\n    for i in count:\n        if count[i] > 1:\n            min_length = min(min_length, len(s) - count[i])\n        else:\n            min_length = min(min_length, len(s) - 1)\n    return min_length",
+    "error": ""
+  },
+  {
+    "task_id": 394,
+    "baseline_passed": false,
+    "steered_passed": true,
+    "flipped": true,
+    "flip_direction": "fail\u2192pass",
+    "code_similarity": 0.32786885245901637,
+    "baseline_code": "def check_distinct(tuple):\n    return tuple not in set(tuple)",
+    "steered_code": "def check_distinct(tuple):\n    for i in range(len(tuple)):\n        for j in range(i+1, len(tuple)):\n            if tuple[i] == tuple[j]:\n                return False\n    return True",
+    "error": ""
+  },
+  {
+    "task_id": 572,
+    "baseline_passed": false,
+    "steered_passed": true,
+    "flipped": true,
+    "flip_direction": "fail\u2192pass",
+    "code_similarity": 0.4235294117647059,
+    "baseline_code": "def two_unique_nums(nums):\n    # Write your code here.\n    nums.sort()\n    for i in range(1, len(nums)):\n        if nums[i] == nums[i-1]:\n            nums.pop(i)\n    return nums",
+    "steered_code": "def two_unique_nums(nums):\n    # Initialize a set to store unique numbers\n    unique_nums = set()\n\n    # Iterate through each number in the list\n    for num in nums:\n        # If the number is already in the set, remove it\n        if num in unique_nums:\n            unique_nums.remove(num)\n        # Add the number to the set if it's not already there\n        else:\n            unique_nums.add(num)\n\n    # Return the unique numbers\n    return list(unique_nums)",
+    "error": ""
+  },
+  {
+    "task_id": 829,
+    "baseline_passed": false,
+    "steered_passed": true,
+    "flipped": true,
+    "flip_direction": "fail\u2192pass",
+    "code_similarity": 0.13953488372093023,
+    "baseline_code": "def second_frequent(seq):\n    # Write your code here\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the second most frequent string in the given sequence\n    # return the",
+    "steered_code": "def second_frequent(seq):\n    # Initialize a dictionary to store the frequency of each string\n    freq = {}\n    # Iterate over the sequence and add the string to the dictionary\n    for s in seq:\n        if s in freq:\n            freq[s] += 1\n        else:\n            freq[s] = 1\n    # Initialize a list to store the frequent strings\n    frequent = []\n    # Iterate over the dictionary and add the frequent strings to the list\n    for s in freq:\n        if freq[s] > 1:\n            frequent.append(s)\n    # Sort the list in descending order of frequency\n    frequent.sort(key=lambda x: freq[x], reverse=True)\n    # Return the second most frequent string\n    return frequent[1]",
+    "error": ""
+  }
+]

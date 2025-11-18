@@ -1,0 +1,30 @@
+{
+  "correct": {
+    "coefficient": 30.0,
+    "layer": 16,
+    "feature_index": 11225,
+    "correction_rate": 7.246376811594203,
+    "metrics": {
+      "correction_rate": 7.246376811594203
+    },
+    "n_problems_evaluated": 69,
+    "n_coefficients_tested": 4,
+    "early_stopped": true,
+    "rationale": "Optimal coefficient found via simple grid search with correction_rate 7.2%"
+  },
+  "incorrect": {
+    "coefficient": 200.0,
+    "layer": 25,
+    "feature_index": 2853,
+    "composite_score": 47.96497362286836,
+    "metrics": {
+      "corruption_rate": 0.0,
+      "avg_similarity": 95.92994724573671,
+      "composite_score": 47.96497362286836
+    },
+    "n_problems_evaluated": 28,
+    "n_coefficients_tested": 1,
+    "early_stopped": false,
+    "rationale": "Optimal coefficient found via simple grid search with composite_score 48.0%"
+  }
+}

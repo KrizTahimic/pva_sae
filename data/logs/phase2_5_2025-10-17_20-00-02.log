@@ -1,0 +1,95 @@
+2025-10-17 20:00:02,724 [INFO] [sae_analyzer] setup_logging:167 - Phase: 2.5, GPU: CPU
+2025-10-17 20:00:02,724 [INFO] [phase3_8.auroc_f1_evaluator] setup_logging:167 - Phase: 3.8, GPU: CPU
+2025-10-17 20:00:02,726 [INFO] [phase3_8.auroc_f1_evaluator] main:476 - Auto-discovered Phase 0.1 output: data/phase0_1
+2025-10-17 20:00:02,726 [INFO] [phase3_8.auroc_f1_evaluator] main:486 - Auto-discovered Phase 3.5 output: data/phase3_5
+2025-10-17 20:00:02,726 [INFO] [phase3_8.auroc_f1_evaluator] main:496 - Auto-discovered Phase 3.6 output: data/phase3_6
+2025-10-17 20:00:02,727 [INFO] [phase3_8.auroc_f1_evaluator] main:511 - Loading best features from Phase 2.10...
+2025-10-17 20:00:02,727 [INFO] [phase3_8.auroc_f1_evaluator] main:542 - Best correct-predicting feature: idx 14439 at layer 16
+2025-10-17 20:00:02,727 [INFO] [phase3_8.auroc_f1_evaluator] main:543 - Best incorrect-predicting feature: idx 5441 at layer 19
+2025-10-17 20:00:02,727 [INFO] [phase3_8.auroc_f1_evaluator] main:546 - 
+============================================================
+2025-10-17 20:00:02,727 [INFO] [phase3_8.auroc_f1_evaluator] main:547 - EVALUATING CORRECT-PREDICTING FEATURE
+2025-10-17 20:00:02,727 [INFO] [phase3_8.auroc_f1_evaluator] main:548 - ============================================================
+2025-10-17 20:00:02,837 [INFO] [sae_analyzer] load_gemma_scope_sae:47 - Loading GemmaScope SAE for layer 16
+2025-10-17 20:00:02,837 [INFO] [sae_analyzer] load_gemma_scope_sae:61 - Loading from HuggingFace: google/gemma-scope-2b-pt-res/layer_16/width_16k/average_l0_78/params.npz
+2025-10-17 20:00:02,837 [INFO] [sae_analyzer] load_gemma_scope_sae:62 - This may take a while if the model is not cached...
+2025-10-17 20:00:03,615 [INFO] [sae_analyzer] load_gemma_scope_sae:70 - Download complete, loading from: /Users/krizroycetahimic/.cache/huggingface/hub/models--google--gemma-scope-2b-pt-res/snapshots/fd571b47c1c64851e9b1989792367b9babb4af63/layer_16/width_16k/average_l0_78/params.npz
+2025-10-17 20:00:04,191 [INFO] [sae_analyzer] load_gemma_scope_sae:87 - Loaded SAE with d_model=2304, d_sae=16384, sparsity=78
+2025-10-17 20:00:04,191 [INFO] [phase3_8.auroc_f1_evaluator] load_split_activations:389 - Loaded SAE for layer 16 with 16,384 features on mps
+2025-10-17 20:00:04,543 [INFO] [phase3_8.auroc_f1_evaluator] load_split_activations:445 - Loaded 97 samples for hyperparams split
+2025-10-17 20:00:04,543 [INFO] [phase3_8.auroc_f1_evaluator] load_split_activations:446 - Class distribution: [69 28]
+2025-10-17 20:00:04,602 [INFO] [phase3_8.auroc_f1_evaluator] find_optimal_threshold:115 - 
+F1 optimal for correct-predicting feature:
+2025-10-17 20:00:04,605 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:62 - 
+Metrics for correct-predicting feature:
+2025-10-17 20:00:04,609 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:63 - Precision: 0.3651
+2025-10-17 20:00:04,609 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:64 - Recall: 0.8214
+2025-10-17 20:00:04,610 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:65 - F1 Score: 0.5055
+2025-10-17 20:00:04,610 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:66 - AUROC: 0.6786
+2025-10-17 20:00:04,832 [INFO] [sae_analyzer] load_gemma_scope_sae:47 - Loading GemmaScope SAE for layer 16
+2025-10-17 20:00:04,832 [INFO] [sae_analyzer] load_gemma_scope_sae:61 - Loading from HuggingFace: google/gemma-scope-2b-pt-res/layer_16/width_16k/average_l0_78/params.npz
+2025-10-17 20:00:04,832 [INFO] [sae_analyzer] load_gemma_scope_sae:62 - This may take a while if the model is not cached...
+2025-10-17 20:00:05,100 [INFO] [sae_analyzer] load_gemma_scope_sae:70 - Download complete, loading from: /Users/krizroycetahimic/.cache/huggingface/hub/models--google--gemma-scope-2b-pt-res/snapshots/fd571b47c1c64851e9b1989792367b9babb4af63/layer_16/width_16k/average_l0_78/params.npz
+2025-10-17 20:00:05,321 [INFO] [sae_analyzer] load_gemma_scope_sae:87 - Loaded SAE with d_model=2304, d_sae=16384, sparsity=78
+2025-10-17 20:00:05,321 [INFO] [phase3_8.auroc_f1_evaluator] load_split_activations:389 - Loaded SAE for layer 16 with 16,384 features on mps
+2025-10-17 20:00:06,339 [INFO] [phase3_8.auroc_f1_evaluator] load_split_activations:445 - Loaded 388 samples for validation split
+2025-10-17 20:00:06,339 [INFO] [phase3_8.auroc_f1_evaluator] load_split_activations:446 - Class distribution: [272 116]
+2025-10-17 20:00:06,342 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:62 - 
+Metrics for correct-predicting feature:
+2025-10-17 20:00:06,342 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:63 - Precision: 0.3623
+2025-10-17 20:00:06,342 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:64 - Recall: 0.8276
+2025-10-17 20:00:06,342 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:65 - F1 Score: 0.5039
+2025-10-17 20:00:06,342 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:66 - AUROC: 0.6430
+2025-10-17 20:00:06,416 [INFO] [phase3_8.auroc_f1_evaluator] main:588 - 
+============================================================
+2025-10-17 20:00:06,416 [INFO] [phase3_8.auroc_f1_evaluator] main:589 - EVALUATING INCORRECT-PREDICTING FEATURE
+2025-10-17 20:00:06,416 [INFO] [phase3_8.auroc_f1_evaluator] main:590 - ============================================================
+2025-10-17 20:00:06,419 [INFO] [sae_analyzer] load_gemma_scope_sae:47 - Loading GemmaScope SAE for layer 19
+2025-10-17 20:00:06,419 [INFO] [sae_analyzer] load_gemma_scope_sae:61 - Loading from HuggingFace: google/gemma-scope-2b-pt-res/layer_19/width_16k/average_l0_73/params.npz
+2025-10-17 20:00:06,419 [INFO] [sae_analyzer] load_gemma_scope_sae:62 - This may take a while if the model is not cached...
+2025-10-17 20:00:06,780 [INFO] [sae_analyzer] load_gemma_scope_sae:70 - Download complete, loading from: /Users/krizroycetahimic/.cache/huggingface/hub/models--google--gemma-scope-2b-pt-res/snapshots/fd571b47c1c64851e9b1989792367b9babb4af63/layer_19/width_16k/average_l0_73/params.npz
+2025-10-17 20:00:07,061 [INFO] [sae_analyzer] load_gemma_scope_sae:87 - Loaded SAE with d_model=2304, d_sae=16384, sparsity=73
+2025-10-17 20:00:07,061 [INFO] [phase3_8.auroc_f1_evaluator] load_split_activations:389 - Loaded SAE for layer 19 with 16,384 features on mps
+2025-10-17 20:00:07,302 [INFO] [phase3_8.auroc_f1_evaluator] load_split_activations:445 - Loaded 97 samples for hyperparams split
+2025-10-17 20:00:07,302 [INFO] [phase3_8.auroc_f1_evaluator] load_split_activations:446 - Class distribution: [28 69]
+2025-10-17 20:00:07,358 [INFO] [phase3_8.auroc_f1_evaluator] find_optimal_threshold:115 - 
+F1 optimal for incorrect-predicting feature:
+2025-10-17 20:00:07,360 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:62 - 
+Metrics for incorrect-predicting feature:
+2025-10-17 20:00:07,361 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:63 - Precision: 0.7234
+2025-10-17 20:00:07,361 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:64 - Recall: 0.9855
+2025-10-17 20:00:07,361 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:65 - F1 Score: 0.8344
+2025-10-17 20:00:07,361 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:66 - AUROC: 0.6812
+2025-10-17 20:00:07,433 [INFO] [sae_analyzer] load_gemma_scope_sae:47 - Loading GemmaScope SAE for layer 19
+2025-10-17 20:00:07,433 [INFO] [sae_analyzer] load_gemma_scope_sae:61 - Loading from HuggingFace: google/gemma-scope-2b-pt-res/layer_19/width_16k/average_l0_73/params.npz
+2025-10-17 20:00:07,433 [INFO] [sae_analyzer] load_gemma_scope_sae:62 - This may take a while if the model is not cached...
+2025-10-17 20:00:07,712 [INFO] [sae_analyzer] load_gemma_scope_sae:70 - Download complete, loading from: /Users/krizroycetahimic/.cache/huggingface/hub/models--google--gemma-scope-2b-pt-res/snapshots/fd571b47c1c64851e9b1989792367b9babb4af63/layer_19/width_16k/average_l0_73/params.npz
+2025-10-17 20:00:07,927 [INFO] [sae_analyzer] load_gemma_scope_sae:87 - Loaded SAE with d_model=2304, d_sae=16384, sparsity=73
+2025-10-17 20:00:07,927 [INFO] [phase3_8.auroc_f1_evaluator] load_split_activations:389 - Loaded SAE for layer 19 with 16,384 features on mps
+2025-10-17 20:00:08,794 [INFO] [phase3_8.auroc_f1_evaluator] load_split_activations:445 - Loaded 388 samples for validation split
+2025-10-17 20:00:08,795 [INFO] [phase3_8.auroc_f1_evaluator] load_split_activations:446 - Class distribution: [116 272]
+2025-10-17 20:00:08,797 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:62 - 
+Metrics for incorrect-predicting feature:
+2025-10-17 20:00:08,797 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:63 - Precision: 0.7034
+2025-10-17 20:00:08,798 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:64 - Recall: 0.9853
+2025-10-17 20:00:08,798 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:65 - F1 Score: 0.8208
+2025-10-17 20:00:08,798 [INFO] [phase3_8.auroc_f1_evaluator] calculate_metrics:66 - AUROC: 0.6650
+2025-10-17 20:00:08,867 [INFO] [phase3_8.auroc_f1_evaluator] main:630 - 
+============================================================
+2025-10-17 20:00:08,867 [INFO] [phase3_8.auroc_f1_evaluator] main:631 - GENERATING COMBINED F1 THRESHOLD PLOT
+2025-10-17 20:00:08,867 [INFO] [phase3_8.auroc_f1_evaluator] main:632 - ============================================================
+2025-10-17 20:00:08,964 [INFO] [phase3_8.auroc_f1_evaluator] plot_combined_f1_thresholds:171 - Saved combined F1 threshold plot to data/phase3_8/f1_threshold_plot_combined.png
+2025-10-17 20:00:08,964 [INFO] [phase3_8.auroc_f1_evaluator] main:637 - 
+============================================================
+2025-10-17 20:00:08,964 [INFO] [phase3_8.auroc_f1_evaluator] main:638 - SAVING RESULTS
+2025-10-17 20:00:08,964 [INFO] [phase3_8.auroc_f1_evaluator] main:639 - ============================================================
+2025-10-17 20:00:09,114 [INFO] [phase3_8.auroc_f1_evaluator] main:692 - 
+============================================================
+2025-10-17 20:00:09,114 [INFO] [phase3_8.auroc_f1_evaluator] main:693 - GENERATING PRECISION-RECALL CURVES
+2025-10-17 20:00:09,114 [INFO] [phase3_8.auroc_f1_evaluator] main:694 - ============================================================
+2025-10-17 20:00:09,193 [INFO] [phase3_8.auroc_f1_evaluator] plot_precision_recall_curves:345 - Saved precision-recall curves to data/phase3_8/precision_recall_curves.png
+2025-10-17 20:00:09,193 [INFO] [phase3_8.auroc_f1_evaluator] main:729 - 
+All results saved to data/phase3_8
+2025-10-17 20:00:09,193 [INFO] [main] run_phase3_8:688 - 
+✅ Phase 3.8 completed successfully
+2025-10-17 20:00:09,193 [INFO] [main] run_phase3_8:689 - Results saved to: data/phase3_8

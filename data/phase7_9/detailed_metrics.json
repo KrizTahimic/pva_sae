@@ -1,0 +1,103 @@
+{
+  "timestamp": "2025-09-12T16:58:01.039969",
+  "baseline_performance": {
+    "base_model": {
+      "pass_rate": 0.29896907216494845,
+      "correct_count": 116,
+      "incorrect_count": 272,
+      "total_samples": 388
+    },
+    "instruction_tuned": {
+      "pass_rate": 0.38402061855670105,
+      "correct_count": 149,
+      "incorrect_count": 239,
+      "total_samples": 388
+    },
+    "improvement": {
+      "absolute": 0.08505154639175261,
+      "relative": 28.44827586206898
+    }
+  },
+  "steering_effectiveness": {
+    "base_model": {
+      "correction_rate": 4.044117647058823,
+      "corruption_rate": 64.65517241379311,
+      "preservation_rate": 85.34482758620689,
+      "coefficients": {
+        "correct_coefficient": 29,
+        "incorrect_coefficient": 200,
+        "model": "google/gemma-2-2b"
+      }
+    },
+    "instruction_tuned": {
+      "correction_rate": 2.928870292887029,
+      "corruption_rate": 82.5503355704698,
+      "preservation_rate": 91.2751677852349,
+      "coefficients": {
+        "correct_coefficient": 29,
+        "incorrect_coefficient": 287,
+        "model": "google/gemma-2-2b-it"
+      }
+    },
+    "differences": {
+      "correction_rate_diff": -1.1152473541717942,
+      "corruption_rate_diff": 17.895163156676688,
+      "preservation_rate_diff": 91.2751677852349
+    }
+  },
+  "statistical_significance": {
+    "base_model": {
+      "correction": {
+        "successes": 11,
+        "trials": 272,
+        "rate": 4.044117647058823,
+        "pvalue": 0.0,
+        "significant": "True"
+      },
+      "corruption": {
+        "successes": 75,
+        "trials": 116,
+        "rate": 64.65517241379311,
+        "pvalue": 0.0,
+        "significant": "True"
+      },
+      "preservation": {
+        "successes": 99,
+        "trials": 116,
+        "rate": 85.34482758620689,
+        "pvalue": 1.4783313191563356e-15,
+        "significant": "True"
+      }
+    },
+    "instruction_tuned": {
+      "correction": {
+        "successes": 7,
+        "trials": 239,
+        "rate": 2.928870292887029,
+        "pvalue": 0.0,
+        "significant": "True"
+      },
+      "corruption": {
+        "successes": 123,
+        "trials": 149,
+        "rate": 82.5503355704698,
+        "pvalue": 0.0,
+        "significant": "True"
+      },
+      "preservation": {
+        "successes": 136,
+        "trials": 149,
+        "rate": 91.2751677852349,
+        "pvalue": 2.585788116497879e-27,
+        "significant": "True"
+      }
+    }
+  },
+  "universality_verdict": {
+    "features_transfer": false,
+    "correction_effective": false,
+    "corruption_effective": true,
+    "preservation_maintained": true,
+    "overall_assessment": "LIMITED"
+  }
+}

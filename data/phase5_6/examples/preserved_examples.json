@@ -1,0 +1,45 @@
+{
+  "description": "Problems that were initially correct and remained correct (expected)",
+  "examples": [
+    {
+      "task_id": 8,
+      "baseline_passed": true,
+      "orthogonalized_passed": true,
+      "baseline_code": "def square_nums(nums):\n    return [x**2 for x in nums]",
+      "orthogonalized_code": "def square_nums(nums):\n    return [x**2 for x in nums]",
+      "similarity": 1.0
+    },
+    {
+      "task_id": 17,
+      "baseline_passed": true,
+      "orthogonalized_passed": true,
+      "baseline_code": "def square_perimeter(side):\n    return side * 4",
+      "orthogonalized_code": "def square_perimeter(side):\n    return side * 4",
+      "similarity": 1.0
+    },
+    {
+      "task_id": 18,
+      "baseline_passed": true,
+      "orthogonalized_passed": true,
+      "baseline_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+      "orthogonalized_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+      "similarity": 1.0
+    },
+    {
+      "task_id": 51,
+      "baseline_passed": true,
+      "orthogonalized_passed": true,
+      "baseline_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+      "orthogonalized_code": "def check_equilateral(a,b,c):\n    return a==b==c",
+      "similarity": 0.7317073170731707
+    },
+    {
+      "task_id": 52,
+      "baseline_passed": true,
+      "orthogonalized_passed": true,
+      "baseline_code": "def parallelogram_area(a,b):\n    return a*b",
+      "orthogonalized_code": "def parallelogram_area(a,b):\n    return a*b",
+      "similarity": 1.0
+    }
+  ]
+}

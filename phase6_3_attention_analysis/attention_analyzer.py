@@ -512,8 +512,8 @@ class AttentionAnalyzer:
         y_limits = (-y_max, y_max)
         
         # Plot correct steering effects
-        colors = ['green' if d > 0 else 'red' for d in correct_deltas['means']]
-        bars1 = ax1.bar(x, correct_deltas['means'], yerr=correct_deltas['stds'], 
+        colors = ['blue' if d > 0 else 'red' for d in correct_deltas['means']]
+        bars1 = ax1.bar(x, correct_deltas['means'], yerr=correct_deltas['stds'],
                         capsize=5, color=colors, alpha=0.6)
         ax1.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
         ax1.set_ylabel('Attention Change (%)')
@@ -524,7 +524,7 @@ class AttentionAnalyzer:
         ax1.grid(axis='y', alpha=0.3)
         
         # Plot incorrect steering effects
-        colors = ['green' if d > 0 else 'red' for d in incorrect_deltas['means']]
+        colors = ['blue' if d > 0 else 'red' for d in incorrect_deltas['means']]
         bars2 = ax2.bar(x, incorrect_deltas['means'], yerr=incorrect_deltas['stds'],
                         capsize=5, color=colors, alpha=0.6)
         ax2.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
@@ -887,7 +887,7 @@ class AttentionAnalyzer:
             # Color bars based on positive/negative change
             for bar, mean in zip(bars, means):
                 if mean > 0:
-                    bar.set_facecolor('green')
+                    bar.set_facecolor('blue')
                     bar.set_alpha(0.6)
                 else:
                     bar.set_facecolor('red')
@@ -969,7 +969,7 @@ class AttentionAnalyzer:
                 for bar, diff in zip(bars, head_differences):
                     if section == 'tests':
                         # Color test section bars based on actual change direction
-                        bar.set_facecolor('green' if diff > 0 else 'red')
+                        bar.set_facecolor('blue' if diff > 0 else 'red')
                     else:
                         bar.set_facecolor('gray')
                     bar.set_alpha(0.6)

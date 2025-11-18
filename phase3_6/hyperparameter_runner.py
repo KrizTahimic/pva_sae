@@ -34,47 +34,60 @@ logger = get_logger("hyperparameter_runner", phase="3.6")
 class HyperparameterDataRunner:
     """Hyperparameter split processing with best layer activation extraction."""
     
-    def _discover_best_layers(self) -> Dict[str, int]:
+    def _discover_best_features(self) -> Dict[str, int]:
         """
-        Discover best layers from Phase 2.10 (required).
-        
+        Discover best features from Phase 2.10 (required).
+
         Returns:
-            Dict with 'correct' and 'incorrect' best layers
+            Dict with 'correct' and 'incorrect' feature info (layer and feature_idx)
         """
         # Use Phase 2.10 (t-statistic selection) - no fallback
         phase_2_10_dir = Path(getattr(self.config, 'phase2_10_output_dir', 'data/phase2_10'))
-        best_layer_file = phase_2_10_dir / "best_layer.json"
-        
-        if not best_layer_file.exists():
+        top_features_file = phase_2_10_dir / "top_20_features.json"
+
+        if not top_features_file.exists():
             # Try auto-discovery for Phase 2.10
             latest_output = discover_latest_phase_output("2.10")
             if latest_output:
                 # Extract directory from the discovered file
                 output_dir = Path(latest_output).parent
-                best_layer_file = output_dir / "best_layer.json"
-        
-        if not best_layer_file.exists():
+                top_features_file = output_dir / "top_20_features.json"
+
+        if not top_features_file.exists():
             raise FileNotFoundError(
-                f"best_layer.json not found in Phase 2.10. "
+                f"top_20_features.json not found in Phase 2.10. "
                 "Please run Phase 2.10 first."
             )
-        
-        logger.info(f"Using features from Phase 2.10: {best_layer_file}")
-        
-        # Read best layer info directly from Phase 2.10
-        with open(best_layer_file, 'r') as f:
-            best_layers = json.load(f)
-        
-        # Validate that we have all required fields
-        required_fields = ['correct', 'incorrect', 'correct_feature_idx', 'incorrect_feature_idx']
-        for field in required_fields:
-            if field not in best_layers:
-                raise ValueError(f"Missing required field '{field}' in best_layer.json")
-        
-        logger.info(f"Discovered best layers from Phase 2.10 - Correct: layer {best_layers['correct']} (feature {best_layers['correct_feature_idx']}), "
-                   f"Incorrect: layer {best_layers['incorrect']} (feature {best_layers['incorrect_feature_idx']})")
-        
-        return best_layers
+
+        logger.info(f"Using features from Phase 2.10: {top_features_file}")
+
+        # Read top features and extract index 0 for each category
+        with open(top_features_file, 'r') as f:
+            top_features = json.load(f)
+
+        # Validate structure
+        if 'correct' not in top_features or 'incorrect' not in top_features:
+            raise ValueError("Missing 'correct' or 'incorrect' in top_20_features.json")
+
+        if not top_features['correct'] or not top_features['incorrect']:
+            raise ValueError("Empty feature list in top_20_features.json")
+
+        # Get the best (index 0) features
+        best_correct = top_features['correct'][0]
+        best_incorrect = top_features['incorrect'][0]
+
+        # Build the return format compatible with existing code
+        best_features = {
+            'correct': best_correct['layer'],
+            'incorrect': best_incorrect['layer'],
+            'correct_feature_idx': best_correct['feature_idx'],
+            'incorrect_feature_idx': best_incorrect['feature_idx']
+        }
+
+        logger.info(f"Discovered best features from Phase 2.10 - Correct: layer {best_features['correct']} (feature {best_features['correct_feature_idx']}), "
+                   f"Incorrect: layer {best_features['incorrect']} (feature {best_features['incorrect_feature_idx']})")
+
+        return best_features
     
     def __init__(self, config: Config):
         """Initialize with configuration."""
@@ -99,8 +112,8 @@ class HyperparameterDataRunner:
         else:
             logger.info(f"Model successfully loaded on {actual_device}")
         
-        # Discover best layers from Phase 2.10 or 2.5
-        self.best_layers = self._discover_best_layers()
+        # Discover best features from Phase 2.10
+        self.best_layers = self._discover_best_features()
         
         # Setup activation extraction layers (copying Phase 3.5's elegant same/different layer handling)
         self._setup_activation_extraction()

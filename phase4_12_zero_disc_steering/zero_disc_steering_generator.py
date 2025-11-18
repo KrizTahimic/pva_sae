@@ -29,7 +29,8 @@ from common.config import Config
 from common.steering_metrics import (
     create_steering_hook,
     calculate_correction_rate,
-    calculate_corruption_rate
+    calculate_corruption_rate,
+    calculate_preservation_rate
 )
 from common.retry_utils import retry_with_timeout
 from common_simplified.model_loader import load_model_and_tokenizer
@@ -97,22 +98,6 @@ class ZeroDiscSteeringGenerator:
         self.zero_disc_features = load_json(features_file)
         logger.info(f"Loaded {len(self.zero_disc_features['features'])} zero-discrimination features")
         
-        # Load Phase 2.5 best layer
-        logger.info("Loading best layer from Phase 2.5...")
-        phase2_5_output = discover_latest_phase_output("2.5")
-        if not phase2_5_output:
-            raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
-        
-        best_layer_file = Path(phase2_5_output).parent / "best_layer.json"
-        if best_layer_file.exists():
-            best_layer_data = load_json(best_layer_file)
-            self.best_layer = best_layer_data.get('best_layer', 12)
-        else:
-            logger.warning("Best layer file not found, using default layer 12")
-            self.best_layer = 12
-        
-        logger.info(f"Using layer {self.best_layer} for steering")
-        
         # Load Phase 3.5 validation data
         logger.info("Loading validation data from Phase 3.5...")
         phase3_5_output = discover_latest_phase_output("3.5")
@@ -154,15 +139,9 @@ class ZeroDiscSteeringGenerator:
     def _select_best_zero_disc_features(self) -> Dict:
         """Select best zero-discrimination feature for both correction and corruption experiments."""
         features = self.zero_disc_features['features']
-        
-        # Select feature with lowest separation score (most zero-discrimination)
-        # from the best layer if available
-        best_layer_features = [f for f in features if f['layer'] == self.best_layer]
-        
-        if best_layer_features:
-            selected_feature = min(best_layer_features, key=lambda x: x['separation_score'])
-        else:
-            selected_feature = min(features, key=lambda x: x['separation_score'])
+
+        # Simply use the first feature (already sorted by separation score in Phase 4.10)
+        selected_feature = features[0]
         
         logger.info(f"Selected zero-disc feature for both experiments:")
         logger.info(f"  Feature: L{selected_feature['layer']}F{selected_feature['feature_idx']} "
@@ -385,24 +364,38 @@ class ZeroDiscSteeringGenerator:
         logger.info(f"Problems: {len(self.correct_problems)} initially correct")
         logger.info(f"Coefficient: {self.incorrect_coefficient}")
         logger.info("="*40)
-        
+
         corruption_results = self._apply_zero_disc_steering(
             self.correct_problems,
             zero_disc_feature,
             self.incorrect_coefficient,
             'corruption'
         )
-        
+
+        # Preservation experiments (correct→correct steering with positive coefficient)
+        logger.info("\n" + "="*40)
+        logger.info("Running PRESERVATION experiments")
+        logger.info(f"Problems: {len(self.correct_problems)} initially correct")
+        logger.info(f"Coefficient: {self.correct_coefficient} (using correct-preferring coefficient)")
+        logger.info("="*40)
+
+        preservation_results = self._apply_zero_disc_steering(
+            self.correct_problems,
+            zero_disc_feature,
+            self.correct_coefficient,
+            'preservation'
+        )
+
         # Calculate metrics
         correction_rate = calculate_correction_rate(correction_results)
         corruption_rate = calculate_corruption_rate(corruption_results)
+        preservation_rate = calculate_preservation_rate(preservation_results)
         
         # Prepare results
         results = {
             'metadata': {
                 'phase': '4.12',
                 'description': 'Zero-discrimination steering generation for baseline control',
-                'best_layer': self.best_layer,
                 'coefficients': {
                     'correct': self.correct_coefficient,
                     'incorrect': self.incorrect_coefficient
@@ -410,17 +403,21 @@ class ZeroDiscSteeringGenerator:
                 'zero_disc_feature_used': f"L{zero_disc_feature['layer']}F{zero_disc_feature['feature_idx']}",
                 'n_problems_tested': {
                     'correction': len(correction_results),
-                    'corruption': len(corruption_results)
+                    'corruption': len(corruption_results),
+                    'preservation': len(preservation_results)
                 },
                 'timestamp': datetime.now().isoformat()
             },
             'correction_results': {r['task_id']: r for r in correction_results},
             'corruption_results': {r['task_id']: r for r in corruption_results},
+            'preservation_results': {r['task_id']: r for r in preservation_results},
             'summary_metrics': {
                 'correction_rate': correction_rate,
                 'corruption_rate': corruption_rate,
+                'preservation_rate': preservation_rate,
                 'n_corrected': sum(1 for r in correction_results if r['steered_correct'] and not r['initial_correct']),
-                'n_corrupted': sum(1 for r in corruption_results if not r['steered_correct'] and r['initial_correct'])
+                'n_corrupted': sum(1 for r in corruption_results if not r['steered_correct'] and r['initial_correct']),
+                'n_preserved': sum(1 for r in preservation_results if r['steered_correct'] and r['initial_correct'])
             }
         }
         
@@ -430,11 +427,12 @@ class ZeroDiscSteeringGenerator:
         logger.info(f"Saved results to: {output_file}")
         
         # Save examples
-        self._save_examples(correction_results[:3], corruption_results[:3])
+        self._save_examples(correction_results[:3], corruption_results[:3], preservation_results[:3])
         
         # Clean up checkpoints after successful completion
         self._cleanup_checkpoints('correction')
         self._cleanup_checkpoints('corruption')
+        self._cleanup_checkpoints('preservation')
         logger.info("Cleaned up all checkpoint files")
         
         # Log summary
@@ -443,18 +441,21 @@ class ZeroDiscSteeringGenerator:
         logger.info("="*60)
         logger.info(f"Correction rate: {correction_rate:.2%} (expected: ~2%)")
         logger.info(f"Corruption rate: {corruption_rate:.2%} (expected: ~1%)")
-        logger.info(f"Total problems tested: {len(correction_results) + len(corruption_results)}")
+        logger.info(f"Preservation rate: {preservation_rate:.2%} (expected: ~99%)")
+        logger.info(f"Total problems tested: {len(correction_results) + len(corruption_results) + len(preservation_results)}")
         logger.info("="*60)
         
         return results
         
-    def _save_examples(self, correction_examples: List[Dict], corruption_examples: List[Dict]) -> None:
+    def _save_examples(self, correction_examples: List[Dict], corruption_examples: List[Dict],
+                      preservation_examples: List[Dict]) -> None:
         """Save example steered generations."""
         examples = {
             'correction_examples': correction_examples,
-            'corruption_examples': corruption_examples
+            'corruption_examples': corruption_examples,
+            'preservation_examples': preservation_examples
         }
-        
+
         examples_file = self.examples_dir / 'zero_disc_examples.json'
         save_json(examples, examples_file)
         logger.info(f"Saved examples to: {examples_file}")

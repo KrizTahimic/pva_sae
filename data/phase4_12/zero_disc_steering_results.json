@@ -1,0 +1,75 @@
+{
+  "metadata": {
+    "phase": "4.12",
+    "description": "Zero-discrimination steering generation for baseline control",
+    "coefficients": {
+      "correct": 29,
+      "incorrect": 287
+    },
+    "zero_disc_feature_used": "L1F4801",
+    "n_problems_tested": {
+      "correction": 2,
+      "corruption": 1,
+      "preservation": 1
+    },
+    "timestamp": "2025-09-24T11:52:03.198250"
+  },
+  "correction_results": {
+    "1": {
+      "task_id": 1,
+      "initial_correct": false,
+      "steered_correct": false,
+      "baseline_code": "def min_cost(cost, m, n):\n    # Base case\n    if m == 0 and n == 0:\n        return 0\n    # Recursive case\n    if m == 0:\n        return cost[0][n]\n    if n == 0:\n        return cost[m][0]\n    # Find the minimum cost from the top left corner\n    # and the bottom right corner\n    left = min_cost(cost, m - 1, n)\n    right = min_cost(cost, m, n - 1)\n    return min(left, right) + cost[m][n]",
+      "steered_code": "def min_cost(cost, m, n):\n    # Base case\n    if m == 0 and n == 0:\n        return 0\n    # Recursive case\n    if m == 0 or n == 0:\n        return 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "steering_type": "correction",
+      "feature_layer": 1,
+      "feature_idx": 4801,
+      "coefficient": 29
+    },
+    "5": {
+      "task_id": 5,
+      "initial_correct": false,
+      "steered_correct": false,
+      "baseline_code": "def count_ways(n):\n    if n == 1:\n        return 1\n    if n == 2:\n        return 3\n    if n == 3:\n        return 6\n    if n == 4:\n        return 15\n    if n == 5:\n        return 42\n    if n == 6:\n        return 132\n    if n == 7:\n        return 429\n    if n == 8:\n        return 1536\n    if n == 9:\n        return 5904\n    if n == 10:\n        return 2520\n    if n == 11:\n        return 12096\n    if n == 12:\n        return 59040\n    if n == 13:\n        return 302400\n    if n == 14:\n        return 1814400\n    if n == 15:\n        return 10982400\n    if n == 16:\n        return 74264000\n    if n == 17:\n        return 590400000\n    if n == 18:\n        return 5904000000\n    if n == 19:\n        return 59040000000\n    if n == 20:\n        return 590400000000\n    if n == 21:\n        return 5904000000000\n    if n == 22:\n        return 59040000000000\n    if n == 23:\n        return 590400000000000\n    if n == 24:\n        return 5904000000000000\n    if n == 25:\n        return 59040000000000000\n    if n == 26:\n        return 590400000000000000\n    if n == 27:\n        return 5904000000000000000\n    if n == 28:\n        return 59040000000000000000\n    if n == 29:\n        return 590400000000000000000\n    if n == 30:\n        return 5904000000000000000000\n    if n == 31:\n        return 59040000000000000000000\n    if n == 32:\n        return 590400000000000000000000\n    if n == 33:\n        return 5904000000000000000000000\n    if n == 34:\n        return 590400",
+      "steered_code": "def count_ways(n):\n    if n == 2:\n        return 3\n    if n == 8:\n        return 153\n    if n == 12:\n        return 2131\n    else:\n        return 0",
+      "steering_type": "correction",
+      "feature_layer": 1,
+      "feature_idx": 4801,
+      "coefficient": 29
+    }
+  },
+  "corruption_results": {
+    "8": {
+      "task_id": 8,
+      "initial_correct": true,
+      "steered_correct": false,
+      "baseline_code": "def square_nums(nums):\n    return [x**2 for x in nums]",
+      "steered_code": "\u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c \u201c",
+      "steering_type": "corruption",
+      "feature_layer": 1,
+      "feature_idx": 4801,
+      "coefficient": 287
+    }
+  },
+  "preservation_results": {
+    "8": {
+      "task_id": 8,
+      "initial_correct": true,
+      "steered_correct": false,
+      "baseline_code": "def square_nums(nums):\n    return [x**2 for x in nums]",
+      "steered_code": "def square_nums(nums):\n    return [n**2 for n in nums]",
+      "steering_type": "preservation",
+      "feature_layer": 1,
+      "feature_idx": 4801,
+      "coefficient": 29
+    }
+  },
+  "summary_metrics": {
+    "correction_rate": 0.0,
+    "corruption_rate": 0.0,
+    "preservation_rate": 100.0,
+    "n_corrected": 0,
+    "n_corrupted": 1,
+    "n_preserved": 0
+  }
+}

@@ -135,6 +135,7 @@ class Config:
     phase2_2_output_dir: str = "data/phase2_2"
     phase2_5_output_dir: str = "data/phase2_5"
     phase2_10_output_dir: str = "data/phase2_10"
+    phase2_15_output_dir: str = "data/phase2_15"
     phase3_output_dir: str = "data/phase3"
     
     # === PROBLEM SPLITTING (Phase 0.1) ===
@@ -143,7 +144,7 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [1.4])
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
     # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
 
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
@@ -159,15 +160,20 @@ class Config:
     # === INSTRUCTION-TUNED MODEL STEERING (Phase 7.6) ===
     phase7_6_output_dir: str = "data/phase7_6"
     phase7_6_model_name: str = "google/gemma-2-2b-it"
-    
+
+    # === INSTRUCTION-TUNED MODEL AUROC/F1 EVALUATION (Phase 7.12) ===
+    phase7_12_output_dir: str = "data/phase7_12"
+
     # === AUROC AND F1 EVALUATION (Phase 3.8) ===
     phase3_8_output_dir: str = "data/phase3_8"
     
     # === TEMPERATURE-BASED AUROC ANALYSIS (Phase 3.10) ===
     phase3_10_output_dir: str = "data/phase3_10"
-    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4]) # 
+    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4]) #
 
-    
+    # === TEMPERATURE TRENDS VISUALIZATION UPDATE (Phase 3.11) ===
+    phase3_11_output_dir: str = "data/phase3_11"
+
     # === DIFFICULTY-BASED AUROC ANALYSIS (Phase 3.12) ===
     phase3_12_output_dir: str = "data/phase3_12"
     

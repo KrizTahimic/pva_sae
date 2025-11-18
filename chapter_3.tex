@@ -1,0 +1,309 @@
+% !TEX root = main.tex
+\chapter{Methodology}
+\label{sec:methodology}
+
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.6\textwidth]{figures/methodology.pdf}
+%     \caption{Overview of the four-component methodology: PCDGE pipeline, dataset preparation, direction selection, and mechanistic analysis}
+%     \label{fig:methodology}
+% \end{figure}
+
+\begin{figure}[]
+    \centering
+    \includegraphics[width=1\textwidth]{figures/methodology.pdf}
+    \caption{Overview of the four-component methodology: PCDGE pipeline, dataset preparation, direction selection, and mechanistic analysis}
+    \label{fig:methodology}
+\end{figure}
+
+
+% Adapts
+This chapter outlines the methodological approach used in our study, drawing significant inspiration from the work of \citeA{ferrando2024know} in their investigation of entity recognition latent in language models. We adapt their framework while introducing key modifications to address our distinct research objectives.
+
+% Four main components
+Our methodology consists of four main components, as illustrated in Figure~\ref{fig:methodology}: (1) the PCDGE pipeline, providing systematic workflow for data generation and processing; (2) dataset preparation, with complexity-based splitting of the MBPP dataset; (3) direction selection, to identify code correctness latent directions through SAE activation analysis; and (4) mechanistic analysis, to validate and understand the discovered directions.
+
+\section{Prompt-Capture-Decom\-pose-Generate-Eval\-uate (PCDGE) Pipeline}
+\label{sec:pcdge}
+
+This pipeline represents a systematic workflow that underlies the direction selection and mechanistic analysis components in this study, ensuring consistent data generation and processing across direction selection and mechanistic analysis phases. It consists of five sequential stages that transform raw programming problems into evaluated code solutions with interpretable neural representations: prompting, activation capture, decomposition, code generation, and evaluation.
+
+\textbf{Prompt Stage}: Each programming problem from the MBPP dataset is formatted using a standardized template structure to ensure consistent input formatting.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=1\textwidth]{figures/template.pdf}
+    \caption{Standardized prompt template containing three components: problem description, test cases, and code initiator.}
+    \label{fig:template}
+\end{figure}
+
+The template contains three essential components: the problem description provides the fundamental problem statement, test cases demonstrate expected input-output behavior with function signatures, and the code initiator ensures proper code generation from the base model. Context annotations clarify structure and purpose, ensuring consistent formatting while making the template's organization explicit for both human readers and the language model.
+
+\textbf{Capture Stage}: During model inference, we capture residual stream activations at the final prompt token before the model's answer begins, capturing the model's complete understanding of the problem specification before generation commences. For steering experiments (Section~\ref{sec:activation-steering}), these captured activations are modified before proceeding to generation.
+
+\textbf{Decompose Stage}: The captured activations undergo Sparse Autoencoder (SAE) decomposition using pre-trained models from GemmaScope \cite{lieberum2024gemma}. This stage transforms the raw neural activations into interpretable latent representations that can reveal code correctness patterns.
+
+We employ the JumpReLU SAE architecture, which projects model representations $\mathbf{x} \in \mathbb{R}^d$ into a larger dimensional space $a(\mathbf{x}) \in \mathbb{R}^{d_{\text{SAE}}}$ to enable more granular analysis of neural activations. The encoding process applies a linear transformation followed by a JumpReLU activation function:
+
+\begin{equation}
+    a(\mathbf{x})=\text{JumpReLU}_{\theta}(\mathbf{xW}_{\text{enc}}+\mathbf{b}_{\text{enc}})
+\end{equation}
+
+where JumpReLU implements a threshold activation defined as:
+
+\begin{equation}
+    \text{JumpReLU}_\theta(\mathbf{x}) = \mathbf{x} \odot H(\mathbf{x} - \theta)
+\end{equation}
+
+Here, $H$ represents the Heaviside step function, and $\theta$ is a learnable threshold vector. The decoder reconstructs the original representation through:
+
+\begin{equation}
+    \text{SAE}(\mathbf{x})=a(\mathbf{x})\mathbf{W}_{\text{dec}}+\mathbf{b}_{\text{dec}}
+\end{equation}
+
+The autoencoder training minimizes a combined loss function that balances reconstruction accuracy with sparsity:
+
+\begin{equation}
+    \mathcal{L}(\mathbf{x}) = \underbrace{\|\mathbf{x} - \text{SAE}(\mathbf{x})\|_2^2}_{\mathcal{L}_{\text{reconstruction}}} + \underbrace{\lambda \|a(\mathbf{x})\|_0}_{\mathcal{L}_{\text{sparsity}}}
+\end{equation}
+
+This decomposition addresses the superposition problem in neural networks, where multiple features are entangled within individual neurons. By expanding the captured activations into a higher-dimensional sparse space, the SAE disentangles these overlapping representations, enabling cleaner identification of code correctness latent directions with reduced interference from other linguistic and computational features.
+
+\textbf{Generate Stage}: Google's Gemma 2 language model with 2 billion parameters base model (\texttt{google/gemma-2-2b}) \cite{team2024gemma} generates code solutions from the processed activations. Temperature is set to 0 for deterministic, reproducible outputs that focus on the model's base behavior in code generation tasks.
+
+\textbf{Evaluate Stage}: Each generated code solution is evaluated against MBPP test cases using pass@1 criterion. Solutions passing all test cases are classified as correct, while any failures (compilation errors, runtime exceptions, or incorrect outputs) result in incorrect classification.
+
+\section{Dataset Preparation}
+
+This research utilizes the MBPP (Mostly Basic Python Problems) dataset, which consists of 1,000 Python programming problems designed to evaluate fundamental programming competencies. We enhance the original MBPP dataset by adding a cyclomatic complexity column using McCabe's cyclomatic complexity metric \cite{mccabe1976complexity} to enable complexity-based analysis.
+
+Cyclomatic complexity quantifies the structural complexity of code by measuring the number of linearly independent paths through the program's control flow graph. The metric is computed using the formula:
+
+\begin{equation}
+M = E - N + 2P
+\end{equation}
+
+where $M$ represents the cyclomatic complexity, $E$ denotes the number of edges in the control flow graph, $N$ indicates the number of nodes in the graph, and $P$ represents the number of connected components. In the control flow graph representation, nodes correspond to the smallest executable code segments, while directed edges connect these segments based on the program's execution flow. This mathematical foundation allows us to systematically categorize programming problems based on their algorithmic complexity, enabling stratified analysis of how code correctness varies across different complexity levels.
+
+The enhanced dataset undergoes stratified random sampling for data splitting to ensure fair representation across complexity levels:
+
+\begin{itemize}
+    \item \textbf{Stratification}: Problems are divided into complexity strata using equal-width bins based on complexity scores
+    \item \textbf{Randomization}: Task IDs are shuffled within each complexity stratum to ensure fair sampling
+    \item \textbf{Interleaving}: A round-robin pattern is applied across all strata simultaneously to prevent complexity bias
+\end{itemize}
+
+This approach results in three balanced sets: direction selection (50\%), hyperparameter tuning (10\%), and mechanistic analysis (40\%) that maintain proportional complexity distribution. The hyperparameter tuning set is used to optimize classification thresholds for F1 score calculation and determine appropriate steering coefficients for model interventions.
+
+\section{Direction Selection}
+
+We identify code correctness mechanisms in Gemma-2-2b using the PCDGE pipeline to generate binary-labeled code samples. Pre-trained GemmaScope autoencoders \cite{lieberum2024gemma} decompose the captured activations into interpretable latents $a_{l,j}(\mathbf{x}_l)$ at each layer $l$.
+
+We exclude features activating $>$2\% on the pile-10k dataset\footnote{\url{https://huggingface.co/datasets/NeelNanda/pile-10k}}, the first 10,000 samples from the Pile \cite{gao2020pile}, to filter out general language patterns. From this filtered set, we apply complementary metrics suited to each mechanism's computational role. Throughout our analysis, $N^{\text{correct}}$ and $N^{\text{incorrect}}$ denote the total number of correct and incorrect code samples in the direction selection split, respectively.
+
+\textbf{Prediction directions} require sensitivity to confidence gradients. Code correctness manifests not as binary presence but as activation intensity differences between correct and incorrect samples. The t-statistic captures these graded signals while accounting for variance:
+
+\begin{align}
+t_{l,j}^{\text{correct}} &= \frac{\mu(a_{l,j}(\mathbf{x}_i^{\text{correct}})) - \mu(a_{l,j}(\mathbf{x}_i^{\text{incorrect}}))}{\sqrt{\frac{\sigma(a_{l,j}(\mathbf{x}_i^{\text{correct}}))^2}{N^{\text{correct}}} + \frac{\sigma(a_{l,j}(\mathbf{x}_i^{\text{incorrect}}))^2}{N^{\text{incorrect}}}}} \\
+t_{l,j}^{\text{incorrect}} &= \frac{\mu(a_{l,j}(\mathbf{x}_i^{\text{incorrect}})) - \mu(a_{l,j}(\mathbf{x}_i^{\text{correct}}))}{\sqrt{\frac{\sigma(a_{l,j}(\mathbf{x}_i^{\text{correct}}))^2}{N^{\text{correct}}} + \frac{\sigma(a_{l,j}(\mathbf{x}_i^{\text{incorrect}}))^2}{N^{\text{incorrect}}}}}
+\end{align}
+
+where $\mu$ and $\sigma$ denote the mean and standard deviation of non-zero activations. This identifies features encoding model confidence about code correctness.
+
+\textbf{Steering directions} demand categorical exclusivity for clean intervention. We first compute how frequently each feature activates:
+
+\begin{align}
+f_{l,j}^{\text{correct}} &= \frac{1}{N^\text{correct}} \sum_{i=1}^{N^\text{correct}} \mathbf{1}[a_{l,j}(\mathbf{x}_{l,i}^\text{correct}) > 0] \\
+f_{l,j}^{\text{incorrect}} &= \frac{1}{N^\text{incorrect}} \sum_{i=1}^{N^\text{incorrect}} \mathbf{1}[a_{l,j}(\mathbf{x}_{l,i}^\text{incorrect}) > 0]
+\end{align}
+
+Separation scores then measure exclusivity:
+
+\begin{equation}
+s_{l,j}^{\text{correct}} = f_{l,j}^{\text{correct}} - f_{l,j}^{\text{incorrect}}, \quad s_{l,j}^{\text{incorrect}} = f_{l,j}^{\text{incorrect}} - f_{l,j}^{\text{correct}}
+\end{equation}
+
+High separation indicates switch-like features firing predominantly for one code type, enabling targeted corrections without affecting the opposite category.
+
+Searching across all 26 model layers, we select four code correctness directions:
+
+\begin{align}
+\text{correct-predicting direction} &= \arg\max_{l,j} \{t_{l,j}^{\text{correct}} : f_{l,j}^{\text{pile}} \leq 0.02\} \\
+\text{incorrect-predicting direction} &= \arg\max_{l,j} \{t_{l,j}^{\text{incorrect}} : f_{l,j}^{\text{pile}} \leq 0.02\} \\
+\text{correct-steering direction} &= \arg\max_{l,j} \{s_{l,j}^{\text{correct}} : f_{l,j}^{\text{pile}} \leq 0.02\} \\
+\text{incorrect-steering direction} &= \arg\max_{l,j} \{s_{l,j}^{\text{incorrect}} : f_{l,j}^{\text{pile}} \leq 0.02\}
+\end{align}
+
+where
+\begin{equation}
+f_{l,j}^{\text{pile}} = \frac{\sum_{i=1}^{N^{\text{pile}}} \mathbf{1}[a_{l,j}(\mathbf{x}_{l,i}^{\text{pile}}) > 0]}{N^{\text{pile}}}
+\end{equation}
+
+represents the activation frequency on general text from the pile-10k dataset. These four directions represent complementary mechanisms for understanding and influencing code correctness in language models.
+
+\section{Mechanistic Analysis}
+\subsection{Statistical Analysis}
+To validate the identified predicting directions, we employ two statistical measures that assess different aspects of the direction's effectiveness and generalizability.
+
+% AUROC curve
+First, we evaluate the latent direction's statistical significance using the Area Under the Receiver Operating Characteristic (AUROC) curve. This metric comprehensively assesses the model's ability to distinguish between correct and incorrect code implementations across various classification thresholds. The AUROC score is calculated as follows:
+
+\begin{equation}
+\text{AUROC} = \int_0^1 \text{TPR}(\text{FPR})\,d\text{FPR}
+\end{equation}
+
+where the True Positive Rate (TPR) measures the proportion of correct code implementations accurately identified as correct ($\text{TP}/(\text{TP} + \text{FN})$), and the False Positive Rate (FPR) indicates the proportion of incorrect implementations mistakenly classified as correct ($\text{FP}/(\text{FP} + \text{TN})$). Here, TP denotes true positives (correct code classified as correct), FP denotes false positives (incorrect code classified as correct), TN denotes true negatives (incorrect code classified as incorrect), and FN denotes false negatives (correct code classified as incorrect). The integral formulation captures the relationship between these rates across all possible classification thresholds, quantifying the model's discriminative capability independent of any specific threshold. A score closer to $1.0$ indicates superior discrimination ability, while $0.5$ suggests performance equivalent to random chance.
+
+
+% F1 score
+Second, we compute the $F_1$ score, which provides a balanced measure between precision and recall (TPR) through the harmonic mean:
+
+\begin{equation}
+F_1 = \frac{2 \cdot \text{precision} \cdot \text{TPR}}{\text{precision} + \text{TPR}}
+\end{equation}
+
+where $\text{precision} = \text{TP}/(\text{TP} + \text{FP})$ represents the proportion of correctly identified correct code among all code classified as correct. The harmonic mean formulation ensures equal weighting between precision and TPR, penalizing extreme imbalances more severely than the arithmetic mean would. This property makes the $F_1$ score particularly suitable for evaluating classification performance when both false positives and false negatives carry significant consequences.
+
+To compute the $F_1$ score, we must first determine an optimal classification threshold that converts continuous latent activations into binary predictions of correct or incorrect code. We use our hyperparameter tuning set to evaluate multiple threshold values, calculating each threshold's resulting TP, FP, TN, and FN counts. These counts produce different precision and TPR values, yielding different $F_1$ scores. We select the threshold that maximizes the $F_1$ score on the development set and then apply this optimized threshold to our mechanistic analysis dataset for final evaluation. The resulting $F_1$ score ranges from $0$ to $1$, where $1$ indicates perfect precision and recall, while $0$ indicates complete failure in either metric. This systematic threshold optimization ensures that our evaluation reflects the latent direction's best achievable performance while maintaining generalizability through separate development and test sets.
+
+
+\subsection{Temperature Variation Analysis}
+
+Temperature variation analysis examines how varying temperature affects the statistical significance of our predicting directions. Crucially, we capture the model's internal activations only once using deterministic sampling (temperature = 0), as the underlying representations remain invariant to sampling temperature—only the token selection probabilities are affected by temperature scaling. We then systematically evaluate performance across temperature values ranging from 0.0 to 1.4, where higher temperatures introduce stochasticity solely in the token sampling process. For each non-zero temperature, we generate three distinct code solutions per problem by sampling from the same activation-derived probability distributions with different random seeds. The statistical metrics (AUROC and F1 score) are computed for each temperature setting, revealing how sampling variability in the decoding process affects the apparent statistical significance of the identified predicting directions while the underlying neural representations remain constant.
+
+\subsection{Complexity Variation Analysis}
+
+Complexity variation analysis examines how the identified predicting directions generalize across problems of varying complexity. We employ McCabe's cyclomatic complexity \cite{mccabe1976complexity} to categorize MBPP problems into three difficulty groups: easy (complexity = 1), medium (complexity = 2-3), and hard (complexity $\geq$ 4). These thresholds were chosen to ensure approximately equal distribution of samples across the three groups, maximizing statistical power for each difficulty category. This stratified analysis, computing AUROC and F1 scores for each complexity group, reveals whether the prediction mechanism operates uniformly across problem difficulties or exhibits complexity-dependent effectiveness.
+
+\subsection{Activation Steering}
+\label{sec:activation-steering}
+To establish causality, we employ activation steering on the identified steering directions. This technique directly intervenes on the model's residual stream by adding a scaled version of the target SAE decoder direction:
+
+\begin{equation}
+\mathbf{x}^{\text{steered}} = \mathbf{x} + \alpha \cdot \mathbf{W}_{\text{dec}}[j,:]
+\end{equation}
+
+where $\alpha$ controls the steering strength and $\mathbf{W}_{\text{dec}}[j,:]$ is the decoder direction corresponding to our identified steering feature. This additive intervention shifts the model's internal state along the learned feature direction.
+
+To determine optimal steering coefficients $\alpha$, we employ a two-phase search strategy on the hyperparameter tuning set. We begin with a coarse grid search testing coefficients at intervals (e.g., 10, 20, 30, ...) with early stopping when performance decreases. We then apply golden section search, which uses the golden ratio $\phi = \frac{1 + \sqrt{5}}{2} \approx 1.618$ to iteratively narrow the search interval around the grid search optimum. For correct steering, we maximize correction rate. For incorrect steering, we maximize a composite score $\frac{1}{2}(C_r + S)$ where $C_r$ denotes corruption rate and $S$ the mean Python token similarity percentage, ensuring the intervention effectively induces errors while maintaining structural coherence.
+
+To quantify the impact of steering, we introduce three evaluation metrics. Let $\text{steered}_i^{+}$ denote a sample steered with the correct-steering direction and $\text{steered}_i^{-}$ denote a sample steered with the incorrect-steering direction.
+
+For the correct-steering direction, we measure the \textbf{Correction Rate}, which quantifies the proportion of initially incorrect code samples that become correct after steering:
+\begin{equation}
+\text{Correction Rate} = \frac{1}{N^{\text{incorrect}}} \sum_{i=1}^{N^{\text{incorrect}}} \mathbf{1}[\text{IsCorrect}(\text{steered}_i^{+})= \text{True}]
+\end{equation}
+
+Additionally, to assess whether the correct-steering direction preserves correctness in already-correct code, we measure the \textbf{Preservation Rate}:
+\begin{equation}
+\text{Preservation Rate} = \frac{1}{N^{\text{correct}}} \sum_{i=1}^{N^{\text{correct}}} \mathbf{1}[\text{IsCorrect}(\text{steered}_i^{+})= \text{True}]
+\end{equation}
+
+For the incorrect-steering direction, we measure the \textbf{Corruption Rate}, which captures the proportion of initially correct code that becomes incorrect after steering:
+\begin{equation}
+\text{Corruption Rate} = \frac{1}{N^{\text{correct}}} \sum_{i=1}^{N^{\text{correct}}} \mathbf{1}[\text{IsCorrect}(\text{steered}_i^{-})= \text{False}]
+\end{equation}
+
+To determine whether these observed rates represent statistically significant effects, we apply \textbf{Binomial Testing} to each rate. For a given test with $n$ trials, $k$ successes, and baseline probability $p_0$, the probability of observing $k$ or more successes under the null hypothesis is:
+\begin{equation}
+P(X \geq k) = \sum_{i=k}^{n} \binom{n}{i} p_0^i (1-p_0)^{n-i}
+\end{equation}
+
+To establish valid baseline flip rates ($p_0$), we employ three setups:
+
+\begin{itemize}
+    \item \textbf{Baseline}: No steering (hence 0\% correction/corruption as code maintains initial state)
+    \item \textbf{Control}: Random feature from a different layer with zero separation score, using the same steering coefficients $\alpha$ as the corresponding steering direction
+    \item \textbf{Steering directions}: Our identified correct-steering and incorrect-steering directions
+\end{itemize}
+
+We apply control interventions to both initially correct and incorrect samples to measure the background rate of state changes that occur due to non-specific perturbations.
+
+For the Correction Rate with the correct-steering direction, we test:
+\begin{align}
+H_0&: \text{Correction Rate} = p_0 \\
+H_1&: \text{Correction Rate} > p_0
+\end{align}
+
+
+For the Corruption Rate with the incorrect-steering direction, we test:
+\begin{align}
+H_0&: \text{Corruption Rate} = p_0 \\
+H_1&: \text{Corruption Rate} > p_0
+\end{align}
+
+One-tailed (greater) binomial testing validates two comparisons: steering directions versus baseline tests if steering has any effect, while steering directions versus control tests if our feature selection matters beyond random perturbation. We reject the null hypothesis when p-values fall below 0.05, allowing us to conclude with statistical confidence that our identified steering directions causally influence code correctness.
+
+\subsection{Attention Analysis}
+
+Attention weight analysis reveals how steering interventions redistribute focus across prompt components. We extract attention weights from all heads at the steering layer (where the steering direction is located) at the final prompt token. We sum attention within three prompt sections (problem description, test cases, and code initiator), normalize each head's attention to percentages, and then compute percentage point changes between baseline and steered conditions. This analysis reveals which prompt components the model prioritizes during correct versus incorrect code generation, providing mechanistic insight into how steering directions influence information processing.
+
+For each sample, let $A_{h,j}$ denote the attention weight from head $h$ at the final prompt token to position $j$. We partition the prompt into three sections: problem description $\mathcal{P}$, test cases $\mathcal{T}$, and code initiator $\mathcal{C}$. For each head, the aggregated attention to section $S \in \{\mathcal{P}, \mathcal{T}, \mathcal{C}\}$ is:
+
+\begin{equation}
+A_{h,S} = \sum_{j \in S} A_{h,j}
+\end{equation}
+
+We normalize each head's attention to obtain percentage distributions, ensuring that longer prompt sections do not systematically receive higher attention values simply due to containing more tokens:
+\begin{equation}
+\text{Attn}_{h,S} = \frac{A_{h,S}}{\sum_{S' \in \{\mathcal{P}, \mathcal{T}, \mathcal{C}\}} A_{h,S'}} \times 100\%
+\end{equation}
+
+The attention shift induced by steering for head $h$ is:
+\begin{equation}
+\Delta\text{Attn}_{h,S} = \text{Attn}_{h,S}^{\text{steered}} - \text{Attn}_{h,S}^{\text{baseline}}
+\end{equation}
+
+We report the mean attention change across all heads and samples.
+
+\subsection{Weight Orthogonalization}
+
+Weight orthogonalization permanently modifies every matrix writing to the residual stream to prevent the model from writing a specified direction. Following established methodology, we modify output weight matrices as:
+\begin{equation}
+\mathbf{W}_{\text{out}}^{\text{new}} \leftarrow \mathbf{W}_{\text{out}} - \mathbf{W}_{\text{out}} \mathbf{d}^{T} \mathbf{d}
+\end{equation}
+
+where $\mathbf{d}$ is the direction to remove (our steering direction decoder weights). This intervention tests whether the identified directions are necessary for code generation by examining whether their removal prevents the model from producing correct code. Unlike activation steering which adds directions, orthogonalization subtracts them, providing complementary evidence about their causal role.
+
+We employ the same three-setup comparison framework as described in Section~\ref{sec:activation-steering} to validate statistical significance:
+
+\begin{itemize}
+    \item \textbf{Baseline}: No orthogonalization (hence 0\% correction/corruption as code maintains initial state)
+    \item \textbf{Control}: Random feature from a different layer with zero separation score, applying the same orthogonalization procedure
+    \item \textbf{Steering directions}: Orthogonalization of our identified correct-steering and incorrect-steering directions
+\end{itemize}
+
+We apply control interventions (orthogonalizing random features) to both initially correct and incorrect samples to measure the background rate of state changes that occur due to non-specific structural modifications. Following the same binomial testing methodology described in Section~\ref{sec:activation-steering}, we test whether orthogonalization produces correction or corruption rates significantly different from baseline and control conditions. One-tailed (greater) binomial testing with $\alpha = 0.05$ validates whether removing our identified directions has effects beyond those caused by arbitrary structural perturbations, establishing whether these features are causally necessary for code generation.
+
+\subsection{Logit Lens Analysis}
+
+Logit lens analysis \cite{nostalgebraist2020logit} provides a supporting interpretability technique for analyzing what semantic patterns the selected SAE features encode by examining which tokens they promote or suppress. We retrieve pre-computed logit lens visualizations from Neuronpedia \cite{neuronpedia}, which displays the top-$k$ tokens with highest logit contributions for each feature. This enables rapid assessment of whether features encode interpretable linguistic patterns, semantic concepts, or syntactic preferences related to code correctness. This analysis is integrated throughout the results in Chapter~\ref{sec:results}, providing qualitative interpretation alongside quantitative metrics from prediction analysis, steering interventions, and orthogonalization experiments.
+
+\subsection{Persistence Testing}
+\label{sec:persistence-testing}
+
+To test whether code correctness mechanisms persist across model variants, we apply directions identified in the base model to the instruction-tuned version (\texttt{google/gemma-2-2b-it}). GemmaScope SAEs were trained exclusively on the base model using pre-training data, yet we test whether SAE-derived directions retain their effectiveness after instruction-tuning. We apply the same features (same layer and index) with identical coefficients to the instruction-tuned model and evaluate using the same metrics (F1 scores for predicting directions, correction/corruption rates for steering directions). This methodology tests whether code correctness representations learned during pre-training persist through fine-tuning, or whether instruction-tuning fundamentally restructures these mechanisms.
+
+\section{Calendar of Activities}
+
+Table \ref{tab:timetableactivities} shows a Gantt chart of the activities. Each bullet represents approximately one month's worth of activity.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{l|c|c|c|c|c|c|c|c|c|c|c|c}
+         \toprule
+         &  \multicolumn{12}{c}{2025} \\
+         \textbf{Activity} & \rotatebox{90}{\textbf{Jan}} & \rotatebox{90}{\textbf{Feb}} & \rotatebox{90}{\textbf{Mar}} & \rotatebox{90}{\textbf{Apr}} & \rotatebox{90}{\textbf{May}} & \rotatebox{90}{\textbf{Jun}} & \rotatebox{90}{\textbf{Jul}} & \rotatebox{90}{\textbf{Aug}} & \rotatebox{90}{\textbf{Sep}} & \rotatebox{90}{\textbf{Oct}} & \rotatebox{90}{\textbf{Nov}} & \rotatebox{90}{\textbf{Dec}} \\
+         \midrule
+         Dataset Building & & & & $\blacksquare$ & $\blacksquare$ & & & & & & & \\
+         \midrule
+         Direction Selection & & & & & $\blacksquare$ & $\blacksquare$ & & & & & & \\
+         \midrule
+         Mechanistic Analysis & & & & & & $\blacksquare$ & $\blacksquare$ & $\blacksquare$ & $\blacksquare$ & & & \\
+         \midrule
+         Documentation & $\blacksquare$ & $\blacksquare$ & $\blacksquare$ & $\blacksquare$ & $\blacksquare$ & $\blacksquare$ & $\blacksquare$ & $\blacksquare$ & $\blacksquare$ & $\blacksquare$ & $\blacksquare$ & \\
+         \bottomrule
+    \end{tabular}
+    \caption{Gantt Chart of Activities}
+    \label{tab:timetableactivities}
+\end{table}

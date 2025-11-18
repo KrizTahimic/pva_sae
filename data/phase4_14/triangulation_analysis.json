@@ -1,0 +1,220 @@
+{
+  "metadata": {
+    "phase": "4.14",
+    "description": "Statistical triangulation testing for PVA steering validation",
+    "test_type": "binomial",
+    "alternative": "greater",
+    "significance_level": 0.05,
+    "timestamp": "2025-09-24T18:05:35.969667"
+  },
+  "baseline_metrics": {
+    "n_correct": 116,
+    "n_incorrect": 272,
+    "n_total": 388,
+    "correct_rate": 0.29896907216494845,
+    "incorrect_rate": 0.7010309278350515
+  },
+  "triangulation_results": {
+    "correction": {
+      "rates": {
+        "baseline": 0.0,
+        "zero_discrimination": 0.0,
+        "targeted": 0.04044117647058824
+      },
+      "counts": {
+        "baseline": {
+          "n_corrected": 0,
+          "n_total": 272
+        },
+        "zero_discrimination": {
+          "n_corrected": 0,
+          "n_total": 2
+        },
+        "targeted": {
+          "n_corrected": 11,
+          "n_total": 272
+        }
+      },
+      "comparisons": {
+        "baseline_vs_targeted": {
+          "n_successes": 11,
+          "n_trials": 272,
+          "observed_rate": 0.04044117647058824,
+          "expected_rate": 0.0,
+          "p_value": 0.0,
+          "significant": "True",
+          "alternative": "greater",
+          "confidence_interval": [
+            0.02284242001749535,
+            1.0
+          ],
+          "effect_size": 0.04044117647058824
+        },
+        "targeted_vs_control": {
+          "n_successes": 11,
+          "n_trials": 272,
+          "observed_rate": 0.04044117647058824,
+          "expected_rate": 0.0,
+          "p_value": 0.0,
+          "significant": "True",
+          "alternative": "greater",
+          "confidence_interval": [
+            0.02284242001749535,
+            1.0
+          ],
+          "effect_size": 0.04044117647058824
+        }
+      }
+    },
+    "corruption": {
+      "rates": {
+        "baseline": 0.0,
+        "zero_discrimination": 1.0,
+        "targeted": 0.646551724137931
+      },
+      "counts": {
+        "baseline": {
+          "n_corrupted": 0,
+          "n_total": 116
+        },
+        "zero_discrimination": {
+          "n_corrupted": 1,
+          "n_total": 1
+        },
+        "targeted": {
+          "n_corrupted": 75,
+          "n_total": 116
+        }
+      },
+      "comparisons": {
+        "baseline_vs_targeted": {
+          "n_successes": 75,
+          "n_trials": 116,
+          "observed_rate": 0.646551724137931,
+          "expected_rate": 0.0,
+          "p_value": 0.0,
+          "significant": "True",
+          "alternative": "greater",
+          "confidence_interval": [
+            0.566994871483259,
+            1.0
+          ],
+          "effect_size": 0.646551724137931
+        },
+        "targeted_vs_control": {
+          "n_successes": 75,
+          "n_trials": 116,
+          "observed_rate": 0.646551724137931,
+          "expected_rate": 1.0,
+          "p_value": 1.0,
+          "significant": "False",
+          "alternative": "greater",
+          "confidence_interval": [
+            0.566994871483259,
+            1.0
+          ],
+          "effect_size": -0.35344827586206895
+        }
+      }
+    },
+    "preservation": {
+      "rates": {
+        "baseline": 1.0,
+        "zero_discrimination": 0.0,
+        "targeted": 1.0
+      },
+      "counts": {
+        "baseline": {
+          "n_preserved": 116,
+          "n_total": 116
+        },
+        "zero_discrimination": {
+          "n_preserved": 0,
+          "n_total": 1
+        },
+        "targeted": {
+          "n_preserved": 116,
+          "n_total": 116
+        }
+      },
+      "comparisons": {
+        "baseline_vs_targeted": {
+          "n_successes": 116,
+          "n_trials": 116,
+          "observed_rate": 1.0,
+          "expected_rate": 1.0,
+          "p_value": 1.0,
+          "significant": "False",
+          "alternative": "less",
+          "confidence_interval": [
+            0.0,
+            1.0
+          ],
+          "effect_size": 0.0
+        },
+        "targeted_vs_control": {
+          "n_successes": 116,
+          "n_trials": 116,
+          "observed_rate": 1.0,
+          "expected_rate": 0.0,
+          "p_value": 0.0,
+          "significant": "True",
+          "alternative": "greater",
+          "confidence_interval": [
+            0.9745053420426005,
+            1.0
+          ],
+          "effect_size": 1.0
+        }
+      }
+    }
+  },
+  "interpretation": {
+    "validity_checks": {
+      "steering_works": "True",
+      "correction_specific": "True",
+      "corruption_not_specific": true
+    },
+    "validation_strength": "STRONG",
+    "interpretation": "Mixed validation: Targeted PVA steering shows significant effects compared to baseline. For correction, targeted features significantly outperform control features. However, for corruption, targeted features do NOT exceed control (targeted: 64.66%, control: 100%), suggesting that any strong perturbation can break code generation. This triangulation robustly validates that PVA features have specific causal effects on program correctness.",
+    "detailed_findings": {
+      "correction": "Targeted steering significantly corrects errors (4.0% improvement, p=0.00e+00) | Targeted outperforms control features (4.0% advantage, p=0.00e+00)",
+      "corruption": "Incorrect-preferring features significantly corrupt (64.7% corruption, p=0.00e+00) | Targeted does NOT corrupt more than control (64.66% vs 100%, non-significant)",
+      "preservation": "Targeted steering maintains similar preservation to baseline | Targeted preserves better than control (100.0% advantage, p=0.00e+00)"
+    }
+  },
+  "summary": {
+    "validation_strength": "STRONG",
+    "validity_checks": {
+      "steering_works": "True",
+      "correction_specific": "True",
+      "corruption_not_specific": true
+    },
+    "correction_p_values": {
+      "baseline_vs_targeted": 0.0,
+      "targeted_vs_control": 0.0
+    },
+    "corruption_p_values": {
+      "baseline_vs_targeted": 0.0,
+      "targeted_vs_control": 1.0
+    },
+    "preservation_p_values": {
+      "baseline_vs_targeted": 1.0,
+      "targeted_vs_control": 0.0
+    },
+    "effect_sizes": {
+      "correction": {
+        "baseline_to_targeted": 0.04044117647058824,
+        "zero_disc_to_targeted": 0.04044117647058824
+      },
+      "corruption": {
+        "baseline_to_targeted": 0.646551724137931,
+        "zero_disc_to_targeted": -0.35344827586206895
+      },
+      "preservation": {
+        "baseline_to_targeted": 0.0,
+        "zero_disc_to_targeted": 1.0
+      }
+    }
+  }
+}

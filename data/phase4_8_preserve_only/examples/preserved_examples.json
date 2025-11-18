@@ -1,0 +1,52 @@
+[
+  {
+    "task_id": 8,
+    "baseline_code": "def square_nums(nums):\n    return [x**2 for x in nums]",
+    "steered_code": "def square_nums(nums):\n    return [x**2 for x in nums]"
+  },
+  {
+    "task_id": 17,
+    "baseline_code": "def square_perimeter(side):\n    return side * 4",
+    "steered_code": "def square_perimeter(side):\n    return side * 4"
+  },
+  {
+    "task_id": 18,
+    "baseline_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+    "steered_code": "def remove_dirty_chars(s1, s2):\n    for i in s2:\n        s1 = s1.replace(i, '')\n    return s1"
+  },
+  {
+    "task_id": 21,
+    "baseline_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]",
+    "steered_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1,num+1)]"
+  },
+  {
+    "task_id": 22,
+    "baseline_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i])-1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i])-1] *= -1\n    return -1",
+    "steered_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        for j in range(i+1, len(arr)):\n            if arr[i] == arr[j]:\n                return arr[i]\n    return -1"
+  },
+  {
+    "task_id": 51,
+    "baseline_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+    "steered_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False"
+  },
+  {
+    "task_id": 52,
+    "baseline_code": "def parallelogram_area(a,b):\n    return a*b",
+    "steered_code": "def parallelogram_area(a,b):\n    return a*b"
+  },
+  {
+    "task_id": 58,
+    "baseline_code": "def opposite_Signs(a,b):\n    if a*b < 0:\n        return True\n    else:\n        return False",
+    "steered_code": "def opposite_Signs(a, b):\n    if a < 0 and b > 0 or a > 0 and b < 0:\n        return True\n    else:\n        return False"
+  },
+  {
+    "task_id": 80,
+    "baseline_code": "def tetrahedral_number(n):\n    return (n * (n + 1) * (n + 2)) / 6",
+    "steered_code": "def tetrahedral_number(n):\n    return (n * (n + 1) * (n + 2)) / 6"
+  },
+  {
+    "task_id": 93,
+    "baseline_code": "def power(a, b):\n    return a ** b",
+    "steered_code": "def power(a, b):\n    return a ** b"
+  }
+]

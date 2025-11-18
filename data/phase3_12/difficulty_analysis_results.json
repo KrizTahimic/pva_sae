@@ -1,0 +1,129 @@
+{
+  "phase": "3.12",
+  "analysis_type": "difficulty_based_auroc",
+  "difficulty_groups": {
+    "easy": {
+      "complexity_min": 1,
+      "complexity_max": 1,
+      "n_tasks": 106,
+      "percentage": 27.31958762886598
+    },
+    "medium": {
+      "complexity_min": 2,
+      "complexity_max": 3,
+      "n_tasks": 181,
+      "percentage": 46.649484536082475
+    },
+    "hard": {
+      "complexity_min": 4,
+      "complexity_max": 16,
+      "n_tasks": 101,
+      "percentage": 26.03092783505155
+    }
+  },
+  "best_features": {
+    "correct": 16,
+    "correct_feature_idx": 14439,
+    "incorrect": 19,
+    "incorrect_feature_idx": 5441
+  },
+  "global_thresholds": {
+    "correct": 10.810857830625592,
+    "incorrect": 15.508569659608781
+  },
+  "correct_predicting_results": {
+    "easy": {
+      "auroc": 0.6411828344752974,
+      "f1": 0.6376811594202898,
+      "precision": 0.4835164835164835,
+      "recall": 0.9361702127659575,
+      "n_samples": 106,
+      "n_positive": 47,
+      "n_negative": 59,
+      "complexity_range": [
+        1,
+        1
+      ]
+    },
+    "medium": {
+      "auroc": 0.5862745098039216,
+      "f1": 0.45614035087719296,
+      "precision": 0.325,
+      "recall": 0.7647058823529411,
+      "n_samples": 181,
+      "n_positive": 51,
+      "n_negative": 130,
+      "complexity_range": [
+        2,
+        3
+      ]
+    },
+    "hard": {
+      "auroc": 0.6793842034805889,
+      "f1": 0.3611111111111111,
+      "precision": 0.24074074074074073,
+      "recall": 0.7222222222222222,
+      "n_samples": 101,
+      "n_positive": 18,
+      "n_negative": 83,
+      "complexity_range": [
+        4,
+        16
+      ]
+    }
+  },
+  "incorrect_predicting_results": {
+    "easy": {
+      "auroc": 0.6606563288856834,
+      "f1": 0.7204968944099379,
+      "precision": 0.5686274509803921,
+      "recall": 0.9830508474576272,
+      "n_samples": 106,
+      "n_positive": 59,
+      "n_negative": 47,
+      "complexity_range": [
+        1,
+        1
+      ]
+    },
+    "medium": {
+      "auroc": 0.633634992458522,
+      "f1": 0.8246753246753247,
+      "precision": 0.7134831460674157,
+      "recall": 0.9769230769230769,
+      "n_samples": 181,
+      "n_positive": 130,
+      "n_negative": 51,
+      "complexity_range": [
+        2,
+        3
+      ]
+    },
+    "hard": {
+      "auroc": 0.6666666666666667,
+      "f1": 0.9021739130434783,
+      "precision": 0.8217821782178217,
+      "recall": 1.0,
+      "n_samples": 101,
+      "n_positive": 83,
+      "n_negative": 18,
+      "complexity_range": [
+        4,
+        16
+      ]
+    }
+  },
+  "insights": {
+    "correct_feature_trend": "increasing",
+    "incorrect_feature_trend": "increasing",
+    "most_effective_difficulty": {
+      "correct": "hard",
+      "incorrect": "hard"
+    },
+    "most_effective_difficulty_f1": {
+      "correct": "easy",
+      "incorrect": "hard"
+    }
+  },
+  "creation_timestamp": "2025-10-17T18:31:12.206757"
+}

@@ -1,0 +1,28 @@
+============================================================
+PHASE 3.12: DIFFICULTY-BASED AUROC ANALYSIS SUMMARY
+============================================================
+
+Dataset: 388 validation tasks
+Difficulty Groups: Easy (106), Medium (181), Hard (101)
+
+Correct-Predicting Feature (Layer 16, Feature 14439):
+  Easy: AUROC = 0.6412, F1 = 0.6377 (n=106)
+  Medium: AUROC = 0.5863, F1 = 0.4561 (n=181)
+  Hard: AUROC = 0.6794, F1 = 0.3611 (n=101)
+
+Incorrect-Predicting Feature (Layer 19, Feature 5441):
+  Easy: AUROC = 0.6607, F1 = 0.7205 (n=106)
+  Medium: AUROC = 0.6336, F1 = 0.8247 (n=181)
+  Hard: AUROC = 0.6667, F1 = 0.9022 (n=101)
+
+Insights:
+  Correct-predicting feature trend: increasing
+  Incorrect-predicting feature trend: increasing
+  Most effective difficulty (AUROC):
+    Correct-predicting: hard
+    Incorrect-predicting: hard
+  Most effective difficulty (F1):
+    Correct-predicting: easy
+    Incorrect-predicting: hard
+
+============================================================
