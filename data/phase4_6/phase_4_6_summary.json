@@ -1,0 +1,46 @@
+{
+  "phase": "4.6",
+  "description": "Golden Section Search Coefficient Refinement",
+  "timestamp": "2025-09-04T01:35:00.243124",
+  "duration_seconds": 17240.544527053833,
+  "method": "golden_section_search",
+  "config": {
+    "tolerance": 1.0,
+    "model": "google/gemma-2-2b",
+    "initially_correct_count": 28,
+    "initially_incorrect_count": 69,
+    "golden_ratio": 1.618033988749895,
+    "no_max_iterations": true
+  },
+  "results": {
+    "refined_coefficients": {
+      "incorrect": {
+        "refined_coefficient": 287,
+        "phase4_5_coefficient": 200.0,
+        "improvement": 87.0,
+        "layer": 25,
+        "feature_index": 2853,
+        "best_score": 61.29490954992008,
+        "search_iterations": 15,
+        "search_bounds": {
+          "lower": 100.0,
+          "upper": 300.0,
+          "optimal_from_phase4_5": 200.0
+        },
+        "method": "golden_section_search"
+      }
+    },
+    "phase4_5_bounds": {
+      "correct": {
+        "lower": 20.0,
+        "upper": 40.0,
+        "optimal_from_phase4_5": 30.0
+      },
+      "incorrect": {
+        "lower": 100.0,
+        "upper": 300.0,
+        "optimal_from_phase4_5": 200.0
+      }
+    }
+  }
+}

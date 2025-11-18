@@ -1,0 +1,207 @@
+{
+  "incorrect_steering": {
+    "optimal_coefficient": 287,
+    "search_history": [
+      {
+        "iteration": 0,
+        "bounds": [
+          100,
+          300
+        ],
+        "points": [
+          176,
+          224
+        ],
+        "scores": [
+          35.92230447037749,
+          57.61500308021366
+        ],
+        "best_score": 57.61500308021366,
+        "best_coefficient": 224
+      },
+      {
+        "iteration": 1,
+        "bounds": [
+          176,
+          300
+        ],
+        "new_point": 253,
+        "new_score": 58.44386461252939,
+        "best_score": 58.44386461252939,
+        "best_coefficient": 253
+      },
+      {
+        "iteration": 2,
+        "bounds": [
+          224,
+          300
+        ],
+        "new_point": 271,
+        "new_score": 58.52544969411447,
+        "best_score": 58.52544969411447,
+        "best_coefficient": 271
+      },
+      {
+        "iteration": 3,
+        "bounds": [
+          253,
+          300
+        ],
+        "new_point": 282,
+        "new_score": 61.29490954992008,
+        "best_score": 61.29490954992008,
+        "best_coefficient": 282
+      },
+      {
+        "iteration": 4,
+        "bounds": [
+          271,
+          300
+        ],
+        "new_point": 289,
+        "new_score": 60.22137224449871,
+        "best_score": 61.29490954992008,
+        "best_coefficient": 282
+      },
+      {
+        "iteration": 5,
+        "bounds": [
+          271,
+          289
+        ],
+        "new_point": 278,
+        "new_score": 58.730244898909675,
+        "best_score": 61.29490954992008,
+        "best_coefficient": 282
+      },
+      {
+        "iteration": 6,
+        "bounds": [
+          278,
+          289
+        ],
+        "new_point": 285,
+        "new_score": 61.29490954992008,
+        "best_score": 61.29490954992008,
+        "best_coefficient": 282
+      },
+      {
+        "iteration": 7,
+        "bounds": [
+          282,
+          289
+        ],
+        "new_point": 286,
+        "new_score": 61.29490954992008,
+        "best_score": 61.29490954992008,
+        "best_coefficient": 282
+      },
+      {
+        "iteration": 8,
+        "bounds": [
+          285,
+          289
+        ],
+        "new_point": 287,
+        "new_score": 61.29490954992008,
+        "best_score": 61.29490954992008,
+        "best_coefficient": 282
+      },
+      {
+        "iteration": 9,
+        "bounds": [
+          286,
+          289
+        ],
+        "new_point": 288,
+        "new_score": 61.29490954992008,
+        "best_score": 61.29490954992008,
+        "best_coefficient": 282
+      },
+      {
+        "iteration": 10,
+        "bounds": [
+          287,
+          289
+        ],
+        "new_point": 289,
+        "new_score": 60.22137224449871,
+        "best_score": 61.29490954992008,
+        "best_coefficient": 282
+      },
+      {
+        "iteration": 11,
+        "bounds": [
+          287,
+          289
+        ],
+        "special_case": "final_width_2",
+        "tested_points": [
+          287,
+          288,
+          289
+        ],
+        "scores": [
+          61.29490954992008,
+          61.29490954992008,
+          60.22137224449871
+        ],
+        "best_score": 61.29490954992008,
+        "best_coefficient": 282
+      },
+      {
+        "iteration": 11,
+        "bounds": [
+          287,
+          289
+        ],
+        "new_point": 287,
+        "new_score": 61.29490954992008,
+        "best_score": 61.29490954992008,
+        "best_coefficient": 282
+      },
+      {
+        "iteration": 12,
+        "bounds": [
+          287,
+          289
+        ],
+        "special_case": "final_width_2",
+        "tested_points": [
+          287,
+          288,
+          289
+        ],
+        "scores": [
+          61.29490954992008,
+          61.29490954992008,
+          60.22137224449871
+        ],
+        "best_score": 61.29490954992008,
+        "best_coefficient": 282
+      },
+      {
+        "iteration": 12,
+        "bounds": [
+          287,
+          288
+        ],
+        "new_point": 288,
+        "new_score": 61.29490954992008,
+        "best_score": 61.29490954992008,
+        "best_coefficient": 282
+      }
+    ],
+    "best_score": 61.29490954992008,
+    "metrics": {
+      "composite_score": 61.29490954992008,
+      "corruption_rate": 96.42857142857143,
+      "preservation_rate": 3.5714285714285694,
+      "avg_similarity": 0.2616124767126872,
+      "n_corrupted": 27,
+      "n_preserved": 1,
+      "n_total": 28
+    },
+    "method": "golden_section_search"
+  }
+}

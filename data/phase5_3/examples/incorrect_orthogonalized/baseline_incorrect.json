@@ -1,0 +1,40 @@
+{
+  "description": "Problems that were initially incorrect but became correct after removing incorrect feature",
+  "examples": [
+    {
+      "task_id": 10,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "def small_nnum(data, n):\n    return sorted(data, key=lambda x: x[1])[:n]",
+      "orthogonalized_code": "def small_nnum(arr,n):\n    arr.sort()\n    return arr[:n]"
+    },
+    {
+      "task_id": 290,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "def max_length(lst):\n    max_length = 0\n    for i in range(len(lst)):\n        if len(lst[i]) > max_length:\n            max_length = len(lst[i])\n    return max_length, lst[max_length]",
+      "orthogonalized_code": "def max_length(lst):\n    max_length = 0\n    for i in range(len(lst)):\n        if len(lst[i]) > max_length:\n            max_length = len(lst[i])\n    return max_length, lst[i]"
+    },
+    {
+      "task_id": 325,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "def get_Min_Squares(n):\n    if n == 0:\n        return 0\n    if n == 1:\n        return 1\n    if n == 2:\n        return 2\n    if n == 3:\n        return 3\n    if n == 4:\n        return 1\n    if n == 5:\n        return 2\n    if n == 6:\n        return 3\n    if n == 7:\n        return 4\n    if n == 8:\n        return 5\n    if n == 9:\n        return 6\n    if n == 10:\n        return 7\n    if n == 11:\n        return 8\n    if n == 12:\n        return 9\n    if n == 13:\n        return 10\n    if n == 14:\n        return 11\n    if n == 15:\n        return 12\n    if n == 16:\n        return 13\n    if n == 17:\n        return 14\n    if n == 18:\n        return 15\n    if n == 19:\n        return 16\n    if n == 20:\n        return 17\n    if n == 21:\n        return 18\n    if n == 22:\n        return 19\n    if n == 23:\n        return 20\n    if n == 24:\n        return 21\n    if n == 25:\n        return 22\n    if n == 26:\n        return 23\n    if n == 27:\n        return 24\n    if n == 28:\n        return 25\n    if n == 29:\n        return 26\n    if n == 30:\n        return 27\n    if n == 31:\n        return 28\n    if n == 32:\n        return 29\n    if n == 33:\n        return 30\n    if n == 34:\n        return 31\n    if n == 35:\n        return 32\n    if n == 36:\n        return 33\n    if n == 37:\n        return 34\n    if n == 38:\n        return 35\n    if n == 39:\n        return 36\n    if n == 40:\n        return 37\n    if n == 41:\n        return 38\n    if n == 42:\n        return 39\n    if n == 43:\n        return 40\n    if n == 44:\n        return 41\n    if n == 45:\n        return 42\n    if n == 46:\n        return 43\n    if n == 47:\n        return 44\n    if n == 48:\n        return 45\n    if n == 49:\n        return 46\n    if n == 50:\n        return 47\n    if n == 51:\n        return 48\n    if n == 52:\n        return 49\n    if n == 53:\n        return 50\n    if",
+      "orthogonalized_code": "def get_Min_Squares(n):\n    if n == 0:\n        return 0\n    if n == 1:\n        return 1\n    if n == 2:\n        return 2\n    if n == 3:\n        return 3\n    if n == 4:\n        return 1\n    if n == 5:\n        return 2\n    if n == 6:\n        return 3\n    if n == 7:\n        return 4\n    if n == 9:\n        return 5\n    if n == 10:\n        return 6\n    if n == 11:\n        return 7\n    if n == 12:\n        return 9\n    if n == 13:\n        return 10\n    if n == 14:\n        return 12\n    if n == 15:\n        return 13\n    if n == 16:\n        return 15\n    if n == 17:\n        return 16\n    if n == 19:\n        return 17\n    if n == 20:\n        return 19\n    if n == 21:\n        return 20\n    if n == 22:\n        return 21\n    if n == 23:\n        return 22\n    if n == 24:\n        return 23\n    if n == 25:\n        return 24\n    if n == 26:\n        return 25\n    if n == 27:\n        return 26\n    if n == 29:\n        return 27\n    if n == 30:\n        return 29\n    if n == 31:\n        return 30\n    if n == 32:\n        return 31\n    if n == 33:\n        return 32\n    if n == 34:\n        return 33\n    if n == 35:\n        return 34\n    if n == 36:\n        return 35\n    if n == 37:\n        return 36\n    if n == 39:\n        return 37\n    if n == 40:\n        return 39\n    if n == 41:\n        return 40\n    if n == 42:\n        return 41\n    if n == 43:\n        return 42\n    if n == 44:\n        return 43\n    if n == 45:\n        return 44\n    if n == 46:\n        return 45\n    if n == 47:\n        return 46\n    if n == 49:\n        return 47\n    if n == 50:\n        return 49\n    if n == 51:\n        return 50\n    if n == 52:\n        return 51\n    if n == 53:\n        return 52\n    if n == 54:\n        return 53\n    if n == 55:\n        return 54\n    if n == 56:\n        return 55\n    if n == 57:\n        return 56\n    if n == 59:\n        return 57"
+    },
+    {
+      "task_id": 505,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "def re_order(arr):\n    i = 0\n    while i < len(arr):\n        if arr[i] == 0:\n            arr.pop(i)\n            arr.insert(0, 0)\n        else:\n            i += 1\n    return arr",
+      "orthogonalized_code": "def re_order(arr):\n    i = 0\n    for j in range(len(arr)):\n        if arr[j] != 0:\n            arr[i], arr[j] = arr[j], arr[i]\n            i += 1\n    return arr"
+    },
+    {
+      "task_id": 688,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "def len_complex(a,b):\n    return abs(a)+abs(b)",
+      "orthogonalized_code": "def len_complex(a,b):\n    return (a**2+b**2)**0.5"
+    }
+  ]
+}

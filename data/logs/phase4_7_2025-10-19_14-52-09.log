@@ -1,0 +1,12 @@
+2025-10-19 14:52:09,870 [INFO] [main] setup_logging:167 - Phase: 4.7, GPU: CPU
+2025-10-19 14:52:09,870 [INFO] [main] main:1620 - Detected device: mps
+2025-10-19 14:52:10,074 [INFO] [phase4_7.coefficient_plotter] setup_logging:167 - Phase: 4.7, GPU: CPU
+2025-10-19 14:52:10,074 [INFO] [main] run_phase4_7:822 - Starting Phase 4.7: Coefficient Optimization Visualization
+2025-10-19 14:52:10,074 [INFO] [main] run_phase4_7:823 - Will visualize coefficient search from Phases 4.5 and 4.6
+2025-10-19 14:52:10,076 [INFO] [phase4_7.coefficient_plotter] generate_all_plots:206 - Generating coefficient optimization visualizations...
+2025-10-19 14:52:10,290 [INFO] [phase4_7.coefficient_plotter] plot_correct_coefficient_search:128 - Saved correct coefficient plot to /Users/krizroycetahimic/Documents/Thesis/Code/pva_sae/data/phase4_7/correct_coefficient_search.png
+2025-10-19 14:52:10,440 [INFO] [phase4_7.coefficient_plotter] plot_incorrect_coefficient_search:202 - Saved incorrect coefficient plot to /Users/krizroycetahimic/Documents/Thesis/Code/pva_sae/data/phase4_7/incorrect_coefficient_search.png
+2025-10-19 14:52:10,440 [INFO] [phase4_7.coefficient_plotter] generate_all_plots:242 - Summary saved to /Users/krizroycetahimic/Documents/Thesis/Code/pva_sae/data/phase4_7/phase_4_7_summary.json
+2025-10-19 14:52:10,440 [INFO] [phase4_7.coefficient_plotter] generate_all_plots:243 - All coefficient optimization plots generated successfully!
+2025-10-19 14:52:10,440 [INFO] [main] run_phase4_7:834 - 
+✅ Phase 4.7 completed successfully

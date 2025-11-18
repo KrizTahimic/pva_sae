@@ -1,0 +1,489 @@
+{
+  "timestamp": "2025-09-08T14:13:29.272671",
+  "config": {
+    "model": "google/gemma-2-2b",
+    "target_weights": [
+      "embed",
+      "attn_o",
+      "mlp_down"
+    ],
+    "n_validation_problems": 388,
+    "n_correct_baseline": 116,
+    "n_incorrect_baseline": 272
+  },
+  "features_used": {
+    "correct": {
+      "layer": 16,
+      "feature_idx": 11225,
+      "separation_score": 0.22123092412948608
+    },
+    "incorrect": {
+      "layer": 25,
+      "feature_idx": 2853,
+      "separation_score": 0.20100238919258118
+    }
+  },
+  "incorrect_orthogonalization": {
+    "direction": "incorrect",
+    "weight_changes": {
+      "embedding": 13.5390625,
+      "layer_0_attn_o": 0.4638671875,
+      "layer_0_mlp_down": 0.70947265625,
+      "layer_1_attn_o": 0.4658203125,
+      "layer_1_mlp_down": 0.6904296875,
+      "layer_2_attn_o": 0.4951171875,
+      "layer_2_mlp_down": 0.7041015625,
+      "layer_3_attn_o": 0.458251953125,
+      "layer_3_mlp_down": 0.7529296875,
+      "layer_4_attn_o": 0.453369140625,
+      "layer_4_mlp_down": 0.7099609375,
+      "layer_5_attn_o": 0.50341796875,
+      "layer_5_mlp_down": 0.69140625,
+      "layer_6_attn_o": 0.46630859375,
+      "layer_6_mlp_down": 0.7080078125,
+      "layer_7_attn_o": 0.477294921875,
+      "layer_7_mlp_down": 0.72314453125,
+      "layer_8_attn_o": 0.51953125,
+      "layer_8_mlp_down": 0.71044921875,
+      "layer_9_attn_o": 0.51611328125,
+      "layer_9_mlp_down": 0.69580078125,
+      "layer_10_attn_o": 0.48828125,
+      "layer_10_mlp_down": 0.6884765625,
+      "layer_11_attn_o": 0.486572265625,
+      "layer_11_mlp_down": 0.68212890625,
+      "layer_12_attn_o": 0.487060546875,
+      "layer_12_mlp_down": 0.681640625,
+      "layer_13_attn_o": 0.478515625,
+      "layer_13_mlp_down": 0.69140625,
+      "layer_14_attn_o": 0.45458984375,
+      "layer_14_mlp_down": 0.701171875,
+      "layer_15_attn_o": 0.501953125,
+      "layer_15_mlp_down": 0.70263671875,
+      "layer_16_attn_o": 0.51513671875,
+      "layer_16_mlp_down": 0.705078125,
+      "layer_17_attn_o": 0.52197265625,
+      "layer_17_mlp_down": 0.7099609375,
+      "layer_18_attn_o": 0.65869140625,
+      "layer_18_mlp_down": 0.69482421875,
+      "layer_19_attn_o": 0.50537109375,
+      "layer_19_mlp_down": 0.744140625,
+      "layer_20_attn_o": 0.5703125,
+      "layer_20_mlp_down": 0.85205078125,
+      "layer_21_attn_o": 0.50927734375,
+      "layer_21_mlp_down": 0.9404296875,
+      "layer_22_attn_o": 0.426025390625,
+      "layer_22_mlp_down": 1.1103515625,
+      "layer_23_attn_o": 0.73193359375,
+      "layer_23_mlp_down": 1.0791015625,
+      "layer_24_attn_o": 0.48046875,
+      "layer_24_mlp_down": 0.8203125,
+      "layer_25_attn_o": 0.64990234375,
+      "layer_25_mlp_down": 0.67626953125
+    },
+    "metrics": {
+      "correction_rate": 2.2058823529411766,
+      "preservation_rate": 89.65517241379311,
+      "n_incorrect_baseline": 272,
+      "n_corrected": 6,
+      "n_correct_baseline": 116,
+      "n_preserved": 104
+    },
+    "statistical_tests": {
+      "correction_pvalue": 1.0,
+      "correction_significant": "False",
+      "preservation_pvalue": 9.333524721161936e-20,
+      "preservation_significant": "True"
+    },
+    "examples": {
+      "corrected": [
+        {
+          "task_id": 10,
+          "baseline_passed": false,
+          "orthogonalized_passed": true,
+          "baseline_code": "def small_nnum(data, n):\n    return sorted(data, key=lambda x: x[1])[:n]",
+          "orthogonalized_code": "def small_nnum(arr,n):\n    arr.sort()\n    return arr[:n]"
+        },
+        {
+          "task_id": 290,
+          "baseline_passed": false,
+          "orthogonalized_passed": true,
+          "baseline_code": "def max_length(lst):\n    max_length = 0\n    for i in range(len(lst)):\n        if len(lst[i]) > max_length:\n            max_length = len(lst[i])\n    return max_length, lst[max_length]",
+          "orthogonalized_code": "def max_length(lst):\n    max_length = 0\n    for i in range(len(lst)):\n        if len(lst[i]) > max_length:\n            max_length = len(lst[i])\n    return max_length, lst[i]"
+        },
+        {
+          "task_id": 325,
+          "baseline_passed": false,
+          "orthogonalized_passed": true,
+          "baseline_code": "def get_Min_Squares(n):\n    if n == 0:\n        return 0\n    if n == 1:\n        return 1\n    if n == 2:\n        return 2\n    if n == 3:\n        return 3\n    if n == 4:\n        return 1\n    if n == 5:\n        return 2\n    if n == 6:\n        return 3\n    if n == 7:\n        return 4\n    if n == 8:\n        return 5\n    if n == 9:\n        return 6\n    if n == 10:\n        return 7\n    if n == 11:\n        return 8\n    if n == 12:\n        return 9\n    if n == 13:\n        return 10\n    if n == 14:\n        return 11\n    if n == 15:\n        return 12\n    if n == 16:\n        return 13\n    if n == 17:\n        return 14\n    if n == 18:\n        return 15\n    if n == 19:\n        return 16\n    if n == 20:\n        return 17\n    if n == 21:\n        return 18\n    if n == 22:\n        return 19\n    if n == 23:\n        return 20\n    if n == 24:\n        return 21\n    if n == 25:\n        return 22\n    if n == 26:\n        return 23\n    if n == 27:\n        return 24\n    if n == 28:\n        return 25\n    if n == 29:\n        return 26\n    if n == 30:\n        return 27\n    if n == 31:\n        return 28\n    if n == 32:\n        return 29\n    if n == 33:\n        return 30\n    if n == 34:\n        return 31\n    if n == 35:\n        return 32\n    if n == 36:\n        return 33\n    if n == 37:\n        return 34\n    if n == 38:\n        return 35\n    if n == 39:\n        return 36\n    if n == 40:\n        return 37\n    if n == 41:\n        return 38\n    if n == 42:\n        return 39\n    if n == 43:\n        return 40\n    if n == 44:\n        return 41\n    if n == 45:\n        return 42\n    if n == 46:\n        return 43\n    if n == 47:\n        return 44\n    if n == 48:\n        return 45\n    if n == 49:\n        return 46\n    if n == 50:\n        return 47\n    if n == 51:\n        return 48\n    if n == 52:\n        return 49\n    if n == 53:\n        return 50\n    if",
+          "orthogonalized_code": "def get_Min_Squares(n):\n    if n == 0:\n        return 0\n    if n == 1:\n        return 1\n    if n == 2:\n        return 2\n    if n == 3:\n        return 3\n    if n == 4:\n        return 1\n    if n == 5:\n        return 2\n    if n == 6:\n        return 3\n    if n == 7:\n        return 4\n    if n == 9:\n        return 5\n    if n == 10:\n        return 6\n    if n == 11:\n        return 7\n    if n == 12:\n        return 9\n    if n == 13:\n        return 10\n    if n == 14:\n        return 12\n    if n == 15:\n        return 13\n    if n == 16:\n        return 15\n    if n == 17:\n        return 16\n    if n == 19:\n        return 17\n    if n == 20:\n        return 19\n    if n == 21:\n        return 20\n    if n == 22:\n        return 21\n    if n == 23:\n        return 22\n    if n == 24:\n        return 23\n    if n == 25:\n        return 24\n    if n == 26:\n        return 25\n    if n == 27:\n        return 26\n    if n == 29:\n        return 27\n    if n == 30:\n        return 29\n    if n == 31:\n        return 30\n    if n == 32:\n        return 31\n    if n == 33:\n        return 32\n    if n == 34:\n        return 33\n    if n == 35:\n        return 34\n    if n == 36:\n        return 35\n    if n == 37:\n        return 36\n    if n == 39:\n        return 37\n    if n == 40:\n        return 39\n    if n == 41:\n        return 40\n    if n == 42:\n        return 41\n    if n == 43:\n        return 42\n    if n == 44:\n        return 43\n    if n == 45:\n        return 44\n    if n == 46:\n        return 45\n    if n == 47:\n        return 46\n    if n == 49:\n        return 47\n    if n == 50:\n        return 49\n    if n == 51:\n        return 50\n    if n == 52:\n        return 51\n    if n == 53:\n        return 52\n    if n == 54:\n        return 53\n    if n == 55:\n        return 54\n    if n == 56:\n        return 55\n    if n == 57:\n        return 56\n    if n == 59:\n        return 57"
+        },
+        {
+          "task_id": 505,
+          "baseline_passed": false,
+          "orthogonalized_passed": true,
+          "baseline_code": "def re_order(arr):\n    i = 0\n    while i < len(arr):\n        if arr[i] == 0:\n            arr.pop(i)\n            arr.insert(0, 0)\n        else:\n            i += 1\n    return arr",
+          "orthogonalized_code": "def re_order(arr):\n    i = 0\n    for j in range(len(arr)):\n        if arr[j] != 0:\n            arr[i], arr[j] = arr[j], arr[i]\n            i += 1\n    return arr"
+        },
+        {
+          "task_id": 688,
+          "baseline_passed": false,
+          "orthogonalized_passed": true,
+          "baseline_code": "def len_complex(a,b):\n    return abs(a)+abs(b)",
+          "orthogonalized_code": "def len_complex(a,b):\n    return (a**2+b**2)**0.5"
+        }
+      ],
+      "not_corrected": [
+        {
+          "task_id": 1,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "def min_cost(cost, m, n):\n    # Base case\n    if m == 0 and n == 0:\n        return 0\n    # Recursive case\n    if m == 0:\n        return cost[0][n]\n    if n == 0:\n        return cost[m][0]\n    # Find the minimum cost from the top left corner\n    # and the bottom right corner\n    left = min_cost(cost, m - 1, n)\n    right = min_cost(cost, m, n - 1)\n    return min(left, right) + cost[m][n]",
+          "orthogonalized_code": "def min_cost(cost, m, n):\n    # Base case\n    if m == 0 and n == 0:\n        return 0\n    # Recursive case\n    if m == 0 or n == 0:\n        return cost[m][n]\n    # Return min of cost[m][n] and min_cost(cost, m-1, n) + cost[m][n] and min_cost(cost, m, n-1) + cost[m][n]\n    return min(cost[m][n] + min_cost(cost, m-1, n), cost[m][n] + min_cost(cost, m, n-1))"
+        },
+        {
+          "task_id": 5,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "def count_ways(n):\n    if n == 1:\n        return 1\n    if n == 2:\n        return 3\n    if n == 3:\n        return 6\n    if n == 4:\n        return 15\n    if n == 5:\n        return 42\n    if n == 6:\n        return 132\n    if n == 7:\n        return 429\n    if n == 8:\n        return 1536\n    if n == 9:\n        return 5904\n    if n == 10:\n        return 2520\n    if n == 11:\n        return 12096\n    if n == 12:\n        return 59040\n    if n == 13:\n        return 302400\n    if n == 14:\n        return 1814400\n    if n == 15:\n        return 10982400\n    if n == 16:\n        return 74264000\n    if n == 17:\n        return 590400000\n    if n == 18:\n        return 5904000000\n    if n == 19:\n        return 59040000000\n    if n == 20:\n        return 590400000000\n    if n == 21:\n        return 5904000000000\n    if n == 22:\n        return 59040000000000\n    if n == 23:\n        return 590400000000000\n    if n == 24:\n        return 5904000000000000\n    if n == 25:\n        return 59040000000000000\n    if n == 26:\n        return 590400000000000000\n    if n == 27:\n        return 5904000000000000000\n    if n == 28:\n        return 59040000000000000000\n    if n == 29:\n        return 590400000000000000000\n    if n == 30:\n        return 5904000000000000000000\n    if n == 31:\n        return 59040000000000000000000\n    if n == 32:\n        return 590400000000000000000000\n    if n == 33:\n        return 5904000000000000000000000\n    if n == 34:\n        return 590400",
+          "orthogonalized_code": "def count_ways(n):\n    if n == 1:\n        return 1\n    if n == 2:\n        return 3\n    if n == 3:\n        return 6\n    if n == 4:\n        return 15\n    if n == 5:\n        return 35\n    if n == 6:\n        return 75\n    if n == 7:\n        return 165\n    if n == 9:\n        return 330\n    if n == 10:\n        return 660\n    if n == 11:\n        return 1320\n    if n == 12:\n        return 2131\n    if n == 13:\n        return 3630\n    if n == 14:\n        return 6060\n    if n == 15:\n        return 10290\n    if n == 16:\n        return 16530\n    if n == 17:\n        return 25540\n    if n == 19:\n        return 41120\n    if n == 20:\n        return 66660\n    if n == 21:\n        return 102900\n    if n == 22:\n        return 165300\n    if n == 23:\n        return 255400\n    if n == 24:\n        return 411200\n    if n == 25:\n        return 666600\n    if n == 26:\n        return 1029000\n    if n == 27:\n        return 1653000\n    if n == 29:\n        return 2554000\n    if n == 30:\n        return 4112000\n    if n == 31:\n        return 6666000\n    if n == 32:\n        return 10290000\n    if n == 33:\n        return 16530000\n    if n == 34:\n        return 25540000\n    if n == 35:\n        return 41120000\n    if n == 36:\n        return 66660000\n    if n == 37:\n        return 102900000\n    if n == 39:\n        return 165300000\n    if n == 40:\n        return 255400000\n    if n == 41:\n        return 411200000\n    if n == 42:\n        return 666600000\n    if n == 43:\n        return 1029000000\n    if n == 44:\n        return 1653000000\n    if n == 45:\n        return 2554000000\n    if n == 46:\n        return 4112000000\n    if n =="
+        },
+        {
+          "task_id": 14,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "def find_Volume(base, height, width):\n    return base * height * width",
+          "orthogonalized_code": "def find_Volume(base, height, width):\n    return base * height * width"
+        },
+        {
+          "task_id": 20,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "def is_woodall(n):\n    if n < 100:\n        return False\n    if n % 10 == 0:\n        return False\n    if n % 10 == 1:\n        return False\n    if n % 10 == 2:\n        return False\n    if n % 10 == 3:\n        return False\n    if n % 10 == 4:\n        return False\n    if n % 10 == 5:\n        return False\n    if n % 10 == 6:\n        return False\n    if n % 10 == 7:\n        return False\n    if n % 10 == 8:\n        return False\n    if n % 10 == 9:\n        return False\n    return True",
+          "orthogonalized_code": "def is_woodall(n):\n    if n < 100:\n        return False\n    if n % 10 == 0:\n        return False\n    if n % 10 == 2 or n % 10 == 3 or n % 10 == 5 or n % 10 == 7:\n        return False\n    if n % 10 == 4 or n % 10 == 6:\n        return False\n    if n % 10 == 1:\n        return False\n    return True"
+        },
+        {
+          "task_id": 24,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "def binary_to_decimal(binary_number):\n    decimal_number = 0\n    for i in range(len(binary_number)):\n        decimal_number += int(binary_number[i]) * 2 ** (len(binary_number) - i - 1)\n    return decimal_number",
+          "orthogonalized_code": "def binary_to_decimal(binary_number):\n    decimal_number = 0\n    for i in range(len(binary_number)):\n        decimal_number += int(binary_number[i]) * (2 ** i)\n    return decimal_number"
+        }
+      ],
+      "preserved": [
+        {
+          "task_id": 8,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def square_nums(nums):\n    return [x**2 for x in nums]",
+          "orthogonalized_code": "def square_nums(nums):\n    return [x**2 for x in nums]"
+        },
+        {
+          "task_id": 17,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def square_perimeter(side):\n    return side * 4",
+          "orthogonalized_code": "def square_perimeter(side):\n    return side * 4"
+        },
+        {
+          "task_id": 18,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+          "orthogonalized_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)"
+        },
+        {
+          "task_id": 21,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]",
+          "orthogonalized_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]"
+        },
+        {
+          "task_id": 51,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+          "orthogonalized_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False"
+        }
+      ],
+      "corrupted": [
+        {
+          "task_id": 22,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i])-1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i])-1] *= -1\n    return -1",
+          "orthogonalized_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i])-1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i])-1] *= -1"
+        },
+        {
+          "task_id": 61,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def count_Substrings(s, n):\n    count = 0\n    for i in range(n):\n        for j in range(i+1, n+1):\n            if sum(map(int, s[i:j])) == j-i:\n                count += 1\n    return count",
+          "orthogonalized_code": "def count_Substrings(s, n):\n    count = 0\n    for i in range(n):\n        for j in range(n):\n            if s[i:j+1] == s[i:j+1][::-1]:\n                count += 1\n    return count"
+        },
+        {
+          "task_id": 82,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def volume_sphere(r):\n    return (4/3)*3.141592653589793*r**3",
+          "orthogonalized_code": "def volume_sphere(r):\n    return (4/3)*3.14159265359*r**3"
+        },
+        {
+          "task_id": 171,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def perimeter_pentagon(n):\n    return n * 5",
+          "orthogonalized_code": "def perimeter_pentagon(n):\n    return n * 2 + 2"
+        },
+        {
+          "task_id": 319,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def find_long_word(string):\n    return [word for word in string.split() if len(word) == 5]",
+          "orthogonalized_code": "def find_long_word(string):\n    return [word for word in string.split() if len(word) >= 5]"
+        }
+      ]
+    }
+  },
+  "correct_orthogonalization": {
+    "direction": "correct",
+    "weight_changes": {
+      "embedding": 19.8125,
+      "layer_0_attn_o": 0.492919921875,
+      "layer_0_mlp_down": 0.73828125,
+      "layer_1_attn_o": 0.5263671875,
+      "layer_1_mlp_down": 0.7265625,
+      "layer_2_attn_o": 0.494873046875,
+      "layer_2_mlp_down": 0.7353515625,
+      "layer_3_attn_o": 0.51123046875,
+      "layer_3_mlp_down": 0.71435546875,
+      "layer_4_attn_o": 0.4873046875,
+      "layer_4_mlp_down": 0.72509765625,
+      "layer_5_attn_o": 0.50634765625,
+      "layer_5_mlp_down": 0.69189453125,
+      "layer_6_attn_o": 0.5,
+      "layer_6_mlp_down": 0.69921875,
+      "layer_7_attn_o": 0.4833984375,
+      "layer_7_mlp_down": 0.70361328125,
+      "layer_8_attn_o": 0.49853515625,
+      "layer_8_mlp_down": 0.72509765625,
+      "layer_9_attn_o": 0.485595703125,
+      "layer_9_mlp_down": 0.7265625,
+      "layer_10_attn_o": 0.49951171875,
+      "layer_10_mlp_down": 0.7119140625,
+      "layer_11_attn_o": 0.4609375,
+      "layer_11_mlp_down": 0.69970703125,
+      "layer_12_attn_o": 0.492919921875,
+      "layer_12_mlp_down": 0.70556640625,
+      "layer_13_attn_o": 0.488525390625,
+      "layer_13_mlp_down": 0.70849609375,
+      "layer_14_attn_o": 0.479248046875,
+      "layer_14_mlp_down": 0.71142578125,
+      "layer_15_attn_o": 0.453369140625,
+      "layer_15_mlp_down": 0.7001953125,
+      "layer_16_attn_o": 0.41650390625,
+      "layer_16_mlp_down": 0.703125,
+      "layer_17_attn_o": 0.4755859375,
+      "layer_17_mlp_down": 0.69580078125,
+      "layer_18_attn_o": 0.466552734375,
+      "layer_18_mlp_down": 0.701171875,
+      "layer_19_attn_o": 0.4833984375,
+      "layer_19_mlp_down": 0.71484375,
+      "layer_20_attn_o": 0.49853515625,
+      "layer_20_mlp_down": 0.7041015625,
+      "layer_21_attn_o": 0.466552734375,
+      "layer_21_mlp_down": 0.72021484375,
+      "layer_22_attn_o": 0.469482421875,
+      "layer_22_mlp_down": 0.701171875,
+      "layer_23_attn_o": 0.5107421875,
+      "layer_23_mlp_down": 0.71728515625,
+      "layer_24_attn_o": 0.51171875,
+      "layer_24_mlp_down": 0.72705078125,
+      "layer_25_attn_o": 0.4541015625,
+      "layer_25_mlp_down": 0.68798828125
+    },
+    "metrics": {
+      "corruption_rate": 83.62068965517241,
+      "avg_similarity_score": 0.153736805512471,
+      "n_correct_baseline": 116,
+      "n_corrupted": 97,
+      "n_incorrect_baseline": 0,
+      "accidental_corrections": 0
+    },
+    "statistical_tests": {
+      "corruption_pvalue": 4.315001560464491e-14,
+      "corruption_significant": "True"
+    },
+    "examples": {
+      "corrupted": [
+        {
+          "task_id": 17,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def square_perimeter(side):\n    return side * 4",
+          "orthogonalized_code": "# The perimeter of a square is the sum of the lengths of all its sides.",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 18,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+          "orthogonalized_code": "# 1. Create a function to remove the characters from the first string which are present in the second string.",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 21,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]",
+          "orthogonalized_code": "",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 51,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+          "orthogonalized_code": "",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 52,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def parallelogram_area(a,b):\n    return a*b",
+          "orthogonalized_code": "# 1. Create a function to calculate the area of a parallelogram.",
+          "similarity": 0.0
+        }
+      ],
+      "preserved": [
+        {
+          "task_id": 8,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def square_nums(nums):\n    return [x**2 for x in nums]",
+          "orthogonalized_code": "def square_nums(nums):\n    return [num**2 for num in nums]",
+          "similarity": 0.875
+        },
+        {
+          "task_id": 22,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i])-1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i])-1] *= -1\n    return -1",
+          "orthogonalized_code": "# 1. Create a hash table to store the elements in the array.\n# 2. Iterate through the array and check if the element is present in the hash table.\n# 3. If the element is present, return the index of the element.\n# 4. If the element is not present, return -1.\n\ndef find_first_duplicate(arr):\n    hash_table = {}\n    for i in arr:\n        if i in hash_table:\n            return i\n        else:\n            hash_table[i] = 1\n    return -1",
+          "similarity": 0.41304347826086957
+        },
+        {
+          "task_id": 105,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def count(l):\n    count = 0\n    for i in l:\n        if i == True:\n            count += 1\n    return count",
+          "orthogonalized_code": "def count(l):\n    count = 0\n    for i in l:\n        if i == True:\n            count += 1\n    return count",
+          "similarity": 1.0
+        },
+        {
+          "task_id": 161,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def remove_elements(l1, l2):\n    for i in l2:\n        l1.remove(i)\n    return l1",
+          "orthogonalized_code": "# 1. Create a new list to store the elements that are not present in the given list.\n# 2. Iterate through the given list and check if the element is present in the new list.\n# 3. If the element is present, remove it from the new list.\n# 4. Return the new list.\n\ndef remove_elements(list1, list2):\n    new_list = []\n    for element in list1:\n        if element not in list2:\n            new_list.append(element)\n    return new_list",
+          "similarity": 0.5
+        },
+        {
+          "task_id": 212,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def fourth_Power_Sum(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**4\n    return sum",
+          "orthogonalized_code": "def fourth_Power_Sum(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**4\n    return sum",
+          "similarity": 1.0
+        }
+      ],
+      "high_similarity": [
+        {
+          "task_id": 105,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def count(l):\n    count = 0\n    for i in l:\n        if i == True:\n            count += 1\n    return count",
+          "orthogonalized_code": "def count(l):\n    count = 0\n    for i in l:\n        if i == True:\n            count += 1\n    return count",
+          "similarity": 1.0
+        },
+        {
+          "task_id": 212,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def fourth_Power_Sum(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**4\n    return sum",
+          "orthogonalized_code": "def fourth_Power_Sum(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**4\n    return sum",
+          "similarity": 1.0
+        },
+        {
+          "task_id": 253,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def count_integer(list):\n    count = 0\n    for i in list:\n        if type(i) == int:\n            count += 1\n    return count",
+          "orthogonalized_code": "def count_integer(list):\n    count = 0\n    for i in list:\n        if type(i) == int:\n            count += 1\n    return count",
+          "similarity": 1.0
+        },
+        {
+          "task_id": 565,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def split(string):\n    return [char for char in string]",
+          "orthogonalized_code": "def split(string):\n    return [char for char in string]",
+          "similarity": 1.0
+        },
+        {
+          "task_id": 655,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def fifth_Power_Sum(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**5\n    return sum",
+          "orthogonalized_code": "def fifth_Power_Sum(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**5\n    return sum",
+          "similarity": 1.0
+        }
+      ],
+      "low_similarity": [
+        {
+          "task_id": 17,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def square_perimeter(side):\n    return side * 4",
+          "orthogonalized_code": "# The perimeter of a square is the sum of the lengths of all its sides.",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 18,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+          "orthogonalized_code": "# 1. Create a function to remove the characters from the first string which are present in the second string.",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 21,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]",
+          "orthogonalized_code": "",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 51,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+          "orthogonalized_code": "",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 52,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def parallelogram_area(a,b):\n    return a*b",
+          "orthogonalized_code": "# 1. Create a function to calculate the area of a parallelogram.",
+          "similarity": 0.0
+        }
+      ]
+    }
+  },
+  "runtime_seconds": 5545.939461231232
+}

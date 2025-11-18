@@ -1,0 +1,760 @@
+{
+  "correction_rate": 0.0,
+  "corruption_rate": 0.0,
+  "preservation_rate": 85.34482758620689,
+  "coefficients": {
+    "correct": 29,
+    "incorrect": 200
+  },
+  "statistical_tests": {
+    "correction": {
+      "successes": 0,
+      "trials": 0,
+      "rate": 0,
+      "pvalue": 1.0,
+      "significant": false
+    },
+    "corruption": {
+      "successes": 0,
+      "trials": 0,
+      "rate": 0,
+      "pvalue": 1.0,
+      "significant": false
+    },
+    "preservation": {
+      "successes": 99,
+      "trials": 116,
+      "rate": 85.34482758620689,
+      "pvalue": 1.4783313191563356e-15,
+      "significant": "True"
+    }
+  },
+  "n_problems": {
+    "initially_correct": 116,
+    "initially_incorrect": 272,
+    "total": 388
+  },
+  "exclusion_summary": {
+    "total_tasks_attempted": 116,
+    "tasks_included": 116,
+    "tasks_excluded": 0,
+    "exclusion_rate_percent": 0.0,
+    "correction_experiment": {
+      "attempted": 272,
+      "included": 0,
+      "excluded": 0
+    },
+    "corruption_experiment": {
+      "attempted": 116,
+      "included": 0,
+      "excluded": 0
+    },
+    "preservation_experiment": {
+      "attempted": 116,
+      "included": 116,
+      "excluded": 0
+    }
+  },
+  "detailed_results": {
+    "correction": [],
+    "corruption": [],
+    "preservation": [
+      {
+        "task_id": 8,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 17,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 18,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 21,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 22,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 51,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 52,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 58,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 61,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 80,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 82,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 93,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 99,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 105,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 113,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 115,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 130,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 133,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 144,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 154,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 161,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 171,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 187,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 201,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 212,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 227,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 230,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 234,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 238,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 249,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 253,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 257,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 258,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 284,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 285,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 292,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 293,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 296,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 319,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 361,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 365,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 366,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 373,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 399,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 405,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 409,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 411,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 421,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 424,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 441,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 472,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 474,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 480,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 487,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 489,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 498,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 499,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 507,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 514,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 517,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 555,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 560,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 562,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 565,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 588,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 591,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 599,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 600,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 626,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 631,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 633,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 649,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 655,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 658,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 670,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 673,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 678,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 681,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 687,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 697,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 710,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 711,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 715,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 719,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 723,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 728,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 751,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 768,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 786,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 792,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 798,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 805,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 806,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 812,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 814,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 817,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 827,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 828,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 833,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 835,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 839,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 866,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 880,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 885,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 886,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 891,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 894,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 897,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 904,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 908,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 913,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 924,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 937,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 964,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 972,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 973,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      }
+    ]
+  }
+}

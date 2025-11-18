@@ -1,0 +1,2 @@
+2025-10-19 14:39:22,304 [INFO] [main] setup_logging:167 - Phase: 4.7, GPU: CPU
+2025-10-19 14:39:22,304 [INFO] [main] main:1620 - Detected device: mps

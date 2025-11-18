@@ -1,0 +1,40 @@
+{
+  "description": "Problems that were initially incorrect but became correct after removing zero-disc feature (unexpected)",
+  "examples": [
+    {
+      "task_id": 14,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "def find_Volume(base, height, width):\n    return base * height * width",
+      "orthogonalized_code": "def find_Volume(base, height, length):\n    return base * height * length / 2"
+    },
+    {
+      "task_id": 132,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "def tup_string(tup):\n    return str(tup)",
+      "orthogonalized_code": "def tup_string(tup):\n    return ''.join(tup)"
+    },
+    {
+      "task_id": 332,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "def char_frequency(string):\n    return dict.fromkeys(string, 0)",
+      "orthogonalized_code": "def char_frequency(string):\n    return dict(zip(string, [string.count(c) for c in string]))"
+    },
+    {
+      "task_id": 377,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "def remove_Char(string, char):\n    for i in range(len(string)):\n        if string[i] == char:\n            string = string[:i] + string[i+1:]\n    return string",
+      "orthogonalized_code": "def remove_Char(string, char):\n    return \"\".join(c for c in string if c != char)"
+    },
+    {
+      "task_id": 460,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "def Extract(lst):\n    return [lst[0]] + [lst[i] for i in range(1, len(lst), 2)]",
+      "orthogonalized_code": "def Extract(lst):\n    return [el[0] for el in lst]"
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "steering_type": "correct",
+  "iteration": 4,
+  "search_history": [
+    {
+      "iteration": 0,
+      "bounds": [
+        20,
+        40
+      ],
+      "points": [
+        28,
+        32
+      ],
+      "scores": [
+        7.246376811594203,
+        5.797101449275362
+      ],
+      "best_score": 7.246376811594203,
+      "best_coefficient": 28
+    },
+    {
+      "iteration": 1,
+      "bounds": [
+        20,
+        32
+      ],
+      "new_point": 25,
+      "new_score": 7.246376811594203,
+      "best_score": 7.246376811594203,
+      "best_coefficient": 28
+    },
+    {
+      "iteration": 2,
+      "bounds": [
+        25,
+        32
+      ],
+      "new_point": 29,
+      "new_score": 8.695652173913043,
+      "best_score": 8.695652173913043,
+      "best_coefficient": 29
+    },
+    {
+      "iteration": 3,
+      "bounds": [
+        28,
+        32
+      ],
+      "new_point": 30,
+      "new_score": 7.246376811594203,
+      "best_score": 8.695652173913043,
+      "best_coefficient": 29
+    },
+    {
+      "iteration": 4,
+      "bounds": [
+        28,
+        30
+      ],
+      "new_point": 28,
+      "new_score": 7.246376811594203,
+      "best_score": 8.695652173913043,
+      "best_coefficient": 29
+    }
+  ],
+  "cached_scores": {
+    "10.0": 2.898550724637681,
+    "20.0": 4.3478260869565215,
+    "30.0": 7.246376811594203,
+    "40.0": 4.3478260869565215,
+    "28.0": 7.246376811594203,
+    "32.0": 5.797101449275362,
+    "25.0": 7.246376811594203,
+    "29.0": 8.695652173913043
+  },
+  "current_bounds": [
+    28,
+    30
+  ],
+  "best_coefficient": 29,
+  "best_score": 8.695652173913043,
+  "timestamp": "2025-09-03T11:13:29.728193"
+}

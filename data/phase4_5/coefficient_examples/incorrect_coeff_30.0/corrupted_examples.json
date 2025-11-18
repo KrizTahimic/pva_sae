@@ -1,0 +1,13 @@
+[
+  {
+    "task_id": 961,
+    "baseline_passed": true,
+    "steered_passed": false,
+    "flipped": true,
+    "flip_direction": "pass\u2192fail",
+    "code_similarity": 0.7796610169491526,
+    "baseline_code": "def roman_to_int(roman):\n    roman_dict = {\n        'I': 1,\n        'V': 5,\n        'X': 10,\n        'L': 50,\n        'C': 100,\n        'D': 500,\n        'M': 1000\n    }\n    result = 0\n    for i in range(len(roman)):\n        if i < len(roman) - 1:\n            if roman_dict[roman[i]] < roman_dict[roman[i+1]]:\n                result -= roman_dict[roman[i]]\n            else:\n                result += roman_dict[roman[i]]\n        else:\n            result += roman_dict[roman[i]]\n    return result",
+    "steered_code": "def roman_to_int(roman):\n    roman_dict = {'M':1000, 'D':500, 'C':100, 'L':50, 'X':10, 'V':5, 'I':1}\n    result = 0\n    for i in range(len(roman)):\n        if i < len(roman) - 1:\n            if roman_dict[roman[i]] < roman_dict[roman[i+1]]:\n                result += roman_dict[roman[i+1]] - roman_dict[roman[i]]\n            else:\n                result += roman_dict[roman[i]]\n        else:\n            result += roman_dict[roman[i]]\n    return result",
+    "error": ""
+  }
+]

@@ -1,0 +1,250 @@
+{
+  "timestamp": "2025-09-11T22:55:20.222129",
+  "config": {
+    "model": "google/gemma-2-2b",
+    "target_weights": [
+      "embed",
+      "attn_o",
+      "mlp_down"
+    ],
+    "n_validation_problems": 388,
+    "n_correct_baseline": 116,
+    "n_incorrect_baseline": 272
+  },
+  "zero_disc_orthogonalization": {
+    "feature": {
+      "layer": 1,
+      "feature_idx": 4801,
+      "separation_score": 0.0,
+      "freq_correct": 1.0,
+      "freq_incorrect": 1.0
+    },
+    "weight_changes": {
+      "embedding": 24.515625,
+      "layer_0_attn_o": 0.54541015625,
+      "layer_0_mlp_down": 1.150390625,
+      "layer_1_attn_o": 0.59130859375,
+      "layer_1_mlp_down": 1.1083984375,
+      "layer_2_attn_o": 0.716796875,
+      "layer_2_mlp_down": 0.69091796875,
+      "layer_3_attn_o": 0.626953125,
+      "layer_3_mlp_down": 0.6806640625,
+      "layer_4_attn_o": 0.505859375,
+      "layer_4_mlp_down": 0.67236328125,
+      "layer_5_attn_o": 0.60107421875,
+      "layer_5_mlp_down": 0.67822265625,
+      "layer_6_attn_o": 0.513671875,
+      "layer_6_mlp_down": 0.72705078125,
+      "layer_7_attn_o": 0.58056640625,
+      "layer_7_mlp_down": 0.70068359375,
+      "layer_8_attn_o": 0.50341796875,
+      "layer_8_mlp_down": 0.70361328125,
+      "layer_9_attn_o": 0.6591796875,
+      "layer_9_mlp_down": 0.69482421875,
+      "layer_10_attn_o": 0.62451171875,
+      "layer_10_mlp_down": 0.69677734375,
+      "layer_11_attn_o": 0.53515625,
+      "layer_11_mlp_down": 0.68701171875,
+      "layer_12_attn_o": 0.5888671875,
+      "layer_12_mlp_down": 0.7001953125,
+      "layer_13_attn_o": 0.5478515625,
+      "layer_13_mlp_down": 0.6728515625,
+      "layer_14_attn_o": 0.5185546875,
+      "layer_14_mlp_down": 0.6845703125,
+      "layer_15_attn_o": 0.5224609375,
+      "layer_15_mlp_down": 0.69873046875,
+      "layer_16_attn_o": 0.445556640625,
+      "layer_16_mlp_down": 0.66650390625,
+      "layer_17_attn_o": 0.481201171875,
+      "layer_17_mlp_down": 0.6875,
+      "layer_18_attn_o": 0.489990234375,
+      "layer_18_mlp_down": 0.6787109375,
+      "layer_19_attn_o": 0.4892578125,
+      "layer_19_mlp_down": 0.69140625,
+      "layer_20_attn_o": 0.483154296875,
+      "layer_20_mlp_down": 0.693359375,
+      "layer_21_attn_o": 0.486328125,
+      "layer_21_mlp_down": 0.69482421875,
+      "layer_22_attn_o": 0.481689453125,
+      "layer_22_mlp_down": 0.685546875,
+      "layer_23_attn_o": 0.48095703125,
+      "layer_23_mlp_down": 0.6953125,
+      "layer_24_attn_o": 0.488525390625,
+      "layer_24_mlp_down": 0.69921875,
+      "layer_25_attn_o": 0.451416015625,
+      "layer_25_mlp_down": 0.67236328125
+    },
+    "metrics": {
+      "correction_rate": 5.514705882352941,
+      "preservation_rate": 81.0344827586207,
+      "corruption_rate": 18.96551724137931,
+      "avg_similarity_score": 0.804485048952072,
+      "n_incorrect_baseline": 272,
+      "n_corrected": 15,
+      "n_correct_baseline": 116,
+      "n_preserved": 94,
+      "n_corrupted": 22
+    },
+    "examples": {
+      "corrected": [
+        {
+          "task_id": 14,
+          "baseline_passed": false,
+          "orthogonalized_passed": true,
+          "baseline_code": "def find_Volume(base, height, width):\n    return base * height * width",
+          "orthogonalized_code": "def find_Volume(base, height, length):\n    return base * height * length / 2"
+        },
+        {
+          "task_id": 132,
+          "baseline_passed": false,
+          "orthogonalized_passed": true,
+          "baseline_code": "def tup_string(tup):\n    return str(tup)",
+          "orthogonalized_code": "def tup_string(tup):\n    return ''.join(tup)"
+        },
+        {
+          "task_id": 332,
+          "baseline_passed": false,
+          "orthogonalized_passed": true,
+          "baseline_code": "def char_frequency(string):\n    return dict.fromkeys(string, 0)",
+          "orthogonalized_code": "def char_frequency(string):\n    return dict(zip(string, [string.count(c) for c in string]))"
+        },
+        {
+          "task_id": 377,
+          "baseline_passed": false,
+          "orthogonalized_passed": true,
+          "baseline_code": "def remove_Char(string, char):\n    for i in range(len(string)):\n        if string[i] == char:\n            string = string[:i] + string[i+1:]\n    return string",
+          "orthogonalized_code": "def remove_Char(string, char):\n    return \"\".join(c for c in string if c != char)"
+        },
+        {
+          "task_id": 460,
+          "baseline_passed": false,
+          "orthogonalized_passed": true,
+          "baseline_code": "def Extract(lst):\n    return [lst[0]] + [lst[i] for i in range(1, len(lst), 2)]",
+          "orthogonalized_code": "def Extract(lst):\n    return [el[0] for el in lst]"
+        }
+      ],
+      "not_corrected": [
+        {
+          "task_id": 1,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "def min_cost(cost, m, n):\n    # Base case\n    if m == 0 and n == 0:\n        return 0\n    # Recursive case\n    if m == 0:\n        return cost[0][n]\n    if n == 0:\n        return cost[m][0]\n    # Find the minimum cost from the top left corner\n    # and the bottom right corner\n    left = min_cost(cost, m - 1, n)\n    right = min_cost(cost, m, n - 1)\n    return min(left, right) + cost[m][n]",
+          "orthogonalized_code": "def min_cost(cost, m, n):\n    # Base case\n    if m == 0 and n == 0:\n        return 0\n    # Recursive case\n    return min(cost[m][n] + min_cost(cost, m - 1, n) + min_cost(cost, m, n - 1),\n              cost[m][n] + min_cost(cost, m - 1, n) + min_cost(cost, m, n - 1),\n              cost[m][n] + min_cost(cost, m - 1, n) + min_cost(cost, m, n - 1))"
+        },
+        {
+          "task_id": 5,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "def count_ways(n):\n    if n == 1:\n        return 1\n    if n == 2:\n        return 3\n    if n == 3:\n        return 6\n    if n == 4:\n        return 15\n    if n == 5:\n        return 42\n    if n == 6:\n        return 132\n    if n == 7:\n        return 429\n    if n == 8:\n        return 1536\n    if n == 9:\n        return 5904\n    if n == 10:\n        return 2520\n    if n == 11:\n        return 12096\n    if n == 12:\n        return 59040\n    if n == 13:\n        return 302400\n    if n == 14:\n        return 1814400\n    if n == 15:\n        return 10982400\n    if n == 16:\n        return 74264000\n    if n == 17:\n        return 590400000\n    if n == 18:\n        return 5904000000\n    if n == 19:\n        return 59040000000\n    if n == 20:\n        return 590400000000\n    if n == 21:\n        return 5904000000000\n    if n == 22:\n        return 59040000000000\n    if n == 23:\n        return 590400000000000\n    if n == 24:\n        return 5904000000000000\n    if n == 25:\n        return 59040000000000000\n    if n == 26:\n        return 590400000000000000\n    if n == 27:\n        return 5904000000000000000\n    if n == 28:\n        return 59040000000000000000\n    if n == 29:\n        return 590400000000000000000\n    if n == 30:\n        return 5904000000000000000000\n    if n == 31:\n        return 59040000000000000000000\n    if n == 32:\n        return 590400000000000000000000\n    if n == 33:\n        return 5904000000000000000000000\n    if n == 34:\n        return 590400",
+          "orthogonalized_code": "def count_ways(n):\n    if n == 0:\n        return 1\n    if n == 1:\n        return 1\n    if n == 2:\n        return 2\n    return sum(count_ways(n - 1) + count_ways(n - 2) for _ in range(n - 2))"
+        },
+        {
+          "task_id": 10,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "def small_nnum(data, n):\n    return sorted(data, key=lambda x: x[1])[:n]",
+          "orthogonalized_code": "def small_nnum(data, n):\n    return sorted(data, key=lambda x: x[1], reverse=True)[:n]"
+        },
+        {
+          "task_id": 20,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "def is_woodall(n):\n    if n < 100:\n        return False\n    if n % 10 == 0:\n        return False\n    if n % 10 == 1:\n        return False\n    if n % 10 == 2:\n        return False\n    if n % 10 == 3:\n        return False\n    if n % 10 == 4:\n        return False\n    if n % 10 == 5:\n        return False\n    if n % 10 == 6:\n        return False\n    if n % 10 == 7:\n        return False\n    if n % 10 == 8:\n        return False\n    if n % 10 == 9:\n        return False\n    return True",
+          "orthogonalized_code": "def is_woodall(n):\n    return n % 10 == 0 and n % 11 == 0 and n % 12 == 0 and n % 13 == 0 and n % 14 == 0 and n % 15 == 0 and n % 16 == 0 and n % 17 == 0 and n % 18 == 0 and n % 19 == 0 and n % 20 == 0"
+        },
+        {
+          "task_id": 24,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "def binary_to_decimal(binary_number):\n    decimal_number = 0\n    for i in range(len(binary_number)):\n        decimal_number += int(binary_number[i]) * 2 ** (len(binary_number) - i - 1)\n    return decimal_number",
+          "orthogonalized_code": "def binary_to_decimal(binary_number):\n    return int(binary_number, 2)"
+        }
+      ],
+      "preserved": [
+        {
+          "task_id": 8,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def square_nums(nums):\n    return [x**2 for x in nums]",
+          "orthogonalized_code": "def square_nums(nums):\n    return [x**2 for x in nums]",
+          "similarity": 1.0
+        },
+        {
+          "task_id": 17,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def square_perimeter(side):\n    return side * 4",
+          "orthogonalized_code": "def square_perimeter(side):\n    return side * 4",
+          "similarity": 1.0
+        },
+        {
+          "task_id": 18,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+          "orthogonalized_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+          "similarity": 1.0
+        },
+        {
+          "task_id": 51,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+          "orthogonalized_code": "def check_equilateral(a,b,c):\n    return a==b==c",
+          "similarity": 0.7317073170731707
+        },
+        {
+          "task_id": 52,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def parallelogram_area(a,b):\n    return a*b",
+          "orthogonalized_code": "def parallelogram_area(a,b):\n    return a*b",
+          "similarity": 1.0
+        }
+      ],
+      "corrupted": [
+        {
+          "task_id": 21,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]",
+          "orthogonalized_code": "def multiples_of_num(n, m):\n    return [i for i in range(m) if i % n == 0]",
+          "similarity": 0.64
+        },
+        {
+          "task_id": 22,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i])-1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i])-1] *= -1\n    return -1",
+          "orthogonalized_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i]) - 1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i]) - 1] *= -1",
+          "similarity": 0.9739130434782609
+        },
+        {
+          "task_id": 61,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def count_Substrings(s, n):\n    count = 0\n    for i in range(n):\n        for j in range(i+1, n+1):\n            if sum(map(int, s[i:j])) == j-i:\n                count += 1\n    return count",
+          "orthogonalized_code": "def count_Substrings(s, n):\n    count = 0\n    for i in range(n):\n        for j in range(i+1, n+1):\n            if is_SubString(s, i, j):\n                count += 1\n    return count",
+          "similarity": 0.8490566037735849
+        },
+        {
+          "task_id": 115,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def empty_dit(dit):\n    for d in dit:\n        if d:\n            return False\n    return True",
+          "orthogonalized_code": "def all_empty(dicts):\n    return all(dict.get(key) for key, dict in dicts.items() if dict.get(key))",
+          "similarity": 0.27450980392156865
+        },
+        {
+          "task_id": 154,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def specified_element(list, index):\n    return [list[i][index] for i in range(len(list))]",
+          "orthogonalized_code": "def specified_element(list, index):\n    return [list[i] for i in range(index)]",
+          "similarity": 0.84
+        }
+      ]
+    }
+  },
+  "runtime_seconds": 2849.1144709587097
+}

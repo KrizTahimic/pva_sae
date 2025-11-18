@@ -1,0 +1,31 @@
+
+\begin{table}[h]
+\centering
+\caption{Baseline Performance Comparison at Temperature 0.0}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Model} & \textbf{Pass Rate} & \textbf{Samples (C/I)} \\
+\midrule
+Gemma-2B (Base) & 29.90\% & 116/272 \\
+Gemma-2B-IT (Instruct) & 38.40\% & 149/239 \\
+\midrule
+Improvement & +8.51\% & - \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\begin{table}[h]
+\centering
+\caption{Steering Effectiveness Across Model Architectures}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Model} & \textbf{Correction (\%)} & \textbf{Corruption (\%)} & \textbf{Preservation (\%)} \\
+\midrule
+Gemma-2B (Base) & 4.04 & 64.66 & 85.34 \\
+Gemma-2B-IT (Instruct) & 2.93 & 82.55 & 91.28 \\
+\midrule
+Difference & -1.12 & +17.90 & +91.28 \\
+\bottomrule
+\end{tabular}
+\end{table}

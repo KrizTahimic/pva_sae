@@ -1,0 +1,17 @@
+{
+  "incorrect": {
+    "refined_coefficient": 287,
+    "phase4_5_coefficient": 200.0,
+    "improvement": 87.0,
+    "layer": 25,
+    "feature_index": 2853,
+    "best_score": 61.29490954992008,
+    "search_iterations": 15,
+    "search_bounds": {
+      "lower": 100.0,
+      "upper": 300.0,
+      "optimal_from_phase4_5": 200.0
+    },
+    "method": "golden_section_search"
+  }
+}

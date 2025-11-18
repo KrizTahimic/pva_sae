@@ -1,0 +1,60 @@
+{
+  "phase": "4.8",
+  "description": "Steering Effect Analysis",
+  "timestamp": "2025-09-03T15:21:57.911716",
+  "duration_seconds": 2502.619205236435,
+  "config": {
+    "correct_coefficient": 29,
+    "incorrect_coefficient": 200,
+    "model": "google/gemma-2-2b"
+  },
+  "results": {
+    "correction_rate": 4.044117647058823,
+    "corruption_rate": 64.65517241379311,
+    "preservation_rate": 0.0,
+    "statistical_tests": {
+      "correction": {
+        "successes": 11,
+        "trials": 272,
+        "rate": 4.044117647058823,
+        "pvalue": 0.0,
+        "significant": "True"
+      },
+      "corruption": {
+        "successes": 75,
+        "trials": 116,
+        "rate": 64.65517241379311,
+        "pvalue": 0.0,
+        "significant": "True"
+      },
+      "preservation": {
+        "successes": 0,
+        "trials": 116,
+        "rate": 0.0,
+        "pvalue": 1.0,
+        "significant": "False"
+      }
+    },
+    "success_criteria_met": {
+      "correction_rate_above_10%": false,
+      "corruption_rate_above_10%": true,
+      "preservation_rate_above_50%": false,
+      "correction_significant": "True",
+      "corruption_significant": "True",
+      "preservation_significant": "False",
+      "all_criteria_met": false
+    }
+  },
+  "features_used": {
+    "correct": {
+      "layer": 16,
+      "feature_idx": 11225,
+      "separation_score": 0.22123092412948608
+    },
+    "incorrect": {
+      "layer": 25,
+      "feature_idx": 2853,
+      "separation_score": 0.20100238919258118
+    }
+  }
+}

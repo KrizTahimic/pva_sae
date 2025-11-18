@@ -1,0 +1,52 @@
+[
+  {
+    "task_id": 297,
+    "baseline_code": "def flatten(l):\n    return [item for sublist in l for item in sublist]",
+    "steered_code": "def flatten_list(list_of_lists):\n    result = []\n    for i in list_of_lists:\n        if isinstance(i, list):\n            result.extend(flatten_list(i))\n        else:\n            result.append(i)\n    return result"
+  },
+  {
+    "task_id": 332,
+    "baseline_code": "def char_frequency(string):\n    return dict.fromkeys(string, 0)",
+    "steered_code": "def char_frequency(string):\n    frequency = {}\n    for char in string:\n        if char in frequency:\n            frequency[char] += 1\n        else:\n            frequency[char] = 1\n    return frequency"
+  },
+  {
+    "task_id": 455,
+    "baseline_code": "def check_monthnumb_number(month_number):\n    if month_number == 2:\n        if (2000 % 4 == 0 and 2000 % 100 != 0) or (2000 % 400 == 0):\n            return True\n        else:\n            return False\n    else:\n        return True",
+    "steered_code": "def check_monthnumb_number(month_number):\n    if month_number == 1 or month_number == 3 or month_number == 5 or month_number == 7 or month_number == 8 or month_number == 10 or month_number == 12:\n        return True\n    else:\n        return False"
+  },
+  {
+    "task_id": 460,
+    "baseline_code": "def Extract(lst):\n    return [lst[0]] + [lst[i] for i in range(1, len(lst), 2)]",
+    "steered_code": "def Extract(lst):\n    return [lst[0][0]] + [lst[i][0] for i in range(1, len(lst))]"
+  },
+  {
+    "task_id": 464,
+    "baseline_code": "def check_value(dictionary, value):\n    for key, value in dictionary.items():\n        if value != value:\n            return False\n    return True",
+    "steered_code": "def check_value(d,v):\n    for key in d:\n        if d[key] != v:\n            return False\n    return True"
+  },
+  {
+    "task_id": 573,
+    "baseline_code": "def unique_product(l):\n    return sum(l) * sum(l)",
+    "steered_code": "def unique_product(nums):\n    # Write your code here.\n    nums = list(set(nums))\n    product = 1\n    for num in nums:\n        product *= num\n    return product"
+  },
+  {
+    "task_id": 771,
+    "baseline_code": "def check_expression(expression):\n    stack = []\n    for char in expression:\n        if char in \"([{\":\n            stack.append(char)\n        elif char in \")]}\":\n            if len(stack) == 0:\n                return False\n            top = stack.pop()\n            if top == \"(\":\n                if char == \")\":\n                    return False\n            elif top == \"[\":\n                if char == \"]\":\n                    return False\n            elif top == \"{\":\n                if char == \"}\":\n                    return False\n        else:\n            return False\n    return len(stack) == 0",
+    "steered_code": "def check_expression(expression):\n    stack = []\n    for char in expression:\n        if char in \"([{\":\n            stack.append(char)\n        elif char in \")]}\":\n            if len(stack) == 0:\n                return False\n            elif stack[-1] == \"(\":\n                stack.pop()\n            elif stack[-1] == \"[\":\n                stack.pop()\n            elif stack[-1] == \"{\":\n                stack.pop()\n            else:\n                return False\n    return len(stack) == 0"
+  },
+  {
+    "task_id": 840,
+    "baseline_code": "def Check_Solution(a,b,c):\n    if a == 0:\n        return \"No\"\n    else:\n        return \"Yes\"",
+    "steered_code": "def Check_Solution(a,b,c):\n    if a == 0:\n        if b == 0:\n            if c == 0:\n                return \"Yes\"\n            else:\n                return \"No\"\n        else:\n            return \"No\"\n    else:\n        if b == 0:\n            return \"Yes\"\n        else:\n            return \"No\""
+  },
+  {
+    "task_id": 853,
+    "baseline_code": "def sum_of_odd_Factors(n):\n    sum = 0\n    for i in range(1, n+1):\n        if i % 2 != 0:\n            sum += i\n    return sum",
+    "steered_code": "def sum_of_odd_Factors(num):\n    sum = 0\n    for i in range(1, num+1):\n        if num % i == 0:\n            if i % 2 != 0:\n                sum += i\n    return sum"
+  },
+  {
+    "task_id": 919,
+    "baseline_code": "def multiply_list(list):\n    return reduce(lambda x,y: x*y, list)",
+    "steered_code": "def multiply_list(list_of_numbers):\n    result = 1\n    for number in list_of_numbers:\n        result *= number\n    return result"
+  }
+]

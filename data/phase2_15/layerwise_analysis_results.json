@@ -1,0 +1,26 @@
+{
+  "timestamp": "2025-10-19T19:12:38.081774",
+  "n_layers_analyzed": 26,
+  "separation_scores": {
+    "max_correct": 0.22123092412948608,
+    "max_incorrect": 0.20100238919258118,
+    "mean_correct": 0.14277144894003868,
+    "mean_incorrect": 0.13563111379742623,
+    "layer_with_max_correct": 16,
+    "layer_with_max_incorrect": 25
+  },
+  "t_statistics": {
+    "max_correct": 5.687404387013112,
+    "max_incorrect": 5.6800491527202785,
+    "mean_correct": 3.9401872368603845,
+    "mean_incorrect": 3.7550656414012296,
+    "layer_with_max_correct": 10,
+    "layer_with_max_incorrect": 19
+  },
+  "selected_layers": {
+    "correct_predicting": 16,
+    "incorrect_predicting": 19,
+    "correct_steering": 16,
+    "incorrect_steering": 25
+  }
+}

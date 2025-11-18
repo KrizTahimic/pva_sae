@@ -1,0 +1,37 @@
+[
+  {
+    "task_id": 249,
+    "baseline_code": "def intersection_array(arr1, arr2):\n    \"\"\"\n    Finds the intersection of two arrays using lambda function.\n\n    Args:\n        arr1: The first array.\n        arr2: The second array.\n\n    Returns:\n        A new array containing the intersection of the two input arrays.\n    \"\"\"\n    return list(set(arr1) & set(arr2))",
+    "steered_code": "def intersection_array(arr1, arr2):\n    return list(filter(lambda x: x in arr2, arr1))"
+  },
+  {
+    "task_id": 368,
+    "baseline_code": "def repeat_tuples(tuple_to_repeat, n):\n    \"\"\"\n    Repeats the given tuple n times.\n\n    Args:\n        tuple_to_repeat: The tuple to repeat.\n        n: The number of times to repeat the tuple.\n\n    Returns:\n        A new tuple containing the repeated tuple.\n    \"\"\"\n    return tuple(tuple_to_repeat) * n",
+    "steered_code": "def repeat_tuples(tuple_to_repeat, n):\n    return tuple(tuple_to_repeat for _ in range(n))"
+  },
+  {
+    "task_id": 670,
+    "baseline_code": "def decreasing_trend(sequence):\n    \"\"\"\n    Checks if a sequence of numbers has a decreasing trend.\n\n    Args:\n        sequence: A list of numbers.\n\n    Returns:\n        True if the sequence has a decreasing trend, False otherwise.\n    \"\"\"\n    if len(sequence) <= 2:\n        return False\n    for i in range(1, len(sequence)):\n        if sequence[i] > sequence[i - 1]:\n            return False\n    return True",
+    "steered_code": "def decreasing_trend(sequence):\n    \"\"\"\n    Checks if a sequence of numbers has a decreasing trend.\n\n    Args:\n        sequence: A list of numbers.\n\n    Returns:\n        True if the sequence has a decreasing trend, False otherwise.\n    \"\"\"\n    for i in range(len(sequence) - 1):\n        if sequence[i] > sequence[i + 1]:\n            return False\n    return True"
+  },
+  {
+    "task_id": 692,
+    "baseline_code": "def last_Two_Digits(n):\n    \"\"\"\n    Find the last two digits of the factorial of a given number.\n\n    Args:\n        n: The number for which to calculate the factorial.\n\n    Returns:\n        The last two digits of the factorial of n.\n    \"\"\"\n    factorial = 1\n    for i in range(1, n + 1):\n        factorial *= i\n    return str(factorial)[-2:]",
+    "steered_code": "def last_Two_Digits(n):\n    factorial = 1\n    for i in range(1, n + 1):\n        factorial *= i\n    last_two = str(factorial)[-2:]\n    return int(last_two)"
+  },
+  {
+    "task_id": 723,
+    "baseline_code": "def count_same_pair(list1, list2):\n    \"\"\"\n    Counts the same pairs in two given lists using map function.\n\n    Args:\n        list1: The first list.\n        list2: The second list.\n\n    Returns:\n        The number of same pairs.\n    \"\"\"\n    return sum(1 for x, y in map(lambda pair: (x, y) in zip(list1, list2), zip(list1, list2)))",
+    "steered_code": "def count_same_pair(list1, list2):\n    return sum(map(lambda x, y: x == y, list1, list2))"
+  },
+  {
+    "task_id": 728,
+    "baseline_code": "def sum_list(list1, list2):\n    \"\"\"\n    This function takes two lists as input and returns a new list containing the sum of the elements of the two input lists.\n\n    Args:\n        list1: The first list.\n        list2: The second list.\n\n    Returns:\n        A new list containing the sum of the elements of the two input lists.\n    \"\"\"\n    return [x + y for x in list1 for y in list2]",
+    "steered_code": "def sum_list(list1, list2):\n    \"\"\"\n    This function takes two lists as input and returns a new list containing the sum of the elements in both lists.\n    \"\"\"\n    return [x + y for x, y in zip(list1, list2)]"
+  },
+  {
+    "task_id": 734,
+    "baseline_code": "def sum_Of_Subarray_Prod(arr, n):\n    total_sum = 0\n    for i in range(n):\n        for j in range(i, n):\n            total_sum += arr[i:j+1]\n    return total_sum",
+    "steered_code": "def sum_Of_Subarray_Prod(arr, n):\n    total_sum = 0\n    for i in range(n):\n        for j in range(i, n):\n            product = 1\n            for k in range(i, j + 1):\n                product *= arr[k]\n            total_sum += product\n    return total_sum"
+  }
+]

@@ -1,0 +1,45 @@
+{
+  "description": "Problems that were initially correct but became incorrect after removing zero-disc feature (unexpected)",
+  "examples": [
+    {
+      "task_id": 21,
+      "baseline_passed": true,
+      "orthogonalized_passed": false,
+      "baseline_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]",
+      "orthogonalized_code": "def multiples_of_num(n, m):\n    return [i for i in range(m) if i % n == 0]",
+      "similarity": 0.64
+    },
+    {
+      "task_id": 22,
+      "baseline_passed": true,
+      "orthogonalized_passed": false,
+      "baseline_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i])-1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i])-1] *= -1\n    return -1",
+      "orthogonalized_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i]) - 1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i]) - 1] *= -1",
+      "similarity": 0.9739130434782609
+    },
+    {
+      "task_id": 61,
+      "baseline_passed": true,
+      "orthogonalized_passed": false,
+      "baseline_code": "def count_Substrings(s, n):\n    count = 0\n    for i in range(n):\n        for j in range(i+1, n+1):\n            if sum(map(int, s[i:j])) == j-i:\n                count += 1\n    return count",
+      "orthogonalized_code": "def count_Substrings(s, n):\n    count = 0\n    for i in range(n):\n        for j in range(i+1, n+1):\n            if is_SubString(s, i, j):\n                count += 1\n    return count",
+      "similarity": 0.8490566037735849
+    },
+    {
+      "task_id": 115,
+      "baseline_passed": true,
+      "orthogonalized_passed": false,
+      "baseline_code": "def empty_dit(dit):\n    for d in dit:\n        if d:\n            return False\n    return True",
+      "orthogonalized_code": "def all_empty(dicts):\n    return all(dict.get(key) for key, dict in dicts.items() if dict.get(key))",
+      "similarity": 0.27450980392156865
+    },
+    {
+      "task_id": 154,
+      "baseline_passed": true,
+      "orthogonalized_passed": false,
+      "baseline_code": "def specified_element(list, index):\n    return [list[i][index] for i in range(len(list))]",
+      "orthogonalized_code": "def specified_element(list, index):\n    return [list[i] for i in range(index)]",
+      "similarity": 0.84
+    }
+  ]
+}

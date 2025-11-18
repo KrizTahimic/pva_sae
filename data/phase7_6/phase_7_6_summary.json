@@ -1,0 +1,78 @@
+{
+  "phase": "7.6",
+  "description": "Instruction-Tuned Model Steering Analysis",
+  "timestamp": "2025-09-07T11:07:35.790522",
+  "duration_seconds": 27725.92450094223,
+  "config": {
+    "correct_coefficient": 29,
+    "incorrect_coefficient": 287,
+    "model": "google/gemma-2-2b-it"
+  },
+  "results": {
+    "correction_rate": 2.928870292887029,
+    "corruption_rate": 82.5503355704698,
+    "preservation_rate": 91.2751677852349,
+    "statistical_tests": {
+      "correction": {
+        "successes": 7,
+        "trials": 239,
+        "rate": 2.928870292887029,
+        "pvalue": 0.0,
+        "significant": "True"
+      },
+      "corruption": {
+        "successes": 123,
+        "trials": 149,
+        "rate": 82.5503355704698,
+        "pvalue": 0.0,
+        "significant": "True"
+      },
+      "preservation": {
+        "successes": 136,
+        "trials": 149,
+        "rate": 91.2751677852349,
+        "pvalue": 2.585788116497879e-27,
+        "significant": "True"
+      }
+    },
+    "cross_model_comparison": {
+      "comparison_available": true,
+      "base_model": {
+        "correction_rate": 4.044117647058823,
+        "corruption_rate": 64.65517241379311,
+        "preservation_rate": 0.0,
+        "model": "google/gemma-2-2b"
+      },
+      "instruct_model": {
+        "correction_rate": 2.928870292887029,
+        "corruption_rate": 82.5503355704698,
+        "preservation_rate": 91.2751677852349,
+        "model": "google/gemma-2-2b-it"
+      },
+      "differences": {
+        "correction_rate_diff": -1.1152473541717942,
+        "corruption_rate_diff": 17.895163156676688,
+        "preservation_rate_diff": 91.2751677852349
+      },
+      "transfer_analysis": {
+        "correction_effective": false,
+        "corruption_effective": true,
+        "preservation_maintained": true,
+        "features_transfer": false
+      }
+    },
+    "feature_transfer_successful": false
+  },
+  "features_used": {
+    "correct": {
+      "layer": 16,
+      "feature_idx": 11225,
+      "separation_score": 0.22123092412948608
+    },
+    "incorrect": {
+      "layer": 25,
+      "feature_idx": 2853,
+      "separation_score": 0.20100238919258118
+    }
+  }
+}

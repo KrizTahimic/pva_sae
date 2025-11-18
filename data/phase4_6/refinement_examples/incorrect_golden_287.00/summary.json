@@ -1,0 +1,7 @@
+{
+  "coefficient": 287,
+  "steering_type": "incorrect",
+  "total_problems": 28,
+  "flipped_count": 27,
+  "method": "golden_section_search"
+}

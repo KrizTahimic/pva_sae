@@ -1,0 +1,90 @@
+2025-10-17 16:32:54,379 [INFO] [sae_analyzer] setup_logging:167 - Phase: 2.5, GPU: CPU
+2025-10-17 16:32:54,379 [INFO] [phase3_12.difficulty_evaluator] setup_logging:167 - Phase: 3.12, GPU: CPU
+2025-10-17 16:32:54,382 [INFO] [phase3_12.difficulty_evaluator] main:431 - Auto-discovered Phase 3.5 output: data/phase3_5
+2025-10-17 16:32:54,382 [INFO] [phase3_12.difficulty_evaluator] main:441 - Auto-discovered Phase 3.8 output: data/phase3_8
+2025-10-17 16:32:54,382 [INFO] [phase3_12.difficulty_evaluator] main:456 - ============================================================
+2025-10-17 16:32:54,382 [INFO] [phase3_12.difficulty_evaluator] main:457 - PHASE 3.12: DIFFICULTY-BASED AUROC ANALYSIS
+2025-10-17 16:32:54,382 [INFO] [phase3_12.difficulty_evaluator] main:458 - ============================================================
+2025-10-17 16:32:54,382 [INFO] [phase3_12.difficulty_evaluator] main:461 - 
+Loading Phase 3.8 results...
+2025-10-17 16:32:54,382 [INFO] [phase3_12.difficulty_evaluator] main:476 - Best correct-preferring feature: idx 14439 at layer 16 (threshold: 10.8109)
+2025-10-17 16:32:54,382 [INFO] [phase3_12.difficulty_evaluator] main:478 - Best incorrect-preferring feature: idx 5441 at layer 19 (threshold: 15.5086)
+2025-10-17 16:32:54,382 [INFO] [phase3_12.difficulty_evaluator] main:482 - 
+Loading validation dataset from Phase 3.5...
+2025-10-17 16:32:54,684 [INFO] [phase3_12.difficulty_evaluator] main:487 - Validation dataset loaded: 388 unique tasks
+2025-10-17 16:32:54,684 [INFO] [phase3_12.difficulty_evaluator] main:488 - Cyclomatic complexity range: 1-16
+2025-10-17 16:32:54,685 [INFO] [phase3_12.difficulty_evaluator] main:492 - 
+Grouping tasks by difficulty...
+2025-10-17 16:32:54,685 [INFO] [phase3_12.difficulty_evaluator] group_by_difficulty:51 - Easy group: 106 tasks (complexity range: 1-1)
+2025-10-17 16:32:54,685 [INFO] [phase3_12.difficulty_evaluator] group_by_difficulty:51 - Medium group: 181 tasks (complexity range: 2-3)
+2025-10-17 16:32:54,685 [INFO] [phase3_12.difficulty_evaluator] group_by_difficulty:51 - Hard group: 101 tasks (complexity range: 4-16)
+2025-10-17 16:32:54,926 [INFO] [phase3_12.difficulty_evaluator] main:500 - Using device: mps
+2025-10-17 16:32:54,927 [INFO] [phase3_12.difficulty_evaluator] main:503 - 
+============================================================
+2025-10-17 16:32:54,927 [INFO] [phase3_12.difficulty_evaluator] main:504 - EVALUATING CORRECT-PREFERRING FEATURE ACROSS DIFFICULTY LEVELS
+2025-10-17 16:32:54,927 [INFO] [phase3_12.difficulty_evaluator] main:505 - ============================================================
+2025-10-17 16:32:54,927 [INFO] [sae_analyzer] load_gemma_scope_sae:47 - Loading GemmaScope SAE for layer 16
+2025-10-17 16:32:54,927 [INFO] [sae_analyzer] load_gemma_scope_sae:61 - Loading from HuggingFace: google/gemma-scope-2b-pt-res/layer_16/width_16k/average_l0_78/params.npz
+2025-10-17 16:32:54,927 [INFO] [sae_analyzer] load_gemma_scope_sae:62 - This may take a while if the model is not cached...
+2025-10-17 16:32:55,243 [INFO] [sae_analyzer] load_gemma_scope_sae:70 - Download complete, loading from: /Users/krizroycetahimic/.cache/huggingface/hub/models--google--gemma-scope-2b-pt-res/snapshots/fd571b47c1c64851e9b1989792367b9babb4af63/layer_16/width_16k/average_l0_78/params.npz
+2025-10-17 16:32:55,657 [INFO] [sae_analyzer] load_gemma_scope_sae:87 - Loaded SAE with d_model=2304, d_sae=16384, sparsity=78
+2025-10-17 16:32:55,658 [INFO] [phase3_12.difficulty_evaluator] main:510 - Loaded SAE for layer 16 on mps
+2025-10-17 16:32:55,658 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:172 - 
+Evaluating correct-preferring feature on easy group:
+2025-10-17 16:32:56,131 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:245 -   AUROC: 0.6412
+2025-10-17 16:32:56,131 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:246 -   F1: 0.6377 (using global threshold: 10.8109)
+2025-10-17 16:32:56,131 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:247 -   Samples: 106 (pos: 47, neg: 59)
+2025-10-17 16:32:56,131 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:172 - 
+Evaluating correct-preferring feature on medium group:
+2025-10-17 16:32:56,668 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:245 -   AUROC: 0.5863
+2025-10-17 16:32:56,668 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:246 -   F1: 0.4561 (using global threshold: 10.8109)
+2025-10-17 16:32:56,668 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:247 -   Samples: 181 (pos: 51, neg: 130)
+2025-10-17 16:32:56,668 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:172 - 
+Evaluating correct-preferring feature on hard group:
+2025-10-17 16:32:57,030 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:245 -   AUROC: 0.6794
+2025-10-17 16:32:57,030 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:246 -   F1: 0.3611 (using global threshold: 10.8109)
+2025-10-17 16:32:57,030 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:247 -   Samples: 101 (pos: 18, neg: 83)
+2025-10-17 16:32:57,146 [INFO] [phase3_12.difficulty_evaluator] main:585 - 
+============================================================
+2025-10-17 16:32:57,146 [INFO] [phase3_12.difficulty_evaluator] main:586 - EVALUATING INCORRECT-PREFERRING FEATURE ACROSS DIFFICULTY LEVELS
+2025-10-17 16:32:57,146 [INFO] [phase3_12.difficulty_evaluator] main:587 - ============================================================
+2025-10-17 16:32:57,146 [INFO] [sae_analyzer] load_gemma_scope_sae:47 - Loading GemmaScope SAE for layer 19
+2025-10-17 16:32:57,146 [INFO] [sae_analyzer] load_gemma_scope_sae:61 - Loading from HuggingFace: google/gemma-scope-2b-pt-res/layer_19/width_16k/average_l0_73/params.npz
+2025-10-17 16:32:57,146 [INFO] [sae_analyzer] load_gemma_scope_sae:62 - This may take a while if the model is not cached...
+2025-10-17 16:32:57,508 [INFO] [sae_analyzer] load_gemma_scope_sae:70 - Download complete, loading from: /Users/krizroycetahimic/.cache/huggingface/hub/models--google--gemma-scope-2b-pt-res/snapshots/fd571b47c1c64851e9b1989792367b9babb4af63/layer_19/width_16k/average_l0_73/params.npz
+2025-10-17 16:32:57,759 [INFO] [sae_analyzer] load_gemma_scope_sae:87 - Loaded SAE with d_model=2304, d_sae=16384, sparsity=73
+2025-10-17 16:32:57,759 [INFO] [phase3_12.difficulty_evaluator] main:592 - Loaded SAE for layer 19 on mps
+2025-10-17 16:32:57,759 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:172 - 
+Evaluating incorrect-preferring feature on easy group:
+2025-10-17 16:32:58,119 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:245 -   AUROC: 0.6607
+2025-10-17 16:32:58,120 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:246 -   F1: 0.7205 (using global threshold: 15.5086)
+2025-10-17 16:32:58,120 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:247 -   Samples: 106 (pos: 59, neg: 47)
+2025-10-17 16:32:58,120 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:172 - 
+Evaluating incorrect-preferring feature on medium group:
+2025-10-17 16:32:58,620 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:245 -   AUROC: 0.6336
+2025-10-17 16:32:58,621 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:246 -   F1: 0.8247 (using global threshold: 15.5086)
+2025-10-17 16:32:58,621 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:247 -   Samples: 181 (pos: 130, neg: 51)
+2025-10-17 16:32:58,621 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:172 - 
+Evaluating incorrect-preferring feature on hard group:
+2025-10-17 16:32:58,983 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:245 -   AUROC: 0.6667
+2025-10-17 16:32:58,983 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:246 -   F1: 0.9022 (using global threshold: 15.5086)
+2025-10-17 16:32:58,983 [INFO] [phase3_12.difficulty_evaluator] calculate_difficulty_metrics:247 -   Samples: 101 (pos: 83, neg: 18)
+2025-10-17 16:32:59,158 [INFO] [phase3_12.difficulty_evaluator] main:667 - 
+============================================================
+2025-10-17 16:32:59,159 [INFO] [phase3_12.difficulty_evaluator] main:668 - GENERATING COMPARATIVE ANALYSIS
+2025-10-17 16:32:59,159 [INFO] [phase3_12.difficulty_evaluator] main:669 - ============================================================
+2025-10-17 16:32:59,288 [INFO] [sae_analyzer] load_gemma_scope_sae:47 - Loading GemmaScope SAE for layer 16
+2025-10-17 16:32:59,288 [INFO] [sae_analyzer] load_gemma_scope_sae:61 - Loading from HuggingFace: google/gemma-scope-2b-pt-res/layer_16/width_16k/average_l0_78/params.npz
+2025-10-17 16:32:59,288 [INFO] [sae_analyzer] load_gemma_scope_sae:62 - This may take a while if the model is not cached...
+2025-10-17 16:32:59,659 [INFO] [sae_analyzer] load_gemma_scope_sae:70 - Download complete, loading from: /Users/krizroycetahimic/.cache/huggingface/hub/models--google--gemma-scope-2b-pt-res/snapshots/fd571b47c1c64851e9b1989792367b9babb4af63/layer_16/width_16k/average_l0_78/params.npz
+2025-10-17 16:32:59,893 [INFO] [sae_analyzer] load_gemma_scope_sae:87 - Loaded SAE with d_model=2304, d_sae=16384, sparsity=78
+2025-10-17 16:33:00,743 [INFO] [sae_analyzer] load_gemma_scope_sae:47 - Loading GemmaScope SAE for layer 19
+2025-10-17 16:33:00,744 [INFO] [sae_analyzer] load_gemma_scope_sae:61 - Loading from HuggingFace: google/gemma-scope-2b-pt-res/layer_19/width_16k/average_l0_73/params.npz
+2025-10-17 16:33:00,744 [INFO] [sae_analyzer] load_gemma_scope_sae:62 - This may take a while if the model is not cached...
+2025-10-17 16:33:01,032 [INFO] [sae_analyzer] load_gemma_scope_sae:70 - Download complete, loading from: /Users/krizroycetahimic/.cache/huggingface/hub/models--google--gemma-scope-2b-pt-res/snapshots/fd571b47c1c64851e9b1989792367b9babb4af63/layer_19/width_16k/average_l0_73/params.npz
+2025-10-17 16:33:01,247 [INFO] [sae_analyzer] load_gemma_scope_sae:87 - Loaded SAE with d_model=2304, d_sae=16384, sparsity=73
+2025-10-17 16:33:02,194 [INFO] [phase3_12.difficulty_evaluator] main:854 - 
+All results saved to data/phase3_12
+2025-10-17 16:33:02,195 [INFO] [main] run_phase3_12:773 - 
+✅ Phase 3.12 completed successfully
+2025-10-17 16:33:02,195 [INFO] [main] run_phase3_12:774 - Results saved to: data/phase3_12

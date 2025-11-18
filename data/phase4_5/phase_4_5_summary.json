@@ -1,0 +1,52 @@
+{
+  "phase": "4.5",
+  "description": "Simple Grid Search Coefficient Selection",
+  "timestamp": "2025-09-02T22:02:10.331706",
+  "duration_seconds": 132.01337313652039,
+  "method": "simple_grid_search_with_early_stopping",
+  "config": {
+    "grid_points": [
+      100.0
+    ],
+    "model": "google/gemma-2-2b",
+    "initially_correct_count": 28,
+    "initially_incorrect_count": 69,
+    "simplified_approach": "correction_rate_only",
+    "early_stopping_enabled": true
+  },
+  "results": {
+    "selected_coefficients": {
+      "incorrect": {
+        "coefficient": 100.0,
+        "layer": 25,
+        "feature_index": 2853,
+        "composite_score": 47.96497362286836,
+        "metrics": {
+          "corruption_rate": 0.0,
+          "avg_similarity": 95.92994724573671,
+          "composite_score": 47.96497362286836
+        },
+        "n_problems_evaluated": 28,
+        "n_coefficients_tested": 1,
+        "early_stopped": false,
+        "rationale": "Optimal coefficient found via simple grid search with composite_score 48.0%"
+      }
+    },
+    "best_correct_feature": {
+      "feature_idx": 11225,
+      "separation_score": 0.22123092412948608,
+      "f_correct": 0.7241379022598267,
+      "f_incorrect": 0.5029069781303406,
+      "mean_activation": 5.158596038818359,
+      "layer": 16
+    },
+    "best_incorrect_feature": {
+      "feature_idx": 2853,
+      "separation_score": 0.20100238919258118,
+      "f_correct": 0.38620689511299133,
+      "f_incorrect": 0.5872092843055725,
+      "mean_activation": 8.967477798461914,
+      "layer": 25
+    }
+  }
+}

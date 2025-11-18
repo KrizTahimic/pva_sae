@@ -135,6 +135,7 @@ class Config:
     phase2_2_output_dir: str = "data/phase2_2"
     phase2_5_output_dir: str = "data/phase2_5"
     phase2_10_output_dir: str = "data/phase2_10"
+    phase2_15_output_dir: str = "data/phase2_15"
     phase3_output_dir: str = "data/phase3"
     
     # === PROBLEM SPLITTING (Phase 0.1) ===

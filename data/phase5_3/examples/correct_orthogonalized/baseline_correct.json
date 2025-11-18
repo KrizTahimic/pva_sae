@@ -1,0 +1,45 @@
+{
+  "description": "Problems that were initially correct but became incorrect after removing correct feature",
+  "examples": [
+    {
+      "task_id": 17,
+      "baseline_passed": true,
+      "orthogonalized_passed": false,
+      "baseline_code": "def square_perimeter(side):\n    return side * 4",
+      "orthogonalized_code": "# The perimeter of a square is the sum of the lengths of all its sides.",
+      "similarity": 0.0
+    },
+    {
+      "task_id": 18,
+      "baseline_passed": true,
+      "orthogonalized_passed": false,
+      "baseline_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+      "orthogonalized_code": "# 1. Create a function to remove the characters from the first string which are present in the second string.",
+      "similarity": 0.0
+    },
+    {
+      "task_id": 21,
+      "baseline_passed": true,
+      "orthogonalized_passed": false,
+      "baseline_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]",
+      "orthogonalized_code": "",
+      "similarity": 0.0
+    },
+    {
+      "task_id": 51,
+      "baseline_passed": true,
+      "orthogonalized_passed": false,
+      "baseline_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+      "orthogonalized_code": "",
+      "similarity": 0.0
+    },
+    {
+      "task_id": 52,
+      "baseline_passed": true,
+      "orthogonalized_passed": false,
+      "baseline_code": "def parallelogram_area(a,b):\n    return a*b",
+      "orthogonalized_code": "# 1. Create a function to calculate the area of a parallelogram.",
+      "similarity": 0.0
+    }
+  ]
+}
