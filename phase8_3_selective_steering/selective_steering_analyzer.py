@@ -24,6 +24,7 @@ Testing Strategy:
 """
 
 import gc
+import json
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 from datetime import datetime
@@ -192,6 +193,33 @@ class SelectiveSteeringAnalyzer:
 
         self.baseline_data = pd.read_parquet(baseline_file)
         logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.5 baseline")
+
+        # Parse test_list JSON strings to lists (Phase 3.5 saves them as JSON strings)
+        if 'test_list' in self.baseline_data.columns:
+            self.baseline_data['test_list'] = self.baseline_data['test_list'].apply(
+                lambda x: json.loads(x) if isinstance(x, str) else x
+            )
+            logger.info("Parsed test_list JSON strings to lists")
+
+            # Validate that parsing succeeded - all test_list entries should be lists
+            for idx, row in self.baseline_data.iterrows():
+                if isinstance(row['test_list'], str):
+                    raise ValueError(
+                        f"ERROR: test_list parsing failed for task {row['task_id']} at index {idx}. "
+                        f"test_list is still a string (length {len(row['test_list'])}), not a list. "
+                        f"This will cause evaluation failures. "
+                        f"Raw value: {row['test_list'][:100]}..."
+                    )
+                elif not isinstance(row['test_list'], (list, tuple)):
+                    raise ValueError(
+                        f"ERROR: test_list has unexpected type for task {row['task_id']} at index {idx}. "
+                        f"Expected list or tuple, got {type(row['test_list'])}."
+                    )
+
+            # Validate on first entry as a quick check
+            first_test_list = self.baseline_data.iloc[0]['test_list']
+            logger.info(f"✓ Validation passed: test_list is {type(first_test_list).__name__} "
+                       f"with {len(first_test_list)} test cases")
 
         # Apply --start and --end arguments if provided
         if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
