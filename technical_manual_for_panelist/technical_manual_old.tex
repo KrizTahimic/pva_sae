@@ -1,0 +1,752 @@
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{minted}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{tikz}
+
+% Hyperref setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    pdftitle={PVA-SAE Technical Manual},
+    pdfauthor={},
+}
+
+% Custom commands
+\newcommand{\pcdge}{\texttt{PCDGE}}
+\newcommand{\phase}[1]{\texttt{phase#1}}
+\newcommand{\funcname}[1]{\texttt{#1}}
+
+% Title
+\title{PVA-SAE: Program Validity Awareness using Sparse Autoencoders\\
+\large Technical Manual}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+This technical manual documents the implementation of PVA-SAE (Program Validity Awareness using Sparse Autoencoders), a research codebase that investigates how language models internally represent the concept of code correctness. The documentation follows the methodology pipeline designed for analyzing and steering model behavior through Sparse Autoencoder (SAE) features.
+
+\subsection{Audience}
+This manual is intended for panel committee members reviewing the research implementation. It explains the code structure, main functions, and their relationship to the methodology.
+
+\subsection{Methodology Overview}
+The implementation follows a three-stage pipeline:
+\begin{enumerate}
+    \item \textbf{Dataset Preparation}: Generate and label Python code solutions
+    \item \textbf{Direction Selection}: Identify SAE features that discriminate correctness
+    \item \textbf{Mechanistic Analysis}: Validate features through statistical and causal tests
+\end{enumerate}
+
+\subsection{Core Pattern: PCDGE}
+The codebase uses a consistent pattern throughout all phases:
+
+\textbf{Prompt-Capture-Decompose-Generate-Evaluate} (\pcdge):
+\begin{itemize}
+    \item \textbf{Prompt}: Build prompt from MBPP problem description and test cases
+    \item \textbf{Capture}: Extract residual stream activations at the last prompt token
+    \item \textbf{Decompose}: (For steering) Apply SAE decomposition to activations
+    \item \textbf{Generate}: Language model generates code solution
+    \item \textbf{Evaluate}: Execute tests to determine correctness (pass@1 metric)
+\end{itemize}
+
+This pattern is implemented in \phase{1} and reused with modifications in subsequent phases for temperature variation, steering, and instruction-tuned model analysis.
+
+\newpage
+\section{Dataset Preparation}
+
+This section corresponds to the green section in the methodology diagram. It prepares the MBPP dataset and generates labeled code solutions.
+
+\subsection{MBPP Complexity Grading}
+
+\textbf{Methodology Step}: Analyze problem difficulty using cyclomatic complexity\\
+\textbf{Implementation}: \phase{0\_difficulty\_analysis/difficulty\_analyzer.py}
+
+\subsubsection{Purpose}
+Calculates cyclomatic complexity for 974 MBPP problems to enable stratified dataset splitting. This ensures equal difficulty distribution across training, validation, and test sets.
+
+\subsubsection{Main Function: analyze\_dataset}
+\begin{minted}[fontsize=\small]{python}
+class MBPPDifficultyAnalyzer:
+    def analyze_dataset(self, dataset_manager) -> pd.DataFrame:
+        """Analyze difficulty for entire MBPP dataset.
+
+        Returns: DataFrame with cyclomatic_complexity column added
+        """
+\end{minted}
+
+\textbf{Algorithm}:
+\begin{enumerate}
+    \item Load MBPP dataset using \funcname{DatasetManager}
+    \item For each problem:
+    \begin{itemize}
+        \item Extract reference solution code
+        \item Calculate cyclomatic complexity using radon library
+        \item Store as integer score (typically 1-20)
+    \end{itemize}
+    \item Return enriched DataFrame with all MBPP columns plus complexity
+\end{enumerate}
+
+\subsubsection{Helper Function: get\_cyclomatic\_complexity}
+Uses the radon library's \funcname{cc\_visit} to calculate McCabe cyclomatic complexity, which measures the number of linearly independent paths through code. Higher values indicate more complex control flow.
+
+\subsection{Data Splitting}
+
+\textbf{Methodology Step}: Split dataset into analysis (50\%), hyperparameter tuning (10\%), and validation (40\%)\\
+\textbf{Implementation}: \phase{0\_1\_problem\_splitting/problem\_splitter.py}
+
+\subsubsection{Purpose}
+Creates stratified splits that maintain equal complexity distributions across all sets. Uses randomized interleaving within complexity strata to avoid bias.
+
+\subsubsection{Main Function: split\_problems}
+\begin{minted}[fontsize=\small]{python}
+def split_problems(df: pd.DataFrame, config: Config)
+    -> Dict[str, List[int]]:
+    """Split MBPP problems using stratified randomized interleaving.
+
+    Returns: Dict mapping split names to task_id lists
+    """
+\end{minted}
+
+\textbf{Algorithm}:
+\begin{enumerate}
+    \item Sort problems into $n$ complexity strata (default: 10 bins)
+    \item Within each stratum, randomly shuffle task IDs
+    \item Apply interleaved pattern across strata simultaneously
+    \item Result: 50\% for SAE analysis, 10\% for hyperparameter tuning, 40\% for validation
+\end{enumerate}
+
+\subsubsection{Helper Functions}
+
+\textbf{create\_complexity\_strata}:
+\begin{itemize}
+    \item Creates equal-width bins from min to max complexity
+    \item Assigns each problem to a bin
+    \item Shuffles task IDs within each bin for randomization
+\end{itemize}
+
+\textbf{apply\_stratified\_interleaving}:
+\begin{itemize}
+    \item Processes all strata in parallel using round-robin sampling
+    \item Prevents complexity bias that would occur with sequential processing
+    \item Uses pattern like [0,0,0,0,0,1,2,2,2,2] for 50:10:40 split
+\end{itemize}
+
+\subsection{PCDGE Dataset Generation}
+
+\textbf{Methodology Step}: Generate code solutions, capture activations, evaluate correctness\\
+\textbf{Implementation}: \phase{1\_simplified/runner.py}
+
+\subsubsection{Purpose}
+Implements the core \pcdge{} pattern to generate a labeled dataset of correct and incorrect Python code solutions with captured residual stream activations.
+
+\subsubsection{Main Class: Phase1Runner}
+\begin{minted}[fontsize=\small]{python}
+class Phase1Runner:
+    def generate_and_extract(self, prompt: str, task_id: str)
+        -> tuple[str, Dict[int, torch.Tensor]]:
+        """Generate code and extract activations in one pass.
+
+        Returns: (generated_text, activations_dict)
+        """
+\end{minted}
+
+\textbf{Algorithm}:
+\begin{enumerate}
+    \item \textbf{Prompt}: Build prompt using \funcname{PromptBuilder.build\_prompt()}
+    \begin{minted}[fontsize=\small]{text}
+{problem_description}
+
+{test_cases}
+
+# Solution:
+    \end{minted}
+    \item \textbf{Capture}: Attach pre-forward hooks via \funcname{ActivationExtractor}
+    \begin{itemize}
+        \item Hooks capture residual stream at last prompt token (position = -1)
+        \item Captures happen during first forward pass (prompt processing)
+        \item Stores activations for each specified layer (e.g., layers 0-25 for Gemma-2-2B)
+    \end{itemize}
+    \item \textbf{Generate}: Run model generation with temperature=0.0 (deterministic)
+    \item \textbf{Evaluate}:
+    \begin{itemize}
+        \item Extract function definition using \funcname{extract\_code()}
+        \item Execute all test cases using \funcname{evaluate\_code()}
+        \item Label as "correct" if all tests pass (pass@1), else "incorrect"
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Helper Functions}
+
+\textbf{PromptBuilder.build\_prompt}: Creates consistent prompt format across all phases
+
+\textbf{ActivationExtractor} (class):
+\begin{itemize}
+    \item Attaches PyTorch pre-forward hooks to model layers
+    \item Captures residual stream (input to each transformer block)
+    \item Stores activations at specified token position (last prompt token)
+\end{itemize}
+
+\textbf{evaluate\_code}:
+\begin{itemize}
+    \item Executes test cases in isolated namespace
+    \item 10-second timeout per test to prevent infinite loops
+    \item Returns True only if all tests pass without exceptions
+\end{itemize}
+
+\textbf{extract\_code}:
+\begin{itemize}
+    \item Removes prompt from generated text
+    \item Extracts function definition (stops at first non-indented line after function)
+    \item Handles cases where model generates test cases or examples
+\end{itemize}
+
+\subsection{Output}
+\begin{itemize}
+    \item \textbf{Location}: \texttt{data/phase1\_0/}
+    \item \textbf{Structure}:
+    \begin{itemize}
+        \item \texttt{activations/correct/}: Activation files for correct solutions
+        \item \texttt{activations/incorrect/}: Activation files for incorrect solutions
+        \item \texttt{dataset.parquet}: Complete dataset with metadata
+        \item Each activation file: \texttt{\{task\_id\}\_layer\_\{n\}.npz}
+    \end{itemize}
+\end{itemize}
+
+\newpage
+\section{Direction Selection}
+
+This section corresponds to the blue section in the methodology diagram. It identifies SAE latent directions that discriminate between correct and incorrect code solutions.
+
+\subsection{Filter Out General Directions}
+
+\textbf{Methodology Step}: Cache Pile-10k activations to identify general language features\\
+\textbf{Implementation}: \phase{2\_2\_pile\_caching/runner.py}
+
+\subsubsection{Purpose}
+Establishes a baseline of general language features by caching activations from the Pile dataset (non-code text). Features that activate strongly on Pile are likely general language processing features rather than code-specific correctness features.
+
+\subsubsection{Main Function: run\_phase2\_2\_caching}
+\begin{minted}[fontsize=\small]{python}
+def run_phase2_2_caching(config: Config, device: str) -> None:
+    """Cache pile dataset activations for filtering.
+
+    Processes texts one at a time with random word selection.
+    """
+\end{minted}
+
+\textbf{Algorithm}:
+\begin{enumerate}
+    \item Load Pile-10k dataset (first 1000 samples by default)
+    \item For each text:
+    \begin{itemize}
+        \item Select random word from text
+        \item Tokenize text (max 128 tokens)
+        \item Find token position of random word
+        \item Run forward pass and capture activations at that position
+        \item Save activations to \texttt{pile\_activations/}
+    \end{itemize}
+    \item These activations serve as "general language" baseline for filtering in Phase 2.5
+\end{enumerate}
+
+\subsubsection{Helper Functions}
+
+\textbf{PileActivationHook} (class):
+\begin{itemize}
+    \item Similar to ActivationExtractor but captures at random word position
+    \item Ensures we sample diverse linguistic contexts
+\end{itemize}
+
+\textbf{find\_word\_position}:
+\begin{itemize}
+    \item Locates token index corresponding to selected word
+    \item Handles tokenizer subword splits
+\end{itemize}
+
+\subsection{Compute Activation Frequency and Separation Scores}
+
+\textbf{Methodology Step}: Identify features with high discrimination between correct/incorrect\\
+\textbf{Implementation}: \phase{2\_5\_simplified/sae\_analyzer.py}
+
+\subsubsection{Purpose}
+Decomposes residual stream activations using GemmaScope SAEs and computes separation scores to identify features that strongly predict code correctness.
+
+\subsubsection{Main Class: SimplifiedSAEAnalyzer}
+\begin{minted}[fontsize=\small]{python}
+class SimplifiedSAEAnalyzer:
+    def analyze_layer(self, layer_idx: int) -> Dict:
+        """Analyze SAE features for a specific layer.
+
+        Returns: Dict with separation scores and statistics
+        """
+\end{minted}
+
+\textbf{Algorithm}:
+\begin{enumerate}
+    \item Load GemmaScope SAE for specified layer (16k features, JumpReLU)
+    \item Load all saved activations from Phase 1 for this layer
+    \item Decompose activations: $\mathbf{f} = \text{SAE.encode}(\mathbf{x})$
+    \item For each SAE feature $i$:
+    \begin{itemize}
+        \item Compute activation frequency: $\text{freq}_i = \frac{|\{f_i > 0\}|}{n}$
+        \item Compute mean activation for correct: $\mu^{+}_i$
+        \item Compute mean activation for incorrect: $\mu^{-}_i$
+        \item Compute separation score: $s_i = \mu^{+}_i - \mu^{-}_i$ (for "correct" direction)
+        \item Compute separation score: $s_i = \mu^{-}_i - \mu^{+}_i$ (for "incorrect" direction)
+    \end{itemize}
+    \item Filter features using Pile activations:
+    \begin{itemize}
+        \item Remove features with high Pile activation frequency (>10\%)
+        \item Ensures features are code-specific, not general language
+    \end{itemize}
+    \item Select top 20 features by absolute separation score for each direction
+\end{enumerate}
+
+\subsubsection{Helper Functions}
+
+\textbf{load\_gemma\_scope\_sae}:
+\begin{itemize}
+    \item Downloads SAE parameters from HuggingFace (google/gemma-scope-2b-pt-res)
+    \item Uses layer-specific sparsity levels (e.g., L13 uses avg\_l0\_84)
+    \item Returns initialized JumpReLU SAE model
+\end{itemize}
+
+\textbf{JumpReLUSAE.encode}:
+\begin{itemize}
+    \item Implements: $\mathbf{f} = \max(0, \mathbf{x} \mathbf{W}_{\text{enc}} + \mathbf{b}_{\text{enc}} - \mathbf{\theta})$
+    \item $\mathbf{\theta}$ is learned threshold for JumpReLU activation
+    \item Returns sparse feature vector (16,384 dimensions)
+\end{itemize}
+
+\subsection{Compute T-Statistic}
+
+\textbf{Methodology Step}: Statistical selection using Welch's t-test\\
+\textbf{Implementation}: \phase{2\_10\_t\_statistic\_latent\_selector/t\_statistic\_selector.py}
+
+\subsubsection{Purpose}
+Provides a more statistically rigorous alternative to separation scores by using Welch's t-test, which accounts for variance and sample size.
+
+\subsubsection{Main Function: compute\_t\_statistics}
+\begin{minted}[fontsize=\small]{python}
+class TStatisticSelector:
+    def compute_t_statistics(
+        self,
+        correct_features: torch.Tensor,
+        incorrect_features: torch.Tensor
+    ) -> Dict[str, List[float]]:
+        """Calculate t-statistics for feature discrimination."""
+\end{minted}
+
+\textbf{Algorithm}:
+\begin{enumerate}
+    \item For each SAE feature $i$ (16,384 features):
+    \begin{itemize}
+        \item Extract activations: $\mathbf{x}^{+}_i$ (correct), $\mathbf{x}^{-}_i$ (incorrect)
+        \item Compute Welch's t-statistic:
+        $$t_i = \frac{\bar{x}^{+}_i - \bar{x}^{-}_i}{\sqrt{\frac{s^{+2}_i}{n^{+}} + \frac{s^{-2}_i}{n^{-}}}}$$
+        where $s^2$ is variance and $n$ is sample size
+        \item Positive $t_i$: feature predicts correctness
+        \item Negative $t_i$: feature predicts incorrectness
+    \end{itemize}
+    \item Apply Pile filtering (same as Phase 2.5)
+    \item Select top 20 features by absolute t-statistic for each direction
+\end{enumerate}
+
+\subsubsection{Helper Function}
+Uses \funcname{scipy.stats.ttest\_ind} with \texttt{equal\_var=False} to implement Welch's t-test, which handles unequal variances between groups.
+
+\subsection{ArgMax Selection}
+
+\textbf{Output}: Both phases produce \texttt{top\_20\_features.json} with:
+\begin{itemize}
+    \item \textbf{Predicting Directions}: Top 20 features for statistical validation
+    \item \textbf{Steering Directions}: Top 20 features for causal interventions
+\end{itemize}
+
+Each feature entry contains:
+\begin{itemize}
+    \item Layer index
+    \item Feature index (0-16383)
+    \item Separation score or t-statistic
+    \item Mean activations for correct and incorrect groups
+\end{itemize}
+
+\newpage
+\section{Mechanistic Analysis}
+
+This section corresponds to the purple section in the methodology diagram. It validates identified features through statistical metrics and causal interventions.
+
+\subsection{Predicting Directions: Statistical Validation}
+
+\subsubsection{AUROC and F1 Evaluation}
+
+\textbf{Methodology Step}: Measure discrimination quality using threshold-independent and threshold-dependent metrics\\
+\textbf{Implementation}: \phase{3\_8/auroc\_f1\_evaluator.py}
+
+\paragraph{Purpose}
+Evaluates how well SAE features classify code correctness on held-out validation data. Uses both AUROC (threshold-independent) and F1 (threshold-dependent) metrics.
+
+\paragraph{Main Function: calculate\_metrics}
+\begin{minted}[fontsize=\small]{python}
+def calculate_metrics(
+    y_true: np.ndarray,
+    scores: np.ndarray,
+    threshold: float,
+    feature_type: str,
+    output_dir: Path
+) -> Dict[str, float]:
+    """Calculate AUROC, F1, precision, recall."""
+\end{minted}
+
+\textbf{Algorithm}:
+\begin{enumerate}
+    \item Load validation activations and decompose with SAE
+    \item For each selected feature:
+    \begin{itemize}
+        \item Use feature activations as prediction scores
+        \item Compute AUROC using \funcname{sklearn.metrics.roc\_auc\_score}
+        \item Find optimal threshold on hyperparameter set (10\% split):
+        \begin{itemize}
+            \item Grid search over 100 threshold candidates
+            \item Select threshold maximizing F1 score
+        \end{itemize}
+        \item Apply threshold to validation set
+        \item Compute precision, recall, F1 using optimal threshold
+    \end{itemize}
+\end{enumerate}
+
+\paragraph{Metrics}
+\begin{itemize}
+    \item \textbf{AUROC}: Area Under ROC Curve $\in [0,1]$, measures ranking quality
+    \item \textbf{F1}: Harmonic mean of precision and recall $= \frac{2PR}{P+R}$
+    \item \textbf{Precision}: $P = \frac{TP}{TP + FP}$
+    \item \textbf{Recall}: $R = \frac{TP}{TP + FN}$
+\end{itemize}
+
+\subsubsection{Temperature Variation}
+
+\textbf{Methodology Step}: Test feature robustness across temperature settings\\
+\textbf{Implementation}: \phase{3\_5\_temperature\_robustness/}, \phase{3\_10\_temperature\_auroc\_f1/}
+
+\paragraph{Purpose}
+Validates that identified features remain discriminative when code is generated with different sampling temperatures (0.0, 0.3, 0.6, 0.9, 1.2).
+
+\paragraph{Algorithm}
+\begin{enumerate}
+    \item Phase 3.5 generates new solutions at each temperature using \pcdge{} pattern
+    \item Phase 3.10 evaluates AUROC/F1 for each temperature condition
+    \item Results show feature robustness to generation stochasticity
+\end{enumerate}
+
+\subsubsection{Difficulty Variation}
+
+\textbf{Methodology Step}: Analyze AUROC across problem complexity levels\\
+\textbf{Implementation}: \phase{3\_12\_difficulty\_auroc\_f1/}
+
+\paragraph{Purpose}
+Determines if features work equally well across easy, medium, and hard problems or if discrimination quality correlates with complexity.
+
+\paragraph{Algorithm}
+\begin{enumerate}
+    \item Group validation problems by cyclomatic complexity (using Phase 0 data)
+    \item Compute AUROC separately for each difficulty bin
+    \item Analyze correlation between complexity and feature performance
+\end{enumerate}
+
+\subsection{Steering Directions: Causal Validation}
+
+\subsubsection{Activation Steering: Coefficient Selection}
+
+\textbf{Methodology Step}: Find optimal steering strength using hyperparameter tuning set\\
+\textbf{Implementation}: \phase{4\_5\_model\_steering/}, \phase{4\_6\_binary\_refinement/}
+
+\paragraph{Purpose}
+Determines the optimal coefficient $\alpha$ for steering intervention:
+$$\mathbf{x}' = \mathbf{x} + \alpha \cdot \mathbf{d}_{\text{SAE}}$$
+where $\mathbf{d}_{\text{SAE}}$ is the SAE decoder direction for the selected feature.
+
+\paragraph{Main Class: SteeringCoefficientSelector}
+\begin{minted}[fontsize=\small]{python}
+class SteeringCoefficientSelector:
+    def adaptive_coefficient_search(
+        self, feature_info: Dict, dataset: List[Dict]
+    ) -> float:
+        """Find optimal steering coefficient."""
+\end{minted}
+
+\textbf{Algorithm}:
+\begin{enumerate}
+    \item Phase 4.5: Coarse grid search
+    \begin{itemize}
+        \item Test coefficients: [0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0]
+        \item For each coefficient:
+        \begin{itemize}
+            \item Apply steering hook at specified layer
+            \item Generate solutions for hyperparameter set (10\% split)
+            \item Measure correction rate (incorrect→correct)
+            \item Measure corruption rate (correct→incorrect)
+        \end{itemize}
+        \item Select coefficient maximizing correction rate while keeping corruption <5\%
+    \end{itemize}
+    \item Phase 4.6: Golden section refinement (optional)
+    \begin{itemize}
+        \item Fine-tune around best coefficient from Phase 4.5
+        \item Uses golden section search for efficient optimization
+    \end{itemize}
+\end{enumerate}
+
+\paragraph{Helper Function: create\_steering\_hook}
+\begin{minted}[fontsize=\small]{python}
+def create_steering_hook(
+    layer: int,
+    feature_idx: int,
+    coefficient: float,
+    sae: JumpReLUSAE
+) -> Callable:
+    """Create PyTorch forward hook for activation steering."""
+\end{minted}
+
+Implements the steering intervention:
+\begin{enumerate}
+    \item Hook intercepts residual stream at specified layer during generation
+    \item Extracts SAE decoder direction: $\mathbf{d} = \mathbf{W}_{\text{dec}}[\text{feature\_idx}]$
+    \item Modifies activation: $\mathbf{x}' = \mathbf{x} + \alpha \cdot \mathbf{d}$
+    \item Applied at last prompt token position during first forward pass
+\end{enumerate}
+
+\subsubsection{Steering Effect Analysis}
+
+\textbf{Methodology Step}: Measure correction and corruption rates on validation set\\
+\textbf{Implementation}: \phase{4\_8\_steering\_analysis/}
+
+\paragraph{Purpose}
+Conducts causal validation by applying steering to validation data (40\% split) and measuring behavioral changes.
+
+\paragraph{Main Class: SteeringEffectAnalyzer}
+\begin{minted}[fontsize=\small]{python}
+class SteeringEffectAnalyzer:
+    def analyze_steering_effects(
+        self, direction_type: str
+    ) -> Dict:
+        """Analyze correction/corruption rates with significance."""
+\end{minted}
+
+\textbf{Algorithm}:
+\begin{enumerate}
+    \item Split validation data by baseline correctness:
+    \begin{itemize}
+        \item Baseline correct: Problems solved correctly without steering
+        \item Baseline incorrect: Problems unsolved at baseline
+    \end{itemize}
+    \item For "correct-predicting" features:
+    \begin{itemize}
+        \item Apply positive coefficient to incorrect subset
+        \item Measure correction rate: $r_{\text{corr}} = \frac{|\text{incorrect→correct}|}{|\text{baseline incorrect}|}$
+        \item Apply negative coefficient to correct subset
+        \item Measure corruption rate: $r_{\text{corr}} = \frac{|\text{correct→incorrect}|}{|\text{baseline correct}|}$
+    \end{itemize}
+    \item For "incorrect-predicting" features (reverse signs)
+    \item Compute statistical significance using binomial test
+\end{enumerate}
+
+\paragraph{Statistical Significance: Binomial Test}
+
+\textbf{Implementation}: Phase 4.14
+
+Tests null hypothesis: steering has no effect (50\% success rate by chance)
+
+\begin{enumerate}
+    \item \textbf{Correction test}:
+    \begin{itemize}
+        \item $H_0$: correction rate = baseline pass rate
+        \item $H_1$: correction rate > baseline pass rate
+        \item Uses \funcname{scipy.stats.binomtest} with one-sided test
+    \end{itemize}
+    \item \textbf{Corruption test}:
+    \begin{itemize}
+        \item $H_0$: corruption rate = random chance
+        \item $H_1$: corruption rate > random chance
+    \end{itemize}
+    \item Report p-values and confidence intervals
+\end{enumerate}
+
+\subsection{Advanced Mechanistic Analyses}
+
+\subsubsection{Attention Analysis}
+
+\textbf{Methodology Step}: Compare attention patterns before and after steering\\
+\textbf{Implementation}: \phase{6\_3\_attention\_analysis/}
+
+\paragraph{Purpose}
+Investigates how steering changes internal attention patterns, providing mechanistic insight into how features influence model behavior.
+
+\paragraph{Main Class: AttentionAnalyzer}
+\begin{minted}[fontsize=\small]{python}
+class AttentionAnalyzer:
+    def analyze_patterns(
+        self, baseline_dir: Path, steered_dir: Path
+    ) -> Dict:
+        """Statistical comparison of attention patterns."""
+\end{minted}
+
+\textbf{Algorithm}:
+\begin{enumerate}
+    \item Load attention patterns captured during Phase 3.5 (baseline) and Phase 4.8 (steered)
+    \item For each attention head in each layer:
+    \begin{itemize}
+        \item Compute attention entropy: $H = -\sum_i p_i \log p_i$
+        \item Compute attention concentration (max attention weight)
+        \item Compare baseline vs steered using paired t-test
+    \end{itemize}
+    \item Identify which heads show significant changes
+    \item Visualize attention difference heatmaps
+\end{enumerate}
+
+\subsubsection{Weight Orthogonalization}
+
+\textbf{Methodology Step}: Permanent weight modification instead of runtime steering\\
+\textbf{Implementation}: \phase{5\_3\_weight\_orthogonalization/}, \phase{5\_6}, \phase{5\_9}
+
+\paragraph{Purpose}
+Tests whether permanently removing SAE directions from model weights produces similar effects to runtime steering, validating that features are causally important.
+
+\paragraph{Main Class: WeightOrthogonalizer}
+\begin{minted}[fontsize=\small]{python}
+class WeightOrthogonalizer:
+    def orthogonalize_and_test(
+        self, feature_info: Dict
+    ) -> Dict:
+        """Apply permanent orthogonalization and measure effects."""
+\end{minted}
+
+\textbf{Algorithm}:
+\begin{enumerate}
+    \item Extract SAE decoder direction: $\mathbf{d} = \mathbf{W}_{\text{dec}}[\text{feature\_idx}]$
+    \item Apply Gram-Schmidt orthogonalization to model weights:
+    \begin{itemize}
+        \item For specified layer's weight matrix $\mathbf{W}$
+        \item Project out direction: $\mathbf{W}' = \mathbf{W} - \frac{\mathbf{W}\mathbf{d}\mathbf{d}^T}{\|\mathbf{d}\|^2}$
+        \item This permanently removes the feature's contribution
+    \end{itemize}
+    \item Generate solutions with modified model
+    \item Measure correction/corruption rates (should match steering results)
+    \item Phase 5.9 validates statistical significance
+\end{enumerate}
+
+\subsection{Persistence Testing: Instruction-Tuned Model}
+
+\textbf{Methodology Step}: Test feature universality across model variants\\
+\textbf{Implementation}: \phase{7\_3\_instruct\_baseline/}, \phase{7\_6}, \phase{7\_12}
+
+\subsubsection{Purpose}
+Determines if PVA features discovered in base model (gemma-2-2b) transfer to instruction-tuned variant (gemma-2-2b-it).
+
+\subsubsection{Algorithm}
+\begin{enumerate}
+    \item Phase 7.3: Run \pcdge{} pattern with instruction-tuned model
+    \begin{itemize}
+        \item Same validation problems
+        \item Capture activations at layers identified in Phase 2
+    \end{itemize}
+    \item Phase 7.6: Apply steering using base model features
+    \begin{itemize}
+        \item Use same coefficients from Phase 4.5
+        \item Measure correction/corruption rates
+    \end{itemize}
+    \item Phase 7.12: Evaluate AUROC/F1 on instruction-tuned activations
+    \begin{itemize}
+        \item Compare to base model results from Phase 3.8
+        \item Assess feature universality
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Results Interpretation}
+\begin{itemize}
+    \item High AUROC on instruction-tuned model: Features are universal
+    \item Successful steering: Causal mechanisms transfer
+    \item Failure: Features may be architecture-specific
+\end{itemize}
+
+\newpage
+\section{Implementation Details}
+
+\subsection{Checkpointing and Resumability}
+All generation phases (\phase{1}, \phase{3.5}, \phase{4.8}, \phase{7.3}) implement checkpoint systems:
+\begin{itemize}
+    \item Save progress every 50 problems
+    \item Auto-resume from latest checkpoint on restart
+    \item Prevents data loss from crashes or interruptions
+\end{itemize}
+
+\subsection{Multi-GPU Support}
+Dataset generation phases support parallel processing:
+\begin{itemize}
+    \item Index-based work splitting (each GPU processes different problems)
+    \item Controlled via \texttt{--start} and \texttt{--end} parameters
+    \item Results merged after completion
+\end{itemize}
+
+\subsection{Memory Management}
+\begin{itemize}
+    \item Activations saved immediately after generation
+    \item GPU memory cleaned after each task using \funcname{cleanup\_gpu\_memory()}
+    \item Monitoring of RAM usage with warnings at 85\% threshold
+\end{itemize}
+
+\subsection{Key Configuration Parameters}
+\begin{itemize}
+    \item \textbf{Model}: google/gemma-2-2b (base), google/gemma-2-2b-it (instruction-tuned)
+    \item \textbf{SAE}: google/gemma-scope-2b-pt-res (16k features, JumpReLU)
+    \item \textbf{Temperature}: 0.0 for deterministic baseline, varied in Phase 3.5
+    \item \textbf{Max tokens}: 800 for code generation
+    \item \textbf{Activation position}: Last prompt token (position = -1)
+    \item \textbf{Layers captured}: All 26 layers (0-25) for Gemma-2-2B
+\end{itemize}
+
+\newpage
+\section{Conclusion}
+
+This technical manual documents the three-stage pipeline for investigating program validity awareness in language models:
+
+\begin{enumerate}
+    \item \textbf{Dataset Preparation}: Generated labeled code solutions with captured activations using the \pcdge{} pattern
+    \item \textbf{Direction Selection}: Identified SAE features that discriminate correctness through separation scores, t-statistics, and Pile filtering
+    \item \textbf{Mechanistic Analysis}: Validated features through statistical metrics (AUROC, F1) and causal interventions (steering, orthogonalization)
+\end{enumerate}
+
+The implementation follows a systematic methodology with consistent patterns across phases, enabling reproducible analysis of how language models internally represent code correctness.
+
+\subsection{Key Findings}
+The codebase enables discovery of latent directions that:
+\begin{itemize}
+    \item Discriminate correct/incorrect code with high AUROC (>0.7)
+    \item Causally influence behavior through steering (correction rates >baseline)
+    \item Show robustness across temperature variations
+    \item Demonstrate universality across model variants
+\end{itemize}
+
+\subsection{Code Structure}
+The project follows a phase-based organization where each phase:
+\begin{itemize}
+    \item Has self-contained implementation in \texttt{phase\_X\_name/}
+    \item Outputs to \texttt{data/phaseX/} with timestamped results
+    \item Automatically discovers inputs from previous phases
+    \item Can be run independently via \texttt{python3 run.py phase X}
+\end{itemize}
+
+\end{document}

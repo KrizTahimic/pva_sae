@@ -1,0 +1,641 @@
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{minted}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{float}
+
+% Hyperref setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    pdftitle={Technical Manual: Mechanistic Interpretability of Code Correctness},
+    pdfauthor={},
+}
+
+% Custom commands
+\newcommand{\pcdge}{\texttt{PCDGE}}
+\newcommand{\phase}[1]{\texttt{phase#1}}
+\newcommand{\funcname}[1]{\texttt{#1}}
+
+% Title
+\title{Mechanistic Interpretability of Code Correctness in LLMs via Sparse Autoencoders\\
+\large Technical Manual}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+This technical manual documents the implementation for investigating how language models internally represent code correctness using Sparse Autoencoders (SAEs).
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+\subsection{Methodology Overview}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/methodology.pdf}
+\caption{Complete methodology pipeline showing the three main stages: Dataset Preparation, Direction Selection, and Mechanistic Analysis.}
+\label{fig:methodology}
+\end{figure}
+
+The implementation follows a three-stage pipeline (Figure~\ref{fig:methodology}):
+\begin{enumerate}
+    \item \textbf{Dataset Preparation}: Generate and label Python code solutions with captured activations
+    \item \textbf{Direction Selection}: Identify SAE features discriminating correct vs incorrect code
+    \item \textbf{Mechanistic Analysis}: Validate features through statistical metrics and causal interventions
+\end{enumerate}
+
+\subsection{Core Pattern: PCDGE}
+The codebase uses a consistent pattern throughout all phases:
+
+\textbf{Prompt-Capture-Decompose-Generate-Evaluate} (\pcdge):
+\begin{itemize}
+    \item \textbf{Prompt}: Build prompt from MBPP problem description and test cases
+    \item \textbf{Capture}: Extract residual stream activations at the last prompt token
+    \item \textbf{Decompose}: Apply SAE decomposition to transform activations into interpretable latent representations
+    \item \textbf{Generate}: Language model generates code solution
+    \item \textbf{Evaluate}: Execute tests to determine correctness (pass@1 metric)
+\end{itemize}
+
+This pattern is implemented in \phase{1} and reused with modifications throughout the pipeline.
+
+\newpage
+\section{Running the Code}
+
+\subsection{Command Structure}
+
+All phases are executed through a unified command interface:
+
+\begin{minted}[fontsize=\small]{bash}
+python3 run.py phase <phase_number> [options]
+\end{minted}
+
+\subsection{Phase Execution Examples}
+
+\subsubsection{Dataset Preparation}
+
+\begin{minted}[fontsize=\small]{bash}
+# Phase 0: Analyze cyclomatic complexity of MBPP problems
+python3 run.py phase 0
+
+# Phase 0.1: Split into SAE analysis (50%), hyperparameter (10%),
+#            validation (40%) sets
+python3 run.py phase 0.1
+
+# Phase 1: Generate code solutions and capture activations
+# Process all 487 problems in SAE analysis split
+python3 run.py phase 1
+
+# Phase 1: Process subset for testing (first 100 problems)
+python3 run.py phase 1 --start 0 --end 100
+\end{minted}
+
+\subsubsection{Direction Selection}
+
+\begin{minted}[fontsize=\small]{bash}
+# Phase 2.2: Cache Pile-10k activations for filtering
+python3 run.py phase 2.2
+
+# Phase 2.5: SAE analysis with separation scores
+# Auto-discovers Phase 1 output
+python3 run.py phase 2.5
+
+# Phase 2.10: T-statistic based feature selection
+python3 run.py phase 2.10
+\end{minted}
+
+\subsubsection{Mechanistic Analysis}
+
+\begin{minted}[fontsize=\small]{bash}
+# Phase 3.5: Generate solutions at different temperatures
+python3 run.py phase 3.5
+
+# Phase 3.8: Evaluate AUROC and F1 scores
+python3 run.py phase 3.8
+
+# Phase 4.5: Find optimal steering coefficients
+# Run only correction experiments
+python3 run.py phase 4.5 --correction-only
+
+# Phase 4.8: Steering effect analysis on validation set
+python3 run.py phase 4.8
+
+# Phase 6.3: Attention pattern analysis
+python3 run.py phase 6.3
+\end{minted}
+
+\subsection{Key Command-Line Options}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Option} & \textbf{Description} \\
+\midrule
+\texttt{-{}-start N} & Start processing at index N \\
+\texttt{-{}-end M} & End processing at index M (inclusive) \\
+\texttt{-{}-correction-only} & Run only correction experiments (Phase 4.5, 4.8) \\
+\texttt{-{}-corruption-only} & Run only corruption experiments \\
+\bottomrule
+\end{tabular}
+\caption{Common command-line options for run.py}
+\end{table}
+
+\subsection{Checkpoint and Resume}
+
+All generation phases (\phase{1}, \phase{3.5}, \phase{4.8}) implement automatic checkpointing:
+
+\begin{itemize}
+    \item Saves progress every 50 problems to \texttt{checkpoint\_task\_N.json}
+    \item If execution is interrupted, simply re-run the same command
+    \item Auto-detects existing checkpoints and resumes from last completed task
+    \item Skips already processed problems to avoid duplication
+\end{itemize}
+
+\textbf{Example}:
+\begin{minted}[fontsize=\small]{bash}
+# Initial run (crashes at problem 250)
+python3 run.py phase 1 --start 0 --end 487
+
+# Re-run same command - automatically resumes from problem 250
+python3 run.py phase 1 --start 0 --end 487
+\end{minted}
+
+\newpage
+\section{Activation Capture: Detailed Implementation}
+
+This section provides detailed explanation of the \texttt{ActivationExtractor} class, which is central to all phases that capture residual stream activations.
+
+\subsection{Complete ActivationExtractor Implementation}
+
+\textbf{File}: \texttt{common\_simplified/activation\_hooks.py}
+
+\begin{minted}[fontsize=\footnotesize,breaklines]{python}
+class ActivationExtractor:
+    """Extract residual stream activations using PyTorch hooks."""
+
+    def __init__(self, model: torch.nn.Module,
+                 layers: List[int],
+                 position: int = -1):
+        """
+        Args:
+            model: Gemma model to extract from
+            layers: Layer indices (e.g., [0,1,...,25])
+            position: Token position (-1 = last prompt token)
+        """
+        self.model = model
+        self.layers = layers
+        self.position = position
+        self.hooks = []
+        self.activations = {}
+
+    def setup_hooks(self) -> None:
+        """Attach pre-forward hooks to specified layers."""
+        self.remove_hooks()  # Clean up existing hooks
+
+        for layer_idx in self.layers:
+            # Access transformer layer
+            layer = self.model.model.layers[layer_idx]
+
+            # Register hook that captures BEFORE layer transformation
+            hook = layer.register_forward_pre_hook(
+                self._create_hook(layer_idx)
+            )
+            self.hooks.append(hook)
+
+    def _create_hook(self, layer_idx: int) -> Callable:
+        """Create hook function for a specific layer."""
+        def hook_fn(module, input):
+            # Only capture on FIRST forward pass (prompt processing)
+            # Ignore subsequent passes during autoregressive generation
+            if layer_idx not in self.activations:
+                # input[0]: residual stream (batch, seq_len, hidden)
+                residual_stream = input[0]
+
+                # Extract last token: [:, -1, :] -> (1, 2048)
+                activation = residual_stream[:, self.position, :]
+                activation = activation.detach().clone().cpu()
+
+                self.activations[layer_idx] = activation
+
+            # CRITICAL: Return input unchanged for steering hooks
+            return input
+        return hook_fn
+
+    def remove_hooks(self) -> None:
+        """Remove all registered hooks."""
+        for hook in self.hooks:
+            hook.remove()
+        self.hooks.clear()
+        self.activations.clear()
+\end{minted}
+
+\subsection{Key Design Decisions}
+
+\textbf{1. Pre-hook vs Post-hook}:
+\begin{itemize}
+    \item Uses \texttt{register\_forward\_pre\_hook} to capture residual stream \textit{before} layer transformation
+    \item This gives us the input to each transformer block (what SAEs are trained on)
+\end{itemize}
+
+\textbf{2. Position = -1 (Last Token)}:
+\begin{itemize}
+    \item Extracts activation from last token of prompt (where "\# Solution:" ends)
+    \item This encodes the model's understanding before generation starts
+\end{itemize}
+
+\textbf{3. First-Pass Only}:
+\begin{itemize}
+    \item \texttt{if layer\_idx not in self.activations} ensures single capture
+    \item We only want activations from prompt processing, not autoregressive generation
+\end{itemize}
+
+\textbf{4. Return Input Unchanged}:
+\begin{itemize}
+    \item Returning \texttt{input} preserves modifications from previous hooks
+    \item Critical for Phase 4.8 where steering hooks modify the residual stream
+\end{itemize}
+
+\subsection{Usage Example}
+
+\begin{minted}[fontsize=\small,breaklines]{python}
+# In Phase 1 runner setup
+model, tokenizer = load_model_and_tokenizer("google/gemma-2-2b")
+
+# Create extractor for all 26 layers
+extractor = ActivationExtractor(
+    model=model,
+    layers=list(range(26)),
+    position=-1  # Last prompt token
+)
+
+# Setup hooks
+extractor.setup_hooks()
+
+# Generate - hooks capture automatically
+prompt = "Write function to add\n\nassert add(1,2)==3\n\n# Solution:"
+inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
+outputs = model.generate(**inputs, max_new_tokens=800)
+
+# Retrieve captured activations
+activations = extractor.activations
+# {0: tensor([[...]]), 1: tensor([[...]]), ..., 25: tensor([[...]])}
+# Each shape: (1, 2048)
+
+extractor.remove_hooks()
+\end{minted}
+
+\newpage
+\section{Steering Hooks: Detailed Implementation}
+
+This section explains how steering interventions modify the model's residual stream.
+
+\subsection{Steering Mechanism}
+
+Steering adds a scaled SAE decoder direction to the residual stream:
+
+$$\mathbf{x}' = \mathbf{x} + \alpha \cdot \mathbf{d}_{\text{SAE}}$$
+
+Where:
+\begin{itemize}
+    \item $\mathbf{x} \in \mathbb{R}^{2048}$: Original residual stream
+    \item $\alpha \in \mathbb{R}$: Steering coefficient (e.g., 10.0)
+    \item $\mathbf{d}_{\text{SAE}} \in \mathbb{R}^{2048}$: SAE decoder direction
+    \item $\mathbf{x}'$: Modified residual stream
+\end{itemize}
+
+\subsection{create\_steering\_hook Implementation}
+
+\textbf{File}: \texttt{common/steering\_metrics.py}
+
+\begin{minted}[fontsize=\small,breaklines]{python}
+def create_steering_hook(sae_decoder_direction: torch.Tensor,
+                        coefficient: float) -> Callable:
+    """
+    Create PyTorch hook that adds SAE decoder direction to residual stream.
+
+    Args:
+        sae_decoder_direction: Decoder vector [d_model=2048]
+        coefficient: Steering strength (positive/negative)
+
+    Returns:
+        Hook function for register_forward_pre_hook()
+    """
+    def hook_fn(module, input):
+        # input[0]: residual stream [batch, seq_len, d_model]
+        residual = input[0]
+
+        # Create steering vector [1, 1, 2048]
+        steering = sae_decoder_direction.unsqueeze(0).unsqueeze(0)
+        steering = steering * coefficient
+
+        # Add to ALL token positions via broadcasting
+        residual = residual + steering.to(residual.device, residual.dtype)
+
+        # Return modified input tuple
+        return (residual,) + input[1:]
+
+    return hook_fn
+\end{minted}
+
+\subsection{Usage in Phase 4.8}
+
+\begin{minted}[fontsize=\small,breaklines]{python}
+# Load model and SAE
+model, tokenizer = load_model_and_tokenizer("google/gemma-2-2b")
+sae = load_gemma_scope_sae(layer_idx=13, device="cuda")
+
+# Get best feature from Phase 2.5
+with open("data/phase2_5/top_20_features.json") as f:
+    features = json.load(f)
+best = features['correct'][0]
+
+# Extract decoder direction
+decoder_dir = sae.W_dec[best['feature']]  # Shape: [2048]
+
+# Create and register steering hook
+hook_fn = create_steering_hook(decoder_dir, coefficient=10.0)
+layer = model.model.layers[13]
+hook_handle = layer.register_forward_pre_hook(hook_fn)
+
+# Generate with steering active
+outputs = model.generate(**inputs, max_new_tokens=800)
+
+# Remove hook
+hook_handle.remove()
+\end{minted}
+
+\subsection{Measuring Steering Effects}
+
+\subsubsection{Correction Rate}
+
+\begin{minted}[fontsize=\small,breaklines]{python}
+def calculate_correction_rate(results: List[Dict]) -> float:
+    """Measure % of incorrect→correct transitions."""
+    corrected = sum(
+        1 for r in results
+        if not r['baseline_passed'] and r['steered_passed']
+    )
+    total_incorrect = sum(
+        1 for r in results
+        if not r['baseline_passed']
+    )
+    return (corrected / total_incorrect) * 100 if total_incorrect > 0 else 0.0
+
+# Example: 100 incorrect, 35 become correct → 35% correction rate
+\end{minted}
+
+\subsubsection{Corruption Rate}
+
+\begin{minted}[fontsize=\small,breaklines]{python}
+def calculate_corruption_rate(results: List[Dict]) -> float:
+    """Measure % of correct→incorrect transitions."""
+    corrupted = sum(
+        1 for r in results
+        if r['baseline_passed'] and not r['steered_passed']
+    )
+    total_correct = sum(
+        1 for r in results
+        if r['baseline_passed']
+    )
+    return (corrupted / total_correct) * 100 if total_correct > 0 else 0.0
+
+# Example: 200 correct, 10 become incorrect → 5% corruption rate
+\end{minted}
+
+\newpage
+\section{SAE Decomposition Details}
+
+\subsection{JumpReLU SAE Implementation}
+
+\textbf{File}: \texttt{phase2\_5\_simplified/sae\_analyzer.py}
+
+\begin{minted}[fontsize=\small,breaklines]{python}
+class JumpReLUSAE(torch.nn.Module):
+    """JumpReLU Sparse Autoencoder from GemmaScope."""
+
+    def __init__(self, d_model: int, d_sae: int):
+        """
+        Args:
+            d_model: Hidden dimension (2048 for Gemma-2-2B)
+            d_sae: SAE feature dimension (16384 for 16k SAE)
+        """
+        super().__init__()
+        self.d_model = d_model
+        self.d_sae = d_sae
+
+        # Encoder projects residual to SAE features
+        self.W_enc = torch.nn.Parameter(torch.zeros(d_model, d_sae))
+        self.b_enc = torch.nn.Parameter(torch.zeros(d_sae))
+
+        # Decoder projects SAE features back
+        self.W_dec = torch.nn.Parameter(torch.zeros(d_sae, d_model))
+        self.b_dec = torch.nn.Parameter(torch.zeros(d_model))
+
+        # JumpReLU threshold (learned per feature)
+        self.threshold = torch.nn.Parameter(torch.zeros(d_sae))
+
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        """Encode to sparse features.
+
+        Args:
+            x: Residual stream [batch, d_model]
+
+        Returns:
+            Sparse features [batch, d_sae]
+        """
+        # Pre-activation
+        pre_acts = x @ self.W_enc + self.b_enc
+
+        # JumpReLU: threshold then ReLU
+        mask = (pre_acts > self.threshold)
+        acts = mask * torch.nn.functional.relu(pre_acts)
+
+        return acts
+\end{minted}
+
+\subsection{Computing Separation Scores}
+
+\begin{minted}[fontsize=\small,breaklines]{python}
+def compute_separation_scores(
+    correct_features: torch.Tensor,
+    incorrect_features: torch.Tensor
+) -> Dict[str, np.ndarray]:
+    """
+    Calculate separation between correct and incorrect distributions.
+
+    Args:
+        correct_features: [n_correct, 16384]
+        incorrect_features: [n_incorrect, 16384]
+
+    Returns:
+        Dictionary with separation scores
+    """
+    # Mean activation per feature
+    mean_correct = correct_features.mean(dim=0).cpu().numpy()
+    mean_incorrect = incorrect_features.mean(dim=0).cpu().numpy()
+
+    # Separation scores
+    # Positive = feature activates more for correct
+    separation_correct = mean_correct - mean_incorrect
+    separation_incorrect = mean_incorrect - mean_correct
+
+    return {
+        'separation_correct': separation_correct,
+        'separation_incorrect': separation_incorrect,
+        'mean_correct': mean_correct,
+        'mean_incorrect': mean_incorrect
+    }
+\end{minted}
+
+\newpage
+\section{Output Examples}
+
+\subsection{Phase 0: Difficulty Analysis}
+
+\begin{minted}[fontsize=\footnotesize]{text}
+INFO: Starting difficulty analysis for 974 MBPP problems
+INFO: Analyzed 100/974 problems
+...
+INFO: Difficulty analysis completed: 974 problems analyzed
+INFO: Complexity distribution:
+  - Mean: 4.23, Median: 3.0
+  - Range: (1, 18)
+  - Percentiles: 25th: 2.0, 75th: 5.0, 90th: 8.0
+INFO: Saved to data/phase0/mbpp_with_complexity_20250119.parquet
+\end{minted}
+
+\subsection{Phase 1: Dataset Generation}
+
+\begin{minted}[fontsize=\footnotesize]{text}
+INFO: Loading model: google/gemma-2-2b
+INFO: Model loaded on device: cuda
+INFO: Processing 487 problems from SAE analysis split
+INFO: Task 2: PASSED - Saved to data/phase1_0/activations/correct/
+INFO: Processed 50/487 (10.3%), Time: 15.2m, ETA: 2.3h
+INFO: Checkpoint saved: checkpoint_task_50.json
+...
+INFO: Results: 312 correct (64.1%), 175 incorrect (35.9%)
+\end{minted}
+
+\subsection{Phase 4.8: Steering Effect Analysis}
+
+\begin{minted}[fontsize=\footnotesize]{text}
+INFO: Best correct feature: Layer 13, Feature 8472
+INFO: Optimal coefficient: 10.0
+INFO: Testing correction on 115 baseline incorrect problems
+INFO: Correction: 42/115 (36.5%), Baseline: 22.0%
+INFO: Binomial test p-value: 0.0023 (significant)
+INFO: Testing corruption on 275 baseline correct problems
+INFO: Corruption: 12/275 (4.4%)
+\end{minted}
+
+\newpage
+\section{File Structure}
+
+\subsection{Output Directory Structure}
+
+\begin{verbatim}
+data/
+├── phase0/
+│   └── mbpp_with_complexity_*.parquet
+├── phase0_1/
+│   ├── sae_analysis_mbpp.parquet       # 487 problems (50%)
+│   ├── hyperparameter_mbpp.parquet     # 97 problems (10%)
+│   └── validation_mbpp.parquet         # 390 problems (40%)
+├── phase1_0/
+│   ├── activations/
+│   │   ├── correct/
+│   │   │   ├── 2_layer_0.npz
+│   │   │   ...
+│   │   │   └── 2_layer_25.npz
+│   │   └── incorrect/
+│   │       └── 11_layer_*.npz
+│   ├── dataset.parquet
+│   └── checkpoint_task_250.json
+├── phase2_5/
+│   └── top_20_features.json
+└── phase4_8/
+    └── steering_results.json
+\end{verbatim}
+
+\subsection{Code Structure}
+
+\begin{verbatim}
+pva_sae/
+├── run.py                              # Main entry point
+├── common/
+│   ├── steering_metrics.py            # Steering hooks
+│   └── config.py
+├── common_simplified/
+│   ├── activation_hooks.py            # ActivationExtractor
+│   └── model_loader.py
+├── phase0_difficulty_analysis/
+├── phase0_1_problem_splitting/
+├── phase1_simplified/                 # Dataset generation (PCDGE)
+├── phase2_2_pile_caching/
+├── phase2_5_simplified/               # SAE analysis
+├── phase3_8/                          # AUROC/F1 evaluation
+├── phase4_5_model_steering/           # Coefficient selection
+├── phase4_8_steering_analysis/        # Steering effects
+└── phase6_3_attention_analysis/
+\end{verbatim}
+
+\newpage
+\section{Conclusion}
+
+This technical manual documents the complete implementation pipeline for investigating code correctness representations using Sparse Autoencoders.
+
+\subsection{Key Components}
+
+\begin{enumerate}
+    \item \textbf{Activation Capture}: \texttt{ActivationExtractor} uses PyTorch pre-forward hooks to capture residual stream at last prompt token
+
+    \item \textbf{SAE Decomposition}: GemmaScope JumpReLU SAEs (16k features) decompose activations into sparse features
+
+    \item \textbf{Feature Selection}: Separation scores and Pile filtering identify code-specific correctness features
+
+    \item \textbf{Steering Intervention}: \texttt{create\_steering\_hook} adds scaled SAE decoder directions to residual stream
+
+    \item \textbf{Statistical Validation}: AUROC/F1 metrics and binomial tests validate discrimination and steering effects
+\end{enumerate}
+
+\subsection{Command Reference}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{Phase} & \textbf{Command} \\
+\midrule
+0 & \texttt{python3 run.py phase 0} \\
+0.1 & \texttt{python3 run.py phase 0.1} \\
+1 & \texttt{python3 run.py phase 1} \\
+2.2 & \texttt{python3 run.py phase 2.2} \\
+2.5 & \texttt{python3 run.py phase 2.5} \\
+3.8 & \texttt{python3 run.py phase 3.8} \\
+4.5 & \texttt{python3 run.py phase 4.5} \\
+4.8 & \texttt{python3 run.py phase 4.8} \\
+6.3 & \texttt{python3 run.py phase 6.3} \\
+\bottomrule
+\end{tabular}
+\caption{Key phase execution commands}
+\end{table}
+
+\end{document}
