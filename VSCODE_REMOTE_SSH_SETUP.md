@@ -157,7 +157,7 @@ Extension installed successfully! You should now see:
 2. Select **"Connect to Host..."**
 3. Choose `pva-sae-vm`
 
-### 4.2 First-Time Connection
+### 4.2 First-Time Connection ✅
 
 On first connection, VS Code will:
 1. Ask you to select the platform: Choose **Linux**
@@ -169,7 +169,7 @@ You may also be prompted:
 - **"Are you sure you want to continue?"** → Click **"Continue"**
 - **Fingerprint verification** → Click **"Yes"** or type `yes`
 
-### 4.3 Verify Connection
+### 4.3 Verify Connection ✅
 
 When successfully connected, you should see:
 - **Bottom-left corner**: `SSH: pva-sae-vm` (in green)
@@ -178,9 +178,9 @@ When successfully connected, you should see:
 
 ---
 
-## Step 5: Open Your Project on the Remote VM
+## Step 5: Open Your Project on the Remote VM ✅
 
-### 5.1 Open Folder
+### 5.1 Open Folder ✅
 
 1. Click **File** → **Open Folder...**
 2. A file browser for the **remote VM** will appear
@@ -191,12 +191,12 @@ When successfully connected, you should see:
    Or wherever you ran `git clone`
 4. Click **"OK"** or **"Open"**
 
-### 5.2 Trust the Workspace
+### 5.2 Trust the Workspace ✅
 
 VS Code will ask: **"Do you trust the authors of the files in this folder?"**
 - Click **"Yes, I trust the authors"**
 
-### 5.3 Verify Project Loaded
+### 5.3 Verify Project Loaded ✅
 
 You should now see:
 - The project file tree in the Explorer sidebar
@@ -205,24 +205,24 @@ You should now see:
 
 ---
 
-## Step 6: Install Extensions on Remote
+## Step 6: Install Extensions on Remote ✅
 
 **Important:** Extensions need to be installed separately for the remote environment!
 
-### 6.1 Install Python Extension
+### 6.1 Install Python Extension ✅
 
 1. Go to Extensions (`Cmd+Shift+X` / `Ctrl+Shift+X`)
 2. Search for: **"Python"**
 3. Find "Python" by Microsoft
 4. Click **"Install in SSH: pva-sae-vm"** (not "Install" - that's for local)
 
-### 6.2 Install Pylance (Usually Auto-Installed)
+### 6.2 Install Pylance (Usually Auto-Installed) ✅
 
 Pylance typically installs with the Python extension, but verify:
 1. Search for: **"Pylance"**
 2. Ensure it shows "Installed in SSH: pva-sae-vm"
 
-### 6.3 Other Recommended Extensions (Optional)
+### 6.3 Other Recommended Extensions (Optional) ✅
 
 Install these on the remote if you use them:
 - **GitLens**: Enhanced git features
@@ -237,9 +237,9 @@ Install these on the remote if you use them:
 
 ---
 
-## Step 7: Configure Python Interpreter
+## Step 7: Configure Python Interpreter ✅
 
-### 7.1 Select Interpreter
+### 7.1 Select Interpreter ✅
 
 1. Open Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`)
 2. Type: `Python: Select Interpreter`
@@ -258,13 +258,13 @@ Install these on the remote if you use them:
 2. VS Code might auto-discover conda environments
 3. Look for: `Python 3.x.x ('pva_sae': conda)`
 
-### 7.2 Verify Interpreter
+### 7.2 Verify Interpreter ✅
 
 Open a Python file (e.g., `run.py`) and check:
 - **Bottom-right corner**: Should show `3.x.x ('pva_sae': conda)` or similar
 - Click on it to change if incorrect
 
-### 7.3 Test Interpreter
+### 7.3 Test Interpreter ✅
 
 Open integrated terminal and verify:
 ```bash
@@ -277,11 +277,11 @@ python --version
 
 ---
 
-## Step 8: Configure Integrated Terminal
+## Step 8: Configure Integrated Terminal ✅
 
 The integrated terminal automatically runs on the VM, but you may want to auto-activate the conda environment.
 
-### 8.1 Auto-Activate Conda (Optional but Recommended)
+### 8.1 Auto-Activate Conda (Optional but Recommended) ✅
 
 **Option A: Modify Shell RC File on VM**
 
@@ -314,7 +314,7 @@ source ~/.bashrc  # or ~/.zshrc
 2. Search for: `terminal.integrated.shellArgs`
 3. Add custom shell args to source conda
 
-### 8.2 Verify Terminal
+### 8.2 Verify Terminal ✅
 
 1. Open a new integrated terminal in VS Code (`Ctrl+` backtick or Terminal → New Terminal)
 2. You should see `(pva_sae)` prefix in the prompt
@@ -331,7 +331,7 @@ source ~/.bashrc  # or ~/.zshrc
 
 ## Step 9: Verification and Testing
 
-### 9.1 Check GPU Access
+### 9.1 Check GPU Access ✅
 
 In the VS Code integrated terminal:
 
@@ -348,7 +348,7 @@ Expected output:
 - Verify GPU is attached to the VM in Google Cloud Console
 - Check CUDA drivers are installed: `ls /usr/local/cuda*/bin/`
 
-### 9.2 Test Conda Environment
+### 9.2 Test Conda Environment ✅
 
 ```bash
 # Verify environment is activated
