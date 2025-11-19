@@ -114,17 +114,6 @@ python3 run.py phase 7.3   # Instruction-tuned baseline
 python3 run.py phase 7.12  # Comparative evaluation
 ```
 
-### Multi-GPU Support
-
-For parallel processing across multiple GPUs:
-
-```bash
-# Dataset generation (Phase 1)
-python3 multi_gpu_launcher.py --phase 1 --start 0 --end 488 --model google/gemma-2-2b
-
-# Temperature robustness (Phase 3.5)
-python3 multi_gpu_launcher.py --phase 3.5 --model google/gemma-2-2b
-```
 
 ### Key Parameters
 

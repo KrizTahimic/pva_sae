@@ -110,7 +110,7 @@ Using Mostly Basic Python Problems (MBPP) \citep{austin2021program}, a benchmark
     \label{fig:template}
 \end{figure}
 
-We extract residual stream activations at the final token before the model's answer begins, following \citet{marks2023geometry} who demonstrated that end-of-instruction tokens aggregate information about the entire question. This approach, also employed by \citet{ferrando2024know} for uncertainty directions, captures the model's complete understanding of the problem specification before generation commences. Pre-trained GemmaScope autoencoders \citep{lieberum2024gemma} decompose these activations into interpretable latents $a_{l,j}(\mathbf{x}_l)$ at each layer $l$.
+We extract residual stream activations at the final prompt token before the model's answer begins, following \citet{marks2023geometry} who demonstrated that final prompt tokens aggregate information about the entire question. This approach, also employed by \citet{ferrando2024know} for uncertainty directions, captures the model's complete understanding of the problem specification before generation commences. Pre-trained GemmaScope autoencoders \citep{lieberum2024gemma} decompose these activations into interpretable latents $a_{l,j}(\mathbf{x}_l)$ at each layer $l$.
 
 We exclude features activating $>$2\% on the pile-10k dataset to filter out general language patterns. From this filtered set, we apply complementary metrics suited to each mechanism's computational role. Throughout our analysis, $N^{\text{correct}}$ and $N^{\text{incorrect}}$ denote the total number of correct and incorrect code samples, respectively.
 

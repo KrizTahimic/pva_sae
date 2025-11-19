@@ -211,7 +211,10 @@ class Config:
     # === STATISTICAL SIGNIFICANCE TESTING (Phase 4.14) ===
     phase4_14_significance_level: float = 0.05  # Alpha level for statistical tests
     phase4_14_output_dir: str = "data/phase4_14"
-    
+
+    # === SELECTIVE STEERING BASED ON THRESHOLD (Phase 8.3) ===
+    phase8_3_output_dir: str = "data/phase8_3"
+
     # === WEIGHT ORTHOGONALIZATION (Phase 5.3) ===
     phase5_3_output_dir: str = "data/phase5_3"
     orthogonalization_target_weights: List[str] = field(
