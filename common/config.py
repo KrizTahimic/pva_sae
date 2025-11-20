@@ -221,7 +221,7 @@ class Config:
     # === SELECTIVE STEERING BASED ON THRESHOLD (Phase 8.3) ===
     phase8_3_output_dir: str = "data/phase8_3"
     phase8_3_use_percentile_threshold: bool = True  # Use percentile-based threshold instead of Phase 3.8 threshold
-    phase8_3_percentile: float = 50.0  # Percentile for threshold (90 = steer top 10%)
+    phase8_3_percentile: float = 70.0  # Percentile for threshold (90 = steer top 10%)
 
     # === WEIGHT ORTHOGONALIZATION (Phase 5.3) ===
     phase5_3_output_dir: str = "data/phase5_3"

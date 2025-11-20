@@ -214,15 +214,21 @@ class ThresholdOptimizer:
                 "Phase 3.6 generates the hyperparameter dataset with baseline correctness labels."
             )
 
-        # Load baseline results (we only need task_id and test_passed columns)
+        # Load baseline results (full dataset including generated_code for baseline returns)
         baseline_file = Path(phase3_6_output).parent / "dataset_hyperparams_temp_0_0.parquet"
         if not baseline_file.exists():
             raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
 
-        phase3_6_baseline = pd.read_parquet(baseline_file)[['task_id', 'test_passed']]
+        phase3_6_baseline = pd.read_parquet(baseline_file)
         # Rename test_passed to is_correct for consistency
         phase3_6_baseline = phase3_6_baseline.rename(columns={'test_passed': 'is_correct'})
-        logger.info(f"Loaded baseline correctness labels for {len(phase3_6_baseline)} problems from Phase 3.6")
+        logger.info(f"Loaded full baseline data for {len(phase3_6_baseline)} problems from Phase 3.6 (including generated_code for baseline returns)")
+
+        # Drop redundant columns from Phase 3.6 that already exist in Phase 0.1
+        # to avoid _x/_y suffix conflicts after merge
+        if 'test_list' in phase3_6_baseline.columns:
+            phase3_6_baseline = phase3_6_baseline.drop(columns=['test_list'])
+            logger.info("Dropped redundant 'test_list' column from Phase 3.6 baseline")
 
         # === MERGE PHASE 0.1 + PHASE 3.6 ===
         logger.info("Merging Phase 0.1 prompts with Phase 3.6 correctness labels...")
@@ -236,6 +242,14 @@ class ThresholdOptimizer:
             raise ValueError("Merge resulted in empty dataset! Check that task_ids match between Phase 0.1 and 3.6")
 
         logger.info(f"Merged dataset: {len(self.dataset)} problems")
+
+        # Create baseline lookup dict for fast access during generation
+        # Map task_id -> full baseline row data for returning baseline when not steering
+        self.baseline_lookup = {
+            row['task_id']: row
+            for _, row in self.dataset.iterrows()
+        }
+        logger.info(f"Created baseline lookup for {len(self.baseline_lookup)} problems")
 
         # Apply --start and --end arguments if provided
         if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
@@ -433,19 +447,20 @@ class ThresholdOptimizer:
         steering_state = SteeringState(prompt_length)
 
         # === HOOK 1: L19 Activation Monitor (Threshold Checking) ===
-        def activation_monitor_hook(module, input, output):
+        def activation_monitor_hook(module, input):
             """Capture L19 activation and decide whether to steer."""
             # Only process first new token
             if steering_state.first_token_checked:
-                return output
+                return
 
-            # Get activation at the last position
-            raw_activation = output[0][:, -1, :]  # (1, 2304)
+            # Get activation at the last position from input (pre-forward)
+            residual = input[0]  # (batch, seq_len, hidden_dim)
+            raw_activation = residual[:, -1, :]  # (batch, 2304)
 
             # Decompose via SAE - convert to float32 for SAE encoder
             with torch.no_grad():
-                activation_float = raw_activation.to(dtype=torch.float32)
-                sae_features = self.sae_l19.encode(activation_float)  # (1, 16384)
+                activation_float = raw_activation.to(dtype=torch.float32, device=self.device)
+                sae_features = self.sae_l19.encode(activation_float)  # (batch, 2304) -> (batch, 16384)
                 incorrect_pred_activation = sae_features[0, self.incorrect_pred_feature].item()
 
             # Store activation value
@@ -459,27 +474,30 @@ class ThresholdOptimizer:
 
             steering_state.first_token_checked = True
 
-            return output
-
         # === HOOK 2: L16 Conditional Steering ===
-        def conditional_steering_hook(module, input, output):
+        def conditional_steering_hook(module, input):
             """Apply steering only if threshold was exceeded."""
-            # Only steer if activation exceeded threshold
-            if not steering_state.should_steer:
-                return output
+            # Get residual from input (pre-forward)
+            residual = input[0]  # (batch, seq_len, hidden_dim)
+
+            # Only steer if activation exceeded threshold and first token has been checked
+            if not steering_state.first_token_checked or not steering_state.should_steer:
+                return (residual,) + input[1:]
 
             # Apply steering: add decoder direction scaled by coefficient
-            # Ensure dtype consistency with output tensor
-            steering_vector = (self.correct_decoder_direction * self.steering_coefficient).to(dtype=output[0].dtype)
-            output[0][:, -1, :] += steering_vector
+            # Ensure dtype and device consistency with residual tensor
+            decoder_direction = self.correct_decoder_direction.to(residual.dtype)
+            steering = decoder_direction.unsqueeze(0).unsqueeze(0) * self.steering_coefficient
+            residual = residual + steering.to(residual.device, residual.dtype)
 
-            return output
+            # Return modified input tuple for pre-hook
+            return (residual,) + input[1:]
 
-        # Register hooks
-        l19_hook_handle = self.model.model.layers[self.incorrect_pred_layer].register_forward_hook(
+        # Register hooks (using pre-hooks to modify input before forward pass)
+        l19_hook_handle = self.model.model.layers[self.incorrect_pred_layer].register_forward_pre_hook(
             activation_monitor_hook
         )
-        l16_hook_handle = self.model.model.layers[self.correct_steer_layer].register_forward_hook(
+        l16_hook_handle = self.model.model.layers[self.correct_steer_layer].register_forward_pre_hook(
             conditional_steering_hook
         )
 
@@ -494,8 +512,36 @@ class ThresholdOptimizer:
                     pad_token_id=self.tokenizer.eos_token_id
                 )
 
-            # Extract generated code
-            generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            # === CHECK IF STEERING WAS APPLIED ===
+            # If threshold was not exceeded, return Phase 3.6 baseline without using generated code
+            if not steering_state.should_steer:
+                baseline_row = self.baseline_lookup[task_id]
+                logger.debug(f"Task {task_id}: Using Phase 3.6 baseline (activation ≤ threshold)")
+
+                # Remove hooks before returning
+                l19_hook_handle.remove()
+                l16_hook_handle.remove()
+
+                # Return baseline result matching Phase 8.3 structure
+                return {
+                    'task_id': task_id,
+                    'initial_correct': initial_correct,
+                    'was_steered': False,
+                    'incorrect_pred_activation': steering_state.incorrect_pred_activation,
+                    'threshold': threshold,
+                    'is_correct': baseline_row['is_correct'],
+                    'corrected': False,  # Baseline doesn't correct initially incorrect problems
+                    'preserved': baseline_row['is_correct'] if initial_correct else False,
+                    'corrupted': not baseline_row['is_correct'] if initial_correct else False,
+                    'generated_code': baseline_row['generated_code'],
+                    'source': 'phase3_6_baseline'  # Track that we used baseline
+                }
+
+            # === STEERING WAS APPLIED - EXTRACT AND EVALUATE GENERATED CODE ===
+            logger.debug(f"Task {task_id}: Selective steering applied (activation > threshold)")
+
+            # Extract generated code (skip prompt tokens)
+            generated_text = self.tokenizer.decode(outputs[0][prompt_length:], skip_special_tokens=True)
             generated_code = extract_code(generated_text, prompt)
 
             # Evaluate code
@@ -535,7 +581,8 @@ class ThresholdOptimizer:
                 'corrected': corrected,
                 'preserved': preserved,
                 'corrupted': corrupted,
-                'generated_code': generated_code
+                'generated_code': generated_code,
+                'source': 'selective_steering'  # Track that we generated with steering
             }
 
         finally:
@@ -965,8 +1012,11 @@ class ThresholdOptimizer:
         logger.info(f"✓ Saved optimal percentile to {optimal_file.name}")
 
         # === SAVE THRESHOLD COMPARISON JSON ===
+        # Extract percentiles from results keys (format: 'p5', 'p10', ...)
+        percentiles_tested = sorted([int(k[1:]) for k in optimization_results['results'].keys()])
+
         comparison_output = {
-            'percentiles_tested': percentiles_to_test,
+            'percentiles_tested': percentiles_tested,
             'results': optimization_results['results'],
             'optimal_percentile': f'p{optimization_results["optimal_percentile"]}'
         }

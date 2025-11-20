@@ -3,6 +3,7 @@
 # Things to Code
 - [ ] **Selective steering implementation** (Reviewers RXZd, vRko)
   - [ ] Apply selective steering approach to reduce corruption rate (maybe in MBPP only)
+  - (consider a different approach or conclusion) Like in its current form selective steering is not advisable also. Better to do other strategy maybe like do no steering first then only if you already check the generated code is wrong then in the rerun or retry of code generation the steering will be activated.
 
 - [ ] **LLAMA and HumanEval extension** (Reviewers RXZd, vRko, 7JAK, jwL5)
   - [ ] Perform Mechanistic Analysis with `HumanEval` 
