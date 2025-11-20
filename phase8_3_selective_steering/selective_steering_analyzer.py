@@ -134,11 +134,13 @@ class SelectiveSteeringAnalyzer:
         incorrect_pred_info = phase3_8_results['incorrect_predicting_feature']
         self.incorrect_pred_layer = incorrect_pred_info['feature']['layer']  # 19
         self.incorrect_pred_feature = incorrect_pred_info['feature']['idx']  # 5441
-        self.threshold = incorrect_pred_info['threshold_optimization']['optimal_threshold']  # 15.5086
+
+        # Use Phase 3.8 threshold as baseline
+        phase3_8_threshold = incorrect_pred_info['threshold_optimization']['optimal_threshold']  # 15.5086
 
         logger.info(f"Incorrect-predicting feature: Layer {self.incorrect_pred_layer}, "
                    f"Feature {self.incorrect_pred_feature}")
-        logger.info(f"Optimal threshold: {self.threshold:.4f}")
+        logger.info(f"Phase 3.8 optimal threshold: {phase3_8_threshold:.4f}")
 
         # === LOAD PHASE 2.5 TOP FEATURES (for correct-steering direction) ===
         logger.info("Loading steering features from Phase 2.5...")
@@ -238,6 +240,38 @@ class SelectiveSteeringAnalyzer:
             logger.info(f"Processing validation dataset rows {start_idx}-{end_idx-1} (inclusive)")
             self.baseline_data = self.baseline_data.iloc[start_idx:end_idx].copy()
             logger.info(f"Filtered to {len(self.baseline_data)} problems")
+
+        # === LOAD PERCENTILE THRESHOLD FROM PHASE 8.1 ===
+        if self.config.phase8_3_use_percentile_threshold:
+            logger.info(f"Loading {self.config.phase8_3_percentile}th percentile threshold from Phase 8.1...")
+
+            # Try to load Phase 8.1 results
+            phase8_1_output = discover_latest_phase_output("8.1")
+
+            if phase8_1_output:
+                phase8_1_results = load_json(Path(phase8_1_output).parent / "percentile_thresholds.json")
+
+                # Get the requested percentile
+                percentile_key = f'p{int(self.config.phase8_3_percentile)}'
+
+                if percentile_key in phase8_1_results['percentile_thresholds']:
+                    threshold_info = phase8_1_results['percentile_thresholds'][percentile_key]
+                    self.threshold = threshold_info['threshold']
+
+                    logger.info(f"✓ Using Phase 8.1 {percentile_key} threshold: {self.threshold:.4f}")
+                    logger.info(f"  (Calculated from {phase8_1_results['activation_statistics']['n_samples']} samples in Phase 3.6 hyperparams set)")
+                    logger.info(f"  Will steer approximately {threshold_info['steer_percentage']:.0f}% of cases")
+                    logger.info(f"  Phase 3.8 classification threshold was: {phase3_8_threshold:.4f}")
+                else:
+                    logger.warning(f"Percentile {percentile_key} not found in Phase 8.1 results, falling back to Phase 3.8 threshold")
+                    self.threshold = phase3_8_threshold
+            else:
+                logger.warning(f"Phase 8.1 results not found. Run 'python3 run.py phase 8.1' first.")
+                logger.warning(f"Falling back to Phase 3.8 threshold: {phase3_8_threshold:.4f}")
+                self.threshold = phase3_8_threshold
+        else:
+            self.threshold = phase3_8_threshold
+            logger.info(f"Using Phase 3.8 classification threshold: {self.threshold:.4f}")
 
         logger.info("Dependencies loaded successfully")
 

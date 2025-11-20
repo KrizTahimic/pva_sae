@@ -18,6 +18,66 @@ Without this, all Python commands will fail with `ModuleNotFoundError`. All comm
 source ~/miniconda3/etc/profile.d/conda.sh && conda activate pva_sae && python3 run.py phase 8.3 --start 0 --end 4
 ```
 
+## ⚠️ CRITICAL: Running Long Processes (Screen)
+
+**This project runs on a remote GCP instance via SSH. If you disconnect, processes will stop unless you use `screen`.**
+
+**🚨 IMPORTANT FOR CLAUDE CODE: Do NOT execute screen commands directly. Only provide instructions/recommendations for the user to run screen sessions manually in their terminal. Running screen via Claude Code makes it difficult for users to monitor and follow long-running tasks.**
+
+### Essential Screen Commands
+
+```bash
+# Start a new screen session (do this BEFORE running any phase)
+screen -S pva_phase
+
+# Now activate conda and run your phase
+source ~/miniconda3/etc/profile.d/conda.sh && conda activate pva_sae
+python3 run.py phase 8.3 --start 0 --end 4
+
+# Detach from screen (keeps process running, safe to close laptop)
+# Press: Ctrl+A, then press D
+
+# List all screen sessions
+screen -ls
+
+# Reattach to your session later
+screen -r pva_phase8
+
+# If only one session exists, just use:
+screen -r
+
+# Kill a screen session (from outside screen)
+screen -X -S pva_phase quit
+
+# Kill current session (from inside screen)
+exit
+```
+
+### Best Practices
+
+1. **Always use screen for long-running phases** - Most phases take 30 minutes to several hours
+2. **Name your sessions** - Use descriptive names: `screen -S phase1_generation`
+3. **One phase per session** - Don't run multiple phases in the same screen session
+4. **Check before starting** - Use `screen -ls` to see if you already have a session running
+5. **Checkpoint awareness** - Phases auto-checkpoint every 50 records, so you can safely kill and restart if needed
+6. **User executes screen manually** - Claude Code should ONLY provide screen instructions, never execute screen commands directly
+
+### Common Workflow
+
+```bash
+# Start your work session
+screen -S phase8_selective_steering
+source ~/miniconda3/etc/profile.d/conda.sh && conda activate pva_sae
+python3 run.py phase 8.3
+# Ctrl+A, D to detach
+# Close laptop, go home
+
+# Later, check progress
+screen -r phase8_selective_steering
+# View output, check if complete
+# Ctrl+A, D to detach again if still running
+```
+
 ## Project Overview
 
 PVA-SAE (Python Value Attribution using Sparse Autoencoders) is a research project investigating how language models internally represent program correctness. The project uses Google's Gemma 2 model (2B parameters), GemmaScope SAEs, and the MBPP dataset to:

@@ -212,8 +212,16 @@ class Config:
     phase4_14_significance_level: float = 0.05  # Alpha level for statistical tests
     phase4_14_output_dir: str = "data/phase4_14"
 
+    # === PERCENTILE THRESHOLD CALCULATOR (Phase 8.1) ===
+    phase8_1_output_dir: str = "data/phase8_1"
+
+    # === PERCENTILE THRESHOLD OPTIMIZER (Phase 8.2) ===
+    phase8_2_output_dir: str = "data/phase8_2"
+
     # === SELECTIVE STEERING BASED ON THRESHOLD (Phase 8.3) ===
     phase8_3_output_dir: str = "data/phase8_3"
+    phase8_3_use_percentile_threshold: bool = True  # Use percentile-based threshold instead of Phase 3.8 threshold
+    phase8_3_percentile: float = 50.0  # Percentile for threshold (90 = steer top 10%)
 
     # === WEIGHT ORTHOGONALIZATION (Phase 5.3) ===
     phase5_3_output_dir: str = "data/phase5_3"

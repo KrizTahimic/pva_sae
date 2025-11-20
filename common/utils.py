@@ -412,6 +412,16 @@ PHASE_CONFIGS = {
         "dir": "data/phase7_12",
         "patterns": ["evaluation_results.json", "evaluation_summary.txt"],
         "exclude_keywords": None
+    },
+    "8.1": {
+        "dir": "data/phase8_1",
+        "patterns": ["percentile_thresholds.json", "threshold_summary.txt"],
+        "exclude_keywords": None
+    },
+    "8.2": {
+        "dir": "data/phase8_2",
+        "patterns": ["optimal_percentile.json", "threshold_comparison.json"],
+        "exclude_keywords": None
     }
 }
 
