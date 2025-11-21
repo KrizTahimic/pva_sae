@@ -148,17 +148,37 @@ def timeout(seconds):
 def evaluate_code(code: str, test_list: list[str]) -> bool:
     """
     Evaluate generated code against test cases with timeout protection.
-    
+
     Args:
         code: Generated code to test
         test_list: List of test assertion strings
-        
+
     Returns:
         True if all tests pass, False otherwise
     """
     # Create namespace for execution
     namespace = {}
-    
+
+    # Pre-import dataset-specific imports
+    # For HumanEval, load pre-scanned imports from Phase 0.3
+    try:
+        from common.config import Config
+        config = Config()
+
+        if config.dataset_name == "humaneval":
+            import_file = Path("data/phase0_3_humaneval/required_imports.json")
+            if import_file.exists():
+                import json
+                with open(import_file) as f:
+                    imports_data = json.load(f)
+                    import_code = '\n'.join(imports_data['imports'])
+                    # Execute imports in namespace
+                    exec(import_code, namespace)
+            # If file doesn't exist yet, silently continue (Phase 0.3 not run)
+    except Exception:
+        # If config loading fails, continue without pre-imports
+        pass
+
     # Execute the code with timeout
     try:
         with timeout(5):  # 5 second timeout for code execution
@@ -169,7 +189,7 @@ def evaluate_code(code: str, test_list: list[str]) -> bool:
     except Exception:
         # Other execution errors
         return False
-    
+
     # Run each test with timeout
     for test in test_list:
         try:
@@ -177,6 +197,6 @@ def evaluate_code(code: str, test_list: list[str]) -> bool:
                 exec(test, namespace)
         except (TimeoutError, Exception):
             return False
-    
+
     # All tests passed
     return True

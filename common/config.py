@@ -133,6 +133,7 @@ class Config:
     phase1_output_dir: str = "data/phase1_0"
     phase0_1_output_dir: str = "data/phase0_1"
     phase0_2_output_dir: str = "data/phase0_2_humaneval"
+    phase0_3_output_dir: str = "data/phase0_3_humaneval"
     phase2_output_dir: str = "data/phase2"
     phase2_2_output_dir: str = "data/phase2_2"
     phase2_5_output_dir: str = "data/phase2_5"

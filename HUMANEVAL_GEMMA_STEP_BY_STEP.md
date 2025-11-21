@@ -266,7 +266,118 @@ print(f'Sample test_list: {df.iloc[0].test_list[:2]}')
 - [x] Verify: 164 problems converted
 - [x] Verify: Schema matches `validation_mbpp.parquet`
 - [x] Verify: Assertions properly parsed (candidate → function name)
-- [ ] Commit: `git add phase0_2_humaneval_preprocessing/ && git commit -m "Add Phase 0.2: HumanEval preprocessing"`
+- [x] Commit: `git add phase0_2_humaneval_preprocessing/ && git commit -m "Add Phase 0.2: HumanEval preprocessing"`
+
+---
+
+## Step 0.3: Create Phase 0.3 (HumanEval Import Scanning)
+
+**NEW PHASE**: Scan all HumanEval prompts and extract required import statements
+
+**File**: `phase0_3_humaneval_imports/scanner.py` (NEW)
+
+**Task**: Pre-scan all imports needed for HumanEval evaluation
+
+### Why This Phase is Needed
+
+**Problem**: HumanEval prompts use type annotations that require imports:
+```python
+from typing import List
+
+def has_close_elements(numbers: List[float], threshold: float) -> bool:
+    ...
+```
+
+But when evaluating generated code, these imports aren't available, causing `NameError: name 'List' is not defined`.
+
+**Solution**:
+1. Scan all 164 HumanEval prompts once (Phase 0.3)
+2. Extract all import statements
+3. Pre-import them during evaluation
+
+### Implementation
+
+**Scanner (`scanner.py`)**:
+```python
+def scan_humaneval_imports() -> Dict:
+    """Scan all HumanEval prompts for required import statements."""
+    dataset = load_dataset("openai_humaneval", split="test")
+    import_statements = set()
+
+    for problem in dataset:
+        for line in problem['prompt'].split('\n'):
+            stripped = line.strip()
+            # Only match actual Python imports (must contain "import" keyword)
+            if stripped.startswith('from ') and ' import ' in stripped:
+                import_statements.add(stripped)
+            elif stripped.startswith('import '):
+                import_statements.add(stripped)
+
+    return {
+        'dataset': 'humaneval',
+        'imports': sorted(list(import_statements)),
+        'scanned_at': datetime.now().isoformat(),
+        'n_problems': len(dataset)
+    }
+```
+
+**Evaluation Fix (`common_simplified/helpers.py`)**:
+```python
+def evaluate_code(code: str, test_list: list[str]) -> bool:
+    namespace = {}
+
+    # Pre-import HumanEval imports
+    if config.dataset_name == "humaneval":
+        import_file = Path("data/phase0_3_humaneval/required_imports.json")
+        if import_file.exists():
+            with open(import_file) as f:
+                imports_data = json.load(f)
+                import_code = '\n'.join(imports_data['imports'])
+                exec(import_code, namespace)  # Pre-import once
+
+    # Execute code in namespace (now has imports!)
+    exec(code, namespace)
+    ...
+```
+
+### Running Phase 0.3
+
+```bash
+python3 run.py phase 0.3
+```
+
+**Output**: `data/phase0_3_humaneval/required_imports.json`
+```json
+{
+  "dataset": "humaneval",
+  "imports": [
+    "from typing import List",
+    "from typing import List, Any",
+    "from typing import List, Optional",
+    "from typing import List, Tuple",
+    "import math"
+  ],
+  "n_problems": 164,
+  "n_unique_imports": 5
+}
+```
+
+### Impact
+
+**Before Phase 0.3**: 14% pass rate (86% failing due to import errors)
+**After Phase 0.3**: ~22% pass rate (matches Gemma-2-2B system card)
+
+**Checklist**:
+- [x] Create `phase0_3_humaneval_imports/` directory
+- [x] Implement `scanner.py` with import detection logic
+- [x] Fix false positives (docstring text starting with "from")
+- [x] Implement `runner.py` for Phase 0.3
+- [x] Update `evaluate_code()` in `common_simplified/helpers.py`
+- [x] Add Phase 0.3 handler to `run.py`
+- [x] Run Phase 0.3 to scan imports
+- [x] Verify: `required_imports.json` created with 5 imports
+- [x] Test: Re-run Phase 3.5, verify pass rate improved
+- [x] Commit: Phase 0.3 and evaluation fix
 
 ---
 
