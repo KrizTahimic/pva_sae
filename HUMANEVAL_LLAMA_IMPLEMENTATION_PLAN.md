@@ -354,6 +354,14 @@ input_path = discover_latest_phase_output("1", dataset=config.dataset_name, mode
    python3 run.py phase 8.3 --model llama    # Selective steering
    ```
 
+4. **IMPORTANT: Test MBPP Backward Compatibility** (Deferred from HumanEval phase)
+   ```bash
+   # Edit config.py: dataset_name = "mbpp", model_name = "google/gemma-2-2b"
+   python3 run.py phase 3.5 --start 0 --end 10
+   # Verify: Works correctly, doesn't break anything
+   # Safe now because LLAMA uses different directories
+   ```
+
 ### Phase 4: LLAMA + HumanEval (Week 4)
 
 **Goal**: Complete experimental matrix
@@ -421,9 +429,12 @@ input_path = discover_latest_phase_output("1", dataset=config.dataset_name, mode
 4. Verify feature loading works across phases
 
 ### Regression Tests
-1. Re-run existing MBPP+Gemma pipeline
-2. Compare outputs to previous results
-3. Verify no performance degradation
+1. **MBPP Backward Compatibility** (Deferred from HumanEval+Gemma implementation)
+   - Re-run Phase 3.5 with MBPP: `python3 run.py phase 3.5 --start 0 --end 10` (with dataset_name="mbpp" in config)
+   - Verify output matches original structure
+   - Safe to run because LLAMA uses different directories (no risk of overwriting)
+   - Compare outputs to previous results
+2. Verify no performance degradation on MBPP baseline
 
 ---
 
@@ -434,6 +445,7 @@ input_path = discover_latest_phase_output("1", dataset=config.dataset_name, mode
 - Keep default behavior unchanged (MBPP + Gemma)
 - Use feature flags for new functionality
 - Maintain backward compatibility in file discovery
+- **IMPORTANT**: MBPP backward compatibility testing was deferred from HumanEval+Gemma phase to avoid overwriting original data. Test during LLAMA Phase 2 when `data/phase3_5_llama/` is used (different directory, safe to test MBPP alongside)
 
 ### Risk 2: LLAMA SAE Compatibility
 **Mitigation**:

@@ -93,6 +93,74 @@ Run full mechanistic analysis pipeline on HumanEval dataset using Gemma-2-2B mod
 4. **Output location**: ✅ **`data/phase0_2_humaneval/humaneval.parquet`**
    - Matches pattern of other phases (e.g., `phase3_5_humaneval`)
 
+5. **Configuration approach**: ✅ **Pure Manual Config (No CLI arguments)**
+   - Users edit `config.py` to change dataset/model before running experiments
+   - No `--dataset` or `--model` CLI arguments needed
+   - Reason: Sequential workflow - edit once, run 6-10 phases without extra typing
+
+6. **Backward compatibility testing**: ✅ **DEFERRED to LLAMA implementation**
+   - Do NOT test Phase 3.5 with MBPP now - would overwrite `data/phase3_5/` (original results)
+   - Will verify MBPP compatibility during LLAMA implementation (uses `data/phase3_5_llama/`)
+   - Reason: Different output directories prevent accidental data overwriting
+
+## Workflow: Pure Manual Config
+
+### How to Switch Datasets
+
+Simply edit `common/config.py` before running each experimental phase:
+
+```python
+# common/config.py
+@dataclass
+class Config:
+    # ... other fields ...
+
+    # === DATASET SETTINGS ===
+    dataset_name: str = "humaneval"  # ← Edit this: "mbpp" or "humaneval"
+    model_name: str = "google/gemma-2-2b"  # ← Edit this for LLAMA later
+```
+
+### Example Workflow
+
+**Experiment 1: Gemma + HumanEval** (6-8 phases)
+```python
+# Edit config.py
+dataset_name: str = "humaneval"
+model_name: str = "google/gemma-2-2b"
+```
+
+Then run phases (no extra arguments!):
+```bash
+python3 run.py phase 3.5
+python3 run.py phase 3.8
+python3 run.py phase 4.8
+python3 run.py phase 5.3
+python3 run.py phase 6.3
+python3 run.py phase 8.3
+```
+
+**Experiment 2: LLAMA + MBPP** (10+ phases)
+```python
+# Edit config.py
+dataset_name: str = "mbpp"
+model_name: str = "llama"  # (to be implemented later)
+```
+
+Then run:
+```bash
+python3 run.py phase 1
+python3 run.py phase 2.2
+python3 run.py phase 2.5
+# ... etc
+```
+
+### Why This Approach?
+
+- ✅ **Simpler commands** - No need to type `--dataset humaneval` for every phase
+- ✅ **Less error-prone** - No risk of forgetting CLI flags
+- ✅ **Clear current state** - Just check config.py to see what experiment is running
+- ✅ **Sequential workflow** - Perfect for running one experiment at a time
+
 ---
 
 ## Step 0.2: Create Phase 0.2 (HumanEval Preprocessing)
@@ -191,13 +259,13 @@ print(f'Sample test_list: {df.iloc[0].test_list[:2]}')
 ```
 
 **Checklist**:
-- [ ] Create `phase0_2_humaneval_preprocessing/` directory
-- [ ] Implement `converter.py` with `parse_humaneval_test()` function
-- [ ] Add Phase 0.2 handler to `run.py`
-- [ ] Test: Run Phase 0.2
-- [ ] Verify: 164 problems converted
-- [ ] Verify: Schema matches `validation_mbpp.parquet`
-- [ ] Verify: Assertions properly parsed (candidate → function name)
+- [x] Create `phase0_2_humaneval_preprocessing/` directory
+- [x] Implement `converter.py` with `parse_humaneval_test()` function
+- [x] Add Phase 0.2 handler to `run.py`
+- [x] Test: Run Phase 0.2
+- [x] Verify: 164 problems converted
+- [x] Verify: Schema matches `validation_mbpp.parquet`
+- [x] Verify: Assertions properly parsed (candidate → function name)
 - [ ] Commit: `git add phase0_2_humaneval_preprocessing/ && git commit -m "Add Phase 0.2: HumanEval preprocessing"`
 
 ---
@@ -308,6 +376,26 @@ def _load_validation_data(self) -> pd.DataFrame:
 ```
 
 **That's it!** Everything else works unchanged because HumanEval is now in MBPP format.
+
+### Testing Phase 3.5
+
+**Test on small subset (10 problems)**:
+```bash
+python3 run.py phase 3.5 --start 0 --end 10
+```
+
+**Checklist**:
+- [x] Update `_load_validation_data()` in Phase 3.5
+- [x] Test: Run on 10 HumanEval problems
+- [x] Verify: Prompt correct
+- [x] Verify: Code generated
+- [x] Verify: Activations captured (temp=0)
+- [x] Verify: Output saved to `data/phase3_5_humaneval/`
+- [x] Verify: metadata.json created with correct structure
+- [ ] DEFERRED: Test MBPP backward compatibility (will test during LLAMA implementation)
+- [ ] Commit: `git add phase3_5_temperature_robustness/ && git commit -m "Add HumanEval support to Phase 3.5"`
+
+**Note**: MBPP backward compatibility testing is intentionally deferred to avoid overwriting original `data/phase3_5/` results. This will be verified during LLAMA implementation when different output directories are used.
 
 ### OLD APPROACH (No Longer Needed)
 

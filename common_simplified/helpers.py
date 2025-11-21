@@ -32,7 +32,7 @@ def save_activations(activations: Dict[int, np.ndarray], filepath: Path) -> None
     np_activations = {}
     for layer, act in activations.items():
         if hasattr(act, 'cpu'):  # It's a torch tensor
-            np_activations[f"layer_{layer}"] = act.cpu().numpy()
+            np_activations[f"layer_{layer}"] = act.cpu().float().numpy()
         else:
             np_activations[f"layer_{layer}"] = act
     

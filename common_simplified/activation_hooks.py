@@ -307,7 +307,7 @@ def save_raw_attention_with_boundaries(
     
     np.savez_compressed(
         save_path,
-        raw_attention=attention_tensor.cpu().numpy() if isinstance(attention_tensor, torch.Tensor) else attention_tensor,
+        raw_attention=attention_tensor.cpu().float().numpy() if isinstance(attention_tensor, torch.Tensor) else attention_tensor,
         boundaries=boundaries,
         prompt_length=len(tokenized_prompt.squeeze(0)),
         layer=layer_idx,

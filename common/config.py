@@ -70,7 +70,8 @@ class Config:
     model_trust_remote_code: bool = True
     
     # === DATASET SETTINGS ===
-    dataset_name: str = "Muennighoff/mbpp"
+    # Options: "mbpp" (Muennighoff/mbpp) or "humaneval"
+    dataset_name: str = "humaneval"
     dataset_split: str = "test"
     dataset_dir: str = "data/phase1_0"
     dataset_start_idx: int = 0
@@ -131,6 +132,7 @@ class Config:
     phase0_output_dir: str = "data/phase0"
     phase1_output_dir: str = "data/phase1_0"
     phase0_1_output_dir: str = "data/phase0_1"
+    phase0_2_output_dir: str = "data/phase0_2_humaneval"
     phase2_output_dir: str = "data/phase2"
     phase2_2_output_dir: str = "data/phase2_2"
     phase2_5_output_dir: str = "data/phase2_5"

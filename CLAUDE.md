@@ -224,6 +224,78 @@ pile_threshold = 0.02
 pile_samples = 10000
 ```
 
+### Switching Datasets and Models (Pure Manual Config)
+
+**IMPORTANT**: To switch between datasets (MBPP/HumanEval) or models (Gemma/LLAMA), simply edit `common/config.py` directly. No CLI arguments needed.
+
+#### How to Switch Datasets
+
+Edit the `dataset_name` field in `common/config.py`:
+
+```python
+# common/config.py
+@dataclass
+class Config:
+    # === DATASET SETTINGS ===
+    # Options: "mbpp" (Muennighoff/mbpp) or "humaneval"
+    dataset_name: str = "humaneval"  # ← Change this to switch datasets
+```
+
+#### How to Switch Models
+
+Edit the `model_name` field in `common/config.py`:
+
+```python
+# common/config.py
+@dataclass
+class Config:
+    # === MODEL SETTINGS ===
+    model_name: str = "google/gemma-2-2b"  # ← Change this to switch models
+    # Options:
+    #   - "google/gemma-2-2b" (default)
+    #   - "meta-llama/Llama-3.1-8B" (LLAMA)
+```
+
+#### Example Workflows
+
+**Experiment 1: Gemma + HumanEval** (6-8 phases)
+```python
+# Edit config.py once:
+dataset_name: str = "humaneval"
+model_name: str = "google/gemma-2-2b"
+```
+
+Then run phases without extra arguments:
+```bash
+python3 run.py phase 3.5
+python3 run.py phase 3.8
+python3 run.py phase 4.8
+python3 run.py phase 5.3
+python3 run.py phase 6.3
+python3 run.py phase 8.3
+```
+
+**Experiment 2: LLAMA + MBPP** (10+ phases)
+```python
+# Edit config.py once:
+dataset_name: str = "mbpp"
+model_name: str = "meta-llama/Llama-3.1-8B"
+```
+
+Then run:
+```bash
+python3 run.py phase 1
+python3 run.py phase 2.2
+python3 run.py phase 2.5
+# ... etc
+```
+
+**Why This Approach?**
+- ✅ **Simpler commands** - No need to type `--dataset humaneval --model llama` for every phase
+- ✅ **Less error-prone** - No risk of forgetting CLI flags mid-experiment
+- ✅ **Clear current state** - Just check config.py to see what experiment is running
+- ✅ **Sequential workflow** - Perfect for running one experiment at a time (6-10 phases)
+
 ## Key Files and Their Roles
 
 ### Entry Points

@@ -318,15 +318,28 @@ class TemperatureRobustnessRunner:
         return metadata
     
     def _load_validation_data(self) -> pd.DataFrame:
-        """Load validation data from Phase 0.1."""
-        validation_file = Path(self.config.phase0_1_output_dir) / "validation_mbpp.parquet"
-        
+        """Load validation data from Phase 0.1 (MBPP) or Phase 0.2 (HumanEval)."""
+        if self.config.dataset_name == "mbpp":
+            validation_file = Path(self.config.phase0_1_output_dir) / "validation_mbpp.parquet"
+            dataset_desc = "MBPP validation"
+            prerequisite = "Phase 0.1"
+        elif self.config.dataset_name == "humaneval":
+            validation_file = Path(self.config.phase0_2_output_dir) / "humaneval.parquet"
+            dataset_desc = "HumanEval"
+            prerequisite = "Phase 0.2"
+        else:
+            raise ValueError(
+                f"Unknown dataset: {self.config.dataset_name}. "
+                f"Supported datasets: 'mbpp', 'humaneval'"
+            )
+
         if not validation_file.exists():
             raise FileNotFoundError(
-                f"Validation data not found at {validation_file}. "
-                "Please run Phase 0.1 first."
+                f"{dataset_desc} data not found at {validation_file}. "
+                f"Please run {prerequisite} first."
             )
-        
+
+        logger.info(f"Loading {dataset_desc} data from {validation_file}")
         return pd.read_parquet(validation_file)
     
     def _setup_output_directories(self) -> Path:
@@ -338,9 +351,18 @@ class TemperatureRobustnessRunner:
             output_dir = Path(output_dir_env)
             logger.info(f"Using output directory from environment: {output_dir}")
         else:
-            output_dir = Path(self.config.phase3_5_output_dir)
-            logger.info(f"Using output directory from config: {output_dir}")
-        
+            # Use base output directory from config
+            base_output_dir = Path(self.config.phase3_5_output_dir)
+
+            # Add suffix for non-MBPP datasets
+            if self.config.dataset_name != "mbpp":
+                # data/phase3_5 -> data/phase3_5_humaneval
+                output_dir = Path(str(base_output_dir) + f"_{self.config.dataset_name}")
+            else:
+                output_dir = base_output_dir
+
+            logger.info(f"Using output directory: {output_dir} (dataset: {self.config.dataset_name})")
+
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Create activation directory for task activations
@@ -660,7 +682,7 @@ class TemperatureRobustnessRunner:
             )
             
             # Save as simple numpy array
-            np.savez_compressed(save_path, layer_activations.clone().cpu().numpy())
+            np.savez_compressed(save_path, layer_activations.clone().cpu().float().numpy())
     
     def _save_task_attention(self, task_id: str, attention_patterns: Dict[int, torch.Tensor]) -> None:
         """Save raw attention patterns with section boundaries."""

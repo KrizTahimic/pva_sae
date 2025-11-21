@@ -56,11 +56,14 @@ def load_model_and_tokenizer(
     logger.info(f"Loading model to {device}...")
     
     # Use low_cpu_mem_usage for efficient loading
+    # Force eager attention to enable attention weight extraction (required for Phase 6.3)
+    # SDPA (Scaled Dot Product Attention) is faster but doesn't support attention extraction
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=dtype,
         trust_remote_code=trust_remote_code,
-        low_cpu_mem_usage=True
+        low_cpu_mem_usage=True,
+        attn_implementation="eager"
     )
     
     # Move to target device if not CPU
