@@ -46,25 +46,144 @@ assert assert min_cost([[3, 4, 5], [6, 10, 4], [3, 7, 5]], 2, 2) == 16
 - ❌ **Phase 3.5** (Temperature Robustness) - All experiments invalid
 - ❌ **Phase 3.6** (Hyperparameter Tuning) - All experiments invalid
 - ❌ **Phase 7.3** (Instruction-Tuned Baseline) - All experiments invalid
+- ❌ **Phase 8.2** (Threshold Optimizer) - All experiments invalid
 
-### Cascade Affected Experiments (Used Malformed Prompts from Phase 3.6)
-- ❌ **Phase 4.5** (Steering Coefficient Selection) - Loaded malformed prompts from Phase 3.6
-- ❌ **Phase 4.6** (Coefficient Refinement) - Loaded malformed prompts from Phase 3.6
-- ❌ **Phase 4.8** (Steering Effect Analysis) - Loaded malformed prompts from Phase 3.6
-- ❌ **Phase 4.10** (Random Feature Control) - Loaded malformed prompts from Phase 3.6
-- ❌ **Phase 4.12** (Random Steering Analysis) - Loaded malformed prompts from Phase 3.6
-- ❌ **Phase 4.14** (Statistical Significance) - Loaded malformed prompts from Phase 3.6
+### Cascade Affected Experiments (Depend on Buggy Phases)
 
-**Note**: Phase 4.x phases don't build prompts themselves but load pre-generated prompts saved in Phase 3.6 output files (`dataset_hyperparams_temp_0_0.parquet`). Since Phase 3.6 generated malformed prompts, all Phase 4.x experiments used these malformed prompts.
+**Validation & Evaluation Phases** (depend on Phase 3.5/3.6):
+- ❌ **Phase 3.8** (AUROC/F1 Evaluation) - Uses test results from Phase 3.5/3.6
+- ❌ **Phase 3.10** (Temperature AUROC) - Depends on Phase 3.5/3.8
+- ❌ **Phase 3.11** (Temperature Visualization) - Depends on Phase 3.10
+- ❌ **Phase 3.12** (Difficulty AUROC) - Depends on Phase 3.5/3.8
 
-### Unaffected Phases
+**Steering Coefficient Phases** (depend on Phase 3.6):
+- ❌ **Phase 4.5** (Coefficient Selection) - Loads test data from Phase 3.6
+- ❌ **Phase 4.6** (Golden Section Refinement) - Depends on Phase 4.5
+- ❌ **Phase 4.7** (Coefficient Visualization) - Depends on Phase 4.5/4.6
+
+**Steering Effect Phases** (depend on Phase 3.5):
+- ❌ **Phase 4.8** (Steering Effect Analysis) - Uses test data from Phase 3.5
+- ❌ **Phase 4.12** (Zero-Disc Steering) - Uses test data from Phase 3.5
+- ❌ **Phase 4.14** (Significance Testing) - Depends on Phase 4.8/4.12
+
+**Weight Orthogonalization Phases** (depend on Phase 3.5):
+- ❌ **Phase 5.3** (Weight Orthogonalization) - Uses test data from Phase 3.5
+- ❌ **Phase 5.6** (Zero-Disc Orthogonalization) - Uses test data from Phase 3.5
+- ❌ **Phase 5.9** (Orthogonalization Significance) - Depends on Phase 4.8/5.3/5.6
+
+**Attention & Mechanistic Phases** (depend on Phase 3.5/4.8):
+- ❌ **Phase 6.3** (Attention Analysis) - Uses activations from Phase 3.5/4.8
+
+**Instruction-Tuned Model Phases** (depend on Phase 7.3):
+- ❌ **Phase 7.6** (Instruct Steering) - Uses test data from Phase 7.3
+- ❌ **Phase 7.9** (Universality Analysis) - Depends on Phase 3.5/4.8/7.3/7.6
+- ❌ **Phase 7.12** (Instruct AUROC/F1) - Uses test data from Phase 7.3
+
+**Threshold & Selective Steering Phases** (depend on Phase 3.5/3.6/3.8):
+- ❌ **Phase 8.1** (Threshold Calculator) - Depends on Phase 3.6
+- ❌ **Phase 8.3** (Selective Steering) - Depends on Phase 3.5/3.8
+
+**Note**: These 20 phases don't have the double assert bug in their code, but they all depend on test results (test_passed labels, pass rates, steering effects) from the 4 buggy phases. Since the upstream test results are invalid, all downstream analyses must be recomputed.
+
+### Unaffected Phases (No Re-run Needed)
+- ✅ **Phase 0, 0.1, 0.2, 0.3** (Data Preparation) - No test execution
 - ✅ **Phase 1** (Baseline Generation) - Correct format: `'\n'.join(task['test_list'])`
-- ✅ **Phase 8.2+** (Threshold Optimization) - Already had conditional check
-- ✅ **Phase 5.x** (Weight Orthogonalization) - Uses Phase 1 data, not Phase 3.6
-- ✅ **Phase 8.3** (Selective Steering) - Uses Phase 1 data, not Phase 3.6
+- ✅ **Phase 2.2, 2.5, 2.10, 2.15** (SAE Analysis) - Uses activations only, no test execution
+- ✅ **Phase 4.10** (Zero-Disc Feature Selection) - Statistical analysis of features, doesn't execute tests
+
+**Total unaffected**: 9 out of 33 phases (27%)
 
 ### Datasets Affected
 - Both **MBPP** and **HumanEval** affected (both store assertions with `assert` keyword)
+
+## Complete Re-run Requirements
+
+### Summary
+**24 out of 33 phases (73%) require re-running** after the bug fix.
+
+- **4 phases** have the double assert bug directly ✅ **Code FIXED**
+- **20 phases** have cascade dependencies ⚠️ **Must RE-RUN**
+- **9 phases** are unaffected ✅ **Can SKIP**
+
+### Re-run Execution Order (By Dependency Tiers)
+
+#### **Tier 1: Direct Bug Fixes** (Must Run First)
+These phases had the bug in their code and must be re-run first:
+
+1. **Phase 3.5** - Temperature Robustness (2-6 hours)
+2. **Phase 3.6** - Hyperparameter Tuning (2-6 hours)
+3. **Phase 7.3** - Instruction-Tuned Baseline (2-6 hours)
+4. **Phase 8.2** - Threshold Optimizer (1-2 hours)
+
+**Parallelization**: All 4 can run in parallel
+**Estimated time**: 2-6 hours (if parallel), 8-20 hours (if sequential)
+
+---
+
+#### **Tier 2: Immediate Dependencies** (Run After Tier 1)
+These phases directly depend on Tier 1 outputs:
+
+5. **Phase 3.8** - AUROC/F1 Evaluation (needs 3.5, 3.6) [1-2 hours]
+6. **Phase 4.5** - Coefficient Selection (needs 3.6) [2-4 hours]
+7. **Phase 8.1** - Threshold Calculator (needs 3.6) [1 hour]
+
+**Parallelization**: All 3 can run in parallel after Tier 1 completes
+**Estimated time**: 2-4 hours (if parallel), 4-7 hours (if sequential)
+
+---
+
+#### **Tier 3: Secondary Dependencies** (Run After Tier 2)
+These phases depend on Tier 2 outputs:
+
+8. **Phase 4.6** - Golden Section Refinement (needs 4.5) [2-3 hours]
+9. **Phase 4.8** - Steering Effect Analysis (needs 3.5) [3-5 hours]
+10. **Phase 8.3** - Selective Steering (needs 3.5, 3.8) [2-3 hours]
+
+**Parallelization**: All 3 can run in parallel after Tier 2 completes
+**Estimated time**: 3-5 hours (if parallel), 7-11 hours (if sequential)
+
+---
+
+#### **Tier 4: Tertiary+ Dependencies** (Run After Tier 3)
+These phases have deeper transitive dependencies:
+
+11. **Phase 3.10** - Temperature AUROC (needs 3.5, 3.8) [1-2 hours]
+12. **Phase 3.11** - Temperature Visualization (needs 3.10) [<1 hour]
+13. **Phase 3.12** - Difficulty AUROC (needs 3.5, 3.8) [1-2 hours]
+14. **Phase 4.7** - Coefficient Visualization (needs 4.5, 4.6) [<1 hour]
+15. **Phase 4.12** - Zero-Disc Steering (needs 3.5, 4.10) [2-3 hours]
+16. **Phase 4.14** - Significance Testing (needs 4.8, 4.12) [1 hour]
+17. **Phase 5.3** - Weight Orthogonalization (needs 3.5) [3-5 hours]
+18. **Phase 5.6** - Zero-Disc Orthogonalization (needs 3.5, 4.10) [2-3 hours]
+19. **Phase 5.9** - Orthogonalization Significance (needs 4.8, 5.3, 5.6) [1 hour]
+20. **Phase 6.3** - Attention Analysis (needs 3.5, 4.8) [1-2 hours]
+21. **Phase 7.6** - Instruct Steering (needs 7.3) [2-4 hours]
+22. **Phase 7.9** - Universality Analysis (needs 3.5, 4.8, 7.3, 7.6) [<1 hour]
+23. **Phase 7.12** - Instruct AUROC/F1 (needs 7.3) [1-2 hours]
+
+**Parallelization**: Some can run in parallel (e.g., 3.10/3.12/5.3/7.6)
+**Estimated time**: 5-8 hours (if parallelized), 17-29 hours (if sequential)
+
+---
+
+### Total Estimated Re-run Time
+
+**Best case (maximum parallelization)**:
+- Tier 1: 6 hours (parallel)
+- Tier 2: 4 hours (parallel)
+- Tier 3: 5 hours (parallel)
+- Tier 4: 8 hours (partial parallel)
+- **Total: ~23 hours (1 day)**
+
+**Worst case (all sequential)**:
+- Tier 1: 20 hours
+- Tier 2: 7 hours
+- Tier 3: 11 hours
+- Tier 4: 29 hours
+- **Total: ~67 hours (3 days)**
+
+**Realistic (mixed parallel/sequential)**:
+- With 2-4 parallel screens: **~30-40 hours (1.5-2 days)**
 
 ## Data Flow and Cascade Effect
 
@@ -171,6 +290,7 @@ This checks if `assert` is already present before adding it.
 - ✅ Phase 3.5: `phase3_5_temperature_robustness/temperature_runner.py:470`
 - ✅ Phase 3.6: `phase3_6/hyperparameter_runner.py:237`
 - ✅ Phase 7.3: `phase7_3_instruct_baseline/instruct_baseline_runner.py:259`
+- ✅ Phase 8.2: `phase8_2_percentile_threshold/threshold_optimizer.py` (also had bug)
 
 ### Verification
 All other prompt-building phases audited and confirmed correct:
@@ -199,21 +319,42 @@ All other prompt-building phases audited and confirmed correct:
   - Purpose: Establish instruction-tuned model baseline
 
 ### Medium-term (Priority: MEDIUM)
-- [ ] **Re-run complete MBPP + Gemma-2-2B pipeline**
-  - **Critical Path**: Phase 3.6 must be re-run first (generates prompts for Phase 4.x)
-  - **Phase 3.6 Dependencies**: Requires Phase 3.5 completion
-  - **Full Pipeline Order**:
-    1. Phase 3.5 (Temperature Robustness) - Establishes baseline
-    2. Phase 3.6 (Hyperparameter Tuning) - Generates corrected prompts
-    3. Phase 3.8 (AUROC/F1 Evaluation) - Can run after 3.5/3.6
-    4. Phase 4.5 (Steering Coefficient Selection) - Requires Phase 3.6 prompts
-    5. Phase 4.6 (Coefficient Refinement) - Requires Phase 4.5
-    6. Phase 4.8 (Steering Effect Analysis) - Requires Phase 3.6 prompts
-    7. Phase 4.10 (Random Feature Control) - Requires Phase 3.6 prompts
-    8. Phase 4.12 (Random Steering Analysis) - Requires Phase 3.6 prompts
-    9. Phase 4.14 (Statistical Significance) - Requires Phase 4.8/4.12
-  - **Unaffected Phases** (can skip): Phase 1, 2.x, 5.x, 8.3
-  - **Estimated total time**: Several days (Phase 3.6 + all Phase 4.x)
+- [ ] **Re-run complete MBPP + Gemma-2-2B pipeline (24 phases)**
+
+  **Tier 1** (Run first, can parallelize all 4):
+    1. Phase 3.5 (Temperature Robustness)
+    2. Phase 3.6 (Hyperparameter Tuning)
+    3. Phase 7.3 (Instruction-Tuned Baseline)
+    4. Phase 8.2 (Threshold Optimizer)
+
+  **Tier 2** (Run after Tier 1, can parallelize all 3):
+    5. Phase 3.8 (AUROC/F1 Evaluation)
+    6. Phase 4.5 (Coefficient Selection)
+    7. Phase 8.1 (Threshold Calculator)
+
+  **Tier 3** (Run after Tier 2, can parallelize all 3):
+    8. Phase 4.6 (Golden Section Refinement)
+    9. Phase 4.8 (Steering Effect Analysis)
+    10. Phase 8.3 (Selective Steering)
+
+  **Tier 4** (Run after Tier 3, some parallelizable):
+    11. Phase 3.10 (Temperature AUROC)
+    12. Phase 3.11 (Temperature Visualization)
+    13. Phase 3.12 (Difficulty AUROC)
+    14. Phase 4.7 (Coefficient Visualization)
+    15. Phase 4.12 (Zero-Disc Steering)
+    16. Phase 4.14 (Significance Testing)
+    17. Phase 5.3 (Weight Orthogonalization)
+    18. Phase 5.6 (Zero-Disc Orthogonalization)
+    19. Phase 5.9 (Orthogonalization Significance)
+    20. Phase 6.3 (Attention Analysis)
+    21. Phase 7.6 (Instruct Steering)
+    22. Phase 7.9 (Universality Analysis)
+    23. Phase 7.12 (Instruct AUROC/F1)
+    24. *(Phase 4.10 doesn't need re-run)*
+
+  - **Unaffected Phases** (can skip): Phase 0, 0.1, 0.2, 0.3, 1, 2.2, 2.5, 2.10, 2.15, 4.10
+  - **Estimated total time**: 23-67 hours (1-3 days depending on parallelization)
 
 - [ ] **Validate HumanEval experiments**
   - Re-run Phase 3.5 with HumanEval + corrected prompts
@@ -229,9 +370,10 @@ All other prompt-building phases audited and confirmed correct:
 ## Summary of Affected Pipeline
 
 ### Complete Impact Overview
-This bug affects **9 phases** across the experimental pipeline:
-- **3 phases** directly built malformed prompts (3.5, 3.6, 7.3) ✅ **FIXED**
-- **6 phases** loaded malformed prompts from Phase 3.6 (4.5, 4.6, 4.8, 4.10, 4.12, 4.14) ⚠️ **REQUIRE RE-RUN**
+This bug affects **24 phases** across the experimental pipeline (73% of all phases):
+- **4 phases** directly built malformed prompts (3.5, 3.6, 7.3, 8.2) ✅ **CODE FIXED**
+- **20 phases** have cascade dependencies on buggy phases ⚠️ **REQUIRE RE-RUN**
+- **9 phases** are unaffected (0, 0.1, 0.2, 0.3, 1, 2.2, 2.5, 2.10, 4.10) ✅ **CAN SKIP**
 
 ### Why Phase 3.6 is Critical
 Phase 3.6 is the **single point of failure** in the pipeline:
@@ -242,16 +384,26 @@ Phase 3.6 is the **single point of failure** in the pipeline:
 **Fix Strategy**: Re-running Phase 3.6 with corrected code will automatically fix all downstream Phase 4.x experiments when they're re-run.
 
 ### Unaffected Phases (Safe to Keep)
+- **Phase 0, 0.1, 0.2, 0.3**: Data preparation, no test execution
 - **Phase 1**: Built prompts correctly from the start
-- **Phase 2.x**: SAE analysis, no prompt building
-- **Phase 5.x**: Uses Phase 1 data (correct prompts)
-- **Phase 8.2+**: Had conditional check from the start
-- **Phase 8.3**: Uses Phase 1 data (correct prompts)
+- **Phase 2.x**: SAE analysis, only uses activations
+- **Phase 4.10**: Statistical feature selection, no test execution
 
-### Re-run Priority
-1. **HIGH**: Phase 3.5, 3.6, 7.3 (baseline re-establishment)
-2. **HIGH**: Phase 3.8 (validation metrics depend on 3.5/3.6)
-3. **MEDIUM**: Phase 4.5 → 4.6 → 4.8 → 4.10 → 4.12 → 4.14 (steering experiments)
+### Re-run Priority by Tier
+
+**Tier 1** (Priority: CRITICAL - Run First):
+- Phase 3.5, 3.6, 7.3, 8.2 (4 phases with direct bugs)
+
+**Tier 2** (Priority: HIGH - Run After Tier 1):
+- Phase 3.8, 4.5, 8.1 (3 phases depending on Tier 1)
+
+**Tier 3** (Priority: MEDIUM - Run After Tier 2):
+- Phase 4.6, 4.8, 8.3 (3 phases depending on Tier 2)
+
+**Tier 4** (Priority: LOW - Run After Tier 3):
+- Phase 3.10, 3.11, 3.12, 4.7, 4.12, 4.14, 5.3, 5.6, 5.9, 6.3, 7.6, 7.9, 7.12 (14 phases with deep dependencies)
+
+**Total phases to re-run: 24**
 
 ## Prevention Measures
 
