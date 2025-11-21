@@ -346,31 +346,26 @@ def plot_precision_recall_curves(
 
 
 def load_split_activations(
-    split_name: str, 
-    layer_num: int, 
-    feature_idx: int, 
+    split_name: str,
+    layer_num: int,
+    feature_idx: int,
     feature_type: str,
-    phase0_1_dir: Path,
     phase3_5_dir: Path,
     phase3_6_dir: Path
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Load activations for a specific feature from appropriate phase data.
-    
+
     Args:
         split_name: 'hyperparams' or 'validation'
         layer_num: Layer number for the feature
         feature_idx: Index of the specific feature
         feature_type: 'correct' or 'incorrect'
-        phase0_1_dir: Directory containing Phase 0.1 outputs
         phase3_5_dir: Directory containing Phase 3.5 outputs (validation split)
         phase3_6_dir: Directory containing Phase 3.6 outputs (hyperparams split)
-        
+
     Returns:
         Tuple of (labels, activations)
     """
-    # Load split data
-    split_data = pd.read_parquet(phase0_1_dir / f'{split_name}_mbpp.parquet')
-    
     # Select the correct directory based on split type
     if split_name == 'hyperparams':
         # Use Phase 3.6 directory for hyperparameter split
@@ -382,53 +377,46 @@ def load_split_activations(
         activation_dir = phase3_5_dir
         # Load temperature 0.0 dataset from Phase 3.5
         temp_data = pd.read_parquet(phase3_5_dir / 'dataset_temp_0_0.parquet')
-    
+
     # Detect device and load SAE for encoding
     device = detect_device()
     sae = load_gemma_scope_sae(layer_num, device)
     logger.info(f"Loaded SAE for layer {layer_num} with 16,384 features on {device}")
-    
+
     activations = []
     labels = []
     missing_tasks = []
-    
-    for _, row in split_data.iterrows():
+
+    # Iterate directly over temp_data (no Phase 0.1 needed)
+    for _, row in temp_data.iterrows():
         task_id = row['task_id']
-        
+        test_passed = row['test_passed']
+
         # Load raw activations from appropriate phase
         act_file = activation_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.npz'
-        
+
         if not act_file.exists():
             missing_tasks.append(task_id)
             continue
-        
-        # Get test result from temperature 0.0 dataset FIRST
-        task_results = temp_data[temp_data['task_id'] == task_id]['test_passed'].values
-        if len(task_results) == 0:
-            logger.warning(f"No test results found for task {task_id}")
-            continue
-            
+
         act_data = np.load(act_file)
-        
-        # Get raw activation from Phase 3.5 (stored as 'arr_0')
+
+        # Get raw activation from Phase 3.5/3.6 (stored as 'arr_0')
         # Shape: (1, 2304) - raw residual stream activation
         raw_activation = torch.from_numpy(act_data['arr_0']).to(device)
-        
+
         # Ensure dtype matches SAE parameters for matrix multiplication
         raw_activation = raw_activation.to(sae.W_enc.dtype)
-        
+
         # Encode through SAE to get features
         # Shape: (1, 16384) - SAE feature activations
         with torch.no_grad():
             sae_features = sae.encode(raw_activation)
-        
+
         # Extract specific feature value
         feature_activation = sae_features[0, feature_idx].item()
         activations.append(feature_activation)
-            
-        # Use the first sample at temperature 0.0
-        test_passed = task_results[0]
-        
+
         # Create label based on what we're predicting
         if feature_type == 'correct':
             # Predicting correctness: 1=correct, 0=incorrect
@@ -436,29 +424,28 @@ def load_split_activations(
         else:
             # Predicting incorrectness: 1=incorrect, 0=correct
             label = 1 if not test_passed else 0
-        
+
         labels.append(label)
-    
+
     if missing_tasks:
         logger.warning(f"Missing activation files for {len(missing_tasks)} tasks: {missing_tasks[:5]}...")
-    
+
     logger.info(f"Loaded {len(labels)} samples for {split_name} split")
     logger.info(f"Class distribution: {np.bincount(labels)}")
-    
+
     # Clean up SAE to free memory
     del sae
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-    
+
     return np.array(labels), np.array(activations)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Phase 3.8: AUROC and F1 Evaluation")
-    parser.add_argument("--phase0-1-dir", type=str, help="Path to Phase 0.1 output directory")
     parser.add_argument("--phase3-5-dir", type=str, help="Path to Phase 3.5 output directory")
     parser.add_argument("--phase3-6-dir", type=str, help="Path to Phase 3.6 output directory")
-    parser.add_argument("--output-dir", type=str, default=None, 
+    parser.add_argument("--output-dir", type=str, default=None,
                        help="Output directory for results")
     args = parser.parse_args()
     
@@ -467,18 +454,8 @@ def main():
     config = Config()
     np.random.seed(config.evaluation_random_seed)
     torch.manual_seed(config.evaluation_random_seed)
-    
+
     # Auto-discover phase outputs if not provided
-    if not args.phase0_1_dir:
-        latest_output = discover_latest_phase_output("0.1")
-        if latest_output:
-            phase0_1_dir = Path(latest_output).parent
-            logger.info(f"Auto-discovered Phase 0.1 output: {phase0_1_dir}")
-        else:
-            raise FileNotFoundError("No Phase 0.1 output found. Please run Phase 0.1 first.")
-    else:
-        phase0_1_dir = Path(args.phase0_1_dir)
-        
     if not args.phase3_5_dir:
         latest_output = discover_latest_phase_output("3.5")
         if latest_output:
@@ -550,7 +527,7 @@ def main():
     # Load hyperparameter split for correct feature
     y_true_hp_correct, scores_hp_correct = load_split_activations(
         'hyperparams', correct_layer, correct_feature_idx, 'correct',
-        phase0_1_dir, phase3_5_dir, phase3_6_dir
+        phase3_5_dir, phase3_6_dir
     )
     
     print(f"\nCorrect-predicting feature (hyperparameter split):")
@@ -569,7 +546,7 @@ def main():
     # Load validation split
     y_true_val_correct, scores_val_correct = load_split_activations(
         'validation', correct_layer, correct_feature_idx, 'correct',
-        phase0_1_dir, phase3_5_dir, phase3_6_dir
+        phase3_5_dir, phase3_6_dir
     )
     
     print(f"\nCorrect-predicting feature (validation split):")
@@ -592,7 +569,7 @@ def main():
     # Load hyperparameter split for incorrect feature
     y_true_hp_incorrect, scores_hp_incorrect = load_split_activations(
         'hyperparams', incorrect_layer, incorrect_feature_idx, 'incorrect',
-        phase0_1_dir, phase3_5_dir, phase3_6_dir
+        phase3_5_dir, phase3_6_dir
     )
     
     print(f"\nIncorrect-predicting feature (hyperparameter split):")
@@ -611,7 +588,7 @@ def main():
     # Load validation split
     y_true_val_incorrect, scores_val_incorrect = load_split_activations(
         'validation', incorrect_layer, incorrect_feature_idx, 'incorrect',
-        phase0_1_dir, phase3_5_dir, phase3_6_dir
+        phase3_5_dir, phase3_6_dir
     )
     
     print(f"\nIncorrect-predicting feature (validation split):")
