@@ -13,7 +13,6 @@ import seaborn as sns
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Tuple, Optional
-import argparse
 import os
 
 from sklearn.metrics import (
@@ -442,47 +441,37 @@ def load_split_activations(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Phase 3.8: AUROC and F1 Evaluation")
-    parser.add_argument("--phase3-5-dir", type=str, help="Path to Phase 3.5 output directory")
-    parser.add_argument("--phase3-6-dir", type=str, help="Path to Phase 3.6 output directory")
-    parser.add_argument("--output-dir", type=str, default=None,
-                       help="Output directory for results")
-    args = parser.parse_args()
-    
     # Use seed from config
     from common.config import Config
     config = Config()
     np.random.seed(config.evaluation_random_seed)
     torch.manual_seed(config.evaluation_random_seed)
 
-    # Auto-discover phase outputs if not provided
-    if not args.phase3_5_dir:
-        latest_output = discover_latest_phase_output("3.5")
-        if latest_output:
-            phase3_5_dir = Path(latest_output).parent
-            logger.info(f"Auto-discovered Phase 3.5 output: {phase3_5_dir}")
-        else:
-            raise FileNotFoundError("No Phase 3.5 output found. Please run Phase 3.5 first.")
-    else:
-        phase3_5_dir = Path(args.phase3_5_dir)
+    # Autodiscover Phase 3.5 (with dataset suffix if needed)
+    phase3_5_dir_str = f"data/phase3_5_{config.dataset_name}" if config.dataset_name != "mbpp" else "data/phase3_5"
+    phase3_5_path = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
+    if not phase3_5_path:
+        raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
+    phase3_5_dir = Path(phase3_5_path).parent
+    logger.info(f"Using Phase 3.5 output: {phase3_5_dir}")
     
-    if not args.phase3_6_dir:
-        latest_output = discover_latest_phase_output("3.6")
-        if latest_output:
-            phase3_6_dir = Path(latest_output).parent
-            logger.info(f"Auto-discovered Phase 3.6 output: {phase3_6_dir}")
-        else:
-            raise FileNotFoundError("No Phase 3.6 output found. Please run Phase 3.6 first.")
-    else:
-        phase3_6_dir = Path(args.phase3_6_dir)
+    # Autodiscover Phase 3.6 (with dataset suffix if needed)
+    phase3_6_dir_str = f"data/phase3_6_{config.dataset_name}" if config.dataset_name != "mbpp" else "data/phase3_6"
+    phase3_6_path = discover_latest_phase_output("3.6", phase_dir=phase3_6_dir_str)
+    if not phase3_6_path:
+        raise FileNotFoundError(f"No Phase 3.6 output found in {phase3_6_dir_str}. Please run Phase 3.6 first.")
+    phase3_6_dir = Path(phase3_6_path).parent
+    logger.info(f"Using Phase 3.6 output: {phase3_6_dir}")
     
-    # Create output directory
-    if args.output_dir:
-        output_dir = Path(args.output_dir)
+    # Setup output directory (with dataset suffix if needed)
+    from common.utils import get_phase_dir
+    base_output_dir = Path(get_phase_dir('3.8'))
+    if config.dataset_name != "mbpp":
+        output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
     else:
-        from common.utils import get_phase_dir
-        output_dir = Path(get_phase_dir('3.8'))
+        output_dir = base_output_dir
     ensure_directory_exists(output_dir)
+    logger.info(f"Output directory: {output_dir}")
     
     # Phase 1: Load best features from Phase 2.10 (t-statistic based selection)
     logger.info("Loading best features from Phase 2.10...")

@@ -40,19 +40,24 @@ class TemperatureAUROCEvaluator:
         
         # Discover dependencies
         self._discover_dependencies()
-        
-        # Output directory
-        self.output_dir = Path(config.phase3_10_output_dir)
+
+        # Output directory with dataset suffix
+        base_output_dir = Path(config.phase3_10_output_dir)
+        if config.dataset_name != "mbpp":
+            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
+        else:
+            self.output_dir = base_output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # No aggregation tracking needed for per-sample analysis
     
     def _discover_dependencies(self) -> None:
         """Discover and load dependencies from previous phases."""
-        # Phase 3.8: Best features and thresholds
-        phase3_8_path = discover_latest_phase_output("3.8")
+        # Phase 3.8: Best features and thresholds (with dataset suffix if needed)
+        phase3_8_dir = f"data/phase3_8_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_8"
+        phase3_8_path = discover_latest_phase_output("3.8", phase_dir=phase3_8_dir)
         if not phase3_8_path:
-            raise ValueError("Phase 3.8 output not found. Please run Phase 3.8 first.")
+            raise ValueError(f"Phase 3.8 output not found in {phase3_8_dir}. Please run Phase 3.8 first.")
         
         # If path is a file, get its parent directory
         phase3_8_path = Path(phase3_8_path)
@@ -66,11 +71,12 @@ class TemperatureAUROCEvaluator:
             raise FileNotFoundError(f"Phase 3.8 results not found at {self.phase3_8_results_path}")
         
         self.logger.info(f"Found Phase 3.8 results: {self.phase3_8_results_path}")
-        
-        # Phase 3.5: Temperature datasets
-        phase3_5_path = discover_latest_phase_output("3.5")
+
+        # Phase 3.5: Temperature datasets (with dataset suffix if needed)
+        phase3_5_dir = f"data/phase3_5_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_5"
+        phase3_5_path = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir)
         if not phase3_5_path:
-            raise ValueError("Phase 3.5 output not found. Please run Phase 3.5 first.")
+            raise ValueError(f"Phase 3.5 output not found in {phase3_5_dir}. Please run Phase 3.5 first.")
         
         # If path is a file, get its parent directory
         phase3_5_path = Path(phase3_5_path)

@@ -467,7 +467,8 @@ class TemperatureRobustnessRunner:
         for idx, row in validation_data.iterrows():
             # Build prompt once
             test_cases_str = "\n".join([
-                f"assert {test.strip()}" for test in row['test_list']
+                test.strip() if test.strip().startswith('assert ') else f"assert {test.strip()}"
+                for test in row['test_list']
             ])
             prompt = PromptBuilder.build_prompt(
                 problem_description=row['text'],
