@@ -1,13 +1,13 @@
 # ICLR 2026 Reviews - Submission 8419
 
 # Things to Code
-- [ ] **Selective steering implementation** (Reviewers RXZd, vRko)
-  - [ ] Apply selective steering approach to reduce corruption rate (maybe in MBPP only)
+- [x] **Selective steering implementation** (Reviewers RXZd, vRko)
+  - [x] Apply selective steering approach to reduce corruption rate
   - (consider a different approach or conclusion) Like in its current form selective steering is not advisable also. Better to do other strategy maybe like do no steering first then only if you already check the generated code is wrong then in the rerun or retry of code generation the steering will be activated.
 
 - [ ] **LLAMA and HumanEval extension** (Reviewers RXZd, vRko, 7JAK, jwL5)
-  - [ ] Perform Mechanistic Analysis with `HumanEval` 
-  - [ ] Run all tests on `meta-llama/Meta-Llama-3-8B-Instruct` with `obalcells/sae-llama-3-8b-instruct`
+  - [ ] Perform Mechanistic Analysis with `HumanEval`
+  - [ ] Run all tests on `meta-llama/Llama-3.1-8B` and `meta-llama/Llama-3.1-8B-Instruct` with `llama_scope_lxr_8x`
   - [ ] Perform all Mechanistic Analysis
 
 - [ ] **Feature threshold sensitivity analysis** (Reviewer RXZd)
@@ -182,7 +182,7 @@ Strengths
 - Notable takeaway is the asymmetry "- The discovery that models encode incorrect code as detectable anomalies but lack corresponding representations for correctness reveals fundamental insights about how LLMs represent code validity."
 
 Weaknesses
-- [Code] I do all(?) the test in `meta-llama/Meta-Llama-3-8B-Instruct` with `obalcells/sae-llama-3-8b-instruct`
+- [Code] I do all(?) the test in `meta-llama/Llama-3.1-8B-Instruct` with `llama_scope_lxr_8x`
     - I plan to do Mechanistic Analysis with `HumanEval`
     - Maybe in AUROC, F1, and steering test only?
 - [Code] I will apply selective steering
@@ -262,8 +262,8 @@ Strengths
 
 Weaknesses
 - [Code] Do a test applying selected steering
-- 
-    1. [Code] Do test in `meta-llama/Meta-Llama-3-8B-Instruct` with `obalcells/sae-llama-3-8b-instruct` and `HumanEval`
+-
+    1. [Code] Do test in `meta-llama/Llama-3.1-8B-Instruct` with `llama_scope_lxr_8x` and `HumanEval`
     2. [Defend] Asymmetric fiding 
 -  [Defend] I didn't use Claude for methodology perse. I used gemma. I used claude for generating code but I instruct specifically what and how it  should be implemented and I check every step. About the literature review, I conducted my own literature review and just prompted Claude to find sources I missed. For writing, I made the conclusion and findings, I just instruct Claude to write a draft of my rough outline which I later on refined further. I apologize if this is not made clearer in LLM Usage section before.
 - [Fix] Thanks for pointing this out, Will add both of them in my references.

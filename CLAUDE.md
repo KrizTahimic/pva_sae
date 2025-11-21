@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 CRITICAL: Always Ask Permission Before Editing Code
+
+**NEVER edit, write, or modify any code files without explicit user permission, especially during planning phases.**
+
+When in planning mode:
+- ✅ DO: Read files, search code, analyze architecture, create documentation/notes
+- ✅ DO: Propose changes, explain what needs to be done, create step-by-step plans
+- ❌ DON'T: Edit code files, create new code files, run tests, make commits
+- ❌ DON'T: Assume you should implement just because planning is complete
+
+**Always ask the user explicitly**: "Should I proceed with implementation?" or "Ready to start coding?"
+
+---
+
 ## ⚠️ CRITICAL: Environment Setup
 
 **ALWAYS activate the conda environment before running ANY commands:**
