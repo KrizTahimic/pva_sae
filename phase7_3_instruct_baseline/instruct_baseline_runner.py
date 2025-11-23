@@ -27,7 +27,7 @@ from common_simplified.helpers import evaluate_code, extract_code, save_json, fo
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger
-from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists
+from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists, get_phase_dir
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
 # Module-level logger
@@ -153,18 +153,23 @@ class InstructBaselineRunner:
         )
     
     def _load_validation_data(self) -> pd.DataFrame:
-        """Load validation split from Phase 0.1."""
-        validation_file = Path(self.config.phase0_1_output_dir) / "validation_mbpp.parquet"
-        
+        """Load validation split from Phase 0.1 (MBPP) or Phase 0.2 (HumanEval)."""
+        if self.config.dataset_name == "mbpp":
+            validation_file = Path(self.config.phase0_1_output_dir) / "validation_mbpp.parquet"
+        elif self.config.dataset_name == "humaneval":
+            validation_file = Path("data/phase0_2_humaneval") / "humaneval.parquet"
+        else:
+            raise ValueError(f"Unknown dataset: {self.config.dataset_name}")
+
         if not validation_file.exists():
             raise FileNotFoundError(
                 f"Validation data not found at {validation_file}. "
-                "Please run Phase 0.1 first."
+                f"Please run Phase 0.1 (MBPP) or Phase 0.2 (HumanEval) first."
             )
-        
+
         data = pd.read_parquet(validation_file)
         logger.info(f"Loaded {len(data)} validation problems for instruction-tuned baseline")
-        
+
         return data
     
     def generate_with_activations(self, prompt: str, task_id: str) -> Tuple[str, bool]:
@@ -237,7 +242,12 @@ class InstructBaselineRunner:
     
     def _setup_output_directories(self) -> Path:
         """Create output directory structure and return output path."""
-        output_dir = Path(self.config.phase7_3_output_dir)
+        # Output directory with dataset suffix
+        base_output_dir = Path(get_phase_dir('7.3'))
+        if self.config.dataset_name != "mbpp":
+            output_dir = Path(str(base_output_dir) + f"_{self.config.dataset_name}")
+        else:
+            output_dir = base_output_dir
         logger.info(f"Using output directory: {output_dir}")
         
         output_dir.mkdir(parents=True, exist_ok=True)
