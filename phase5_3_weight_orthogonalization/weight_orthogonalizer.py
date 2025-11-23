@@ -24,9 +24,10 @@ import seaborn as sns
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger
 from common.utils import (
-    discover_latest_phase_output, 
+    discover_latest_phase_output,
     ensure_directory_exists,
-    detect_device
+    detect_device,
+    get_phase_dir
 )
 from common.config import Config
 from common.steering_metrics import (
@@ -52,9 +53,14 @@ class WeightOrthogonalizer:
         self.config = config
         self.device = detect_device()
         
-        # Phase output directories
-        self.output_dir = Path(config.phase5_3_output_dir)
+        # Phase output directories with dataset suffix
+        base_output_dir = Path(get_phase_dir('5.3'))
+        if config.dataset_name != "mbpp":
+            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
+        else:
+            self.output_dir = base_output_dir
         ensure_directory_exists(self.output_dir)
+        logger.info(f"Output directory: {self.output_dir}")
         
         self.examples_dir = self.output_dir / "examples"
         ensure_directory_exists(self.examples_dir)
@@ -104,11 +110,12 @@ class WeightOrthogonalizer:
                    f"Index {self.best_incorrect_feature['feature_idx']}, "
                    f"Score {self.best_incorrect_feature['separation_score']:.4f}")
         
-        # Load Phase 3.5 baseline data
+        # Load Phase 3.5 baseline data (with dataset suffix - temperature data is dataset-specific)
         logger.info("Loading baseline data from Phase 3.5...")
-        phase3_5_output = discover_latest_phase_output("3.5")
+        phase3_5_dir_str = f"data/phase3_5_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_5"
+        phase3_5_output = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
         if not phase3_5_output:
-            raise FileNotFoundError("Phase 3.5 output not found. Run Phase 3.5 first.")
+            raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
         
         # Load validation dataset at temperature 0.0
         baseline_file = Path(phase3_5_output).parent / "dataset_temp_0_0.parquet"
