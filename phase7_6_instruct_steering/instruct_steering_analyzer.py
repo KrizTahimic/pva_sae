@@ -24,9 +24,10 @@ import seaborn as sns
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger
 from common.utils import (
-    discover_latest_phase_output, 
+    discover_latest_phase_output,
     ensure_directory_exists,
-    detect_device
+    detect_device,
+    get_phase_dir
 )
 from common.config import Config
 from common.steering_metrics import (
@@ -50,9 +51,14 @@ class InstructSteeringAnalyzer:
         self.config = config
         self.device = detect_device()
         
-        # Phase output directories
-        self.output_dir = Path(config.phase7_6_output_dir)
+        # Phase output directories with dataset suffix
+        base_output_dir = Path(get_phase_dir('7.6'))
+        if config.dataset_name != "mbpp":
+            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
+        else:
+            self.output_dir = base_output_dir
         ensure_directory_exists(self.output_dir)
+        logger.info(f"Output directory: {self.output_dir}")
         
         self.examples_dir = self.output_dir / "examples"
         ensure_directory_exists(self.examples_dir)
@@ -113,11 +119,12 @@ class InstructSteeringAnalyzer:
                    f"Index {self.best_incorrect_feature['feature_idx']}, "
                    f"Score {self.best_incorrect_feature['separation_score']:.4f}")
         
-        # Load Phase 7.3 baseline data (instruction-tuned baseline)
+        # Load Phase 7.3 baseline data (instruction-tuned baseline) - with dataset suffix
         logger.info("Loading baseline data from Phase 7.3...")
-        phase7_3_output = discover_latest_phase_output("7.3")
+        phase7_3_dir_str = f"data/phase7_3_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase7_3"
+        phase7_3_output = discover_latest_phase_output("7.3", phase_dir=phase7_3_dir_str)
         if not phase7_3_output:
-            raise FileNotFoundError("Phase 7.3 output not found. Run Phase 7.3 first.")
+            raise FileNotFoundError(f"No Phase 7.3 output found in {phase7_3_dir_str}. Please run Phase 7.3 first.")
         
         # Load instruction-tuned dataset at temperature 0.0
         baseline_file = Path(phase7_3_output).parent / "dataset_instruct_temp_0_0.parquet"
