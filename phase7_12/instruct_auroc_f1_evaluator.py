@@ -363,34 +363,46 @@ def main():
     np.random.seed(config.evaluation_random_seed)
     torch.manual_seed(config.evaluation_random_seed)
 
-    # Auto-discover phase outputs if not provided
+    # Auto-discover phase outputs if not provided (with dataset suffix support)
     if not args.phase0_1_dir:
-        latest_output = discover_latest_phase_output("0.1")
-        if latest_output:
-            phase0_1_dir = Path(latest_output).parent
-            logger.info(f"Auto-discovered Phase 0.1 output: {phase0_1_dir}")
+        if config.dataset_name == "humaneval":
+            # HumanEval uses Phase 0.2
+            phase0_1_dir = Path("data/phase0_2_humaneval")
+            logger.info(f"Using HumanEval data from Phase 0.2: {phase0_1_dir}")
         else:
-            raise FileNotFoundError("No Phase 0.1 output found. Please run Phase 0.1 first.")
+            latest_output = discover_latest_phase_output("0.1")
+            if latest_output:
+                phase0_1_dir = Path(latest_output).parent
+                logger.info(f"Auto-discovered Phase 0.1 output: {phase0_1_dir}")
+            else:
+                raise FileNotFoundError("No Phase 0.1 output found. Please run Phase 0.1 first.")
     else:
         phase0_1_dir = Path(args.phase0_1_dir)
 
     if not args.phase7_3_dir:
-        latest_output = discover_latest_phase_output("7.3")
+        # Use dataset-specific Phase 7.3 directory
+        phase7_3_dir_str = f"data/phase7_3_{config.dataset_name}" if config.dataset_name != "mbpp" else "data/phase7_3"
+        latest_output = discover_latest_phase_output("7.3", phase_dir=phase7_3_dir_str)
         if latest_output:
             phase7_3_dir = Path(latest_output).parent
             logger.info(f"Auto-discovered Phase 7.3 output: {phase7_3_dir}")
         else:
-            raise FileNotFoundError("No Phase 7.3 output found. Please run Phase 7.3 first.")
+            raise FileNotFoundError(f"No Phase 7.3 output found in {phase7_3_dir_str}. Please run Phase 7.3 first.")
     else:
         phase7_3_dir = Path(args.phase7_3_dir)
 
-    # Create output directory
+    # Create output directory with dataset suffix
     if args.output_dir:
         output_dir = Path(args.output_dir)
     else:
         from common.utils import get_phase_dir
-        output_dir = Path(get_phase_dir('7.12'))
+        base_output_dir = Path(get_phase_dir('7.12'))
+        if config.dataset_name != "mbpp":
+            output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
+        else:
+            output_dir = base_output_dir
     ensure_directory_exists(output_dir)
+    logger.info(f"Output directory: {output_dir}")
 
     # Phase 1: Load best features from Phase 2.10 (t-statistic based selection)
     logger.info("Loading best features from Phase 2.10...")
