@@ -20,9 +20,10 @@ from tqdm import tqdm
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger
 from common.utils import (
-    discover_latest_phase_output, 
+    discover_latest_phase_output,
     ensure_directory_exists,
-    detect_device
+    detect_device,
+    get_phase_dir
 )
 from common_simplified.helpers import load_json, save_json
 from common.config import Config
@@ -48,9 +49,14 @@ class ZeroDiscSteeringGenerator:
         self.config = config
         self.device = detect_device()
         
-        # Phase output directories
-        self.output_dir = Path(config.phase4_12_output_dir)
+        # Phase output directories with dataset suffix
+        base_output_dir = Path(get_phase_dir('4.12'))
+        if config.dataset_name != "mbpp":
+            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
+        else:
+            self.output_dir = base_output_dir
         ensure_directory_exists(self.output_dir)
+        logger.info(f"Output directory: {self.output_dir}")
         
         self.examples_dir = self.output_dir / "examples"
         ensure_directory_exists(self.examples_dir)
@@ -98,11 +104,12 @@ class ZeroDiscSteeringGenerator:
         self.zero_disc_features = load_json(features_file)
         logger.info(f"Loaded {len(self.zero_disc_features['features'])} zero-discrimination features")
         
-        # Load Phase 3.5 validation data
+        # Load Phase 3.5 validation data (with dataset suffix - temperature data is dataset-specific)
         logger.info("Loading validation data from Phase 3.5...")
-        phase3_5_output = discover_latest_phase_output("3.5")
+        phase3_5_dir_str = f"data/phase3_5_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_5"
+        phase3_5_output = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
         if not phase3_5_output:
-            raise FileNotFoundError("Phase 3.5 output not found. Run Phase 3.5 first.")
+            raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
         
         # Use temperature 0.0 dataset for consistency
         baseline_file = Path(phase3_5_output).parent / "dataset_temp_0_0.parquet"

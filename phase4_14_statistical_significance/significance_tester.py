@@ -18,7 +18,8 @@ import seaborn as sns
 from common.logging import get_logger
 from common.utils import (
     discover_latest_phase_output,
-    ensure_directory_exists
+    ensure_directory_exists,
+    get_phase_dir
 )
 from common_simplified.helpers import load_json, save_json
 from common.config import Config
@@ -32,10 +33,15 @@ class SignificanceTester:
     def __init__(self, config: Config):
         """Initialize with configuration."""
         self.config = config
-        
-        # Output directory
-        self.output_dir = Path(config.phase4_14_output_dir)
+
+        # Output directory with dataset suffix
+        base_output_dir = Path(get_phase_dir('4.14'))
+        if config.dataset_name != "mbpp":
+            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
+        else:
+            self.output_dir = base_output_dir
         ensure_directory_exists(self.output_dir)
+        logger.info(f"Output directory: {self.output_dir}")
         
         # Significance level
         self.alpha = getattr(config, 'phase4_14_significance_level', 0.05)
@@ -45,11 +51,12 @@ class SignificanceTester:
         
     def load_all_results(self) -> Tuple[pd.DataFrame, Dict, Dict]:
         """Load baseline, targeted steering, and zero-discrimination results."""
-        # Load Phase 3.5 baseline data (no steering)
+        # Load Phase 3.5 baseline data (no steering) - with dataset suffix
         logger.info("Loading Phase 3.5 baseline data (no steering)...")
-        phase3_5_output = discover_latest_phase_output("3.5")
+        phase3_5_dir_str = f"data/phase3_5_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_5"
+        phase3_5_output = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
         if not phase3_5_output:
-            raise FileNotFoundError("Phase 3.5 output not found. Run Phase 3.5 first.")
+            raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
         
         baseline_file = Path(phase3_5_output).parent / "dataset_temp_0_0.parquet"
         if not baseline_file.exists():
@@ -58,11 +65,12 @@ class SignificanceTester:
         baseline_data = pd.read_parquet(baseline_file)
         logger.info(f"Loaded {len(baseline_data)} baseline problems")
         
-        # Load Phase 4.8 targeted steering results
+        # Load Phase 4.8 targeted steering results - with dataset suffix
         logger.info("Loading Phase 4.8 targeted steering results...")
-        phase4_8_output = discover_latest_phase_output("4.8")
+        phase4_8_dir_str = f"data/phase4_8_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase4_8"
+        phase4_8_output = discover_latest_phase_output("4.8", phase_dir=phase4_8_dir_str)
         if not phase4_8_output:
-            raise FileNotFoundError("Phase 4.8 output not found. Run Phase 4.8 first.")
+            raise FileNotFoundError(f"No Phase 4.8 output found in {phase4_8_dir_str}. Please run Phase 4.8 first.")
         
         targeted_file = Path(phase4_8_output).parent / "steering_effect_analysis.json"
         if not targeted_file.exists():
@@ -71,11 +79,12 @@ class SignificanceTester:
         targeted_results = load_json(targeted_file)
         logger.info(f"Loaded targeted steering results")
         
-        # Load Phase 4.12 zero-discrimination steering results
+        # Load Phase 4.12 zero-discrimination steering results - with dataset suffix
         logger.info("Loading Phase 4.12 zero-discrimination steering results...")
-        phase4_12_output = discover_latest_phase_output("4.12")
+        phase4_12_dir_str = f"data/phase4_12_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase4_12"
+        phase4_12_output = discover_latest_phase_output("4.12", phase_dir=phase4_12_dir_str)
         if not phase4_12_output:
-            raise FileNotFoundError("Phase 4.12 output not found. Run Phase 4.12 first.")
+            raise FileNotFoundError(f"No Phase 4.12 output found in {phase4_12_dir_str}. Please run Phase 4.12 first.")
         
         zero_disc_file = Path(phase4_12_output).parent / "zero_disc_steering_results.json"
         if not zero_disc_file.exists():
