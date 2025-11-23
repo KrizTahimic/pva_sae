@@ -41,7 +41,8 @@ from common.utils import (
     detect_device,
     ensure_directory_exists,
     discover_latest_phase_output,
-    get_timestamp
+    get_timestamp,
+    get_phase_dir
 )
 from common_simplified.helpers import (
     save_json,
@@ -92,8 +93,12 @@ class SelectiveSteeringAnalyzer:
         self.config = config
         self.device = torch.device(detect_device())
 
-        # Create output directory
-        self.output_dir = Path(config.phase8_3_output_dir)
+        # Create output directory with dataset suffix
+        base_output_dir = Path(get_phase_dir('8.3'))
+        if config.dataset_name != "mbpp":
+            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
+        else:
+            self.output_dir = base_output_dir
         ensure_directory_exists(self.output_dir)
 
         # Create checkpoint directory
@@ -122,11 +127,12 @@ class SelectiveSteeringAnalyzer:
         )
         logger.info(f"Model loaded: {self.config.model_name}")
 
-        # === LOAD PHASE 3.8 THRESHOLD ===
+        # === LOAD PHASE 3.8 THRESHOLD (with dataset suffix) ===
         logger.info("Loading optimal threshold from Phase 3.8...")
-        phase3_8_output = discover_latest_phase_output("3.8")
+        phase3_8_dir_str = f"data/phase3_8_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_8"
+        phase3_8_output = discover_latest_phase_output("3.8", phase_dir=phase3_8_dir_str)
         if not phase3_8_output:
-            raise FileNotFoundError("Phase 3.8 output not found. Run Phase 3.8 first.")
+            raise FileNotFoundError(f"No Phase 3.8 output found in {phase3_8_dir_str}. Please run Phase 3.8 first.")
 
         phase3_8_results = load_json(Path(phase3_8_output).parent / "evaluation_results.json")
 
@@ -182,11 +188,12 @@ class SelectiveSteeringAnalyzer:
         self.correct_decoder_direction = self.correct_decoder_direction.to(dtype=model_dtype)
         logger.info(f"Decoder direction converted to model dtype: {model_dtype}")
 
-        # === LOAD PHASE 3.5 BASELINE ===
+        # === LOAD PHASE 3.5 BASELINE (with dataset suffix) ===
         logger.info("Loading baseline data from Phase 3.5...")
-        phase3_5_output = discover_latest_phase_output("3.5")
+        phase3_5_dir_str = f"data/phase3_5_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_5"
+        phase3_5_output = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
         if not phase3_5_output:
-            raise FileNotFoundError("Phase 3.5 output not found. Run Phase 3.5 first.")
+            raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
 
         # Load validation dataset at temperature 0.0
         baseline_file = Path(phase3_5_output).parent / "dataset_temp_0_0.parquet"
