@@ -13,18 +13,36 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Tuple
 
+from common.config import Config
+from common.utils import get_phase_dir
+
 # Set style for publication-quality figures
 plt.style.use('seaborn-v0_8-darkgrid')
 sns.set_palette("husl")
 
 class UniversalityAnalyzer:
     """Analyze PVA feature universality across model architectures."""
-    
-    def __init__(self):
+
+    def __init__(self, config: Config):
+        self.config = config
         self.data_dir = Path("data")
-        self.output_dir = Path("data/phase7_9")
-        self.output_dir.mkdir(exist_ok=True)
-        
+
+        # Output directory with dataset suffix
+        base_output_dir = Path(get_phase_dir('7.9'))
+        if config.dataset_name != "mbpp":
+            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
+        else:
+            self.output_dir = base_output_dir
+        self.output_dir.mkdir(exist_ok=True, parents=True)
+        print(f"Output directory: {self.output_dir}")
+
+        # Build dataset-aware phase directories
+        dataset_suffix = f"_{config.dataset_name}" if config.dataset_name != "mbpp" else ""
+        self.phase3_5_dir = self.data_dir / f"phase3_5{dataset_suffix}"
+        self.phase4_8_dir = self.data_dir / f"phase4_8{dataset_suffix}"
+        self.phase7_3_dir = self.data_dir / f"phase7_3{dataset_suffix}"
+        self.phase7_6_dir = self.data_dir / f"phase7_6{dataset_suffix}"
+
         # Load all relevant data
         self.base_temp0 = None
         self.instruct_baseline = None
@@ -35,40 +53,41 @@ class UniversalityAnalyzer:
     def load_data(self):
         """Load all relevant phase data."""
         print("Loading data from all relevant phases...")
-        
+
         # Phase 3.5: Base model baseline at temp 0
-        self.base_temp0 = pd.read_parquet(self.data_dir / "phase3_5/dataset_temp_0_0.parquet")
-        
+        self.base_temp0 = pd.read_parquet(self.phase3_5_dir / "dataset_temp_0_0.parquet")
+
         # Phase 7.3: Instruction-tuned baseline
-        self.instruct_baseline = pd.read_parquet(self.data_dir / "phase7_3/dataset_instruct_temp_0_0.parquet")
-        
+        self.instruct_baseline = pd.read_parquet(self.phase7_3_dir / "dataset_instruct_temp_0_0.parquet")
+
         # Phase 4.8: Base model steering results
         # Check if preservation-only results exist
-        preserve_only_file = self.data_dir / "phase4_8_preserve_only/phase_4_8_summary.json"
+        dataset_suffix = f"_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else ""
+        preserve_only_file = self.data_dir / f"phase4_8{dataset_suffix}_preserve_only/phase_4_8_summary.json"
         if preserve_only_file.exists():
             # Use preservation-only results for accurate preservation rate
             with open(preserve_only_file, 'r') as f:
                 preserve_data = json.load(f)
-            
+
             # Load main steering results
-            with open(self.data_dir / "phase4_8/phase_4_8_summary.json", 'r') as f:
+            with open(self.phase4_8_dir / "phase_4_8_summary.json", 'r') as f:
                 self.base_steering = json.load(f)
-            
+
             # Update with correct preservation rate
             self.base_steering["results"]["preservation_rate"] = preserve_data["results"]["preservation_rate"]
             self.base_steering["results"]["statistical_tests"]["preservation"] = preserve_data["results"]["statistical_tests"]["preservation"]
             print(f"Using preservation rate from phase4_8_preserve_only: {preserve_data['results']['preservation_rate']:.2f}%")
         else:
-            with open(self.data_dir / "phase4_8/phase_4_8_summary.json", 'r') as f:
+            with open(self.phase4_8_dir / "phase_4_8_summary.json", 'r') as f:
                 self.base_steering = json.load(f)
-            
+
         # Phase 7.6: Instruction-tuned steering results
-        with open(self.data_dir / "phase7_6/phase_7_6_summary.json", 'r') as f:
+        with open(self.phase7_6_dir / "phase_7_6_summary.json", 'r') as f:
             self.instruct_steering = json.load(f)
-            
-        with open(self.data_dir / "phase7_6/cross_model_comparison.json", 'r') as f:
+
+        with open(self.phase7_6_dir / "cross_model_comparison.json", 'r') as f:
             self.cross_model = json.load(f)
-            
+
         print("Data loaded successfully!")
         
     def calculate_metrics(self) -> Dict[str, Any]:
