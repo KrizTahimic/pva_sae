@@ -1,0 +1,161 @@
+[
+  {
+    "task_id": "31",
+    "test_passed": false,
+    "libraries_used": {
+      "heapq": [
+        "heapq.heappop",
+        "heappush",
+        "heapq.heappush",
+        "heappop"
+      ]
+    },
+    "code": "def func(arr, k):\n    heap = []\n    for i in range(len(arr)):\n        heapq.heappush(heap, arr[i])\n        if len(heap) > k:\n            heapq.heappop(heap)\n    return [heapq.heappop(heap) for i in range(k)]"
+  },
+  {
+    "task_id": "124",
+    "test_passed": false,
+    "libraries_used": {
+      "math": [
+        "math.atan2"
+      ]
+    },
+    "code": "def angle_complex(a,b):\n    return math.atan2(b,a)"
+  },
+  {
+    "task_id": "186",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.findall"
+      ]
+    },
+    "code": "def check_literals(string, literals):\n    return re.findall(r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*'+r'\\b'+r'\\s*"
+  },
+  {
+    "task_id": "208",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.match"
+      ]
+    },
+    "code": "def is_decimal(num):\n    return re.match(r'^\\d*\\.\\d{1,2}$', num)"
+  },
+  {
+    "task_id": "396",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.match"
+      ]
+    },
+    "code": "def check_char(s):\n    return re.match(r'^[a-z]{1}[a-z]{1}$', s) is not None"
+  },
+  {
+    "task_id": "451",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.sub"
+      ]
+    },
+    "code": "def remove_whitespaces(s):\n    return re.sub(r'\\s+', '', s)"
+  },
+  {
+    "task_id": "459",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.sub"
+      ]
+    },
+    "code": "def remove_uppercase(string):\n    return re.sub(r'([A-Z])', r'\\1 ', string)"
+  },
+  {
+    "task_id": "495",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.sub"
+      ]
+    },
+    "code": "def remove_lowercase(string):\n    return re.sub(r'[a-z]+', '', string)"
+  },
+  {
+    "task_id": "585",
+    "test_passed": false,
+    "libraries_used": {
+      "heapq": [
+        "heapq.heappop",
+        "heappush",
+        "heapq.heappush",
+        "heappop"
+      ]
+    },
+    "code": "def expensive_items(items, n):\n    # Write your code here.\n    heap = []\n    for item in items:\n        heapq.heappush(heap, (item['price'], item['name']))\n    for i in range(n):\n        heapq.heappop(heap)\n    return [item['name'] for item in heap]"
+  },
+  {
+    "task_id": "676",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.sub"
+      ]
+    },
+    "code": "def remove_extra_char(s):\n    return re.sub(r'[^a-zA-Z0-9]', '', s)"
+  },
+  {
+    "task_id": "727",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.sub"
+      ]
+    },
+    "code": "def remove_char(s):\n    return re.sub(r\"[^a-zA-Z0-9]\", \"\", s)"
+  },
+  {
+    "task_id": "748",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.sub"
+      ]
+    },
+    "code": "def capital_words_spaces(string):\n    return re.sub(r'([A-Z][a-z]+)', r' \\1', string)"
+  },
+  {
+    "task_id": "774",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.match"
+      ]
+    },
+    "code": "def check_email(email):\n    return re.match(r\"[^@]+@[^@]+\\.[^@]+\", email) is not None"
+  },
+  {
+    "task_id": "860",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.match"
+      ]
+    },
+    "code": "def check_alphanumeric(string):\n    return re.match(r'[a-zA-Z0-9]+', string) is not None"
+  },
+  {
+    "task_id": "911",
+    "test_passed": false,
+    "libraries_used": {
+      "heapq": [
+        "heapq.heappop",
+        "heappush",
+        "heapq.heappush",
+        "heappop"
+      ]
+    },
+    "code": "def maximum_product(arr):\n    # Write your code here.\n    heap = []\n    for i in range(len(arr)):\n        heapq.heappush(heap, (arr[i], i))\n    max_product = 1\n    while len(heap) > 1:\n        a, i = heapq.heappop(heap)\n        b, j = heapq.heappop(heap)\n        c, k = heapq.heappop(heap)\n        max_product = max(max_product, a*b*c)\n        heapq.heappush(heap, (a*b, i, j))\n        heapq.heappush(heap, (a*c, i, k))\n        heapq.heappush(heap, (b*c, j, k))\n    return max_product"
+  }
+]

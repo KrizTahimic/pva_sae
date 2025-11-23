@@ -1,0 +1,94 @@
+{
+  "analysis_timestamp": "2025-11-21T15:56:41.232212",
+  "libraries_detected": 16,
+  "libraries_to_import": [
+    "re",
+    "heapq",
+    "math",
+    "functools"
+  ],
+  "new_libraries_added": [
+    "datetime",
+    "json",
+    "csv",
+    "os",
+    "time",
+    "copy"
+  ],
+  "refined_libraries": [
+    "string"
+  ],
+  "overall_summary": {
+    "total_codes": 974,
+    "codes_with_libraries": 29,
+    "codes_without_libraries": 945,
+    "pct_with_libraries": 2.97741273100616,
+    "pct_without_libraries": 97.02258726899385,
+    "passed_with_libs": 0,
+    "total_with_libs": 29,
+    "passed_without_libs": 289,
+    "total_without_libs": 945,
+    "pass_rate_with_libs": 0.0,
+    "pass_rate_without_libs": 30.582010582010582,
+    "combined_library_counts": {
+      "heapq": 4,
+      "math": 3,
+      "re": 21,
+      "functools": 1
+    }
+  },
+  "phase1": {
+    "dataset_name": "Phase 1 (SAE Training Set)",
+    "total_codes": 489,
+    "codes_with_libraries": 15,
+    "codes_without_libraries": 474,
+    "library_counts": {
+      "heapq": 3,
+      "math": 1,
+      "re": 11
+    },
+    "pass_rate_with_libs": 0.0,
+    "pass_rate_without_libs": 30.590717299578056,
+    "passed_with_libs": 0,
+    "total_with_libs": 15,
+    "passed_without_libs": 145,
+    "total_without_libs": 474
+  },
+  "phase3_5": {
+    "dataset_name": "Phase 3.5 (Validation Set)",
+    "total_codes": 388,
+    "codes_with_libraries": 11,
+    "codes_without_libraries": 377,
+    "library_counts": {
+      "re": 7,
+      "math": 2,
+      "heapq": 1,
+      "functools": 1
+    },
+    "pass_rate_with_libs": 0.0,
+    "pass_rate_without_libs": 30.76923076923077,
+    "passed_with_libs": 0,
+    "total_with_libs": 11,
+    "passed_without_libs": 116,
+    "total_without_libs": 377
+  },
+  "phase3_6": {
+    "dataset_name": "Phase 3.6 (Hyperparameter Tuning Set)",
+    "total_codes": 97,
+    "codes_with_libraries": 3,
+    "codes_without_libraries": 94,
+    "library_counts": {
+      "re": 3
+    },
+    "pass_rate_with_libs": 0.0,
+    "pass_rate_without_libs": 29.78723404255319,
+    "passed_with_libs": 0,
+    "total_with_libs": 3,
+    "passed_without_libs": 28,
+    "total_without_libs": 94
+  },
+  "key_findings": {
+    "library_usage_is_rare": true,
+    "consistent_across_phases": true
+  }
+}

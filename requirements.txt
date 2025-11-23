@@ -6,6 +6,9 @@ radon
 einops
 jaxtyping
 psutil  # For memory monitoring
+matplotlib  # For plotting (Phase 3.8, 3.10, 3.11, visualization phases)
+seaborn  # For advanced plotting and visualizations
+scikit-learn  # For machine learning utilities (sklearn)
 
 # If cuda
 accelerate

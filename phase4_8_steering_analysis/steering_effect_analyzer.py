@@ -17,7 +17,6 @@ import numpy as np
 from datetime import datetime
 import torch
 from tqdm import tqdm
-from scipy.stats import binomtest
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -53,10 +52,16 @@ class SteeringEffectAnalyzer:
         """Initialize with configuration, load dependencies."""
         self.config = config
         self.device = detect_device()
-        
-        # Phase output directories
-        self.output_dir = Path(config.phase4_8_output_dir)
+
+        # Phase output directories with dataset suffix
+        from common.utils import get_phase_dir
+        base_output_dir = Path(get_phase_dir('4.8'))
+        if config.dataset_name != "mbpp":
+            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
+        else:
+            self.output_dir = base_output_dir
         ensure_directory_exists(self.output_dir)
+        logger.info(f"Output directory: {self.output_dir}")
         
         self.examples_dir = self.output_dir / "examples"
         ensure_directory_exists(self.examples_dir)
@@ -89,11 +94,13 @@ class SteeringEffectAnalyzer:
         
     def _load_dependencies(self) -> None:
         """Load features from Phase 2.5 and baseline data from Phase 3.5."""
-        # Load Phase 2.5 features
+        # Load Phase 2.5 features (no dataset suffix - features are model-specific, shared across datasets)
         logger.info("Loading PVA features from Phase 2.5...")
-        phase2_5_output = discover_latest_phase_output("2.5")
+        phase2_5_dir_str = "data/phase2_5"
+        phase2_5_output = discover_latest_phase_output("2.5", phase_dir=phase2_5_dir_str)
         if not phase2_5_output:
-            raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
+            raise FileNotFoundError(f"No Phase 2.5 output found in {phase2_5_dir_str}. Please run Phase 2.5 first.")
+        logger.info(f"Using Phase 2.5 output: {phase2_5_output}")
         
         # Load top features
         features_file = Path(phase2_5_output).parent / "top_20_features.json"
@@ -119,12 +126,14 @@ class SteeringEffectAnalyzer:
         logger.info(f"Best incorrect feature: Layer {self.best_incorrect_feature['layer']}, "
                    f"Index {self.best_incorrect_feature['feature_idx']}, "
                    f"Score {self.best_incorrect_feature['separation_score']:.4f}")
-        
-        # Load Phase 3.5 baseline data
+
+        # Load Phase 3.5 baseline data (with dataset suffix - temperature data is dataset-specific)
         logger.info("Loading baseline data from Phase 3.5...")
-        phase3_5_output = discover_latest_phase_output("3.5")
+        phase3_5_dir_str = f"data/phase3_5_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_5"
+        phase3_5_output = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
         if not phase3_5_output:
-            raise FileNotFoundError("Phase 3.5 output not found. Run Phase 3.5 first.")
+            raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
+        logger.info(f"Using Phase 3.5 output: {Path(phase3_5_output).parent}")
         
         # Load validation dataset at temperature 0.0
         baseline_file = Path(phase3_5_output).parent / "dataset_temp_0_0.parquet"
@@ -179,48 +188,122 @@ class SteeringEffectAnalyzer:
         logger.info(f"Decoder directions converted to model dtype: {model_dtype}")
         logger.info("Dependencies loaded successfully")
         
-    def save_checkpoint(self, steering_type: str, results: List[Dict], 
-                       excluded_tasks: List[Dict], last_idx: int, 
-                       total_tasks: int) -> None:
-        """Save checkpoint for current steering experiment."""
+    def save_checkpoint(self, steering_type: str, results: List[Dict],
+                       excluded_tasks: List[Dict]) -> None:
+        """Save checkpoint for current steering experiment.
+
+        Uses task ID tracking (v2) instead of index tracking (v1) for robustness
+        against dataset size changes and --start/--end argument variations.
+        """
+        # Extract task IDs from results and excluded tasks
+        processed_task_ids = [r['task_id'] for r in results]
+        excluded_task_ids = [t['task_id'] for t in excluded_tasks]
+
         checkpoint_data = {
             'steering_type': steering_type,
             'results': results,
             'excluded_tasks': excluded_tasks,
-            'last_processed_idx': last_idx,
-            'total_tasks': total_tasks,
+            'processed_task_ids': processed_task_ids,  # NEW: Track task IDs
+            'excluded_task_ids': excluded_task_ids,    # NEW: Track excluded IDs
+            'n_processed': len(processed_task_ids),    # For logging
             'timestamp': datetime.now().isoformat(),
-            'checkpoint_version': 1
+            'checkpoint_version': 2  # UPDATED: Version 2 uses task ID tracking
         }
-        
+
         # Create checkpoint filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         checkpoint_file = self.checkpoint_dir / f"checkpoint_{steering_type}_{timestamp}.json"
-        
+
         # Save checkpoint
         save_json(checkpoint_data, checkpoint_file)
-        logger.info(f"Saved {steering_type} checkpoint at index {last_idx}/{total_tasks-1}")
-        
+        logger.info(f"Saved {steering_type} checkpoint: {len(processed_task_ids)} processed, "
+                   f"{len(excluded_task_ids)} excluded")
+
         # Clean up old checkpoints (keep only last 3)
         self.cleanup_old_checkpoints(steering_type)
     
-    def load_checkpoint(self, steering_type: str) -> Optional[Dict]:
-        """Load most recent checkpoint for steering type if available."""
+    def load_checkpoint(self, steering_type: str, dataset_size: int) -> Optional[Dict]:
+        """Load most recent checkpoint for steering type if available.
+
+        Args:
+            steering_type: Type of steering experiment (correction, corruption, preservation)
+            dataset_size: Current dataset size for validation
+
+        Returns:
+            Checkpoint data with task IDs, or None if no valid checkpoint found
+        """
         checkpoint_pattern = f"checkpoint_{steering_type}_*.json"
         checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
-        
+
         if not checkpoint_files:
             return None
-        
+
         # Load most recent checkpoint
         latest_checkpoint = checkpoint_files[-1]
         logger.info(f"Loading checkpoint from {latest_checkpoint}")
-        
+
         try:
             checkpoint_data = load_json(latest_checkpoint)
-            logger.info(f"Resuming {steering_type} steering from index "
-                       f"{checkpoint_data['last_processed_idx']}/{checkpoint_data['total_tasks']-1}")
-            return checkpoint_data
+            checkpoint_version = checkpoint_data.get('checkpoint_version', 1)
+
+            # Handle v1 checkpoints (legacy index-based)
+            if checkpoint_version == 1:
+                logger.warning("=" * 80)
+                logger.warning("LEGACY CHECKPOINT DETECTED (v1 - index-based)")
+                logger.warning("=" * 80)
+                logger.warning("This checkpoint uses index-based tracking which can cause data corruption")
+                logger.warning("when dataset size changes or --start/--end arguments differ between runs.")
+                logger.warning("")
+                logger.warning("Validating dataset size...")
+
+                # Validate dataset size for v1 checkpoints
+                checkpoint_dataset_size = checkpoint_data.get('total_tasks', -1)
+                if checkpoint_dataset_size != dataset_size:
+                    logger.error(f"CHECKPOINT ERROR: Dataset size mismatch!")
+                    logger.error(f"  Checkpoint expects: {checkpoint_dataset_size} tasks")
+                    logger.error(f"  Current dataset has: {dataset_size} tasks")
+                    logger.error(f"  This indicates --start/--end arguments changed between runs")
+                    logger.error("")
+                    logger.error(f"Deleting checkpoint to prevent data corruption...")
+
+                    # Delete invalid checkpoint
+                    for f in checkpoint_files:
+                        f.unlink()
+                        logger.info(f"Deleted invalid checkpoint: {f.name}")
+
+                    logger.warning("Starting fresh without checkpoint")
+                    logger.warning("=" * 80)
+                    return None
+
+                # V1 checkpoint valid - convert to v2 format for compatibility
+                logger.warning("Dataset size matches - checkpoint is valid")
+                logger.warning("Consider deleting and restarting for v2 checkpoint format")
+                logger.warning("=" * 80)
+
+                # Convert v1 → v2 format (extract task IDs from results)
+                processed_task_ids = [r['task_id'] for r in checkpoint_data.get('results', [])]
+                excluded_task_ids = [t['task_id'] for t in checkpoint_data.get('excluded_tasks', [])]
+
+                checkpoint_data['processed_task_ids'] = processed_task_ids
+                checkpoint_data['excluded_task_ids'] = excluded_task_ids
+                checkpoint_data['n_processed'] = len(processed_task_ids)
+
+                logger.info(f"Resuming {steering_type} steering: {len(processed_task_ids)} tasks already processed")
+                return checkpoint_data
+
+            # Handle v2 checkpoints (task ID-based)
+            elif checkpoint_version == 2:
+                processed_task_ids = checkpoint_data.get('processed_task_ids', [])
+                excluded_task_ids = checkpoint_data.get('excluded_task_ids', [])
+
+                logger.info(f"Resuming {steering_type} steering: {len(processed_task_ids)} tasks already processed, "
+                           f"{len(excluded_task_ids)} excluded")
+                return checkpoint_data
+
+            else:
+                logger.error(f"Unknown checkpoint version: {checkpoint_version}")
+                return None
+
         except Exception as e:
             logger.error(f"Failed to load checkpoint: {e}")
             return None
@@ -359,27 +442,56 @@ class SteeringEffectAnalyzer:
         )
         logger.info(f"Created AttentionExtractor for {steering_type} steering on layer {target_layer}")
         
+        # Store original problems_df for final merge (before any filtering)
+        original_problems_df = problems_df.copy()
+
         # Check for existing checkpoint
-        checkpoint_data = self.load_checkpoint(steering_type)
+        checkpoint_data = self.load_checkpoint(steering_type, dataset_size=len(problems_df))
         if checkpoint_data:
             results = checkpoint_data['results']
             excluded_tasks = checkpoint_data['excluded_tasks']
-            start_idx = checkpoint_data['last_processed_idx'] + 1
-            logger.info(f"Resuming from checkpoint at index {start_idx}")
+            processed_task_ids = set(checkpoint_data['processed_task_ids'])
+            excluded_task_ids = set(checkpoint_data.get('excluded_task_ids', []))
+
+            # Filter out already processed and excluded tasks
+            problems_to_process = problems_df[
+                ~problems_df['task_id'].isin(processed_task_ids) &
+                ~problems_df['task_id'].isin(excluded_task_ids)
+            ].copy()
+
+            logger.info(f"Resuming from checkpoint: {len(processed_task_ids)} already processed, "
+                       f"{len(excluded_task_ids)} excluded, {len(problems_to_process)} remaining")
         else:
             results = []
             excluded_tasks = []
-            start_idx = 0
-        
-        # Process tasks with index tracking
-        problems_list = list(problems_df.iterrows())
-        total_tasks = len(problems_list)
-        
-        for enum_idx, (_, row) in enumerate(tqdm(problems_list[start_idx:], 
-                                                   initial=start_idx,
-                                                   total=total_tasks,
-                                                   desc=f"{steering_type.capitalize()} steering"),
-                                              start=start_idx):
+            problems_to_process = problems_df.copy()
+
+        # Process remaining tasks (no index tracking needed)
+        total_remaining = len(problems_to_process)
+        if total_remaining == 0:
+            logger.info(f"No tasks to process for {steering_type} steering (all completed from checkpoint)")
+            # Reconstruct full results dataframe from checkpoint
+            results_df = pd.DataFrame(results)
+
+            # Merge with ORIGINAL unfiltered problems_df to get complete dataset
+            steered_df = original_problems_df.merge(
+                results_df[['task_id', 'steered_code', 'steered_passed', 'flipped']],
+                on='task_id',
+                how='left'
+            )
+
+            # Rename steered_code to steered_generated_code for consistency
+            steered_df.rename(columns={'steered_code': 'steered_generated_code'}, inplace=True)
+
+            # Clean up AttentionExtractor hooks
+            attention_extractor.remove_hooks()
+
+            logger.info(f"Returning {len(steered_df)} completed results from checkpoint")
+            return steered_df
+
+        for enum_idx, (_, row) in enumerate(tqdm(problems_to_process.iterrows(),
+                                                   total=total_remaining,
+                                                   desc=f"{steering_type.capitalize()} steering")):
             
             # Setup hook for this specific task
             hook_fn = create_steering_hook(decoder_direction, coefficient)
@@ -502,35 +614,35 @@ class SteeringEffectAnalyzer:
                 self.check_memory_usage()
                 gc.collect()
             
-            # Autosave every 100 tasks  
+            # Autosave every 50 tasks
             if (enum_idx + 1) % 50 == 0:
-                logger.info(f"Autosaving at task {enum_idx + 1}/{total_tasks}")
-                self.save_checkpoint(steering_type, results, excluded_tasks, enum_idx, total_tasks)
-            
+                logger.info(f"Autosaving at task {enum_idx + 1}/{total_remaining}")
+                self.save_checkpoint(steering_type, results, excluded_tasks)
+
         # Log results summary including exclusions
         n_flipped = sum(r['flipped'] for r in results)
         n_successful = len(results)
-        n_attempted = len(problems_df)
+        n_attempted = len(original_problems_df)  # Use original dataset size
         n_excluded = len(excluded_tasks)
-        
+
         logger.info(f"Completed {steering_type} steering: {n_flipped} flipped out of {n_successful} successful "
                    f"({n_attempted} attempted, {n_excluded} excluded)")
-        
+
         if excluded_tasks:
             logger.warning(f"Excluded {n_excluded} tasks from {steering_type} steering: "
                           f"{[t['task_id'] for t in excluded_tasks]}")
-        
+
         # Save excluded tasks for debugging
         if excluded_tasks:
             excluded_file = self.output_dir / f"excluded_tasks_{steering_type}_steering.json"
             save_json(excluded_tasks, excluded_file)
             logger.info(f"Saved excluded tasks to {excluded_file}")
-        
+
         # Convert results to DataFrame
         results_df = pd.DataFrame(results)
-        
-        # Merge results with original problems_df on task_id to ensure proper alignment
-        steered_df = problems_df.merge(
+
+        # Merge results with ORIGINAL problems_df on task_id to ensure proper alignment
+        steered_df = original_problems_df.merge(
             results_df[['task_id', 'steered_code', 'steered_passed', 'flipped']],
             on='task_id',
             how='left'
@@ -695,168 +807,83 @@ class SteeringEffectAnalyzer:
         
         return correction_results, corruption_results, preservation_results, exclusion_summary
         
-        
-    def run_statistical_tests(self, correction_results: pd.DataFrame, 
-                            corruption_results: pd.DataFrame,
-                            preservation_results: pd.DataFrame) -> Dict:
-        """Run binomial tests for statistical significance."""
-        logger.info("Running statistical tests...")
-        
-        # Test correction effect
-        correction_successes = len(correction_results[(correction_results['test_passed'] == False) & correction_results['steered_passed']])
-        correction_trials = len(correction_results[correction_results['test_passed'] == False])
-        
-        if correction_trials > 0:
-            # Null hypothesis: no effect (p = 0)
-            # Alternative: greater (one-tailed test)
-            correction_test = binomtest(correction_successes, correction_trials, p=0, alternative='greater')
-            correction_pvalue = correction_test.pvalue
-            correction_significant = correction_pvalue < 0.05
-        else:
-            correction_pvalue = 1.0
-            correction_significant = False
-            
-        # Test corruption effect  
-        corruption_successes = len(corruption_results[corruption_results['test_passed'] & (corruption_results['steered_passed'] == False)])
-        corruption_trials = len(corruption_results[corruption_results['test_passed']])
-        
-        if corruption_trials > 0:
-            # Null hypothesis: no effect (p = 0)
-            # Alternative: greater (one-tailed test)
-            corruption_test = binomtest(corruption_successes, corruption_trials, p=0, alternative='greater')
-            corruption_pvalue = corruption_test.pvalue
-            corruption_significant = corruption_pvalue < 0.05
-        else:
-            corruption_pvalue = 1.0
-            corruption_significant = False
-            
-        # Test preservation effect
-        preservation_successes = len(preservation_results[preservation_results['test_passed'] & preservation_results['steered_passed']])
-        preservation_trials = len(preservation_results[preservation_results['test_passed']])
-        
-        if preservation_trials > 0:
-            # Null hypothesis: random chance (p = 0.5) - we expect at least 50% to remain correct
-            # Alternative: greater (one-tailed test) - we test if preservation is better than random
-            preservation_test = binomtest(preservation_successes, preservation_trials, p=0.5, alternative='greater')
-            preservation_pvalue = preservation_test.pvalue
-            preservation_significant = preservation_pvalue < 0.05
-        else:
-            preservation_pvalue = 1.0
-            preservation_significant = False
-            
-        results = {
-            'correction': {
-                'successes': correction_successes,
-                'trials': correction_trials,
-                'rate': (correction_successes / correction_trials * 100) if correction_trials > 0 else 0,
-                'pvalue': correction_pvalue,
-                'significant': correction_significant
-            },
-            'corruption': {
-                'successes': corruption_successes,
-                'trials': corruption_trials,
-                'rate': (corruption_successes / corruption_trials * 100) if corruption_trials > 0 else 0,
-                'pvalue': corruption_pvalue,
-                'significant': corruption_significant
-            },
-            'preservation': {
-                'successes': preservation_successes,
-                'trials': preservation_trials,
-                'rate': (preservation_successes / preservation_trials * 100) if preservation_trials > 0 else 0,
-                'pvalue': preservation_pvalue,
-                'significant': preservation_significant
-            }
-        }
-        
-        logger.info(f"Correction effect: {correction_successes}/{correction_trials} = {results['correction']['rate']:.1f}%, p={correction_pvalue:.4f} {'(significant)' if correction_significant else '(not significant)'}")
-        logger.info(f"Corruption effect: {corruption_successes}/{corruption_trials} = {results['corruption']['rate']:.1f}%, p={corruption_pvalue:.4f} {'(significant)' if corruption_significant else '(not significant)'}")
-        logger.info(f"Preservation effect: {preservation_successes}/{preservation_trials} = {results['preservation']['rate']:.1f}%, p={preservation_pvalue:.4f} {'(significant)' if preservation_significant else '(not significant)'}")
-        
-        return results
-        
     def create_visualizations(self, metrics: Dict) -> None:
         """Create visualization plots for steering effects."""
         plt.style.use('seaborn-v0_8')
         fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
-        
+
         # Plot correction rate
-        correction_rate = metrics['statistical_tests']['correction']['rate']
-        correction_pvalue = metrics['statistical_tests']['correction']['pvalue']
-        correction_sig = metrics['statistical_tests']['correction']['significant']
-        
-        ax1.bar(['Correction Rate'], [correction_rate], color='green' if correction_sig else 'gray', alpha=0.7)
+        correction_rate = metrics['correction_rate']
+
+        ax1.bar(['Correction Rate'], [correction_rate], color='green', alpha=0.7)
         ax1.set_ylabel('Percentage (%)')
-        ax1.set_title(f'Correction Rate (Incorrect→Correct)\np={correction_pvalue:.4f} {"*" if correction_sig else "n.s."}')
+        ax1.set_title('Correction Rate\n(Incorrect→Correct)')
         ax1.set_ylim(0, 100)
-        
+
         # Dynamic text positioning to avoid overlap
         if correction_rate < 90:
-            ax1.text(0, correction_rate + 2, f'{correction_rate:.1f}%', 
+            ax1.text(0, correction_rate + 2, f'{correction_rate:.1f}%',
                      ha='center', va='bottom', fontweight='bold')
         else:
-            ax1.text(0, correction_rate - 5, f'{correction_rate:.1f}%', 
+            ax1.text(0, correction_rate - 5, f'{correction_rate:.1f}%',
                      ha='center', va='top', fontweight='bold', color='white')
-        
+
         # Plot corruption rate
-        corruption_rate = metrics['statistical_tests']['corruption']['rate']
-        corruption_pvalue = metrics['statistical_tests']['corruption']['pvalue']
-        corruption_sig = metrics['statistical_tests']['corruption']['significant']
-        
-        ax2.bar(['Corruption Rate'], [corruption_rate], color='red' if corruption_sig else 'gray', alpha=0.7)
+        corruption_rate = metrics['corruption_rate']
+
+        ax2.bar(['Corruption Rate'], [corruption_rate], color='red', alpha=0.7)
         ax2.set_ylabel('Percentage (%)')
-        ax2.set_title(f'Corruption Rate (Correct→Incorrect)\np={corruption_pvalue:.4f} {"*" if corruption_sig else "n.s."}')
+        ax2.set_title('Corruption Rate\n(Correct→Incorrect)')
         ax2.set_ylim(0, 100)
-        
+
         # Dynamic text positioning to avoid overlap
         if corruption_rate < 90:
-            ax2.text(0, corruption_rate + 2, f'{corruption_rate:.1f}%', 
+            ax2.text(0, corruption_rate + 2, f'{corruption_rate:.1f}%',
                      ha='center', va='bottom', fontweight='bold')
         else:
-            ax2.text(0, corruption_rate - 5, f'{corruption_rate:.1f}%', 
+            ax2.text(0, corruption_rate - 5, f'{corruption_rate:.1f}%',
                      ha='center', va='top', fontweight='bold', color='white')
-        
+
         # Plot preservation rate
-        preservation_rate = metrics['statistical_tests']['preservation']['rate']
-        preservation_pvalue = metrics['statistical_tests']['preservation']['pvalue']
-        preservation_sig = metrics['statistical_tests']['preservation']['significant']
-        
-        ax3.bar(['Preservation Rate'], [preservation_rate], color='blue' if preservation_sig else 'gray', alpha=0.7)
+        preservation_rate = metrics['preservation_rate']
+
+        ax3.bar(['Preservation Rate'], [preservation_rate], color='blue', alpha=0.7)
         ax3.set_ylabel('Percentage (%)')
-        ax3.set_title(f'Preservation Rate (Correct→Correct)\np={preservation_pvalue:.4f} {"*" if preservation_sig else "n.s."}')
+        ax3.set_title('Preservation Rate\n(Correct→Correct)')
         ax3.set_ylim(0, 100)
-        
+
         # Dynamic text positioning to avoid overlap
         if preservation_rate < 90:
-            ax3.text(0, preservation_rate + 2, f'{preservation_rate:.1f}%', 
+            ax3.text(0, preservation_rate + 2, f'{preservation_rate:.1f}%',
                      ha='center', va='bottom', fontweight='bold')
         else:
-            ax3.text(0, preservation_rate - 5, f'{preservation_rate:.1f}%', 
+            ax3.text(0, preservation_rate - 5, f'{preservation_rate:.1f}%',
                      ha='center', va='top', fontweight='bold', color='white')
-        
+
         # Add main title
         fig.suptitle(f'Steering Effect Analysis\nCorrect Coefficient: {metrics["coefficients"]["correct"]}, '
-                    f'Incorrect Coefficient: {metrics["coefficients"]["incorrect"]}', 
+                    f'Incorrect Coefficient: {metrics["coefficients"]["incorrect"]}',
                     fontsize=14, fontweight='bold')
-        
+
         # Add success criteria lines
         ax1.axhline(y=10, color='black', linestyle='--', alpha=0.5, label='Success threshold (10%)')
         ax1.legend()
-        
+
         ax2.axhline(y=10, color='black', linestyle='--', alpha=0.5, label='Success threshold (10%)')
         ax2.legend()
-        
-        # For preservation, we expect high percentage (>50% is better than random)
-        ax3.axhline(y=50, color='black', linestyle='--', alpha=0.5, label='Random chance (50%)')
+
+        # For preservation, meaningful threshold
+        ax3.axhline(y=50, color='black', linestyle='--', alpha=0.5, label='Baseline (50%)')
         ax3.axhline(y=90, color='green', linestyle='--', alpha=0.3, label='Good preservation (90%)')
         ax3.legend()
-        
+
         plt.tight_layout()
-        
+
         # Save plot
         output_file = self.output_dir / "steering_effect_analysis.png"
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         plt.close()
-        
+
         logger.info(f"Saved visualization to {output_file}")
         
     def save_all_results(self, correction_results: pd.DataFrame, 
@@ -931,7 +958,7 @@ class SteeringEffectAnalyzer:
         """Save all results and create phase summary."""
         # Save detailed results
         save_json(metrics, self.output_dir / "steering_effect_analysis.json")
-        
+
         # Create phase summary
         summary = {
             'phase': '4.8',
@@ -947,21 +974,14 @@ class SteeringEffectAnalyzer:
                 'correction_rate': metrics['correction_rate'],
                 'corruption_rate': metrics['corruption_rate'],
                 'preservation_rate': metrics['preservation_rate'],
-                'statistical_tests': metrics['statistical_tests'],
                 'success_criteria_met': {
                     'correction_rate_above_10%': metrics['correction_rate'] > 10,
                     'corruption_rate_above_10%': metrics['corruption_rate'] > 10,
                     'preservation_rate_above_50%': metrics['preservation_rate'] > 50,
-                    'correction_significant': metrics['statistical_tests']['correction']['significant'],
-                    'corruption_significant': metrics['statistical_tests']['corruption']['significant'],
-                    'preservation_significant': metrics['statistical_tests']['preservation']['significant'],
                     'all_criteria_met': (
                         metrics['correction_rate'] > 10 and
                         metrics['corruption_rate'] > 10 and
-                        metrics['preservation_rate'] > 50 and
-                        metrics['statistical_tests']['correction']['significant'] and
-                        metrics['statistical_tests']['corruption']['significant'] and
-                        metrics['statistical_tests']['preservation']['significant']
+                        metrics['preservation_rate'] > 50
                     )
                 }
             },
@@ -978,9 +998,9 @@ class SteeringEffectAnalyzer:
                 }
             }
         }
-        
+
         save_json(summary, self.output_dir / "phase_4_8_summary.json")
-        
+
         logger.info(f"Saved results to {self.output_dir}")
         
     def run(self) -> Dict:
@@ -989,14 +1009,14 @@ class SteeringEffectAnalyzer:
         logger.info("Starting Phase 4.8: Steering Effect Analysis")
         logger.info(f"Coefficients - Correct: {self.config.phase4_8_correct_coefficient}, "
                    f"Incorrect: {self.config.phase4_8_incorrect_coefficient}")
-        
+
         # Apply steering and evaluate effects
         correction_results, corruption_results, preservation_results, exclusion_summary = self.evaluate_steering_effects()
-        
+
         # Calculate rates
         correction_rate = calculate_correction_rate(correction_results)
         corruption_rate = calculate_corruption_rate(corruption_results)
-        
+
         # Calculate preservation rate directly (percentage of correct that stay correct)
         if not preservation_results.empty:
             preserved_count = len(preservation_results[preservation_results['test_passed'] & preservation_results['steered_passed']])
@@ -1004,11 +1024,8 @@ class SteeringEffectAnalyzer:
             preservation_rate = (preserved_count / total_correct * 100) if total_correct > 0 else 0.0
         else:
             preservation_rate = 0.0
-        
-        # Run statistical tests
-        statistical_tests = self.run_statistical_tests(correction_results, corruption_results, preservation_results)
-        
-        # Compile metrics
+
+        # Compile metrics (no statistical tests - Phase 4.14 handles validation)
         metrics = {
             'correction_rate': correction_rate,
             'corruption_rate': corruption_rate,
@@ -1017,7 +1034,6 @@ class SteeringEffectAnalyzer:
                 'correct': self.config.phase4_8_correct_coefficient,
                 'incorrect': self.config.phase4_8_incorrect_coefficient
             },
-            'statistical_tests': statistical_tests,
             'n_problems': {
                 'initially_correct': len(self.initially_correct_data),
                 'initially_incorrect': len(self.initially_incorrect_data),
@@ -1030,20 +1046,20 @@ class SteeringEffectAnalyzer:
                 'preservation': preservation_results[['task_id', 'test_passed', 'steered_passed', 'flipped']].to_dict('records') if not preservation_results.empty else []
             }
         }
-        
+
         # Create visualizations
         self.create_visualizations(metrics)
-        
+
         # Save ALL steering results for debugging
         self.save_all_results(correction_results, corruption_results)
-        
+
         # Save example generations
         self.save_examples(correction_results, corruption_results, preservation_results)
-        
+
         # Save all results
         duration = time.time() - start_time
         self.save_results(metrics, duration)
-        
+
         # Log summary
         logger.info("\n" + "="*60)
         logger.info("PHASE 4.8 RESULTS SUMMARY")
@@ -1059,25 +1075,17 @@ class SteeringEffectAnalyzer:
         logger.info(f"Correction Rate: {correction_rate:.1f}% {'✓' if correction_rate > 10 else '✗'}")
         logger.info(f"Corruption Rate: {corruption_rate:.1f}% {'✓' if corruption_rate > 10 else '✗'}")
         logger.info(f"Preservation Rate: {preservation_rate:.1f}% {'✓' if preservation_rate > 50 else '✗'}")
-        logger.info(f"Correction p-value: {statistical_tests['correction']['pvalue']:.4f} "
-                   f"{'✓ significant' if statistical_tests['correction']['significant'] else '✗ not significant'}")
-        logger.info(f"Corruption p-value: {statistical_tests['corruption']['pvalue']:.4f} "
-                   f"{'✓ significant' if statistical_tests['corruption']['significant'] else '✗ not significant'}")
-        logger.info(f"Preservation p-value: {statistical_tests['preservation']['pvalue']:.4f} "
-                   f"{'✓ significant' if statistical_tests['preservation']['significant'] else '✗ not significant'}")
-        
+        logger.info("\nNote: Statistical significance testing is performed in Phase 4.14 via triangulation")
+
         all_criteria_met = (
-            correction_rate > 10 and 
+            correction_rate > 10 and
             corruption_rate > 10 and
-            preservation_rate > 50 and  # Preservation should be better than random
-            statistical_tests['correction']['significant'] and
-            statistical_tests['corruption']['significant'] and
-            statistical_tests['preservation']['significant']
+            preservation_rate > 50
         )
-        
-        logger.info(f"\nAll success criteria met: {'✓ YES' if all_criteria_met else '✗ NO'}")
+
+        logger.info(f"\nBasic success criteria met: {'✓ YES' if all_criteria_met else '✗ NO'}")
         logger.info("="*60 + "\n")
-        
+
         logger.info(f"Phase 4.8 completed in {duration:.1f} seconds")
-        
+
         return metrics

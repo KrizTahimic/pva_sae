@@ -1,0 +1,32 @@
+[
+  {
+    "task_id": "403",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.match"
+      ]
+    },
+    "code": "def is_valid_URL(url):\n    return re.match(r'https?://\\S+', url) is not None"
+  },
+  {
+    "task_id": "482",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.search"
+      ]
+    },
+    "code": "def match(s):\n    return re.search(r'([A-Z])([a-z])', s)"
+  },
+  {
+    "task_id": "906",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.findall"
+      ]
+    },
+    "code": "def extract_date(url):\n    return re.findall(r'\\d{4}-\\d{2}-\\d{2}', url)"
+  }
+]

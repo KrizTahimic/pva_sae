@@ -455,8 +455,8 @@ def main():
     phase3_5_dir = Path(phase3_5_path).parent
     logger.info(f"Using Phase 3.5 output: {phase3_5_dir}")
     
-    # Autodiscover Phase 3.6 (with dataset suffix if needed)
-    phase3_6_dir_str = f"data/phase3_6_{config.dataset_name}" if config.dataset_name != "mbpp" else "data/phase3_6"
+    # Autodiscover Phase 3.6 (no dataset suffix - hyperparameters are model-specific, shared across datasets)
+    phase3_6_dir_str = "data/phase3_6"
     phase3_6_path = discover_latest_phase_output("3.6", phase_dir=phase3_6_dir_str)
     if not phase3_6_path:
         raise FileNotFoundError(f"No Phase 3.6 output found in {phase3_6_dir_str}. Please run Phase 3.6 first.")

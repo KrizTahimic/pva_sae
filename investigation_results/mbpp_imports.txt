@@ -1,0 +1,64 @@
+# MBPP Required Imports (from original solutions)
+# Extracted: 2025-11-21 16:06:25
+# Total libraries: 12
+# Problems analyzed: 974
+
+# Sorted by usage frequency:
+# re                   -  78 problems ( 8.0%)
+# math                 -  42 problems ( 4.3%)
+# collections          -  27 problems ( 2.8%)
+# heapq                -  18 problems ( 1.8%)
+# itertools            -  12 problems ( 1.2%)
+# sys                  -   8 problems ( 0.8%)
+# cmath                -   4 problems ( 0.4%)
+# operator             -   3 problems ( 0.3%)
+# array                -   3 problems ( 0.3%)
+# bisect               -   2 problems ( 0.2%)
+# datetime             -   1 problems ( 0.1%)
+# copy                 -   1 problems ( 0.1%)
+
+# Simple import statements:
+import array
+import bisect
+import cmath
+import collections
+import copy
+import datetime
+import heapq
+import itertools
+import math
+import operator
+import re
+import sys
+
+# All original import statements (with aliases and specific imports):
+from array import array
+from collections import Counter
+from collections import OrderedDict
+from collections import defaultdict
+from collections import deque
+from copy import deepcopy
+from heapq import heappop, heappush
+from heapq import merge
+from itertools import chain
+from itertools import combinations
+from itertools import combinations_with_replacement
+from itertools import groupby
+from itertools import zip_longest, chain, tee
+from math import radians, sin, cos, acos
+from math import tan, pi
+from operator import eq
+from operator import itemgetter
+from sys import maxsize
+import bisect
+import cmath
+import collections
+import collections as ct
+import datetime
+import heapq
+import heapq as hq
+import itertools
+import math
+import math as mt
+import re
+import sys

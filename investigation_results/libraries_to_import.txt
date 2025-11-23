@@ -1,0 +1,16 @@
+# Libraries detected in MBPP generated code (Temperature 0.0)
+# Analysis date: 2025-11-21 15:56:41
+# Total libraries: 4
+# Analyzed 974 codes across 3 phases
+
+# Sorted by usage frequency (most used first):
+#  1. re              -  21 codes ( 2.2%)
+#  2. heapq           -   4 codes ( 0.4%)
+#  3. math            -   3 codes ( 0.3%)
+#  4. functools       -   1 codes ( 0.1%)
+
+# Python import statements (copy-paste ready):
+import re
+import heapq
+import math
+import functools

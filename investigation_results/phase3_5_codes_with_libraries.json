@@ -1,0 +1,116 @@
+[
+  {
+    "task_id": "43",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.search"
+      ]
+    },
+    "code": "def text_match(text):\n    return re.search(r'(\\w+)\\_(\\w+)', text) is not None"
+  },
+  {
+    "task_id": "167",
+    "test_passed": false,
+    "libraries_used": {
+      "math": [
+        "math.log"
+      ]
+    },
+    "code": "def next_Power_Of_2(n):\n    return 2 ** (int(math.log(n, 2)))"
+  },
+  {
+    "task_id": "210",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.match"
+      ]
+    },
+    "code": "def is_allowed_specific_char(string):\n    return re.match(r\"[a-z0-9]\", string)"
+  },
+  {
+    "task_id": "590",
+    "test_passed": false,
+    "libraries_used": {
+      "math": [
+        "math.cos",
+        "math.sin"
+      ]
+    },
+    "code": "def polar_rect(r, theta):\n    return (r*math.cos(theta), r*math.sin(theta))"
+  },
+  {
+    "task_id": "693",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.sub"
+      ]
+    },
+    "code": "def remove_multiple_spaces(string):\n    return re.sub(' +', ' ', string)"
+  },
+  {
+    "task_id": "737",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.match"
+      ]
+    },
+    "code": "def check_str(str):\n    return re.match(r'^[aeiouAEIOU]', str)"
+  },
+  {
+    "task_id": "795",
+    "test_passed": false,
+    "libraries_used": {
+      "heapq": [
+        "heapq.heappop",
+        "heappush",
+        "heapq.heappush",
+        "heappop"
+      ]
+    },
+    "code": "def cheap_items(items, n):\n    # Write your code here.\n    heap = []\n    for item in items:\n        heapq.heappush(heap, (item['price'], item['name']))\n    for i in range(n):\n        heapq.heappop(heap)\n    return [item['name'] for item in heap]"
+  },
+  {
+    "task_id": "879",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.match"
+      ]
+    },
+    "code": "def text_match(text):\n    return re.match(r'a.*b', text)"
+  },
+  {
+    "task_id": "919",
+    "test_passed": false,
+    "libraries_used": {
+      "functools": [
+        "reduce"
+      ]
+    },
+    "code": "def multiply_list(list):\n    return reduce(lambda x,y: x*y, list)"
+  },
+  {
+    "task_id": "930",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.match"
+      ]
+    },
+    "code": "def text_match(text):\n    return re.match(r'a.*b', text)"
+  },
+  {
+    "task_id": "933",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.sub"
+      ]
+    },
+    "code": "def camel_to_snake(string):\n    return re.sub(r'([A-Z])', r'_\\1', string.lower())"
+  }
+]

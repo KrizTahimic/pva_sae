@@ -1,0 +1,102 @@
+[
+  {
+    "task_id": "1",
+    "test_passed": false,
+    "code": "def min_cost(cost, m, n):\n    # Base case\n    if m == 0 and n == 0:\n        return 0\n    # Recursive case\n    if m == 0:\n        return cost[0][n]\n    if n == 0:\n        return cost[m][0]\n    # Find the minimum cost of going up, down, left, or right\n    return min(cost[m][n] + min_cost(cost, m - 1, n),\n               cost[m][n] + min_cost(cost, m, n - 1),\n               cost[m][n] + min_cost(cost, m - 1, n - 1),\n               cost[m][n] + min_cost(cost, m, n + 1))"
+  },
+  {
+    "task_id": "5",
+    "test_passed": false,
+    "code": "def count_ways(n):\n    if n == 1:\n        return 1\n    if n == 2:\n        return 3\n    if n == 3:\n        return 6\n    if n == 4:\n        return 15\n    if n == 5:\n        return 42\n    if n == 6:\n        return 132\n    if n == 7:\n        return 429\n    if n == 8:\n        return 1536\n    if n == 9:\n        return 5904\n    if n == 10:\n        return 21137\n    if n == 11:\n        return 83204\n    if n == 12:\n        return 314159\n    if n == 13:\n        return 1307674\n    if n == 14:\n        return"
+  },
+  {
+    "task_id": "8",
+    "test_passed": true,
+    "code": "def square_nums(nums):\n    return [x**2 for x in nums]"
+  },
+  {
+    "task_id": "10",
+    "test_passed": false,
+    "code": "def small_nnum(data, n):\n    return sorted(data, key=lambda x: x[1])[:n]"
+  },
+  {
+    "task_id": "14",
+    "test_passed": false,
+    "code": "def find_Volume(base, height, width):\n    return base * height * width"
+  },
+  {
+    "task_id": "17",
+    "test_passed": true,
+    "code": "def square_perimeter(side):\n    return side * 4"
+  },
+  {
+    "task_id": "18",
+    "test_passed": true,
+    "code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)"
+  },
+  {
+    "task_id": "20",
+    "test_passed": false,
+    "code": "def is_woodall(n):\n    if n < 100:\n        return False\n    if n % 10 == 0:\n        return False\n    if n % 10 == 1:\n        return False\n    if n % 10 == 2:\n        return False\n    if n % 10 == 3:\n        return False\n    if n % 10 == 4:\n        return False\n    if n % 10 == 5:\n        return False\n    if n % 10 == 6:\n        return False\n    if n % 10 == 7:\n        return False\n    if n % 10 == 8:\n        return False\n    if n % 10 == 9:\n        return False\n    return True"
+  },
+  {
+    "task_id": "21",
+    "test_passed": true,
+    "code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]"
+  },
+  {
+    "task_id": "22",
+    "test_passed": true,
+    "code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i])-1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i])-1] *= -1\n    return -1"
+  },
+  {
+    "task_id": "24",
+    "test_passed": false,
+    "code": "def binary_to_decimal(binary_number):\n    decimal_number = 0\n    for i in range(len(binary_number)):\n        decimal_number += int(binary_number[i]) * 2 ** (len(binary_number) - i - 1)\n    return decimal_number"
+  },
+  {
+    "task_id": "27",
+    "test_passed": false,
+    "code": "def remove(lst):\n    return [word for word in lst if not word.isdigit()]"
+  },
+  {
+    "task_id": "29",
+    "test_passed": false,
+    "code": "def get_Odd_Occurrence(arr, n):\n    count = 0\n    for i in range(n):\n        if arr[i] % 2 == 1:\n            count += 1\n    return count"
+  },
+  {
+    "task_id": "37",
+    "test_passed": false,
+    "code": "def sort_mixed_list(list):\n    return sorted(list, key=lambda x: (x[0], x[1]))"
+  },
+  {
+    "task_id": "40",
+    "test_passed": false,
+    "code": "def freq_element(lst):\n    return {key: lst.count(key) for key in set(lst)}"
+  },
+  {
+    "task_id": "47",
+    "test_passed": false,
+    "code": "def compute_Last_Digit(a, b):\n    if a == 0:\n        return 0\n    if b == 0:\n        return 1\n    if a == b:\n        return a\n    if a > b:\n        return compute_Last_Digit(a % b, b)\n    else:\n        return compute_Last_Digit(a, b % a)"
+  },
+  {
+    "task_id": "50",
+    "test_passed": false,
+    "code": "def min_length_list(list):\n    return min(list, key=lambda x: len(x))"
+  },
+  {
+    "task_id": "51",
+    "test_passed": true,
+    "code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False"
+  },
+  {
+    "task_id": "52",
+    "test_passed": true,
+    "code": "def parallelogram_area(a,b):\n    return a*b"
+  },
+  {
+    "task_id": "55",
+    "test_passed": false,
+    "code": "def tn_gp(a,r,n):\n    if n==1:\n        return a\n    else:\n        return a*r*tn_gp(a,r,n-1)"
+  }
+]

@@ -1,0 +1,207 @@
+[
+  {
+    "task_id": "43",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "search",
+        "re.search"
+      ]
+    },
+    "code": "def text_match(text):\n    return re.search(r'(\\w+)\\_(\\w+)', text) is not None"
+  },
+  {
+    "task_id": "57",
+    "test_passed": false,
+    "libraries_used": {
+      "string": [
+        "digits"
+      ]
+    },
+    "code": "def find_Max_Num(digits, n):\n    max_num = 0\n    for i in range(n):\n        max_num = max(max_num, int(''.join(sorted(digits))))\n    return max_num"
+  },
+  {
+    "task_id": "119",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "search"
+      ]
+    },
+    "code": "def search(arr, x):\n    if len(arr) == 0:\n        return -1\n    if len(arr) == 1:\n        return arr[0] if arr[0] == x else -1\n    if arr[0] == x:\n        return arr[0]\n    if arr[len(arr)-1] == x:\n        return arr[len(arr)-1]\n    if arr[0] < x < arr[len(arr)-1]:\n        return search(arr[1:len(arr)-1], x)\n    if arr[0] > x > arr[len(arr)-1]:\n        return search(arr[0:len(arr)-1], x)\n    if arr[0] > x:\n        return search(arr[0:len(arr)-1], x)\n    if arr[len(arr)-1] < x:\n        return sea"
+  },
+  {
+    "task_id": "148",
+    "test_passed": false,
+    "libraries_used": {
+      "string": [
+        "digits"
+      ]
+    },
+    "code": "def sum_digits_twoparts(n):\n    digits = list(str(n))\n    digits.sort()\n    return int(\"\".join(digits))"
+  },
+  {
+    "task_id": "199",
+    "test_passed": true,
+    "libraries_used": {
+      "math": [
+        "math.log"
+      ]
+    },
+    "code": "def highest_Power_of_2(n):\n    return 2**int(math.log(n, 2))"
+  },
+  {
+    "task_id": "210",
+    "test_passed": false,
+    "libraries_used": {
+      "re": [
+        "re.match",
+        "match"
+      ]
+    },
+    "code": "def is_allowed_specific_char(string):\n    return re.match(r\"[a-z0-9]\", string)"
+  },
+  {
+    "task_id": "230",
+    "test_passed": true,
+    "libraries_used": {
+      "string": [
+        "string.replace"
+      ]
+    },
+    "code": "def replace_blank(string, character):\n    return string.replace(\" \", character)"
+  },
+  {
+    "task_id": "319",
+    "test_passed": false,
+    "libraries_used": {
+      "string": [
+        "string.split"
+      ]
+    },
+    "code": "def find_long_word(string):\n    return [word for word in string.split() if len(word) >= 5]"
+  },
+  {
+    "task_id": "372",
+    "test_passed": false,
+    "libraries_used": {
+      "heapq": [
+        "heapify"
+      ]
+    },
+    "code": "def heap_assending(arr):\n    n = len(arr)\n    for i in range(n//2, -1, -1):\n        heapify(arr, i, n)\n    for i in range(n-1, 0, -1):\n        arr[i], arr[0] = arr[0], arr[i]\n        heapify(arr, 0, i)\n    return arr"
+  },
+  {
+    "task_id": "474",
+    "test_passed": true,
+    "libraries_used": {
+      "string": [
+        "string.replace"
+      ]
+    },
+    "code": "def replace_char(string, old_char, new_char):\n    return string.replace(old_char, new_char)"
+  },
+  {
+    "task_id": "480",
+    "test_passed": true,
+    "libraries_used": {
+      "string": [
+        "string.count"
+      ]
+    },
+    "code": "def get_max_occuring_char(string):\n    max_char = \"\"\n    max_count = 0\n    for char in string:\n        if string.count(char) > max_count:\n            max_char = char\n            max_count = string.count(char)\n    return max_char"
+  },
+  {
+    "task_id": "486",
+    "test_passed": false,
+    "libraries_used": {
+      "math": [
+        "factorial"
+      ]
+    },
+    "code": "def binomial_probability(n, k, p):\n    return (n * p**k * (1-p)**(n-k)) / factorial(n)"
+  },
+  {
+    "task_id": "498",
+    "test_passed": true,
+    "libraries_used": {
+      "math": [
+        "gcd"
+      ]
+    },
+    "code": "def gcd(a, b):\n    if a == 0:\n        return b\n    return gcd(b % a, a)"
+  },
+  {
+    "task_id": "506",
+    "test_passed": false,
+    "libraries_used": {
+      "math": [
+        "factorial"
+      ]
+    },
+    "code": "def permutation_coefficient(n, k):\n    return factorial(n) / (factorial(n - k) * factorial(k))"
+  },
+  {
+    "task_id": "523",
+    "test_passed": false,
+    "libraries_used": {
+      "string": [
+        "string.isalpha",
+        "string.isdigit"
+      ]
+    },
+    "code": "def check_string(string):\n    if len(string) < 8:\n        return ['String length should be atleast 8.']\n    if not string.isalpha():\n        return ['String must have 1 upper case character.']\n    if not string.isdigit():\n        return ['String must have 1 number.']\n    return ['Valid string.']"
+  },
+  {
+    "task_id": "526",
+    "test_passed": false,
+    "libraries_used": {
+      "string": [
+        "string.title"
+      ]
+    },
+    "code": "def capitalize_first_last_letters(string):\n    return string.title()"
+  },
+  {
+    "task_id": "537",
+    "test_passed": false,
+    "libraries_used": {
+      "string": [
+        "string.split"
+      ]
+    },
+    "code": "def first_repeated_word(string):\n    word_list = string.split()\n    for word in word_list:\n        if word in word_list:\n            return word\n    return None"
+  },
+  {
+    "task_id": "590",
+    "test_passed": false,
+    "libraries_used": {
+      "math": [
+        "math.sin",
+        "math.cos"
+      ]
+    },
+    "code": "def polar_rect(r, theta):\n    return (r*math.cos(theta), r*math.sin(theta))"
+  },
+  {
+    "task_id": "607",
+    "test_passed": false,
+    "libraries_used": {
+      "string": [
+        "string.find",
+        "string.rfind"
+      ]
+    },
+    "code": "def find_literals(string, pattern):\n    # Find the first occurrence of the pattern in the string\n    first_occurrence = string.find(pattern)\n\n    # If the pattern is not found, return None\n    if first_occurrence == -1:\n        return None\n\n    # Find the last occurrence of the pattern in the string\n    last_occurrence = string.rfind(pattern)\n\n    # If the pattern is not found, return None\n    if last_occurrence == -1:\n        return None\n\n    # Return the location of the pattern in the string\n "
+  },
+  {
+    "task_id": "635",
+    "test_passed": false,
+    "libraries_used": {
+      "heapq": [
+        "heapify"
+      ]
+    },
+    "code": "def heap_sort(arr):\n    n = len(arr)\n    for i in range(n//2, -1, -1):\n        heapify(arr, n, i)\n    for i in range(n-1, 0, -1):\n        arr[i], arr[0] = arr[0], arr[i]\n        heapify(arr, i, 0)\n    return arr"
+  }
+]

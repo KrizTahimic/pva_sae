@@ -114,7 +114,25 @@ class TemperatureRobustnessRunner:
             logger.warning(f"Model is on {actual_device} but expected {self.device}")
         else:
             logger.info(f"Model successfully loaded on {actual_device}")
-        
+
+        # Initialize seeds for deterministic generation at temperature=0.0
+        # CRITICAL: Even with temperature=0.0 and do_sample=False, PyTorch requires
+        # explicit seed initialization for deterministic generation across runs.
+        # Without these seeds, GPU kernel scheduling and floating-point operations
+        # can vary between runs, producing different code.
+        import random
+        torch.manual_seed(config.evaluation_random_seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(config.evaluation_random_seed)
+        random.seed(config.evaluation_random_seed)
+        np.random.seed(config.evaluation_random_seed)
+
+        # Force deterministic algorithms (warn_only=True to avoid errors on unsupported ops)
+        torch.use_deterministic_algorithms(True, warn_only=True)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        logger.info(f"Initialized random seeds (seed={config.evaluation_random_seed}) for deterministic generation")
+
         # Only setup extraction if temperature 0.0 is in config
         if 0.0 in config.temperature_variation_temps:
             # Discover best features from Phase 2.10
