@@ -1,0 +1,34 @@
+{
+  "phase": "8.2",
+  "timestamp": "2025-11-20T11:30:18.620423",
+  "optimization_summary": {
+    "metric": "net_benefit",
+    "formula": "correction_rate - corruption_rate",
+    "optimal_percentile": 70,
+    "optimal_threshold": 20.580138778686525,
+    "optimal_net_benefit": 0.0,
+    "optimal_metrics": {
+      "correction_rate": 0.0,
+      "corruption_rate": 0.0,
+      "preservation_rate": 1.0,
+      "steering_rate_correction": 0.34782608695652173,
+      "steering_rate_preservation": 0.03571428571428571
+    }
+  },
+  "source_dataset": {
+    "phase": "3.6",
+    "dataset": "hyperparams",
+    "n_correct_problems": 28,
+    "n_incorrect_problems": 69
+  },
+  "feature_info": {
+    "layer": 19,
+    "feature_idx": 5441,
+    "description": "Incorrect-predicting feature"
+  },
+  "steering_info": {
+    "layer": 16,
+    "coefficient": 29,
+    "description": "From Phase 4.8 optimal steering"
+  }
+}

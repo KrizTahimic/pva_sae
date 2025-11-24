@@ -1,0 +1,58 @@
+2025-11-21 16:19:04,420 [INFO] [test_mbpp_with_imports] setup_logging:167 - Phase: TEST, GPU: CPU
+2025-11-21 16:19:04,421 [WARNING] [test_mbpp_with_imports] main:504 - Config dataset is 'humaneval', forcing to 'mbpp'
+2025-11-21 16:19:04,447 [INFO] [test_mbpp_with_imports] __init__:219 - Loading model google/gemma-2-2b on device: cuda
+2025-11-21 16:19:04,636 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:47 - Loading model google/gemma-2-2b on cuda with dtype torch.bfloat16
+2025-11-21 16:19:06,237 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:56 - Loading model to cuda...
+2025-11-21 16:19:10,441 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:86 - Model successfully loaded on cuda:0
+2025-11-21 16:19:10,441 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:88 - Model loaded successfully: Gemma2ForCausalLM
+2025-11-21 16:19:10,442 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:89 - Model size: 2.61B parameters
+2025-11-21 16:19:10,479 [INFO] [test_mbpp_with_imports] __init__:241 - Initialized random seeds (seed=42) for deterministic generation
+2025-11-21 16:19:10,480 [INFO] [test_mbpp_with_imports] __init__:248 - Using layers: [16, 19]
+2025-11-21 16:19:10,480 [INFO] [common_simplified.activation_hooks] __init__:185 - Initialized AttentionExtractor for layers [16, 19] at position -1
+2025-11-21 16:19:10,480 [INFO] [test_mbpp_with_imports] run:329 - ======================================================================
+2025-11-21 16:19:10,480 [INFO] [test_mbpp_with_imports] run:330 - MBPP IMPORT PRE-LOADING TEST
+2025-11-21 16:19:10,480 [INFO] [test_mbpp_with_imports] run:331 - ======================================================================
+2025-11-21 16:19:10,480 [INFO] [test_mbpp_with_imports] run:332 - Testing with 73 standard library imports pre-loaded
+2025-11-21 16:19:10,481 [INFO] [test_mbpp_with_imports] run:333 - Dataset: mbpp
+2025-11-21 16:19:10,481 [INFO] [test_mbpp_with_imports] run:334 - Model: google/gemma-2-2b
+2025-11-21 16:19:10,504 [INFO] [test_mbpp_with_imports] run:342 - Loaded 388 validation problems
+2025-11-21 16:19:10,504 [INFO] [test_mbpp_with_imports] run:346 - Processing rows 0 to 9 (inclusive)
+2025-11-21 16:19:10,504 [INFO] [test_mbpp_with_imports] run:348 - Testing on 10 problems
+2025-11-21 16:19:10,505 [INFO] [test_mbpp_with_imports] run:356 - Output directory: data/test_imports/20251121_161910
+2025-11-21 16:19:10,506 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:19:10,506 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:19:22,185 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:19:22,185 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:20:10,274 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:20:10,274 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:20:11,713 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:20:11,714 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:20:13,705 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:20:13,705 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:20:15,079 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:20:15,079 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:20:16,142 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:20:16,142 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:20:18,273 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:20:18,273 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:20:29,482 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:20:29,483 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:20:31,608 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:20:31,608 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:20:35,924 [INFO] [test_mbpp_with_imports] run:457 - ======================================================================
+2025-11-21 16:20:35,924 [INFO] [test_mbpp_with_imports] run:458 - TEST COMPLETE
+2025-11-21 16:20:35,924 [INFO] [test_mbpp_with_imports] run:459 - ======================================================================
+2025-11-21 16:20:35,924 [INFO] [test_mbpp_with_imports] run:460 - Problems tested: 10
+2025-11-21 16:20:35,925 [INFO] [test_mbpp_with_imports] run:461 - Passed: 5
+2025-11-21 16:20:35,925 [INFO] [test_mbpp_with_imports] run:462 - Failed: 5
+2025-11-21 16:20:35,925 [INFO] [test_mbpp_with_imports] run:463 - Pass rate: 50.00%
+2025-11-21 16:20:35,925 [INFO] [test_mbpp_with_imports] run:464 - Avg generation time: 8.54s
+2025-11-21 16:20:35,925 [INFO] [test_mbpp_with_imports] run:465 - Results saved to: data/test_imports/20251121_161910/dataset_temp_0_0_with_imports.parquet
+2025-11-21 16:20:35,925 [INFO] [test_mbpp_with_imports] run:466 - Metadata saved to: data/test_imports/20251121_161910/metadata.json
+2025-11-21 16:20:35,926 [INFO] [test_mbpp_with_imports] run:467 - ======================================================================
+2025-11-21 16:20:35,926 [INFO] [test_mbpp_with_imports] run:470 - 
+2025-11-21 16:20:35,926 [INFO] [test_mbpp_with_imports] run:471 - To compare with baseline (without imports):
+2025-11-21 16:20:35,926 [INFO] [test_mbpp_with_imports] run:472 -   1. Check Phase 3.5 results: data/phase3_5/dataset_temp_0_0.parquet
+2025-11-21 16:20:35,926 [INFO] [test_mbpp_with_imports] run:473 -   2. Filter for the same task_ids you tested
+2025-11-21 16:20:35,926 [INFO] [test_mbpp_with_imports] run:474 -   3. Compare pass rates
+2025-11-21 16:20:35,926 [INFO] [test_mbpp_with_imports] run:475 - 

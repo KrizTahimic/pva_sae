@@ -1,0 +1,968 @@
+2025-11-19 13:02:51,746 [INFO] [sae_analyzer] setup_logging:167 - Phase: 2.5, GPU: CPU
+2025-11-19 13:02:51,746 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] setup_logging:167 - Phase: 8.3, GPU: CPU
+2025-11-19 13:02:51,747 [INFO] [main] run_phase8_3:676 - Starting Phase 8.3: Selective Steering Based on Threshold Analysis
+2025-11-19 13:02:51,747 [INFO] [main] run_phase8_3:677 - Will apply steering only when predictive direction exceeds optimal threshold
+2025-11-19 13:02:51,747 [INFO] [main] run_phase8_3:678 - Automatically discovers Phase 3.8 threshold and Phase 3.5 baseline
+2025-11-19 13:02:51,747 [INFO] [main] run_phase8_3:681 - 
+============================================================
+CONFIGURATION
+============================================================
+
+ACTIVATION Settings:
+  activation_cleanup_after_batch: True
+  activation_clear_cache_between_layers: True
+  activation_hook_type: resid_post
+  activation_layers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
+  activation_max_cache_gb: 10.0
+  activation_max_length: 2048
+  activation_position: -1
+
+AUTOSAVE Settings:
+  autosave_frequency: 100
+  autosave_keep_last: 3
+
+CHECKPOINT Settings:
+  checkpoint_dir: checkpoints
+  checkpoint_frequency: 50
+
+CONTINUE Settings:
+  continue_on_error: True
+
+DATASET Settings:
+  dataset_dir: data/phase1_0
+  dataset_end_idx: None
+  dataset_name: Muennighoff/mbpp
+  dataset_split: test
+  dataset_start_idx: 0
+
+ENABLE Settings:
+  enable_timing_stats: True
+
+EVALUATION Settings:
+  evaluation_random_seed: 42
+
+GC Settings:
+  gc_collect_frequency: 50
+
+LOG Settings:
+  log_dir: data/logs
+
+MAX Settings:
+  max_gpu_memory_usage_gb: 30.0
+  max_memory_usage_gb: 100.0
+  max_retries: 3
+
+MEMORY Settings:
+  memory_cleanup_frequency: 100
+
+MODEL Settings:
+  model_device: None
+  model_dtype: None
+  model_max_new_tokens: 800
+  model_name: google/gemma-2-2b
+  model_temperature: 0.0
+  model_trust_remote_code: True
+
+ORTHOGONALIZATION Settings:
+  orthogonalization_target_weights: [embed, attn_o, mlp_down]
+
+PHASE0 Settings:
+  phase0_1_output_dir: data/phase0_1
+  phase0_output_dir: data/phase0
+
+PHASE1 Settings:
+  phase1_output_dir: data/phase1_0
+
+PHASE2 Settings:
+  phase2_10_output_dir: data/phase2_10
+  phase2_15_output_dir: data/phase2_15
+  phase2_2_output_dir: data/phase2_2
+  phase2_5_output_dir: data/phase2_5
+  phase2_output_dir: data/phase2
+
+PHASE3 Settings:
+  phase3_10_output_dir: data/phase3_10
+  phase3_10_temperatures: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
+  phase3_11_output_dir: data/phase3_11
+  phase3_12_output_dir: data/phase3_12
+  phase3_5_output_dir: data/phase3_5
+  phase3_6_output_dir: data/phase3_6
+  phase3_8_output_dir: data/phase3_8
+  phase3_output_dir: data/phase3
+
+PHASE4 Settings:
+  phase4_10_min_activation_freq: 0.001
+  phase4_10_n_features: 10
+  phase4_10_output_dir: data/phase4_10
+  phase4_10_separation_threshold: 0.01
+  phase4_12_output_dir: data/phase4_12
+  phase4_14_output_dir: data/phase4_14
+  phase4_14_significance_level: 0.05
+  phase4_5_correct_coefficients: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0]
+  phase4_5_experiment_mode: all
+  phase4_5_incorrect_coefficients: [100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0]
+  phase4_5_meaningful_effect_threshold: 5.0
+  phase4_5_output_dir: data/phase4_5
+  phase4_5_plateau_threshold: 2.0
+  phase4_5_search_tolerance: 2.0
+  phase4_6_experiment_mode: all
+  phase4_6_output_dir: data/phase4_6
+  phase4_6_tolerance: 1.0
+  phase4_8_correct_coefficient: 29
+  phase4_8_experiment_mode: all
+  phase4_8_incorrect_coefficient: 287
+  phase4_8_output_dir: data/phase4_8
+
+PHASE5 Settings:
+  phase5_3_output_dir: data/phase5_3
+  phase5_6_output_dir: data/phase5_6
+  phase5_9_output_dir: data/phase5_9
+  phase5_9_significance_level: 0.05
+
+PHASE6 Settings:
+  phase6_3_output_dir: data/phase6_3
+
+PHASE7 Settings:
+  phase7_12_output_dir: data/phase7_12
+  phase7_3_model_name: google/gemma-2-2b-it
+  phase7_3_output_dir: data/phase7_3
+  phase7_6_model_name: google/gemma-2-2b-it
+  phase7_6_output_dir: data/phase7_6
+
+PHASE8 Settings:
+  **phase8_3_output_dir**: data/phase8_3
+
+PILE Settings:
+  pile_filter_enabled: True
+  pile_samples: 10000
+  pile_threshold: 0.02
+
+PROGRESS Settings:
+  progress_log_frequency: 10
+
+RETRY Settings:
+  retry_backoff: 1.0
+
+SAE Settings:
+  sae_checkpoint_dir: data/phase2/sae_checkpoints
+  sae_cleanup_after_layer: True
+  sae_hook_component: resid_post
+  sae_latent_threshold: 0.02
+  sae_repo_id: google/gemma-scope-2b-pt-res
+  sae_save_after_each_layer: True
+  sae_sparsity: 71
+  sae_use_memory_mapping: False
+  sae_width: 16k
+
+SHOW Settings:
+  show_progress_bar: True
+
+SPLIT Settings:
+  split_n_strata: 10
+  split_random_seed: 42
+  split_ratio_tolerance: 0.02
+
+T Settings:
+  t_statistic_min_samples: 10
+
+TEMPERATURE Settings:
+  temperature_samples_per_temp: 3
+  temperature_variation_temps: [0.0]
+
+TIMEOUT Settings:
+  timeout_per_record: 300.0
+
+VERBOSE Settings:
+  verbose: False
+
+============================================================
+2025-11-19 13:02:51,748 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] __init__:103 - Initializing Selective Steering Analyzer
+2025-11-19 13:02:51,748 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] __init__:104 - Device: cuda
+2025-11-19 13:02:51,748 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] __init__:105 - Output directory: data/phase8_3
+2025-11-19 13:02:51,748 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:114 - Loading dependencies...
+2025-11-19 13:02:51,748 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:117 - Loading model and tokenizer...
+2025-11-19 13:02:51,949 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:47 - Loading model google/gemma-2-2b on cuda with dtype torch.bfloat16
+2025-11-19 13:02:53,420 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:56 - Loading model to cuda...
+2025-11-19 13:02:57,701 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:83 - Model successfully loaded on cuda:0
+2025-11-19 13:02:57,701 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:85 - Model loaded successfully: Gemma2ForCausalLM
+2025-11-19 13:02:57,703 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:86 - Model size: 2.61B parameters
+2025-11-19 13:02:57,703 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:123 - Model loaded: google/gemma-2-2b
+2025-11-19 13:02:57,703 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:126 - Loading optimal threshold from Phase 3.8...
+2025-11-19 13:02:57,704 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:139 - Incorrect-predicting feature: Layer 19, Feature 5441
+2025-11-19 13:02:57,704 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:141 - Optimal threshold: 15.5086
+2025-11-19 13:02:57,704 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:144 - Loading steering features from Phase 2.5...
+2025-11-19 13:02:57,704 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:160 - Correct-steering feature: Layer 16, Feature 11225, Score 0.2212
+2025-11-19 13:02:57,704 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:165 - Loading SAE models...
+2025-11-19 13:02:57,704 [INFO] [sae_analyzer] load_gemma_scope_sae:47 - Loading GemmaScope SAE for layer 19
+2025-11-19 13:02:57,704 [INFO] [sae_analyzer] load_gemma_scope_sae:61 - Loading from HuggingFace: google/gemma-scope-2b-pt-res/layer_19/width_16k/average_l0_73/params.npz
+2025-11-19 13:02:57,705 [INFO] [sae_analyzer] load_gemma_scope_sae:62 - This may take a while if the model is not cached...
+2025-11-19 13:02:57,908 [INFO] [sae_analyzer] load_gemma_scope_sae:70 - Download complete, loading from: /home/kriz_tahimic/.cache/huggingface/hub/models--google--gemma-scope-2b-pt-res/snapshots/fd571b47c1c64851e9b1989792367b9babb4af63/layer_19/width_16k/average_l0_73/params.npz
+2025-11-19 13:02:58,752 [INFO] [sae_analyzer] load_gemma_scope_sae:87 - Loaded SAE with d_model=2304, d_sae=16384, sparsity=73
+2025-11-19 13:02:58,753 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:169 - Loaded SAE for Layer 19 (threshold checking)
+2025-11-19 13:02:58,753 [INFO] [sae_analyzer] load_gemma_scope_sae:47 - Loading GemmaScope SAE for layer 16
+2025-11-19 13:02:58,753 [INFO] [sae_analyzer] load_gemma_scope_sae:61 - Loading from HuggingFace: google/gemma-scope-2b-pt-res/layer_16/width_16k/average_l0_78/params.npz
+2025-11-19 13:02:58,753 [INFO] [sae_analyzer] load_gemma_scope_sae:62 - This may take a while if the model is not cached...
+2025-11-19 13:02:58,959 [INFO] [sae_analyzer] load_gemma_scope_sae:70 - Download complete, loading from: /home/kriz_tahimic/.cache/huggingface/hub/models--google--gemma-scope-2b-pt-res/snapshots/fd571b47c1c64851e9b1989792367b9babb4af63/layer_16/width_16k/average_l0_78/params.npz
+2025-11-19 13:02:59,832 [INFO] [sae_analyzer] load_gemma_scope_sae:87 - Loaded SAE with d_model=2304, d_sae=16384, sparsity=78
+2025-11-19 13:02:59,833 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:173 - Loaded SAE for Layer 16 (steering)
+2025-11-19 13:02:59,843 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:181 - Decoder direction converted to model dtype: torch.bfloat16
+2025-11-19 13:02:59,843 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:184 - Loading baseline data from Phase 3.5...
+2025-11-19 13:02:59,867 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:195 - Loaded 388 problems from Phase 3.5 baseline
+2025-11-19 13:02:59,869 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:202 - Parsed test_list JSON strings to lists
+2025-11-19 13:02:59,886 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:221 - ✓ Validation passed: test_list is list with 3 test cases
+2025-11-19 13:02:59,886 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _load_dependencies:242 - Dependencies loaded successfully
+2025-11-19 13:02:59,887 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] __init__:110 - Initialization complete
+2025-11-19 13:02:59,887 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:860 - ============================================================
+2025-11-19 13:02:59,887 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:861 - Starting Phase 8.3: Selective Steering Analysis
+2025-11-19 13:02:59,887 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:862 - ============================================================
+2025-11-19 13:02:59,887 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _split_baseline_by_correctness:249 - Splitting baseline by initial correctness...
+2025-11-19 13:02:59,903 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _split_baseline_by_correctness:259 - Split complete:
+2025-11-19 13:02:59,903 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _split_baseline_by_correctness:260 -   Initially incorrect: 272 (70.1%)
+2025-11-19 13:02:59,903 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _split_baseline_by_correctness:261 -   Initially correct: 116 (29.9%)
+2025-11-19 13:02:59,903 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:868 - 
+============================================================
+2025-11-19 13:02:59,903 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:869 - EXPERIMENT 1: Selective Correction (initially incorrect problems)
+2025-11-19 13:02:59,903 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:870 - ============================================================
+2025-11-19 13:02:59,904 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] load_checkpoint:823 - Loading checkpoint from checkpoint_correction_20251119_130115.json
+2025-11-19 13:02:59,904 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] load_checkpoint:827 - Resuming correction experiment from index 3/3
+2025-11-19 13:02:59,904 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:458 - Resuming from checkpoint at index 4
+2025-11-19 13:02:59,904 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:465 - 
+============================================================
+2025-11-19 13:02:59,904 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:466 - EXPERIMENT: CORRECTION
+2025-11-19 13:02:59,905 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:467 - ============================================================
+2025-11-19 13:02:59,905 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:470 - Processing 272 initially incorrect problems
+2025-11-19 13:02:59,905 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:471 - Goal: Measure selective correction rate
+2025-11-19 13:02:59,905 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:476 - Threshold: 15.5086 (Layer 19, Feature 5441)
+2025-11-19 13:02:59,905 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:477 - Steering: Layer 16, Feature 11225, Coefficient 29
+2025-11-19 13:02:59,905 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:478 - ============================================================
+
+2025-11-19 13:03:34,776 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [5/272] Task 20: ✗ STEERED (L19-5441: 19.36, threshold: 15.51)
+2025-11-19 13:03:37,498 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [6/272] Task 24: ✗ STEERED (L19-5441: 18.27, threshold: 15.51)
+2025-11-19 13:03:38,572 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [7/272] Task 27: ✗ BASELINE (L19-5441: 15.48, threshold: 15.51)
+2025-11-19 13:03:40,938 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [8/272] Task 29: ✗ STEERED (L19-5441: 18.38, threshold: 15.51)
+2025-11-19 13:03:42,991 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [9/272] Task 37: ✗ STEERED (L19-5441: 18.55, threshold: 15.51)
+2025-11-19 13:03:44,388 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [10/272] Task 40: ✗ STEERED (L19-5441: 21.90, threshold: 15.51)
+2025-11-19 13:03:44,389 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 10/272 tasks
+2025-11-19 13:03:44,389 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 9, Corrected: 0, Errors: 0
+2025-11-19 13:03:44,389 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.39
+
+2025-11-19 13:03:45,864 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [11/272] Task 43: ✗ STEERED (L19-5441: 21.31, threshold: 15.51)
+2025-11-19 13:03:49,945 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [12/272] Task 47: ✗ STEERED (L19-5441: 19.95, threshold: 15.51)
+2025-11-19 13:03:51,279 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [13/272] Task 50: ✗ STEERED (L19-5441: 18.72, threshold: 15.51)
+2025-11-19 13:03:53,464 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [14/272] Task 55: ✗ STEERED (L19-5441: 20.63, threshold: 15.51)
+2025-11-19 13:03:57,767 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [15/272] Task 57: ✗ STEERED (L19-5441: 20.29, threshold: 15.51)
+2025-11-19 13:03:59,685 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [16/272] Task 59: ✗ STEERED (L19-5441: 18.55, threshold: 15.51)
+2025-11-19 13:04:04,037 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [17/272] Task 72: ✗ STEERED (L19-5441: 18.12, threshold: 15.51)
+2025-11-19 13:04:06,711 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [18/272] Task 74: ✗ STEERED (L19-5441: 21.41, threshold: 15.51)
+2025-11-19 13:04:07,952 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [19/272] Task 83: ✗ STEERED (L19-5441: 19.88, threshold: 15.51)
+2025-11-19 13:04:11,749 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [20/272] Task 84: ✗ STEERED (L19-5441: 19.86, threshold: 15.51)
+2025-11-19 13:04:11,750 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 20/272 tasks
+2025-11-19 13:04:11,750 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 19, Corrected: 0, Errors: 0
+2025-11-19 13:04:11,750 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.63
+
+2025-11-19 13:04:13,605 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [21/272] Task 86: ✗ STEERED (L19-5441: 21.42, threshold: 15.51)
+2025-11-19 13:04:15,369 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [22/272] Task 89: ✗ STEERED (L19-5441: 17.94, threshold: 15.51)
+2025-11-19 13:04:17,028 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [23/272] Task 91: ✗ STEERED (L19-5441: 20.43, threshold: 15.51)
+2025-11-19 13:04:20,274 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [24/272] Task 92: ✗ STEERED (L19-5441: 19.40, threshold: 15.51)
+2025-11-19 13:04:23,616 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [25/272] Task 94: ✗ STEERED (L19-5441: 20.64, threshold: 15.51)
+2025-11-19 13:04:27,150 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [26/272] Task 95: ✗ STEERED (L19-5441: 21.21, threshold: 15.51)
+2025-11-19 13:04:29,277 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [27/272] Task 100: ✗ STEERED (L19-5441: 18.35, threshold: 15.51)
+2025-11-19 13:04:31,410 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [28/272] Task 109: ✗ STEERED (L19-5441: 20.05, threshold: 15.51)
+2025-11-19 13:04:35,472 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [29/272] Task 111: ✗ STEERED (L19-5441: 19.43, threshold: 15.51)
+2025-11-19 13:04:38,473 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [30/272] Task 114: ✗ STEERED (L19-5441: 20.91, threshold: 15.51)
+2025-11-19 13:04:38,474 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 30/272 tasks
+2025-11-19 13:04:38,474 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 29, Corrected: 0, Errors: 0
+2025-11-19 13:04:38,474 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.75
+
+2025-11-19 13:04:40,362 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [31/272] Task 119: ✗ STEERED (L19-5441: 16.49, threshold: 15.51)
+2025-11-19 13:04:45,027 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [32/272] Task 122: ✗ STEERED (L19-5441: 19.31, threshold: 15.51)
+2025-11-19 13:04:48,762 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [33/272] Task 123: ✗ STEERED (L19-5441: 21.72, threshold: 15.51)
+2025-11-19 13:04:49,574 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [34/272] Task 132: ✗ STEERED (L19-5441: 16.46, threshold: 15.51)
+2025-11-19 13:04:51,661 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [35/272] Task 137: ✗ STEERED (L19-5441: 19.99, threshold: 15.51)
+2025-11-19 13:04:53,315 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [36/272] Task 139: ✗ STEERED (L19-5441: 17.25, threshold: 15.51)
+2025-11-19 13:05:09,559 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [37/272] Task 147: ✗ STEERED (L19-5441: 21.34, threshold: 15.51)
+2025-11-19 13:05:14,025 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [38/272] Task 148: ✗ STEERED (L19-5441: 22.63, threshold: 15.51)
+2025-11-19 13:05:16,029 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [39/272] Task 155: ✗ STEERED (L19-5441: 17.24, threshold: 15.51)
+2025-11-19 13:05:19,555 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [40/272] Task 157: ✗ STEERED (L19-5441: 20.58, threshold: 15.51)
+2025-11-19 13:05:19,555 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 40/272 tasks
+2025-11-19 13:05:19,556 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 39, Corrected: 0, Errors: 0
+2025-11-19 13:05:19,556 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.64
+
+2025-11-19 13:05:40,783 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [41/272] Task 159: ✗ STEERED (L19-5441: 19.46, threshold: 15.51)
+2025-11-19 13:05:41,979 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [42/272] Task 167: ✗ STEERED (L19-5441: 16.91, threshold: 15.51)
+2025-11-19 13:05:44,595 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [43/272] Task 185: ✗ STEERED (L19-5441: 19.45, threshold: 15.51)
+2025-11-19 13:05:49,230 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [44/272] Task 189: ✗ STEERED (L19-5441: 18.10, threshold: 15.51)
+2025-11-19 13:05:53,288 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [45/272] Task 190: ✗ STEERED (L19-5441: 20.03, threshold: 15.51)
+2025-11-19 13:05:56,157 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [46/272] Task 194: ✗ STEERED (L19-5441: 17.05, threshold: 15.51)
+2025-11-19 13:05:59,263 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [47/272] Task 199: ✗ STEERED (L19-5441: 18.70, threshold: 15.51)
+2025-11-19 13:06:01,764 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [48/272] Task 200: ✗ STEERED (L19-5441: 19.03, threshold: 15.51)
+2025-11-19 13:06:10,290 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [49/272] Task 205: ✗ STEERED (L19-5441: 21.66, threshold: 15.51)
+2025-11-19 13:06:11,731 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [50/272] Task 210: ✗ STEERED (L19-5441: 17.81, threshold: 15.51)
+2025-11-19 13:06:11,731 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 50/272 tasks
+2025-11-19 13:06:11,731 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 49, Corrected: 0, Errors: 0
+2025-11-19 13:06:11,731 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.47
+
+2025-11-19 13:06:11,732 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:559 -   ✓ Milestone: 50/272 tasks completed
+
+2025-11-19 13:06:11,732 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:561 - Autosaving at task 50/272
+2025-11-19 13:06:11,733 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] save_checkpoint:808 - Saved correction checkpoint at index 49/271
+2025-11-19 13:06:13,037 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [51/272] Task 213: ✗ STEERED (L19-5441: 19.29, threshold: 15.51)
+2025-11-19 13:06:16,693 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [52/272] Task 215: ✗ STEERED (L19-5441: 21.99, threshold: 15.51)
+2025-11-19 13:06:18,550 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [53/272] Task 216: ✗ STEERED (L19-5441: 20.09, threshold: 15.51)
+2025-11-19 13:06:29,051 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [54/272] Task 223: ✗ STEERED (L19-5441: 21.21, threshold: 15.51)
+2025-11-19 13:06:30,889 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [55/272] Task 226: ✗ STEERED (L19-5441: 17.73, threshold: 15.51)
+2025-11-19 13:06:35,660 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [56/272] Task 229: ✗ STEERED (L19-5441: 19.13, threshold: 15.51)
+2025-11-19 13:06:39,145 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [57/272] Task 236: ✗ STEERED (L19-5441: 22.70, threshold: 15.51)
+2025-11-19 13:07:13,626 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [58/272] Task 239: ✗ STEERED (L19-5441: 22.69, threshold: 15.51)
+2025-11-19 13:07:15,188 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [59/272] Task 240: ✗ STEERED (L19-5441: 18.41, threshold: 15.51)
+2025-11-19 13:07:49,891 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [60/272] Task 246: ✗ STEERED (L19-5441: 17.08, threshold: 15.51)
+2025-11-19 13:07:49,892 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 60/272 tasks
+2025-11-19 13:07:49,892 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 59, Corrected: 0, Errors: 0
+2025-11-19 13:07:49,892 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.57
+
+2025-11-19 13:07:51,805 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [61/272] Task 252: ✗ STEERED (L19-5441: 17.10, threshold: 15.51)
+2025-11-19 13:07:53,435 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [62/272] Task 254: ✗ STEERED (L19-5441: 19.70, threshold: 15.51)
+2025-11-19 13:08:01,460 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [63/272] Task 255: ✗ STEERED (L19-5441: 20.55, threshold: 15.51)
+2025-11-19 13:08:06,670 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [64/272] Task 256: ✗ STEERED (L19-5441: 18.45, threshold: 15.51)
+2025-11-19 13:08:10,947 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [65/272] Task 259: ✗ STEERED (L19-5441: 21.71, threshold: 15.51)
+2025-11-19 13:08:12,226 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [66/272] Task 261: ✗ STEERED (L19-5441: 20.85, threshold: 15.51)
+2025-11-19 13:08:13,937 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [67/272] Task 265: ✗ STEERED (L19-5441: 19.90, threshold: 15.51)
+2025-11-19 13:08:15,152 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [68/272] Task 268: ✗ STEERED (L19-5441: 21.21, threshold: 15.51)
+2025-11-19 13:08:17,677 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [69/272] Task 270: ✗ STEERED (L19-5441: 16.83, threshold: 15.51)
+2025-11-19 13:08:19,681 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [70/272] Task 271: ✗ STEERED (L19-5441: 18.78, threshold: 15.51)
+2025-11-19 13:08:19,681 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 70/272 tasks
+2025-11-19 13:08:19,681 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 69, Corrected: 0, Errors: 0
+2025-11-19 13:08:19,681 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.56
+
+2025-11-19 13:08:22,192 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [71/272] Task 277: ✗ STEERED (L19-5441: 17.89, threshold: 15.51)
+2025-11-19 13:08:24,518 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [72/272] Task 278: ✗ STEERED (L19-5441: 19.75, threshold: 15.51)
+2025-11-19 13:08:28,550 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [73/272] Task 279: ✗ STEERED (L19-5441: 18.49, threshold: 15.51)
+2025-11-19 13:08:29,991 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [74/272] Task 282: ✗ STEERED (L19-5441: 18.58, threshold: 15.51)
+2025-11-19 13:09:04,731 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [75/272] Task 286: ✗ STEERED (L19-5441: 22.94, threshold: 15.51)
+2025-11-19 13:09:07,059 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [76/272] Task 287: ✗ STEERED (L19-5441: 18.10, threshold: 15.51)
+2025-11-19 13:09:11,097 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [77/272] Task 288: ✗ STEERED (L19-5441: 21.38, threshold: 15.51)
+2025-11-19 13:09:14,505 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [78/272] Task 290: ✗ STEERED (L19-5441: 23.05, threshold: 15.51)
+2025-11-19 13:09:15,678 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [79/272] Task 297: ✗ STEERED (L19-5441: 19.61, threshold: 15.51)
+2025-11-19 13:09:17,985 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [80/272] Task 301: ✗ STEERED (L19-5441: 17.42, threshold: 15.51)
+2025-11-19 13:09:17,985 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 80/272 tasks
+2025-11-19 13:09:17,986 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 79, Corrected: 0, Errors: 0
+2025-11-19 13:09:17,986 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.58
+
+2025-11-19 13:09:21,250 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [81/272] Task 305: ✗ STEERED (L19-5441: 19.01, threshold: 15.51)
+2025-11-19 13:09:23,054 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [82/272] Task 307: ✗ STEERED (L19-5441: 19.52, threshold: 15.51)
+2025-11-19 13:09:23,945 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [83/272] Task 310: ✗ STEERED (L19-5441: 19.20, threshold: 15.51)
+2025-11-19 13:09:28,347 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [84/272] Task 311: ✗ STEERED (L19-5441: 17.96, threshold: 15.51)
+2025-11-19 13:09:30,134 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [85/272] Task 313: ✗ BASELINE (L19-5441: 14.51, threshold: 15.51)
+2025-11-19 13:09:33,064 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [86/272] Task 316: ✗ STEERED (L19-5441: 19.46, threshold: 15.51)
+2025-11-19 13:10:07,676 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [87/272] Task 318: ✗ STEERED (L19-5441: 22.08, threshold: 15.51)
+2025-11-19 13:10:13,264 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [88/272] Task 320: ✗ STEERED (L19-5441: 21.56, threshold: 15.51)
+2025-11-19 13:10:15,395 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [89/272] Task 321: ✗ STEERED (L19-5441: 19.87, threshold: 15.51)
+2025-11-19 13:10:17,957 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [90/272] Task 322: ✗ STEERED (L19-5441: 19.44, threshold: 15.51)
+2025-11-19 13:10:17,957 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 90/272 tasks
+2025-11-19 13:10:17,958 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 88, Corrected: 0, Errors: 0
+2025-11-19 13:10:17,958 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.54
+
+2025-11-19 13:10:20,387 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [91/272] Task 323: ✗ STEERED (L19-5441: 20.16, threshold: 15.51)
+2025-11-19 13:10:54,993 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [92/272] Task 325: ✗ STEERED (L19-5441: 22.87, threshold: 15.51)
+2025-11-19 13:10:57,557 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [93/272] Task 332: ✓ STEERED (L19-5441: 20.70, threshold: 15.51)
+2025-11-19 13:10:59,358 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [94/272] Task 337: ✗ STEERED (L19-5441: 17.04, threshold: 15.51)
+2025-11-19 13:11:01,881 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [95/272] Task 344: ✗ STEERED (L19-5441: 19.70, threshold: 15.51)
+2025-11-19 13:11:03,053 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [96/272] Task 355: ✗ STEERED (L19-5441: 20.63, threshold: 15.51)
+2025-11-19 13:11:13,409 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [97/272] Task 359: ✗ STEERED (L19-5441: 19.73, threshold: 15.51)
+2025-11-19 13:11:17,854 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [98/272] Task 364: ✗ STEERED (L19-5441: 23.91, threshold: 15.51)
+2025-11-19 13:11:23,690 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [99/272] Task 367: ✗ STEERED (L19-5441: 19.29, threshold: 15.51)
+2025-11-19 13:11:26,195 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [100/272] Task 368: ✗ STEERED (L19-5441: 17.91, threshold: 15.51)
+2025-11-19 13:11:26,195 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 100/272 tasks
+2025-11-19 13:11:26,195 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 98, Corrected: 1, Errors: 0
+2025-11-19 13:11:26,195 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.61
+
+2025-11-19 13:11:26,195 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:559 -   ✓ Milestone: 100/272 tasks completed
+
+2025-11-19 13:11:26,195 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:561 - Autosaving at task 100/272
+2025-11-19 13:11:26,198 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] save_checkpoint:808 - Saved correction checkpoint at index 99/271
+2025-11-19 13:11:31,095 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [101/272] Task 371: ✗ STEERED (L19-5441: 21.51, threshold: 15.51)
+2025-11-19 13:11:50,831 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [102/272] Task 372: ✗ STEERED (L19-5441: 21.83, threshold: 15.51)
+2025-11-19 13:11:55,634 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [103/272] Task 374: ✗ STEERED (L19-5441: 22.66, threshold: 15.51)
+2025-11-19 13:12:01,852 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [104/272] Task 376: ✗ STEERED (L19-5441: 19.44, threshold: 15.51)
+2025-11-19 13:12:04,238 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [105/272] Task 377: ✗ STEERED (L19-5441: 16.76, threshold: 15.51)
+2025-11-19 13:12:06,584 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [106/272] Task 383: ✗ STEERED (L19-5441: 17.40, threshold: 15.51)
+2025-11-19 13:12:08,580 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [107/272] Task 387: ✗ STEERED (L19-5441: 17.04, threshold: 15.51)
+2025-11-19 13:12:10,389 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [108/272] Task 390: ✗ STEERED (L19-5441: 17.14, threshold: 15.51)
+2025-11-19 13:12:11,687 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [109/272] Task 393: ✗ STEERED (L19-5441: 18.53, threshold: 15.51)
+2025-11-19 13:12:14,202 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [110/272] Task 400: ✗ STEERED (L19-5441: 21.36, threshold: 15.51)
+2025-11-19 13:12:14,202 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 110/272 tasks
+2025-11-19 13:12:14,202 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 108, Corrected: 1, Errors: 0
+2025-11-19 13:12:14,203 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.59
+
+2025-11-19 13:12:16,797 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [111/272] Task 401: ✗ STEERED (L19-5441: 21.52, threshold: 15.51)
+2025-11-19 13:12:22,902 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [112/272] Task 402: ✗ STEERED (L19-5441: 18.47, threshold: 15.51)
+2025-11-19 13:12:26,817 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [113/272] Task 407: ✗ STEERED (L19-5441: 19.22, threshold: 15.51)
+2025-11-19 13:12:29,321 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [114/272] Task 410: ✗ STEERED (L19-5441: 16.82, threshold: 15.51)
+2025-11-19 13:12:33,824 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [115/272] Task 416: ✗ STEERED (L19-5441: 19.22, threshold: 15.51)
+2025-11-19 13:12:36,283 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [116/272] Task 418: ✗ STEERED (L19-5441: 20.08, threshold: 15.51)
+2025-11-19 13:12:38,781 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [117/272] Task 425: ✗ STEERED (L19-5441: 22.78, threshold: 15.51)
+2025-11-19 13:12:40,603 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [118/272] Task 431: ✗ STEERED (L19-5441: 18.06, threshold: 15.51)
+2025-11-19 13:12:44,511 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [119/272] Task 432: ✗ STEERED (L19-5441: 17.93, threshold: 15.51)
+2025-11-19 13:12:46,386 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [120/272] Task 436: ✗ BASELINE (L19-5441: 14.41, threshold: 15.51)
+2025-11-19 13:12:46,387 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 120/272 tasks
+2025-11-19 13:12:46,387 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 117, Corrected: 1, Errors: 0
+2025-11-19 13:12:46,387 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.53
+
+2025-11-19 13:12:47,974 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [121/272] Task 437: ✗ STEERED (L19-5441: 19.10, threshold: 15.51)
+2025-11-19 13:12:49,296 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [122/272] Task 444: ✗ STEERED (L19-5441: 20.04, threshold: 15.51)
+2025-11-19 13:12:51,769 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [123/272] Task 445: ✗ STEERED (L19-5441: 22.31, threshold: 15.51)
+2025-11-19 13:12:55,448 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [124/272] Task 449: ✗ STEERED (L19-5441: 19.44, threshold: 15.51)
+2025-11-19 13:12:57,132 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [125/272] Task 450: ✗ STEERED (L19-5441: 19.40, threshold: 15.51)
+2025-11-19 13:12:59,247 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [126/272] Task 453: ✗ BASELINE (L19-5441: 15.49, threshold: 15.51)
+2025-11-19 13:13:02,918 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [127/272] Task 455: ✓ STEERED (L19-5441: 18.97, threshold: 15.51)
+2025-11-19 13:13:04,617 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [128/272] Task 460: ✓ STEERED (L19-5441: 18.08, threshold: 15.51)
+2025-11-19 13:13:06,538 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [129/272] Task 461: ✗ STEERED (L19-5441: 16.79, threshold: 15.51)
+2025-11-19 13:13:08,298 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [130/272] Task 464: ✗ STEERED (L19-5441: 19.47, threshold: 15.51)
+2025-11-19 13:13:08,298 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 130/272 tasks
+2025-11-19 13:13:08,298 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 126, Corrected: 3, Errors: 0
+2025-11-19 13:13:08,299 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.48
+
+2025-11-19 13:13:11,019 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [131/272] Task 466: ✗ STEERED (L19-5441: 17.39, threshold: 15.51)
+2025-11-19 13:13:13,556 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [132/272] Task 471: ✗ STEERED (L19-5441: 19.80, threshold: 15.51)
+2025-11-19 13:13:15,159 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [133/272] Task 473: ✗ STEERED (L19-5441: 22.04, threshold: 15.51)
+2025-11-19 13:13:18,731 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [134/272] Task 483: ✗ STEERED (L19-5441: 17.29, threshold: 15.51)
+2025-11-19 13:13:24,650 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [135/272] Task 485: ✗ STEERED (L19-5441: 21.92, threshold: 15.51)
+2025-11-19 13:13:31,539 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [136/272] Task 486: ✗ STEERED (L19-5441: 19.10, threshold: 15.51)
+2025-11-19 13:13:38,503 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [137/272] Task 488: ✗ STEERED (L19-5441: 17.22, threshold: 15.51)
+2025-11-19 13:13:41,631 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [138/272] Task 490: ✗ STEERED (L19-5441: 21.72, threshold: 15.51)
+2025-11-19 13:13:42,552 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [139/272] Task 500: ✗ STEERED (L19-5441: 18.70, threshold: 15.51)
+2025-11-19 13:13:49,632 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [140/272] Task 501: ✗ STEERED (L19-5441: 17.70, threshold: 15.51)
+2025-11-19 13:13:49,632 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 140/272 tasks
+2025-11-19 13:13:49,632 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 136, Corrected: 3, Errors: 0
+2025-11-19 13:13:49,633 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.46
+
+2025-11-19 13:13:58,156 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [141/272] Task 505: ✗ STEERED (L19-5441: 20.41, threshold: 15.51)
+2025-11-19 13:13:59,725 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [142/272] Task 506: ✗ STEERED (L19-5441: 20.28, threshold: 15.51)
+2025-11-19 13:14:03,592 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [143/272] Task 509: ✗ STEERED (L19-5441: 17.62, threshold: 15.51)
+2025-11-19 13:14:08,335 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [144/272] Task 510: ✗ STEERED (L19-5441: 22.94, threshold: 15.51)
+2025-11-19 13:14:10,998 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [145/272] Task 512: ✗ STEERED (L19-5441: 21.87, threshold: 15.51)
+2025-11-19 13:14:12,742 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [146/272] Task 521: ✗ STEERED (L19-5441: 18.69, threshold: 15.51)
+2025-11-19 13:14:16,592 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [147/272] Task 523: ✗ STEERED (L19-5441: 18.76, threshold: 15.51)
+2025-11-19 13:14:18,955 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [148/272] Task 525: ✗ STEERED (L19-5441: 18.81, threshold: 15.51)
+2025-11-19 13:14:21,490 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [149/272] Task 526: ✗ STEERED (L19-5441: 17.99, threshold: 15.51)
+2025-11-19 13:14:24,559 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [150/272] Task 527: ✗ STEERED (L19-5441: 23.57, threshold: 15.51)
+2025-11-19 13:14:24,559 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 150/272 tasks
+2025-11-19 13:14:24,560 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 146, Corrected: 3, Errors: 0
+2025-11-19 13:14:24,560 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.51
+
+2025-11-19 13:14:24,560 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:559 -   ✓ Milestone: 150/272 tasks completed
+
+2025-11-19 13:14:24,560 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:561 - Autosaving at task 150/272
+2025-11-19 13:14:24,563 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] save_checkpoint:808 - Saved correction checkpoint at index 149/271
+2025-11-19 13:14:30,610 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [151/272] Task 531: ✗ STEERED (L19-5441: 23.76, threshold: 15.51)
+2025-11-19 13:14:32,736 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [152/272] Task 533: ✗ STEERED (L19-5441: 18.78, threshold: 15.51)
+2025-11-19 13:14:39,117 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [153/272] Task 534: ✗ STEERED (L19-5441: 18.01, threshold: 15.51)
+2025-11-19 13:14:41,396 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [154/272] Task 537: ✗ STEERED (L19-5441: 18.87, threshold: 15.51)
+2025-11-19 13:14:42,599 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [155/272] Task 538: ✗ STEERED (L19-5441: 18.57, threshold: 15.51)
+2025-11-19 13:14:44,190 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [156/272] Task 539: ✗ STEERED (L19-5441: 21.42, threshold: 15.51)
+2025-11-19 13:14:48,296 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [157/272] Task 540: ✗ STEERED (L19-5441: 18.40, threshold: 15.51)
+2025-11-19 13:14:50,262 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [158/272] Task 546: ✗ STEERED (L19-5441: 18.37, threshold: 15.51)
+2025-11-19 13:15:25,010 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [159/272] Task 548: ✗ STEERED (L19-5441: 21.42, threshold: 15.51)
+2025-11-19 13:15:26,045 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [160/272] Task 568: ✗ STEERED (L19-5441: 18.66, threshold: 15.51)
+2025-11-19 13:15:26,046 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 160/272 tasks
+2025-11-19 13:15:26,046 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 156, Corrected: 3, Errors: 0
+2025-11-19 13:15:26,046 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.51
+
+2025-11-19 13:15:28,680 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [161/272] Task 570: ✗ STEERED (L19-5441: 19.50, threshold: 15.51)
+2025-11-19 13:15:30,738 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [162/272] Task 573: ✗ STEERED (L19-5441: 18.90, threshold: 15.51)
+2025-11-19 13:15:31,985 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [163/272] Task 574: ✗ STEERED (L19-5441: 16.60, threshold: 15.51)
+2025-11-19 13:15:34,454 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [164/272] Task 575: ✗ STEERED (L19-5441: 19.50, threshold: 15.51)
+2025-11-19 13:15:36,780 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [165/272] Task 578: ✗ STEERED (L19-5441: 22.21, threshold: 15.51)
+2025-11-19 13:15:41,398 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [166/272] Task 579: ✗ STEERED (L19-5441: 21.08, threshold: 15.51)
+2025-11-19 13:15:45,053 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [167/272] Task 580: ✗ STEERED (L19-5441: 19.61, threshold: 15.51)
+2025-11-19 13:15:46,700 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [168/272] Task 582: ✗ STEERED (L19-5441: 16.92, threshold: 15.51)
+2025-11-19 13:15:49,313 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [169/272] Task 586: ✗ STEERED (L19-5441: 17.42, threshold: 15.51)
+2025-11-19 13:15:50,807 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [170/272] Task 590: ✗ STEERED (L19-5441: 19.38, threshold: 15.51)
+2025-11-19 13:15:50,808 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 170/272 tasks
+2025-11-19 13:15:50,808 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 166, Corrected: 3, Errors: 0
+2025-11-19 13:15:50,808 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.49
+
+2025-11-19 13:15:54,727 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [171/272] Task 592: ✗ STEERED (L19-5441: 20.64, threshold: 15.51)
+2025-11-19 13:15:57,352 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [172/272] Task 593: ✗ STEERED (L19-5441: 20.58, threshold: 15.51)
+2025-11-19 13:16:03,533 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [173/272] Task 597: ✗ STEERED (L19-5441: 21.32, threshold: 15.51)
+2025-11-19 13:16:38,123 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [174/272] Task 601: ✗ STEERED (L19-5441: 22.76, threshold: 15.51)
+2025-11-19 13:16:40,310 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [175/272] Task 602: ✗ STEERED (L19-5441: 18.28, threshold: 15.51)
+2025-11-19 13:16:44,706 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [176/272] Task 603: ✗ STEERED (L19-5441: 20.97, threshold: 15.51)
+2025-11-19 13:16:47,012 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [177/272] Task 605: ✗ STEERED (L19-5441: 16.17, threshold: 15.51)
+2025-11-19 13:16:52,260 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [178/272] Task 606: ✗ STEERED (L19-5441: 16.13, threshold: 15.51)
+2025-11-19 13:17:27,127 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [179/272] Task 607: ✗ STEERED (L19-5441: 18.89, threshold: 15.51)
+2025-11-19 13:17:29,862 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [180/272] Task 613: ✗ STEERED (L19-5441: 20.47, threshold: 15.51)
+2025-11-19 13:17:29,863 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 180/272 tasks
+2025-11-19 13:17:29,863 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 176, Corrected: 3, Errors: 0
+2025-11-19 13:17:29,863 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.50
+
+2025-11-19 13:17:31,711 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [181/272] Task 615: ✗ STEERED (L19-5441: 20.64, threshold: 15.51)
+2025-11-19 13:17:35,242 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [182/272] Task 617: ✗ STEERED (L19-5441: 23.21, threshold: 15.51)
+2025-11-19 13:17:36,778 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [183/272] Task 618: ✗ STEERED (L19-5441: 17.84, threshold: 15.51)
+2025-11-19 13:17:39,243 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [184/272] Task 622: ✗ STEERED (L19-5441: 19.84, threshold: 15.51)
+2025-11-19 13:17:40,081 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [185/272] Task 624: ✗ BASELINE (L19-5441: 15.35, threshold: 15.51)
+2025-11-19 13:17:42,449 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [186/272] Task 630: ✗ STEERED (L19-5441: 22.49, threshold: 15.51)
+2025-11-19 13:17:47,244 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [187/272] Task 632: ✗ STEERED (L19-5441: 17.95, threshold: 15.51)
+2025-11-19 13:17:56,546 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [188/272] Task 635: ✗ STEERED (L19-5441: 20.04, threshold: 15.51)
+2025-11-19 13:17:59,646 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [189/272] Task 638: ✗ STEERED (L19-5441: 18.69, threshold: 15.51)
+2025-11-19 13:18:03,116 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [190/272] Task 640: ✗ STEERED (L19-5441: 20.26, threshold: 15.51)
+2025-11-19 13:18:03,117 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 190/272 tasks
+2025-11-19 13:18:03,117 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 185, Corrected: 3, Errors: 0
+2025-11-19 13:18:03,117 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.50
+
+2025-11-19 13:18:37,861 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [191/272] Task 641: ✗ STEERED (L19-5441: 19.86, threshold: 15.51)
+2025-11-19 13:18:39,923 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [192/272] Task 645: ✓ STEERED (L19-5441: 21.38, threshold: 15.51)
+2025-11-19 13:18:42,742 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [193/272] Task 646: ✗ STEERED (L19-5441: 20.11, threshold: 15.51)
+2025-11-19 13:18:45,711 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [194/272] Task 650: ✗ STEERED (L19-5441: 18.39, threshold: 15.51)
+2025-11-19 13:18:47,476 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [195/272] Task 651: ✗ STEERED (L19-5441: 18.87, threshold: 15.51)
+2025-11-19 13:18:48,701 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [196/272] Task 652: ✗ STEERED (L19-5441: 20.80, threshold: 15.51)
+2025-11-19 13:18:49,550 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [197/272] Task 657: ✗ STEERED (L19-5441: 16.60, threshold: 15.51)
+2025-11-19 13:18:50,926 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [198/272] Task 662: ✗ STEERED (L19-5441: 18.69, threshold: 15.51)
+2025-11-19 13:18:52,126 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [199/272] Task 663: ✗ STEERED (L19-5441: 20.58, threshold: 15.51)
+2025-11-19 13:18:54,203 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [200/272] Task 664: ✗ STEERED (L19-5441: 17.55, threshold: 15.51)
+2025-11-19 13:18:54,203 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 200/272 tasks
+2025-11-19 13:18:54,203 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 195, Corrected: 4, Errors: 0
+2025-11-19 13:18:54,203 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.49
+
+2025-11-19 13:18:54,203 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:559 -   ✓ Milestone: 200/272 tasks completed
+
+2025-11-19 13:18:54,203 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:561 - Autosaving at task 200/272
+2025-11-19 13:18:54,207 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] save_checkpoint:808 - Saved correction checkpoint at index 199/271
+2025-11-19 13:18:56,434 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [201/272] Task 665: ✗ STEERED (L19-5441: 15.79, threshold: 15.51)
+2025-11-19 13:19:31,046 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [202/272] Task 669: ✗ STEERED (L19-5441: 19.70, threshold: 15.51)
+2025-11-19 13:19:32,890 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [203/272] Task 671: ✗ STEERED (L19-5441: 18.07, threshold: 15.51)
+2025-11-19 13:19:33,797 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [204/272] Task 674: ✗ STEERED (L19-5441: 17.95, threshold: 15.51)
+2025-11-19 13:19:36,621 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [205/272] Task 675: ✗ STEERED (L19-5441: 17.48, threshold: 15.51)
+2025-11-19 13:19:38,738 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [206/272] Task 677: ✗ STEERED (L19-5441: 19.58, threshold: 15.51)
+2025-11-19 13:19:39,866 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [207/272] Task 688: ✗ STEERED (L19-5441: 17.93, threshold: 15.51)
+2025-11-19 13:19:40,959 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [208/272] Task 692: ✗ STEERED (L19-5441: 17.59, threshold: 15.51)
+2025-11-19 13:19:42,099 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [209/272] Task 693: ✗ STEERED (L19-5441: 19.62, threshold: 15.51)
+2025-11-19 13:19:44,022 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [210/272] Task 695: ✗ STEERED (L19-5441: 18.81, threshold: 15.51)
+2025-11-19 13:19:44,023 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 210/272 tasks
+2025-11-19 13:19:44,023 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 205, Corrected: 4, Errors: 0
+2025-11-19 13:19:44,023 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.43
+
+2025-11-19 13:19:45,828 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [211/272] Task 696: ✗ STEERED (L19-5441: 21.62, threshold: 15.51)
+2025-11-19 13:19:51,623 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [212/272] Task 706: ✗ STEERED (L19-5441: 19.61, threshold: 15.51)
+2025-11-19 13:19:54,485 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [213/272] Task 707: ✗ STEERED (L19-5441: 20.03, threshold: 15.51)
+2025-11-19 13:19:57,477 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [214/272] Task 714: ✗ STEERED (L19-5441: 19.39, threshold: 15.51)
+2025-11-19 13:20:00,566 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [215/272] Task 722: ✗ STEERED (L19-5441: 18.93, threshold: 15.51)
+2025-11-19 13:20:03,121 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [216/272] Task 724: ✗ STEERED (L19-5441: 19.12, threshold: 15.51)
+2025-11-19 13:20:06,583 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [217/272] Task 734: ✗ STEERED (L19-5441: 20.33, threshold: 15.51)
+2025-11-19 13:20:07,844 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [218/272] Task 737: ✗ STEERED (L19-5441: 17.73, threshold: 15.51)
+2025-11-19 13:20:09,627 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [219/272] Task 738: ✗ STEERED (L19-5441: 17.59, threshold: 15.51)
+2025-11-19 13:20:11,245 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [220/272] Task 740: ✗ STEERED (L19-5441: 19.02, threshold: 15.51)
+2025-11-19 13:20:11,245 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 220/272 tasks
+2025-11-19 13:20:11,245 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 215, Corrected: 4, Errors: 0
+2025-11-19 13:20:11,245 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.43
+
+2025-11-19 13:20:14,166 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [221/272] Task 743: ✗ STEERED (L19-5441: 21.13, threshold: 15.51)
+2025-11-19 13:20:19,324 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [222/272] Task 754: ✗ STEERED (L19-5441: 21.72, threshold: 15.51)
+2025-11-19 13:20:22,534 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [223/272] Task 762: ✗ STEERED (L19-5441: 18.52, threshold: 15.51)
+2025-11-19 13:20:28,107 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [224/272] Task 771: ✓ STEERED (L19-5441: 20.88, threshold: 15.51)
+2025-11-19 13:20:31,499 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [225/272] Task 784: ✗ STEERED (L19-5441: 17.96, threshold: 15.51)
+2025-11-19 13:20:32,986 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [226/272] Task 785: ✗ STEERED (L19-5441: 21.18, threshold: 15.51)
+2025-11-19 13:20:33,973 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [227/272] Task 788: ✗ STEERED (L19-5441: 19.54, threshold: 15.51)
+2025-11-19 13:20:36,242 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [228/272] Task 791: ✗ STEERED (L19-5441: 19.62, threshold: 15.51)
+2025-11-19 13:20:39,875 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [229/272] Task 795: ✗ STEERED (L19-5441: 24.07, threshold: 15.51)
+2025-11-19 13:20:43,710 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [230/272] Task 802: ✗ STEERED (L19-5441: 20.93, threshold: 15.51)
+2025-11-19 13:20:43,711 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 230/272 tasks
+2025-11-19 13:20:43,711 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 225, Corrected: 5, Errors: 0
+2025-11-19 13:20:43,711 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.48
+
+2025-11-19 13:20:44,824 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [231/272] Task 816: ✗ STEERED (L19-5441: 17.11, threshold: 15.51)
+2025-11-19 13:20:48,025 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [232/272] Task 820: ✗ STEERED (L19-5441: 19.06, threshold: 15.51)
+2025-11-19 13:20:52,563 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [233/272] Task 822: ✗ STEERED (L19-5441: 19.01, threshold: 15.51)
+2025-11-19 13:20:57,955 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [234/272] Task 826: ✗ STEERED (L19-5441: 18.79, threshold: 15.51)
+2025-11-19 13:20:59,492 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [235/272] Task 830: ✗ STEERED (L19-5441: 16.22, threshold: 15.51)
+2025-11-19 13:21:03,539 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [236/272] Task 840: ✓ STEERED (L19-5441: 19.43, threshold: 15.51)
+2025-11-19 13:21:06,670 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [237/272] Task 842: ✗ STEERED (L19-5441: 21.20, threshold: 15.51)
+2025-11-19 13:21:19,785 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [238/272] Task 843: ✗ STEERED (L19-5441: 25.89, threshold: 15.51)
+2025-11-19 13:21:21,437 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [239/272] Task 844: ✗ STEERED (L19-5441: 17.62, threshold: 15.51)
+2025-11-19 13:21:22,220 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [240/272] Task 847: ✗ STEERED (L19-5441: 17.37, threshold: 15.51)
+2025-11-19 13:21:22,221 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 240/272 tasks
+2025-11-19 13:21:22,221 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 235, Corrected: 6, Errors: 0
+2025-11-19 13:21:22,221 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.47
+
+2025-11-19 13:21:25,056 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [241/272] Task 849: ✗ STEERED (L19-5441: 16.19, threshold: 15.51)
+2025-11-19 13:21:27,430 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [242/272] Task 853: ✗ STEERED (L19-5441: 17.25, threshold: 15.51)
+2025-11-19 13:21:37,662 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [243/272] Task 854: ✗ STEERED (L19-5441: 22.87, threshold: 15.51)
+2025-11-19 13:21:41,849 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [244/272] Task 856: ✗ STEERED (L19-5441: 22.81, threshold: 15.51)
+2025-11-19 13:21:43,374 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [245/272] Task 857: ✗ STEERED (L19-5441: 20.72, threshold: 15.51)
+2025-11-19 13:21:46,458 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [246/272] Task 874: ✗ STEERED (L19-5441: 18.00, threshold: 15.51)
+2025-11-19 13:21:50,992 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [247/272] Task 875: ✗ STEERED (L19-5441: 21.21, threshold: 15.51)
+2025-11-19 13:21:52,150 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [248/272] Task 879: ✗ STEERED (L19-5441: 19.54, threshold: 15.51)
+2025-11-19 13:21:55,467 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [249/272] Task 881: ✗ STEERED (L19-5441: 17.16, threshold: 15.51)
+2025-11-19 13:22:00,394 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [250/272] Task 884: ✗ STEERED (L19-5441: 18.44, threshold: 15.51)
+2025-11-19 13:22:00,395 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 250/272 tasks
+2025-11-19 13:22:00,395 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 245, Corrected: 6, Errors: 0
+2025-11-19 13:22:00,395 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.46
+
+2025-11-19 13:22:00,395 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:559 -   ✓ Milestone: 250/272 tasks completed
+
+2025-11-19 13:22:00,395 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:561 - Autosaving at task 250/272
+2025-11-19 13:22:00,399 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] save_checkpoint:808 - Saved correction checkpoint at index 249/271
+2025-11-19 13:22:01,441 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [251/272] Task 892: ✗ STEERED (L19-5441: 17.79, threshold: 15.51)
+2025-11-19 13:22:11,457 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [252/272] Task 899: ✗ STEERED (L19-5441: 19.73, threshold: 15.51)
+2025-11-19 13:22:14,321 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [253/272] Task 907: ✗ STEERED (L19-5441: 21.78, threshold: 15.51)
+2025-11-19 13:22:15,842 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [254/272] Task 915: ✗ STEERED (L19-5441: 16.38, threshold: 15.51)
+2025-11-19 13:22:17,047 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [255/272] Task 919: ✗ STEERED (L19-5441: 15.93, threshold: 15.51)
+2025-11-19 13:22:20,696 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [256/272] Task 922: ✗ STEERED (L19-5441: 21.20, threshold: 15.51)
+2025-11-19 13:22:26,995 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [257/272] Task 923: ✗ STEERED (L19-5441: 20.79, threshold: 15.51)
+2025-11-19 13:22:29,903 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [258/272] Task 927: ✗ STEERED (L19-5441: 18.65, threshold: 15.51)
+2025-11-19 13:22:31,054 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [259/272] Task 930: ✗ STEERED (L19-5441: 18.81, threshold: 15.51)
+2025-11-19 13:22:32,458 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [260/272] Task 932: ✗ STEERED (L19-5441: 17.53, threshold: 15.51)
+2025-11-19 13:22:32,459 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 260/272 tasks
+2025-11-19 13:22:32,459 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 255, Corrected: 6, Errors: 0
+2025-11-19 13:22:32,459 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.44
+
+2025-11-19 13:22:34,146 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [261/272] Task 933: ✗ STEERED (L19-5441: 21.58, threshold: 15.51)
+2025-11-19 13:23:09,101 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [262/272] Task 934: ✗ STEERED (L19-5441: 20.24, threshold: 15.51)
+2025-11-19 13:23:18,063 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [263/272] Task 940: ✗ STEERED (L19-5441: 19.52, threshold: 15.51)
+2025-11-19 13:23:20,503 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [264/272] Task 944: ✗ STEERED (L19-5441: 19.77, threshold: 15.51)
+2025-11-19 13:23:30,991 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [265/272] Task 950: ✗ STEERED (L19-5441: 21.65, threshold: 15.51)
+2025-11-19 13:23:36,953 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [266/272] Task 951: ✗ STEERED (L19-5441: 21.36, threshold: 15.51)
+2025-11-19 13:23:40,491 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [267/272] Task 952: ✓ STEERED (L19-5441: 19.93, threshold: 15.51)
+2025-11-19 13:24:14,945 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [268/272] Task 953: ✗ STEERED (L19-5441: 22.27, threshold: 15.51)
+2025-11-19 13:24:16,053 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [269/272] Task 965: ✗ STEERED (L19-5441: 19.84, threshold: 15.51)
+2025-11-19 13:24:18,821 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [270/272] Task 968: ✗ STEERED (L19-5441: 19.27, threshold: 15.51)
+2025-11-19 13:24:18,821 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:547 - 
+  📊 Progress: 270/272 tasks
+2025-11-19 13:24:18,822 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:548 -      Steered: 265, Corrected: 7, Errors: 0
+2025-11-19 13:24:18,822 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:549 -      Avg L19-5441 activation: 19.48
+
+2025-11-19 13:24:20,150 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [271/272] Task 969: ✗ STEERED (L19-5441: 21.36, threshold: 15.51)
+2025-11-19 13:24:27,607 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [272/272] Task 974: ✗ STEERED (L19-5441: 20.71, threshold: 15.51)
+2025-11-19 13:24:27,608 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:578 - 
+============================================================
+2025-11-19 13:24:27,608 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:579 - RESULTS: CORRECTION EXPERIMENT
+2025-11-19 13:24:27,608 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:580 - ============================================================
+2025-11-19 13:24:27,608 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:581 - Total problems: 272
+2025-11-19 13:24:27,608 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:582 - Errors: 0 (0.0%)
+2025-11-19 13:24:27,608 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:583 - Successful: 272 (100.0%)
+2025-11-19 13:24:27,608 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:584 - 
+2025-11-19 13:24:27,608 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:585 - Steering decisions:
+2025-11-19 13:24:27,608 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:586 -   Steered: 267 (98.2%)
+2025-11-19 13:24:27,608 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:587 -   Used baseline: 5 (1.8%)
+2025-11-19 13:24:27,608 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:588 - 
+2025-11-19 13:24:27,609 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:592 - Outcomes:
+2025-11-19 13:24:27,609 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:593 -   Corrected: 7 (2.57%)
+2025-11-19 13:24:27,609 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:594 -   Correction rate: 2.57%
+2025-11-19 13:24:27,609 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:602 - ============================================================
+
+2025-11-19 13:24:27,609 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:613 - Saving final checkpoint for correction experiment
+2025-11-19 13:24:27,614 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] save_checkpoint:808 - Saved correction checkpoint at index 271/271
+2025-11-19 13:24:27,619 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:880 - ✓ Saved 272 correction results to all_selective_correction_results.json
+2025-11-19 13:24:27,619 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:883 - 
+============================================================
+2025-11-19 13:24:27,619 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:884 - EXPERIMENT 2: Selective Preservation (initially correct problems)
+2025-11-19 13:24:27,619 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:885 - ============================================================
+2025-11-19 13:24:27,620 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] load_checkpoint:823 - Loading checkpoint from checkpoint_preservation_20251119_130116.json
+2025-11-19 13:24:27,620 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] load_checkpoint:827 - Resuming preservation experiment from index 0/0
+2025-11-19 13:24:27,620 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:458 - Resuming from checkpoint at index 1
+2025-11-19 13:24:27,620 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:465 - 
+============================================================
+2025-11-19 13:24:27,620 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:466 - EXPERIMENT: PRESERVATION
+2025-11-19 13:24:27,620 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:467 - ============================================================
+2025-11-19 13:24:27,620 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:473 - Processing 116 initially correct problems
+2025-11-19 13:24:27,620 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:474 - Goal: Measure selective preservation rate
+2025-11-19 13:24:27,620 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:476 - Threshold: 15.5086 (Layer 19, Feature 5441)
+2025-11-19 13:24:27,620 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:477 - Steering: Layer 16, Feature 11225, Coefficient 29
+2025-11-19 13:24:27,620 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:478 - ============================================================
+
+2025-11-19 13:24:28,420 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [2/116] Task 17: ✓ STEERED (L19-5441: 16.82, threshold: 15.51)
+2025-11-19 13:24:30,308 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [3/116] Task 18: ✓ STEERED (L19-5441: 20.05, threshold: 15.51)
+2025-11-19 13:24:31,749 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [4/116] Task 21: ✓ STEERED (L19-5441: 19.42, threshold: 15.51)
+2025-11-19 13:24:34,474 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [5/116] Task 22: ✓ STEERED (L19-5441: 19.10, threshold: 15.51)
+2025-11-19 13:24:36,217 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [6/116] Task 51: ✓ STEERED (L19-5441: 20.37, threshold: 15.51)
+2025-11-19 13:24:37,068 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [7/116] Task 52: ✓ STEERED (L19-5441: 18.92, threshold: 15.51)
+2025-11-19 13:24:38,615 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [8/116] Task 58: ✓ STEERED (L19-5441: 16.25, threshold: 15.51)
+2025-11-19 13:24:41,686 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [9/116] Task 61: ✗ STEERED (L19-5441: 21.34, threshold: 15.51)
+2025-11-19 13:24:45,363 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [10/116] Task 80: ✓ STEERED (L19-5441: 18.72, threshold: 15.51)
+2025-11-19 13:24:45,363 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:553 - 
+  📊 Progress: 10/116 tasks
+2025-11-19 13:24:45,363 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:554 -      Steered: 10, Preserved: 9, Corrupted: 1, Errors: 0
+2025-11-19 13:24:45,363 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:555 -      Avg L19-5441 activation: 18.93
+
+2025-11-19 13:24:47,256 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [11/116] Task 82: ✓ STEERED (L19-5441: 17.12, threshold: 15.51)
+2025-11-19 13:24:49,112 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [12/116] Task 93: ✓ STEERED (L19-5441: 16.94, threshold: 15.51)
+2025-11-19 13:24:51,378 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [13/116] Task 99: ✓ STEERED (L19-5441: 17.96, threshold: 15.51)
+2025-11-19 13:24:53,099 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [14/116] Task 105: ✓ STEERED (L19-5441: 17.88, threshold: 15.51)
+2025-11-19 13:24:54,583 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [15/116] Task 113: ✓ STEERED (L19-5441: 17.17, threshold: 15.51)
+2025-11-19 13:24:56,041 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [16/116] Task 115: ✗ STEERED (L19-5441: 17.99, threshold: 15.51)
+2025-11-19 13:24:59,433 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [17/116] Task 130: ✓ STEERED (L19-5441: 19.10, threshold: 15.51)
+2025-11-19 13:25:00,720 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [18/116] Task 133: ✓ STEERED (L19-5441: 16.90, threshold: 15.51)
+2025-11-19 13:25:03,398 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [19/116] Task 144: ✓ STEERED (L19-5441: 18.23, threshold: 15.51)
+2025-11-19 13:25:04,868 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [20/116] Task 154: ✓ STEERED (L19-5441: 20.04, threshold: 15.51)
+2025-11-19 13:25:04,868 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:553 - 
+  📊 Progress: 20/116 tasks
+2025-11-19 13:25:04,869 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:554 -      Steered: 20, Preserved: 18, Corrupted: 2, Errors: 0
+2025-11-19 13:25:04,869 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:555 -      Avg L19-5441 activation: 18.43
+
+2025-11-19 13:25:06,975 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [21/116] Task 161: ✓ STEERED (L19-5441: 19.67, threshold: 15.51)
+2025-11-19 13:25:07,857 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [22/116] Task 171: ✗ STEERED (L19-5441: 18.06, threshold: 15.51)
+2025-11-19 13:25:16,586 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [23/116] Task 187: ✓ STEERED (L19-5441: 21.99, threshold: 15.51)
+2025-11-19 13:25:18,461 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [24/116] Task 201: ✗ STEERED (L19-5441: 16.01, threshold: 15.51)
+2025-11-19 13:25:20,339 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [25/116] Task 212: ✓ STEERED (L19-5441: 18.85, threshold: 15.51)
+2025-11-19 13:25:22,747 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [26/116] Task 227: ✓ STEERED (L19-5441: 16.69, threshold: 15.51)
+2025-11-19 13:25:23,768 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [27/116] Task 230: ✓ STEERED (L19-5441: 16.78, threshold: 15.51)
+2025-11-19 13:25:24,531 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [28/116] Task 234: ✓ STEERED (L19-5441: 17.05, threshold: 15.51)
+2025-11-19 13:25:27,444 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [29/116] Task 238: ✓ STEERED (L19-5441: 20.37, threshold: 15.51)
+2025-11-19 13:25:28,847 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [30/116] Task 249: ✓ STEERED (L19-5441: 18.75, threshold: 15.51)
+2025-11-19 13:25:28,847 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:553 - 
+  📊 Progress: 30/116 tasks
+2025-11-19 13:25:28,848 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:554 -      Steered: 30, Preserved: 26, Corrupted: 4, Errors: 0
+2025-11-19 13:25:28,848 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:555 -      Avg L19-5441 activation: 18.43
+
+2025-11-19 13:25:30,887 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [31/116] Task 253: ✓ STEERED (L19-5441: 17.38, threshold: 15.51)
+2025-11-19 13:25:35,178 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [32/116] Task 257: ✓ BASELINE (L19-5441: 15.32, threshold: 15.51)
+2025-11-19 13:25:36,497 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [33/116] Task 258: ✓ STEERED (L19-5441: 17.72, threshold: 15.51)
+2025-11-19 13:25:38,034 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [34/116] Task 284: ✓ STEERED (L19-5441: 18.77, threshold: 15.51)
+2025-11-19 13:25:41,575 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [35/116] Task 285: ✓ STEERED (L19-5441: 19.01, threshold: 15.51)
+2025-11-19 13:25:43,056 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [36/116] Task 292: ✓ STEERED (L19-5441: 16.78, threshold: 15.51)
+2025-11-19 13:25:47,787 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [37/116] Task 293: ✓ BASELINE (L19-5441: 15.47, threshold: 15.51)
+2025-11-19 13:25:50,677 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [38/116] Task 296: ✓ STEERED (L19-5441: 21.15, threshold: 15.51)
+2025-11-19 13:25:52,097 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [39/116] Task 319: ✗ STEERED (L19-5441: 19.30, threshold: 15.51)
+2025-11-19 13:25:54,104 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [40/116] Task 361: ✗ STEERED (L19-5441: 18.57, threshold: 15.51)
+2025-11-19 13:25:54,104 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:553 - 
+  📊 Progress: 40/116 tasks
+2025-11-19 13:25:54,104 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:554 -      Steered: 38, Preserved: 34, Corrupted: 6, Errors: 0
+2025-11-19 13:25:54,104 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:555 -      Avg L19-5441 activation: 18.31
+
+2025-11-19 13:25:56,177 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [41/116] Task 365: ✓ STEERED (L19-5441: 15.63, threshold: 15.51)
+2025-11-19 13:25:59,918 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [42/116] Task 366: ✓ STEERED (L19-5441: 18.89, threshold: 15.51)
+2025-11-19 13:26:00,991 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [43/116] Task 373: ✓ STEERED (L19-5441: 19.03, threshold: 15.51)
+2025-11-19 13:26:02,597 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [44/116] Task 399: ✗ STEERED (L19-5441: 20.51, threshold: 15.51)
+2025-11-19 13:26:04,627 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [45/116] Task 405: ✓ STEERED (L19-5441: 16.96, threshold: 15.51)
+2025-11-19 13:26:08,690 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [46/116] Task 409: ✗ STEERED (L19-5441: 20.59, threshold: 15.51)
+2025-11-19 13:26:10,671 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [47/116] Task 411: ✗ STEERED (L19-5441: 21.18, threshold: 15.51)
+2025-11-19 13:26:12,458 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [48/116] Task 421: ✓ STEERED (L19-5441: 18.99, threshold: 15.51)
+2025-11-19 13:26:15,411 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [49/116] Task 424: ✗ STEERED (L19-5441: 19.04, threshold: 15.51)
+2025-11-19 13:26:16,357 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [50/116] Task 441: ✓ STEERED (L19-5441: 16.81, threshold: 15.51)
+2025-11-19 13:26:16,358 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:553 - 
+  📊 Progress: 50/116 tasks
+2025-11-19 13:26:16,358 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:554 -      Steered: 48, Preserved: 40, Corrupted: 10, Errors: 0
+2025-11-19 13:26:16,358 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:555 -      Avg L19-5441 activation: 18.40
+
+2025-11-19 13:26:16,358 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:559 -   ✓ Milestone: 50/116 tasks completed
+
+2025-11-19 13:26:16,358 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:561 - Autosaving at task 50/116
+2025-11-19 13:26:16,359 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] save_checkpoint:808 - Saved preservation checkpoint at index 49/115
+2025-11-19 13:26:18,667 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [51/116] Task 472: ✓ STEERED (L19-5441: 18.41, threshold: 15.51)
+2025-11-19 13:26:21,109 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [52/116] Task 474: ✗ STEERED (L19-5441: 18.28, threshold: 15.51)
+2025-11-19 13:26:24,511 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [53/116] Task 480: ✓ STEERED (L19-5441: 17.75, threshold: 15.51)
+2025-11-19 13:26:25,753 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [54/116] Task 487: ✓ STEERED (L19-5441: 19.46, threshold: 15.51)
+2025-11-19 13:26:28,231 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [55/116] Task 489: ✓ STEERED (L19-5441: 16.00, threshold: 15.51)
+2025-11-19 13:26:29,716 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [56/116] Task 498: ✓ STEERED (L19-5441: 15.81, threshold: 15.51)
+2025-11-19 13:26:32,249 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [57/116] Task 499: ✓ STEERED (L19-5441: 17.57, threshold: 15.51)
+2025-11-19 13:26:34,027 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [58/116] Task 507: ✓ STEERED (L19-5441: 19.24, threshold: 15.51)
+2025-11-19 13:26:35,667 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [59/116] Task 514: ✓ STEERED (L19-5441: 18.59, threshold: 15.51)
+2025-11-19 13:26:37,870 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [60/116] Task 517: ✓ STEERED (L19-5441: 17.16, threshold: 15.51)
+2025-11-19 13:26:37,871 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:553 - 
+  📊 Progress: 60/116 tasks
+2025-11-19 13:26:37,871 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:554 -      Steered: 58, Preserved: 49, Corrupted: 11, Errors: 0
+2025-11-19 13:26:37,871 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:555 -      Avg L19-5441 activation: 18.30
+
+2025-11-19 13:26:41,546 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [61/116] Task 555: ✓ STEERED (L19-5441: 19.54, threshold: 15.51)
+2025-11-19 13:26:42,950 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [62/116] Task 560: ✓ STEERED (L19-5441: 20.52, threshold: 15.51)
+2025-11-19 13:26:46,508 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [63/116] Task 562: ✗ STEERED (L19-5441: 21.08, threshold: 15.51)
+2025-11-19 13:26:47,399 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [64/116] Task 565: ✓ STEERED (L19-5441: 16.82, threshold: 15.51)
+2025-11-19 13:26:51,673 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [65/116] Task 588: ✓ STEERED (L19-5441: 17.07, threshold: 15.51)
+2025-11-19 13:26:53,705 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [66/116] Task 591: ✓ BASELINE (L19-5441: 14.24, threshold: 15.51)
+2025-11-19 13:26:55,605 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [67/116] Task 599: ✓ STEERED (L19-5441: 19.43, threshold: 15.51)
+2025-11-19 13:26:56,620 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [68/116] Task 600: ✓ STEERED (L19-5441: 16.35, threshold: 15.51)
+2025-11-19 13:26:59,875 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [69/116] Task 626: ✗ STEERED (L19-5441: 20.00, threshold: 15.51)
+2025-11-19 13:27:00,810 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [70/116] Task 631: ✓ STEERED (L19-5441: 17.80, threshold: 15.51)
+2025-11-19 13:27:00,811 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:553 - 
+  📊 Progress: 70/116 tasks
+2025-11-19 13:27:00,811 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:554 -      Steered: 67, Preserved: 57, Corrupted: 13, Errors: 0
+2025-11-19 13:27:00,811 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:555 -      Avg L19-5441 activation: 18.30
+
+2025-11-19 13:27:03,548 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [71/116] Task 633: ✓ STEERED (L19-5441: 20.30, threshold: 15.51)
+2025-11-19 13:27:05,673 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [72/116] Task 649: ✓ STEERED (L19-5441: 17.28, threshold: 15.51)
+2025-11-19 13:27:07,567 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [73/116] Task 655: ✓ STEERED (L19-5441: 18.94, threshold: 15.51)
+2025-11-19 13:27:10,807 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [74/116] Task 658: ✓ STEERED (L19-5441: 19.05, threshold: 15.51)
+2025-11-19 13:27:12,853 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [75/116] Task 670: ✓ STEERED (L19-5441: 18.97, threshold: 15.51)
+2025-11-19 13:27:13,892 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [76/116] Task 673: ✓ STEERED (L19-5441: 17.15, threshold: 15.51)
+2025-11-19 13:27:14,795 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [77/116] Task 678: ✓ STEERED (L19-5441: 17.47, threshold: 15.51)
+2025-11-19 13:27:16,618 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [78/116] Task 681: ✓ STEERED (L19-5441: 15.56, threshold: 15.51)
+2025-11-19 13:27:18,526 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [79/116] Task 687: ✓ STEERED (L19-5441: 16.62, threshold: 15.51)
+2025-11-19 13:27:19,866 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [80/116] Task 697: ✓ STEERED (L19-5441: 17.43, threshold: 15.51)
+2025-11-19 13:27:19,867 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:553 - 
+  📊 Progress: 80/116 tasks
+2025-11-19 13:27:19,867 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:554 -      Steered: 77, Preserved: 67, Corrupted: 13, Errors: 0
+2025-11-19 13:27:19,867 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:555 -      Avg L19-5441 activation: 18.25
+
+2025-11-19 13:27:21,101 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [81/116] Task 710: ✓ STEERED (L19-5441: 18.72, threshold: 15.51)
+2025-11-19 13:27:27,347 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [82/116] Task 711: ✓ STEERED (L19-5441: 17.66, threshold: 15.51)
+2025-11-19 13:27:28,560 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [83/116] Task 715: ✓ STEERED (L19-5441: 19.55, threshold: 15.51)
+2025-11-19 13:27:30,459 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [84/116] Task 719: ✓ STEERED (L19-5441: 18.55, threshold: 15.51)
+2025-11-19 13:27:32,039 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [85/116] Task 723: ✗ STEERED (L19-5441: 21.01, threshold: 15.51)
+2025-11-19 13:27:33,608 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [86/116] Task 728: ✓ STEERED (L19-5441: 17.64, threshold: 15.51)
+2025-11-19 13:27:38,186 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [87/116] Task 751: ✗ STEERED (L19-5441: 21.40, threshold: 15.51)
+2025-11-19 13:27:39,760 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [88/116] Task 768: ✓ STEERED (L19-5441: 15.77, threshold: 15.51)
+2025-11-19 13:27:41,721 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [89/116] Task 786: ✗ STEERED (L19-5441: 19.00, threshold: 15.51)
+2025-11-19 13:27:44,050 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [90/116] Task 792: ✓ STEERED (L19-5441: 19.76, threshold: 15.51)
+2025-11-19 13:27:44,050 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:553 - 
+  📊 Progress: 90/116 tasks
+2025-11-19 13:27:44,050 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:554 -      Steered: 87, Preserved: 74, Corrupted: 16, Errors: 0
+2025-11-19 13:27:44,050 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:555 -      Avg L19-5441 activation: 18.32
+
+2025-11-19 13:27:45,609 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [91/116] Task 798: ✓ STEERED (L19-5441: 16.63, threshold: 15.51)
+2025-11-19 13:27:49,568 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [92/116] Task 805: ✓ STEERED (L19-5441: 19.78, threshold: 15.51)
+2025-11-19 13:27:53,517 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [93/116] Task 806: ✓ STEERED (L19-5441: 20.83, threshold: 15.51)
+2025-11-19 13:27:54,563 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [94/116] Task 812: ✓ STEERED (L19-5441: 20.84, threshold: 15.51)
+2025-11-19 13:27:55,558 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [95/116] Task 814: ✓ STEERED (L19-5441: 19.40, threshold: 15.51)
+2025-11-19 13:27:57,347 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [96/116] Task 817: ✓ STEERED (L19-5441: 19.30, threshold: 15.51)
+2025-11-19 13:27:58,944 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [97/116] Task 827: ✓ STEERED (L19-5441: 19.10, threshold: 15.51)
+2025-11-19 13:28:03,437 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [98/116] Task 828: ✓ STEERED (L19-5441: 18.18, threshold: 15.51)
+2025-11-19 13:28:04,347 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [99/116] Task 833: ✓ STEERED (L19-5441: 16.60, threshold: 15.51)
+2025-11-19 13:28:06,012 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [100/116] Task 835: ✓ STEERED (L19-5441: 16.50, threshold: 15.51)
+2025-11-19 13:28:06,012 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:553 - 
+  📊 Progress: 100/116 tasks
+2025-11-19 13:28:06,012 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:554 -      Steered: 97, Preserved: 84, Corrupted: 16, Errors: 0
+2025-11-19 13:28:06,012 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:555 -      Avg L19-5441 activation: 18.36
+
+2025-11-19 13:28:06,012 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:559 -   ✓ Milestone: 100/116 tasks completed
+
+2025-11-19 13:28:06,012 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:561 - Autosaving at task 100/116
+2025-11-19 13:28:06,014 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] save_checkpoint:808 - Saved preservation checkpoint at index 99/115
+2025-11-19 13:28:07,403 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [101/116] Task 839: ✓ STEERED (L19-5441: 20.91, threshold: 15.51)
+2025-11-19 13:28:10,375 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [102/116] Task 866: ✓ STEERED (L19-5441: 20.06, threshold: 15.51)
+2025-11-19 13:28:14,975 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [103/116] Task 880: ✗ STEERED (L19-5441: 23.39, threshold: 15.51)
+2025-11-19 13:28:23,381 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [104/116] Task 885: ✓ STEERED (L19-5441: 20.06, threshold: 15.51)
+2025-11-19 13:28:24,366 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [105/116] Task 886: ✓ STEERED (L19-5441: 16.13, threshold: 15.51)
+2025-11-19 13:28:26,173 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [106/116] Task 891: ✓ STEERED (L19-5441: 17.55, threshold: 15.51)
+2025-11-19 13:28:27,538 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [107/116] Task 894: ✓ STEERED (L19-5441: 20.27, threshold: 15.51)
+2025-11-19 13:28:29,025 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [108/116] Task 897: ✓ STEERED (L19-5441: 17.02, threshold: 15.51)
+2025-11-19 13:28:30,511 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [109/116] Task 904: ✓ STEERED (L19-5441: 17.02, threshold: 15.51)
+2025-11-19 13:28:32,422 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [110/116] Task 908: ✓ STEERED (L19-5441: 19.76, threshold: 15.51)
+2025-11-19 13:28:32,423 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:553 - 
+  📊 Progress: 110/116 tasks
+2025-11-19 13:28:32,423 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:554 -      Steered: 107, Preserved: 93, Corrupted: 17, Errors: 0
+2025-11-19 13:28:32,423 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:555 -      Avg L19-5441 activation: 18.44
+
+2025-11-19 13:28:33,955 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [111/116] Task 913: ✓ STEERED (L19-5441: 17.45, threshold: 15.51)
+2025-11-19 13:28:35,474 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [112/116] Task 924: ✓ STEERED (L19-5441: 15.85, threshold: 15.51)
+2025-11-19 13:28:39,021 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [113/116] Task 937: ✓ STEERED (L19-5441: 17.94, threshold: 15.51)
+2025-11-19 13:28:40,654 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [114/116] Task 964: ✓ STEERED (L19-5441: 18.25, threshold: 15.51)
+2025-11-19 13:28:41,818 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [115/116] Task 972: ✓ STEERED (L19-5441: 18.20, threshold: 15.51)
+2025-11-19 13:28:42,921 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:512 -   [116/116] Task 973: ✓ STEERED (L19-5441: 17.63, threshold: 15.51)
+2025-11-19 13:28:42,921 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:578 - 
+============================================================
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:579 - RESULTS: PRESERVATION EXPERIMENT
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:580 - ============================================================
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:581 - Total problems: 116
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:582 - Errors: 0 (0.0%)
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:583 - Successful: 116 (100.0%)
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:584 - 
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:585 - Steering decisions:
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:586 -   Steered: 113 (97.4%)
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:587 -   Used baseline: 3 (2.6%)
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:588 - 
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:598 - Outcomes:
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:599 -   Preserved: 99 (85.34%)
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:600 -   Corrupted: 17 (14.66%)
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:602 - ============================================================
+
+2025-11-19 13:28:42,922 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _apply_selective_steering:613 - Saving final checkpoint for preservation experiment
+2025-11-19 13:28:42,925 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] save_checkpoint:808 - Saved preservation checkpoint at index 115/115
+2025-11-19 13:28:42,927 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:895 - ✓ Saved 116 preservation results to all_selective_preservation_results.json
+2025-11-19 13:28:42,927 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:898 - 
+============================================================
+2025-11-19 13:28:42,927 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:899 - Calculating metrics...
+2025-11-19 13:28:42,927 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:900 - ============================================================
+2025-11-19 13:28:42,928 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:928 - ✓ Saved summary to selective_steering_summary.json
+2025-11-19 13:28:42,929 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _save_example_comparisons:775 - ✓ Saved 7 corrected examples to corrected_examples.json
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] _save_example_comparisons:781 - ✓ Saved 96 preserved steered examples to preserved_steered_examples.json
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:934 - 
+================================================================================
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:935 - PHASE 8.3 COMPLETE - SELECTIVE STEERING RESULTS
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:936 - ================================================================================
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:938 - 
+------------------CORRECTION EXPERIMENT (Initially Incorrect)-------------------
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:939 -   Total problems: 272
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:940 -   Valid problems: 272
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:941 - 
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:942 -   Steering decisions:
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:943 -     - Steered (activation > threshold): 267 (98.2%)
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:944 -     - Used baseline (activation ≤ threshold): 5 (1.8%)
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:945 - 
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:946 -   Outcomes:
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:947 -     - Corrected (incorrect → correct): 7 (2.57%)
+2025-11-19 13:28:42,931 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:948 -     - Correction efficiency (of steered): 2.6%
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:949 - 
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:950 -   L19 Feature Activations:
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:955 -     - Mean: 19.49
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:956 -     - Range: [14.41, 25.89]
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:960 - 
+------------------PRESERVATION EXPERIMENT (Initially Correct)-------------------
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:961 -   Total problems: 116
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:962 -   Valid problems: 116
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:963 - 
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:964 -   Steering decisions:
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:965 -     - Steered (activation > threshold): 113 (97.4%)
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:966 -     - Used baseline (activation ≤ threshold): 3 (2.6%)
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:967 - 
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:968 -   Outcomes:
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:969 -     - Preserved (correct → correct): 99 (85.34%)
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:970 -     - Corrupted (correct → incorrect): 17 (14.66%)
+2025-11-19 13:28:42,932 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:971 - 
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:972 -   L19 Feature Activations:
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:977 -     - Mean: 18.39
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:978 -     - Range: [14.24, 23.39]
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:982 - 
+--------------------------------COMBINED METRICS--------------------------------
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:983 -   Total problems processed: 388
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:984 -   Total steered: 380 (97.9%)
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:986 - 
+---------------COMPARISON TO PHASE 4.8 (Always-Steering Baseline)---------------
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:987 - 
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:988 -   Metric                                         Phase 4.8       Phase 8.3
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:989 -   ----------------------------------------------------------------------
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:990 -   Correction Rate                                    4.04%           2.57%
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:991 -   Corruption Rate                                   14.66%          14.66%
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:992 -   Preservation Rate                                 85.34%          85.34%
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:993 -   Steering Rate                                     100.00           97.9%
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:994 -   ----------------------------------------------------------------------
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:995 - 
+2025-11-19 13:28:42,933 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:996 -   Key Insights:
+2025-11-19 13:28:42,934 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:1003 -     ⚠ Corruption increased by 0.00 percentage points
+2025-11-19 13:28:42,934 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:1007 -     ✓ Steering rate reduced by 2.1 percentage points
+2025-11-19 13:28:42,934 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:1017 -     ⚠ Correction rate decreased by 1.47 percentage points
+2025-11-19 13:28:42,934 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:1019 - 
+================================================================================
+2025-11-19 13:28:42,934 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:1020 - Output files saved to: data/phase8_3
+2025-11-19 13:28:42,934 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:1021 -   - data/phase8_3/all_selective_correction_results.json
+2025-11-19 13:28:42,934 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:1022 -   - data/phase8_3/all_selective_preservation_results.json
+2025-11-19 13:28:42,934 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:1023 -   - data/phase8_3/selective_steering_summary.json
+2025-11-19 13:28:42,934 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:1024 -   - data/phase8_3/examples (corrected and preserved steered examples)
+2025-11-19 13:28:42,934 [INFO] [phase8_3_selective_steering.selective_steering_analyzer] run:1025 - ================================================================================
+2025-11-19 13:28:42,934 [INFO] [main] run_phase8_3:687 - 
+✅ Phase 8.3 completed successfully

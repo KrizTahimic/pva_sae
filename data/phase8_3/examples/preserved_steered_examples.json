@@ -1,0 +1,37 @@
+[
+  {
+    "task_id": 187,
+    "baseline_code": "def longest_common_subsequence(s1, s2, m, n):\n    dp = [[0 for i in range(n+1)] for j in range(m+1)]\n    for i in range(m+1):\n        for j in range(n+1):\n            if i == 0 or j == 0:\n                dp[i][j] = 0\n            elif s1[i-1] == s2[j-1]:\n                dp[i][j] = dp[i-1][j-1] + 1\n            else:\n                dp[i][j] = max(dp[i-1][j], dp[i][j-1])\n    return dp[m][n]",
+    "steered_code": "def longest_common_subsequence(s1, s2, n, m):\n    # Initialize the table\n    table = [[0 for i in range(m + 1)] for j in range(n + 1)]\n    # Initialize the table\n    for i in range(n + 1):\n        for j in range(m + 1):\n            if i == 0 or j == 0:\n                table[i][j] = 0\n            elif s1[i - 1] == s2[j - 1]:\n                table[i][j] = table[i - 1][j - 1] + 1\n            else:\n                table[i][j] = max(table[i - 1][j], table[i][j - 1])\n    # Return the longest common subsequence\n    return table[n][m]",
+    "incorrect_pred_activation": 21.988412857055664,
+    "threshold": 20.580138778686525
+  },
+  {
+    "task_id": 296,
+    "baseline_code": "def get_Inv_Count(arr, n):\n    count = 0\n    for i in range(n-1):\n        for j in range(i+1, n):\n            if arr[i] > arr[j]:\n                count += 1\n    return count",
+    "steered_code": "def get_Inv_Count(arr, n):\n    count = 0\n    for i in range(n-1):\n        for j in range(i+1, n):\n            if arr[i] > arr[j]:\n                count += 1\n    return count",
+    "incorrect_pred_activation": 21.15275001525879,
+    "threshold": 20.580138778686525
+  },
+  {
+    "task_id": 806,
+    "baseline_code": "def max_run_uppercase(s):\n    max_run = 0\n    for i in range(len(s)):\n        run = 1\n        while i + run < len(s) and s[i].isupper() and s[i + run].isupper():\n            run += 1\n        if run > max_run:\n            max_run = run\n    return max_run",
+    "steered_code": "def max_run_uppercase(s):\n    max_run = 0\n    for i in range(len(s)):\n        count = 0\n        while i < len(s) and s[i].isupper():\n            count += 1\n            i += 1\n        if count > max_run:\n            max_run = count\n    return max_run",
+    "incorrect_pred_activation": 20.827497482299805,
+    "threshold": 20.580138778686525
+  },
+  {
+    "task_id": 812,
+    "baseline_code": "def road_rd(s):\n    return s.replace('Road','Rd.')",
+    "steered_code": "def road_rd(s):\n    return s.replace('Road', 'Rd.')",
+    "incorrect_pred_activation": 20.835880279541016,
+    "threshold": 20.580138778686525
+  },
+  {
+    "task_id": 839,
+    "baseline_code": "def sort_tuple(tuples):\n    return sorted(tuples, key=lambda x: x[0])",
+    "steered_code": "def sort_tuple(tuples):\n    return sorted(tuples, key=lambda x: x[0])",
+    "incorrect_pred_activation": 20.910608291625977,
+    "threshold": 20.580138778686525
+  }
+]

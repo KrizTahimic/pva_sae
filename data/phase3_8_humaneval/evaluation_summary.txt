@@ -1,0 +1,19 @@
+============================================================
+PHASE 3.8 FINAL RESULTS SUMMARY
+============================================================
+
+Correct-Predicting Feature (Layer 16, Feature 14439):
+  Hyperparameter Optimal Threshold: 10.8109
+  Validation AUROC: 0.2296
+  Validation F1: 0.0714
+  Validation Precision: 0.3333
+  Validation Recall: 0.0400
+
+Incorrect-Predicting Feature (Layer 19, Feature 5441):
+  Hyperparameter Optimal Threshold: 15.5086
+  Validation AUROC: 0.7321
+  Validation F1: 0.9200
+  Validation Precision: 0.8571
+  Validation Recall: 0.9928
+
+============================================================

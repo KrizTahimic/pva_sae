@@ -1,0 +1,106 @@
+2025-11-21 12:39:55,709 [INFO] [test_mbpp_with_imports] setup_logging:167 - Phase: TEST, GPU: CPU
+2025-11-21 12:39:55,710 [WARNING] [test_mbpp_with_imports] main:458 - Config dataset is 'humaneval', forcing to 'mbpp'
+2025-11-21 12:39:55,737 [INFO] [test_mbpp_with_imports] __init__:191 - Loading model google/gemma-2-2b on device: cuda
+2025-11-21 12:39:55,927 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:47 - Loading model google/gemma-2-2b on cuda with dtype torch.bfloat16
+2025-11-21 12:39:57,485 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:56 - Loading model to cuda...
+2025-11-21 12:40:01,484 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:86 - Model successfully loaded on cuda:0
+2025-11-21 12:40:01,484 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:88 - Model loaded successfully: Gemma2ForCausalLM
+2025-11-21 12:40:01,485 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:89 - Model size: 2.61B parameters
+2025-11-21 12:40:01,485 [INFO] [test_mbpp_with_imports] __init__:202 - Using layers: [16, 19]
+2025-11-21 12:40:01,486 [INFO] [common_simplified.activation_hooks] __init__:185 - Initialized AttentionExtractor for layers [16, 19] at position -1
+2025-11-21 12:40:01,486 [INFO] [test_mbpp_with_imports] run:283 - ======================================================================
+2025-11-21 12:40:01,486 [INFO] [test_mbpp_with_imports] run:284 - MBPP IMPORT PRE-LOADING TEST
+2025-11-21 12:40:01,486 [INFO] [test_mbpp_with_imports] run:285 - ======================================================================
+2025-11-21 12:40:01,486 [INFO] [test_mbpp_with_imports] run:286 - Testing with 55 standard library imports pre-loaded
+2025-11-21 12:40:01,486 [INFO] [test_mbpp_with_imports] run:287 - Dataset: mbpp
+2025-11-21 12:40:01,486 [INFO] [test_mbpp_with_imports] run:288 - Model: google/gemma-2-2b
+2025-11-21 12:40:01,508 [INFO] [test_mbpp_with_imports] run:296 - Loaded 388 validation problems
+2025-11-21 12:40:01,508 [INFO] [test_mbpp_with_imports] run:300 - Processing rows 0 to 387 (inclusive)
+2025-11-21 12:40:01,509 [INFO] [test_mbpp_with_imports] run:302 - Testing on 388 problems
+2025-11-21 12:40:01,509 [INFO] [test_mbpp_with_imports] run:310 - Output directory: data/test_imports/20251121_124001
+2025-11-21 12:40:01,510 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:40:01,510 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:40:11,752 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:40:11,758 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:40:11,758 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:40:54,112 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:40:54,117 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:40:54,117 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:40:55,383 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:40:55,387 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:40:55,388 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:40:57,185 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:40:57,190 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:40:57,190 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:40:58,407 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:40:58,411 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:40:58,411 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:40:59,356 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:40:59,360 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:40:59,360 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:01,257 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:01,261 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:01,261 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:11,257 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:11,261 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:11,261 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:13,234 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:13,238 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:13,238 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:17,018 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:17,022 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:17,022 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:20,867 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:20,871 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:20,871 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:22,147 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:22,151 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:22,151 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:25,004 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:25,008 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:25,008 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:26,842 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:26,846 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:26,847 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:28,496 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:28,500 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:28,500 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:30,297 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:30,301 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:30,301 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:35,220 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:35,224 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:35,225 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:36,781 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:36,785 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:36,785 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:38,837 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:38,841 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:38,842 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:39,853 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:39,857 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:39,857 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:44,986 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:44,990 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:44,990 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:48,110 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:48,115 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:48,115 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:50,641 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:50,645 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:50,645 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:55,153 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:55,157 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:55,158 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:41:59,296 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:41:59,300 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:41:59,300 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:42:05,351 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:42:05,356 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:42:05,357 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:42:08,731 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:42:08,735 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:42:08,735 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:42:13,198 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:42:13,205 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:42:13,205 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers

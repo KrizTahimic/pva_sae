@@ -1,0 +1,399 @@
+{
+  "timestamp": "2025-11-23T16:31:23.776101",
+  "config": {
+    "model": "google/gemma-2-2b",
+    "target_weights": [
+      "embed",
+      "attn_o",
+      "mlp_down"
+    ],
+    "n_validation_problems": 164,
+    "n_correct_baseline": 25,
+    "n_incorrect_baseline": 139
+  },
+  "features_used": {
+    "correct": {
+      "layer": 16,
+      "feature_idx": 11225,
+      "separation_score": 0.22123092412948608
+    },
+    "incorrect": {
+      "layer": 25,
+      "feature_idx": 2853,
+      "separation_score": 0.20100238919258118
+    }
+  },
+  "incorrect_orthogonalization": {
+    "direction": "incorrect",
+    "weight_changes": {
+      "embedding": 13.5625,
+      "layer_0_attn_o": 0.46484375,
+      "layer_0_mlp_down": 0.7109375,
+      "layer_1_attn_o": 0.466796875,
+      "layer_1_mlp_down": 0.69140625,
+      "layer_2_attn_o": 0.49609375,
+      "layer_2_mlp_down": 0.70703125,
+      "layer_3_attn_o": 0.458984375,
+      "layer_3_mlp_down": 0.75390625,
+      "layer_4_attn_o": 0.455078125,
+      "layer_4_mlp_down": 0.7109375,
+      "layer_5_attn_o": 0.50390625,
+      "layer_5_mlp_down": 0.69140625,
+      "layer_6_attn_o": 0.466796875,
+      "layer_6_mlp_down": 0.7109375,
+      "layer_7_attn_o": 0.478515625,
+      "layer_7_mlp_down": 0.7265625,
+      "layer_8_attn_o": 0.51953125,
+      "layer_8_mlp_down": 0.7109375,
+      "layer_9_attn_o": 0.515625,
+      "layer_9_mlp_down": 0.69921875,
+      "layer_10_attn_o": 0.490234375,
+      "layer_10_mlp_down": 0.69140625,
+      "layer_11_attn_o": 0.48828125,
+      "layer_11_mlp_down": 0.68359375,
+      "layer_12_attn_o": 0.48828125,
+      "layer_12_mlp_down": 0.68359375,
+      "layer_13_attn_o": 0.48046875,
+      "layer_13_mlp_down": 0.69140625,
+      "layer_14_attn_o": 0.455078125,
+      "layer_14_mlp_down": 0.703125,
+      "layer_15_attn_o": 0.50390625,
+      "layer_15_mlp_down": 0.703125,
+      "layer_16_attn_o": 0.515625,
+      "layer_16_mlp_down": 0.70703125,
+      "layer_17_attn_o": 0.5234375,
+      "layer_17_mlp_down": 0.7109375,
+      "layer_18_attn_o": 0.66015625,
+      "layer_18_mlp_down": 0.6953125,
+      "layer_19_attn_o": 0.5078125,
+      "layer_19_mlp_down": 0.74609375,
+      "layer_20_attn_o": 0.5703125,
+      "layer_20_mlp_down": 0.85546875,
+      "layer_21_attn_o": 0.51171875,
+      "layer_21_mlp_down": 0.94140625,
+      "layer_22_attn_o": 0.427734375,
+      "layer_22_mlp_down": 1.109375,
+      "layer_23_attn_o": 0.734375,
+      "layer_23_mlp_down": 1.078125,
+      "layer_24_attn_o": 0.482421875,
+      "layer_24_mlp_down": 0.8203125,
+      "layer_25_attn_o": 0.65234375,
+      "layer_25_mlp_down": 0.67578125
+    },
+    "metrics": {
+      "correction_rate": 0.7194244604316548,
+      "preservation_rate": 92.0,
+      "n_incorrect_baseline": 139,
+      "n_corrected": 1,
+      "n_correct_baseline": 25,
+      "n_preserved": 23
+    },
+    "statistical_tests": {
+      "correction_pvalue": 1.0,
+      "correction_significant": "False",
+      "preservation_pvalue": 9.715557098388672e-06,
+      "preservation_significant": "True"
+    },
+    "examples": {
+      "corrected": [
+        {
+          "task_id": 114,
+          "baseline_passed": false,
+          "orthogonalized_passed": true,
+          "baseline_code": "# Time: O(n)\n# Space: O(1)\ndef minSubArraySum(nums):\n    min_sum = float('inf')\n    sum = 0\n    for i in range(len(nums)):\n        sum += nums[i]\n        if sum < min_sum:\n            min_sum = sum\n    return min_sum",
+          "orthogonalized_code": "# Time: O(n)\n# Space: O(1)\ndef minSubArraySum(nums):\n    min_sum = float('inf')\n    for i in range(len(nums)):\n        sum = 0\n        for j in range(i, len(nums)):\n            sum += nums[j]\n            if sum < min_sum:\n                min_sum = sum\n    return min_sum"
+        }
+      ],
+      "not_corrected": [
+        {
+          "task_id": 0,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "def has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n    for i in range(len(numbers) - 1):\n        if abs(numbers[i] - numbers[i + 1]) < threshold:\n            return True\n    return False",
+          "orthogonalized_code": "# def has_close_elements(numbers: List[float], threshold: float) -> bool:"
+        },
+        {
+          "task_id": 1,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "def separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n    paren_string = paren_string.replace(' ', '')\n    paren_string = paren_string.replace('(', '(')\n    paren_string = paren_string.replace(')', ')')\n    paren_string = paren_string.replace('()', '')\n    paren_string = paren_string.replace('(())', '')\n    paren_string = paren_string.replace('(()())', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.",
+          "orthogonalized_code": "def separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n    stack = []\n    result = []\n    for char in paren_string:\n        if char == '(':\n            stack.append(char)\n        elif char == ')':\n            if stack:\n                stack.pop()\n            else:\n                result.append('(')\n        elif char == '(':\n            result.append(char)\n        elif char == ')':\n            result.append(char)\n    return result"
+        },
+        {
+          "task_id": 3,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "# def below_zero(operations: List[int]) -> bool:",
+          "orthogonalized_code": "# Time complexity: O(n)\n# Space complexity: O(1)\ndef below_zero_2(operations: List[int]) -> bool:\n    \"\"\" You're given a list of deposit and withdrawal operations on a bank account that starts with\n    zero balance. Your task is to detect if at any point the balance of account fallls below zero, and\n    at that point function should return True. Otherwise it should return False.\n    >>> below_zero_2([1, 2, 3])\n    False\n    >>> below_zero_2([1, 2, -4, 5])\n    True\n    \"\"\"\n    balance = 0\n    for operation in operations:\n        if operation < 0:\n            balance -= operation\n            if balance < 0:\n                return True\n    return False"
+        },
+        {
+          "task_id": 4,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "# def mean_absolute_deviation(numbers: List[float]) -> float:",
+          "orthogonalized_code": "# https://www.geeksforgeeks.org/mean-absolute-deviation-mad-in-python/"
+        },
+        {
+          "task_id": 5,
+          "baseline_passed": false,
+          "orthogonalized_passed": false,
+          "baseline_code": "# def intersperse(numbers: List[int], delimeter: int) -> List[int]:",
+          "orthogonalized_code": "def intersperse(numbers: List[int], delimeter: int) -> List[int]:\n    \"\"\" Insert a number 'delimeter' between every two consecutive elements of input list `numbers'\n    >>> intersperse([], 4)\n    []\n    >>> intersperse([1, 2, 3], 4)\n    [1, 4, 2, 4, 3]\n    \"\"\"\n    return [x for x in numbers if x != delimeter] + [delimeter] + [x for x in numbers if x != delimeter]"
+        }
+      ],
+      "preserved": [
+        {
+          "task_id": 2,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n    return number - int(number)",
+          "orthogonalized_code": "def truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n    return number - int(number)"
+        },
+        {
+          "task_id": 7,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def filter_by_substring(strings: List[str], substring: str) -> List[str]:\n    return [s for s in strings if s.find(substring) != -1]",
+          "orthogonalized_code": "def filter_by_substring(strings: List[str], substring: str) -> List[str]:\n    return [s for s in strings if s.find(substring) != -1]"
+        },
+        {
+          "task_id": 12,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def longest(strings: List[str]) -> Optional[str]:\n    if not strings:\n        return None\n    return max(strings, key=len)",
+          "orthogonalized_code": "def longest(strings: List[str]) -> Optional[str]:\n    if not strings:\n        return None\n    return max(strings, key=len)"
+        },
+        {
+          "task_id": 13,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def greatest_common_divisor(a: int, b: int) -> int:\n    \"\"\" Return a greatest common divisor of two integers a and b\n    >>> greatest_common_divisor(3, 5)\n    1\n    >>> greatest_common_divisor(25, 15)\n    5\n    >>> greatest_common_divisor(49, 14)\n    7\n    >>> greatest_common_divisor(144, 60)\n    12\n    \"\"\"\n    while a != b:\n        if a > b:\n            a = a - b\n        else:\n            b = b - a\n    return a",
+          "orthogonalized_code": "def greatest_common_divisor(a: int, b: int) -> int:\n    \"\"\" Return a greatest common divisor of two integers a and b\n    >>> greatest_common_divisor(3, 5)\n    1\n    >>> greatest_common_divisor(25, 15)\n    5\n    >>> greatest_common_divisor(49, 14)\n    7\n    >>> greatest_common_divisor(144, 60)\n    12\n    \"\"\"\n    while a % b != 0:\n        a, b = b, a % b\n    return b"
+        },
+        {
+          "task_id": 15,
+          "baseline_passed": true,
+          "orthogonalized_passed": true,
+          "baseline_code": "def string_sequence(n: int) -> str:\n    \"\"\" Return a string containing space-delimited numbers starting from 0 upto n inclusive.\n    >>> string_sequence(0)\n    '0'\n    >>> string_sequence(5)\n    '0 1 2 3 4 5'\n    \"\"\"\n    return ' '.join(str(i) for i in range(n+1))",
+          "orthogonalized_code": "def string_sequence(n: int) -> str:\n    \"\"\" Return a string containing space-delimited numbers starting from 0 upto n inclusive.\n    >>> string_sequence(0)\n    '0'\n    >>> string_sequence(5)\n    '0 1 2 3 4 5'\n    \"\"\"\n    return ' '.join(str(i) for i in range(n+1))"
+        }
+      ],
+      "corrupted": [
+        {
+          "task_id": 45,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def triangle_area(a, h):\n    return a * h / 2",
+          "orthogonalized_code": "# def triangle_area(a, h):"
+        },
+        {
+          "task_id": 48,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def is_palindrome(text: str):\n    \"\"\"\n    Checks if given string is a palindrome\n    >>> is_palindrome('')\n    True\n    >>> is_palindrome('aba')\n    True\n    >>> is_palindrome('aaaaa')\n    True\n    >>> is_palindrome('zbcd')\n    False\n    >>> is_palindrome('xywyx')\n    True\n    >>> is_palindrome('xywyz')\n    False\n    >>> is_palindrome('xywzx')\n    False\n    \"\"\"\n    text = text.lower()\n    text = text.replace(' ', '')\n    return text == text[::-1]",
+          "orthogonalized_code": "def is_palindrome(text: str):\n    \"\"\"\n    Checks if given string is a palindrome\n    >>> is_palindrome('')\n    True\n    >>> is_palindrome('aba')\n    True\n    >>> is_palindrome('aaaaa')\n    True\n    >>> is_palindrome('zbcd')\n    False\n    >>> is_palindrome('xywyx')\n    True\n    >>> is_palindrome('xywyz')\n    False\n    >>> is_palindrome('xywzx')\n    False\n    \"\"\"\n    text = text.lower()\n    text = text.replace(' ', '')\n    text = text.replace('-', '')\n    text = text.replace('_', '')\n    text = text.replace('(', '')\n    text = text.replace(')', '')\n    text = text.replace('[', '')\n    text = text.replace(']', '')\n    text = text.replace('{', '')\n    text = text.replace('}', '')\n    text = text.replace(':', '')\n    text = text.replace(';', '')\n    text = text.replace(',', '')\n    text = text.replace('\"', '')\n    text = text.replace('\"', '')\n    text = text.replace('!', '')\n    text = text.replace('?', '')\n    text = text.replace(' ', '')\n    text = text.replace('(', '')\n    text = text.replace(')', '')\n    text = text.replace('[', '')\n    text = text.replace(']', '')\n    text = text.replace('{', '')\n    text = text.replace('}', '')\n    text = text.replace(':', '')\n    text = text.replace(';', '')\n    text = text.replace(',', '')\n    text = text.replace('\"', '')\n    text = text.replace('\"', '')\n    text = text.replace('!', '')\n    text = text.replace('?', '')\n    text = text.replace(' ', '')\n    text = text.replace('(', '')\n    text = text.replace(')', '')\n    text = text.replace('[', '')\n    text = text.replace(']', '')\n    text = text.replace('{', '')\n    text = text.replace('}', '')\n    text = text.replace(':', '')\n    text = text.replace(';', '')\n    text = text.replace(',', '')\n    text = text.replace('\"', '')\n    text = text.replace('\"', '')\n    text = text.replace('!', '')\n    text = text.replace('?', '')\n    text = text.replace(' ', '')\n    text = text.replace('(', '')\n    text = text.replace(')', '')\n    text = text.replace('[', '')\n    text = text.replace(']', '')\n    text = text.replace('{', '')\n    text = text.replace('}', '')\n    text = text.replace(':', '')\n    text = text.replace(';', '')\n    text = text.replace(',', '')\n    text = text.replace('\"', '')\n    text = text.replace('\"', '')\n    text = text.replace('!', '')\n    text = text.replace('?', '')\n    text = text.replace(' ', '')\n    text = text.replace('(', '')\n    text = text.replace(')', '')\n    text = text.replace('[', '')\n    text = text.replace(']', '')\n    text = text.replace('{', '')\n    text = text.replace('}', '')\n    text = text.replace(':', '')\n    text = text.replace(';', '')\n    text = text.replace(',', '')\n    text"
+        }
+      ]
+    }
+  },
+  "correct_orthogonalization": {
+    "direction": "correct",
+    "weight_changes": {
+      "embedding": 19.875,
+      "layer_0_attn_o": 0.494140625,
+      "layer_0_mlp_down": 0.73828125,
+      "layer_1_attn_o": 0.52734375,
+      "layer_1_mlp_down": 0.7265625,
+      "layer_2_attn_o": 0.49609375,
+      "layer_2_mlp_down": 0.73828125,
+      "layer_3_attn_o": 0.51171875,
+      "layer_3_mlp_down": 0.71484375,
+      "layer_4_attn_o": 0.48828125,
+      "layer_4_mlp_down": 0.7265625,
+      "layer_5_attn_o": 0.5078125,
+      "layer_5_mlp_down": 0.69140625,
+      "layer_6_attn_o": 0.5,
+      "layer_6_mlp_down": 0.69921875,
+      "layer_7_attn_o": 0.484375,
+      "layer_7_mlp_down": 0.70703125,
+      "layer_8_attn_o": 0.5,
+      "layer_8_mlp_down": 0.7265625,
+      "layer_9_attn_o": 0.486328125,
+      "layer_9_mlp_down": 0.7265625,
+      "layer_10_attn_o": 0.5,
+      "layer_10_mlp_down": 0.71484375,
+      "layer_11_attn_o": 0.462890625,
+      "layer_11_mlp_down": 0.703125,
+      "layer_12_attn_o": 0.494140625,
+      "layer_12_mlp_down": 0.70703125,
+      "layer_13_attn_o": 0.490234375,
+      "layer_13_mlp_down": 0.7109375,
+      "layer_14_attn_o": 0.48046875,
+      "layer_14_mlp_down": 0.71484375,
+      "layer_15_attn_o": 0.455078125,
+      "layer_15_mlp_down": 0.703125,
+      "layer_16_attn_o": 0.41796875,
+      "layer_16_mlp_down": 0.703125,
+      "layer_17_attn_o": 0.4765625,
+      "layer_17_mlp_down": 0.69921875,
+      "layer_18_attn_o": 0.466796875,
+      "layer_18_mlp_down": 0.703125,
+      "layer_19_attn_o": 0.484375,
+      "layer_19_mlp_down": 0.71484375,
+      "layer_20_attn_o": 0.5,
+      "layer_20_mlp_down": 0.70703125,
+      "layer_21_attn_o": 0.46875,
+      "layer_21_mlp_down": 0.72265625,
+      "layer_22_attn_o": 0.470703125,
+      "layer_22_mlp_down": 0.703125,
+      "layer_23_attn_o": 0.51171875,
+      "layer_23_mlp_down": 0.71875,
+      "layer_24_attn_o": 0.51171875,
+      "layer_24_mlp_down": 0.73046875,
+      "layer_25_attn_o": 0.455078125,
+      "layer_25_mlp_down": 0.6875
+    },
+    "metrics": {
+      "corruption_rate": 100.0,
+      "avg_similarity_score": 0.024347826086956525,
+      "n_correct_baseline": 25,
+      "n_corrupted": 25,
+      "n_incorrect_baseline": 0,
+      "accidental_corrections": 0
+    },
+    "statistical_tests": {
+      "corruption_pvalue": 2.9802322387695312e-08,
+      "corruption_significant": "True"
+    },
+    "examples": {
+      "corrupted": [
+        {
+          "task_id": 2,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n    return number - int(number)",
+          "orthogonalized_code": "# 1. Find the integer part of the number",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 7,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def filter_by_substring(strings: List[str], substring: str) -> List[str]:\n    return [s for s in strings if s.find(substring) != -1]",
+          "orthogonalized_code": "# - create a new list",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 12,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def longest(strings: List[str]) -> Optional[str]:\n    if not strings:\n        return None\n    return max(strings, key=len)",
+          "orthogonalized_code": "# 1. Create a list of the lengths of the strings",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 13,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def greatest_common_divisor(a: int, b: int) -> int:\n    \"\"\" Return a greatest common divisor of two integers a and b\n    >>> greatest_common_divisor(3, 5)\n    1\n    >>> greatest_common_divisor(25, 15)\n    5\n    >>> greatest_common_divisor(49, 14)\n    7\n    >>> greatest_common_divisor(144, 60)\n    12\n    \"\"\"\n    while a != b:\n        if a > b:\n            a = a - b\n        else:\n            b = b - a\n    return a",
+          "orthogonalized_code": "# 1. Find the greatest common divisor of a and b",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 15,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def string_sequence(n: int) -> str:\n    \"\"\" Return a string containing space-delimited numbers starting from 0 upto n inclusive.\n    >>> string_sequence(0)\n    '0'\n    >>> string_sequence(5)\n    '0 1 2 3 4 5'\n    \"\"\"\n    return ' '.join(str(i) for i in range(n+1))",
+          "orthogonalized_code": "# 1. Create a list of numbers from 0 to n",
+          "similarity": 0.0
+        }
+      ],
+      "preserved": [],
+      "high_similarity": [
+        {
+          "task_id": 35,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def max_element(l: list):\n    \"\"\"Return maximum element in the list.\n    >>> max_element([1, 2, 3])\n    3\n    >>> max_element([5, 3, -5, 2, -3, 3, 9, 0, 124, 1, -10])\n    124\n    \"\"\"\n    return max(l)",
+          "orthogonalized_code": "# 1. Create a variable to store the maximum element\n# 2. Iterate through the list\n# 3. Compare the current element with the variable\n# 4. If the current element is greater than the variable, update the variable\n# 5. Return the variable\n\ndef max_element_2(l: list):\n    \"\"\"Return maximum element in the list.\n    >>> max_element_2([1, 2, 3])\n    3\n    >>> max_element_2([5, 3, -5, 2, -3, 3, 9, 0, 124, 1, -10])\n    124\n    \"\"\"",
+          "similarity": 0.6086956521739131
+        },
+        {
+          "task_id": 2,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n    return number - int(number)",
+          "orthogonalized_code": "# 1. Find the integer part of the number",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 7,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def filter_by_substring(strings: List[str], substring: str) -> List[str]:\n    return [s for s in strings if s.find(substring) != -1]",
+          "orthogonalized_code": "# - create a new list",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 12,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def longest(strings: List[str]) -> Optional[str]:\n    if not strings:\n        return None\n    return max(strings, key=len)",
+          "orthogonalized_code": "# 1. Create a list of the lengths of the strings",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 13,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def greatest_common_divisor(a: int, b: int) -> int:\n    \"\"\" Return a greatest common divisor of two integers a and b\n    >>> greatest_common_divisor(3, 5)\n    1\n    >>> greatest_common_divisor(25, 15)\n    5\n    >>> greatest_common_divisor(49, 14)\n    7\n    >>> greatest_common_divisor(144, 60)\n    12\n    \"\"\"\n    while a != b:\n        if a > b:\n            a = a - b\n        else:\n            b = b - a\n    return a",
+          "orthogonalized_code": "# 1. Find the greatest common divisor of a and b",
+          "similarity": 0.0
+        }
+      ],
+      "low_similarity": [
+        {
+          "task_id": 2,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n    return number - int(number)",
+          "orthogonalized_code": "# 1. Find the integer part of the number",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 7,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def filter_by_substring(strings: List[str], substring: str) -> List[str]:\n    return [s for s in strings if s.find(substring) != -1]",
+          "orthogonalized_code": "# - create a new list",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 12,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def longest(strings: List[str]) -> Optional[str]:\n    if not strings:\n        return None\n    return max(strings, key=len)",
+          "orthogonalized_code": "# 1. Create a list of the lengths of the strings",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 13,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def greatest_common_divisor(a: int, b: int) -> int:\n    \"\"\" Return a greatest common divisor of two integers a and b\n    >>> greatest_common_divisor(3, 5)\n    1\n    >>> greatest_common_divisor(25, 15)\n    5\n    >>> greatest_common_divisor(49, 14)\n    7\n    >>> greatest_common_divisor(144, 60)\n    12\n    \"\"\"\n    while a != b:\n        if a > b:\n            a = a - b\n        else:\n            b = b - a\n    return a",
+          "orthogonalized_code": "# 1. Find the greatest common divisor of a and b",
+          "similarity": 0.0
+        },
+        {
+          "task_id": 15,
+          "baseline_passed": true,
+          "orthogonalized_passed": false,
+          "baseline_code": "def string_sequence(n: int) -> str:\n    \"\"\" Return a string containing space-delimited numbers starting from 0 upto n inclusive.\n    >>> string_sequence(0)\n    '0'\n    >>> string_sequence(5)\n    '0 1 2 3 4 5'\n    \"\"\"\n    return ' '.join(str(i) for i in range(n+1))",
+          "orthogonalized_code": "# 1. Create a list of numbers from 0 to n",
+          "similarity": 0.0
+        }
+      ]
+    }
+  },
+  "runtime_seconds": 2480.9969849586487
+}

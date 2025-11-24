@@ -1,0 +1,53 @@
+================================================================================
+PHASE 8.2: PERCENTILE THRESHOLD OPTIMIZATION
+================================================================================
+
+Dataset: Phase 3.6 (hyperparams, 69 incorrect, 28 correct)
+Feature: Layer 19, Feature 5441 (incorrect-predicting)
+Steering: Layer 16, Coefficient 29
+
+THRESHOLD COMPARISON (sorted by net benefit)
+--------------------------------------------------------------------------------
+Percentile   Threshold    Steer%     Correction%     Corruption%     Net Benefit    
+--------------------------------------------------------------------------------
+70th         20.5801      30.0       0.00            0.00            +0.00% ← OPTIMAL
+75th         21.0463      25.0       0.00            0.00            +0.00%
+80th         21.5797      20.0       0.00            0.00            +0.00%
+85th         21.7197      15.0       0.00            0.00            +0.00%
+90th         22.2769      10.0       0.00            0.00            +0.00%
+95th         23.0295      5.0        0.00            0.00            +0.00%
+60th         19.6462      40.0       1.45            3.57            -2.12%
+65th         20.1995      35.0       1.45            3.57            -2.12%
+45th         18.9986      55.0       1.45            7.14            -5.69%
+50th         19.2843      50.0       1.45            7.14            -5.69%
+55th         19.4310      45.0       1.45            7.14            -5.69%
+5th         15.6970      95.0       2.90            10.71           -7.82%
+10th         16.7571      90.0       2.90            10.71           -7.82%
+15th         17.3179      85.0       2.90            10.71           -7.82%
+20th         17.4725      80.0       2.90            10.71           -7.82%
+25th         18.0585      75.0       2.90            10.71           -7.82%
+30th         18.4047      70.0       2.90            10.71           -7.82%
+35th         18.5298      65.0       2.90            10.71           -7.82%
+40th         18.7596      60.0       1.45            10.71           -9.27%
+
+OPTIMAL THRESHOLD SELECTED
+--------------------------------------------------------------------------------
+Percentile:         70th
+Threshold:          20.5801
+Net Benefit:        +0.00%
+Correction Rate:    0.00% (0 / 69 initially incorrect)
+Corruption Rate:    0.00% (0 / 28 initially correct)
+Preservation Rate:  100.00%
+Steering Rate:      ~30%
+
+INTERPRETATION
+--------------------------------------------------------------------------------
+- Steering top 30% of cases (70th percentile) provides best balance
+- Corrects 0.00% of incorrect solutions
+- Only breaks 0.00% of correct solutions
+- Net improvement: +0.00 percentage points
+
+NEXT STEPS
+--------------------------------------------------------------------------------
+Run Phase 8.3 with optimal threshold (20.5801) on validation set (Phase 3.5)
+to measure final performance.

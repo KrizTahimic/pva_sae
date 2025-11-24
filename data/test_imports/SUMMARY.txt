@@ -1,0 +1,22 @@
+======================================================================
+MBPP IMPORT PRE-LOADING TEST RESULTS
+======================================================================
+
+Test: MBPP with combined imports from usage analysis and original solutions
+Date: 2025-11-21 17:07:05
+Model: google/gemma-2-2b
+Dataset: mbpp
+
+Imports pre-loaded: 73
+Problems tested: 0-387 (388 problems)
+
+RESULTS:
+  Passed:  117/388 (30.2%)
+  Failed:  271/388 (69.8%)
+
+Average generation time: 5.60s
+
+FILES:
+  - results.parquet     (test results data)
+  - metadata.json       (detailed metadata)
+  - activations/        (activation data)

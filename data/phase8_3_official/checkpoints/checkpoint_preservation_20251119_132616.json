@@ -1,0 +1,510 @@
+{
+  "experiment_type": "preservation",
+  "results": [
+    {
+      "task_id": 8,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 18.35634422302246,
+      "final_passed": true,
+      "baseline_code": "def square_nums(nums):\n    return [x**2 for x in nums]",
+      "steered_code": "def square_nums(nums):\n    return [x**2 for x in nums]",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 17,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 16.820457458496094,
+      "final_passed": true,
+      "baseline_code": "def square_perimeter(side):\n    return side * 4",
+      "steered_code": "def square_perimeter(side):\n    return side * 4",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 18,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 20.053483963012695,
+      "final_passed": true,
+      "baseline_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+      "steered_code": "def remove_dirty_chars(s1, s2):\n    for i in s2:\n        s1 = s1.replace(i, '')\n    return s1",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 21,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 19.42156410217285,
+      "final_passed": true,
+      "baseline_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]",
+      "steered_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1,num+1)]",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 22,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 19.09590721130371,
+      "final_passed": true,
+      "baseline_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i])-1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i])-1] *= -1\n    return -1",
+      "steered_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        for j in range(i+1, len(arr)):\n            if arr[i] == arr[j]:\n                return arr[i]\n    return -1",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 51,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 20.372676849365234,
+      "final_passed": true,
+      "baseline_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+      "steered_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 52,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 18.922819137573242,
+      "final_passed": true,
+      "baseline_code": "def parallelogram_area(a,b):\n    return a*b",
+      "steered_code": "def parallelogram_area(a,b):\n    return a*b",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 58,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 16.24947166442871,
+      "final_passed": true,
+      "baseline_code": "def opposite_Signs(a,b):\n    if a*b < 0:\n        return True\n    else:\n        return False",
+      "steered_code": "def opposite_Signs(a,b):\n    if a*b < 0:\n        return True\n    else:\n        return False",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 61,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 21.335206985473633,
+      "final_passed": false,
+      "baseline_code": "def count_Substrings(s, n):\n    count = 0\n    for i in range(n):\n        for j in range(i+1, n+1):\n            if sum(map(int, s[i:j])) == j-i:\n                count += 1\n    return count",
+      "steered_code": "def count_Substrings(string, length):\n    count = 0\n    for i in range(len(string)):\n        for j in range(i, len(string)):\n            if sum(string[i:j+1]) == length:\n                count += 1\n    return count",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 80,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 18.72026824951172,
+      "final_passed": true,
+      "baseline_code": "def tetrahedral_number(n):\n    return (n * (n + 1) * (n + 2)) / 6",
+      "steered_code": "def tetrahedral_number(n):\n    return (n * (n + 1) * (n + 2)) / 6",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 82,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 17.122636795043945,
+      "final_passed": true,
+      "baseline_code": "def volume_sphere(r):\n    return (4/3)*3.141592653589793*r**3",
+      "steered_code": "def volume_sphere(r):\n    return (4/3)*3.141592653589793*r**3",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 93,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 16.94040298461914,
+      "final_passed": true,
+      "baseline_code": "def power(a, b):\n    return a ** b",
+      "steered_code": "def power(a, b):\n    if b == 0:\n        return 1\n    else:\n        return a * power(a, b - 1)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 99,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 17.96153450012207,
+      "final_passed": true,
+      "baseline_code": "def decimal_to_binary(decimal_number):\n    binary_number = ''\n    while decimal_number > 0:\n        binary_number = str(decimal_number % 2) + binary_number\n        decimal_number = decimal_number // 2\n    return binary_number",
+      "steered_code": "def decimal_to_binary(num):\n    binary = ''\n    while num > 0:\n        binary = str(num % 2) + binary\n        num = num // 2\n    return binary",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 105,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 17.876623153686523,
+      "final_passed": true,
+      "baseline_code": "def count(l):\n    count = 0\n    for i in l:\n        if i == True:\n            count += 1\n    return count",
+      "steered_code": "def count(l):\n    count = 0\n    for i in l:\n        if i == True:\n            count += 1\n    return count",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 113,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 17.173505783081055,
+      "final_passed": true,
+      "baseline_code": "def check_integer(s):\n    try:\n        int(s)\n        return True\n    except ValueError:\n        return False",
+      "steered_code": "def check_integer(s):\n    try:\n        int(s)\n        return True\n    except ValueError:\n        return False",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 115,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 17.993247985839844,
+      "final_passed": false,
+      "baseline_code": "def empty_dit(dit):\n    for d in dit:\n        if d:\n            return False\n    return True",
+      "steered_code": "def check_empty_dict(lst):\n    for i in lst:\n        if i:\n            return False\n    return True",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 130,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 19.10334587097168,
+      "final_passed": true,
+      "baseline_code": "def max_occurrences(lst):\n    max_count = 0\n    max_item = None\n    for item in lst:\n        count = lst.count(item)\n        if count > max_count:\n            max_count = count\n            max_item = item\n    return (max_item, max_count)",
+      "steered_code": "def max_occurrences(lst):\n    max_count = 0\n    max_item = None\n    for item in lst:\n        count = lst.count(item)\n        if count > max_count:\n            max_count = count\n            max_item = item\n    return max_item, max_count",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 133,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 16.895174026489258,
+      "final_passed": true,
+      "baseline_code": "def sum_negativenum(numbers):\n    return sum(n for n in numbers if n < 0)",
+      "steered_code": "def sum_negativenum(nums):\n    return sum(n for n in nums if n < 0)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 144,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 18.228368759155273,
+      "final_passed": true,
+      "baseline_code": "def sum_Pairs(arr, n):\n    sum = 0\n    for i in range(n):\n        for j in range(i+1, n):\n            sum += abs(arr[i] - arr[j])\n    return sum",
+      "steered_code": "def sum_Pairs(arr, n):\n    sum = 0\n    for i in range(n):\n        for j in range(i+1, n):\n            sum += abs(arr[i] - arr[j])\n    return sum",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 154,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 20.04071617126465,
+      "final_passed": true,
+      "baseline_code": "def specified_element(list, index):\n    return [list[i][index] for i in range(len(list))]",
+      "steered_code": "def specified_element(list, index):\n    return [list[i][index] for i in range(len(list))]",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 161,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 19.665672302246094,
+      "final_passed": true,
+      "baseline_code": "def remove_elements(l1, l2):\n    for i in l2:\n        l1.remove(i)\n    return l1",
+      "steered_code": "def remove_elements(list1, list2):\n    for i in list2:\n        if i in list1:\n            list1.remove(i)\n    return list1",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 171,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 18.057832717895508,
+      "final_passed": false,
+      "baseline_code": "def perimeter_pentagon(n):\n    return n * 5",
+      "steered_code": "def perimeter_pentagon(n):\n    return n * 10",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 187,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 21.988412857055664,
+      "final_passed": true,
+      "baseline_code": "def longest_common_subsequence(s1, s2, m, n):\n    dp = [[0 for i in range(n+1)] for j in range(m+1)]\n    for i in range(m+1):\n        for j in range(n+1):\n            if i == 0 or j == 0:\n                dp[i][j] = 0\n            elif s1[i-1] == s2[j-1]:\n                dp[i][j] = dp[i-1][j-1] + 1\n            else:\n                dp[i][j] = max(dp[i-1][j], dp[i][j-1])\n    return dp[m][n]",
+      "steered_code": "def longest_common_subsequence(s1, s2, n, m):\n    # Initialize the table\n    table = [[0 for i in range(m + 1)] for j in range(n + 1)]\n    # Initialize the table\n    for i in range(n + 1):\n        for j in range(m + 1):\n            if i == 0 or j == 0:\n                table[i][j] = 0\n            elif s1[i - 1] == s2[j - 1]:\n                table[i][j] = table[i - 1][j - 1] + 1\n            else:\n                table[i][j] = max(table[i - 1][j], table[i][j - 1])\n    # Return the longest common subsequence\n    return table[n][m]",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 201,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 16.00629997253418,
+      "final_passed": false,
+      "baseline_code": "def chkList(list):\n    if len(list) == 1:\n        return True\n    else:\n        return list[0] == list[1]",
+      "steered_code": "def chkList(list):\n    for i in range(len(list)):\n        if list[i] == list[i+1]:\n            return True\n    return False",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 212,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 18.846155166625977,
+      "final_passed": true,
+      "baseline_code": "def fourth_Power_Sum(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**4\n    return sum",
+      "steered_code": "def fourth_Power_Sum(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**4\n    return sum",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 227,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 16.690587997436523,
+      "final_passed": true,
+      "baseline_code": "def min_of_three(a,b,c):\n    if a<b and a<c:\n        return a\n    elif b<a and b<c:\n        return b\n    else:\n        return c",
+      "steered_code": "def min_of_three(a,b,c):\n    if a<b and a<c:\n        return a\n    elif b<a and b<c:\n        return b\n    else:\n        return c",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 230,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 16.78496742248535,
+      "final_passed": true,
+      "baseline_code": "def replace_blank(string, character):\n    return string.replace(\" \", character)",
+      "steered_code": "def replace_blank(string, character):\n    return string.replace(\" \", character)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 234,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 17.05124282836914,
+      "final_passed": true,
+      "baseline_code": "def volume_cube(side):\n    return side**3",
+      "steered_code": "def volume_cube(side):\n    return side**3",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 238,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 20.37308692932129,
+      "final_passed": true,
+      "baseline_code": "def number_of_substrings(s):\n    count = 0\n    for i in range(len(s)):\n        for j in range(i, len(s)):\n            if s[i:j+1] != \"\":\n                count += 1\n    return count",
+      "steered_code": "def number_of_substrings(s):\n    count = 0\n    for i in range(len(s)):\n        for j in range(i, len(s)):\n            if s[i:j+1] != \"\":\n                count += 1\n    return count",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 249,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 18.75063133239746,
+      "final_passed": true,
+      "baseline_code": "def intersection_array(array1, array2):\n    return [x for x in array1 if x in array2]",
+      "steered_code": "def intersection_array(array1, array2):\n    return [x for x in array1 if x in array2]",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 253,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 17.382543563842773,
+      "final_passed": true,
+      "baseline_code": "def count_integer(list):\n    count = 0\n    for i in list:\n        if type(i) == int:\n            count += 1\n    return count",
+      "steered_code": "def count_integer(list):\n    count = 0\n    for i in list:\n        if type(i) == int:\n            count += 1\n    return count",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 257,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 15.315326690673828,
+      "final_passed": true,
+      "baseline_code": "def swap_numbers(a,b):\n    temp = a\n    a = b\n    b = temp\n    return a,b",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 258,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 17.71668815612793,
+      "final_passed": true,
+      "baseline_code": "def count_odd(lst):\n    return sum(1 for i in lst if i % 2 != 0)",
+      "steered_code": "def count_odd(lst):\n    return sum(1 for i in lst if i % 2 != 0)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 284,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 18.771146774291992,
+      "final_passed": true,
+      "baseline_code": "def check_element(list, element):\n    for i in list:\n        if i != element:\n            return False\n    return True",
+      "steered_code": "def check_element(list, element):\n    for i in list:\n        if i != element:\n            return False\n    return True",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 285,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 19.005613327026367,
+      "final_passed": true,
+      "baseline_code": "def text_match_two_three(text):\n    if len(text) < 3:\n        return 'Not matched!'\n    if text[0] == 'a' and text[1] == 'b' and text[2] == 'b':\n        return 'Found a match!'\n    else:\n        return 'Not matched!'",
+      "steered_code": "def text_match_two_three(text):\n    if len(text) < 3:\n        return 'Not matched!'\n    if text[0] == 'a' and text[1] == 'b' and text[2] == 'b':\n        return 'Found a match!'\n    else:\n        return 'Not matched!'",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 292,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 16.77781867980957,
+      "final_passed": true,
+      "baseline_code": "def find(a,b):\n    if b == 0:\n        return 0\n    else:\n        return a//b",
+      "steered_code": "def find(a, b):\n    if b == 0:\n        return 0\n    else:\n        return a // b",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 293,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 15.471895217895508,
+      "final_passed": true,
+      "baseline_code": "def otherside_rightangle(a,b):\n    return (a**2 + b**2)**0.5",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 296,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 21.15275001525879,
+      "final_passed": true,
+      "baseline_code": "def get_Inv_Count(arr, n):\n    count = 0\n    for i in range(n-1):\n        for j in range(i+1, n):\n            if arr[i] > arr[j]:\n                count += 1\n    return count",
+      "steered_code": "def get_Inv_Count(arr, n):\n    count = 0\n    for i in range(n-1):\n        for j in range(i+1, n):\n            if arr[i] > arr[j]:\n                count += 1\n    return count",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 319,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 19.301172256469727,
+      "final_passed": false,
+      "baseline_code": "def find_long_word(string):\n    return [word for word in string.split() if len(word) == 5]",
+      "steered_code": "def find_long_word(string):\n    return re.findall(r'\\b\\w{5}\\b', string)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 361,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 18.574228286743164,
+      "final_passed": false,
+      "baseline_code": "def remove_empty(lst):\n    return [x for x in lst if x]",
+      "steered_code": "def remove_empty(lst):\n    for i in range(len(lst)):\n        if lst[i] == []:\n            lst.pop(i)\n    return lst",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 365,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 15.63166618347168,
+      "final_passed": true,
+      "baseline_code": "def count_Digit(n):\n    count = 0\n    while n > 0:\n        n = n // 10\n        count += 1\n    return count",
+      "steered_code": "def count_Digit(num):\n    count = 0\n    while num > 0:\n        num = num // 10\n        count += 1\n    return count",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 366,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 18.885791778564453,
+      "final_passed": true,
+      "baseline_code": "def adjacent_num_product(nums):\n    if len(nums) < 2:\n        return 0\n    max_product = 0\n    for i in range(len(nums)):\n        for j in range(i+1, len(nums)):\n            if nums[i] * nums[j] > max_product:\n                max_product = nums[i] * nums[j]\n    return max_product",
+      "steered_code": "def adjacent_num_product(nums):\n    max_product = 0\n    for i in range(len(nums)):\n        for j in range(i+1, len(nums)):\n            if nums[i] * nums[j] > max_product:\n                max_product = nums[i] * nums[j]\n    return max_product",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 373,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 19.034496307373047,
+      "final_passed": true,
+      "baseline_code": "def volume_cuboid(a,b,c):\n    return a*b*c",
+      "steered_code": "def volume_cuboid(a,b,c):\n    return a*b*c",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 399,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 20.512922286987305,
+      "final_passed": false,
+      "baseline_code": "def bitwise_xor(a, b):\n    return tuple(a[i] ^ b[i] for i in range(len(a)))",
+      "steered_code": "def bitwise_xor(a, b):\n    return [a[i] ^ b[i] for i in range(len(a))]",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 405,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 16.959585189819336,
+      "final_passed": true,
+      "baseline_code": "def check_tuplex(tuplex, element):\n    for i in range(len(tuplex)):\n        if tuplex[i] == element:\n            return True\n    return False",
+      "steered_code": "def check_tuplex(tuplex, element):\n    for i in range(len(tuplex)):\n        if tuplex[i] == element:\n            return True\n    return False",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 409,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 20.589744567871094,
+      "final_passed": false,
+      "baseline_code": "def min_product_tuple(tuples):\n    min_product = 1000000000\n    for tuple in tuples:\n        product = tuple[0] * tuple[1]\n        if product < min_product:\n            min_product = product\n    return min_product",
+      "steered_code": "def min_product_tuple(tuples):\n    min_product = 0\n    for i in range(len(tuples)):\n        for j in range(i+1, len(tuples)):\n            if tuples[i][0] * tuples[j][1] < min_product:\n                min_product = tuples[i][0] * tuples[j][1]\n    return min_product",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 411,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 21.177265167236328,
+      "final_passed": false,
+      "baseline_code": "def snake_to_camel(snake_case):\n    return ''.join([word[0].upper() + word[1:] for word in snake_case.split('_')])",
+      "steered_code": "def snake_to_camel(snake_case):\n    return re.sub(r'([a-z])([A-Z])', r'\\1 \\2', snake_case)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 421,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 18.987947463989258,
+      "final_passed": true,
+      "baseline_code": "def concatenate_tuple(tuple):\n    return tuple[0] + \"-\" + tuple[1] + \"-\" + str(tuple[2]) + \"-\" + tuple[3]",
+      "steered_code": "def concatenate_tuple(tuple):\n    return tuple[0] + \"-\" + tuple[1] + \"-\" + str(tuple[2]) + \"-\" + tuple[3]",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 424,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 19.038602828979492,
+      "final_passed": false,
+      "baseline_code": "def extract_rear(tup):\n    return [tup[i][-1] for i in range(len(tup))]",
+      "steered_code": "def extract_rear(tup):\n    for i in range(len(tup)):\n        if i == len(tup) - 1:\n            return tup[i]\n        else:\n            tup[i] = tup[i + 1]\n    return tup[0]",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 441,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 16.810531616210938,
+      "final_passed": true,
+      "baseline_code": "def surfacearea_cube(side):\n    return 6*side**2",
+      "steered_code": "def surfacearea_cube(side):\n    return 6*side**2",
+      "source": "selective_steering"
+    }
+  ],
+  "excluded_tasks": [],
+  "last_processed_idx": 49,
+  "total_tasks": 116,
+  "timestamp": "2025-11-19T13:26:16.358676",
+  "checkpoint_version": 1
+}

@@ -1,0 +1,34 @@
+{
+  "phase": "4.8",
+  "description": "Steering Effect Analysis",
+  "timestamp": "2025-11-23T13:15:22.473128",
+  "duration_seconds": 3132.1762959957123,
+  "config": {
+    "correct_coefficient": 29,
+    "incorrect_coefficient": 287,
+    "model": "google/gemma-2-2b"
+  },
+  "results": {
+    "correction_rate": 5.755395683453238,
+    "corruption_rate": 100.0,
+    "preservation_rate": 92.0,
+    "success_criteria_met": {
+      "correction_rate_above_10%": false,
+      "corruption_rate_above_10%": true,
+      "preservation_rate_above_50%": true,
+      "all_criteria_met": false
+    }
+  },
+  "features_used": {
+    "correct": {
+      "layer": 16,
+      "feature_idx": 11225,
+      "separation_score": 0.22123092412948608
+    },
+    "incorrect": {
+      "layer": 25,
+      "feature_idx": 2853,
+      "separation_score": 0.20100238919258118
+    }
+  }
+}

@@ -1,0 +1,811 @@
+2025-11-21 16:30:40,999 [INFO] [test_mbpp_with_imports] setup_logging:167 - Phase: TEST, GPU: CPU
+2025-11-21 16:30:41,000 [WARNING] [test_mbpp_with_imports] main:519 - Config dataset is 'humaneval', forcing to 'mbpp'
+2025-11-21 16:30:41,027 [INFO] [test_mbpp_with_imports] __init__:219 - Loading model google/gemma-2-2b on device: cuda
+2025-11-21 16:30:41,216 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:47 - Loading model google/gemma-2-2b on cuda with dtype torch.bfloat16
+2025-11-21 16:30:42,753 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:56 - Loading model to cuda...
+2025-11-21 16:30:46,739 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:86 - Model successfully loaded on cuda:0
+2025-11-21 16:30:46,739 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:88 - Model loaded successfully: Gemma2ForCausalLM
+2025-11-21 16:30:46,740 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:89 - Model size: 2.61B parameters
+2025-11-21 16:30:46,741 [INFO] [test_mbpp_with_imports] __init__:241 - Initialized random seeds (seed=42) for deterministic generation
+2025-11-21 16:30:46,742 [INFO] [test_mbpp_with_imports] __init__:248 - Using layers: [16, 19]
+2025-11-21 16:30:46,742 [INFO] [common_simplified.activation_hooks] __init__:185 - Initialized AttentionExtractor for layers [16, 19] at position -1
+2025-11-21 16:30:46,742 [INFO] [test_mbpp_with_imports] run:329 - ======================================================================
+2025-11-21 16:30:46,742 [INFO] [test_mbpp_with_imports] run:330 - MBPP IMPORT PRE-LOADING TEST
+2025-11-21 16:30:46,742 [INFO] [test_mbpp_with_imports] run:331 - ======================================================================
+2025-11-21 16:30:46,743 [INFO] [test_mbpp_with_imports] run:332 - Testing with 73 standard library imports pre-loaded
+2025-11-21 16:30:46,743 [INFO] [test_mbpp_with_imports] run:333 - Dataset: mbpp
+2025-11-21 16:30:46,743 [INFO] [test_mbpp_with_imports] run:334 - Model: google/gemma-2-2b
+2025-11-21 16:30:46,765 [INFO] [test_mbpp_with_imports] run:342 - Loaded 388 validation problems
+2025-11-21 16:30:46,765 [INFO] [test_mbpp_with_imports] run:346 - Processing rows 0 to 387 (inclusive)
+2025-11-21 16:30:46,765 [INFO] [test_mbpp_with_imports] run:348 - Testing on 388 problems
+2025-11-21 16:30:46,766 [INFO] [test_mbpp_with_imports] run:355 - Output directory: data/test_imports
+2025-11-21 16:30:46,767 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:30:46,767 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:30:58,314 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:30:58,315 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:31:45,889 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:31:45,889 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:31:47,360 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:31:47,360 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:31:49,362 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:31:49,363 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:31:50,716 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:31:50,717 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:31:51,772 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:31:51,773 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:31:53,967 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:31:53,968 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:05,234 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:05,234 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:07,400 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:07,401 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:11,758 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:11,759 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:16,070 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:16,070 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:17,547 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:17,547 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:20,718 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:20,719 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:22,812 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:22,812 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:24,652 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:24,653 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:26,663 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:26,664 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:32,192 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:32,192 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:34,056 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:34,056 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:36,357 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:36,357 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:37,475 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:37,475 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:43,200 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:43,200 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:46,687 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:46,687 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:49,550 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:49,550 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:54,597 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:54,597 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:32:59,211 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:32:59,211 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:05,975 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:05,975 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:09,735 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:09,735 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:14,655 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:14,656 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:17,005 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:17,006 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:18,590 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:18,590 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:21,824 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:21,824 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:24,081 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:24,081 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:26,433 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:26,433 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:28,506 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:28,506 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:32,811 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:32,812 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:33,813 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:33,814 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:38,214 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:38,215 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:43,105 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:43,105 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:47,175 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:47,175 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:49,956 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:49,957 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:52,249 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:52,249 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:33:55,166 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:33:55,167 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:34:01,080 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:34:01,080 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:34:03,092 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:34:03,092 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:34:06,809 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:34:06,810 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:34:08,650 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:34:08,650 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:34:22,093 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:34:22,093 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:34:26,180 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:34:26,180 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:34:37,666 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:34:37,666 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:34:42,413 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:34:42,413 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:34:43,484 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:34:43,485 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:34:45,225 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:34:45,225 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:34:47,128 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:34:47,128 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:34:49,358 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:34:49,358 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:34:52,877 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:34:52,877 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:01,262 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:01,262 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:03,714 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:03,715 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:05,684 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:05,685 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:07,220 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:07,220 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:10,639 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:10,639 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:17,844 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:17,845 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:20,528 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:20,529 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:22,118 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:22,119 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:23,236 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:23,236 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:24,849 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:24,849 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:33,874 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:33,874 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:37,695 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:37,695 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:42,704 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:42,704 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:46,729 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:46,730 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:48,634 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:48,634 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:52,020 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:52,021 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:54,450 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:54,450 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:35:59,247 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:35:59,247 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:36:01,188 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:36:01,188 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:36:03,749 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:36:03,750 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:36:05,897 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:36:05,897 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:36:11,013 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:36:11,014 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:36:16,000 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:36:16,001 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:36:20,927 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:36:20,927 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:36:23,334 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:36:23,334 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:36:26,599 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:36:26,600 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:36:32,973 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:36:32,974 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:36:34,357 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:36:34,358 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:36:35,360 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:36:35,360 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:37:22,658 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:37:22,659 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:37:26,609 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:37:26,609 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:38:14,175 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:38:14,176 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:38:17,550 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:38:17,550 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:38:22,357 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:38:22,358 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:38:24,202 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:38:24,202 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:38:26,040 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:38:26,040 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:38:28,655 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:38:28,655 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:38:30,540 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:38:30,540 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:38:41,399 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:38:41,400 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:38:48,190 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:38:48,191 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:38:50,196 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:38:50,197 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:38:51,963 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:38:51,963 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:39:39,111 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:39:39,111 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:39:40,807 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:39:40,807 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:39:43,088 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:39:43,088 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:39:47,528 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:39:47,528 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:39:50,939 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:39:50,940 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:39:53,683 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:39:53,684 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:39:55,762 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:39:55,762 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:39:58,874 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:39:58,874 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:40:04,443 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:40:04,443 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:40:06,383 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:40:06,383 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:40:08,608 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:40:08,608 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:40:13,402 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:40:13,403 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:40:24,642 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:40:24,642 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:40:27,229 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:40:27,230 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:41:14,408 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:41:14,409 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:41:18,496 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:41:18,497 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:41:19,503 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:41:19,503 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:41:25,725 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:41:25,725 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:41:29,648 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:41:29,649 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:41:31,177 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:41:31,177 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:41:34,121 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:41:34,122 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:41:35,777 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:41:35,777 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:41:38,067 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:41:38,067 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:41:39,259 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:41:39,260 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:41:40,912 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:41:40,912 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:41:43,800 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:41:43,800 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:41:47,642 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:41:47,642 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:42:34,786 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:42:34,787 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:42:36,811 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:42:36,812 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:42:41,730 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:42:41,730 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:43:29,145 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:43:29,145 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:43:32,683 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:43:32,684 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:43:35,987 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:43:35,988 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:44:23,131 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:44:23,132 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:44:25,635 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:44:25,635 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:44:28,109 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:44:28,110 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:44:31,400 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:44:31,400 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:44:32,630 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:44:32,630 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:44:36,098 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:44:36,098 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:44:37,475 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:44:37,475 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:44:50,146 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:44:50,146 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:44:52,757 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:44:52,757 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:44:58,696 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:44:58,696 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:45:46,034 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:45:46,034 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:45:49,097 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:45:49,098 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:45:55,288 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:45:55,288 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:46:08,339 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:46:08,340 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:46:09,807 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:46:09,807 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:46:15,921 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:46:15,922 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:46:19,503 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:46:19,504 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:46:22,605 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:46:22,605 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:46:24,146 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:46:24,146 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:46:26,734 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:46:26,734 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:46:29,164 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:46:29,164 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:46:30,769 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:46:30,770 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:46:32,976 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:46:32,976 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:46:34,642 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:46:34,643 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:46:37,292 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:46:37,292 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:47:24,777 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:47:24,778 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:47:27,537 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:47:27,537 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:47:30,857 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:47:30,858 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:47:35,164 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:47:35,164 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:47:38,121 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:47:38,121 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:47:40,672 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:47:40,672 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:47:45,353 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:47:45,354 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:47:48,454 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:47:48,455 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:47:50,884 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:47:50,885 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:47:52,661 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:47:52,662 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:47:56,020 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:47:56,020 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:47:58,329 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:47:58,330 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:00,128 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:00,129 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:02,563 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:02,564 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:04,227 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:04,228 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:05,491 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:05,491 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:07,178 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:07,178 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:10,368 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:10,369 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:16,299 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:16,299 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:18,570 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:18,571 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:21,437 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:21,437 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:24,844 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:24,844 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:27,085 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:27,085 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:28,661 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:28,661 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:31,082 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:31,082 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:35,038 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:35,038 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:37,667 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:37,668 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:41,667 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:41,667 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:43,767 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:43,767 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:45,779 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:45,780 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:50,310 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:50,311 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:48:52,796 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:48:52,797 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:01,347 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:01,347 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:03,744 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:03,744 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:05,362 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:05,362 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:08,463 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:08,463 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:11,837 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:11,837 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:13,642 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:13,642 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:15,630 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:15,630 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:18,855 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:18,855 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:20,034 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:20,034 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:25,415 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:25,415 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:29,551 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:29,551 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:31,501 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:31,501 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:33,671 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:33,672 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:36,574 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:36,574 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:46,129 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:46,129 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:47,932 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:47,932 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:50,120 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:50,120 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:53,073 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:53,073 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:49:55,254 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:49:55,255 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:00,388 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:00,389 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:03,540 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:03,540 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:04,853 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:04,854 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:09,497 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:09,498 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:14,950 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:14,950 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:17,138 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:17,138 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:18,610 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:18,611 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:21,476 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:21,477 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:23,032 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:23,032 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:25,023 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:25,023 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:30,417 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:30,418 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:34,233 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:34,234 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:40,243 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:40,244 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:42,488 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:42,488 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:44,352 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:44,353 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:50,068 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:50,068 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:51,186 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:51,186 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:52,960 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:52,961 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:55,134 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:55,134 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:56,500 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:56,500 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:50:58,289 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:50:58,289 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:01,563 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:01,564 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:04,149 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:04,150 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:06,164 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:06,165 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:10,692 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:10,692 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:12,020 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:12,021 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:15,449 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:15,449 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:21,255 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:21,255 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:23,250 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:23,250 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:26,045 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:26,046 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:28,961 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:28,961 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:30,284 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:30,284 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:39,742 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:39,742 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:42,268 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:42,268 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:51:43,626 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:51:43,626 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:52:30,540 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:52:30,540 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:52:33,520 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:52:33,520 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:53:20,641 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:53:20,642 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:53:23,607 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:53:23,608 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:53:25,038 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:53:25,038 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:53:33,446 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:53:33,446 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:53:36,874 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:53:36,875 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:53:38,927 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:53:38,927 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:53:44,517 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:53:44,518 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:53:46,696 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:53:46,696 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:53:53,038 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:53:53,038 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:53:54,178 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:53:54,178 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:04,407 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:04,407 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:06,197 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:06,197 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:07,432 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:07,432 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:12,763 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:12,764 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:16,327 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:16,327 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:28,987 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:28,988 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:33,145 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:33,145 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:37,771 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:37,771 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:43,834 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:43,834 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:46,469 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:46,469 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:47,708 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:47,708 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:50,562 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:50,562 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:55,098 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:55,098 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:54:59,001 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:54:59,001 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:55:00,588 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:55:00,588 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:55:03,125 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:55:03,125 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:55:04,254 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:55:04,254 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:55:08,546 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:55:08,547 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:55:10,340 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:55:10,340 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:55:11,963 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:55:11,963 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:55:14,832 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:55:14,833 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:55:17,666 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:55:17,666 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:04,803 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:04,803 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:07,922 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:07,922 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:10,288 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:10,289 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:11,649 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:11,650 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:12,969 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:12,970 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:16,756 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:16,757 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:19,576 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:19,576 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:20,742 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:20,742 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:23,906 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:23,907 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:26,403 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:26,404 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:28,064 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:28,065 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:29,367 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:29,367 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:30,898 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:30,899 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:33,613 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:33,613 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:35,914 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:35,914 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:37,588 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:37,588 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:41,495 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:41,496 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:44,139 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:44,139 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:45,899 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:45,899 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:53,197 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:53,197 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:57,878 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:57,879 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:56:59,509 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:56:59,510 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:02,049 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:02,049 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:06,213 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:06,213 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:08,813 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:08,813 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:12,188 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:12,189 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:14,239 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:14,239 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:23,492 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:23,492 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:25,177 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:25,177 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:27,569 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:27,570 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:29,704 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:29,704 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:37,392 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:37,392 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:41,336 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:41,336 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:47,311 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:47,311 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:50,743 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:50,744 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:57:52,854 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:57:52,854 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:58:01,277 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:58:01,278 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:58:05,983 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:58:05,983 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:58:07,996 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:58:07,996 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:58:10,713 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:58:10,713 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:58:12,188 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:58:12,188 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:58:15,259 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:58:15,260 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:58:18,427 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:58:18,427 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:58:23,025 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:58:23,025 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:58:24,033 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:58:24,033 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:59:11,047 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:59:11,047 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:59:18,156 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:59:18,156 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:59:22,148 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:59:22,149 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:59:23,453 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:59:23,453 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:59:24,738 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:59:24,738 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:59:25,685 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:59:25,686 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:59:28,040 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:59:28,040 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 16:59:32,381 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 16:59:32,382 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:00:19,369 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:00:19,369 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:00:26,663 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:00:26,664 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:00:28,766 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:00:28,766 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:00:34,740 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:00:34,740 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:00:36,613 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:00:36,613 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:00:37,801 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:00:37,802 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:00:39,983 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:00:39,983 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:00:41,629 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:00:41,629 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:00:44,074 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:00:44,075 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:00:48,307 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:00:48,307 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:01:35,185 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:01:35,186 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:01:39,311 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:01:39,311 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:01:40,459 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:01:40,459 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:01:43,688 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:01:43,688 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:01:46,848 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:01:46,849 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:01:57,288 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:01:57,289 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:02,974 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:02,974 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:04,960 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:04,960 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:09,356 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:09,356 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:11,795 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:11,795 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:17,935 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:17,935 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:19,464 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:19,465 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:22,997 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:22,997 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:27,392 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:27,393 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:34,070 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:34,070 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:45,320 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:45,321 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:46,637 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:46,637 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:49,047 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:49,048 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:50,216 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:50,216 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:51,829 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:51,829 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:02:53,825 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:02:53,825 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:03,619 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:03,620 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:05,622 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:05,622 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:09,975 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:09,976 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:12,569 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:12,570 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:13,758 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:13,758 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:15,325 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:15,326 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:16,927 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:16,927 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:21,663 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:21,663 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:29,874 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:29,874 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:31,866 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:31,866 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:37,193 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:37,194 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:38,742 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:38,742 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:40,607 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:40,608 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:03:42,802 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:03:42,802 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:04:29,587 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:04:29,587 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:04:33,389 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:04:33,389 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:04:46,203 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:04:46,203 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:04:49,496 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:04:49,497 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:05:03,685 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:05:03,685 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:05:11,962 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:05:11,963 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:05:58,889 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:05:58,890 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:06:46,096 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:06:46,096 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:06:47,509 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:06:47,509 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:06:48,988 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:06:48,988 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:06:52,094 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:06:52,095 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:06:53,732 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:06:53,732 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:06:55,261 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:06:55,261 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:06:56,720 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 17:06:56,720 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 17:07:05,584 [INFO] [test_mbpp_with_imports] run:477 - ======================================================================
+2025-11-21 17:07:05,585 [INFO] [test_mbpp_with_imports] run:478 - TEST COMPLETE
+2025-11-21 17:07:05,585 [INFO] [test_mbpp_with_imports] run:479 - ======================================================================
+2025-11-21 17:07:05,585 [INFO] [test_mbpp_with_imports] run:480 - Problems tested: 388
+2025-11-21 17:07:05,585 [INFO] [test_mbpp_with_imports] run:481 - Passed: 117
+2025-11-21 17:07:05,585 [INFO] [test_mbpp_with_imports] run:482 - Failed: 271
+2025-11-21 17:07:05,585 [INFO] [test_mbpp_with_imports] run:483 - Pass rate: 30.15%
+2025-11-21 17:07:05,585 [INFO] [test_mbpp_with_imports] run:484 - Avg generation time: 5.60s
+2025-11-21 17:07:05,585 [INFO] [test_mbpp_with_imports] run:485 - 
+2025-11-21 17:07:05,585 [INFO] [test_mbpp_with_imports] run:486 - Output files:
+2025-11-21 17:07:05,585 [INFO] [test_mbpp_with_imports] run:487 -   - data/test_imports/SUMMARY.txt
+2025-11-21 17:07:05,585 [INFO] [test_mbpp_with_imports] run:488 -   - data/test_imports/results.parquet
+2025-11-21 17:07:05,586 [INFO] [test_mbpp_with_imports] run:489 -   - data/test_imports/metadata.json
+2025-11-21 17:07:05,586 [INFO] [test_mbpp_with_imports] run:490 - ======================================================================

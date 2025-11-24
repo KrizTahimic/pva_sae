@@ -1,0 +1,191 @@
+2025-11-21 08:24:45,996 [INFO] [main] setup_logging:167 - Phase: 3.5, GPU: CPU
+2025-11-21 08:24:45,996 [INFO] [main] main:1733 - Detected device: cuda
+2025-11-21 08:24:48,559 [INFO] [common_simplified.model_loader] setup_logging:167 - Phase: 3.5, GPU: CPU
+2025-11-21 08:24:48,560 [INFO] [common_simplified.activation_hooks] setup_logging:167 - Phase: 3.5, GPU: CPU
+2025-11-21 08:24:48,562 [INFO] [common_simplified.helpers] setup_logging:167 - Phase: 3.5, GPU: CPU
+2025-11-21 08:24:48,563 [INFO] [common.retry_utils] setup_logging:167 - Phase: 3.5, GPU: CPU
+2025-11-21 08:24:48,563 [INFO] [temperature_runner] setup_logging:167 - Phase: 3.5, GPU: CPU
+2025-11-21 08:24:48,563 [INFO] [main] run_phase3_5:591 - Starting Phase 3.5: Temperature Robustness Testing
+2025-11-21 08:24:48,563 [INFO] [main] run_phase3_5:592 - Will auto-discover best layers from Phase 2.5 output
+2025-11-21 08:24:48,564 [INFO] [main] run_phase3_5:595 - 
+============================================================
+CONFIGURATION
+============================================================
+
+ACTIVATION Settings:
+  activation_cleanup_after_batch: True
+  activation_clear_cache_between_layers: True
+  activation_hook_type: resid_post
+  activation_layers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
+  activation_max_cache_gb: 10.0
+  activation_max_length: 2048
+  activation_position: -1
+
+AUTOSAVE Settings:
+  autosave_frequency: 100
+  autosave_keep_last: 3
+
+CHECKPOINT Settings:
+  checkpoint_dir: checkpoints
+  checkpoint_frequency: 50
+
+CONTINUE Settings:
+  continue_on_error: True
+
+DATASET Settings:
+  dataset_dir: data/phase1_0
+  dataset_end_idx: None
+  dataset_name: humaneval
+  dataset_split: test
+  dataset_start_idx: 0
+
+ENABLE Settings:
+  enable_timing_stats: True
+
+EVALUATION Settings:
+  evaluation_random_seed: 42
+
+GC Settings:
+  gc_collect_frequency: 50
+
+LOG Settings:
+  log_dir: data/logs
+
+MAX Settings:
+  max_gpu_memory_usage_gb: 30.0
+  max_memory_usage_gb: 100.0
+  max_retries: 3
+
+MEMORY Settings:
+  memory_cleanup_frequency: 100
+
+MODEL Settings:
+  model_device: None
+  model_dtype: None
+  model_max_new_tokens: 800
+  model_name: google/gemma-2-2b
+  model_temperature: 0.0
+  model_trust_remote_code: True
+
+ORTHOGONALIZATION Settings:
+  orthogonalization_target_weights: [embed, attn_o, mlp_down]
+
+PHASE0 Settings:
+  phase0_1_output_dir: data/phase0_1
+  phase0_2_output_dir: data/phase0_2_humaneval
+  phase0_3_output_dir: data/phase0_3_humaneval
+  phase0_output_dir: data/phase0
+
+PHASE1 Settings:
+  phase1_output_dir: data/phase1_0
+
+PHASE2 Settings:
+  phase2_10_output_dir: data/phase2_10
+  phase2_15_output_dir: data/phase2_15
+  phase2_2_output_dir: data/phase2_2
+  phase2_5_output_dir: data/phase2_5
+  phase2_output_dir: data/phase2
+
+PHASE3 Settings:
+  **phase3_5_output_dir**: data/phase3_5
+  phase3_10_output_dir: data/phase3_10
+  phase3_10_temperatures: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
+  phase3_11_output_dir: data/phase3_11
+  phase3_12_output_dir: data/phase3_12
+  phase3_6_output_dir: data/phase3_6
+  phase3_8_output_dir: data/phase3_8
+  phase3_output_dir: data/phase3
+
+PHASE4 Settings:
+  phase4_10_min_activation_freq: 0.001
+  phase4_10_n_features: 10
+  phase4_10_output_dir: data/phase4_10
+  phase4_10_separation_threshold: 0.01
+  phase4_12_output_dir: data/phase4_12
+  phase4_14_output_dir: data/phase4_14
+  phase4_14_significance_level: 0.05
+  phase4_5_correct_coefficients: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0]
+  phase4_5_experiment_mode: all
+  phase4_5_incorrect_coefficients: [100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0]
+  phase4_5_meaningful_effect_threshold: 5.0
+  phase4_5_output_dir: data/phase4_5
+  phase4_5_plateau_threshold: 2.0
+  phase4_5_search_tolerance: 2.0
+  phase4_6_experiment_mode: all
+  phase4_6_output_dir: data/phase4_6
+  phase4_6_tolerance: 1.0
+  phase4_8_correct_coefficient: 29
+  phase4_8_experiment_mode: all
+  phase4_8_incorrect_coefficient: 287
+  phase4_8_output_dir: data/phase4_8
+
+PHASE5 Settings:
+  phase5_3_output_dir: data/phase5_3
+  phase5_6_output_dir: data/phase5_6
+  phase5_9_output_dir: data/phase5_9
+  phase5_9_significance_level: 0.05
+
+PHASE6 Settings:
+  phase6_3_output_dir: data/phase6_3
+
+PHASE7 Settings:
+  phase7_12_output_dir: data/phase7_12
+  phase7_3_model_name: google/gemma-2-2b-it
+  phase7_3_output_dir: data/phase7_3
+  phase7_6_model_name: google/gemma-2-2b-it
+  phase7_6_output_dir: data/phase7_6
+
+PHASE8 Settings:
+  phase8_1_output_dir: data/phase8_1
+  phase8_2_output_dir: data/phase8_2
+  phase8_3_output_dir: data/phase8_3
+  phase8_3_percentile: 70.0
+  phase8_3_use_percentile_threshold: True
+
+PILE Settings:
+  pile_filter_enabled: True
+  pile_samples: 10000
+  pile_threshold: 0.02
+
+PROGRESS Settings:
+  progress_log_frequency: 10
+
+RETRY Settings:
+  retry_backoff: 1.0
+
+SAE Settings:
+  sae_checkpoint_dir: data/phase2/sae_checkpoints
+  sae_cleanup_after_layer: True
+  sae_hook_component: resid_post
+  sae_latent_threshold: 0.02
+  sae_repo_id: google/gemma-scope-2b-pt-res
+  sae_save_after_each_layer: True
+  sae_sparsity: 71
+  sae_use_memory_mapping: False
+  sae_width: 16k
+
+SHOW Settings:
+  show_progress_bar: True
+
+SPLIT Settings:
+  split_n_strata: 10
+  split_random_seed: 42
+  split_ratio_tolerance: 0.02
+
+T Settings:
+  t_statistic_min_samples: 10
+
+TEMPERATURE Settings:
+  temperature_samples_per_temp: 3
+  temperature_variation_temps: [0.0]
+
+TIMEOUT Settings:
+  timeout_per_record: 300.0
+
+VERBOSE Settings:
+  verbose: False
+
+============================================================
+2025-11-21 08:24:48,564 [INFO] [temperature_runner] __init__:105 - Loading model google/gemma-2-2b on device: cuda
+2025-11-21 08:24:48,761 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:47 - Loading model google/gemma-2-2b on cuda with dtype torch.bfloat16
+2025-11-21 08:24:50,258 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:56 - Loading model to cuda...

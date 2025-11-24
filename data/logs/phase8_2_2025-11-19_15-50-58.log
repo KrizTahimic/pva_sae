@@ -1,0 +1,5 @@
+2025-11-19 15:50:58,011 [INFO] [main] setup_logging:167 - Phase: 8.2, GPU: CPU
+2025-11-19 15:50:58,011 [INFO] [main] main:1701 - Detected device: cuda
+2025-11-19 15:51:00,462 [INFO] [common_simplified.helpers] setup_logging:167 - Phase: 8.2, GPU: CPU
+2025-11-19 15:51:00,463 [INFO] [common_simplified.model_loader] setup_logging:167 - Phase: 8.2, GPU: CPU
+2025-11-19 15:51:00,463 [INFO] [common.steering_metrics] setup_logging:167 - Phase: 8.2, GPU: CPU

@@ -1,0 +1,40 @@
+{
+  "description": "Problems that were initially correct and remained correct after removing incorrect feature",
+  "examples": [
+    {
+      "task_id": 2,
+      "baseline_passed": true,
+      "orthogonalized_passed": true,
+      "baseline_code": "def truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n    return number - int(number)",
+      "orthogonalized_code": "def truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n    return number - int(number)"
+    },
+    {
+      "task_id": 7,
+      "baseline_passed": true,
+      "orthogonalized_passed": true,
+      "baseline_code": "def filter_by_substring(strings: List[str], substring: str) -> List[str]:\n    return [s for s in strings if s.find(substring) != -1]",
+      "orthogonalized_code": "def filter_by_substring(strings: List[str], substring: str) -> List[str]:\n    return [s for s in strings if s.find(substring) != -1]"
+    },
+    {
+      "task_id": 12,
+      "baseline_passed": true,
+      "orthogonalized_passed": true,
+      "baseline_code": "def longest(strings: List[str]) -> Optional[str]:\n    if not strings:\n        return None\n    return max(strings, key=len)",
+      "orthogonalized_code": "def longest(strings: List[str]) -> Optional[str]:\n    if not strings:\n        return None\n    return max(strings, key=len)"
+    },
+    {
+      "task_id": 13,
+      "baseline_passed": true,
+      "orthogonalized_passed": true,
+      "baseline_code": "def greatest_common_divisor(a: int, b: int) -> int:\n    \"\"\" Return a greatest common divisor of two integers a and b\n    >>> greatest_common_divisor(3, 5)\n    1\n    >>> greatest_common_divisor(25, 15)\n    5\n    >>> greatest_common_divisor(49, 14)\n    7\n    >>> greatest_common_divisor(144, 60)\n    12\n    \"\"\"\n    while a != b:\n        if a > b:\n            a = a - b\n        else:\n            b = b - a\n    return a",
+      "orthogonalized_code": "def greatest_common_divisor(a: int, b: int) -> int:\n    \"\"\" Return a greatest common divisor of two integers a and b\n    >>> greatest_common_divisor(3, 5)\n    1\n    >>> greatest_common_divisor(25, 15)\n    5\n    >>> greatest_common_divisor(49, 14)\n    7\n    >>> greatest_common_divisor(144, 60)\n    12\n    \"\"\"\n    while a % b != 0:\n        a, b = b, a % b\n    return b"
+    },
+    {
+      "task_id": 15,
+      "baseline_passed": true,
+      "orthogonalized_passed": true,
+      "baseline_code": "def string_sequence(n: int) -> str:\n    \"\"\" Return a string containing space-delimited numbers starting from 0 upto n inclusive.\n    >>> string_sequence(0)\n    '0'\n    >>> string_sequence(5)\n    '0 1 2 3 4 5'\n    \"\"\"\n    return ' '.join(str(i) for i in range(n+1))",
+      "orthogonalized_code": "def string_sequence(n: int) -> str:\n    \"\"\" Return a string containing space-delimited numbers starting from 0 upto n inclusive.\n    >>> string_sequence(0)\n    '0'\n    >>> string_sequence(5)\n    '0 1 2 3 4 5'\n    \"\"\"\n    return ' '.join(str(i) for i in range(n+1))"
+    }
+  ]
+}

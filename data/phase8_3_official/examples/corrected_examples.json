@@ -1,0 +1,51 @@
+[
+  {
+    "task_id": 332,
+    "baseline_code": "def char_frequency(string):\n    return dict.fromkeys(string, 0)",
+    "steered_code": "def char_frequency(string):\n    count = {}\n    for char in string:\n        if char in count:\n            count[char] += 1\n        else:\n            count[char] = 1\n    return count",
+    "incorrect_pred_activation": 20.704912185668945,
+    "threshold": 15.508569659608781
+  },
+  {
+    "task_id": 455,
+    "baseline_code": "def check_monthnumb_number(month_number):\n    if month_number == 2:\n        if (2000 % 4 == 0 and 2000 % 100 != 0) or (2000 % 400 == 0):\n            return True\n        else:\n            return False\n    else:\n        return True",
+    "steered_code": "def check_monthnumb_number(month_number):\n    if month_number == 1 or month_number == 3 or month_number == 5 or month_number == 7 or month_number == 8 or month_number == 10 or month_number == 12:\n        return True\n    else:\n        return False",
+    "incorrect_pred_activation": 18.96669578552246,
+    "threshold": 15.508569659608781
+  },
+  {
+    "task_id": 460,
+    "baseline_code": "def Extract(lst):\n    return [lst[0]] + [lst[i] for i in range(1, len(lst), 2)]",
+    "steered_code": "def Extract(lst):\n    return [lst[0][0]] + [lst[i][0] for i in range(1, len(lst))]",
+    "incorrect_pred_activation": 18.08358383178711,
+    "threshold": 15.508569659608781
+  },
+  {
+    "task_id": 645,
+    "baseline_code": "def find_k_product(tuples, k):\n    if k < 0:\n        return 0\n    if k == 0:\n        return 1\n    if k == 1:\n        return tuples[0][1]\n    if k == 2:\n        return tuples[0][0] * tuples[1][1] * tuples[2][0]\n    if k == 3:\n        return tuples[0][0] * tuples[1][0] * tuples[2][1]\n    if k == 4:\n        return tuples[0][0] * tuples[1][1] * tuples[2][0] * tuples[3][1]\n    if k == 5:\n        return tuples[0][0] * tuples[1][0] * tuples[2][1] * tuples[3][0] * tuples[4][1]\n    if k == 6:\n        return tuples[0][0] * tuples[1][0] * tuples[2][1] * tuples[3][0] * tuples[4][1] * tuples[5][0]\n    if k == 7:\n        return tuples[0][0] * tuples[1][0] * tuples[2][1] * tuples[3][0] * tuples[4][1] * tuples[5][0] * tuples[6][1]\n    if k == 8:\n        return tuples[0][0] * tuples[1][0] * tuples[2][1] * tuples[3][0] * tuples[4][1] * tuples[5][0] * tuples[6][1] * tuples[7][0]\n    if k == 9:\n        return tuples[0][0] * tuples[1][0] * tuples[2][1] * tuples[3][0] * tuples[4][1] * tuples[5][0] * tuples[6][1] * tuples[7][0] * tuples[8][1]\n    if k == 10:\n        return tuples[0][0] * tuples[1][0] * tuples[2][1] * tuples[3][0] * tuples[4][1] * tuples[5][0] * tuples[6][1] * tuples[7][0] * tuples[8][1] * tuples[9][0]\n    if k == 11:\n        return tuples[0][0] * tuples[1][0] * tuples[2][1] * tuples[3][0] * tuples[4][1] * tuples[5][0] * tuples[6][1] * tuples[7][0] * tuples[8][1] * tuples[9][0] * tuples[10][1]\n    if k == 12:\n        return tuples[0][0] * tuples[1][0] * tuples[2][1] * tuples[3][0] * tuples[4][1] * tuples[5][0] * tuples[6][1] * tuples[7][0] * tuples[8][1] * tuples[9][0] * tuples[10][1] * tuples[11][0]\n    if k == 13:\n        return tuples[0][0] * tuples[1][0] * tuples[2][1] * tuples[3][0] * tuples[4][1] * tuples[5][0] * tuples[6][1] * tuples[7][0] * tuples[8][1] * tuples[9][0] * tuples",
+    "steered_code": "def find_k_product(tuples, k):\n    product = 1\n    for i in range(len(tuples)):\n        product *= tuples[i][k]\n    return product",
+    "incorrect_pred_activation": 21.38136863708496,
+    "threshold": 15.508569659608781
+  },
+  {
+    "task_id": 771,
+    "baseline_code": "def check_expression(expression):\n    stack = []\n    for char in expression:\n        if char in \"([{\":\n            stack.append(char)\n        elif char in \")]}\":\n            if len(stack) == 0:\n                return False\n            top = stack.pop()\n            if top == \"(\":\n                if char == \")\":\n                    return False\n            elif top == \"[\":\n                if char == \"]\":\n                    return False\n            elif top == \"{\":\n                if char == \"}\":\n                    return False\n        else:\n            return False\n    return len(stack) == 0",
+    "steered_code": "def check_expression(expression):\n    stack = []\n    for char in expression:\n        if char in \"([{\":\n            stack.append(char)\n        elif char in \")]}\":\n            if len(stack) == 0:\n                return False\n            elif stack[-1] == \"(\":\n                stack.pop()\n            elif stack[-1] == \"[\":\n                stack.pop()\n            elif stack[-1] == \"{\":\n                stack.pop()\n            else:\n                return False\n    return len(stack) == 0",
+    "incorrect_pred_activation": 20.882251739501953,
+    "threshold": 15.508569659608781
+  },
+  {
+    "task_id": 840,
+    "baseline_code": "def Check_Solution(a,b,c):\n    if a == 0:\n        return \"No\"\n    else:\n        return \"Yes\"",
+    "steered_code": "def Check_Solution(a,b,c):\n    if a == 0:\n        if b == 0:\n            if c == 0:\n                return \"Yes\"\n            else:\n                return \"No\"\n        else:\n            return \"No\"\n    else:\n        if b == 0:\n            return \"Yes\"\n        else:\n            return \"No\"",
+    "incorrect_pred_activation": 19.425813674926758,
+    "threshold": 15.508569659608781
+  },
+  {
+    "task_id": 952,
+    "baseline_code": "def nCr_mod_p(n, r, p):\n    if r > n:\n        return 0\n    if r == 0:\n        return 1\n    if r == 1:\n        return n\n    if r == 2:\n        return n * (n - 1)\n    if r == 3:\n        return n * (n - 1) * (n - 2)\n    if r == 4:\n        return n * (n - 1) * (n - 2) * (n - 3)\n    if r == 5:\n        return n * (n - 1) * (n - 2) * (n - 3) * (n - 4)\n    if r == 6:\n        return n * (n - 1) * (n - 2) * (n - 3) * (n - 4) * (n - 5)\n    if r == 7:\n        return n * (n - 1) * (n - 2) * (n - 3) * (n - 4) * (n - 5) * (n - 6)\n    if r == 8:\n        return n * (n - 1) * (n - 2) * (n - 3) * (n - 4) * (n - 5) * (n - 6) * (n - 7)\n    if r == 9:\n        return n * (n - 1) * (n - 2) * (n - 3) * (n - 4) * (n - 5) * (n - 6) * (n - 7) * (n - 8)\n    if r == 10:\n        return n * (n - 1) * (n - 2) * (n - 3) * (n - 4) * (n - 5) * (n - 6) * (n - 7) * (n - 8) * (n - 9)\n    if r == 11:\n        return n * (n - 1) * (n - 2) * (n - 3) * (n - 4) * (n - 5) * (n - 6) * (n - 7) * (n - 8) * (n - 9) * (n - 10)\n    if r == 12:\n        return n * (n - 1) * (n - 2) * (n - 3) * (n - 4) * (n - 5) * (n - 6) * (n - 7) * (n - 8) * (n - 9) * (n - 10) * (n - 11)\n    if r == 13:\n        return n * (n - 1) * (n - 2) * (n - 3) * (n - 4) * (n - 5) * (n - 6) * (n - 7) * (n - 8) * (n - 9) * (n - 10) * (n - 11) * (n - 12)\n    if r == 14:\n        return n * (n - 1) * (n - 2) * (n - 3) * (n - 4) * (n - 5)",
+    "steered_code": "def nCr_mod_p(n, r, p):\n    if r > n:\n        return 0\n    if r == 0:\n        return 1\n    return (nCr_mod_p(n-1, r, p) + nCr_mod_p(n-1, r-1, p)) % p",
+    "incorrect_pred_activation": 19.926776885986328,
+    "threshold": 15.508569659608781
+  }
+]

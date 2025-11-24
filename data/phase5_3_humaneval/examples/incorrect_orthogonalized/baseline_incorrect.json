@@ -1,0 +1,12 @@
+{
+  "description": "Problems that were initially incorrect but became correct after removing incorrect feature",
+  "examples": [
+    {
+      "task_id": 114,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "# Time: O(n)\n# Space: O(1)\ndef minSubArraySum(nums):\n    min_sum = float('inf')\n    sum = 0\n    for i in range(len(nums)):\n        sum += nums[i]\n        if sum < min_sum:\n            min_sum = sum\n    return min_sum",
+      "orthogonalized_code": "# Time: O(n)\n# Space: O(1)\ndef minSubArraySum(nums):\n    min_sum = float('inf')\n    for i in range(len(nums)):\n        sum = 0\n        for j in range(i, len(nums)):\n            sum += nums[j]\n            if sum < min_sum:\n                min_sum = sum\n    return min_sum"
+    }
+  ]
+}

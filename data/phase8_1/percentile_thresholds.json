@@ -1,0 +1,147 @@
+{
+  "phase": "8.1",
+  "timestamp": "2025-11-20T05:03:06.108081",
+  "source_phase": "3.6",
+  "source_dataset": "hyperparams",
+  "feature_info": {
+    "layer": 19,
+    "feature_idx": 5441,
+    "description": "Incorrect-predicting feature from Phase 3.8"
+  },
+  "activation_statistics": {
+    "n_samples": 97,
+    "mean": 19.281523419409684,
+    "std": 2.943775062283388,
+    "min": 0.0,
+    "max": 25.589141845703125,
+    "median": 19.284265518188477
+  },
+  "percentile_thresholds": {
+    "p5": {
+      "percentile": 5,
+      "threshold": 15.696977615356445,
+      "steer_percentage": 95,
+      "description": "Steer top 95% of cases"
+    },
+    "p10": {
+      "percentile": 10,
+      "threshold": 16.757138442993163,
+      "steer_percentage": 90,
+      "description": "Steer top 90% of cases"
+    },
+    "p15": {
+      "percentile": 15,
+      "threshold": 17.31793670654297,
+      "steer_percentage": 85,
+      "description": "Steer top 85% of cases"
+    },
+    "p20": {
+      "percentile": 20,
+      "threshold": 17.47254524230957,
+      "steer_percentage": 80,
+      "description": "Steer top 80% of cases"
+    },
+    "p25": {
+      "percentile": 25,
+      "threshold": 18.05849266052246,
+      "steer_percentage": 75,
+      "description": "Steer top 75% of cases"
+    },
+    "p30": {
+      "percentile": 30,
+      "threshold": 18.404748916625977,
+      "steer_percentage": 70,
+      "description": "Steer top 70% of cases"
+    },
+    "p35": {
+      "percentile": 35,
+      "threshold": 18.529812240600585,
+      "steer_percentage": 65,
+      "description": "Steer top 65% of cases"
+    },
+    "p40": {
+      "percentile": 40,
+      "threshold": 18.759635162353515,
+      "steer_percentage": 60,
+      "description": "Steer top 60% of cases"
+    },
+    "p45": {
+      "percentile": 45,
+      "threshold": 18.998608016967772,
+      "steer_percentage": 55,
+      "description": "Steer top 55% of cases"
+    },
+    "p50": {
+      "percentile": 50,
+      "threshold": 19.284265518188477,
+      "steer_percentage": 50,
+      "description": "Steer top 50% of cases"
+    },
+    "p55": {
+      "percentile": 55,
+      "threshold": 19.431035232543945,
+      "steer_percentage": 45,
+      "description": "Steer top 45% of cases"
+    },
+    "p60": {
+      "percentile": 60,
+      "threshold": 19.64617042541504,
+      "steer_percentage": 40,
+      "description": "Steer top 40% of cases"
+    },
+    "p65": {
+      "percentile": 65,
+      "threshold": 20.199456787109376,
+      "steer_percentage": 35,
+      "description": "Steer top 35% of cases"
+    },
+    "p70": {
+      "percentile": 70,
+      "threshold": 20.580138778686525,
+      "steer_percentage": 30,
+      "description": "Steer top 30% of cases"
+    },
+    "p75": {
+      "percentile": 75,
+      "threshold": 21.04633903503418,
+      "steer_percentage": 25,
+      "description": "Steer top 25% of cases"
+    },
+    "p80": {
+      "percentile": 80,
+      "threshold": 21.579658126831056,
+      "steer_percentage": 20,
+      "description": "Steer top 20% of cases"
+    },
+    "p85": {
+      "percentile": 85,
+      "threshold": 21.719663619995117,
+      "steer_percentage": 15,
+      "description": "Steer top 15% of cases"
+    },
+    "p90": {
+      "percentile": 90,
+      "threshold": 22.2768856048584,
+      "steer_percentage": 10,
+      "description": "Steer top 10% of cases"
+    },
+    "p95": {
+      "percentile": 95,
+      "threshold": 23.029539871215814,
+      "steer_percentage": 5,
+      "description": "Steer top 5% of cases"
+    }
+  },
+  "reference_thresholds": {
+    "phase3_8_optimal": {
+      "threshold": 15.508569659608781,
+      "description": "Phase 3.8 AUROC/F1 optimal threshold (for classification)"
+    }
+  },
+  "notes": [
+    "Thresholds calculated on hyperparameter tuning set (Phase 3.6)",
+    "No data leakage - validation set (Phase 3.5/8.3) not used",
+    "Phase 3.8 threshold optimized for classification, not intervention",
+    "Percentile thresholds designed for selective steering decisions"
+  ]
+}

@@ -1,0 +1,7 @@
+2025-11-21 11:45:34,962 [INFO] [main] setup_logging:167 - Phase: 4.8, GPU: CPU
+2025-11-21 11:45:34,962 [INFO] [main] main:1733 - Detected device: cuda
+2025-11-21 11:45:36,269 [INFO] [common.steering_metrics] setup_logging:167 - Phase: 4.8, GPU: CPU
+2025-11-21 11:45:36,270 [INFO] [common.retry_utils] setup_logging:167 - Phase: 4.8, GPU: CPU
+2025-11-21 11:45:38,437 [INFO] [common_simplified.model_loader] setup_logging:167 - Phase: 4.8, GPU: CPU
+2025-11-21 11:45:38,438 [INFO] [common_simplified.helpers] setup_logging:167 - Phase: 4.8, GPU: CPU
+2025-11-21 11:45:38,438 [INFO] [common_simplified.activation_hooks] setup_logging:167 - Phase: 4.8, GPU: CPU

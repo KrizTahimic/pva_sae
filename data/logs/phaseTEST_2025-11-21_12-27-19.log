@@ -1,0 +1,67 @@
+2025-11-21 12:27:19,681 [INFO] [test_mbpp_with_imports] setup_logging:167 - Phase: TEST, GPU: CPU
+2025-11-21 12:27:19,682 [WARNING] [test_mbpp_with_imports] main:458 - Config dataset is 'humaneval', forcing to 'mbpp'
+2025-11-21 12:27:19,708 [INFO] [test_mbpp_with_imports] __init__:191 - Loading model google/gemma-2-2b on device: cuda
+2025-11-21 12:27:19,900 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:47 - Loading model google/gemma-2-2b on cuda with dtype torch.bfloat16
+2025-11-21 12:27:21,546 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:56 - Loading model to cuda...
+2025-11-21 12:27:25,581 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:86 - Model successfully loaded on cuda:0
+2025-11-21 12:27:25,581 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:88 - Model loaded successfully: Gemma2ForCausalLM
+2025-11-21 12:27:25,582 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:89 - Model size: 2.61B parameters
+2025-11-21 12:27:25,582 [INFO] [test_mbpp_with_imports] __init__:202 - Using layers: [16, 19]
+2025-11-21 12:27:25,582 [INFO] [common_simplified.activation_hooks] __init__:185 - Initialized AttentionExtractor for layers [16, 19] at position -1
+2025-11-21 12:27:25,582 [INFO] [test_mbpp_with_imports] run:283 - ======================================================================
+2025-11-21 12:27:25,582 [INFO] [test_mbpp_with_imports] run:284 - MBPP IMPORT PRE-LOADING TEST
+2025-11-21 12:27:25,582 [INFO] [test_mbpp_with_imports] run:285 - ======================================================================
+2025-11-21 12:27:25,583 [INFO] [test_mbpp_with_imports] run:286 - Testing with 55 standard library imports pre-loaded
+2025-11-21 12:27:25,583 [INFO] [test_mbpp_with_imports] run:287 - Dataset: mbpp
+2025-11-21 12:27:25,583 [INFO] [test_mbpp_with_imports] run:288 - Model: google/gemma-2-2b
+2025-11-21 12:27:25,604 [INFO] [test_mbpp_with_imports] run:296 - Loaded 388 validation problems
+2025-11-21 12:27:25,604 [INFO] [test_mbpp_with_imports] run:300 - Processing rows 0 to 9 (inclusive)
+2025-11-21 12:27:25,605 [INFO] [test_mbpp_with_imports] run:302 - Testing on 10 problems
+2025-11-21 12:27:25,605 [INFO] [test_mbpp_with_imports] run:310 - Output directory: data/test_imports/20251121_122725
+2025-11-21 12:27:25,606 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:27:25,607 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:27:35,934 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:27:35,940 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:27:35,940 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:28:18,265 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:28:18,269 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:28:18,270 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:28:19,602 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:28:19,606 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:28:19,606 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:28:21,399 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:28:21,403 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:28:21,403 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:28:22,614 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:28:22,618 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:28:22,618 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:28:23,572 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:28:23,576 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:28:23,576 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:28:25,532 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:28:25,536 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:28:25,537 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:28:35,531 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:28:35,535 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:28:35,535 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:28:37,499 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:28:37,503 [INFO] [common_simplified.activation_hooks] setup_hooks:53 - Set up hooks for 2 layers to capture residual stream
+2025-11-21 12:28:37,503 [INFO] [common_simplified.activation_hooks] setup_hooks:204 - Set up attention hooks for 2 layers
+2025-11-21 12:28:41,274 [WARNING] [test_mbpp_with_imports] evaluate_code_with_imports:134 - Failed to pre-load some imports: from __future__ imports must occur at the beginning of the file (<string>, line 54)
+2025-11-21 12:28:41,282 [INFO] [test_mbpp_with_imports] run:411 - ======================================================================
+2025-11-21 12:28:41,282 [INFO] [test_mbpp_with_imports] run:412 - TEST COMPLETE
+2025-11-21 12:28:41,282 [INFO] [test_mbpp_with_imports] run:413 - ======================================================================
+2025-11-21 12:28:41,282 [INFO] [test_mbpp_with_imports] run:414 - Problems tested: 10
+2025-11-21 12:28:41,282 [INFO] [test_mbpp_with_imports] run:415 - Passed: 5
+2025-11-21 12:28:41,282 [INFO] [test_mbpp_with_imports] run:416 - Failed: 5
+2025-11-21 12:28:41,283 [INFO] [test_mbpp_with_imports] run:417 - Pass rate: 50.00%
+2025-11-21 12:28:41,283 [INFO] [test_mbpp_with_imports] run:418 - Avg generation time: 7.56s
+2025-11-21 12:28:41,283 [INFO] [test_mbpp_with_imports] run:419 - Results saved to: data/test_imports/20251121_122725/dataset_temp_0_0_with_imports.parquet
+2025-11-21 12:28:41,283 [INFO] [test_mbpp_with_imports] run:420 - Metadata saved to: data/test_imports/20251121_122725/metadata.json
+2025-11-21 12:28:41,283 [INFO] [test_mbpp_with_imports] run:421 - ======================================================================
+2025-11-21 12:28:41,283 [INFO] [test_mbpp_with_imports] run:424 - 
+2025-11-21 12:28:41,283 [INFO] [test_mbpp_with_imports] run:425 - To compare with baseline (without imports):
+2025-11-21 12:28:41,283 [INFO] [test_mbpp_with_imports] run:426 -   1. Check Phase 3.5 results: data/phase3_5/dataset_temp_0_0.parquet
+2025-11-21 12:28:41,283 [INFO] [test_mbpp_with_imports] run:427 -   2. Filter for the same task_ids you tested
+2025-11-21 12:28:41,283 [INFO] [test_mbpp_with_imports] run:428 -   3. Compare pass rates
+2025-11-21 12:28:41,283 [INFO] [test_mbpp_with_imports] run:429 - 

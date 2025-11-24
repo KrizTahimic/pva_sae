@@ -1,0 +1,1177 @@
+{
+  "correction_rate": 5.755395683453238,
+  "corruption_rate": 100.0,
+  "preservation_rate": 92.0,
+  "coefficients": {
+    "correct": 29,
+    "incorrect": 287
+  },
+  "n_problems": {
+    "initially_correct": 25,
+    "initially_incorrect": 139,
+    "total": 164
+  },
+  "exclusion_summary": {
+    "total_tasks_attempted": 189,
+    "tasks_included": 189,
+    "tasks_excluded": 0,
+    "exclusion_rate_percent": 0.0,
+    "correction_experiment": {
+      "attempted": 139,
+      "included": 139,
+      "excluded": 0
+    },
+    "corruption_experiment": {
+      "attempted": 25,
+      "included": 25,
+      "excluded": 0
+    },
+    "preservation_experiment": {
+      "attempted": 25,
+      "included": 25,
+      "excluded": 0
+    }
+  },
+  "detailed_results": {
+    "correction": [
+      {
+        "task_id": 0,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 1,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 3,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 4,
+        "test_passed": false,
+        "steered_passed": true,
+        "flipped": true
+      },
+      {
+        "task_id": 5,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 6,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 8,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 9,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 10,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 11,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 14,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 16,
+        "test_passed": false,
+        "steered_passed": true,
+        "flipped": true
+      },
+      {
+        "task_id": 17,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 18,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 19,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 20,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 21,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 24,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 25,
+        "test_passed": false,
+        "steered_passed": true,
+        "flipped": true
+      },
+      {
+        "task_id": 26,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 27,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 32,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 33,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 36,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 37,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 38,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 39,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 40,
+        "test_passed": false,
+        "steered_passed": true,
+        "flipped": true
+      },
+      {
+        "task_id": 41,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 44,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 49,
+        "test_passed": false,
+        "steered_passed": true,
+        "flipped": true
+      },
+      {
+        "task_id": 50,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 51,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 53,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 54,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 55,
+        "test_passed": false,
+        "steered_passed": true,
+        "flipped": true
+      },
+      {
+        "task_id": 56,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 57,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 59,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 61,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 62,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 64,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 65,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 66,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 67,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 68,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 69,
+        "test_passed": false,
+        "steered_passed": true,
+        "flipped": true
+      },
+      {
+        "task_id": 70,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 71,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 72,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 73,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 74,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 75,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 76,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 77,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 78,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 79,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 80,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 81,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 82,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 83,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 84,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 85,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 86,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 87,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 88,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 89,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 90,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 91,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 92,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 93,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 94,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 95,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 96,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 97,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 98,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 99,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 100,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 101,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 102,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 103,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 104,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 105,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 106,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 107,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 108,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 109,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 110,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 111,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 112,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 113,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 114,
+        "test_passed": false,
+        "steered_passed": true,
+        "flipped": true
+      },
+      {
+        "task_id": 115,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 116,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 117,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 118,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 119,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 120,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 121,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 122,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 123,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 124,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 125,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 126,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 127,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 128,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 129,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 130,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 131,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 132,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 133,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 134,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 135,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 136,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 137,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 138,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 139,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 140,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 141,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 142,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 143,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 144,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 145,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 146,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 147,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 148,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 149,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 150,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 151,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 153,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 154,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 155,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 157,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 158,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 159,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 160,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 161,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 162,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      },
+      {
+        "task_id": 163,
+        "test_passed": false,
+        "steered_passed": false,
+        "flipped": false
+      }
+    ],
+    "corruption": [
+      {
+        "task_id": 2,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 7,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 12,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 13,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 15,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 22,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 23,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 28,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 29,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 30,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 31,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 34,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 35,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 42,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 43,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 45,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 46,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 47,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 48,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 52,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 58,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 60,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 63,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 152,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 156,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      }
+    ],
+    "preservation": [
+      {
+        "task_id": 2,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 7,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 12,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 13,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 15,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 22,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 23,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 28,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 29,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 30,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 31,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 34,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 35,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 42,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 43,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 45,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 46,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 47,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 48,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 52,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 58,
+        "test_passed": true,
+        "steered_passed": false,
+        "flipped": true
+      },
+      {
+        "task_id": 60,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 63,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 152,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      },
+      {
+        "task_id": 156,
+        "test_passed": true,
+        "steered_passed": true,
+        "flipped": false
+      }
+    ]
+  }
+}

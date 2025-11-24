@@ -1,0 +1,1010 @@
+{
+  "experiment_type": "preservation",
+  "results": [
+    {
+      "task_id": 8,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.35634422302246,
+      "final_passed": true,
+      "baseline_code": "def square_nums(nums):\n    return [x**2 for x in nums]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 17,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.820457458496094,
+      "final_passed": true,
+      "baseline_code": "def square_perimeter(side):\n    return side * 4",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 18,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 20.053483963012695,
+      "final_passed": true,
+      "baseline_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 21,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.42156410217285,
+      "final_passed": true,
+      "baseline_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 22,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.09590721130371,
+      "final_passed": true,
+      "baseline_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i])-1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i])-1] *= -1\n    return -1",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 51,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 20.372676849365234,
+      "final_passed": true,
+      "baseline_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 52,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.922819137573242,
+      "final_passed": true,
+      "baseline_code": "def parallelogram_area(a,b):\n    return a*b",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 58,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.24947166442871,
+      "final_passed": true,
+      "baseline_code": "def opposite_Signs(a,b):\n    if a*b < 0:\n        return True\n    else:\n        return False",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 61,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 21.335206985473633,
+      "final_passed": true,
+      "baseline_code": "def count_Substrings(s, n):\n    count = 0\n    for i in range(n):\n        for j in range(i+1, n+1):\n            if sum(map(int, s[i:j])) == j-i:\n                count += 1\n    return count",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 80,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.72026824951172,
+      "final_passed": true,
+      "baseline_code": "def tetrahedral_number(n):\n    return (n * (n + 1) * (n + 2)) / 6",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 82,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.122636795043945,
+      "final_passed": true,
+      "baseline_code": "def volume_sphere(r):\n    return (4/3)*3.141592653589793*r**3",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 93,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.94040298461914,
+      "final_passed": true,
+      "baseline_code": "def power(a, b):\n    return a ** b",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 99,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.96153450012207,
+      "final_passed": true,
+      "baseline_code": "def decimal_to_binary(decimal_number):\n    binary_number = ''\n    while decimal_number > 0:\n        binary_number = str(decimal_number % 2) + binary_number\n        decimal_number = decimal_number // 2\n    return binary_number",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 105,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.876623153686523,
+      "final_passed": true,
+      "baseline_code": "def count(l):\n    count = 0\n    for i in l:\n        if i == True:\n            count += 1\n    return count",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 113,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.173505783081055,
+      "final_passed": true,
+      "baseline_code": "def check_integer(s):\n    try:\n        int(s)\n        return True\n    except ValueError:\n        return False",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 115,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.993247985839844,
+      "final_passed": true,
+      "baseline_code": "def empty_dit(dit):\n    for d in dit:\n        if d:\n            return False\n    return True",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 130,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.10334587097168,
+      "final_passed": true,
+      "baseline_code": "def max_occurrences(lst):\n    max_count = 0\n    max_item = None\n    for item in lst:\n        count = lst.count(item)\n        if count > max_count:\n            max_count = count\n            max_item = item\n    return (max_item, max_count)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 133,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.895174026489258,
+      "final_passed": true,
+      "baseline_code": "def sum_negativenum(numbers):\n    return sum(n for n in numbers if n < 0)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 144,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.228368759155273,
+      "final_passed": true,
+      "baseline_code": "def sum_Pairs(arr, n):\n    sum = 0\n    for i in range(n):\n        for j in range(i+1, n):\n            sum += abs(arr[i] - arr[j])\n    return sum",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 154,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 20.04071617126465,
+      "final_passed": true,
+      "baseline_code": "def specified_element(list, index):\n    return [list[i][index] for i in range(len(list))]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 161,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.665672302246094,
+      "final_passed": true,
+      "baseline_code": "def remove_elements(l1, l2):\n    for i in l2:\n        l1.remove(i)\n    return l1",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 171,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.057832717895508,
+      "final_passed": true,
+      "baseline_code": "def perimeter_pentagon(n):\n    return n * 5",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 187,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 21.988412857055664,
+      "final_passed": true,
+      "baseline_code": "def longest_common_subsequence(s1, s2, m, n):\n    dp = [[0 for i in range(n+1)] for j in range(m+1)]\n    for i in range(m+1):\n        for j in range(n+1):\n            if i == 0 or j == 0:\n                dp[i][j] = 0\n            elif s1[i-1] == s2[j-1]:\n                dp[i][j] = dp[i-1][j-1] + 1\n            else:\n                dp[i][j] = max(dp[i-1][j], dp[i][j-1])\n    return dp[m][n]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 201,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.00629997253418,
+      "final_passed": true,
+      "baseline_code": "def chkList(list):\n    if len(list) == 1:\n        return True\n    else:\n        return list[0] == list[1]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 212,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.846155166625977,
+      "final_passed": true,
+      "baseline_code": "def fourth_Power_Sum(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**4\n    return sum",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 227,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.690587997436523,
+      "final_passed": true,
+      "baseline_code": "def min_of_three(a,b,c):\n    if a<b and a<c:\n        return a\n    elif b<a and b<c:\n        return b\n    else:\n        return c",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 230,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.78496742248535,
+      "final_passed": true,
+      "baseline_code": "def replace_blank(string, character):\n    return string.replace(\" \", character)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 234,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.05124282836914,
+      "final_passed": true,
+      "baseline_code": "def volume_cube(side):\n    return side**3",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 238,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 20.37308692932129,
+      "final_passed": true,
+      "baseline_code": "def number_of_substrings(s):\n    count = 0\n    for i in range(len(s)):\n        for j in range(i, len(s)):\n            if s[i:j+1] != \"\":\n                count += 1\n    return count",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 249,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.75063133239746,
+      "final_passed": true,
+      "baseline_code": "def intersection_array(array1, array2):\n    return [x for x in array1 if x in array2]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 253,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.382543563842773,
+      "final_passed": true,
+      "baseline_code": "def count_integer(list):\n    count = 0\n    for i in list:\n        if type(i) == int:\n            count += 1\n    return count",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 257,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 15.315326690673828,
+      "final_passed": true,
+      "baseline_code": "def swap_numbers(a,b):\n    temp = a\n    a = b\n    b = temp\n    return a,b",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 258,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.71668815612793,
+      "final_passed": true,
+      "baseline_code": "def count_odd(lst):\n    return sum(1 for i in lst if i % 2 != 0)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 284,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.771146774291992,
+      "final_passed": true,
+      "baseline_code": "def check_element(list, element):\n    for i in list:\n        if i != element:\n            return False\n    return True",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 285,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.005613327026367,
+      "final_passed": true,
+      "baseline_code": "def text_match_two_three(text):\n    if len(text) < 3:\n        return 'Not matched!'\n    if text[0] == 'a' and text[1] == 'b' and text[2] == 'b':\n        return 'Found a match!'\n    else:\n        return 'Not matched!'",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 292,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.77781867980957,
+      "final_passed": true,
+      "baseline_code": "def find(a,b):\n    if b == 0:\n        return 0\n    else:\n        return a//b",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 293,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 15.471895217895508,
+      "final_passed": true,
+      "baseline_code": "def otherside_rightangle(a,b):\n    return (a**2 + b**2)**0.5",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 296,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 21.15275001525879,
+      "final_passed": true,
+      "baseline_code": "def get_Inv_Count(arr, n):\n    count = 0\n    for i in range(n-1):\n        for j in range(i+1, n):\n            if arr[i] > arr[j]:\n                count += 1\n    return count",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 319,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.301172256469727,
+      "final_passed": true,
+      "baseline_code": "def find_long_word(string):\n    return [word for word in string.split() if len(word) == 5]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 361,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.574228286743164,
+      "final_passed": true,
+      "baseline_code": "def remove_empty(lst):\n    return [x for x in lst if x]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 365,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 15.63166618347168,
+      "final_passed": true,
+      "baseline_code": "def count_Digit(n):\n    count = 0\n    while n > 0:\n        n = n // 10\n        count += 1\n    return count",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 366,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.885791778564453,
+      "final_passed": true,
+      "baseline_code": "def adjacent_num_product(nums):\n    if len(nums) < 2:\n        return 0\n    max_product = 0\n    for i in range(len(nums)):\n        for j in range(i+1, len(nums)):\n            if nums[i] * nums[j] > max_product:\n                max_product = nums[i] * nums[j]\n    return max_product",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 373,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.034496307373047,
+      "final_passed": true,
+      "baseline_code": "def volume_cuboid(a,b,c):\n    return a*b*c",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 399,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 20.512922286987305,
+      "final_passed": true,
+      "baseline_code": "def bitwise_xor(a, b):\n    return tuple(a[i] ^ b[i] for i in range(len(a)))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 405,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.959585189819336,
+      "final_passed": true,
+      "baseline_code": "def check_tuplex(tuplex, element):\n    for i in range(len(tuplex)):\n        if tuplex[i] == element:\n            return True\n    return False",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 409,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 20.589744567871094,
+      "final_passed": true,
+      "baseline_code": "def min_product_tuple(tuples):\n    min_product = 1000000000\n    for tuple in tuples:\n        product = tuple[0] * tuple[1]\n        if product < min_product:\n            min_product = product\n    return min_product",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 411,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 21.177265167236328,
+      "final_passed": true,
+      "baseline_code": "def snake_to_camel(snake_case):\n    return ''.join([word[0].upper() + word[1:] for word in snake_case.split('_')])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 421,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.987947463989258,
+      "final_passed": true,
+      "baseline_code": "def concatenate_tuple(tuple):\n    return tuple[0] + \"-\" + tuple[1] + \"-\" + str(tuple[2]) + \"-\" + tuple[3]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 424,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.038602828979492,
+      "final_passed": true,
+      "baseline_code": "def extract_rear(tup):\n    return [tup[i][-1] for i in range(len(tup))]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 441,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.810531616210938,
+      "final_passed": true,
+      "baseline_code": "def surfacearea_cube(side):\n    return 6*side**2",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 472,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.408845901489258,
+      "final_passed": true,
+      "baseline_code": "def check_Consecutive(lst):\n    if len(lst) < 2:\n        return False\n    for i in range(len(lst) - 1):\n        if lst[i] + 1 != lst[i + 1]:\n            return False\n    return True",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 474,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.276817321777344,
+      "final_passed": true,
+      "baseline_code": "def replace_char(s, old, new):\n    return s.replace(old, new)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 480,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.746875762939453,
+      "final_passed": true,
+      "baseline_code": "def get_max_occuring_char(string):\n    max_char = \"\"\n    max_count = 0\n    for char in string:\n        if string.count(char) > max_count:\n            max_char = char\n            max_count = string.count(char)\n    return max_char",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 487,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.460918426513672,
+      "final_passed": true,
+      "baseline_code": "def sort_tuple(tuples):\n    return sorted(tuples, key=lambda x: x[-1])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 489,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.0037899017334,
+      "final_passed": true,
+      "baseline_code": "def frequency_Of_Largest(n,arr):\n    max_val = max(arr)\n    count = 0\n    for i in arr:\n        if i == max_val:\n            count += 1\n    return count",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 498,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 15.814138412475586,
+      "final_passed": true,
+      "baseline_code": "def gcd(a, b):\n    if a == 0:\n        return b\n    return gcd(b % a, a)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 499,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.565784454345703,
+      "final_passed": true,
+      "baseline_code": "def diameter_circle(radius):\n    return 2*radius",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 507,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.23965835571289,
+      "final_passed": true,
+      "baseline_code": "def remove_words(words, words_to_remove):\n    return [word for word in words if word not in words_to_remove]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 514,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.592966079711914,
+      "final_passed": true,
+      "baseline_code": "def sum_elements(tuple_list):\n    sum = 0\n    for i in tuple_list:\n        sum += i\n    return sum",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 517,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.16375160217285,
+      "final_passed": true,
+      "baseline_code": "def largest_pos(list):\n    max_num = list[0]\n    for i in range(1, len(list)):\n        if list[i] > max_num:\n            max_num = list[i]\n    return max_num",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 555,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.535192489624023,
+      "final_passed": true,
+      "baseline_code": "def difference(n):\n    sum_of_cubes = 0\n    sum_of_natural_numbers = 0\n    for i in range(1, n+1):\n        sum_of_cubes += i**3\n        sum_of_natural_numbers += i\n    return sum_of_cubes - sum_of_natural_numbers",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 560,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 20.51744842529297,
+      "final_passed": true,
+      "baseline_code": "def union_elements(tuple1, tuple2):\n    return tuple(set(tuple1) | set(tuple2))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 562,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 21.082460403442383,
+      "final_passed": true,
+      "baseline_code": "def Find_Max_Length(arr):\n    max_length = 0\n    for i in range(len(arr)):\n        for j in range(i+1, len(arr)):\n            if len(arr[i]) > len(arr[j]):\n                max_length = len(arr[i])\n            else:\n                max_length = len(arr[j])\n    return max_length",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 565,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.81547737121582,
+      "final_passed": true,
+      "baseline_code": "def split(string):\n    return [char for char in string]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 588,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.069841384887695,
+      "final_passed": true,
+      "baseline_code": "def big_diff(arr):\n    max_val = arr[0]\n    min_val = arr[0]\n    for i in range(1, len(arr)):\n        if arr[i] > max_val:\n            max_val = arr[i]\n        if arr[i] < min_val:\n            min_val = arr[i]\n    return max_val - min_val",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 591,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 14.243547439575195,
+      "final_passed": true,
+      "baseline_code": "def swap_List(list):\n    first = list[0]\n    last = list[-1]\n    list[0] = last\n    list[-1] = first\n    return list",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 599,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.43241310119629,
+      "final_passed": true,
+      "baseline_code": "def sum_average(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i\n    return sum, sum/n",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 600,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.34678840637207,
+      "final_passed": true,
+      "baseline_code": "def is_Even(num):\n    return (num & 1) == 0",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 626,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 20.00172233581543,
+      "final_passed": true,
+      "baseline_code": "def triangle_area(x):\n    if x < 0:\n        return -1\n    if x == 0:\n        return 0\n    if x == 1:\n        return 1\n    if x == 2:\n        return 4\n    if x == 3:\n        return 6\n    if x == 4:\n        return 8\n    if x == 5:\n        return 10\n    if x == 6:\n        return 12\n    if x == 7:\n        return 14\n    if x == 8:\n        return 16\n    if x == 9:\n        return 18\n    if x == 10:\n        return 20\n    if x == 11:\n        return 22\n    if x == 12:\n        return 24\n    if x == 13:\n        return 26\n    if x == 14:\n        return 28\n    if x == 15:\n        return 30\n    if x == 16:\n        return 32\n    if x == 17:\n        return 34\n    if x == 18:\n        return 36\n    if x == 19:\n        return 38\n    if x == 20:\n        return 40\n    if x == 21:\n        return 42\n    if x == 22:\n        return 44\n    if x == 23:\n        return 46\n    if x == 24:\n        return 48\n    if x == 25:\n        return 50\n    if x == 26:\n        return 52\n    if x == 27:\n        return 54\n    if x == 28:\n        return 56\n    if x == 29:\n        return 58\n    if x == 30:\n        return 60\n    if x == 31:\n        return 62\n    if x == 32:\n        return 64\n    if x == 33:\n        return 66\n    if x == 34:\n        return 68\n    if x == 35:\n        return 70\n    if x == 36:\n        return 72\n    if x == 37:\n        return 74\n    if x == 38:\n        return 76\n    if x == 39:\n        return 78\n    if x == 40:\n        return 80\n    if x == 41:\n        return 82\n    if x == 42:\n        return 84\n    if x == 43:\n        return 86\n    if x == 44:\n        return 88\n    if x == 45:\n        return 90\n    if x == 46:\n        return 92\n    if x == 47:\n        return 94\n    if x == 48:\n        return 96\n    if x == 49:\n        return 98\n    if x == 50:\n        return 100\n    if x == 51:\n        return 102\n    if x == 52:\n        return",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 631,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.802701950073242,
+      "final_passed": true,
+      "baseline_code": "def replace_spaces(s):\n    return s.replace(' ', '_')",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 633,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 20.301530838012695,
+      "final_passed": true,
+      "baseline_code": "def pair_OR_Sum(arr, n):\n    sum = 0\n    for i in range(n):\n        for j in range(i+1, n):\n            sum += arr[i] ^ arr[j]\n    return sum",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 649,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.282758712768555,
+      "final_passed": true,
+      "baseline_code": "def sum_Range_list(list, start, end):\n    sum = 0\n    for i in range(start, end+1):\n        sum += list[i]\n    return sum",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 655,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.93992805480957,
+      "final_passed": true,
+      "baseline_code": "def fifth_Power_Sum(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**5\n    return sum",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 658,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.04511070251465,
+      "final_passed": true,
+      "baseline_code": "def max_occurrences(list):\n    max_count = 0\n    max_item = None\n    for item in list:\n        if list.count(item) > max_count:\n            max_count = list.count(item)\n            max_item = item\n    return max_item",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 670,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.970491409301758,
+      "final_passed": true,
+      "baseline_code": "def decreasing_trend(seq):\n    if len(seq) == 1:\n        return True\n    if seq[0] > seq[1]:\n        return False\n    return decreasing_trend(seq[1:])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 673,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.153764724731445,
+      "final_passed": true,
+      "baseline_code": "def convert(list):\n    return int(''.join(map(str, list)))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 678,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.46700668334961,
+      "final_passed": true,
+      "baseline_code": "def remove_spaces(s):\n    return s.replace(\" \", \"\")",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 681,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 15.564037322998047,
+      "final_passed": true,
+      "baseline_code": "def smallest_Divisor(n):\n    for i in range(2, n):\n        if n % i == 0:\n            return i\n    return n",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 687,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.618440628051758,
+      "final_passed": true,
+      "baseline_code": "def recur_gcd(a, b):\n    if b == 0:\n        return a\n    else:\n        return recur_gcd(b, a % b)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 697,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.428857803344727,
+      "final_passed": true,
+      "baseline_code": "def count_even(lst):\n    return sum(1 for x in lst if x%2==0)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 710,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.71959114074707,
+      "final_passed": true,
+      "baseline_code": "def front_and_rear(tuple_record):\n    return tuple_record[0], tuple_record[-1]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 711,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.65837287902832,
+      "final_passed": true,
+      "baseline_code": "def product_Equal(num):\n    if num < 0:\n        return False\n    else:\n        num = abs(num)\n        num_list = list(str(num))\n        even_product = 1\n        odd_product = 1\n        for i in range(len(num_list)):\n            if i % 2 == 0:\n                even_product *= int(num_list[i])\n            else:\n                odd_product *= int(num_list[i])\n        if even_product == odd_product:\n            return True\n        else:\n            return False",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 715,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.551862716674805,
+      "final_passed": true,
+      "baseline_code": "def str_to_tuple(s):\n    return tuple(map(int, s.split(\",\")))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 719,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.552677154541016,
+      "final_passed": true,
+      "baseline_code": "def text_match(text):\n    if text.count('a') == 0:\n        return 'Not matched!'\n    else:\n        return 'Found a match!'",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 723,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 21.00807762145996,
+      "final_passed": true,
+      "baseline_code": "def count_same_pair(list1, list2):\n    return sum(map(lambda x: x[0] == x[1], zip(list1, list2)))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 728,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.64202308654785,
+      "final_passed": true,
+      "baseline_code": "def sum_list(list1, list2):\n    return [x+y for x,y in zip(list1, list2)]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 751,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 21.40277671813965,
+      "final_passed": true,
+      "baseline_code": "def check_min_heap(arr, index):\n    if index >= len(arr) - 1:\n        return True\n    if arr[index] > arr[index + 1]:\n        return False\n    return check_min_heap(arr, index + 1)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 768,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 15.770231246948242,
+      "final_passed": true,
+      "baseline_code": "def check_Odd_Parity(num):\n    if num % 2 == 0:\n        return False\n    else:\n        return True",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 786,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.995012283325195,
+      "final_passed": true,
+      "baseline_code": "def right_insertion(arr, val):\n    i = 0\n    while i < len(arr) and arr[i] < val:\n        i += 1\n    return i",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 792,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.758686065673828,
+      "final_passed": true,
+      "baseline_code": "def count_list(list_of_lists):\n    count = 0\n    for i in list_of_lists:\n        if len(i) > 1:\n            count += 1\n    return count",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 798,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.633073806762695,
+      "final_passed": true,
+      "baseline_code": "def _sum(arr):\n    return sum(arr)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 805,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.781919479370117,
+      "final_passed": true,
+      "baseline_code": "def max_sum_list(list_of_lists):\n    max_sum = 0\n    max_list = []\n    for i in list_of_lists:\n        sum = 0\n        for j in i:\n            sum += j\n        if sum > max_sum:\n            max_sum = sum\n            max_list = i\n    return max_list",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 806,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 20.827497482299805,
+      "final_passed": true,
+      "baseline_code": "def max_run_uppercase(s):\n    max_run = 0\n    for i in range(len(s)):\n        run = 1\n        while i + run < len(s) and s[i].isupper() and s[i + run].isupper():\n            run += 1\n        if run > max_run:\n            max_run = run\n    return max_run",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 812,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 20.835880279541016,
+      "final_passed": true,
+      "baseline_code": "def road_rd(s):\n    return s.replace('Road','Rd.')",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 814,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.401100158691406,
+      "final_passed": true,
+      "baseline_code": "def rombus_area(a,b):\n    return a*b/2",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 817,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.298986434936523,
+      "final_passed": true,
+      "baseline_code": "def div_of_nums(nums,m,n):\n    return [num for num in nums if num%m==0 or num%n==0]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 827,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.104597091674805,
+      "final_passed": true,
+      "baseline_code": "def sum_column(list_of_lists, column):\n    return sum([row[column] for row in list_of_lists])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 828,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.17683219909668,
+      "final_passed": true,
+      "baseline_code": "def count_alpha_dig_spl(s):\n    alpha_count = 0\n    dig_count = 0\n    spl_count = 0\n    for i in s:\n        if i.isalpha():\n            alpha_count += 1\n        elif i.isdigit():\n            dig_count += 1\n        else:\n            spl_count += 1\n    return alpha_count,dig_count,spl_count",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 833,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.595529556274414,
+      "final_passed": true,
+      "baseline_code": "def get_key(d):\n    return list(d.keys())",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 835,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.50071907043457,
+      "final_passed": true,
+      "baseline_code": "def slope(x1, y1, x2, y2):\n    return (y2 - y1) / (x2 - x1)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    }
+  ],
+  "excluded_tasks": [],
+  "last_processed_idx": 99,
+  "total_tasks": 116,
+  "timestamp": "2025-11-19T14:54:26.375456",
+  "checkpoint_version": 1
+}

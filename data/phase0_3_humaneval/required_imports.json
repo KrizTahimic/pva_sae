@@ -1,0 +1,13 @@
+{
+  "dataset": "humaneval",
+  "imports": [
+    "from typing import List",
+    "from typing import List, Any",
+    "from typing import List, Optional",
+    "from typing import List, Tuple",
+    "import math"
+  ],
+  "scanned_at": "2025-11-21T08:23:15.482189",
+  "n_problems": 164,
+  "n_unique_imports": 5
+}

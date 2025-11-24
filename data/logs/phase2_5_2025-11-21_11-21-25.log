@@ -1,0 +1,4 @@
+2025-11-21 11:21:25,956 [INFO] [sae_analyzer] setup_logging:167 - Phase: 2.5, GPU: CPU
+2025-11-21 11:21:25,956 [INFO] [phase3_8.auroc_f1_evaluator] setup_logging:167 - Phase: 3.8, GPU: CPU
+2025-11-21 11:21:26,000 [INFO] [phase3_8.auroc_f1_evaluator] main:456 - Using Phase 3.5 output: data/phase3_5_humaneval
+2025-11-21 11:21:26,000 [ERROR] [main] main:1933 - Phase 3.8 failed: No Phase 3.6 output found in data/phase3_6_humaneval. Please run Phase 3.6 first.
