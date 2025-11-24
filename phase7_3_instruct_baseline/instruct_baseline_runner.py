@@ -238,7 +238,8 @@ class InstructBaselineRunner:
             )
             
             # Save as simple numpy array (matching Phase 3.5 format)
-            np.savez_compressed(save_path, layer_activations.clone().cpu().numpy())
+            # Convert to float32 before numpy conversion (BFloat16 not supported by numpy)
+            np.savez_compressed(save_path, layer_activations.clone().cpu().float().numpy())
     
     def _setup_output_directories(self) -> Path:
         """Create output directory structure and return output path."""

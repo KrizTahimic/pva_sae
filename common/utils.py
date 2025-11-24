@@ -422,6 +422,11 @@ PHASE_CONFIGS = {
         "dir": "data/phase8_2",
         "patterns": ["optimal_percentile.json", "threshold_comparison.json"],
         "exclude_keywords": None
+    },
+    "8.3": {
+        "dir": "data/phase8_3",
+        "patterns": ["selective_steering_summary.json", "selective_correction_results.json", "selective_preservation_results.json"],
+        "exclude_keywords": None
     }
 }
 
