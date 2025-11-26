@@ -1,0 +1,23 @@
+% !TEX root = main.tex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%   Filename    : abstract.tex 
+%
+%   Description : This file will contain your abstract.
+%                 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{abstract}
+
+As Large Language Models become integral to software development, with substantial portions of AI-suggested code entering production, understanding their internal correctness mechanisms becomes critical for safe deployment. We apply sparse autoencoders to decompose LLM representations, identifying directions that correspond to code correctness. We select predictor directions using t-statistics and steering directions through separation scores from base model representations, then analyze their mechanistic properties through steering, attention analysis, and weight orthogonalization. We find that code correctness directions in LLMs reliably predict incorrect code, while correction capabilities, though statistically significant, involve tradeoffs between fixing errors and preserving correct code. Mechanistically, successful code generation depends on attending to test cases rather than problem descriptions. Moreover, directions identified in base models retain statistically significant effectiveness after instruction-tuning, as measured by the same error prediction and steering metrics (p<0.001), suggesting code correctness mechanisms learned during pre-training are repurposed during fine-tuning. Our mechanistic insights suggest three practical applications: prompting strategies should prioritize test examples over elaborate problem descriptions, predictor directions can serve as error alarms for developer review, and these same predictors can guide selective steering, intervening only when errors are anticipated to prevent the corruption from constant steering.
+
+%
+%  Do not put citations or quotes in the abstract.
+%
+
+\begin{flushleft}
+\begin{tabular}{lp{4.25in}}
+\hspace{-0.5em}\textbf{Keywords:}\hspace{0.25em} & Large Language Models, Mechanistic Interpretability, Sparse Autoencoders, Code Generation, Model Steering, Self-Knowledge\\
+\end{tabular}
+\end{flushleft}
+\end{abstract}

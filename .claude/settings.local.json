@@ -5,7 +5,11 @@
       "Bash(git push:*)",
       "Bash(git commit:*)",
       "Bash(cat:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(xargs ls:*)",
+      "Bash(find:*)",
+      "Bash(for dir in /home/kriz.tahimic/pva_sae/data/phase*_humaneval)",
+      "Bash(do echo '=== $(basename $dir) ===' ls -lh $dir/*.json $dir/*.parquet $dir/*.txt)"
     ],
     "deny": [],
     "ask": []

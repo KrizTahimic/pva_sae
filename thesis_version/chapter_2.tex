@@ -1,0 +1,194 @@
+% !TEX root = main.tex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%   Filename    : chapter_2.tex 
+%
+%   Description : This file will contain your review of related works.
+%                 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Related Works}
+\label{sec:relatedworks}
+
+\section{Code-capable LLMs and Code Correctness}
+
+% {General Capabilities}
+Transformer-based large language Models (LLMs) have developed capabilities to perform various language-based tasks \cite{annepaka2024large}. These capabilities emerged in early works like GPT-3 \cite{brown2020language}, which showed remarkable few-shot learning abilities across diverse tasks without task-specific training. This was further advanced by models like PaLM \cite{chowdhery2023palm}, which demonstrated how scaling language modeling with improved architectures and training approaches could lead to even more sophisticated capabilities.
+
+% {Coding Capabilities}
+One of the most significant developments has been in the domain of code generation, where LLMs have emerged as powerful tools for software development \cite{jiang2024survey}. Recent benchmarks demonstrate these capabilities, with models achieving impressive scores on SWE-bench Verified - a human-validated benchmark that evaluates models' ability to solve real-world software issues from GitHub repositories \cite{chowdhury2024swebench}. Recent results demonstrate the advancing capabilities of LLMs in this domain, with OpenAI o1 achieving a SWE- Bench Verified score of 48.9\%, followed by DeepSeek R1 at 49.2\%, and Claude 3.7 Sonnet at 62.3\% \cite{openai2025o3mini, guo2025deepseek, anthropic2025claude}
+
+% {Code Capable LLMs Impact}
+The impact of code-capable LLMs on software development has been substantial and well-documented. A comprehensive study by \citeA{dohmke2023sea} examining GitHub Copilot usage across nearly one million developers revealed significant adoption patterns, with users accepting approximately 30\% of AI-suggested code across their development workflows. The same research projected broader economic implications of this technological integration, estimating that these generative AI developer productivity benefits could boost global GDP by over \ USD 1.5 trillion by 2030 by helping to meet the growing worldwide demand for software development. This substantial economic potential underscores the transformative impact of code-capable LLMs on individual developer productivity and broader industry dynamics.
+
+% {Code Correctness Issues}
+Despite these impressive capabilities and widespread adoption, consistent correct code generation remains a fundamental challenge for LLMs. Research has consistently documented troubling patterns in LLM-generated code quality. A comprehensive empirical study by \cite{tambon2025bugs} analyzed 333 bugs from leading code generation models and identified 10 distinctive bug patterns that persist across different LLMs. The propensity for errors is particularly pronounced: recent studies show that in bug-prone contexts, LLMs generate buggy code nearly as often as correct code, with even advanced models like GPT-4 achieving only 12.27\% accuracy when completing bug-prone code \cite{guo2025llms}. Perhaps most alarmingly, 44\% of the bugs LLMs produce are completely identical to historical bugs from their training data, with GPT-4o reproducing known errors 82.61\% of the time \cite{guo2025llms}. These correctness issues become critical in high-risk domains such as healthcare, banking, and military applications, where the consequences of defective code can be severe.
+
+
+\section{Mechanistic Interpretability}
+Despite their impressive capabilities, widespread adoption, and the documented reliability challenges, the black-box nature of code-generating LLMs presents significant obstacles to ensuring safety in production systems. This has led to an increased focus on mechanistic interpretability - an emerging approach that aims to reverse engineer the computational mechanisms and representations learned by neural networks into human-understandable algorithms and concepts \cite{bereska2024mechanistic}. Unlike traditional black-box analysis methods focusing solely on input-output relationships, mechanistic interpretability strives for a granular, causal understanding of how these models process information and make decisions.
+
+Recent advances in this field have demonstrated promising results in understanding specific computational circuits within language models. Researchers have successfully identified and analyzed various computational mechanisms, including indirect object identification in GPT-2 \cite{wang2022interpretability}, greater-than computations \cite{hanna2024does}, multiple-choice question answering \cite{lieberum2023does}, sequence continuation tasks \cite{lan2023locating}, and factual recall mechanisms \cite{chughtai2024summing}. These findings suggest that while language models are complex, their internal mechanisms can be systematically studied and understood through observational and interventional techniques.
+
+However, \citeA{bereska2024mechanistic} identifies several significant challenges in scaling interpretability techniques to understand AI models fully. The field faces key obstacles, including more automated analysis methods, the challenge of comprehensively analyzing increasingly complex model architectures, and the difficulty of validating interpretability findings. Furthermore, distinguishing between correlation and causation in model behavior requires careful experimental design and rigorous validation methods.
+
+
+\section{Sparse Autoencoder (SAE)}
+
+\subsection{Theory and Core Components}
+
+\begin{figure}[!ht]
+    \centering
+    \setlength{\fboxsep}{0pt} 
+    \fbox{\includegraphics[width=1\linewidth]{figures/polysemantic neuron.png}}
+    \caption{A polysemantic neuron that responds to a mixture of academic citations, English dialogue, HTTP requests, and Korean text}
+    \label{fig:polysemantic-neuron}
+\end{figure}
+
+Recent research in mechanistic interpretability has highlighted a critical challenge in understanding neural networks: polysemanticity - the phenomenon where individual neurons respond to multiple, often unrelated concepts \cite{olah2020zoom}. For example, in the vision model Inception v1, researchers discovered single neurons that respond to both faces of cats and fronts of cars \cite{olah2017feature}. \citeA{bricken2023monosemanticity} demonstrated this phenomenon in language models, identifying neurons that activate for semantically unrelated inputs. Figure \ref{fig:polysemantic-neuron} illustrates this with an example of a neuron that strongly activates for academic citations, English dialogue, HTTP requests, and Korean text despite their lack of apparent semantic relationship. This polysemanticity makes it challenging to interpret network behavior, as a single neuron's activation could indicate several unrelated features.
+
+% {Superposition}
+A potential cause of polysemanticity is superposition. The Superposition Hypothesis is the phenomenon where neural networks encode more features than their available dimensions at the cost of some noise \cite{elhage2022superposition}. Figure \ref{fig:superposition} demonstrates how a neural network compresses hypothetical disentangled features by projecting them as minimally interfering (nearly orthogonal) vectors from a higher-dimensional idealized space into the network's actual lower-dimensional representation.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.8\linewidth]{figures/superposition.png}
+    \caption{Conceptual illustration of the superposition hypothesis showing how polysemantic neurons emerge from compressed projections of hypothetical disentangled feature spaces.}
+    \label{fig:superposition}
+\end{figure}
+
+% Sparse Autoencoder / Feature Disentanglement via Sparse Dictionary Learning
+To address the challenges posed by superposition and extract interpretable features, researchers have developed Sparse Autoencoders (SAEs) motivated by the Linear Representation Hypothesis \cite{park2023linear, mikolov2013distributed}. This hypothesis posits that properties of the input, such as sentiment \cite{tigges2023linear}, or truthfulness \cite{li2023inference, zou2023representation} are encoded as linear directions in the representation space, and the model's representations are combinations of sparse linear directions. A classic demonstration of this linearity comes from word embeddings, where semantic relationships are preserved in vector space—for example, the vector operation "King - Man + Woman" results in a vector very close to "Queen" \cite{mikolov2013distributed}.
+
+% SAE Details (Key components, Training process, etc)
+SAEs work by decomposing neural network activations into individual interpretable features through sparse dictionary learning \cite{bricken2023monosemanticity, sharkey2022taking, cunningham2023sparse}, making them a powerful tool for feature disentanglement in neural networks. According to \citeA{cunningham2023sparse} and \citeA{sharkey2022taking}, the SAE architecture comprises an encoder that projects input data into a higher-dimensional space while applying sparsity constraints. This process facilitates learning a feature dictionary, where complex neural representations are decomposed into interpretable components. After passing through a ReLU activation function, the sparse encoding is processed by a decoder that reconstructs the original activations by linearly combining these learned feature vectors.
+
+\begin{figure}[!ht]
+    \centering
+    \setlength{\fboxsep}{0pt} % Set space between border and image
+    \fbox{    \includegraphics[width=0.5\linewidth]{figures/sae.pdf}}
+    \caption{Sparse Autoencoder projection to the higher dimension trained to reconstruct activations with regularization penalty to encourage sparsity}
+    \label{fig:sae}
+\end{figure}
+
+The effectiveness of this approach is supported by theoretical work demonstrating that autoencoders can recover ground truth features under conditions of feature sparsity and non-negativity \cite{whittington2022disentanglement}. Furthermore, research has established guarantees for the uniqueness and stability of dictionaries for sparse representation, even in the presence of noise \cite{garfinkle2019uniqueness}.
+
+
+\subsection{Tools and Applications}
+
+% SAE Tools (SAELens and TransformerLens)
+Recent development of open-source tools has significantly advanced the accessibility and standardization of SAE research. Two notable libraries, TransformerLens and SAELens, have emerged as fundamental infrastructures for mechanistic interpretability research. TransformerLens, developed by \citeA{nanda2022transformerlens}, provides comprehensive access to internal activations of over 50 language models, enabling researchers to cache, edit, and analyze model representations during inference. Building upon this foundation, SAELens \cite{bloom2024saetrainingcodebase} specifically focuses on training and analyzing sparse autoencoders, offering capabilities for both utilizing pre-trained SAEs and training new ones. The library includes visualization tools through its SAE-Vis component, facilitating the creation of feature dashboards that aid in understanding learned representations. 
+
+% {SAE  Applications}
+Moreover, SAE applications have demonstrated remarkable versatility across various domains and model architectures. In the domain of safety research, SAEs have proven valuable for detecting safety-relevant features \cite{templeton2024scaling} and interpreting reward models in reinforcement learning-based language models \cite{marks2023interpreting}. Their application extends to transformer attention layers \cite{kissane2024interpreting} and convolutional neural networks, where \citeA{gorton2024missing} uncovered previously unidentified interpretable features in InceptionV1's early vision layers, including novel curve detectors not apparent from individual neuron analysis. In circuit discovery, SAEs have emerged as a powerful alternative to traditional activation patching methods \cite{he2024dictionary, o2024sparse}. Recent advances have focused on addressing technical limitations, with \citeA{rajamanoharan2024improving} introducing an innovative gating mechanism to mitigate activation shrinkage and \citeA{dunefsky2024transcoders} developing transcoders for faithful approximation of dense MLP layers with sparse alternatives.
+
+% {Mechanism Persistence Across Fine-tuning}
+An important observation from recent SAE research concerns the persistence of learned mechanisms across model variants. \citeA{ferrando2024know} demonstrated that latent directions identified in base models using SAEs trained exclusively on pre-training data retain their effectiveness in instruction-tuned variants. This suggests that fundamental computational mechanisms learned during pre-training are repurposed rather than replaced during instruction-tuning, enabling SAE-discovered features from base models to remain causally relevant in their fine-tuned counterparts.
+
+% What part of the model is SAE suitable to microscope (MLP, Attention Heads, Residual Stream)?
+When implementing Sparse Autoencoder analysis on transformer models, a critical decision involves selecting which network component to target—MLP layers, attention heads, or residual streams. \citeA{bricken2023monosemanticity} apply Sparse Autoencoders to analyze MLP layer activations, but scaling this approach to larger models presents significant computational challenges, as a 100× expansion factor on a 10,000-width MLP layer would require training approximately 20 billion parameters. While \citeA{kissane2024interpreting} successfully demonstrates SAEs can decompose attention outputs into interpretable features, their analysis primarily focuses on smaller models like GPT-2 Small (100M parameters). It leaves key aspects of transformer attention unexplored, such as the QK circuits that compute attention patterns. \citeA{templeton2024scaling} opt to apply SAEs to residual stream activations, citing two main advantages: computational efficiency due to the residual stream's smaller size compared to MLP layers and the potential to partially address cross-layer superposition issues since the residual stream aggregates outputs from all previous layers. Furthermore, researchers have focused on distinct positions in the residual stream where \citeA{ferrando2024know} examined the final entity tokens to detect the model's self-knowledge about those entities. However, since there are no clear final entity tokens for code-specs as an input, this paper follows \citeA{geva2023dissecting}'s approach (though they do not use SAE) by focusing on the final prompt token, where information tends to accumulate.
+
+% Labeling SAE Features  {Top down vs bottom up}
+When it comes to interpreting these SAE features, researchers have developed several approaches. \citeA{bricken2023monosemanticity} describes how the traditional method relies on manual human analysis, where human annotators evaluate features using a structured rubric that considers factors such as confidence in explanations, consistency of activations, and specificity. They also present a more scalable approach that employs automated interpretability, where large language models generate explanations of features by analyzing examples of tokens where they activate. This top-down method has proven effective for understanding feature behavior across different contexts. 
+
+However, this paper follows the bottom-up approach implemented by \citeA{ferrando2024know}. Their methodology begins by identifying specific features they want to study and then creating datasets designed to elicit those features. These datasets are then inputted into the model. The model will then be internally observed what latent directions activate in response to the controlled inputs. The identified latent directions undergo validation techniques to confirm their discriminative power and causal effect on model outputs. This methodical, data-driven approach enables a more controlled and systematic investigation of model features, unlike top-down methods that analyze feature behavior across a broad, diverse dataset without targeted hypothesis testing.
+
+
+\section{Mechanistic Analysis Techniques}
+
+% Intro
+Although SAEs have shown promising results in feature disentanglement and circuit discovery, validating their effectiveness and ensuring the reliability of their interpretations remains a critical challenge. This section examines various validation techniques \citeA{ferrando2024know} employed to establish confidence in SAE-discovered features.
+
+% This all came from the "Do I Know This Entity" paper
+%, AND Steering 
+\citeA{ferrando2024know} validate their SAE-discovered features through several complementary approaches. First, they demonstrate causal effects through steering experiments, using techniques developed by \citeA{turner2023activation} for analyzing directional interventions in language models. The steering process involves targeted modifications to the model's internal representations by scaling the identified latent directions. This allows researchers to observe how these changes affect the model's outputs and validate their hypotheses about the features' roles.
+
+% Weight Orthogonalization
+Weight orthogonalization, introduced by \citeA{arditi2024refusal}, provides a necessity-testing technique that permanently removes specific directions from model weights. Unlike steering that temporarily modifies activations during inference, orthogonalization creates lasting architectural changes by preventing the model from writing particular features to the residual stream. By comparing outputs from original and orthogonalized models, researchers can establish whether identified features are necessary for specific model capabilities. The effectiveness of this approach was demonstrated in analyzing refusal mechanisms, where orthogonalizing weights to remove specific directions led to significant changes in model behavior, like refusing to answer questions about known entities or generating fabricated information about unknown entities instead of refusing \cite{ferrando2024know}.
+
+% Attention Analysis
+Attention analysis offers another validation approach by examining how SAE-discovered features influence attention patterns. Building on \citeA{yuksekgonul2023attention}, \citeA{ferrando2024know} find that attribute extraction heads (particularly L18H5 and L20H3) show significantly higher attention weights for known entities than unknown ones across different entity types. When steering with known entity latents, these attention weights increase, enabling successful attribute extraction, while unknown entity latents suppress attention, preventing attribute access. These causal relationships between latent directions and attribute extraction capabilities validate the functional role of SAE-discovered features in controlling model behavior.
+
+% Statistical Validation
+Statistical validation provides quantitative evidence for the effectiveness of SAE-discovered features through various metrics. In their investigation of how language models represent uncertainty and factual recall, \citeA{ferrando2024know} use the t-statistic to measure the separation between correct and incorrect response activations. This approach helped identify the most discriminative features across different entity types by selecting latents with the highest minimum t-statistic scores. To evaluate the discriminative power of these features, they employ two classification metrics: the Area Under the Receiver Operating Characteristic (AUROC) curve, which achieves 73.2, indicating the model's ability to distinguish between correct and incorrect responses across different classification thresholds, and the F1 score of 72, representing a balanced measure between precision and recall after threshold calibration. This comprehensive statistical framework demonstrates that SAE-discovered features can reliably identify patterns in model behavior related to knowledge representation and uncertainty.
+
+% Logit Lens Analysis
+Logit lens analysis \cite{nostalgebraist2020logit} provides a supplementary interpretative technique for understanding what semantic patterns SAE features encode by examining which tokens they promote or suppress. Platforms like Neuronpedia \cite{neuronpedia} provide pre-computed logit lens visualizations for SAE features, displaying the top-$k$ tokens with highest logit contributions for each feature. This enables rapid assessment of whether features encode interpretable linguistic patterns, semantic concepts, or syntactic preferences.
+
+% Persistence Testing
+Persistence testing provides a validation approach for examining whether SAE-discovered mechanisms persist across model variants. \citeA{ferrando2024know} demonstrate that entity recognition directions identified in the base model using GemmaScope SAEs retain their causal effectiveness when applied to the instruction-tuned chat model. Despite the SAEs being trained exclusively on the base model using pre-training data, the discovered directions successfully steer the chat model's knowledge refusal behavior. This finding suggests that instruction fine-tuning repurposes existing mechanisms rather than creating entirely new ones, providing evidence that fundamental representational structures learned during pre-training remain intact through subsequent training stages. By testing whether directions transfer across model variants, persistence testing validates the robustness and generalizability of SAE-discovered features beyond the specific training context in which they were identified.
+
+
+\section{Research Gap}
+% Intro
+The mechanistic interpretability of code-generating LLMs presents three critical research gaps this study aims to address:
+
+% Programming Context
+First, while substantial work has mapped how models internally represent factual knowledge about entities like athletes, cities, songs, and movies \cite{ferrando2024know}, equivalent mechanisms for code correctness remain unexplored. This gap is particularly significant given that approximately 30\% of AI-suggested code is integrated into production systems \cite{dohmke2023sea} despite persistent code quality issues \cite{tambon2025bugs, guo2025llms}.
+
+% Code Correctness Latent
+Second, existing research has identified entity recognition latent directions for natural language understanding but has not established similar directions for programming contexts. We propose to identify code correctness latent directions through a dual-metric approach: t-statistics to identify predictor directions that signal model confidence about code correctness, and separation scores to identify steering directions that enable targeted interventions. This methodology yields four distinct direction types (correct-predicting, incorrect-predicting, correct-steering, incorrect-steering), each serving complementary roles in understanding how models internally represent code correctness—a fundamentally different task than entity recognition that requires specific investigation into how models evaluate syntactic correctness, logical consistency, and algorithmic correctness.
+
+% Steering Code Correctness
+Third, while researchers have demonstrated effective steering of natural language generation \cite{turner2023activation, ferrando2024know}, applying these techniques to control code correctness remains an open question with significant practical implications for software development reliability.
+
+% Outro
+This research aims to bridge these gaps by applying SAE techniques to identify and validate code correctness latent directions, extending the methodological framework established by \citeA{ferrando2024know} to the domain of code generation. Understanding these mechanisms could provide valuable insights for improving the reliability of code-generating LLMs and developing more effective strategies for improving code generation reliability.
+
+
+
+
+
+
+
+\begin{comment}
+This chapter provides a synthesis of past research, existing algorithms, and or state-of-the-art software that are related/similar to the thesis. It should not present detailed summaries of each related work but rather present a cohesive comparison of different aspects of their work. At the end of each section and this chapter, it should be clear what research challenges and opportunities will be focused on for the proposal.
+
+The sections can be about approaches, application areas, and categories of solutions that give readers a deep understanding of the current state of the field. 
+
+Observe a consistent format when presenting each of the reviewed works. This must be selected in consultation with the prospective adviser.
+
+\textcolor{red}{DO NOT FORGET to cite your references.} Related works can be discussed multiple times in different sections of this chapter, depending on what is being discussed or compared.
+
+
+
+%
+% IPR acknowledgment: The contents of this comment are from Ethel Ong's slides on RRL.
+%
+Guide on Writing your Related Works chapter
+ 
+1. Identify the keywords with respect to your research
+      One keyword = One document section
+                Examples: 2.1 Story Generation Systems
+			 2.2 Knowledge Representation
+
+2. Find references using these keywords
+
+3. For each of the references that you find,
+        Check: Is it relevant to your research?
+        Use their references to find more relevant works.
+
+4. Identify a set of criteria for comparison.
+       It will serve as a guide to help you focus on what to look for
+
+5. Write a summary focusing on -
+       What: A short description of the work
+       How: A summary of the approach it utilized
+       Findings: If applicable, provide the results
+        Why: Relevance to your work
+
+6. At the end of each section,  show a Table of Comparison of the related works 
+   and your proposed project/system
+
+\end{comment}
+
+
+
+
+
+
+
+
+
+
+

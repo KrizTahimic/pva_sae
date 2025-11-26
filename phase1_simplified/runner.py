@@ -181,6 +181,7 @@ class Phase1Runner:
                 
                 return {
                     'generated_code': generated_code,
+                    'raw_output': generated_text,  # Full model output before extraction (for debugging)
                     'test_passed': test_passed,
                     'activations': activations,  # Residual stream from prompt processing
                     'generation_time': generation_time
@@ -224,32 +225,67 @@ class Phase1Runner:
             save_json(excluded_tasks, exclusion_file)
         
     def load_checkpoints(self, output_dir: Path) -> tuple[list, list, set]:
-        """Load existing checkpoints if any."""
-        checkpoint_files = sorted(output_dir.glob("checkpoint_*.parquet"))
-        
-        if not checkpoint_files:
-            return [], [], set()
-        
-        logger.info(f"Found {len(checkpoint_files)} existing checkpoint(s)")
-        
+        """Load existing checkpoints and/or dataset files if any.
+
+        This allows resuming from:
+        1. Checkpoint files (from interrupted runs)
+        2. Existing dataset files (from completed partial runs, e.g., --end 99)
+        """
         all_results = []
         all_excluded = []
         processed_task_ids = set()
-        
-        for checkpoint_file in checkpoint_files:
-            df = pd.read_parquet(checkpoint_file)
-            all_results.extend(df.to_dict('records'))
-            processed_task_ids.update(df['task_id'].tolist())
-            
-            # Load exclusions if they exist
-            exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
-            if exclusion_file.exists():
-                from common_simplified.helpers import load_json
-                exclusions = load_json(exclusion_file)
-                all_excluded.extend(exclusions)
-                processed_task_ids.update([e['task_id'] for e in exclusions])
-        
-        logger.info(f"Loaded {len(all_results)} results and {len(all_excluded)} exclusions from checkpoints")
+
+        # First, check for checkpoint files (from interrupted runs)
+        checkpoint_files = sorted(output_dir.glob("checkpoint_*.parquet"))
+
+        if checkpoint_files:
+            logger.info(f"Found {len(checkpoint_files)} existing checkpoint(s)")
+
+            for checkpoint_file in checkpoint_files:
+                df = pd.read_parquet(checkpoint_file)
+                all_results.extend(df.to_dict('records'))
+                processed_task_ids.update(df['task_id'].tolist())
+
+                # Load exclusions if they exist
+                exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
+                if exclusion_file.exists():
+                    from common_simplified.helpers import load_json
+                    exclusions = load_json(exclusion_file)
+                    all_excluded.extend(exclusions)
+                    processed_task_ids.update([e['task_id'] for e in exclusions])
+
+        # Second, check for existing dataset files (from completed partial runs)
+        # This allows running --end 99 first, then continuing with full phase 1
+        dataset_files = sorted(output_dir.glob("dataset_*.parquet"))
+
+        if dataset_files:
+            logger.info(f"Found {len(dataset_files)} existing dataset file(s)")
+
+            for dataset_file in dataset_files:
+                df = pd.read_parquet(dataset_file)
+                # Only add tasks not already in checkpoints
+                new_task_ids = set(df['task_id'].tolist()) - processed_task_ids
+                if new_task_ids:
+                    # Filter to only new tasks
+                    new_df = df[df['task_id'].isin(new_task_ids)]
+                    all_results.extend(new_df.to_dict('records'))
+                    processed_task_ids.update(new_task_ids)
+                    logger.info(f"Loaded {len(new_task_ids)} tasks from {dataset_file.name}")
+
+        # Also check for excluded_tasks.json (from completed runs)
+        exclusion_file = output_dir / "excluded_tasks.json"
+        if exclusion_file.exists():
+            from common_simplified.helpers import load_json
+            exclusion_data = load_json(exclusion_file)
+            if 'excluded_tasks' in exclusion_data:
+                for excl in exclusion_data['excluded_tasks']:
+                    if excl['task_id'] not in processed_task_ids:
+                        all_excluded.append(excl)
+                        processed_task_ids.add(excl['task_id'])
+
+        if processed_task_ids:
+            logger.info(f"Total: {len(all_results)} results and {len(all_excluded)} exclusions from previous runs")
+
         return all_results, all_excluded, processed_task_ids
     
     def check_memory_usage(self) -> float:
@@ -360,6 +396,7 @@ class Phase1Runner:
                 results.append({
                     'task_id': task['task_id'],
                     'generated_code': result['generated_code'],
+                    'raw_output': result['raw_output'],  # Full model output for debugging
                     'test_passed': result['test_passed']
                 })
             else:
@@ -428,12 +465,21 @@ class Phase1Runner:
         successful_original_data = full_df[full_df['task_id'].isin(successful_task_ids)].copy()
         final_df = successful_original_data.merge(results_df, on='task_id', how='inner')
         
+        # Collect old dataset files BEFORE saving (for cleanup after successful save)
+        old_dataset_files = list(output_dir.glob("dataset_*.parquet"))
+
         # Save dataset (only successful tasks)
         timestamp = get_timestamp()
         output_file = output_dir / f"dataset_{split_name}_{timestamp}.parquet"
         final_df.to_parquet(output_file, index=False)
-        
+
         logger.info(f"Dataset saved to {output_file}")
+
+        # Delete old dataset files after successful save (keeps only the merged file)
+        for old_file in old_dataset_files:
+            if old_file != output_file:  # Don't delete the one we just created
+                old_file.unlink()
+                logger.info(f"Deleted old dataset file: {old_file.name}")
         
         # Save exclusion summary for transparency
         if all_excluded:

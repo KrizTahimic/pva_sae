@@ -1,0 +1,2 @@
+2025-11-26 11:00:36,187 [INFO] [main] setup_logging:167 - Phase: 1.0, GPU: CPU
+2025-11-26 11:00:36,187 [INFO] [main] main:1752 - Detected device: cuda

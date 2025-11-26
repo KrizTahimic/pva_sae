@@ -9,6 +9,7 @@
   - [ ] Perform Mechanistic Analysis with `HumanEval`
   - [ ] Run all tests on `meta-llama/Llama-3.1-8B` and `meta-llama/Llama-3.1-8B-Instruct` with `llama_scope_lxr_8x`
   - [ ] Perform all Mechanistic Analysis
+    - I'm considering to test other model that score higher in MBPP benchmark because I'm curious if this difference will help us find the failed correct predicting direction and incorrect steering direction in Gemma 2 2b. Read @docs/iclr2026_conference.tex for context.
   - **SAE Verified**: `fnlp/Llama-Scope` 32K (8x expansion) SAE matches Neuronpedia's `llamascope-res-32k`. Confirmed via [Neuronpedia Llama Scope](https://www.neuronpedia.org/llama-scope) which explicitly references `fnlp/Llama3_1-8B-Base-LXR-8x`. The 128K (32x) variant is NOT recommended due to many inactive features.
 
 - [ ] **Feature threshold sensitivity analysis** (Reviewer RXZd)

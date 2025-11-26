@@ -15,6 +15,7 @@ from datasets import load_dataset
 
 from common.config import Config
 from common.logging import get_logger
+from common.utils import get_phase_output_dir
 from common_simplified.model_loader import load_model_and_tokenizer
 from .pile_activation_hook import PileActivationHook
 from .utils import find_word_position, validate_pile_sample
@@ -34,8 +35,8 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
         config: Configuration object
         device: Device to use for model
     """
-    # Setup output directory
-    output_dir = Path(config.get_phase_output_dir("2.2")) / "pile_activations"
+    # Setup output directory (uses model/dataset-aware path)
+    output_dir = Path(get_phase_output_dir("2.2", config)) / "pile_activations"
     output_dir.mkdir(parents=True, exist_ok=True)
     
     # Get run count from config (defaults to pile_samples)

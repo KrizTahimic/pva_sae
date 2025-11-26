@@ -421,6 +421,46 @@ python3 run.py cleanup-gpu
 python3 run.py status
 ```
 
+## 🚨 CRITICAL: Model/Dataset-Aware Paths
+
+**LEARNED LESSON: We almost overwrote Gemma+MBPP results by running LLAMA+MBPP!**
+
+### Problem 1: Output Directories
+
+Many phases use `config.get_phase_output_dir()` which does NOT add model/dataset suffixes. This causes different experiments to overwrite each other.
+
+**Always use the utils function, not the config method:**
+```python
+# ❌ WRONG - outputs to data/phase2_2/ for ALL models
+output_dir = Path(config.get_phase_output_dir("2.2"))
+
+# ✅ CORRECT - outputs to data/phase2_2_llama/ for LLAMA
+from common.utils import get_phase_output_dir
+output_dir = Path(get_phase_output_dir("2.2", config))
+```
+
+### Problem 2: Input File Discovery
+
+Many phases have hardcoded input paths that only find Gemma+MBPP results. They need to dynamically find inputs based on current model/dataset.
+
+**Always use get_phase_output_dir for input discovery too:**
+```python
+# ❌ WRONG - always looks in Gemma directory
+input_dir = Path(config.phase1_output_dir)
+
+# ✅ CORRECT - looks in model/dataset-specific directory
+input_dir = Path(get_phase_output_dir("1", config))
+```
+
+### Rules to Follow
+
+1. **NEVER** use `config.get_phase_output_dir()` - it doesn't add suffixes
+2. **NEVER** use hardcoded `config.phase{N}_output_dir` for input paths
+3. **ALWAYS** use `get_phase_output_dir(phase, config)` from `common/utils.py`
+4. **ALWAYS** check each phase for both output AND input path handling before running
+
+---
+
 ## Important Notes
 
 ### Hardware Requirements

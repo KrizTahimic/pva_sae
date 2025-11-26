@@ -85,32 +85,56 @@ def load_mbpp_from_phase0_1(split_name: str, phase0_1_dir: Path) -> pd.DataFrame
 def extract_code(generated_text: str, prompt: str) -> str:
     """
     Extract generated code from model output.
-    
+
     Args:
         generated_text: Generated text (may or may not include prompt)
         prompt: Original prompt to remove if present
-        
+
     Returns:
         Extracted code
     """
-    # Check if prompt is in generated_text
+    code = None
+
+    # Method 1: Try exact prompt match (works for Gemma)
     if generated_text.startswith(prompt):
-        # Remove the prompt from the beginning
         code = generated_text[len(prompt):].strip()
-    else:
-        # Prompt already removed, use generated_text as is
+
+    # Method 2: Look for "# Solution:" marker (our code_initiator)
+    # This handles cases where tokenization changes whitespace slightly
+    if code is None:
+        solution_marker = "# Solution:"
+        marker_idx = generated_text.find(solution_marker)
+        if marker_idx != -1:
+            code = generated_text[marker_idx + len(solution_marker):].strip()
+
+    # Method 3: Try to find prompt substring (handles whitespace differences)
+    # Look for last occurrence of test assertions pattern before code
+    if code is None:
+        # Find the last assert statement that's part of test_list
+        last_assert_idx = generated_text.rfind("assert ")
+        if last_assert_idx != -1:
+            # Find the end of that line
+            newline_after_assert = generated_text.find('\n', last_assert_idx)
+            if newline_after_assert != -1:
+                code = generated_text[newline_after_assert:].strip()
+
+    # Method 4: Fallback - use entire text
+    if code is None:
         code = generated_text.strip()
-    
-    # Find where function definition starts
+
+    # Now find and extract the function definition
     def_index = code.find('def ')
-    # if def_index == -1:
-    #     # No function definition found, return as is
-    #     return code.strip()
-    
+    if def_index == -1:
+        # No function definition found, return as is
+        return code.strip()
+
+    # Start from the def
+    code = code[def_index:]
+
     # Look for pattern: \n followed by non-space/non-tab after the def
     # This indicates end of function (test cases, main function, etc.)
-    search_start = def_index + 4  # Skip past "def "
-    
+    search_start = 4  # Skip past "def "
+
     for i in range(search_start, len(code) - 1):
         if code[i] == '\n' and i + 1 < len(code):
             next_char = code[i + 1]
@@ -118,7 +142,7 @@ def extract_code(generated_text: str, prompt: str) -> str:
                 # Found newline followed by non-whitespace
                 # This is where function ends
                 return code[:i].rstrip()
-    
+
     # No such pattern found, return entire code
     return code.strip()
 
@@ -160,21 +184,25 @@ def evaluate_code(code: str, test_list: list[str]) -> bool:
     namespace = {}
 
     # Pre-import dataset-specific imports
-    # For HumanEval, load pre-scanned imports from Phase 0.3
+    # For HumanEval: load from Phase 0.3, For MBPP: load from test_imports
     try:
         from common.config import Config
         config = Config()
 
+        import_file = None
         if config.dataset_name == "humaneval":
             import_file = Path("data/phase0_3_humaneval/required_imports.json")
-            if import_file.exists():
-                import json
-                with open(import_file) as f:
-                    imports_data = json.load(f)
-                    import_code = '\n'.join(imports_data['imports'])
-                    # Execute imports in namespace
-                    exec(import_code, namespace)
-            # If file doesn't exist yet, silently continue (Phase 0.3 not run)
+        elif config.dataset_name == "mbpp":
+            import_file = Path("data/test_imports/metadata.json")
+
+        if import_file and import_file.exists():
+            import json
+            with open(import_file) as f:
+                imports_data = json.load(f)
+                import_code = '\n'.join(imports_data['imports'])
+                # Execute imports in namespace
+                exec(import_code, namespace)
+        # If file doesn't exist yet, silently continue
     except Exception:
         # If config loading fails, continue without pre-imports
         pass

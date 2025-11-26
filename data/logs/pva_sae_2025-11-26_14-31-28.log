@@ -1,0 +1,5 @@
+2025-11-26 14:31:28,645 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:47 - Loading model google/gemma-2-2b on cuda with dtype torch.bfloat16
+2025-11-26 14:31:30,114 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:56 - Loading model to cuda...
+2025-11-26 14:31:33,274 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:86 - Model successfully loaded on cuda:0
+2025-11-26 14:31:33,275 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:88 - Model loaded successfully: Gemma2ForCausalLM
+2025-11-26 14:31:33,276 [INFO] [common_simplified.model_loader] load_model_and_tokenizer:89 - Model size: 2.61B parameters
