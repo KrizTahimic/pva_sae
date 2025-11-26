@@ -4,17 +4,17 @@ INSTRUCTION-TUNED MODEL (gemma-2-2b-it)
 ============================================================
 
 Correct-Preferring Feature (Layer 16, Feature 14439):
-  Optimal Threshold: 4.7318
-  AUROC: 0.5897
-  F1: 0.5731
-  Precision: 0.4375
-  Recall: 0.8305
+  Optimal Threshold: 0.0000
+  AUROC: 0.5555
+  F1: 0.3817
+  Precision: 0.5000
+  Recall: 0.3087
 
 Incorrect-Preferring Feature (Layer 19, Feature 5441):
-  Optimal Threshold: 8.1775
-  AUROC: 0.5945
-  F1: 0.7761
-  Precision: 0.6380
-  Recall: 0.9905
+  Optimal Threshold: 12.0900
+  AUROC: 0.6465
+  F1: 0.7723
+  Precision: 0.6469
+  Recall: 0.9582
 
 ============================================================

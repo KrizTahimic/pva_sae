@@ -30,16 +30,21 @@ class TemperatureTrendsVisualizer:
         # Discover Phase 3.10 results
         self._discover_dependencies()
 
-        # Output directory
-        self.output_dir = Path(config.phase3_11_output_dir)
+        # Output directory with dataset suffix
+        base_output_dir = Path(config.phase3_11_output_dir)
+        if config.dataset_name != "mbpp":
+            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
+        else:
+            self.output_dir = base_output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def _discover_dependencies(self) -> None:
         """Discover and verify Phase 3.10 output."""
-        # Phase 3.10: Temperature analysis results
-        phase3_10_path = discover_latest_phase_output("3.10")
+        # Phase 3.10: Temperature analysis results (with dataset suffix if needed)
+        phase3_10_dir = f"data/phase3_10_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_10"
+        phase3_10_path = discover_latest_phase_output("3.10", phase_dir=phase3_10_dir)
         if not phase3_10_path:
-            raise ValueError("Phase 3.10 output not found. Please run Phase 3.10 first.")
+            raise ValueError(f"Phase 3.10 output not found in {phase3_10_dir}. Please run Phase 3.10 first.")
 
         # If path is a file, get its parent directory
         phase3_10_path = Path(phase3_10_path)

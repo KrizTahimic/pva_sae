@@ -71,7 +71,7 @@ class Config:
     
     # === DATASET SETTINGS ===
     # Options: "mbpp" (Muennighoff/mbpp) or "humaneval"
-    dataset_name: str = "humaneval"
+    dataset_name: str = "mbpp"
     dataset_split: str = "test"
     dataset_dir: str = "data/phase1_0"
     dataset_start_idx: int = 0

@@ -28,13 +28,19 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # =============================================================================
 
 LLAMA_MODEL_NAME = "meta-llama/Llama-3.1-8B"
-LLAMA_SAE_REPO = "fnlp/Llama-Scope"
+# LlamaScope SAE repo - residual stream SAEs with 8x expansion
+# Structure: Llama3_1-8B-Base-L{layer}R-8x/checkpoints/final.safetensors
+LLAMA_SAE_REPO = "fnlp/Llama3_1-8B-Base-LXR-8x"
 LLAMA_HIDDEN_SIZE = 4096
 LLAMA_NUM_LAYERS = 32
 LLAMA_SAE_WIDTH = 32768  # 8x expansion: 4096 * 8
 
 # Test layer - use middle layer for testing
 TEST_LAYER = 15
+
+def get_sae_file_path(layer: int) -> str:
+    """Get the safetensors file path for a given layer."""
+    return f"Llama3_1-8B-Base-L{layer}R-8x/checkpoints/final.safetensors"
 
 # =============================================================================
 # Test 1: LLAMA Model Loads
@@ -268,7 +274,7 @@ def test_3_activation_extraction() -> bool:
 # =============================================================================
 
 def test_4_llamascope_sae_loads() -> bool:
-    """Test that LlamaScope SAE loads from fnlp/Llama-Scope."""
+    """Test that LlamaScope SAE loads from fnlp/Llama3_1-8B-Base-LXR-8x."""
     print("\n" + "="*60)
     print("TEST 4: LlamaScope SAE Loads")
     print("="*60)
@@ -278,21 +284,18 @@ def test_4_llamascope_sae_loads() -> bool:
         from safetensors.torch import load_file
 
         print(f"SAE Repository: {LLAMA_SAE_REPO}")
+        print(f"Layer: {TEST_LAYER}")
 
-        # First, list files to understand structure
-        print("Listing repository files...")
+        # Get the correct file path using our helper
+        sae_file = get_sae_file_path(TEST_LAYER)
+        print(f"SAE file path: {sae_file}")
+
+        # Verify file exists in repo
+        print("Verifying file exists in repository...")
         files = list_repo_files(LLAMA_SAE_REPO)
+        assert sae_file in files, f"SAE file not found: {sae_file}"
+        print(f"  File found!")
 
-        # Filter for layer 15 SAE (L15R-8x = Layer 15, Residual, 8x expansion)
-        sae_folder = f"L{TEST_LAYER}R-8x"
-        sae_files = [f for f in files if sae_folder in f]
-        print(f"Files for {sae_folder}: {sae_files[:5]}...")
-
-        # Find safetensors file
-        safetensor_files = [f for f in sae_files if f.endswith('.safetensors')]
-        assert len(safetensor_files) > 0, f"No safetensors files found for {sae_folder}"
-
-        sae_file = safetensor_files[0]
         print(f"Downloading: {sae_file}")
 
         # Download SAE weights
@@ -359,72 +362,35 @@ class TopKSAE:
         self._load_weights(weights)
 
     def _load_weights(self, weights: Dict[str, torch.Tensor]):
-        """Load weights handling different naming conventions."""
+        """Load weights handling LlamaScope naming convention.
+
+        LlamaScope format:
+        - encoder.weight: (d_sae, d_model) = (32768, 4096)
+        - encoder.bias: (d_sae,) = (32768,)
+        - decoder.weight: (d_model, d_sae) = (4096, 32768)
+        - decoder.bias: (d_model,) = (4096,)
+        """
         keys = list(weights.keys())
         print(f"  Loading SAE weights from keys: {keys}")
 
-        # Try common naming patterns
-        enc_key = None
-        dec_key = None
-        b_enc_key = None
-        b_dec_key = None
+        # LlamaScope uses encoder.weight, encoder.bias, decoder.weight, decoder.bias
+        # encoder.weight: (d_sae, d_model) - we need to transpose for x @ W_enc
+        # decoder.weight: (d_model, d_sae) - we need to transpose for features @ W_dec
 
-        for key in keys:
-            key_lower = key.lower()
-            if 'enc' in key_lower and 'weight' in key_lower or key_lower == 'w_enc':
-                enc_key = key
-            elif 'dec' in key_lower and 'weight' in key_lower or key_lower == 'w_dec':
-                dec_key = key
-            elif 'enc' in key_lower and 'bias' in key_lower or key_lower == 'b_enc':
-                b_enc_key = key
-            elif 'dec' in key_lower and 'bias' in key_lower or key_lower == 'b_dec':
-                b_dec_key = key
+        if 'encoder.weight' in keys and 'decoder.weight' in keys:
+            # LlamaScope format
+            # encoder.weight is (d_sae, d_model), we need (d_model, d_sae) for x @ W_enc
+            self.W_enc = weights['encoder.weight'].T.to(self.device).float()
+            self.b_enc = weights['encoder.bias'].to(self.device).float()
 
-        # If not found, try to infer from shapes
-        if enc_key is None or dec_key is None:
-            print("  Inferring weight roles from shapes...")
-            for key, tensor in weights.items():
-                if len(tensor.shape) == 2:
-                    d1, d2 = tensor.shape
-                    # Encoder: (d_model, d_sae) or (d_sae, d_model)
-                    # Decoder: (d_sae, d_model) or (d_model, d_sae)
-                    if d1 == LLAMA_HIDDEN_SIZE:
-                        enc_key = key
-                        print(f"    Encoder: {key} with shape {tensor.shape}")
-                    elif d2 == LLAMA_HIDDEN_SIZE:
-                        dec_key = key
-                        print(f"    Decoder: {key} with shape {tensor.shape}")
+            # decoder.weight is (d_model, d_sae), we need (d_sae, d_model) for features @ W_dec
+            self.W_dec = weights['decoder.weight'].T.to(self.device).float()
+            self.b_dec = weights['decoder.bias'].to(self.device).float()
 
-        # Load weights
-        if enc_key:
-            self.W_enc = weights[enc_key].to(self.device).float()
-        else:
-            raise ValueError(f"Could not find encoder weights in keys: {keys}")
-
-        if dec_key:
-            self.W_dec = weights[dec_key].to(self.device).float()
-        else:
-            raise ValueError(f"Could not find decoder weights in keys: {keys}")
-
-        # Load biases (optional, use zeros if not present)
-        if b_enc_key:
-            self.b_enc = weights[b_enc_key].to(self.device).float()
-        else:
-            d_sae = self.W_enc.shape[1] if self.W_enc.shape[0] == LLAMA_HIDDEN_SIZE else self.W_enc.shape[0]
-            self.b_enc = torch.zeros(d_sae, device=self.device)
-
-        if b_dec_key:
-            self.b_dec = weights[b_dec_key].to(self.device).float()
-        else:
-            self.b_dec = torch.zeros(LLAMA_HIDDEN_SIZE, device=self.device)
-
-        # Determine SAE dimension
-        if self.W_enc.shape[0] == LLAMA_HIDDEN_SIZE:
             self.d_sae = self.W_enc.shape[1]
+            print(f"  Loaded LlamaScope format: W_enc {self.W_enc.shape}, W_dec {self.W_dec.shape}")
         else:
-            self.d_sae = self.W_enc.shape[0]
-            # Transpose if needed
-            self.W_enc = self.W_enc.T
+            raise ValueError(f"Unexpected weight keys: {keys}. Expected LlamaScope format.")
 
         print(f"  SAE dimensions: d_model={LLAMA_HIDDEN_SIZE}, d_sae={self.d_sae}")
 
@@ -517,13 +483,10 @@ def test_5_sae_encoding() -> bool:
 
         # Load SAE
         print(f"\nLoading SAE for layer {TEST_LAYER}...")
-        files = list_repo_files(LLAMA_SAE_REPO)
-        sae_folder = f"L{TEST_LAYER}R-8x"
-        safetensor_files = [f for f in files if sae_folder in f and f.endswith('.safetensors')]
-
+        sae_file = get_sae_file_path(TEST_LAYER)
         local_path = hf_hub_download(
             repo_id=LLAMA_SAE_REPO,
-            filename=safetensor_files[0],
+            filename=sae_file,
         )
         weights = load_file(local_path)
 
@@ -679,13 +642,10 @@ def find_max'''
         print("\n[D]ecompose: Applying SAE to activations...")
 
         # Load SAE for layer 15
-        files = list_repo_files(LLAMA_SAE_REPO)
-        sae_folder = f"L{TEST_LAYER}R-8x"
-        safetensor_files = [f for f in files if sae_folder in f and f.endswith('.safetensors')]
-
+        sae_file = get_sae_file_path(TEST_LAYER)
         local_path = hf_hub_download(
             repo_id=LLAMA_SAE_REPO,
-            filename=safetensor_files[0],
+            filename=sae_file,
         )
         weights = load_file(local_path)
         sae = TopKSAE(weights, k=64, device="cpu")

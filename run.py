@@ -701,8 +701,12 @@ def run_phase7_12(config: Config, logger, device: str):
             else:
                 logger.warning(f"Input file {input_path} not recognized as Phase 0.1 or 7.3 output")
 
-        # Use standard phase output directory
-        output_dir = get_phase_dir('7.12')
+        # Use standard phase output directory with dataset suffix
+        base_output_dir = get_phase_dir('7.12')
+        if config.dataset_name != "mbpp":
+            output_dir = f"{base_output_dir}_{config.dataset_name}"
+        else:
+            output_dir = base_output_dir
         sys.argv.extend(["--output-dir", output_dir])
 
         logger.info(f"Running Phase 7.12 evaluator with args: {sys.argv[1:]}")
