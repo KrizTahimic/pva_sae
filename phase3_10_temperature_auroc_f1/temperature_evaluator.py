@@ -103,14 +103,14 @@ class TemperatureAUROCEvaluator:
         # Extract best features for correct and incorrect
         best_features = {
             'correct': {
-                'layer': results['correct_preferring_feature']['feature']['layer'],
-                'feature_idx': results['correct_preferring_feature']['feature']['idx'],
-                'threshold': results['correct_preferring_feature']['threshold_optimization']['optimal_threshold']
+                'layer': results['correct_predicting_feature']['feature']['layer'],
+                'feature_idx': results['correct_predicting_feature']['feature']['idx'],
+                'threshold': results['correct_predicting_feature']['threshold_optimization']['optimal_threshold']
             },
             'incorrect': {
-                'layer': results['incorrect_preferring_feature']['feature']['layer'],
-                'feature_idx': results['incorrect_preferring_feature']['feature']['idx'],
-                'threshold': results['incorrect_preferring_feature']['threshold_optimization']['optimal_threshold']
+                'layer': results['incorrect_predicting_feature']['feature']['layer'],
+                'feature_idx': results['incorrect_predicting_feature']['feature']['idx'],
+                'threshold': results['incorrect_predicting_feature']['threshold_optimization']['optimal_threshold']
             }
         }
         

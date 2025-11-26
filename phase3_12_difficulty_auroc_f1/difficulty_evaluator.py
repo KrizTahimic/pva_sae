@@ -461,16 +461,16 @@ def main():
     logger.info("\nLoading Phase 3.8 results...")
     phase3_8_results = load_json(phase3_8_dir / 'evaluation_results.json')
     best_features = {
-        'correct': phase3_8_results['correct_preferring_feature']['feature']['layer'],
-        'correct_feature_idx': phase3_8_results['correct_preferring_feature']['feature']['idx'],
-        'incorrect': phase3_8_results['incorrect_preferring_feature']['feature']['layer'],
-        'incorrect_feature_idx': phase3_8_results['incorrect_preferring_feature']['feature']['idx']
+        'correct': phase3_8_results['correct_predicting_feature']['feature']['layer'],
+        'correct_feature_idx': phase3_8_results['correct_predicting_feature']['feature']['idx'],
+        'incorrect': phase3_8_results['incorrect_predicting_feature']['feature']['layer'],
+        'incorrect_feature_idx': phase3_8_results['incorrect_predicting_feature']['feature']['idx']
     }
-    
+
     # Extract global F1-optimal thresholds from Phase 3.8
     global_thresholds = {
-        'correct': phase3_8_results['correct_preferring_feature']['threshold_optimization']['optimal_threshold'],
-        'incorrect': phase3_8_results['incorrect_preferring_feature']['threshold_optimization']['optimal_threshold']
+        'correct': phase3_8_results['correct_predicting_feature']['threshold_optimization']['optimal_threshold'],
+        'incorrect': phase3_8_results['incorrect_predicting_feature']['threshold_optimization']['optimal_threshold']
     }
     
     logger.info(f"Best correct-predicting feature: idx {best_features['correct_feature_idx']} "

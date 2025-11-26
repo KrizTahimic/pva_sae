@@ -408,6 +408,11 @@ PHASE_CONFIGS = {
         "patterns": ["steering_effect_analysis.json", "phase_7_6_summary.json"],
         "exclude_keywords": None
     },
+    "7.9": {
+        "dir": "data/phase7_9",
+        "patterns": ["universality_metrics.json", "phase_7_9_summary.json"],
+        "exclude_keywords": None
+    },
     "7.12": {
         "dir": "data/phase7_12",
         "patterns": ["evaluation_results.json", "evaluation_summary.txt"],

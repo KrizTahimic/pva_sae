@@ -91,8 +91,8 @@ def setup_argument_parser():
     phase_parser.add_argument(
         'phase',
         type=float,
-        choices=[0, 0.1, 0.2, 0.3, 1, 2.2, 2.5, 2.10, 2.15, 3, 3.5, 3.6, 3.8, 3.10, 3.11, 3.12, 4.5, 4.6, 4.7, 4.8, 4.10, 4.12, 4.14, 5.3, 5.6, 5.9, 6.3, 7.3, 7.6, 7.12, 8.1, 8.2, 8.3],
-        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 0.2=HumanEval to MBPP Conversion, 0.3=HumanEval Import Scanning, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 2.10=T-Statistic Latent Selection, 2.15=Layer-wise Analysis Visualization, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.11=Temperature Trends Visualization Update, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.6=Golden Section Search Coefficient Refinement, 4.7=Coefficient Optimization Visualization, 4.8=Steering Effect Analysis, 4.10=Zero-Discrimination Feature Selection, 4.12=Zero-Discrimination Steering Generation, 4.14=Statistical Significance Testing, 5.3=Weight Orthogonalization, 5.6=Zero-Discrimination Weight Orthogonalization, 5.9=Weight Orthogonalization Statistical Significance, 6.3=Attention Pattern Analysis, 7.3=Instruction-Tuned Model Baseline, 7.6=Instruction-Tuned Model Steering Analysis, 7.12=Instruction-Tuned Model AUROC/F1 Evaluation, 8.1=Percentile Threshold Calculator, 8.2=Percentile Threshold Optimizer, 8.3=Selective Steering Based on Threshold Analysis'
+        choices=[0, 0.1, 0.2, 0.3, 1, 2.2, 2.5, 2.10, 2.15, 3, 3.5, 3.6, 3.8, 3.10, 3.11, 3.12, 4.5, 4.6, 4.7, 4.8, 4.10, 4.12, 4.14, 5.3, 5.6, 5.9, 6.3, 7.3, 7.6, 7.9, 7.12, 8.1, 8.2, 8.3],
+        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 0.2=HumanEval to MBPP Conversion, 0.3=HumanEval Import Scanning, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 2.10=T-Statistic Latent Selection, 2.15=Layer-wise Analysis Visualization, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.11=Temperature Trends Visualization Update, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.6=Golden Section Search Coefficient Refinement, 4.7=Coefficient Optimization Visualization, 4.8=Steering Effect Analysis, 4.10=Zero-Discrimination Feature Selection, 4.12=Zero-Discrimination Steering Generation, 4.14=Statistical Significance Testing, 5.3=Weight Orthogonalization, 5.6=Zero-Discrimination Weight Orthogonalization, 5.9=Weight Orthogonalization Statistical Significance, 6.3=Attention Pattern Analysis, 7.3=Instruction-Tuned Model Baseline, 7.6=Instruction-Tuned Model Steering Analysis, 7.9=Universality Analysis, 7.12=Instruction-Tuned Model AUROC/F1 Evaluation, 8.1=Percentile Threshold Calculator, 8.2=Percentile Threshold Optimizer, 8.3=Selective Steering Based on Threshold Analysis'
     )
     
     # Global arguments (add to phase parser)
@@ -653,6 +653,24 @@ def run_phase7_6(config: Config, logger, device: str):
     results = analyzer.run()
     
     logger.info("\n✅ Phase 7.6 completed successfully")
+
+
+def run_phase7_9(config: Config, logger, device: str):
+    """Run Phase 7.9: Universality Analysis"""
+    from phase7_9_universality_analysis.universality_analysis import UniversalityAnalyzer
+
+    logger.info("Starting Phase 7.9: Universality Analysis")
+    logger.info("Comparing PVA features across base and instruction-tuned models")
+
+    # Log configuration
+    logger.info("\n" + config.dump(phase="7.9"))
+
+    # Create and run universality analyzer
+    analyzer = UniversalityAnalyzer(config)
+    analyzer.load_data()
+    results = analyzer.run()
+
+    logger.info("\n✅ Phase 7.9 completed successfully")
 
 
 def run_phase7_12(config: Config, logger, device: str):
@@ -1830,6 +1848,7 @@ def main():
             6.3: "Attention Pattern Analysis",
             7.3: "Instruction-Tuned Model Baseline",
             7.6: "Instruction-Tuned Model Steering Analysis",
+            7.9: "Universality Analysis",
             7.12: "Instruction-Tuned Model AUROC/F1 Evaluation",
             8.1: "Percentile Threshold Calculator",
             8.2: "Percentile Threshold Optimizer",
@@ -1918,6 +1937,8 @@ def main():
                 run_phase7_3(config, logger, device)
             elif args.phase == 7.6:
                 run_phase7_6(config, logger, device)
+            elif args.phase == 7.9:
+                run_phase7_9(config, logger, device)
             elif args.phase == 7.12:
                 run_phase7_12(config, logger, device)
             elif args.phase == 8.1:

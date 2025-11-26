@@ -147,8 +147,8 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
-    # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
+    # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
+    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
 
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
     phase3_5_output_dir: str = "data/phase3_5"
@@ -163,6 +163,9 @@ class Config:
     # === INSTRUCTION-TUNED MODEL STEERING (Phase 7.6) ===
     phase7_6_output_dir: str = "data/phase7_6"
     phase7_6_model_name: str = "google/gemma-2-2b-it"
+
+    # === UNIVERSALITY ANALYSIS (Phase 7.9) ===
+    phase7_9_output_dir: str = "data/phase7_9"
 
     # === INSTRUCTION-TUNED MODEL AUROC/F1 EVALUATION (Phase 7.12) ===
     phase7_12_output_dir: str = "data/phase7_12"

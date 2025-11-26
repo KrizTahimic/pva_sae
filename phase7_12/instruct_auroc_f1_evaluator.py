@@ -257,7 +257,8 @@ def load_instruct_activations(
     feature_idx: int,
     feature_type: str,
     phase0_1_dir: Path,
-    phase7_3_dir: Path
+    phase7_3_dir: Path,
+    dataset_name: str = "mbpp"
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Load activations for a specific feature from Phase 7.3 instruction-tuned model data.
 
@@ -273,8 +274,11 @@ def load_instruct_activations(
     Returns:
         Tuple of (labels, activations)
     """
-    # Load validation split data (Phase 7.3 only processes validation)
-    split_data = pd.read_parquet(phase0_1_dir / 'validation_mbpp.parquet')
+    # Load validation split data (use dataset-specific filename)
+    if dataset_name == "humaneval":
+        split_data = pd.read_parquet(phase0_1_dir / 'humaneval.parquet')
+    else:
+        split_data = pd.read_parquet(phase0_1_dir / 'validation_mbpp.parquet')
 
     # Load instruction-tuned model temperature 0.0 dataset from Phase 7.3
     temp_data = pd.read_parquet(phase7_3_dir / 'dataset_instruct_temp_0_0.parquet')
@@ -447,7 +451,7 @@ def main():
     # Load validation data for correct feature from instruction-tuned model
     y_true_correct, scores_correct = load_instruct_activations(
         correct_layer, correct_feature_idx, 'correct',
-        phase0_1_dir, phase7_3_dir
+        phase0_1_dir, phase7_3_dir, config.dataset_name
     )
 
     print(f"\nCorrect-preferring feature (instruction-tuned model):")
@@ -472,7 +476,7 @@ def main():
     # Load validation data for incorrect feature from instruction-tuned model
     y_true_incorrect, scores_incorrect = load_instruct_activations(
         incorrect_layer, incorrect_feature_idx, 'incorrect',
-        phase0_1_dir, phase7_3_dir
+        phase0_1_dir, phase7_3_dir, config.dataset_name
     )
 
     print(f"\nIncorrect-preferring feature (instruction-tuned model):")

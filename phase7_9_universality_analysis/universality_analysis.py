@@ -40,6 +40,7 @@ class UniversalityAnalyzer:
         dataset_suffix = f"_{config.dataset_name}" if config.dataset_name != "mbpp" else ""
         self.phase3_5_dir = self.data_dir / f"phase3_5{dataset_suffix}"
         self.phase4_8_dir = self.data_dir / f"phase4_8{dataset_suffix}"
+        self.phase4_14_dir = self.data_dir / f"phase4_14{dataset_suffix}"
         self.phase7_3_dir = self.data_dir / f"phase7_3{dataset_suffix}"
         self.phase7_6_dir = self.data_dir / f"phase7_6{dataset_suffix}"
 
@@ -61,25 +62,55 @@ class UniversalityAnalyzer:
         self.instruct_baseline = pd.read_parquet(self.phase7_3_dir / "dataset_instruct_temp_0_0.parquet")
 
         # Phase 4.8: Base model steering results
-        # Check if preservation-only results exist
+        # Check if preservation-only results exist for accurate preservation rate
         dataset_suffix = f"_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else ""
         preserve_only_file = self.data_dir / f"phase4_8{dataset_suffix}_preserve_only/phase_4_8_summary.json"
+
+        with open(self.phase4_8_dir / "phase_4_8_summary.json", 'r') as f:
+            self.base_steering = json.load(f)
+
         if preserve_only_file.exists():
             # Use preservation-only results for accurate preservation rate
             with open(preserve_only_file, 'r') as f:
                 preserve_data = json.load(f)
-
-            # Load main steering results
-            with open(self.phase4_8_dir / "phase_4_8_summary.json", 'r') as f:
-                self.base_steering = json.load(f)
-
-            # Update with correct preservation rate
             self.base_steering["results"]["preservation_rate"] = preserve_data["results"]["preservation_rate"]
-            self.base_steering["results"]["statistical_tests"]["preservation"] = preserve_data["results"]["statistical_tests"]["preservation"]
             print(f"Using preservation rate from phase4_8_preserve_only: {preserve_data['results']['preservation_rate']:.2f}%")
+
+        # Phase 4.14: Statistical significance tests for base model
+        phase4_14_file = self.phase4_14_dir / "triangulation_analysis.json"
+        if phase4_14_file.exists():
+            with open(phase4_14_file, 'r') as f:
+                triangulation_data = json.load(f)
+
+            # Transform to statistical_tests format
+            tri_results = triangulation_data["triangulation_results"]
+            self.base_steering["results"]["statistical_tests"] = {
+                "correction": {
+                    "successes": tri_results["correction"]["counts"]["targeted"]["n_corrected"],
+                    "trials": tri_results["correction"]["counts"]["targeted"]["n_total"],
+                    "rate": tri_results["correction"]["comparisons"]["baseline_vs_targeted"]["observed_rate"] * 100,
+                    "pvalue": tri_results["correction"]["comparisons"]["baseline_vs_targeted"]["p_value"],
+                    "significant": tri_results["correction"]["comparisons"]["baseline_vs_targeted"]["significant"]
+                },
+                "corruption": {
+                    "successes": tri_results["corruption"]["counts"]["targeted"]["n_corrupted"],
+                    "trials": tri_results["corruption"]["counts"]["targeted"]["n_total"],
+                    "rate": tri_results["corruption"]["comparisons"]["baseline_vs_targeted"]["observed_rate"] * 100,
+                    "pvalue": tri_results["corruption"]["comparisons"]["baseline_vs_targeted"]["p_value"],
+                    "significant": tri_results["corruption"]["comparisons"]["baseline_vs_targeted"]["significant"]
+                },
+                "preservation": {
+                    "successes": tri_results["preservation"]["counts"]["targeted"]["n_preserved"],
+                    "trials": tri_results["preservation"]["counts"]["targeted"]["n_total"],
+                    "rate": tri_results["preservation"]["comparisons"]["baseline_vs_targeted"]["observed_rate"] * 100,
+                    "pvalue": tri_results["preservation"]["comparisons"]["baseline_vs_targeted"]["p_value"],
+                    "significant": tri_results["preservation"]["comparisons"]["baseline_vs_targeted"]["significant"]
+                }
+            }
+            print(f"Loaded statistical tests from Phase 4.14")
         else:
-            with open(self.phase4_8_dir / "phase_4_8_summary.json", 'r') as f:
-                self.base_steering = json.load(f)
+            print(f"Warning: Phase 4.14 data not found at {phase4_14_file}, statistical_tests will be empty")
+            self.base_steering["results"]["statistical_tests"] = {}
 
         # Phase 7.6: Instruction-tuned steering results
         with open(self.phase7_6_dir / "phase_7_6_summary.json", 'r') as f:
