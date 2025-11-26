@@ -1,0 +1,65 @@
+PHASE 5.9: WEIGHT ORTHOGONALIZATION TRIANGULATION ANALYSIS
+============================================================
+
+Generated: 2025-11-24T11:01:09.457954
+Significance Level: 0.05
+
+TRIANGULATION APPROACH
+----------------------------------------
+This analysis compares three conditions:
+1. Baseline: No weight orthogonalization (original model)
+2. Zero-Discrimination: Orthogonalization with random non-discriminative features
+3. PVA: Orthogonalization with discriminative PVA features
+
+Three pairwise comparisons validate:
+- Baseline vs PVA: Does orthogonalization work?
+- PVA vs Control: Is effect feature-specific?
+
+CORRECTION EXPERIMENTS (Incorrect→Correct)
+----------------------------------------
+Baseline Rate: 0.00%
+Control Rate: 5.76%
+PVA Rate: 0.72%
+
+Statistical Tests:
+  Baseline→PVA: p=0.00e+00 (SIGNIFICANT)
+  PVA vs Control: p=1.00e+00 (not significant)
+
+Interpretation: PVA orthogonalization corrects errors (0.7% improvement, p=0.00e+00) | PVA and control correction rates similar
+
+CORRUPTION EXPERIMENTS (Correct→Incorrect)
+----------------------------------------
+Baseline Rate: 0.00%
+Control Rate: 8.00%
+PVA Rate: 100.00%
+
+Statistical Tests:
+  Baseline→PVA: p=0.00e+00 (SIGNIFICANT)
+  PVA vs Control: p=3.78e-28 (SIGNIFICANT)
+
+Interpretation: Incorrect-preferring features significantly corrupt (100.0% corruption, p=0.00e+00) | PVA corrupts MORE than control (100.0% vs 8.0%, p=3.78e-28)
+
+OVERALL VALIDATION
+----------------------------------------
+Validation Strength: MODERATE
+
+Validity Checks:
+  orthogonalization_works: ✓ PASS
+  correction_specific: ✗ FAIL
+  corruption_not_specific: ✗ FAIL
+
+KEY FINDING
+----------------------------------------
+Comparison of orthogonalization effects:
+  Correction: Control 5.8% vs PVA 0.7%
+  Corruption: Control 8.0% vs PVA 100.0%
+
+PVA orthogonalization causes MUCH higher corruption (83.6%) than control (19.0%),
+suggesting that targeted modifications to discriminative features have stronger
+disruptive effects on model behavior than random feature modifications.
+
+CONCLUSION
+----------------------------------------
+Mixed validation: Weight orthogonalization shows effects compared to baseline, but the pattern of specificity is inconsistent. This suggests weight modifications work but may have complex interactions with different feature types.
+
+============================================================

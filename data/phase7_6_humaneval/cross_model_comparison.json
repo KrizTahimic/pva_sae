@@ -1,0 +1,26 @@
+{
+  "comparison_available": true,
+  "base_model": {
+    "correction_rate": 4.044117647058823,
+    "corruption_rate": 64.65517241379311,
+    "preservation_rate": 0.0,
+    "model": "google/gemma-2-2b"
+  },
+  "instruct_model": {
+    "correction_rate": 8.571428571428571,
+    "corruption_rate": 93.22033898305084,
+    "preservation_rate": 88.13559322033898,
+    "model": "google/gemma-2-2b-it"
+  },
+  "differences": {
+    "correction_rate_diff": 4.527310924369748,
+    "corruption_rate_diff": 28.565166569257727,
+    "preservation_rate_diff": 88.13559322033898
+  },
+  "transfer_analysis": {
+    "correction_effective": false,
+    "corruption_effective": true,
+    "preservation_maintained": true,
+    "features_transfer": false
+  }
+}

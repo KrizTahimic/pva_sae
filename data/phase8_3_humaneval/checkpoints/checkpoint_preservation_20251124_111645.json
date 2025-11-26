@@ -1,0 +1,260 @@
+{
+  "experiment_type": "preservation",
+  "results": [
+    {
+      "task_id": 2,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.08900260925293,
+      "final_passed": true,
+      "baseline_code": "def truncate_number(number: float) -> float:\n    \"\"\" Given a positive floating point number, it can be decomposed into\n    and integer part (largest integer smaller than given number) and decimals\n    (leftover part always smaller than 1).\n\n    Return the decimal part of the number.\n    >>> truncate_number(3.5)\n    0.5\n    \"\"\"\n    return number - int(number)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 7,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.239831924438477,
+      "final_passed": true,
+      "baseline_code": "def filter_by_substring(strings: List[str], substring: str) -> List[str]:\n    return [s for s in strings if s.find(substring) != -1]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 12,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.981740951538086,
+      "final_passed": true,
+      "baseline_code": "def longest(strings: List[str]) -> Optional[str]:\n    if not strings:\n        return None\n    return max(strings, key=len)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 13,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.622886657714844,
+      "final_passed": true,
+      "baseline_code": "def greatest_common_divisor(a: int, b: int) -> int:\n    \"\"\" Return a greatest common divisor of two integers a and b\n    >>> greatest_common_divisor(3, 5)\n    1\n    >>> greatest_common_divisor(25, 15)\n    5\n    >>> greatest_common_divisor(49, 14)\n    7\n    >>> greatest_common_divisor(144, 60)\n    12\n    \"\"\"\n    while a != b:\n        if a > b:\n            a = a - b\n        else:\n            b = b - a\n    return a",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 15,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.965879440307617,
+      "final_passed": true,
+      "baseline_code": "def string_sequence(n: int) -> str:\n    \"\"\" Return a string containing space-delimited numbers starting from 0 upto n inclusive.\n    >>> string_sequence(0)\n    '0'\n    >>> string_sequence(5)\n    '0 1 2 3 4 5'\n    \"\"\"\n    return ' '.join(str(i) for i in range(n+1))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 22,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 13.142641067504883,
+      "final_passed": true,
+      "baseline_code": "def filter_integers(values: List[Any]) -> List[int]:\n    return [x for x in values if isinstance(x, int)]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 23,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.663835525512695,
+      "final_passed": true,
+      "baseline_code": "def strlen(string: str) -> int:\n    \"\"\" Return length of given string\n    >>> strlen('')\n    0\n    >>> strlen('abc')\n    3\n    \"\"\"\n    return len(string)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 28,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 19.35289764404297,
+      "final_passed": true,
+      "baseline_code": "def concatenate(strings: List[str]) -> str:\n    return ''.join(strings)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 29,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.711315155029297,
+      "final_passed": true,
+      "baseline_code": "def filter_by_prefix(strings: List[str], prefix: str) -> List[str]:\n    return [s for s in strings if s.startswith(prefix)]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 30,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.10839080810547,
+      "final_passed": true,
+      "baseline_code": "def get_positive(l: list):\n    return [x for x in l if x > 0]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 31,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 15.824485778808594,
+      "final_passed": true,
+      "baseline_code": "def is_prime(n):\n    \"\"\"Return true if a given number is prime, and false otherwise.\n    >>> is_prime(6)\n    False\n    >>> is_prime(101)\n    True\n    >>> is_prime(11)\n    True\n    >>> is_prime(13441)\n    True\n    >>> is_prime(61)\n    True\n    >>> is_prime(4)\n    False\n    >>> is_prime(1)\n    False\n    >>> is_prime(5)\n    True\n    >>> is_prime(11)\n    True\n    >>> is_prime(17)\n    True\n    >>> is_prime(5 * 17)\n    False\n    >>> is_prime(11 * 7)\n    False\n    >>> is_prime(13441 * 19)\n    False\n    \"\"\"\n    if n < 2:\n        return False\n    for i in range(2, n):\n        if n % i == 0:\n            return False\n    return True",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 34,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 15.799566268920898,
+      "final_passed": true,
+      "baseline_code": "def unique(l: list):\n    \"\"\"Return sorted unique elements in a list\n    >>> unique([5, 3, 5, 2, 3, 3, 9, 0, 123])\n    [0, 2, 3, 5, 9, 123]\n    \"\"\"\n    return sorted(set(l))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 35,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 16.7528018951416,
+      "final_passed": true,
+      "baseline_code": "def max_element(l: list):\n    \"\"\"Return maximum element in the list.\n    >>> max_element([1, 2, 3])\n    3\n    >>> max_element([5, 3, -5, 2, -3, 3, 9, 0, 124, 1, -10])\n    124\n    \"\"\"\n    return max(l)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 42,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 15.899919509887695,
+      "final_passed": true,
+      "baseline_code": "def incr_list(l: list):\n    \"\"\"Return list with elements incremented by 1.\n    >>> incr_list([1, 2, 3])\n    [2, 3, 4]\n    >>> incr_list([5, 3, 5, 2, 3, 3, 9, 0, 123])\n    [6, 4, 6, 3, 4, 4, 10, 1, 124]\n    \"\"\"\n    return [x + 1 for x in l]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 43,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 20.756654739379883,
+      "final_passed": true,
+      "baseline_code": "def pairs_sum_to_zero(l):\n    \"\"\"\n    pairs_sum_to_zero takes a list of integers as an input.\n    it returns True if there are two distinct elements in the list that\n    sum to zero, and False otherwise.\n    >>> pairs_sum_to_zero([1, 3, 5, 0])\n    False\n    >>> pairs_sum_to_zero([1, 3, -2, 1])\n    False\n    >>> pairs_sum_to_zero([1, 2, 3, 7])\n    False\n    >>> pairs_sum_to_zero([2, 4, -5, 3, 5, 7])\n    True\n    >>> pairs_sum_to_zero([1])\n    False\n    >>> pairs_sum_to_zero([-3, 9, -1, 3, 2, 30])\n    True\n    >>> pairs_sum_to_zero([-3, 9, -1, 3, 2, 31])\n    True\n    >>> pairs_sum_to_zero([-3, 9, -1, 4, 2, 30])\n    False\n    >>> pairs_sum_to_zero([-3, 9, -1, 4, 2, 31])\n    False\n    \"\"\"\n    for i in range(len(l)):\n        for j in range(i+1, len(l)):\n            if l[i] + l[j] == 0:\n                return True\n    return False",
+      "steered_code": "def pairs_sum_to_zero(l):\n    \"\"\"\n    pairs_sum_to_zero takes a list of integers as an input.\n    it returns True if there are two distinct elements in the list that\n    sum to zero, and False otherwise.\n    >>> pairs_sum_to_zero([1, 3, 5, 0])\n    False\n    >>> pairs_sum_to_zero([1, 3, -2, 1])\n    False\n    >>> pairs_sum_to_zero([1, 2, 3, 7])\n    False\n    >>> pairs_sum_to_zero([2, 4, -5, 3, 5, 7])\n    True\n    >>> pairs_sum_to_zero([1])\n    False\n    >>> pairs_sum_to_zero([-3, 9, -1, 3, 2, 30])\n    True\n    >>> pairs_sum_to_zero([-3, 9, -1, 3, 2, 31])\n    True\n    >>> pairs_sum_to_zero([-3, 9, -1, 4, 2, 30])\n    False\n    >>> pairs_sum_to_zero([-3, 9, -1, 4, 2, 31])\n    False\n    \"\"\"\n    for i in range(len(l)):\n        for j in range(i+1, len(l)):\n            if l[i] + l[j] == 0:\n                return True\n    return False",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 45,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.944276809692383,
+      "final_passed": true,
+      "baseline_code": "def triangle_area(a, h):\n    return a * h / 2",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 46,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.569019317626953,
+      "final_passed": true,
+      "baseline_code": "def fib4(n: int):\n    \"\"\"The Fib4 number sequence is a sequence similar to the Fibbonacci sequnece that's defined as follows:\n    fib4(0) -> 0\n    fib4(1) -> 0\n    fib4(2) -> 2\n    fib4(3) -> 0\n    fib4(n) -> fib4(n-1) + fib4(n-2) + fib4(n-3) + fib4(n-4).\n    Please write a function to efficiently compute the n-th element of the fib4 number sequence.  Do not use recursion.\n    >>> fib4(5)\n    4\n    >>> fib4(6)\n    8\n    >>> fib4(7)\n    14\n    \"\"\"\n    if n == 0:\n        return 0\n    elif n == 1:\n        return 0\n    elif n == 2:\n        return 2\n    elif n == 3:\n        return 0\n    else:\n        return fib4(n-1) + fib4(n-2) + fib4(n-3) + fib4(n-4)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 47,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 15.261293411254883,
+      "final_passed": true,
+      "baseline_code": "def median(l: list):\n    \"\"\"Return median of elements in the list l.\n    >>> median([3, 1, 2, 4, 5])\n    3\n    >>> median([-10, 4, 6, 1000, 10, 20])\n    15.0\n    \"\"\"\n    l.sort()\n    if len(l) % 2 == 0:\n        return (l[len(l)//2] + l[len(l)//2 - 1]) / 2\n    else:\n        return l[len(l)//2]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 48,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 15.88300895690918,
+      "final_passed": true,
+      "baseline_code": "def is_palindrome(text: str):\n    \"\"\"\n    Checks if given string is a palindrome\n    >>> is_palindrome('')\n    True\n    >>> is_palindrome('aba')\n    True\n    >>> is_palindrome('aaaaa')\n    True\n    >>> is_palindrome('zbcd')\n    False\n    >>> is_palindrome('xywyx')\n    True\n    >>> is_palindrome('xywyz')\n    False\n    >>> is_palindrome('xywzx')\n    False\n    \"\"\"\n    text = text.lower()\n    text = text.replace(' ', '')\n    return text == text[::-1]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 52,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.411968231201172,
+      "final_passed": true,
+      "baseline_code": "def below_threshold(l: list, t: int):\n    \"\"\"Return True if all numbers in the list l are below threshold t.\n    >>> below_threshold([1, 2, 4, 10], 100)\n    True\n    >>> below_threshold([1, 20, 4, 10], 5)\n    False\n    >>> below_threshold([1, 20, 4, 10], 21)\n    True\n    >>> below_threshold([1, 20, 4, 10], 22)\n    True\n    >>> below_threshold([1, 8, 4, 10], 11)\n    True\n    >>> below_threshold([1, 8, 4, 10], 10)\n    False\n    \"\"\"\n    return all(n < t for n in l)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 58,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 17.996103286743164,
+      "final_passed": true,
+      "baseline_code": "def common(l1: list, l2: list):\n    \"\"\"Return sorted unique common elements for two lists.\n    >>> common([1, 4, 3, 34, 653, 2, 5], [5, 7, 1, 5, 9, 653, 121])\n    [1, 5, 653]\n    >>> common([5, 3, 2, 8], [3, 2])\n    [2, 3]\n\n    \"\"\"\n    return sorted(set(l1) & set(l2))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 60,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.174461364746094,
+      "final_passed": true,
+      "baseline_code": "def sum_to_n(n: int):\n    \"\"\"sum_to_n is a function that sums numbers from 1 to n.\n    >>> sum_to_n(30)\n    465\n    >>> sum_to_n(100)\n    5050\n    >>> sum_to_n(5)\n    15\n    >>> sum_to_n(10)\n    55\n    >>> sum_to_n(1)\n    1\n    \"\"\"\n    return (n * (n + 1)) // 2",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 63,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 18.573972702026367,
+      "final_passed": true,
+      "baseline_code": "def fibfib(n: int):\n    \"\"\"The FibFib number sequence is a sequence similar to the Fibbonacci sequnece that's defined as follows:\n    fibfib(0) == 0\n    fibfib(1) == 0\n    fibfib(2) == 1\n    fibfib(n) == fibfib(n-1) + fibfib(n-2) + fibfib(n-3).\n    Please write a function to efficiently compute the n-th element of the fibfib number sequence.\n    >>> fibfib(1)\n    0\n    >>> fibfib(5)\n    4\n    >>> fibfib(8)\n    24\n    >>> fibfib(10)\n    81\n    >>> fibfib(12)\n    274\n    >>> fibfib(14)\n    927\n    \"\"\"\n    if n == 0:\n        return 0\n    elif n == 1:\n        return 0\n    elif n == 2:\n        return 1\n    else:\n        return fibfib(n-1) + fibfib(n-2) + fibfib(n-3)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 152,
+      "initial_passed": true,
+      "steered": false,
+      "incorrect_pred_activation": 20.22469711303711,
+      "final_passed": true,
+      "baseline_code": "def compare(game,guess):\n    \"\"\"I think we all remember that feeling when the result of some long-awaited\n    event is finally known. The feelings and thoughts you have at that moment are\n    definitely worth noting down and comparing.\n    Your task is to determine if a person correctly guessed the results of a number of matches.\n    You are given two arrays of scores and guesses of equal length, where each index shows a match. \n    Return an array of the same length denoting how far off each guess was. If they have guessed correctly,\n    the value is 0, and if not, the value is the absolute difference between the guess and the score.\n    \n    \n    example:\n\n    compare([1,2,3,4,5,1],[1,2,3,4,2,-2]) -> [0,0,0,0,3,3]\n    compare([0,5,0,0,0,4],[4,1,1,0,0,-2]) -> [4,4,1,0,0,6]\n    \"\"\"\n    \n    return [abs(game[i]-guess[i]) for i in range(len(game))]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 156,
+      "initial_passed": true,
+      "steered": true,
+      "incorrect_pred_activation": 21.021696090698242,
+      "final_passed": true,
+      "baseline_code": "def int_to_mini_roman(number):\n    \"\"\"\n    Given a positive integer, obtain its roman numeral equivalent as a string,\n    and return it in lowercase.\n    Restrictions: 1 <= num <= 1000\n\n    Examples:\n    >>> int_to_mini_roman(19) == 'xix'\n    >>> int_to_mini_roman(152) == 'clii'\n    >>> int_to_mini_roman(426) == 'cdxxvi'\n    \"\"\"\n    roman_dict = {\n        1: 'i',\n        4: 'iv',\n        5: 'v',\n        9: 'ix',\n        10: 'x',\n        40: 'xl',\n        50: 'l',\n        90: 'xc',\n        100: 'c',\n        400: 'cd',\n        500: 'd',\n        900: 'cm',\n        1000: 'm'\n    }\n    roman_string = ''\n    while number > 0:\n        if number >= 1000:\n            roman_string += 'm'\n            number -= 1000\n        elif number >= 900:\n            roman_string += 'cm'\n            number -= 900\n        elif number >= 500:\n            roman_string += 'd'\n            number -= 500\n        elif number >= 400:\n            roman_string += 'cd'\n            number -= 400\n        elif number >= 100:\n            roman_string += 'c'\n            number -= 100\n        elif number >= 90:\n            roman_string += 'xc'\n            number -= 90\n        elif number >= 50:\n            roman_string += 'l'\n            number -= 50\n        elif number >= 40:\n            roman_string += 'xl'\n            number -= 40\n        elif number >= 10:\n            roman_string += 'x'\n            number -= 10\n        elif number >= 9:\n            roman_string += 'ix'\n            number -= 9\n        elif number >= 5:\n            roman_string += 'v'\n            number -= 5\n        elif number >= 4:\n            roman_string += 'iv'\n            number -= 4\n        elif number >= 1:\n            roman_string += 'i'\n            number -= 1\n    return roman_string.lower()",
+      "steered_code": "def int_to_mini_roman(number):\n    roman_dict = {\n        1000: 'M',\n        900: 'CM',\n        500: 'D',\n        400: 'CD',\n        100: 'C',\n        90: 'XC',\n        50: 'L',\n        40: 'XL',\n        10: 'X',\n        9: 'IX',\n        5: 'V',\n        4: 'IV',\n        1: 'I'\n    }\n    roman_string = ''\n    for key, value in roman_dict.items():\n        while number >= key:\n            roman_string += value\n            number -= key\n    return roman_string.lower()",
+      "source": "selective_steering"
+    }
+  ],
+  "excluded_tasks": [],
+  "last_processed_idx": 24,
+  "total_tasks": 25,
+  "timestamp": "2025-11-24T11:16:45.029930",
+  "checkpoint_version": 1
+}

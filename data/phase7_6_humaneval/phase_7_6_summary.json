@@ -1,0 +1,78 @@
+{
+  "phase": "7.6",
+  "description": "Instruction-Tuned Model Steering Analysis",
+  "timestamp": "2025-11-24T15:59:03.508689",
+  "duration_seconds": 7242.083460330963,
+  "config": {
+    "correct_coefficient": 29,
+    "incorrect_coefficient": 287,
+    "model": "google/gemma-2-2b-it"
+  },
+  "results": {
+    "correction_rate": 8.571428571428571,
+    "corruption_rate": 93.22033898305084,
+    "preservation_rate": 88.13559322033898,
+    "statistical_tests": {
+      "correction": {
+        "successes": 9,
+        "trials": 105,
+        "rate": 8.571428571428571,
+        "pvalue": 0.0,
+        "significant": "True"
+      },
+      "corruption": {
+        "successes": 55,
+        "trials": 59,
+        "rate": 93.22033898305084,
+        "pvalue": 0.0,
+        "significant": "True"
+      },
+      "preservation": {
+        "successes": 52,
+        "trials": 59,
+        "rate": 88.13559322033898,
+        "pvalue": 6.794958901101822e-10,
+        "significant": "True"
+      }
+    },
+    "cross_model_comparison": {
+      "comparison_available": true,
+      "base_model": {
+        "correction_rate": 4.044117647058823,
+        "corruption_rate": 64.65517241379311,
+        "preservation_rate": 0.0,
+        "model": "google/gemma-2-2b"
+      },
+      "instruct_model": {
+        "correction_rate": 8.571428571428571,
+        "corruption_rate": 93.22033898305084,
+        "preservation_rate": 88.13559322033898,
+        "model": "google/gemma-2-2b-it"
+      },
+      "differences": {
+        "correction_rate_diff": 4.527310924369748,
+        "corruption_rate_diff": 28.565166569257727,
+        "preservation_rate_diff": 88.13559322033898
+      },
+      "transfer_analysis": {
+        "correction_effective": false,
+        "corruption_effective": true,
+        "preservation_maintained": true,
+        "features_transfer": false
+      }
+    },
+    "feature_transfer_successful": false
+  },
+  "features_used": {
+    "correct": {
+      "layer": 16,
+      "feature_idx": 11225,
+      "separation_score": 0.22123092412948608
+    },
+    "incorrect": {
+      "layer": 25,
+      "feature_idx": 2853,
+      "separation_score": 0.20100238919258118
+    }
+  }
+}

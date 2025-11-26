@@ -1,0 +1,10 @@
+{
+  "creation_timestamp": "2025-11-26T08:28:15.312874",
+  "phase": "3.11",
+  "description": "Temperature trends visualization with updated legend terminology",
+  "changes": "Changed \"preferring\" to \"predicting\" in all legend labels",
+  "source_data": "data/phase3_10_humaneval/temperature_analysis_results.json",
+  "output_files": [
+    "temperature_trends.png"
+  ]
+}

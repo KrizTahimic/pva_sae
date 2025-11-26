@@ -168,8 +168,8 @@ def setup_argument_parser():
     phase1_group.add_argument(
         '--model',
         type=str,
-        default='google/gemma-2-2b',
-        help='Model name to use for dataset building'
+        default=None,
+        help='Model name to use for dataset building (defaults to config.py setting)'
     )
     phase1_group.add_argument(
         '--dataset-dir',
@@ -291,11 +291,8 @@ def setup_argument_parser():
 
 def validate_phase_arguments(args):
     """Validate phase-specific argument requirements"""
-    if args.phase == 1:
-        # Phase 1 requires model
-        if not args.model:
-            raise ValueError("Phase 1 requires --model argument")
-    
+    # Phase 1 model is now optional - defaults to config.py setting
+
     # Validate input file if provided
     if args.input and not Path(args.input).exists():
         raise ValueError(f"Input file not found: {args.input}")

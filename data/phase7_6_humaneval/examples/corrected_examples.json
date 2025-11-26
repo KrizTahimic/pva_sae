@@ -1,0 +1,47 @@
+[
+  {
+    "task_id": 4,
+    "baseline_code": "if len(numbers) == 0:\n        return 0.0\n    mean = sum(numbers) / len(numbers)\n    absolute_deviations = [abs(number - mean) for number in numbers]\n    return sum(absolute_deviations) / len(numbers)",
+    "steered_code": "def mean_absolute_deviation(numbers: List[float]) -> float:\n    \"\"\" For a given list of input numbers, calculate Mean Absolute Deviation\n    around the mean of this dataset.\n    Mean Absolute Deviation is the average absolute difference between each\n    element and a centerpoint (mean in this case):\n    MAD = average | x - x_mean |\n    >>> mean_absolute_deviation([1.0, 2.0, 3.0, 4.0])\n    1.0\n    \"\"\"\n    mean = sum(numbers) / len(numbers)\n    absolute_deviations = [abs(number - mean) for number in numbers]\n    return sum(absolute_deviations) / len(absolute_deviations)"
+  },
+  {
+    "task_id": 8,
+    "baseline_code": "def sum_product(numbers: List[int]) -> Tuple[int, int]:\n    \"\"\" For a given list of integers, return a tuple consisting of a sum and a product of all the integers in a list.\n    Empty sum should be equal to 0 and empty product should be equal to 1.\n    >>> sum_product([])\n    (0, 1)\n    >>> sum_product([1, 2, 3, 4])\n    (10, 24)\n    \"\"\"\n    if len(numbers) == 0:\n        return (0, 1)\n    else:\n        return (sum(numbers), numbers[0] * numbers[1])",
+    "steered_code": "def sum_product(numbers: List[int]) -> Tuple[int, int]:\n    \"\"\" For a given list of integers, return a tuple consisting of a sum and a product of all the integers in a list.\n    Empty sum should be equal to 0 and empty product should be equal to 1.\n    >>> sum_product([])\n    (0, 1)\n    >>> sum_product([1, 2, 3, 4])\n    (10, 24)\n    \"\"\"\n    total_sum = 0\n    product = 1\n    for number in numbers:\n        total_sum += number\n        product *= number\n    return (total_sum, product)"
+  },
+  {
+    "task_id": 12,
+    "baseline_code": "if not strings:\n    return None",
+    "steered_code": "def longest(strings: List[str]) -> Optional[str]:\n    if not strings:\n        return None\n    longest_string = strings[0]\n    for string in strings:\n        if len(string) > len(longest_string):\n            longest_string = string\n    return longest_string"
+  },
+  {
+    "task_id": 40,
+    "baseline_code": "def triples_sum_to_zero(l: list):\n    \"\"\"\n    triples_sum_to_zero takes a list of integers as an input.\n    it returns True if there are three distinct elements in the list that\n    sum to zero, and False otherwise.\n\n    >>> triples_sum_to_zero([1, 3, 5, 0])\n    False\n    >>> triples_sum_to_zero([1, 3, -2, 1])\n    True\n    >>> triples_sum_to_zero([1, 2, 3, 7])\n    False\n    >>> triples_sum_to_zero([2, 4, -5, 3, 9, 7])\n    True\n    >>> triples_sum_to_zero([1])\n    False\n    \"\"\"\n    seen = set()\n    for x in l:\n        if x in seen:\n            continue\n        for y in l:\n            if y in seen:\n                continue\n            for z in l:\n                if z in seen:\n                    continue\n                if x + y + z == 0:\n                    return True\n        seen.add(x)\n    return False",
+    "steered_code": "def triples_sum_to_zero(l: list):\n    \"\"\"\n    triples_sum_to_zero takes a list of integers as an input.\n    it returns True if there are three distinct elements in the list that\n    sum to zero, and False otherwise.\n\n    >>> triples_sum_to_zero([1, 3, 5, 0])\n    False\n    >>> triples_sum_to_zero([1, 3, -2, 1])\n    True\n    >>> triples_sum_to_zero([1, 2, 3, 7])\n    False\n    >>> triples_sum_to_zero([2, 4, -5, 3, 9, 7])\n    True\n    >>> triples_sum_to_zero([1])\n    False\n    \"\"\"\n    for i in range(len(l)):\n        for j in range(i + 1, len(l)):\n            for k in range(j + 1, len(l)):\n                if l[i] + l[j] + l[k] == 0:\n                    return True\n    return False"
+  },
+  {
+    "task_id": 73,
+    "baseline_code": "def smallest_change(arr):\n    n = len(arr)\n    diff = [0] * n\n    for i in range(n // 2):\n        diff[i] = abs(arr[i] - arr[n - i - 1])\n    for i in range(n):\n        if i < n // 2:\n            diff[i] += diff[n - i - 1]\n        else:\n            diff[i] += diff[i - 1]\n    return max(diff)",
+    "steered_code": "def smallest_change(arr):\n    n = len(arr)\n    count = 0\n    for i in range(n // 2):\n        if arr[i] != arr[n - i - 1]:\n            count += 1\n    return count"
+  },
+  {
+    "task_id": 82,
+    "baseline_code": "def prime_length(string):\n    \"\"\"Write a function that takes a string and returns True if the string\n    length is a prime number or False otherwise\n    Examples\n    prime_length('Hello') == True\n    prime_length('abcdcba') == True\n    prime_length('kittens') == True\n    prime_length('orange') == False\n    \"\"\"\n    if len(string) <= 1:\n        return False\n    for i in range(2, int(len(string)**0.5) + 1):\n        if string.count(string[0]) % i == 0:\n            return False\n    return True",
+    "steered_code": "def prime_length(string):\n    \"\"\"Write a function that takes a string and returns True if the string\n    length is a prime number or False otherwise\n    Examples\n    prime_length('Hello') == True\n    prime_length('abcdcba') == True\n    prime_length('kittens') == True\n    prime_length('orange') == False\n    \"\"\"\n    def is_prime(num):\n        if num <= 1:\n            return False\n        for i in range(2, int(num**0.5) + 1):\n            if num % i == 0:\n                return False\n        return True\n    return is_prime(len(string))"
+  },
+  {
+    "task_id": 84,
+    "baseline_code": "def solve(N):\n    \"\"\"Given a positive integer N, return the total sum of its digits in binary.\n    \n    Example\n        For N = 1000, the sum of digits will be 1 the output should be \"1\".\n        For N = 150, the sum of digits will be 6 the output should be \"110\".\n        For N = 147, the sum of digits will be 12 the output should be \"1100\".\n    \n    Variables:\n        @N integer\n             Constraints: 0 \u2264 N \u2264 10000.\n    Output:\n         a string of binary number\n    \"\"\"\n    total = 0\n    while N > 0:\n        digit = N % 2\n        total += digit\n        N //= 2\n    return bin(total)[2:]",
+    "steered_code": "def solve(N):\n    total = 0\n    while N > 0:\n        digit = N % 10\n        total += digit\n        N //= 10\n    return bin(total)[2:]"
+  },
+  {
+    "task_id": 117,
+    "baseline_code": "def select_words(s, n):\n    words = s.split()\n    result = []\n    for word in words:\n        if len(word) == n:\n            result.append(word)\n    return result",
+    "steered_code": "def select_words(s, n):\n    words = s.split()\n    result = []\n    for word in words:\n        if len(word) > 0:\n            consonants = 0\n            for letter in word:\n                if letter.lower() not in 'aeiou':\n                    consonants += 1\n            if consonants == n:\n                result.append(word)\n    return result"
+  },
+  {
+    "task_id": 162,
+    "baseline_code": "def string_to_md5(text):\n    \"\"\"\n    Given a string 'text', return its md5 hash equivalent string.\n    If 'text' is an empty string, return None.\n\n    >>> string_to_md5('Hello world') == '3e25960a79dbc69b674cd4ec67a72c62'\n    \"\"\"\n    if text == '':\n        return None\n    return hashlib.md5(text.encode()).hexdigest()",
+    "steered_code": "def string_to_md5(text):\n    import hashlib\n    if text == \"\":\n        return None\n    md5 = hashlib.md5(text.encode())\n    return md5.hexdigest()"
+  }
+]

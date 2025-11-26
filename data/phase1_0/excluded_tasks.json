@@ -1,0 +1,13 @@
+{
+  "total_tasks_attempted": 2,
+  "tasks_included": 0,
+  "tasks_excluded": 2,
+  "exclusion_rate_percent": 100.0,
+  "excluded_task_ids": [
+    2,
+    3
+  ],
+  "error_type_counts": {
+    "Failed after retry attempts": 2
+  }
+}

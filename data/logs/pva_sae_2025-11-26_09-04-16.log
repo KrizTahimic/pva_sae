@@ -1,0 +1,4 @@
+2025-11-26 09:04:16,152 [INFO] [sae_loader] load_gemma_scope_sae:139 - Loading GemmaScope SAE for layer 15 (sparsity=78)
+2025-11-26 09:04:20,644 [INFO] [sae_loader] load_gemma_scope_sae:165 - Loaded GemmaScope SAE: d_model=2304, d_sae=16384
+2025-11-26 09:04:20,851 [INFO] [sae_loader] load_llama_scope_sae:192 - Loading LlamaScope SAE for layer 15
+2025-11-26 09:04:21,714 [INFO] [sae_loader] load_llama_scope_sae:222 - Loaded LlamaScope SAE: d_model=4096, d_sae=32768, k=64

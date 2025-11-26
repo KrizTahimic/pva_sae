@@ -1,0 +1,5 @@
+2025-11-26 03:23:19,149 [INFO] [main] main:1696 - Detected device: cuda
+2025-11-26 03:23:19,394 [INFO] [gpu_utils] cleanup_gpu_memory:37 - GPU 0 memory cleaned
+2025-11-26 03:23:19,555 [INFO] [gpu_utils] cleanup_gpu_memory:37 - GPU 1 memory cleaned
+2025-11-26 03:23:19,716 [INFO] [gpu_utils] cleanup_gpu_memory:37 - GPU 2 memory cleaned
+2025-11-26 03:23:19,880 [INFO] [gpu_utils] cleanup_gpu_memory:37 - GPU 3 memory cleaned

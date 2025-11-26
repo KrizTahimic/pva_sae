@@ -1,0 +1,510 @@
+{
+  "experiment_type": "correction",
+  "results": [
+    {
+      "task_id": 0,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.316926956176758,
+      "final_passed": false,
+      "baseline_code": "def has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n    for i in range(len(numbers) - 1):\n        if abs(numbers[i] - numbers[i + 1]) < threshold:\n            return True\n    return False",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 1,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.896116256713867,
+      "final_passed": false,
+      "baseline_code": "def separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n    paren_string = paren_string.replace(' ', '')\n    paren_string = paren_string.replace('(', '(')\n    paren_string = paren_string.replace(')', ')')\n    paren_string = paren_string.replace('()', '')\n    paren_string = paren_string.replace('(())', '')\n    paren_string = paren_string.replace('(()())', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 3,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.664241790771484,
+      "final_passed": false,
+      "baseline_code": "# def below_zero(operations: List[int]) -> bool:",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 4,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.42340087890625,
+      "final_passed": false,
+      "baseline_code": "# def mean_absolute_deviation(numbers: List[float]) -> float:",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 5,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.564132690429688,
+      "final_passed": false,
+      "baseline_code": "# def intersperse(numbers: List[int], delimeter: int) -> List[int]:",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 6,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.103038787841797,
+      "final_passed": false,
+      "baseline_code": "def parse_nested_parens(paren_string: str) -> List[int]:\n    \"\"\" Input to this function is a string represented multiple groups for nested parentheses separated by spaces.\n    For each of the group, output the deepest level of nesting of parentheses.\n    E.g. (()()) has maximum two levels of nesting while ((())) has three.\n\n    >>> parse_nested_parens('(()()) ((())) () ((())()())')\n    [2, 3, 1, 3]\n    \"\"\"\n    stack = []\n    for paren in paren_string.split():\n        if paren == '(':\n            stack.append(len(stack))\n        elif paren == ')':\n            stack.pop()\n    return stack",
+      "steered_code": "def parse_nested_parens(paren_string: str) -> List[int]:\n    \"\"\" Input to this function is a string represented multiple groups for nested parentheses separated by spaces.\n    For each of the group, output the deepest level of nesting of parentheses.\n    E.g. (()()) has maximum two levels of nesting while ((())) has three.\n\n    >>> parse_nested_parens('(()()) ((())) () ((())()())')\n    [2, 3, 1, 3]\n    \"\"\"\n    # Create a stack of nested parentheses\n    stack = []\n    # Iterate through the string\n    for paren in paren_string:\n        # If the current character is a left parenthesis, push it to the stack\n        if paren == '(':\n            stack.append(paren)\n        # If the current character is a right parenthesis, pop the top element from the stack\n        # and check if it is a left parenthesis\n        elif paren == ')':\n            if stack:\n                stack.pop()\n            else:\n                # If the stack is empty, return an empty list\n                return []\n        # If the current character is a space, do nothing\n        else:\n            pass\n    # If the stack is empty, return an empty list\n    if not stack:\n        return []\n    # Otherwise, return the maximum depth of nesting\n    return [len(stack)]",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 8,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.83571434020996,
+      "final_passed": false,
+      "baseline_code": "# def sum_product(numbers: List[int]) -> Tuple[int, int]:",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 9,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 15.280847549438477,
+      "final_passed": false,
+      "baseline_code": "def rolling_max(numbers: List[int]) -> List[int]:\n    \"\"\" From a given list of integers, generate a list of rolling maximum element found until given moment\n    in the sequence.\n    >>> rolling_max([1, 2, 3, 2, 3, 4, 2])\n    [1, 2, 3, 3, 3, 4, 4]\n    \"\"\"\n    max_so_far = numbers[0]\n    max_so_far_index = 0\n    for i in range(1, len(numbers)):\n        if numbers[i] > max_so_far:\n            max_so_far = numbers[i]\n            max_so_far_index = i\n    return [max_so_far] + rolling_max(numbers[max_so_far_index + 1:])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 10,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.00246810913086,
+      "final_passed": false,
+      "baseline_code": "def make_palindrome(string: str) -> str:\n    \"\"\" Find the shortest palindrome that begins with a supplied string.\n    Algorithm idea is simple:\n    - Find the longest postfix of supplied string that is a palindrome.\n    - Append to the end of the string reverse of a string prefix that comes before the palindromic suffix.\n    >>> make_palindrome('')\n    ''\n    >>> make_palindrome('cat')\n    'catac'\n    >>> make_palindrome('cata')\n    'catac'\n    \"\"\"\n    if len(string) == 0:\n        return ''\n    if is_palindrome(string):\n        return string\n    return string + make_palindrome(string[::-1])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 11,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.794389724731445,
+      "final_passed": false,
+      "baseline_code": "def string_xor(a: str, b: str) -> str:\n    \"\"\" Input are two strings a and b consisting only of 1s and 0s.\n    Perform binary XOR on these inputs and return result also as a string.\n    >>> string_xor('010', '110')\n    '100'\n    \"\"\"\n    return ''.join(str(a[i] ^ b[i]) for i in range(len(a)))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 14,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.336318969726562,
+      "final_passed": false,
+      "baseline_code": "def all_prefixes(string: str) -> List[str]:\n    \"\"\" Return list of all prefixes from shortest to longest of the input string\n    >>> all_prefixes('abc')\n    ['a', 'ab', 'abc']\n    \"\"\"\n    return [s for s in string]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 16,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.189180374145508,
+      "final_passed": false,
+      "baseline_code": "# 1. Create a dictionary to store the characters and their counts",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 17,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.069175720214844,
+      "final_passed": false,
+      "baseline_code": "def parse_music(music_string: str) -> List[int]:\n    \"\"\" Input to this function is a string representing musical notes in a special ASCII format.\n    Your task is to parse this string and return list of integers corresponding to how many beats does each\n    not last.\n\n    Here is a legend:\n    'o' - whole note, lasts four beats\n    'o|' - half note, lasts two beats\n    '.|' - quater note, lasts one beat\n\n    >>> parse_music('o o| .| o| o| .| .| .| .| o o')\n    [4, 2, 1, 2, 2, 1, 1, 1, 1, 4, 4]\n    \"\"\"\n    beats = []\n    for i in range(len(music_string)):\n        if music_string[i] == '|':\n            beats.append(2)\n        elif music_string[i] == '.':\n            beats.append(1)\n        else:\n            beats.append(4)\n    return beats",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 18,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.538795471191406,
+      "final_passed": false,
+      "baseline_code": "def how_many_times(string: str, substring: str) -> int:\n    \"\"\" Find how many times a given substring can be found in the original string. Count overlaping cases.\n    >>> how_many_times('', 'a')\n    0\n    >>> how_many_times('aaa', 'a')\n    3\n    >>> how_many_times('aaaa', 'aa')\n    3\n    >>> how_many_times('john doe', 'john')\n    1\n    \"\"\"\n    return len(string.split(substring)) - len(string.split(substring)[0])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 19,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.293668746948242,
+      "final_passed": false,
+      "baseline_code": "# sort_numbers = lambda numbers: sorted(numbers.split(), key=lambda x: int(x))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 20,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.71177101135254,
+      "final_passed": false,
+      "baseline_code": "def find_closest_elements(numbers: List[float]) -> Tuple[float, float]:\n    \"\"\" From a supplied list of numbers (of length at least two) select and return two that are the closest to each\n    other and return them in order (smaller number, larger number).\n    >>> find_closest_elements([1.0, 2.0, 3.0, 4.0, 5.0, 2.2])\n    (2.0, 2.2)\n    >>> find_closest_elements([1.0, 2.0, 3.0, 4.0, 5.0, 2.0])\n    (2.0, 2.0)\n    \"\"\"\n    if len(numbers) < 2:\n        raise ValueError(\"List must have at least two elements\")\n    numbers.sort()\n    return numbers[0], numbers[-1]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 21,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.554048538208008,
+      "final_passed": false,
+      "baseline_code": "# def rescale_to_unit(numbers: List[float]) -> List[float]:",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 24,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.499143600463867,
+      "final_passed": false,
+      "baseline_code": "def largest_divisor(n: int) -> int:\n    \"\"\" For a given number n, find the largest number that divides n evenly, smaller than n\n    >>> largest_divisor(15)\n    5\n    \"\"\"\n    while n % 2 == 0:\n        n //= 2\n    for i in range(3, int(n ** 0.5) + 1, 2):\n        while n % i == 0:\n            n //= i\n    if n > 2:\n        return n\n    else:\n        return 2",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 25,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.83411979675293,
+      "final_passed": false,
+      "baseline_code": "def factorize(n: int) -> List[int]:\n    \"\"\" Return list of prime factors of given integer in the order from smallest to largest.\n    Each of the factors should be listed number of times corresponding to how many times it appeares in factorization.\n    Input number should be equal to the product of all factors\n    >>> factorize(8)\n    [2, 2, 2]\n    >>> factorize(25)\n    [5, 5]\n    >>> factorize(70)\n    [2, 5, 7]\n    \"\"\"\n    factors = []\n    for i in range(2, n + 1):\n        if n % i == 0:\n            factors.append(i)\n            while n % i == 0:\n                n //= i\n    return [i for i in factors if i != 1]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 26,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.688899993896484,
+      "final_passed": false,
+      "baseline_code": "# O(n) time | O(1) space\ndef remove_duplicates_2(numbers: List[int]) -> List[int]:\n    \"\"\" From a list of integers, remove all elements that occur more than once.\n    Keep order of elements left the same as in the input.\n    >>> remove_duplicates_2([1, 2, 3, 2, 4])\n    [1, 3, 4]\n    \"\"\"\n    seen = set()\n    result = []\n    for num in numbers:\n        if num not in seen:\n            seen.add(num)\n            result.append(num)\n    return result",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 27,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.454008102416992,
+      "final_passed": false,
+      "baseline_code": "def flip_case(string: str) -> str:\n    \"\"\" For a given string, flip lowercase characters to uppercase and uppercase to lowercase.\n    >>> flip_case('Hello')\n    'hELLO'\n    \"\"\"\n    return string.lower() + string.upper()",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 32,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.29279136657715,
+      "final_passed": false,
+      "baseline_code": "# 1. Find the largest non-zero coefficient.",
+      "steered_code": "# def find_zero(xs: list):",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 33,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.639211654663086,
+      "final_passed": false,
+      "baseline_code": "def sort_third(l: list):\n    \"\"\"This function takes a list l and returns a list l' such that\n    l' is identical to l in the indicies that are not divisible by three, while its values at the indicies that are divisible by three are equal\n    to the values of the corresponding indicies of l, but sorted.\n    >>> sort_third([1, 2, 3])\n    [1, 2, 3]\n    >>> sort_third([5, 6, 3, 4, 8, 9, 2])\n    [2, 6, 3, 4, 8, 9, 5]\n    \"\"\"\n    return sorted(l, key=lambda x: x % 3)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 36,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.98358726501465,
+      "final_passed": false,
+      "baseline_code": "# def fizz_buzz(n: int):",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 37,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.936168670654297,
+      "final_passed": false,
+      "baseline_code": "def sort_even(l: list):\n    \"\"\"This function takes a list l and returns a list l' such that\n    l' is identical to l in the odd indicies, while its values at the even indicies are equal\n    to the values of the even indicies of l, but sorted.\n    >>> sort_even([1, 2, 3])\n    [1, 2, 3]\n    >>> sort_even([5, 6, 3, 4])\n    [3, 6, 5, 4]\n    \"\"\"\n    return [l[i] for i in range(len(l)) if i % 2 == 0] + sorted(l[i for i in range(len(l)) if i % 2 == 1])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 38,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 23.476224899291992,
+      "final_passed": false,
+      "baseline_code": "def encode_cyclic(s: str):\n    \"\"\"\n    returns encoded string by cycling groups of three characters.\n    \"\"\"\n    # split string to groups. Each of length 3.\n    groups = [s[(3 * i):min((3 * i + 3), len(s))] for i in range((len(s) + 2) // 3)]\n    # cycle elements in each group. Unless group has fewer elements than 3.\n    groups = [(group[1:] + group[0]) if len(group) == 3 else group for group in groups]\n    return \"\".join(groups)",
+      "steered_code": "def encode_cyclic(s: str):\n    \"\"\"\n    returns encoded string by cycling groups of three characters.\n    \"\"\"\n    # split string to groups. Each of length 3.\n    groups = [s[(3 * i):min((3 * i + 3), len(s))] for i in range((len(s) + 2) // 3)]\n    # cycle elements in each group. Unless group has fewer elements than 3.\n    groups = [(group[1:] + group[0]) if len(group) == 3 else group for group in groups]\n    return \"\".join(groups)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 39,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.979263305664062,
+      "final_passed": false,
+      "baseline_code": "def prime_fib(n: int):\n    \"\"\"\n    prime_fib returns n-th number that is a Fibonacci number and it's also prime.\n    >>> prime_fib(1)\n    2\n    >>> prime_fib(2)\n    3\n    >>> prime_fib(3)\n    5\n    >>> prime_fib(4)\n    13\n    >>> prime_fib(5)\n    89\n    >>> prime_fib(6)\n    233\n    >>> prime_fib(7)\n    1597\n    >>> prime_fib(8)\n    28657\n    >>> prime_fib(9)\n    514229\n    >>> prime_fib(10)\n    433494437\n    \"\"\"\n    fib = [0, 1]\n    for i in range(2, n + 1):\n        fib.append(fib[i - 1] + fib[i - 2])\n    return fib[n]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 40,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.367387771606445,
+      "final_passed": true,
+      "baseline_code": "def triples_sum_to_zero(l: list):\n    \"\"\"\n    triples_sum_to_zero takes a list of integers as an input.\n    it returns True if there are three distinct elements in the list that\n    sum to zero, and False otherwise.\n\n    >>> triples_sum_to_zero([1, 3, 5, 0])\n    False\n    >>> triples_sum_to_zero([1, 3, -2, 1])\n    True\n    >>> triples_sum_to_zero([1, 2, 3, 7])\n    False\n    >>> triples_sum_to_zero([2, 4, -5, 3, 9, 7])\n    True\n    >>> triples_sum_to_zero([1])\n    False\n    \"\"\"\n    # TODO: Write your solution here\n    # Hint: use a dictionary to store the sum of each element\n    # and check if the sum is zero\n    # Hint: use a for loop to iterate through the list\n    # Hint: use a while loop to check if the sum is zero\n    # Hint: use a if statement to check if the sum is zero\n    # Hint: use a return statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result",
+      "steered_code": "def triples_sum_to_zero(l: list):\n    \"\"\"\n    triples_sum_to_zero takes a list of integers as an input.\n    it returns True if there are three distinct elements in the list that\n    sum to zero, and False otherwise.\n\n    >>> triples_sum_to_zero([1, 3, 5, 0])\n    False\n    >>> triples_sum_to_zero([1, 3, -2, 1])\n    True\n    >>> triples_sum_to_zero([1, 2, 3, 7])\n    False\n    >>> triples_sum_to_zero([2, 4, -5, 3, 9, 7])\n    True\n    >>> triples_sum_to_zero([1])\n    False\n    >>> triples_sum_to_zero([1, 3, 5, -100])\n    False\n    >>> triples_sum_to_zero([100, 3, 5, -100])\n    False\n    \"\"\"\n    for i in range(len(l)):\n        for j in range(i+1, len(l)):\n            for k in range(j+1, len(l)):\n                if l[i] + l[j] + l[k] == 0:\n                    return True\n    return False",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 41,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 22.405906677246094,
+      "final_passed": false,
+      "baseline_code": "#\n# The number of collisions is the number of ways to choose 2 cars from the set of n cars.",
+      "steered_code": "def car_race_collision(n: int) -> int:\n    \"\"\"\n    Imagine a road that's a perfectly straight infinitely long line.\n    n cars are driving left to right;  simultaneously, a different set of n cars\n    are driving right to left.   The two sets of cars start out being very far from\n    each other.  All cars move in the same speed.  Two cars are said to collide\n    when a car that's moving left to right hits a car that's moving right to left.\n    However, the cars are infinitely sturdy and strong; as a result, they continue moving\n    in their trajectory as if they did not collide.\n\n    This function outputs the number of such collisions.\n    \"\"\"\n    # n = 10\n    # n = 100\n    # n = 1000\n    # n = 10000\n    # n = 100000\n    # n = 1000000\n    # n = 10000000\n    # n = 100000000\n    # n = 1000000000\n    # n = 10000000000\n    # n = 100000000000\n    # n = 1000000000000\n    # n = 10000000000000\n    # n = 100000000000000\n    # n = 1000000000000000\n    # n = 10000000000000000\n    # n = 100000000000000000\n    # n = 1000000000000000000\n    # n = 10000000000000000000\n    # n = 100000000000000000000\n    # n = 1000000000000000000000\n    # n = 10000000000000000000000\n    # n = 100000000000000000000000\n    # n = 1000000000000000000000000\n    # n = 10000000000000000000000000\n    # n = 100000000000000000000000000\n    # n = 1000000000000000000000000000\n    # n = 10000000000000000000000000000\n    # n = 100000000000000000000000000000",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 44,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.90059471130371,
+      "final_passed": false,
+      "baseline_code": "def change_base(x: int, base: int):\n    \"\"\"Change numerical base of input number x to base.\n    return string representation after the conversion.\n    base numbers are less than 10.\n    >>> change_base(8, 3)\n    '22'\n    >>> change_base(8, 2)\n    '1000'\n    >>> change_base(7, 2)\n    '111'\n    \"\"\"\n    return str(x) + str(x - base * int(str(x)[-1]))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 49,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.18812370300293,
+      "final_passed": false,
+      "baseline_code": "# def modp(n, p):",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 50,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 22.839008331298828,
+      "final_passed": false,
+      "baseline_code": "def encode_shift(s: str):\n    return \"\".join([chr(((ord(ch) + 5 - ord(\"a\")) % 26) + ord(\"a\")) for ch in s])",
+      "steered_code": "def encode_shift(s: str):\n    return \"\".join([chr(((ord(ch) + 5 - ord(\"a\")) % 26) + ord(\"a\")) for ch in s])",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 51,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.92567253112793,
+      "final_passed": false,
+      "baseline_code": "def remove_vowels(text):\n    \"\"\"\n    remove_vowels is a function that takes string and returns string without vowels.\n    >>> remove_vowels('')\n    ''\n    >>> remove_vowels(\"abcdef\\nghijklm\")\n    'bcdf\\nghjklm'\n    >>> remove_vowels('abcdef')\n    'bcdf'\n    >>> remove_vowels('aaaaa')\n    ''\n    >>> remove_vowels('aaBAA')\n    'B'\n    >>> remove_vowels('zbcd')\n    'zbcd'\n    \"\"\"\n    vowels = ['a', 'e', 'i', 'o', 'u']\n    return text.replace(vowels, '')",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 53,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.94622230529785,
+      "final_passed": false,
+      "baseline_code": "def add(x: int, y: int):\n    \"\"\"Add two numbers x and y\n    >>> add(2, 3)\n    5\n    >>> add(5, 7)\n    12\n    \"\"\"\n    return x + y",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 54,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.434566497802734,
+      "final_passed": false,
+      "baseline_code": "def same_chars(s0: str, s1: str):\n    \"\"\"\n    Check if two words have the same characters.\n    >>> same_chars('eabcdzzzz', 'dddzzzzzzzddeddabc')\n    True\n    >>> same_chars('abcd', 'dddddddabc')\n    True\n    >>> same_chars('dddddddabc', 'abcd')\n    True\n    >>> same_chars('eabcd', 'dddddddabc')\n    False\n    >>> same_chars('abcd', 'dddddddabce')\n    False\n    >>> same_chars('eabcdzzzz', 'dddzzzzzzzddddabc')\n    False\n    >>> same_chars('aabb', 'aaccc')\n    False\n    \"\"\"\n    return s0 == s1",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 55,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.161588668823242,
+      "final_passed": false,
+      "baseline_code": "# def fib(n: int):",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 56,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 20.608652114868164,
+      "final_passed": false,
+      "baseline_code": "def correct_bracketing(brackets: str):\n    \"\"\" brackets is a string of \"<\" and \">\".\n    return True if every opening bracket has a corresponding closing bracket.\n\n    >>> correct_bracketing(\"<\")\n    False\n    >>> correct_bracketing(\"<>\")\n    True\n    >>> correct_bracketing(\"<<><>>\")\n    True\n    >>> correct_bracketing(\"><<>\")\n    False\n    \"\"\"\n    return len(brackets) == len(set(brackets))",
+      "steered_code": "def correct_bracketing(brackets: str):\n    \"\"\" brackets is a string of \"<\" and \">\".\n    return True if every opening bracket has a corresponding closing bracket.\n\n    >>> correct_bracketing(\"<\")\n    False\n    >>> correct_bracketing(\"<>\")\n    True\n    >>> correct_bracketing(\"<<><>>\")\n    True\n    >>> correct_bracketing(\"><<>\")\n    False\n    \"\"\"\n    return len(brackets) == len(brackets.count(\"<\") - brackets.count(\">\"))",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 57,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.1130428314209,
+      "final_passed": false,
+      "baseline_code": "# def monotonic(l: list):",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 59,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.40057945251465,
+      "final_passed": false,
+      "baseline_code": "# def largest_prime_factor(n: int):",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 61,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.486921310424805,
+      "final_passed": false,
+      "baseline_code": "def correct_bracketing(brackets: str):\n    \"\"\" brackets is a string of \"(\" and \")\".\n    return True if every opening bracket has a corresponding closing bracket.\n\n    >>> correct_bracketing(\"(\")\n    False\n    >>> correct_bracketing(\"()\")\n    True\n    >>> correct_bracketing(\"(()())\")\n    True\n    >>> correct_bracketing(\")(()\")\n    False\n    \"\"\"\n    return brackets.count(\"(\") == brackets.count(\")\")",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 62,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.35597038269043,
+      "final_passed": false,
+      "baseline_code": "def derivative(xs: list):\n    \"\"\" xs represent coefficients of a polynomial.\n    xs[0] + xs[1] * x + xs[2] * x^2 + ....\n     Return derivative of this polynomial in the same form.\n    >>> derivative([3, 1, 2, 4, 5])\n    [1, 4, 12, 20]\n    >>> derivative([1, 2, 3])\n    [2, 6]\n    \"\"\"\n    return [sum(i * j for i, j in zip(xs, xs[1:])) for i in xs]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 64,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.051523208618164,
+      "final_passed": false,
+      "baseline_code": "def vowels_count(s):\n    \"\"\"Write a function vowels_count which takes a string representing\n    a word as input and returns the number of vowels in the string.\n    Vowels in this case are 'a', 'e', 'i', 'o', 'u'. Here, 'y' is also a\n    vowel, but only when it is at the end of the given word.\n\n    Example:\n    >>> vowels_count(\"abcde\")\n    2\n    >>> vowels_count(\"ACEDY\")\n    3\n    >>> vowels_count(\"key\")\n    2\n    >>> vowels_count(\"bye\")\n    1\n    >>> vowels_count(\"keY\")\n    2\n    >>> vowels_count(\"bYe\")\n    1\n    >>> vowels_count(\"ACEDY\")\n    3\n    >>> True\n    \"\"\"\n    vowels = \"aeiouy\"\n    return len(s.lower().replace(\" \", \"\")) - len(s.lower().replace(\" \", \"\").count(vowels))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 65,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.035924911499023,
+      "final_passed": false,
+      "baseline_code": "def circular_shift(x, shift):\n    \"\"\"Circular shift the digits of the integer x, shift the digits right by shift\n    and return the result as a string.\n    If shift > number of digits, return digits reversed.\n    >>> circular_shift(12, 1)\n    \"21\"\n    >>> circular_shift(12, 2)\n    \"12\"\n    \"\"\"\n    if shift > len(str(x)):\n        return str(x)[::-1]\n    else:\n        return str(x)[shift:] + str(x)[0:shift]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 66,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.519969940185547,
+      "final_passed": false,
+      "baseline_code": "def digitSum(s):\n    \"\"\"Task\n    Write a function that takes a string as input and returns the sum of the upper characters only'\n    ASCII codes.\n\n    Examples:\n        digitSum(\"\") => 0\n        digitSum(\"abAB\") => 131\n        digitSum(\"abcCd\") => 67\n        digitSum(\"helloE\") => 69\n        digitSum(\"woArBld\") => 131\n        digitSum(\"aAaaaXa\") => 153\n    \"\"\"\n    return sum(ord(c) - ord('A') for c in s.upper())",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 67,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.184017181396484,
+      "final_passed": false,
+      "baseline_code": "def fruit_distribution(s,n):\n    \"\"\"\n    In this task, you will be given a string that represents a number of apples and oranges \n    that are distributed in a basket of fruit this basket contains \n    apples, oranges, and mango fruits. Given the string that represents the total number of \n    the oranges and apples and an integer that represent the total number of the fruits \n    in the basket return the number of the mango fruits in the basket.\n    for examble:\n    fruit_distribution(\"5 apples and 6 oranges\", 19) ->19 - 5 - 6 = 8\n    fruit_distribution(\"5 apples and 6 oranges\", 21) -> 21 - 5 - 6 = 10\n    fruit_distribution(\"0 apples and 1 oranges\", 3) -> 3 - 0 - 1 = 2\n    fruit_distribution(\"1 apples and 0 oranges\", 3) -> 3 - 1 - 0 = 2\n    fruit_distribution(\"2 apples and 3 oranges\", 100) -> 100 - 2 - 3 = 95\n    fruit_distribution(\"2 apples and 3 oranges\", 5) -> 5 - 2 - 3 = 0\n    fruit_distribution(\"1 apples and 100 oranges\", 120) -> 120 - 100 - 1 = 19\n    \"\"\"\n    \n    # split the string into a list of numbers\n    numbers = s.split()\n    \n    # convert the list of numbers to a list of integers\n    numbers = [int(num) for num in numbers]\n    \n    # calculate the total number of fruits in the basket\n    total_fruits = sum(numbers)\n    \n    # calculate the number of mango fruits in the basket\n    mango_fruits = total_fruits - sum(numbers)\n    \n    return mango_fruits",
+      "steered_code": "def fruit_distribution(s,n):\n    \"\"\"\n    In this task, you will be given a string that represents a number of apples and oranges \n    that are distributed in a basket of fruit this basket contains \n    apples, oranges, and mango fruits. Given the string that represents the total number of \n    the oranges and apples and an integer that represent the total number of the fruits \n    in the basket return the number of the mango fruits in the basket.\n    for examble:\n    fruit_distribution(\"5 apples and 6 oranges\", 19) ->19 - 5 - 6 = 8\n    fruit_distribution(\"5 apples and 6 oranges\", 21) -> 21 - 5 - 6 = 10\n    fruit_distribution(\"0 apples and 1 oranges\", 3) -> 3 - 0 - 1 = 2\n    fruit_distribution(\"1 apples and 0 oranges\", 3) -> 3 - 1 - 0 = 2\n    fruit_distribution(\"2 apples and 3 oranges\", 100) -> 100 - 2 - 3 = 95\n    fruit_distribution(\"2 apples and 3 oranges\", 5) -> 5 - 2 - 3 = 0\n    fruit_distribution(\"1 apples and 100 oranges\", 120) -> 120 - 100 - 1 = 19\n    \"\"\"\n    # Create a list of the fruits\n    fruits = list(s)\n    # Create a list of the numbers of each fruit\n    numbers = [int(x) for x in s.split(\" and \")]\n    # Create a list of the total number of fruits\n    total_fruits = [x + y for x, y in zip(numbers, numbers[1:])]\n    # Create a list of the total number of oranges\n    total_oranges = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"oranges\"]\n    # Create a list of the total number of apples\n    total_apples = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"apples\"]\n    # Create a list of the total number of mangoes\n    total_mangoes = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"mangoes\"]\n    # Create a list of the total number of fruits\n    total_fruits = [x + y for x, y in zip(numbers, numbers[1:])]\n    # Create a list of the total number of oranges\n    total_oranges = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"oranges\"]\n    # Create a list of the total number of apples\n    total_apples = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"apples\"]\n    # Create a list of the total number of mangoes\n    total_mangoes = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"mangoes\"]\n    # Create a list of the total number of fruits\n    total_fruits = [x + y for x, y in zip(numbers, numbers[1:])]\n    # Create a list of the total number of oranges\n    total_oranges = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"oranges\"]\n    # Create a list of the total number of apples\n    total_apples = [x + y",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 68,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.192384719848633,
+      "final_passed": false,
+      "baseline_code": "def pluck(arr):\n    \"\"\"\n    \"Given an array representing a branch of a tree that has non-negative integer nodes\n    your task is to pluck one of the nodes and return it.\n    The plucked node should be the node with the smallest even value.\n    If multiple nodes with the same smallest even value are found return the node that has smallest index.\n\n    The plucked node should be returned in a list, [ smalest_value, its index ],\n    If there are no even values or the given array is empty, return [].\n\n    Example 1:\n        Input: [4,2,3]\n        Output: [2, 1]\n        Explanation: 2 has the smallest even value, and 2 has the smallest index.\n\n    Example 2:\n        Input: [1,2,3]\n        Output: [2, 1]\n        Explanation: 2 has the smallest even value, and 2 has the smallest index. \n\n    Example 3:\n        Input: []\n        Output: []\n    \n    Example 4:\n        Input: [5, 0, 3, 0, 4, 2]\n        Output: [0, 1]\n        Explanation: 0 is the smallest value, but  there are two zeros,\n                     so we will choose the first zero, which has the smallest index.\n\n    Constraints:\n        * 1 <= nodes.length <= 10000\n        * 0 <= node.value\n    \"\"\"\n    if not arr:\n        return []\n    if len(arr) == 1:\n        return [arr[0], 0]\n    if arr[0] % 2 == 0:\n        return [arr[0], 0]\n    else:\n        return [arr[1], 1]",
+      "steered_code": "def pluck(arr):\n    \"\"\"\n    \"Given an array representing a branch of a tree that has non-negative integer nodes\n    your task is to pluck one of the nodes and return it.\n    The plucked node should be the node with the smallest even value.\n    If multiple nodes with the same smallest even value are found return the node that has smallest index.\n\n    The plucked node should be returned in a list, [ smalest_value, its index ],\n    If there are no even values or the given array is empty, return [].\n\n    Example 1:\n        Input: [4,2,3]\n        Output: [2, 1]\n        Explanation: 2 has the smallest even value, and 2 has the smallest index.\n\n    Example 2:\n        Input: [1,2,3]\n        Output: [2, 1]\n        Explanation: 2 has the smallest even value, and 2 has the smallest index. \n\n    Example 3:\n        Input: []\n        Output: []\n    \n    Example 4:\n        Input: [5, 0, 3, 0, 4, 2]\n        Output: [0, 1]\n        Explanation: 0 is the smallest value, but  there are two zeros,\n                     so we will choose the first zero, which has the smallest index.\n\n    Constraints:\n        * 1 <= nodes.length <= 10000\n        * 0 <= node.value\n    \"\"\"\n    if not arr:\n        return []\n    \n    even_values = []\n    for node in arr:\n        if node % 2 == 0:\n            even_values.append(node)\n    \n    if not even_values:\n        return []\n    \n    even_values.sort()\n    \n    return even_values[0], even_values.index(even_values[0])",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 69,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.83111572265625,
+      "final_passed": true,
+      "baseline_code": "def search(lst):\n    '''\n    You are given a non-empty list of positive integers. Return the greatest integer that is greater than \n    zero, and has a frequency greater than or equal to the value of the integer itself. \n    The frequency of an integer is the number of times it appears in the list.\n    If no such a value exist, return -1.\n    Examples:\n        search([4, 1, 2, 2, 3, 1]) == 2\n        search([1, 2, 2, 3, 3, 3, 4, 4, 4]) == 3\n        search([5, 5, 4, 4, 4]) == -1\n    '''\n    \n    # Sort the list\n    lst.sort()\n    \n    # Find the first element that is greater than zero and has a frequency greater than or equal to the value of the integer itself.\n    for i in range(len(lst)):\n        if lst[i] > 0 and lst[i] >= lst[i-1]:\n            return lst[i]\n    \n    # If no such a value exist, return -1\n    return -1",
+      "steered_code": "def search(lst):\n    '''\n    You are given a non-empty list of positive integers. Return the greatest integer that is greater than \n    zero, and has a frequency greater than or equal to the value of the integer itself.\n    The frequency of an integer is the number of times it appears in the list.\n    If no such a value exist, return -1.\n    Examples:\n        search([4, 1, 2, 2, 3, 1]) == 2\n        search([1, 2, 2, 3, 3, 3, 4, 4, 4]) == 3\n        search([5, 5, 4, 4, 4]) == -1\n    '''\n    \n    # Create a dictionary to store the frequency of each number\n    freq = {}\n    for num in lst:\n        if num in freq:\n            freq[num] += 1\n        else:\n            freq[num] = 1\n    \n    # Create a list to store the numbers that have a frequency greater than or equal to the value of the integer itself\n    greater_than_zero = []\n    for num in freq:\n        if freq[num] >= num:\n            greater_than_zero.append(num)\n    \n    # If there is no number that has a frequency greater than or equal to the value of the integer itself, return -1\n    if len(greater_than_zero) == 0:\n        return -1\n    \n    # Return the greatest number in the list\n    return max(greater_than_zero)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 70,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.991086959838867,
+      "final_passed": false,
+      "baseline_code": "def strange_sort_list(lst):\n    '''\n    Given list of integers, return list in strange order.\n    Strange sorting, is when you start with the minimum value,\n    then maximum of the remaining integers, then minimum and so on.\n\n    Examples:\n    strange_sort_list([1, 2, 3, 4]) == [1, 4, 2, 3]\n    strange_sort_list([5, 5, 5, 5]) == [5, 5, 5, 5]\n    strange_sort_list([]) == []\n    '''\n    if len(lst) == 0:\n        return []\n    if len(lst) == 1:\n        return lst\n    if len(lst) == 2:\n        if lst[0] < lst[1]:\n            return [lst[0], lst[1]]\n        else:\n            return [lst[1], lst[0]]\n    if len(lst) == 3:\n        if lst[0] < lst[1] and lst[1] < lst[2]:\n            return [lst[0], lst[1], lst[2]]\n        elif lst[0] < lst[2] and lst[2] < lst[1]:\n            return [lst[0], lst[2], lst[1]]\n        elif lst[1] < lst[0] and lst[0] < lst[2]:\n            return [lst[1], lst[0], lst[2]]\n        elif lst[1] < lst[2] and lst[2] < lst[0]:\n            return [lst[1], lst[2], lst[0]]\n        elif lst[2] < lst[0] and lst[0] < lst[1]:\n            return [lst[2], lst[0], lst[1]]\n        elif lst[2] < lst[1] and lst[1] < lst[0]:\n            return [lst[2], lst[1], lst[0]]\n        else:\n            return [lst[0], lst[1], lst[2]]\n    else:\n        if lst[0] < lst[1] and lst[1] < lst[2] and lst[2] < lst[3]:\n            return [lst[0], lst[1], lst[2], lst[3]]\n        elif lst[0] < lst[2] and lst[2] < lst[1] and lst[1] < lst[3]:\n            return [lst[0], lst[2], lst[1], lst[3]]\n        elif lst[0] < lst[3] and lst[3] < lst[1] and lst[1] < lst[2]:\n            return [lst[0], lst[3], lst[1], lst[2]]\n        elif lst[0] < lst[1] and lst[1] < lst[3] and lst[3] < lst[2]:\n            return [lst[0], lst[1], lst[3], lst[2]]\n        elif lst[0] < lst[2] and lst[2] < lst[1] and lst[1] < lst[3]:\n            return [lst[0], lst[2], lst[1], lst[3]]\n        elif lst[0] < lst[3] and lst[3] < lst[1] and lst[1] < lst[2]:\n            return [lst[0], lst[3], lst[1], lst[2]]\n        elif lst[0] <",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 71,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.545881271362305,
+      "final_passed": false,
+      "baseline_code": "def triangle_area(a, b, c):\n    if a + b > c and a + c > b and b + c > a:\n        return (a * b * c) / (2 * (a + b + c))\n    else:\n        return -1",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 72,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.49932289123535,
+      "final_passed": false,
+      "baseline_code": "def will_it_fly(q,w):\n    if len(q) == 0:\n        return True\n    if sum(q) > w:\n        return False\n    if q[0] > w:\n        return False\n    if q[0] == w:\n        return True\n    return will_it_fly(q[1:], w-q[0])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    }
+  ],
+  "excluded_tasks": [],
+  "last_processed_idx": 49,
+  "total_tasks": 139,
+  "timestamp": "2025-11-24T10:50:49.994435",
+  "checkpoint_version": 1
+}

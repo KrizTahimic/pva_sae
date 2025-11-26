@@ -45,6 +45,57 @@ GEMMA_2B_SPARSITY = {
     25: 116,
 }
 
+# Model-specific configurations for multi-model support
+MODEL_CONFIGS = {
+    'google/gemma-2-2b': {
+        'hidden_size': 2048,
+        'n_layers': 26,
+        'sae_repo': 'google/gemma-scope-2b-pt-res',
+        'sae_width': 16384,  # 16k features
+        'sae_format': 'npz',
+        'sae_activation': 'jumprelu',
+        'default_layers': list(range(0, 26)),
+        'sparsity_map': GEMMA_2B_SPARSITY,
+        'sae_topk': None,  # Not applicable for JumpReLU
+    },
+    'google/gemma-2-2b-it': {
+        # Instruction-tuned uses same SAEs (trained on base model)
+        'hidden_size': 2048,
+        'n_layers': 26,
+        'sae_repo': 'google/gemma-scope-2b-pt-res',
+        'sae_width': 16384,
+        'sae_format': 'npz',
+        'sae_activation': 'jumprelu',
+        'default_layers': list(range(0, 26)),
+        'sparsity_map': GEMMA_2B_SPARSITY,
+        'sae_topk': None,
+    },
+    'meta-llama/Llama-3.1-8B': {
+        'hidden_size': 4096,
+        'n_layers': 32,
+        'sae_repo': 'fnlp/Llama3_1-8B-Base-LXR-8x',
+        'sae_width': 32768,  # 8x expansion: 4096 * 8
+        'sae_format': 'safetensors',
+        'sae_activation': 'topk',
+        'default_layers': list(range(0, 32)),
+        'sparsity_map': None,  # LlamaScope doesn't use sparsity levels
+        'sae_topk': 64,  # TopK parameter for LlamaScope
+        # SAE file path pattern: Llama3_1-8B-Base-L{layer}R-8x/checkpoints/final.safetensors
+    },
+    'meta-llama/Llama-3.1-8B-Instruct': {
+        # Instruction-tuned uses same SAEs (trained on base model)
+        'hidden_size': 4096,
+        'n_layers': 32,
+        'sae_repo': 'fnlp/Llama3_1-8B-Base-LXR-8x',
+        'sae_width': 32768,
+        'sae_format': 'safetensors',
+        'sae_activation': 'topk',
+        'default_layers': list(range(0, 32)),
+        'sparsity_map': None,
+        'sae_topk': 64,
+    },
+}
+
 
 @dataclass
 class Config:
@@ -62,7 +113,8 @@ class Config:
     """
     
     # === MODEL SETTINGS ===
-    model_name: str = DEFAULT_MODEL_NAME
+    # Options: "google/gemma-2-2b", "meta-llama/Llama-3.1-8B"
+    model_name: str = "meta-llama/Llama-3.1-8B"  # Changed for LLAMA experiments
     model_max_new_tokens: int = MAX_NEW_TOKENS
     model_temperature: float = 0.0
     model_device: Optional[str] = None  # Auto-detect if None
@@ -78,8 +130,9 @@ class Config:
     dataset_end_idx: Optional[int] = None
     
     # === ACTIVATION SETTINGS ===
-    # activation_layers: List[int] = field(default_factory=lambda: [6, 8, 10, 12, 14])  # GemmaScope available layers for Gemma-2B
-    activation_layers: List[int] = field(default_factory=lambda: list(range(1, 26, 1)))  # All layers for GemmaScope
+    # For Gemma: list(range(1, 26)) = layers 1-25
+    # For LLAMA: list(range(1, 32)) = layers 1-31
+    activation_layers: List[int] = field(default_factory=lambda: list(range(1, 32, 1)))  # All layers for LLAMA
     activation_hook_type: str = "resid_post"
     activation_position: int = -1  # Final token
     activation_max_cache_gb: float = 10.0
@@ -511,4 +564,22 @@ class Config:
     def get_split_names(self) -> List[str]:
         """Get split names for Phase 0.1."""
         return ["sae", "hyperparams", "validation"]
+
+    def get_model_config(self) -> dict:
+        """
+        Get model-specific configuration for the current model.
+
+        Returns:
+            Dictionary containing model-specific settings like hidden_size,
+            n_layers, sae_repo, sae_format, etc.
+        """
+        return MODEL_CONFIGS.get(self.model_name, MODEL_CONFIGS['google/gemma-2-2b'])
+
+    def is_llama_model(self) -> bool:
+        """Check if current model is a LLAMA variant."""
+        return 'llama' in self.model_name.lower()
+
+    def is_gemma_model(self) -> bool:
+        """Check if current model is a Gemma variant."""
+        return 'gemma' in self.model_name.lower()
 

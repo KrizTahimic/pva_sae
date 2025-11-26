@@ -1,0 +1,67 @@
+============================================================
+PHASE 3.10: TEMPERATURE-BASED AUROC ANALYSIS
+============================================================
+
+BEST FEATURES ANALYZED:
+  Correct-preferring: Layer 16, Feature 14439
+  Incorrect-preferring: Layer 19, Feature 5441
+
+METHODOLOGY:
+  Analysis method: Per-sample (no aggregation)
+  Total samples per temperature: Varies by dataset
+
+TEMPERATURE ANALYSIS:
+
+Temperature 0.0:
+  Correct-preferring:   AUROC=0.230, F1=0.071
+  Incorrect-preferring: AUROC=0.732, F1=0.920
+  Sample distribution: 25 correct (test passed), 139 incorrect (test failed)
+
+Temperature 0.2:
+  Correct-preferring:   AUROC=0.345, F1=0.074
+  Incorrect-preferring: AUROC=0.658, F1=0.915
+  Sample distribution: 72 correct (test passed), 420 incorrect (test failed)
+
+Temperature 0.4:
+  Correct-preferring:   AUROC=0.368, F1=0.085
+  Incorrect-preferring: AUROC=0.680, F1=0.931
+  Sample distribution: 62 correct (test passed), 430 incorrect (test failed)
+
+Temperature 0.6:
+  Correct-preferring:   AUROC=0.345, F1=0.105
+  Incorrect-preferring: AUROC=0.659, F1=0.943
+  Sample distribution: 48 correct (test passed), 444 incorrect (test failed)
+
+Temperature 0.8:
+  Correct-preferring:   AUROC=0.356, F1=0.129
+  Incorrect-preferring: AUROC=0.674, F1=0.970
+  Sample distribution: 22 correct (test passed), 470 incorrect (test failed)
+
+Temperature 1.0:
+  Correct-preferring:   AUROC=0.337, F1=0.118
+  Incorrect-preferring: AUROC=0.661, F1=0.982
+  Sample distribution: 8 correct (test passed), 484 incorrect (test failed)
+
+Temperature 1.2:
+  Correct-preferring:   AUROC=0.379, F1=0.154
+  Incorrect-preferring: AUROC=0.624, F1=0.987
+  Sample distribution: 4 correct (test passed), 488 incorrect (test failed)
+
+Temperature 1.4:
+  Correct-preferring:   AUROC=nan, F1=nan
+  Incorrect-preferring: AUROC=nan, F1=nan
+  Sample distribution: 0 correct (test passed), 492 incorrect (test failed)
+
+CRITICAL TEMPERATURE ANALYSIS:
+(Threshold: AUROC < 0.7)
+  Correct-preferring feature degrades at temperature 0.0
+  Incorrect-preferring feature degrades at temperature 0.2
+
+PERFORMANCE DEGRADATION:
+  Correct-preferring:   nan% degradation from temp 0.0 to 1.4
+  Incorrect-preferring: nan% degradation from temp 0.0 to 1.4
+
+RECOMMENDATIONS:
+  - Recommend using temperatures <= -0.3 for reliable PVA analysis
+
+============================================================

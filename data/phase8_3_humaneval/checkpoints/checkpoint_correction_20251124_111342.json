@@ -1,0 +1,1400 @@
+{
+  "experiment_type": "correction",
+  "results": [
+    {
+      "task_id": 0,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.316926956176758,
+      "final_passed": false,
+      "baseline_code": "def has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n    for i in range(len(numbers) - 1):\n        if abs(numbers[i] - numbers[i + 1]) < threshold:\n            return True\n    return False",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 1,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.896116256713867,
+      "final_passed": false,
+      "baseline_code": "def separate_paren_groups(paren_string: str) -> List[str]:\n    \"\"\" Input to this function is a string containing multiple groups of nested parentheses. Your goal is to\n    separate those group into separate strings and return the list of those.\n    Separate groups are balanced (each open brace is properly closed) and not nested within each other\n    Ignore any spaces in the input string.\n    >>> separate_paren_groups('( ) (( )) (( )( ))')\n    ['()', '(())', '(()())']\n    \"\"\"\n    paren_string = paren_string.replace(' ', '')\n    paren_string = paren_string.replace('(', '(')\n    paren_string = paren_string.replace(')', ')')\n    paren_string = paren_string.replace('()', '')\n    paren_string = paren_string.replace('(())', '')\n    paren_string = paren_string.replace('(()())', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.replace('(()', '')\n    paren_string = paren_string.",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 3,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.664241790771484,
+      "final_passed": false,
+      "baseline_code": "# def below_zero(operations: List[int]) -> bool:",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 4,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.42340087890625,
+      "final_passed": false,
+      "baseline_code": "# def mean_absolute_deviation(numbers: List[float]) -> float:",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 5,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.564132690429688,
+      "final_passed": false,
+      "baseline_code": "# def intersperse(numbers: List[int], delimeter: int) -> List[int]:",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 6,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.103038787841797,
+      "final_passed": false,
+      "baseline_code": "def parse_nested_parens(paren_string: str) -> List[int]:\n    \"\"\" Input to this function is a string represented multiple groups for nested parentheses separated by spaces.\n    For each of the group, output the deepest level of nesting of parentheses.\n    E.g. (()()) has maximum two levels of nesting while ((())) has three.\n\n    >>> parse_nested_parens('(()()) ((())) () ((())()())')\n    [2, 3, 1, 3]\n    \"\"\"\n    stack = []\n    for paren in paren_string.split():\n        if paren == '(':\n            stack.append(len(stack))\n        elif paren == ')':\n            stack.pop()\n    return stack",
+      "steered_code": "def parse_nested_parens(paren_string: str) -> List[int]:\n    \"\"\" Input to this function is a string represented multiple groups for nested parentheses separated by spaces.\n    For each of the group, output the deepest level of nesting of parentheses.\n    E.g. (()()) has maximum two levels of nesting while ((())) has three.\n\n    >>> parse_nested_parens('(()()) ((())) () ((())()())')\n    [2, 3, 1, 3]\n    \"\"\"\n    # Create a stack of nested parentheses\n    stack = []\n    # Iterate through the string\n    for paren in paren_string:\n        # If the current character is a left parenthesis, push it to the stack\n        if paren == '(':\n            stack.append(paren)\n        # If the current character is a right parenthesis, pop the top element from the stack\n        # and check if it is a left parenthesis\n        elif paren == ')':\n            if stack:\n                stack.pop()\n            else:\n                # If the stack is empty, return an empty list\n                return []\n        # If the current character is a space, do nothing\n        else:\n            pass\n    # If the stack is empty, return an empty list\n    if not stack:\n        return []\n    # Otherwise, return the maximum depth of nesting\n    return [len(stack)]",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 8,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.83571434020996,
+      "final_passed": false,
+      "baseline_code": "# def sum_product(numbers: List[int]) -> Tuple[int, int]:",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 9,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 15.280847549438477,
+      "final_passed": false,
+      "baseline_code": "def rolling_max(numbers: List[int]) -> List[int]:\n    \"\"\" From a given list of integers, generate a list of rolling maximum element found until given moment\n    in the sequence.\n    >>> rolling_max([1, 2, 3, 2, 3, 4, 2])\n    [1, 2, 3, 3, 3, 4, 4]\n    \"\"\"\n    max_so_far = numbers[0]\n    max_so_far_index = 0\n    for i in range(1, len(numbers)):\n        if numbers[i] > max_so_far:\n            max_so_far = numbers[i]\n            max_so_far_index = i\n    return [max_so_far] + rolling_max(numbers[max_so_far_index + 1:])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 10,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.00246810913086,
+      "final_passed": false,
+      "baseline_code": "def make_palindrome(string: str) -> str:\n    \"\"\" Find the shortest palindrome that begins with a supplied string.\n    Algorithm idea is simple:\n    - Find the longest postfix of supplied string that is a palindrome.\n    - Append to the end of the string reverse of a string prefix that comes before the palindromic suffix.\n    >>> make_palindrome('')\n    ''\n    >>> make_palindrome('cat')\n    'catac'\n    >>> make_palindrome('cata')\n    'catac'\n    \"\"\"\n    if len(string) == 0:\n        return ''\n    if is_palindrome(string):\n        return string\n    return string + make_palindrome(string[::-1])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 11,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.794389724731445,
+      "final_passed": false,
+      "baseline_code": "def string_xor(a: str, b: str) -> str:\n    \"\"\" Input are two strings a and b consisting only of 1s and 0s.\n    Perform binary XOR on these inputs and return result also as a string.\n    >>> string_xor('010', '110')\n    '100'\n    \"\"\"\n    return ''.join(str(a[i] ^ b[i]) for i in range(len(a)))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 14,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.336318969726562,
+      "final_passed": false,
+      "baseline_code": "def all_prefixes(string: str) -> List[str]:\n    \"\"\" Return list of all prefixes from shortest to longest of the input string\n    >>> all_prefixes('abc')\n    ['a', 'ab', 'abc']\n    \"\"\"\n    return [s for s in string]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 16,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.189180374145508,
+      "final_passed": false,
+      "baseline_code": "# 1. Create a dictionary to store the characters and their counts",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 17,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.069175720214844,
+      "final_passed": false,
+      "baseline_code": "def parse_music(music_string: str) -> List[int]:\n    \"\"\" Input to this function is a string representing musical notes in a special ASCII format.\n    Your task is to parse this string and return list of integers corresponding to how many beats does each\n    not last.\n\n    Here is a legend:\n    'o' - whole note, lasts four beats\n    'o|' - half note, lasts two beats\n    '.|' - quater note, lasts one beat\n\n    >>> parse_music('o o| .| o| o| .| .| .| .| o o')\n    [4, 2, 1, 2, 2, 1, 1, 1, 1, 4, 4]\n    \"\"\"\n    beats = []\n    for i in range(len(music_string)):\n        if music_string[i] == '|':\n            beats.append(2)\n        elif music_string[i] == '.':\n            beats.append(1)\n        else:\n            beats.append(4)\n    return beats",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 18,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.538795471191406,
+      "final_passed": false,
+      "baseline_code": "def how_many_times(string: str, substring: str) -> int:\n    \"\"\" Find how many times a given substring can be found in the original string. Count overlaping cases.\n    >>> how_many_times('', 'a')\n    0\n    >>> how_many_times('aaa', 'a')\n    3\n    >>> how_many_times('aaaa', 'aa')\n    3\n    >>> how_many_times('john doe', 'john')\n    1\n    \"\"\"\n    return len(string.split(substring)) - len(string.split(substring)[0])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 19,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.293668746948242,
+      "final_passed": false,
+      "baseline_code": "# sort_numbers = lambda numbers: sorted(numbers.split(), key=lambda x: int(x))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 20,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.71177101135254,
+      "final_passed": false,
+      "baseline_code": "def find_closest_elements(numbers: List[float]) -> Tuple[float, float]:\n    \"\"\" From a supplied list of numbers (of length at least two) select and return two that are the closest to each\n    other and return them in order (smaller number, larger number).\n    >>> find_closest_elements([1.0, 2.0, 3.0, 4.0, 5.0, 2.2])\n    (2.0, 2.2)\n    >>> find_closest_elements([1.0, 2.0, 3.0, 4.0, 5.0, 2.0])\n    (2.0, 2.0)\n    \"\"\"\n    if len(numbers) < 2:\n        raise ValueError(\"List must have at least two elements\")\n    numbers.sort()\n    return numbers[0], numbers[-1]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 21,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.554048538208008,
+      "final_passed": false,
+      "baseline_code": "# def rescale_to_unit(numbers: List[float]) -> List[float]:",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 24,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.499143600463867,
+      "final_passed": false,
+      "baseline_code": "def largest_divisor(n: int) -> int:\n    \"\"\" For a given number n, find the largest number that divides n evenly, smaller than n\n    >>> largest_divisor(15)\n    5\n    \"\"\"\n    while n % 2 == 0:\n        n //= 2\n    for i in range(3, int(n ** 0.5) + 1, 2):\n        while n % i == 0:\n            n //= i\n    if n > 2:\n        return n\n    else:\n        return 2",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 25,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.83411979675293,
+      "final_passed": false,
+      "baseline_code": "def factorize(n: int) -> List[int]:\n    \"\"\" Return list of prime factors of given integer in the order from smallest to largest.\n    Each of the factors should be listed number of times corresponding to how many times it appeares in factorization.\n    Input number should be equal to the product of all factors\n    >>> factorize(8)\n    [2, 2, 2]\n    >>> factorize(25)\n    [5, 5]\n    >>> factorize(70)\n    [2, 5, 7]\n    \"\"\"\n    factors = []\n    for i in range(2, n + 1):\n        if n % i == 0:\n            factors.append(i)\n            while n % i == 0:\n                n //= i\n    return [i for i in factors if i != 1]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 26,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.688899993896484,
+      "final_passed": false,
+      "baseline_code": "# O(n) time | O(1) space\ndef remove_duplicates_2(numbers: List[int]) -> List[int]:\n    \"\"\" From a list of integers, remove all elements that occur more than once.\n    Keep order of elements left the same as in the input.\n    >>> remove_duplicates_2([1, 2, 3, 2, 4])\n    [1, 3, 4]\n    \"\"\"\n    seen = set()\n    result = []\n    for num in numbers:\n        if num not in seen:\n            seen.add(num)\n            result.append(num)\n    return result",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 27,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.454008102416992,
+      "final_passed": false,
+      "baseline_code": "def flip_case(string: str) -> str:\n    \"\"\" For a given string, flip lowercase characters to uppercase and uppercase to lowercase.\n    >>> flip_case('Hello')\n    'hELLO'\n    \"\"\"\n    return string.lower() + string.upper()",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 32,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.29279136657715,
+      "final_passed": false,
+      "baseline_code": "# 1. Find the largest non-zero coefficient.",
+      "steered_code": "# def find_zero(xs: list):",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 33,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.639211654663086,
+      "final_passed": false,
+      "baseline_code": "def sort_third(l: list):\n    \"\"\"This function takes a list l and returns a list l' such that\n    l' is identical to l in the indicies that are not divisible by three, while its values at the indicies that are divisible by three are equal\n    to the values of the corresponding indicies of l, but sorted.\n    >>> sort_third([1, 2, 3])\n    [1, 2, 3]\n    >>> sort_third([5, 6, 3, 4, 8, 9, 2])\n    [2, 6, 3, 4, 8, 9, 5]\n    \"\"\"\n    return sorted(l, key=lambda x: x % 3)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 36,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.98358726501465,
+      "final_passed": false,
+      "baseline_code": "# def fizz_buzz(n: int):",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 37,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.936168670654297,
+      "final_passed": false,
+      "baseline_code": "def sort_even(l: list):\n    \"\"\"This function takes a list l and returns a list l' such that\n    l' is identical to l in the odd indicies, while its values at the even indicies are equal\n    to the values of the even indicies of l, but sorted.\n    >>> sort_even([1, 2, 3])\n    [1, 2, 3]\n    >>> sort_even([5, 6, 3, 4])\n    [3, 6, 5, 4]\n    \"\"\"\n    return [l[i] for i in range(len(l)) if i % 2 == 0] + sorted(l[i for i in range(len(l)) if i % 2 == 1])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 38,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 23.476224899291992,
+      "final_passed": false,
+      "baseline_code": "def encode_cyclic(s: str):\n    \"\"\"\n    returns encoded string by cycling groups of three characters.\n    \"\"\"\n    # split string to groups. Each of length 3.\n    groups = [s[(3 * i):min((3 * i + 3), len(s))] for i in range((len(s) + 2) // 3)]\n    # cycle elements in each group. Unless group has fewer elements than 3.\n    groups = [(group[1:] + group[0]) if len(group) == 3 else group for group in groups]\n    return \"\".join(groups)",
+      "steered_code": "def encode_cyclic(s: str):\n    \"\"\"\n    returns encoded string by cycling groups of three characters.\n    \"\"\"\n    # split string to groups. Each of length 3.\n    groups = [s[(3 * i):min((3 * i + 3), len(s))] for i in range((len(s) + 2) // 3)]\n    # cycle elements in each group. Unless group has fewer elements than 3.\n    groups = [(group[1:] + group[0]) if len(group) == 3 else group for group in groups]\n    return \"\".join(groups)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 39,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.979263305664062,
+      "final_passed": false,
+      "baseline_code": "def prime_fib(n: int):\n    \"\"\"\n    prime_fib returns n-th number that is a Fibonacci number and it's also prime.\n    >>> prime_fib(1)\n    2\n    >>> prime_fib(2)\n    3\n    >>> prime_fib(3)\n    5\n    >>> prime_fib(4)\n    13\n    >>> prime_fib(5)\n    89\n    >>> prime_fib(6)\n    233\n    >>> prime_fib(7)\n    1597\n    >>> prime_fib(8)\n    28657\n    >>> prime_fib(9)\n    514229\n    >>> prime_fib(10)\n    433494437\n    \"\"\"\n    fib = [0, 1]\n    for i in range(2, n + 1):\n        fib.append(fib[i - 1] + fib[i - 2])\n    return fib[n]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 40,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.367387771606445,
+      "final_passed": true,
+      "baseline_code": "def triples_sum_to_zero(l: list):\n    \"\"\"\n    triples_sum_to_zero takes a list of integers as an input.\n    it returns True if there are three distinct elements in the list that\n    sum to zero, and False otherwise.\n\n    >>> triples_sum_to_zero([1, 3, 5, 0])\n    False\n    >>> triples_sum_to_zero([1, 3, -2, 1])\n    True\n    >>> triples_sum_to_zero([1, 2, 3, 7])\n    False\n    >>> triples_sum_to_zero([2, 4, -5, 3, 9, 7])\n    True\n    >>> triples_sum_to_zero([1])\n    False\n    \"\"\"\n    # TODO: Write your solution here\n    # Hint: use a dictionary to store the sum of each element\n    # and check if the sum is zero\n    # Hint: use a for loop to iterate through the list\n    # Hint: use a while loop to check if the sum is zero\n    # Hint: use a if statement to check if the sum is zero\n    # Hint: use a return statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result\n    # Hint: use a else statement to return the result",
+      "steered_code": "def triples_sum_to_zero(l: list):\n    \"\"\"\n    triples_sum_to_zero takes a list of integers as an input.\n    it returns True if there are three distinct elements in the list that\n    sum to zero, and False otherwise.\n\n    >>> triples_sum_to_zero([1, 3, 5, 0])\n    False\n    >>> triples_sum_to_zero([1, 3, -2, 1])\n    True\n    >>> triples_sum_to_zero([1, 2, 3, 7])\n    False\n    >>> triples_sum_to_zero([2, 4, -5, 3, 9, 7])\n    True\n    >>> triples_sum_to_zero([1])\n    False\n    >>> triples_sum_to_zero([1, 3, 5, -100])\n    False\n    >>> triples_sum_to_zero([100, 3, 5, -100])\n    False\n    \"\"\"\n    for i in range(len(l)):\n        for j in range(i+1, len(l)):\n            for k in range(j+1, len(l)):\n                if l[i] + l[j] + l[k] == 0:\n                    return True\n    return False",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 41,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 22.405906677246094,
+      "final_passed": false,
+      "baseline_code": "#\n# The number of collisions is the number of ways to choose 2 cars from the set of n cars.",
+      "steered_code": "def car_race_collision(n: int) -> int:\n    \"\"\"\n    Imagine a road that's a perfectly straight infinitely long line.\n    n cars are driving left to right;  simultaneously, a different set of n cars\n    are driving right to left.   The two sets of cars start out being very far from\n    each other.  All cars move in the same speed.  Two cars are said to collide\n    when a car that's moving left to right hits a car that's moving right to left.\n    However, the cars are infinitely sturdy and strong; as a result, they continue moving\n    in their trajectory as if they did not collide.\n\n    This function outputs the number of such collisions.\n    \"\"\"\n    # n = 10\n    # n = 100\n    # n = 1000\n    # n = 10000\n    # n = 100000\n    # n = 1000000\n    # n = 10000000\n    # n = 100000000\n    # n = 1000000000\n    # n = 10000000000\n    # n = 100000000000\n    # n = 1000000000000\n    # n = 10000000000000\n    # n = 100000000000000\n    # n = 1000000000000000\n    # n = 10000000000000000\n    # n = 100000000000000000\n    # n = 1000000000000000000\n    # n = 10000000000000000000\n    # n = 100000000000000000000\n    # n = 1000000000000000000000\n    # n = 10000000000000000000000\n    # n = 100000000000000000000000\n    # n = 1000000000000000000000000\n    # n = 10000000000000000000000000\n    # n = 100000000000000000000000000\n    # n = 1000000000000000000000000000\n    # n = 10000000000000000000000000000\n    # n = 100000000000000000000000000000",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 44,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.90059471130371,
+      "final_passed": false,
+      "baseline_code": "def change_base(x: int, base: int):\n    \"\"\"Change numerical base of input number x to base.\n    return string representation after the conversion.\n    base numbers are less than 10.\n    >>> change_base(8, 3)\n    '22'\n    >>> change_base(8, 2)\n    '1000'\n    >>> change_base(7, 2)\n    '111'\n    \"\"\"\n    return str(x) + str(x - base * int(str(x)[-1]))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 49,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.18812370300293,
+      "final_passed": false,
+      "baseline_code": "# def modp(n, p):",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 50,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 22.839008331298828,
+      "final_passed": false,
+      "baseline_code": "def encode_shift(s: str):\n    return \"\".join([chr(((ord(ch) + 5 - ord(\"a\")) % 26) + ord(\"a\")) for ch in s])",
+      "steered_code": "def encode_shift(s: str):\n    return \"\".join([chr(((ord(ch) + 5 - ord(\"a\")) % 26) + ord(\"a\")) for ch in s])",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 51,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.92567253112793,
+      "final_passed": false,
+      "baseline_code": "def remove_vowels(text):\n    \"\"\"\n    remove_vowels is a function that takes string and returns string without vowels.\n    >>> remove_vowels('')\n    ''\n    >>> remove_vowels(\"abcdef\\nghijklm\")\n    'bcdf\\nghjklm'\n    >>> remove_vowels('abcdef')\n    'bcdf'\n    >>> remove_vowels('aaaaa')\n    ''\n    >>> remove_vowels('aaBAA')\n    'B'\n    >>> remove_vowels('zbcd')\n    'zbcd'\n    \"\"\"\n    vowels = ['a', 'e', 'i', 'o', 'u']\n    return text.replace(vowels, '')",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 53,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.94622230529785,
+      "final_passed": false,
+      "baseline_code": "def add(x: int, y: int):\n    \"\"\"Add two numbers x and y\n    >>> add(2, 3)\n    5\n    >>> add(5, 7)\n    12\n    \"\"\"\n    return x + y",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 54,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.434566497802734,
+      "final_passed": false,
+      "baseline_code": "def same_chars(s0: str, s1: str):\n    \"\"\"\n    Check if two words have the same characters.\n    >>> same_chars('eabcdzzzz', 'dddzzzzzzzddeddabc')\n    True\n    >>> same_chars('abcd', 'dddddddabc')\n    True\n    >>> same_chars('dddddddabc', 'abcd')\n    True\n    >>> same_chars('eabcd', 'dddddddabc')\n    False\n    >>> same_chars('abcd', 'dddddddabce')\n    False\n    >>> same_chars('eabcdzzzz', 'dddzzzzzzzddddabc')\n    False\n    >>> same_chars('aabb', 'aaccc')\n    False\n    \"\"\"\n    return s0 == s1",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 55,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.161588668823242,
+      "final_passed": false,
+      "baseline_code": "# def fib(n: int):",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 56,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 20.608652114868164,
+      "final_passed": false,
+      "baseline_code": "def correct_bracketing(brackets: str):\n    \"\"\" brackets is a string of \"<\" and \">\".\n    return True if every opening bracket has a corresponding closing bracket.\n\n    >>> correct_bracketing(\"<\")\n    False\n    >>> correct_bracketing(\"<>\")\n    True\n    >>> correct_bracketing(\"<<><>>\")\n    True\n    >>> correct_bracketing(\"><<>\")\n    False\n    \"\"\"\n    return len(brackets) == len(set(brackets))",
+      "steered_code": "def correct_bracketing(brackets: str):\n    \"\"\" brackets is a string of \"<\" and \">\".\n    return True if every opening bracket has a corresponding closing bracket.\n\n    >>> correct_bracketing(\"<\")\n    False\n    >>> correct_bracketing(\"<>\")\n    True\n    >>> correct_bracketing(\"<<><>>\")\n    True\n    >>> correct_bracketing(\"><<>\")\n    False\n    \"\"\"\n    return len(brackets) == len(brackets.count(\"<\") - brackets.count(\">\"))",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 57,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.1130428314209,
+      "final_passed": false,
+      "baseline_code": "# def monotonic(l: list):",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 59,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.40057945251465,
+      "final_passed": false,
+      "baseline_code": "# def largest_prime_factor(n: int):",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 61,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.486921310424805,
+      "final_passed": false,
+      "baseline_code": "def correct_bracketing(brackets: str):\n    \"\"\" brackets is a string of \"(\" and \")\".\n    return True if every opening bracket has a corresponding closing bracket.\n\n    >>> correct_bracketing(\"(\")\n    False\n    >>> correct_bracketing(\"()\")\n    True\n    >>> correct_bracketing(\"(()())\")\n    True\n    >>> correct_bracketing(\")(()\")\n    False\n    \"\"\"\n    return brackets.count(\"(\") == brackets.count(\")\")",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 62,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.35597038269043,
+      "final_passed": false,
+      "baseline_code": "def derivative(xs: list):\n    \"\"\" xs represent coefficients of a polynomial.\n    xs[0] + xs[1] * x + xs[2] * x^2 + ....\n     Return derivative of this polynomial in the same form.\n    >>> derivative([3, 1, 2, 4, 5])\n    [1, 4, 12, 20]\n    >>> derivative([1, 2, 3])\n    [2, 6]\n    \"\"\"\n    return [sum(i * j for i, j in zip(xs, xs[1:])) for i in xs]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 64,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.051523208618164,
+      "final_passed": false,
+      "baseline_code": "def vowels_count(s):\n    \"\"\"Write a function vowels_count which takes a string representing\n    a word as input and returns the number of vowels in the string.\n    Vowels in this case are 'a', 'e', 'i', 'o', 'u'. Here, 'y' is also a\n    vowel, but only when it is at the end of the given word.\n\n    Example:\n    >>> vowels_count(\"abcde\")\n    2\n    >>> vowels_count(\"ACEDY\")\n    3\n    >>> vowels_count(\"key\")\n    2\n    >>> vowels_count(\"bye\")\n    1\n    >>> vowels_count(\"keY\")\n    2\n    >>> vowels_count(\"bYe\")\n    1\n    >>> vowels_count(\"ACEDY\")\n    3\n    >>> True\n    \"\"\"\n    vowels = \"aeiouy\"\n    return len(s.lower().replace(\" \", \"\")) - len(s.lower().replace(\" \", \"\").count(vowels))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 65,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.035924911499023,
+      "final_passed": false,
+      "baseline_code": "def circular_shift(x, shift):\n    \"\"\"Circular shift the digits of the integer x, shift the digits right by shift\n    and return the result as a string.\n    If shift > number of digits, return digits reversed.\n    >>> circular_shift(12, 1)\n    \"21\"\n    >>> circular_shift(12, 2)\n    \"12\"\n    \"\"\"\n    if shift > len(str(x)):\n        return str(x)[::-1]\n    else:\n        return str(x)[shift:] + str(x)[0:shift]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 66,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.519969940185547,
+      "final_passed": false,
+      "baseline_code": "def digitSum(s):\n    \"\"\"Task\n    Write a function that takes a string as input and returns the sum of the upper characters only'\n    ASCII codes.\n\n    Examples:\n        digitSum(\"\") => 0\n        digitSum(\"abAB\") => 131\n        digitSum(\"abcCd\") => 67\n        digitSum(\"helloE\") => 69\n        digitSum(\"woArBld\") => 131\n        digitSum(\"aAaaaXa\") => 153\n    \"\"\"\n    return sum(ord(c) - ord('A') for c in s.upper())",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 67,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.184017181396484,
+      "final_passed": false,
+      "baseline_code": "def fruit_distribution(s,n):\n    \"\"\"\n    In this task, you will be given a string that represents a number of apples and oranges \n    that are distributed in a basket of fruit this basket contains \n    apples, oranges, and mango fruits. Given the string that represents the total number of \n    the oranges and apples and an integer that represent the total number of the fruits \n    in the basket return the number of the mango fruits in the basket.\n    for examble:\n    fruit_distribution(\"5 apples and 6 oranges\", 19) ->19 - 5 - 6 = 8\n    fruit_distribution(\"5 apples and 6 oranges\", 21) -> 21 - 5 - 6 = 10\n    fruit_distribution(\"0 apples and 1 oranges\", 3) -> 3 - 0 - 1 = 2\n    fruit_distribution(\"1 apples and 0 oranges\", 3) -> 3 - 1 - 0 = 2\n    fruit_distribution(\"2 apples and 3 oranges\", 100) -> 100 - 2 - 3 = 95\n    fruit_distribution(\"2 apples and 3 oranges\", 5) -> 5 - 2 - 3 = 0\n    fruit_distribution(\"1 apples and 100 oranges\", 120) -> 120 - 100 - 1 = 19\n    \"\"\"\n    \n    # split the string into a list of numbers\n    numbers = s.split()\n    \n    # convert the list of numbers to a list of integers\n    numbers = [int(num) for num in numbers]\n    \n    # calculate the total number of fruits in the basket\n    total_fruits = sum(numbers)\n    \n    # calculate the number of mango fruits in the basket\n    mango_fruits = total_fruits - sum(numbers)\n    \n    return mango_fruits",
+      "steered_code": "def fruit_distribution(s,n):\n    \"\"\"\n    In this task, you will be given a string that represents a number of apples and oranges \n    that are distributed in a basket of fruit this basket contains \n    apples, oranges, and mango fruits. Given the string that represents the total number of \n    the oranges and apples and an integer that represent the total number of the fruits \n    in the basket return the number of the mango fruits in the basket.\n    for examble:\n    fruit_distribution(\"5 apples and 6 oranges\", 19) ->19 - 5 - 6 = 8\n    fruit_distribution(\"5 apples and 6 oranges\", 21) -> 21 - 5 - 6 = 10\n    fruit_distribution(\"0 apples and 1 oranges\", 3) -> 3 - 0 - 1 = 2\n    fruit_distribution(\"1 apples and 0 oranges\", 3) -> 3 - 1 - 0 = 2\n    fruit_distribution(\"2 apples and 3 oranges\", 100) -> 100 - 2 - 3 = 95\n    fruit_distribution(\"2 apples and 3 oranges\", 5) -> 5 - 2 - 3 = 0\n    fruit_distribution(\"1 apples and 100 oranges\", 120) -> 120 - 100 - 1 = 19\n    \"\"\"\n    # Create a list of the fruits\n    fruits = list(s)\n    # Create a list of the numbers of each fruit\n    numbers = [int(x) for x in s.split(\" and \")]\n    # Create a list of the total number of fruits\n    total_fruits = [x + y for x, y in zip(numbers, numbers[1:])]\n    # Create a list of the total number of oranges\n    total_oranges = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"oranges\"]\n    # Create a list of the total number of apples\n    total_apples = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"apples\"]\n    # Create a list of the total number of mangoes\n    total_mangoes = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"mangoes\"]\n    # Create a list of the total number of fruits\n    total_fruits = [x + y for x, y in zip(numbers, numbers[1:])]\n    # Create a list of the total number of oranges\n    total_oranges = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"oranges\"]\n    # Create a list of the total number of apples\n    total_apples = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"apples\"]\n    # Create a list of the total number of mangoes\n    total_mangoes = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"mangoes\"]\n    # Create a list of the total number of fruits\n    total_fruits = [x + y for x, y in zip(numbers, numbers[1:])]\n    # Create a list of the total number of oranges\n    total_oranges = [x + y for x, y in zip(numbers, numbers[1:]) if y == \"oranges\"]\n    # Create a list of the total number of apples\n    total_apples = [x + y",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 68,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.192384719848633,
+      "final_passed": false,
+      "baseline_code": "def pluck(arr):\n    \"\"\"\n    \"Given an array representing a branch of a tree that has non-negative integer nodes\n    your task is to pluck one of the nodes and return it.\n    The plucked node should be the node with the smallest even value.\n    If multiple nodes with the same smallest even value are found return the node that has smallest index.\n\n    The plucked node should be returned in a list, [ smalest_value, its index ],\n    If there are no even values or the given array is empty, return [].\n\n    Example 1:\n        Input: [4,2,3]\n        Output: [2, 1]\n        Explanation: 2 has the smallest even value, and 2 has the smallest index.\n\n    Example 2:\n        Input: [1,2,3]\n        Output: [2, 1]\n        Explanation: 2 has the smallest even value, and 2 has the smallest index. \n\n    Example 3:\n        Input: []\n        Output: []\n    \n    Example 4:\n        Input: [5, 0, 3, 0, 4, 2]\n        Output: [0, 1]\n        Explanation: 0 is the smallest value, but  there are two zeros,\n                     so we will choose the first zero, which has the smallest index.\n\n    Constraints:\n        * 1 <= nodes.length <= 10000\n        * 0 <= node.value\n    \"\"\"\n    if not arr:\n        return []\n    if len(arr) == 1:\n        return [arr[0], 0]\n    if arr[0] % 2 == 0:\n        return [arr[0], 0]\n    else:\n        return [arr[1], 1]",
+      "steered_code": "def pluck(arr):\n    \"\"\"\n    \"Given an array representing a branch of a tree that has non-negative integer nodes\n    your task is to pluck one of the nodes and return it.\n    The plucked node should be the node with the smallest even value.\n    If multiple nodes with the same smallest even value are found return the node that has smallest index.\n\n    The plucked node should be returned in a list, [ smalest_value, its index ],\n    If there are no even values or the given array is empty, return [].\n\n    Example 1:\n        Input: [4,2,3]\n        Output: [2, 1]\n        Explanation: 2 has the smallest even value, and 2 has the smallest index.\n\n    Example 2:\n        Input: [1,2,3]\n        Output: [2, 1]\n        Explanation: 2 has the smallest even value, and 2 has the smallest index. \n\n    Example 3:\n        Input: []\n        Output: []\n    \n    Example 4:\n        Input: [5, 0, 3, 0, 4, 2]\n        Output: [0, 1]\n        Explanation: 0 is the smallest value, but  there are two zeros,\n                     so we will choose the first zero, which has the smallest index.\n\n    Constraints:\n        * 1 <= nodes.length <= 10000\n        * 0 <= node.value\n    \"\"\"\n    if not arr:\n        return []\n    \n    even_values = []\n    for node in arr:\n        if node % 2 == 0:\n            even_values.append(node)\n    \n    if not even_values:\n        return []\n    \n    even_values.sort()\n    \n    return even_values[0], even_values.index(even_values[0])",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 69,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.83111572265625,
+      "final_passed": true,
+      "baseline_code": "def search(lst):\n    '''\n    You are given a non-empty list of positive integers. Return the greatest integer that is greater than \n    zero, and has a frequency greater than or equal to the value of the integer itself. \n    The frequency of an integer is the number of times it appears in the list.\n    If no such a value exist, return -1.\n    Examples:\n        search([4, 1, 2, 2, 3, 1]) == 2\n        search([1, 2, 2, 3, 3, 3, 4, 4, 4]) == 3\n        search([5, 5, 4, 4, 4]) == -1\n    '''\n    \n    # Sort the list\n    lst.sort()\n    \n    # Find the first element that is greater than zero and has a frequency greater than or equal to the value of the integer itself.\n    for i in range(len(lst)):\n        if lst[i] > 0 and lst[i] >= lst[i-1]:\n            return lst[i]\n    \n    # If no such a value exist, return -1\n    return -1",
+      "steered_code": "def search(lst):\n    '''\n    You are given a non-empty list of positive integers. Return the greatest integer that is greater than \n    zero, and has a frequency greater than or equal to the value of the integer itself.\n    The frequency of an integer is the number of times it appears in the list.\n    If no such a value exist, return -1.\n    Examples:\n        search([4, 1, 2, 2, 3, 1]) == 2\n        search([1, 2, 2, 3, 3, 3, 4, 4, 4]) == 3\n        search([5, 5, 4, 4, 4]) == -1\n    '''\n    \n    # Create a dictionary to store the frequency of each number\n    freq = {}\n    for num in lst:\n        if num in freq:\n            freq[num] += 1\n        else:\n            freq[num] = 1\n    \n    # Create a list to store the numbers that have a frequency greater than or equal to the value of the integer itself\n    greater_than_zero = []\n    for num in freq:\n        if freq[num] >= num:\n            greater_than_zero.append(num)\n    \n    # If there is no number that has a frequency greater than or equal to the value of the integer itself, return -1\n    if len(greater_than_zero) == 0:\n        return -1\n    \n    # Return the greatest number in the list\n    return max(greater_than_zero)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 70,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.991086959838867,
+      "final_passed": false,
+      "baseline_code": "def strange_sort_list(lst):\n    '''\n    Given list of integers, return list in strange order.\n    Strange sorting, is when you start with the minimum value,\n    then maximum of the remaining integers, then minimum and so on.\n\n    Examples:\n    strange_sort_list([1, 2, 3, 4]) == [1, 4, 2, 3]\n    strange_sort_list([5, 5, 5, 5]) == [5, 5, 5, 5]\n    strange_sort_list([]) == []\n    '''\n    if len(lst) == 0:\n        return []\n    if len(lst) == 1:\n        return lst\n    if len(lst) == 2:\n        if lst[0] < lst[1]:\n            return [lst[0], lst[1]]\n        else:\n            return [lst[1], lst[0]]\n    if len(lst) == 3:\n        if lst[0] < lst[1] and lst[1] < lst[2]:\n            return [lst[0], lst[1], lst[2]]\n        elif lst[0] < lst[2] and lst[2] < lst[1]:\n            return [lst[0], lst[2], lst[1]]\n        elif lst[1] < lst[0] and lst[0] < lst[2]:\n            return [lst[1], lst[0], lst[2]]\n        elif lst[1] < lst[2] and lst[2] < lst[0]:\n            return [lst[1], lst[2], lst[0]]\n        elif lst[2] < lst[0] and lst[0] < lst[1]:\n            return [lst[2], lst[0], lst[1]]\n        elif lst[2] < lst[1] and lst[1] < lst[0]:\n            return [lst[2], lst[1], lst[0]]\n        else:\n            return [lst[0], lst[1], lst[2]]\n    else:\n        if lst[0] < lst[1] and lst[1] < lst[2] and lst[2] < lst[3]:\n            return [lst[0], lst[1], lst[2], lst[3]]\n        elif lst[0] < lst[2] and lst[2] < lst[1] and lst[1] < lst[3]:\n            return [lst[0], lst[2], lst[1], lst[3]]\n        elif lst[0] < lst[3] and lst[3] < lst[1] and lst[1] < lst[2]:\n            return [lst[0], lst[3], lst[1], lst[2]]\n        elif lst[0] < lst[1] and lst[1] < lst[3] and lst[3] < lst[2]:\n            return [lst[0], lst[1], lst[3], lst[2]]\n        elif lst[0] < lst[2] and lst[2] < lst[1] and lst[1] < lst[3]:\n            return [lst[0], lst[2], lst[1], lst[3]]\n        elif lst[0] < lst[3] and lst[3] < lst[1] and lst[1] < lst[2]:\n            return [lst[0], lst[3], lst[1], lst[2]]\n        elif lst[0] <",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 71,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.545881271362305,
+      "final_passed": false,
+      "baseline_code": "def triangle_area(a, b, c):\n    if a + b > c and a + c > b and b + c > a:\n        return (a * b * c) / (2 * (a + b + c))\n    else:\n        return -1",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 72,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.49932289123535,
+      "final_passed": false,
+      "baseline_code": "def will_it_fly(q,w):\n    if len(q) == 0:\n        return True\n    if sum(q) > w:\n        return False\n    if q[0] > w:\n        return False\n    if q[0] == w:\n        return True\n    return will_it_fly(q[1:], w-q[0])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 73,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 23.92376136779785,
+      "final_passed": false,
+      "baseline_code": "# We can use a hash table to store the number of times each number appears in the array.",
+      "steered_code": "def smallest_change(arr):\n    \"\"\"\n    Given an array arr of integers, find the minimum number of elements that\n    need to be changed to make the array palindromic. A palindromic array is an array that\n    is read the same backwards and forwards. In one change, you can change one element to any other element.\n\n    For example:\n    smallest_change([1,2,3,5,4,7,9,6]) == 4\n    smallest_change([1, 2, 3, 4, 3, 2, 2]) == 1\n    smallest_change([1, 2, 3, 2, 1]) == 0\n    \"\"\"\n    # Initialize a dictionary to store the number of changes for each element\n    changes = {}\n    for i in range(len(arr)):\n        changes[arr[i]] = i\n\n    # Initialize a new array to store the new array\n    new_arr = []\n\n    # Iterate through the original array and change each element to the smallest\n    # element that is greater than it\n    for i in range(len(arr)):\n        if arr[i] not in changes:\n            new_arr.append(arr[i])\n        else:\n            new_arr.append(changes[arr[i]])\n\n    # Return the number of changes needed to make the new array palindromic\n    return len(new_arr)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 74,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.942508697509766,
+      "final_passed": false,
+      "baseline_code": "def total_match(lst1, lst2):\n    return [s for s in lst1 if s not in lst2]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 75,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.62136459350586,
+      "final_passed": false,
+      "baseline_code": "def is_multiply_prime(a):\n    \"\"\"Write a function that returns true if the given number is the multiplication of 3 prime numbers\n    and false otherwise.\n    Knowing that (a) is less then 100. \n    Example:\n    is_multiply_prime(30) == True\n    30 = 2 * 3 * 5\n    \"\"\"\n    if a < 2:\n        return False\n    if a == 2:\n        return True\n    if a % 2 == 0:\n        return False\n    for i in range(3, int(a**0.5) + 1, 2):\n        if a % i == 0:\n            return False\n    return True",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 76,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.9149112701416,
+      "final_passed": false,
+      "baseline_code": "def is_simple_power(x, n):\n    \"\"\"Your task is to write a function that returns true if a number x is a simple\n    power of n and false in other cases.\n    x is a simple power of n if n**int=x\n    For example:\n    is_simple_power(1, 4) => true\n    is_simple_power(2, 2) => true\n    is_simple_power(8, 2) => true\n    is_simple_power(3, 2) => false\n    is_simple_power(3, 1) => false\n    is_simple_power(5, 3) => false\n    \"\"\"\n    if n == 1:\n        return True\n    if n == 0:\n        return False\n    if n < 0:\n        return False\n    if n == x:\n        return True\n    if n > x:\n        return False\n    if n % 2 == 0:\n        return is_simple_power(x, n//2)\n    if n % 2 == 1:\n        return is_simple_power(x, n//2) * is_simple_power(x, n//2)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 77,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.051301956176758,
+      "final_passed": false,
+      "baseline_code": "def iscube(a):\n    '''\n    Write a function that takes an integer a and returns True \n    if this ingeger is a cube of some integer number.\n    Note: you may assume the input is always valid.\n    Examples:\n    iscube(1) ==> True\n    iscube(2) ==> False\n    iscube(-1) ==> True\n    iscube(64) ==> True\n    iscube(0) ==> True\n    iscube(180) ==> False\n    '''\n    return a**3 == a",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 78,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.889856338500977,
+      "final_passed": false,
+      "baseline_code": "def hex_key(num):\n    return len([i for i in num if i in \"2357BDF\"])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 79,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.789535522460938,
+      "final_passed": false,
+      "baseline_code": "def decimal_to_binary(decimal):\n    \"\"\"You will be given a number in decimal form and your task is to convert it to\n    binary format. The function should return a string, with each character representing a binary\n    number. Each character in the string will be '0' or '1'.\n\n    There will be an extra couple of characters 'db' at the beginning and at the end of the string.\n    The extra characters are there to help with the format.\n\n    Examples:\n    decimal_to_binary(15)   # returns \"db1111db\"\n    decimal_to_binary(32)   # returns \"db100000db\"\n    \"\"\"\n    binary = \"\"\n    while decimal > 0:\n        binary = str(decimal % 2) + binary\n        decimal = decimal // 2\n    binary = \"db\" + binary + \"db\"\n    return binary",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 80,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 23.10038948059082,
+      "final_passed": false,
+      "baseline_code": "def is_happy(s):\n    \"\"\"You are given a string s.\n    Your task is to check if the string is happy or not.\n    A string is happy if its length is at least 3 and every 3 consecutive letters are distinct\n    For example:\n    is_happy(a) => False\n    is_happy(aa) => False\n    is_happy(abcd) => True\n    is_happy(aabb) => False\n    is_happy(adb) => True\n    is_happy(xyy) => False\n    is_happy(iopaxpoi) => True\n    is_happy(iopaxioi) => False\n    \"\"\"\n    if len(s) < 3:\n        return False\n    if s[0] == s[-1]:\n        return False\n    if s[0] == s[-2]:\n        return False\n    if s[1] == s[-2]:\n        return False\n    if s[2] == s[-3]:\n        return False\n    if s[3] == s[-4]:\n        return False\n    if s[4] == s[-5]:\n        return False\n    if s[5] == s[-6]:\n        return False\n    if s[6] == s[-7]:\n        return False\n    if s[7] == s[-8]:\n        return False\n    if s[8] == s[-9]:\n        return False\n    if s[9] == s[-10]:\n        return False\n    if s[10] == s[-11]:\n        return False\n    if s[11] == s[-12]:\n        return False\n    if s[12] == s[-13]:\n        return False\n    if s[13] == s[-14]:\n        return False\n    if s[14] == s[-15]:\n        return False\n    if s[15] == s[-16]:\n        return False\n    if s[16] == s[-17]:\n        return False\n    if s[17] == s[-18]:\n        return False\n    if s[18] == s[-19]:\n        return False\n    if s[19] == s[-20]:\n        return False\n    if s[20] == s[-21]:\n        return False\n    if s[21] == s[-22]:\n        return False\n    if s[22] == s[-23]:\n        return False\n    if s[23] == s[-24]:\n        return False\n    if s[24] == s[-25]:\n        return False\n    if s[25] == s[-26]:\n        return False\n    if s[26] == s[-27]:\n        return False\n    if s[27] == s[-28]:\n        return False\n    if s[28] == s[-29]:\n        return False\n    if s[29] == s[-30]:\n        return False\n    if s[30] == s[-31]:\n        return False\n    if s[31] == s[-32]:\n        return False\n    if s[32] == s[-33]:\n        return False\n    if s[33] == s[-34]:\n        return False\n    if s[34] == s[-35]:\n        return False\n    if s[35] == s",
+      "steered_code": "def is_happy(s):\n    \"\"\"You are given a string s.\n    Your task is to check if the string is happy or not.\n    A string is happy if its length is at least 3 and every 3 consecutive letters are distinct\n    For example:\n    is_happy(a) => False\n    is_happy(aa) => False\n    is_happy(abcd) => True\n    is_happy(aabb) => False\n    is_happy(adb) => True\n    is_happy(xyy) => False\n    is_happy(iopaxpoi) => True\n    is_happy(iopaxioi) => False\n    \"\"\"\n    if len(s) < 3:\n        return False\n    for i in range(len(s)):\n        if s[i] == s[i+1] or s[i] == s[i+2]:\n            return False\n    return True",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 81,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 15.627729415893555,
+      "final_passed": false,
+      "baseline_code": "def numerical_letter_grade(grades):\n    grades = [float(x) for x in grades]\n    grades = sorted(grades)\n    grades = [x for x in grades if x > 0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x > 0.0]\n    grades = [x for x in grades if x < 4.0]\n    grades = [x for x in grades if x >",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 82,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.82187843322754,
+      "final_passed": false,
+      "baseline_code": "def prime_length(string):\n    \"\"\"Write a function that takes a string and returns True if the string\n    length is a prime number or False otherwise\n    Examples\n    prime_length('Hello') == True\n    prime_length('abcdcba') == True\n    prime_length('kittens') == True\n    prime_length('orange') == False\n    \"\"\"\n    if len(string) == 1:\n        return True\n    elif len(string) == 2:\n        return True\n    elif len(string) == 3:\n        return True\n    elif len(string) == 4:\n        return True\n    elif len(string) == 5:\n        return True\n    elif len(string) == 6:\n        return True\n    elif len(string) == 7:\n        return True\n    elif len(string) == 8:\n        return True\n    elif len(string) == 9:\n        return True\n    elif len(string) == 10:\n        return True\n    elif len(string) == 11:\n        return True\n    elif len(string) == 12:\n        return True\n    elif len(string) == 13:\n        return True\n    elif len(string) == 14:\n        return True\n    elif len(string) == 15:\n        return True\n    elif len(string) == 16:\n        return True\n    elif len(string) == 17:\n        return True\n    elif len(string) == 18:\n        return True\n    elif len(string) == 19:\n        return True\n    elif len(string) == 20:\n        return True\n    elif len(string) == 21:\n        return True\n    elif len(string) == 22:\n        return True\n    elif len(string) == 23:\n        return True\n    elif len(string) == 24:\n        return True\n    elif len(string) == 25:\n        return True\n    elif len(string) == 26:\n        return True\n    elif len(string) == 27:\n        return True\n    elif len(string) == 28:\n        return True\n    elif len(string) == 29:\n        return True\n    elif len(string) == 30:\n        return True\n    elif len(string) == 31:\n        return True\n    elif len(string) == 32:\n        return True\n    elif len(string) == 33:\n        return True\n    elif len(string) == 34:\n        return True\n    elif len(string) == 35:\n        return True\n    elif len(string) == 36:\n        return True\n    elif len(string) == 37:\n        return True\n    elif len(string) == 38:\n        return True\n    elif len(string) == 39:\n        return True\n    elif len(string) == 40:\n        return True\n    elif len(string) == 41:\n        return True\n    elif len(string) == 42:\n        return True\n    elif len(string) == 43:\n        return True\n    elif len(string) == 44:\n        return True\n    elif len(string) == 45:\n        return True\n    elif len(string",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 83,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.452455520629883,
+      "final_passed": false,
+      "baseline_code": "def starts_one_ends(n):\n    \"\"\"\n    Given a positive integer n, return the count of the numbers of n-digit\n    positive integers that start or end with 1.\n    \"\"\"\n    return sum(1 for i in range(1, n+1) if i % 10 == 1 or i == 1)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 84,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 22.504228591918945,
+      "final_passed": false,
+      "baseline_code": "def solve(N):\n    \"\"\"Given a positive integer N, return the total sum of its digits in binary.\n    \n    Example\n        For N = 1000, the sum of digits will be 1 the output should be \"1\".\n        For N = 150, the sum of digits will be 6 the output should be \"110\".\n        For N = 147, the sum of digits will be 12 the output should be \"1100\".\n    \n    Variables:\n        @N integer\n             Constraints: 0 \u2264 N \u2264 10000.\n    Output:\n         a string of binary number\n    \"\"\"\n    \n    # Convert N to binary\n    binary = bin(N)[2:]\n    \n    # Sum the digits\n    return sum(int(digit) for digit in binary)",
+      "steered_code": "def solve(N):\n    \"\"\"Given a positive integer N, return the total sum of its digits in binary.\n    \n    Example\n        For N = 1000, the sum of digits will be 1 the output should be \"1\".\n        For N = 150, the sum of digits will be 6 the output should be \"110\".\n        For N = 147, the sum of digits will be 12 the output should be \"1100\".\n    \n    Variables:\n        @N integer\n             Constraints: 0 \u2264 N \u2264 10000.\n    Output:\n         a string of binary number\n    \"\"\"\n    \n    # Initialize a string to store the binary number\n    binary_number = \"\"\n    \n    # Loop through the digits of N\n    while N > 0:\n        # Get the last digit of N\n        last_digit = N % 10\n        \n        # Add the last digit to the binary_number string\n        binary_number += str(last_digit)\n        \n        # Remove the last digit from N\n        N = N // 10\n        \n    # Return the binary_number string\n    return binary_number",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 85,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.26934242248535,
+      "final_passed": false,
+      "baseline_code": "def add(lst):\n    \"\"\"Given a non-empty list of integers lst. add the even elements that are at odd indices..\n\n\n    Examples:\n        add([4, 2, 6, 7]) ==> 2 \n    \"\"\"\n    return sum(lst[i] for i in range(len(lst)) if i % 2 == 1)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 86,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.0731143951416,
+      "final_passed": false,
+      "baseline_code": "def anti_shuffle(s):\n    return ''.join(sorted(s.split()))",
+      "steered_code": "def anti_shuffle(s):\n    return ''.join(sorted(s.split()))",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 87,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 23.961397171020508,
+      "final_passed": false,
+      "baseline_code": "def get_row(lst, x):\n    \"\"\"\n    You are given a 2 dimensional data, as a nested lists,\n    which is similar to matrix, however, unlike matrices,\n    each row may contain a different number of columns.\n    Given lst, and integer x, find integers x in the list,\n    and return list of tuples, [(x1, y1), (x2, y2) ...] such that\n    each tuple is a coordinate - (row, columns), starting with 0.\n    Sort coordinates initially by rows in ascending order.\n    Also, sort coordinates of the row by columns in descending order.\n    \n    Examples:\n    get_row([\n      [1,2,3,4,5,6],\n      [1,2,3,4,1,6],\n      [1,2,3,4,5,1]\n    ], 1) == [(0, 0), (1, 4), (1, 0), (2, 5), (2, 0)]\n    get_row([], 1) == []\n    get_row([[], [1], [1, 2, 3]], 3) == [(2, 2)]\n    \"\"\"\n    \n    # Sort by rows\n    lst = sorted(lst, key=lambda x: len(x))\n    \n    # Sort by columns\n    for i in range(len(lst)):\n        lst[i] = sorted(lst[i], key=lambda x: x[x.index(x[0])])\n    \n    # Return\n    return lst",
+      "steered_code": "def get_row(lst, x):\n    \"\"\"\n    You are given a 2 dimensional data, as a nested lists,\n    which is similar to matrix, however, unlike matrices,\n    each row may contain a different number of columns.\n    Given lst, and integer x, find integers x in the list,\n    and return list of tuples, [(x1, y1), (x2, y2) ...] such that\n    each tuple is a coordinate - (row, columns), starting with 0.\n    Sort coordinates initially by rows in ascending order.\n    Also, sort coordinates of the row by columns in descending order.\n    \n    Examples:\n    get_row([\n      [1,2,3,4,5,6],\n      [1,2,3,4,1,6],\n      [1,2,3,4,5,1]\n    ], 1) == [(0, 0), (1, 4), (1, 0), (2, 5), (2, 0)]\n    get_row([], 1) == []\n    get_row([[], [1], [1, 2, 3]], 3) == [(2, 2)]\n    \"\"\"\n    \n    # Sort by rows\n    lst = sorted(lst, key=lambda x: len(x))\n    \n    # Sort by columns\n    for i in range(len(lst)):\n        lst[i] = sorted(lst[i], key=lambda x: x[0])\n    \n    # Return\n    return [tuple(x) for x in lst]",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 88,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.28388786315918,
+      "final_passed": false,
+      "baseline_code": "def sort_array(array):\n    \"\"\"\n    Given an array of non-negative integers, return a copy of the given array after sorting,\n    you will sort the given array in ascending order if the sum( first index value, last index value) is odd,\n    or sort it in descending order if the sum( first index value, last index value) is even.\n\n    Note:\n    * don't change the given array.\n\n    Examples:\n    * sort_array([]) => []\n    * sort_array([5]) => [5]\n    * sort_array([2, 4, 3, 0, 1, 5]) => [0, 1, 2, 3, 4, 5]\n    * sort_array([2, 4, 3, 0, 1, 5, 6]) => [6, 5, 4, 3, 2, 1, 0]\n    \"\"\"\n    if len(array) == 0:\n        return []\n    if len(array) == 1:\n        return array\n    if len(array) == 2:\n        if array[0] + array[1] % 2 == 0:\n            return [array[1]] + array[0]\n        else:\n            return [array[0]] + array[1]\n    if len(array) == 3:\n        if array[0] + array[1] + array[2] % 2 == 0:\n            return [array[2]] + array[1] + array[0]\n        else:\n            return [array[0]] + array[1] + array[2]\n    if len(array) == 4:\n        if array[0] + array[1] + array[2] + array[3] % 2 == 0:\n            return [array[3]] + array[2] + array[1] + array[0]\n        else:\n            return [array[0]] + array[1] + array[2] + array[3]\n    if len(array) == 5:\n        if array[0] + array[1] + array[2] + array[3] + array[4] % 2 == 0:\n            return [array[4]] + array[3] + array[2] + array[1] + array[0]\n        else:\n            return [array[0]] + array[1] + array[2] + array[3] + array[4]\n    if len(array) == 6:\n        if array[0] + array[1] + array[2] + array[3] + array[4] + array[5] % 2 == 0:\n            return [array[5]] + array[4] + array[3] + array[2] + array[1] + array[0]\n        else:\n            return [array[0]] + array[1] + array[2] + array[3] + array[4] + array[5]\n    if len(array) == 7:\n        if array[0] + array[1] + array[2] + array[3] + array[4] + array[5] + array[6] % 2 == 0:\n            return [array[6]] + array[5] + array[4] + array[3] + array[2] + array[1] + array[0]\n        else:\n            return [array[",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 89,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.244699478149414,
+      "final_passed": false,
+      "baseline_code": "def encrypt(s):\n    \"\"\"Create a function encrypt that takes a string as an argument and\n    returns a string encrypted with the alphabet being rotated. \n    The alphabet should be rotated in a manner such that the letters \n    shift down by two multiplied to two places.\n    For example:\n    encrypt('hi') returns 'lm'\n    encrypt('asdfghjkl') returns 'ewhjklnop'\n    encrypt('gf') returns 'kj'\n    encrypt('et') returns 'ix'\n    \"\"\"\n    alphabet = 'abcdefghijklmnopqrstuvwxyz'\n    alphabet_rot = alphabet[2:] + alphabet[:2]\n    return alphabet_rot[s.index(alphabet[0])] + alphabet_rot[s.index(alphabet[1])] + alphabet_rot[s.index(alphabet[2])] + alphabet_rot[s.index(alphabet[3])] + alphabet_rot[s.index(alphabet[4])] + alphabet_rot[s.index(alphabet[5])] + alphabet_rot[s.index(alphabet[6])] + alphabet_rot[s.index(alphabet[7])] + alphabet_rot[s.index(alphabet[8])] + alphabet_rot[s.index(alphabet[9])] + alphabet_rot[s.index(alphabet[10])] + alphabet_rot[s.index(alphabet[11])] + alphabet_rot[s.index(alphabet[12])] + alphabet_rot[s.index(alphabet[13])] + alphabet_rot[s.index(alphabet[14])] + alphabet_rot[s.index(alphabet[15])] + alphabet_rot[s.index(alphabet[16])] + alphabet_rot[s.index(alphabet[17])] + alphabet_rot[s.index(alphabet[18])] + alphabet_rot[s.index(alphabet[19])] + alphabet_rot[s.index(alphabet[20])] + alphabet_rot[s.index(alphabet[21])] + alphabet_rot[s.index(alphabet[22])] + alphabet_rot[s.index(alphabet[23])] + alphabet_rot[s.index(alphabet[24])] + alphabet_rot[s.index(alphabet[25])] + alphabet_rot[s.index(alphabet[26])] + alphabet_rot[s.index(alphabet[27])] + alphabet_rot[s.index(alphabet[28])] + alphabet_rot[s.index(alphabet[29])] + alphabet_rot[s.index(alphabet[30])] + alphabet_rot[s.index(alphabet[31])] + alphabet_rot[s.index(alphabet[32])] + alphabet_rot[s.index(alphabet[33])] + alphabet_rot[s.index(alphabet[34])] + alphabet_rot[s.index(alphabet[35])] + alphabet_rot[s.index(alphabet[36])] + alphabet_rot[s.index(alphabet[37])] + alphabet_rot[s.index(alphabet[38])] + alphabet_rot[s.index(alphabet[39])] + alphabet_rot[s.index(alphabet[40])] + alphabet_rot[s.index(alphabet[41])] + alphabet_rot[s.index(alphabet[42])] + alphabet_rot[s.index(alphabet[43])] + alphabet_rot[s.index(alphabet[44])] + alphabet_rot[s.index(alphabet[45])] + alphabet_rot[s.index(alphabet[46])] + alphabet_rot[s.index(alphabet[47",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 90,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.482812881469727,
+      "final_passed": false,
+      "baseline_code": "def next_smallest(lst):\n    if len(lst) == 0:\n        return None\n    if len(lst) == 1:\n        return lst[0]\n    if len(lst) == 2:\n        return min(lst)\n    return min(lst[1:], lst[0])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 91,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.319002151489258,
+      "final_passed": false,
+      "baseline_code": "def is_bored(S):\n    \"\"\"\n    You'll be given a string of words, and your task is to count the number\n    of boredoms. A boredom is a sentence that starts with the word \"I\".\n    Sentences are delimited by '.', '?' or '!'.\n   \n    For example:\n    >>> is_bored(\"Hello world\")\n    0\n    >>> is_bored(\"The sky is blue. The sun is shining. I love this weather\")\n    1\n    \"\"\"\n    \n    # Your code here\n    \n    return len(S.split()) - len(S.split('I'))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 92,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.731380462646484,
+      "final_passed": false,
+      "baseline_code": "def any_int(x, y, z):\n    return (x == y + z) or (y == x + z) or (z == x + y)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 93,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.71724510192871,
+      "final_passed": false,
+      "baseline_code": "def encode(message):\n    \"\"\"\n    Write a function that takes a message, and encodes in such a \n    way that it swaps case of all letters, replaces all vowels in \n    the message with the letter that appears 2 places ahead of that \n    vowel in the english alphabet. \n    Assume only letters. \n    \n    Examples:\n    >>> encode('test')\n    'TGST'\n    >>> encode('This is a message')\n    'tHKS KS C MGSSCGG'\n    \"\"\"\n    \n    # Create a dictionary of vowels and their index in the alphabet\n    vowels = {'a': 0, 'e': 1, 'i': 2, 'o': 3, 'u': 4}\n    \n    # Create a list of the message\n    message = list(message)\n    \n    # Loop through the message\n    for i in range(len(message)):\n        # If the letter is a vowel\n        if message[i] in vowels:\n            # Get the index of the vowel\n            index = vowels[message[i]]\n            # Get the letter 2 places ahead of the vowel\n            letter = chr(ord(message[i]) + 2)\n            # Replace the vowel with the letter 2 places ahead of it\n            message[i] = letter\n        # If the letter is not a vowel\n        else:\n            # Replace the letter with itself\n            message[i] = message[i]\n    \n    # Return the message\n    return ''.join(message)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 94,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.842823028564453,
+      "final_passed": false,
+      "baseline_code": "def skjkasdkd(lst):\n    \"\"\"You are given a list of integers.\n    You need to find the largest prime value and return the sum of its digits.\n\n    Examples:\n    For lst = [0,3,2,1,3,5,7,4,5,5,5,2,181,32,4,32,3,2,32,324,4,3] the output should be 10\n    For lst = [1,0,1,8,2,4597,2,1,3,40,1,2,1,2,4,2,5,1] the output should be 25\n    For lst = [1,3,1,32,5107,34,83278,109,163,23,2323,32,30,1,9,3] the output should be 13\n    For lst = [0,724,32,71,99,32,6,0,5,91,83,0,5,6] the output should be 11\n    For lst = [0,81,12,3,1,21] the output should be 3\n    For lst = [0,8,1,2,1,7] the output should be 7\n    \"\"\"\n    # Your code here\n    lst = list(map(int, lst))\n    lst = list(filter(lambda x: x > 1, lst))\n    lst = list(map(lambda x: x * 2, lst))\n    lst = list(filter(lambda x: x % 2 == 0, lst))\n    lst = list(map(lambda x: x // 2, lst))\n    lst = list(filter(lambda x: x > 1, lst))\n    lst = list(map(lambda x: x * 2, lst))\n    lst = list(filter(lambda x: x % 2 == 0, lst))\n    lst = list(map(lambda x: x // 2, lst))\n    lst = list(filter(lambda x: x > 1, lst))\n    lst = list(map(lambda x: x * 2, lst))\n    lst = list(filter(lambda x: x % 2 == 0, lst))\n    lst = list(map(lambda x: x // 2, lst))\n    lst = list(filter(lambda x: x > 1, lst))\n    lst = list(map(lambda x: x * 2, lst))\n    lst = list(filter(lambda x: x % 2 == 0, lst))\n    lst = list(map(lambda x: x // 2, lst))\n    lst = list(filter(lambda x: x > 1, lst))\n    lst = list(map(lambda x: x * 2, lst))\n    lst = list(filter(lambda x: x % 2 == 0, lst))\n    lst = list(map(lambda x: x // 2, lst))\n    lst = list(filter(lambda x: x > 1, lst))\n    lst = list(map(lambda x: x * 2, lst))\n    lst = list(filter(lambda x: x % 2 == 0, lst))\n    lst = list(map(lambda x: x // 2, lst))\n    lst = list(",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 95,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.61759376525879,
+      "final_passed": false,
+      "baseline_code": "def check_dict_case(dict):\n    \"\"\"\n    Given a dictionary, return True if all keys are strings in lower \n    case or all keys are strings in upper case, else return False.\n    The function should return False is the given dictionary is empty.\n    Examples:\n    check_dict_case({\"a\":\"apple\", \"b\":\"banana\"}) should return True.\n    check_dict_case({\"a\":\"apple\", \"A\":\"banana\", \"B\":\"banana\"}) should return False.\n    check_dict_case({\"a\":\"apple\", 8:\"banana\", \"a\":\"apple\"}) should return False.\n    check_dict_case({\"Name\":\"John\", \"Age\":\"36\", \"City\":\"Houston\"}) should return False.\n    check_dict_case({\"STATE\":\"NC\", \"ZIP\":\"12345\" }) should return True.\n    \"\"\"\n    if len(dict) == 0:\n        return False\n    for key in dict:\n        if not isinstance(key, str):\n            return False\n        if key.islower():\n            if not key.isupper():\n                return False\n        elif key.isupper():\n            if not key.islower():\n                return False\n    return True",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 96,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.82120132446289,
+      "final_passed": false,
+      "baseline_code": "def count_up_to(n):\n    \"\"\"Implement a function that takes an non-negative integer and returns an array of the first n\n    integers that are prime numbers and less than n.\n    for example:\n    count_up_to(5) => [2,3]\n    count_up_to(11) => [2,3,5,7]\n    count_up_to(0) => []\n    count_up_to(20) => [2,3,5,7,11,13,17,19]\n    count_up_to(1) => []\n    count_up_to(18) => [2,3,5,7,11,13,17]\n    \"\"\"\n    primes = []\n    for i in range(2, n+1):\n        if is_prime(i):\n            primes.append(i)\n    return primes",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 97,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.31464195251465,
+      "final_passed": false,
+      "baseline_code": "def multiply(a, b):\n    \"\"\"Complete the function that takes two integers and returns \n    the product of their unit digits.\n    Assume the input is always valid.\n    Examples:\n    multiply(148, 412) should return 16.\n    multiply(19, 28) should return 72.\n    multiply(2020, 1851) should return 0.\n    multiply(14,-15) should return 20.\n    \"\"\"\n    return str(a)[-1] * str(b)[-1]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 98,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 20.580747604370117,
+      "final_passed": false,
+      "baseline_code": "def count_upper(s):\n    \"\"\"\n    Given a string s, count the number of uppercase vowels in even indices.\n    \n    For example:\n    count_upper('aBCdEf') returns 1\n    count_upper('abcdefg') returns 0\n    count_upper('dBBE') returns 0\n    count_upper('B')  == 0\n    count_upper('U')  == 1\n    count_upper('') == 0\n    count_upper('EEEE') == 2\n    \"\"\"\n    \n    count = 0\n    for i in range(len(s)):\n        if s[i].isupper() and i % 2 == 0:\n            count += 1\n    return count",
+      "steered_code": "def count_upper(s):\n    \"\"\"\n    Given a string s, count the number of uppercase vowels in even indices.\n    \n    For example:\n    count_upper('aBCdEf') returns 1\n    count_upper('abcdefg') returns 0\n    count_upper('dBBE') returns 0\n    count_upper('B')  == 0\n    count_upper('U')  == 1\n    count_upper('') == 0\n    count_upper('EEEE') == 2\n    \"\"\"\n    count = 0\n    for i in range(len(s)):\n        if s[i].isupper() and i % 2 == 0:\n            count += 1\n    return count",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 99,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.483667373657227,
+      "final_passed": false,
+      "baseline_code": "def closest_integer(value):\n    return int(value) if int(value) == value else int(value) + 1 if value > 0 else int(value) - 1",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 100,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.961061477661133,
+      "final_passed": false,
+      "baseline_code": "def make_a_pile(n):\n    \"\"\"\n    Given a positive integer n, you have to make a pile of n levels of stones.\n    The first level has n stones.\n    The number of stones in the next level is:\n        - the next odd number if n is odd.\n        - the next even number if n is even.\n    Return the number of stones in each level in a list, where element at index\n    i represents the number of stones in the level (i+1).\n\n    Examples:\n    >>> make_a_pile(3)\n    [3, 5, 7]\n    \"\"\"\n    if n % 2 == 0:\n        return [n, n+2, n+4, n+6, n+8]\n    else:\n        return [n, n+2, n+4, n+6, n+8, n+10]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 101,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.755918502807617,
+      "final_passed": false,
+      "baseline_code": "def words_string(s):\n    return s.split()",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 102,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.878541946411133,
+      "final_passed": false,
+      "baseline_code": "def choose_num(x, y):\n    \"\"\"This function takes two positive numbers x and y and returns the\n    biggest even integer number that is in the range [x, y] inclusive. If \n    there's no such number, then the function should return -1.\n\n    For example:\n    choose_num(12, 15) = 14\n    choose_num(13, 12) = -1\n    \"\"\"\n    if x > y:\n        x, y = y, x\n    if x % 2 == 0:\n        return x\n    if y % 2 == 0:\n        return y\n    if x == y:\n        return x\n    if x < y:\n        return -1\n    return choose_num(x + 1, y)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 103,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.613292694091797,
+      "final_passed": false,
+      "baseline_code": "def rounded_avg(n, m):\n    \"\"\"You are given two positive integers n and m, and your task is to compute the\n    average of the integers from n through m (including n and m). \n    Round the answer to the nearest integer and convert that to binary.\n    If n is greater than m, return -1.\n    Example:\n    rounded_avg(1, 5) => \"0b11\"\n    rounded_avg(7, 5) => -1\n    rounded_avg(10, 20) => \"0b1111\"\n    rounded_avg(20, 33) => \"0b11010\"\n    \"\"\"\n    if n > m:\n        return -1\n    return int(bin(n + m)[2:])",
+      "steered_code": "def rounded_avg(n, m):\n    if n > m:\n        return -1\n    return int(bin(sum(range(n, m + 1)) / (m - n + 1))[2:].zfill(32))",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 104,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.047327041625977,
+      "final_passed": false,
+      "baseline_code": "def unique_digits(x):\n    \"\"\"Given a list of positive integers x. return a sorted list of all \n    elements that hasn't any even digit.\n\n    Note: Returned list should be sorted in increasing order.\n    \n    For example:\n    >>> unique_digits([15, 33, 1422, 1])\n    [1, 15, 33]\n    >>> unique_digits([152, 323, 1422, 10])\n    []\n    >>> unique_digits([12345, 2033, 111, 151])\n    [111, 151]\n    >>> unique_digits([135, 103, 31])\n    [31, 135]\n    >>> True\n    \"\"\"\n    \n    # Create a list of all the digits in the list\n    digits = [int(x) for x in str(x)]\n    \n    # Create a list of all the digits that are even\n    even_digits = [x for x in digits if x % 2 == 0]\n    \n    # Create a list of all the digits that are odd\n    odd_digits = [x for x in digits if x % 2 != 0]\n    \n    # Sort the list of odd digits\n    odd_digits.sort()\n    \n    # Return the list of odd digits\n    return odd_digits",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 105,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.48749351501465,
+      "final_passed": false,
+      "baseline_code": "def by_length(arr):\n    \"\"\"\n    Given an array of integers, sort the integers that are between 1 and 9 inclusive,\n    reverse the resulting array, and then replace each digit by its corresponding name from\n    \"One\", \"Two\", \"Three\", \"Four\", \"Five\", \"Six\", \"Seven\", \"Eight\", \"Nine\".\n\n    For example:\n      arr = [2, 1, 1, 4, 5, 8, 2, 3]   \n            -> sort arr -> [1, 1, 2, 2, 3, 4, 5, 8] \n            -> reverse arr -> [8, 5, 4, 3, 2, 2, 1, 1]\n      return [\"Eight\", \"Five\", \"Four\", \"Three\", \"Two\", \"Two\", \"One\", \"One\"]\n    \n      If the array is empty, return an empty array:\n      arr = []\n      return []\n    \n      If the array has any strange number ignore it:\n      arr = [1, -1 , 55] \n            -> sort arr -> [-1, 1, 55]\n            -> reverse arr -> [55, 1, -1]\n      return = ['One']\n    \"\"\"\n    \n    # Sort the array\n    arr.sort()\n    \n    # Reverse the array\n    arr.reverse()\n    \n    # Replace the digits\n    arr = [str(x) for x in arr]\n    \n    # Return the array\n    return arr",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 106,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.994117736816406,
+      "final_passed": false,
+      "baseline_code": "def f(n):\n    return [1 if i % 2 == 0 else sum(range(1, i + 1)) for i in range(1, n + 1)]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 107,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 22.751253128051758,
+      "final_passed": false,
+      "baseline_code": "def even_odd_palindrome(n):\n    \"\"\"\n    Given a positive integer n, return a tuple that has the number of even and odd\n    integer palindromes that fall within the range(1, n), inclusive.\n\n    Example 1:\n\n        Input: 3\n        Output: (1, 2)\n        Explanation:\n        Integer palindrome are 1, 2, 3. one of them is even, and two of them are odd.\n\n    Example 2:\n\n        Input: 12\n        Output: (4, 6)\n        Explanation:\n        Integer palindrome are 1, 2, 3, 4, 5, 6, 7, 8, 9, 11. four of them are even, and 6 of them are odd.\n\n    Note:\n        1. 1 <= n <= 10^3\n        2. returned tuple has the number of even and odd integer palindromes respectively.\n    \"\"\"\n    even = 0\n    odd = 0\n    for i in range(1, n + 1):\n        if i % 2 == 0:\n            even += 1\n        else:\n            odd += 1\n    return (even, odd)",
+      "steered_code": "def even_odd_palindrome(n):\n    \"\"\"\n    Given a positive integer n, return a tuple that has the number of even and odd\n    integer palindromes that fall within the range(1, n), inclusive.\n\n    Example 1:\n\n        Input: 3\n        Output: (1, 2)\n        Explanation:\n        Integer palindrome are 1, 2, 3. one of them is even, and two of them are odd.\n\n    Example 2:\n\n        Input: 12\n        Output: (4, 6)\n        Explanation:\n        Integer palindrome are 1, 2, 3, 4, 5, 6, 7, 8, 9, 11. four of them are even, and 6 of them are odd.\n\n    Note:\n        1. 1 <= n <= 10^3\n        2. returned tuple has the number of even and odd integer palindromes respectively.\n    \"\"\"\n    even = 0\n    odd = 0\n    for i in range(1, n + 1):\n        if i % 2 == 0:\n            even += 1\n        else:\n            odd += 1\n    return (even, odd)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 108,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.664995193481445,
+      "final_passed": false,
+      "baseline_code": "def count_nums(arr):\n    \"\"\"\n    Write a function count_nums which takes an array of integers and returns\n    the number of elements which has a sum of digits > 0.\n    If a number is negative, then its first signed digit will be negative:\n    e.g. -123 has signed digits -1, 2, and 3.\n    >>> count_nums([]) == 0\n    >>> count_nums([-1, 11, -11]) == 1\n    >>> count_nums([1, 1, 2]) == 3\n    \"\"\"\n    count = 0\n    for i in arr:\n        if i < 0:\n            i = i * -1\n        if i > 0:\n            count += 1\n    return count",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 109,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.694055557250977,
+      "final_passed": false,
+      "baseline_code": "def move_one_ball(arr):\n    \"\"\"We have an array 'arr' of N integers arr[1], arr[2], ..., arr[N].The\n    numbers in the array will be randomly ordered. Your task is to determine if\n    it is possible to get an array sorted in non-decreasing order by performing \n    the following operation on the given array:\n        You are allowed to perform right shift operation any number of times.\n    One right shift operation means shifting all elements of the array by one\n    position in the right direction. The last element of the array will be moved to\n    the starting position in the array i.e. 0th index. \n\n    If it is possible to obtain the sorted array by performing the above operation\n    then return True else return False.\n    If the given array is empty then return True.\n\n    Note: The given list is guaranteed to have unique elements.\n\n    For Example:\n    \n    move_one_ball([3, 4, 5, 1, 2])==>True\n    Explanation: By performin 2 right shift operations, non-decreasing order can\n                 be achieved for the given array.\n    move_one_ball([3, 5, 4, 1, 2])==>False\n    Explanation:It is not possible to get non-decreasing order for the given\n                array by performing any number of right shift operations.\n                \n    \"\"\"\n    \n    if len(arr)==0:\n        return True\n    \n    arr.sort()\n    \n    for i in range(len(arr)):\n        if arr[i]>arr[i+1]:\n            return False\n    \n    return True",
+      "steered_code": "def move_one_ball(arr):\n    \"\"\"We have an array 'arr' of N integers arr[1], arr[2], ..., arr[N].The\n    numbers in the array will be randomly ordered. Your task is to determine if\n    it is possible to get an array sorted in non-decreasing order by performing \n    the following operation on the given array:\n        You are allowed to perform right shift operation any number of times.\n    One right shift operation means shifting all elements of the array by one\n    position in the right direction. The last element of the array will be moved to\n    the starting position in the array i.e. 0th index. \n\n    If it is possible to obtain the sorted array by performing the above operation\n    then return True else return False.\n    If the given array is empty then return True.\n\n    Note: The given list is guaranteed to have unique elements.\n\n    For Example:\n    \n    move_one_ball([3, 4, 5, 1, 2])==>True\n    Explanation: By performin 2 right shift operations, non-decreasing order can\n                 be achieved for the given array.\n    move_one_ball([3, 5, 4, 1, 2])==>False\n    Explanation:It is not possible to get non-decreasing order for the given\n                array by performing any number of right shift operations.\n                \n    \"\"\"\n    \n    # Sort the array\n    arr.sort()\n    \n    # Check if the array is sorted\n    if arr == sorted(arr):\n        return True\n    \n    # Check if the array is empty\n    if len(arr) == 0:\n        return True\n    \n    # Check if the array is sorted in non-decreasing order\n    if arr[0] > arr[1]:\n        return False\n    \n    # Check if the array is sorted in non-decreasing order\n    if arr[len(arr)-1] < arr[len(arr)-2]:\n        return False\n    \n    # Check if the array is sorted in non-decreasing order\n    if arr[len(arr)-1] < arr[len(arr)-2]:\n        return False\n    \n    # Check if the array is sorted in non-decreasing order\n    if arr[len(arr)-1] < arr[len(arr)-2]:\n        return False\n    \n    # Check if the array is sorted in non-decreasing order\n    if arr[len(arr)-1] < arr[len(arr)-2]:\n        return False\n    \n    # Check if the array is sorted in non-decreasing order\n    if arr[len(arr)-1] < arr[len(arr)-2]:\n        return False\n    \n    # Check if the array is sorted in non-decreasing order\n    if arr[len(arr)-1] < arr[len(arr)-2]:\n        return False\n    \n    # Check if the array is sorted in non-decreasing order\n    if arr[len(arr)-1] < arr[len(arr)-2]:\n        return False\n    \n    # Check if the array is sorted in non-decreasing order\n    if arr[len(arr)-1] < arr[len(arr)-2]:\n        return False\n    \n    # Check if the array is sorted in non-decreasing order\n    if arr[len(arr)-1] < arr[len(arr)-2]:\n        return False\n    \n    # Check if the array is sorted in non-decreasing order\n    if arr[len(arr)-1] < arr",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 110,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.442766189575195,
+      "final_passed": false,
+      "baseline_code": "def exchange(lst1, lst2):\n    \"\"\"In this problem, you will implement a function that takes two lists of numbers,\n    and determines whether it is possible to perform an exchange of elements\n    between them to make lst1 a list of only even numbers.\n    There is no limit on the number of exchanged elements between lst1 and lst2.\n    If it is possible to exchange elements between the lst1 and lst2 to make\n    all the elements of lst1 to be even, return \"YES\".\n    Otherwise, return \"NO\".\n    For example:\n    exchange([1, 2, 3, 4], [1, 2, 3, 4]) => \"YES\"\n    exchange([1, 2, 3, 4], [1, 5, 3, 4]) => \"NO\"\n    It is assumed that the input lists will be non-empty.\n    \"\"\"\n    # Your code here\n    lst1_even = []\n    lst2_even = []\n    for i in lst1:\n        if i % 2 == 0:\n            lst1_even.append(i)\n    for i in lst2:\n        if i % 2 == 0:\n            lst2_even.append(i)\n    if len(lst1_even) == len(lst2_even):\n        return \"YES\"\n    else:\n        return \"NO\"",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 111,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.807870864868164,
+      "final_passed": false,
+      "baseline_code": "def histogram(test):\n    \"\"\"Given a string representing a space separated lowercase letters, return a dictionary\n    of the letter with the most repetition and containing the corresponding count.\n    If several letters have the same occurrence, return all of them.\n    \n    Example:\n    histogram('a b c') == {'a': 1, 'b': 1, 'c': 1}\n    histogram('a b b a') == {'a': 2, 'b': 2}\n    histogram('a b c a b') == {'a': 2, 'b': 2}\n    histogram('b b b b a') == {'b': 4}\n    histogram('') == {}\n\n    \"\"\"\n    \n    # Create a dictionary to store the letters and their counts\n    letter_counts = {}\n    \n    # Iterate through the string and add the letters to the dictionary\n    for letter in test:\n        if letter in letter_counts:\n            letter_counts[letter] += 1\n        else:\n            letter_counts[letter] = 1\n    \n    # Sort the dictionary by the count of the letters\n    letter_counts = sorted(letter_counts.items(), key=lambda x: x[1], reverse=True)\n    \n    # Return the dictionary with the letter and count\n    return letter_counts",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 112,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.98373031616211,
+      "final_passed": false,
+      "baseline_code": "def reverse_delete(s,c):\n    \"\"\"Task\n    We are given two strings s and c, you have to deleted all the characters in s that are equal to any character in c\n    then check if the result string is palindrome.\n    A string is called palindrome if it reads the same backward as forward.\n    You should return a tuple containing the result string and True/False for the check.\n    Example\n    For s = \"abcde\", c = \"ae\", the result should be ('bcd',False)\n    For s = \"abcdef\", c = \"b\"  the result should be ('acdef',False)\n    For s = \"abcdedcba\", c = \"ab\", the result should be ('cdedc',True)\n    \"\"\"\n    s = s.lower()\n    c = c.lower()\n    if len(s) == 0:\n        return (s,True)\n    if len(c) == 0:\n        return (s,True)\n    if len(s) == 1:\n        if s == c:\n            return (s,True)\n        else:\n            return (s,False)\n    if len(c) == 1:\n        if s[0] == c:\n            return (s[1:],True)\n        else:\n            return (s,False)\n    if s[0] == c:\n        return (s[1:],True)\n    if s[0] != c:\n        return (s[1:],False)\n    if s[1] == c:\n        return (s[2:],True)\n    if s[1] != c:\n        return (s[2:],False)\n    if s[2] == c:\n        return (s[3:],True)\n    if s[2] != c:\n        return (s[3:],False)\n    if s[3] == c:\n        return (s[4:],True)\n    if s[3] != c:\n        return (s[4:],False)\n    if s[4] == c:\n        return (s[5:],True)\n    if s[4] != c:\n        return (s[5:],False)\n    if s[5] == c:\n        return (s[6:],True)\n    if s[5] != c:\n        return (s[6:],False)\n    if s[6] == c:\n        return (s[7:],True)\n    if s[6] != c:\n        return (s[7:],False)\n    if s[7] == c:\n        return (s[8:],True)\n    if s[7] != c:\n        return (s[8:],False)\n    if s[8] == c:\n        return (s[9:],True)\n    if s[8] != c:\n        return (s[9:],False)\n    if s[9] == c:\n        return (s[10:],True)\n    if s[9] != c:\n        return (s[10:],False)\n    if s[10] == c:\n        return (s[11:],True)\n    if s[10] != c:\n        return (s[11:],False)\n    if s[11] == c:\n        return (s[12:],True)\n    if s[11] != c:\n        return (s[12:],False)\n    if s[12]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 113,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.68357276916504,
+      "final_passed": false,
+      "baseline_code": "def odd_count(lst):\n    \"\"\"Given a list of strings, where each string consists of only digits, return a list.\n    Each element i of the output should be \"the number of odd elements in the\n    string i of the input.\" where all the i's should be replaced by the number\n    of odd digits in the i'th string of the input.\n\n    >>> odd_count(['1234567'])\n    [\"the number of odd elements 4n the str4ng 4 of the 4nput.\"]\n    >>> odd_count(['3',\"11111111\"])\n    [\"the number of odd elements 1n the str1ng 1 of the 1nput.\",\n     \"the number of odd elements 8n the str8ng 8 of the 8nput.\"]\n    \"\"\"\n    return [str(len(set(map(int, lst[i])) & set(map(int, lst[i])))) for i in range(len(lst))]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 114,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.06977081298828,
+      "final_passed": false,
+      "baseline_code": "# Time: O(n)\n# Space: O(1)\ndef minSubArraySum(nums):\n    min_sum = float('inf')\n    sum = 0\n    for i in range(len(nums)):\n        sum += nums[i]\n        if sum < min_sum:\n            min_sum = sum\n    return min_sum",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 115,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 23.715787887573242,
+      "final_passed": false,
+      "baseline_code": "def max_fill(grid, capacity):\n    \"\"\"\n    You are given a rectangular grid of wells. Each row represents a single well,\n    and each 1 in a row represents a single unit of water.\n    Each well has a corresponding bucket that can be used to extract water from it, \n    and all buckets have the same capacity.\n    Your task is to use the buckets to empty the wells.\n    Output the number of times you need to lower the buckets.\n\n    Example 1:\n        Input: \n            grid : [[0,0,1,0], [0,1,0,0], [1,1,1,1]]\n            bucket_capacity : 1\n        Output: 6\n\n    Example 2:\n        Input: \n            grid : [[0,0,1,1], [0,0,0,0], [1,1,1,1], [0,1,1,1]]\n            bucket_capacity : 2\n        Output: 5\n    \n    Example 3:\n        Input: \n            grid : [[0,0,0], [0,0,0]]\n            bucket_capacity : 5\n        Output: 0\n\n    Constraints:\n        * all wells have the same length\n        * 1 <= grid.length <= 10^2\n        * 1 <= grid[:,1].length <= 10^2\n        * grid[i][j] -> 0 | 1\n        * 1 <= capacity <= 10\n    \"\"\"\n    # 1. Find the number of wells\n    n = len(grid)\n    # 2. Find the number of buckets\n    m = len(grid[0])\n    # 3. Find the number of units of water\n    units = 0\n    for row in grid:\n        for unit in row:\n            if unit == 1:\n                units += 1\n    # 4. Find the number of buckets needed\n    buckets = units // capacity\n    # 5. Find the number of buckets needed to fill the wells\n    fill_wells = units % capacity\n    # 6. Find the number of buckets needed to fill the wells\n    fill_wells_buckets = fill_wells // capacity\n    # 7. Find the number of buckets needed to fill the wells\n    fill_wells_buckets_left = fill_wells % capacity\n    # 8. Find the number of buckets needed to fill the wells\n    fill_wells_buckets_left_buckets = fill_wells_buckets_left // capacity\n    # 9. Find the number of buckets needed to fill the wells\n    fill_wells_buckets_left_buckets_left = fill_wells_buckets_left % capacity\n    # 10. Find the number of buckets needed to fill the wells\n    fill_wells_buckets_left_buckets_left_buckets = fill_wells_buckets_left_buckets_left // capacity\n    # 11. Find the number of buckets needed to fill the wells\n    fill_wells_buckets_left_buckets_left_buckets_left = fill_wells_buckets_left_buckets_left % capacity\n    # 12. Find the number of buckets needed to fill the wells\n    fill_wells_buckets_left_buckets_left_buckets_left_buckets = fill_wells_buckets_left_buckets_left_buckets_left // capacity\n    # 13. Find the number of buckets needed to fill the wells\n    fill_wells_buckets_left_buckets_left_buckets_left_buckets_left = fill_",
+      "steered_code": "def max_fill(grid, capacity):\n    import math\n    \"\"\"\n    You are given a rectangular grid of wells. Each row represents a single well,\n    and each 1 in a row represents a single unit of water.\n    Each well has a corresponding bucket that can be used to extract water from it, \n    and all buckets have the same capacity.\n    Your task is to use the buckets to empty the wells.\n    Output the number of times you need to lower the buckets.\n\n    Example 1:\n        Input: \n            grid : [[0,0,1,0], [0,1,0,0], [1,1,1,1]]\n            bucket_capacity : 1\n        Output: 6\n\n    Example 2:\n        Input: \n            grid : [[0,0,1,1], [0,0,0,0], [1,1,1,1], [0,1,1,1]]\n            bucket_capacity : 2\n        Output: 5\n    \n    Example 3:\n        Input: \n            grid : [[0,0,0], [0,0,0]]\n            bucket_capacity : 5\n        Output: 0\n\n    Constraints:\n        * all wells have the same length\n        * 1 <= grid.length <= 10^2\n        * 1 <= grid[:,1].length <= 10^2\n        * grid[i][j] -> 0 | 1\n        * 1 <= capacity <= 10\n    \"\"\"\n    import math\n    # grid = [[0,0,1,0], [0,1,0,0], [1,1,1,1]]\n    # grid = [[0,0,1,1], [0,0,0,0], [1,1,1,1], [0,1,1,1]]\n    # grid = [[0,0,0], [0,0,0]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1,1], [1,1,1,1]]\n    # grid = [[1,1,1",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 116,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.02434730529785,
+      "final_passed": false,
+      "baseline_code": "def sort_array(arr):\n    \"\"\"\n    In this Kata, you have to sort an array of non-negative integers according to\n    number of ones in their binary representation in ascending order.\n    For similar number of ones, sort based on decimal value.\n\n    It must be implemented like this:\n    >>> sort_array([1, 5, 2, 3, 4]) == [1, 2, 3, 4, 5]\n    >>> sort_array([-2, -3, -4, -5, -6]) == [-6, -5, -4, -3, -2]\n    >>> sort_array([1, 0, 2, 3, 4]) [0, 1, 2, 3, 4]\n    \"\"\"\n    # sort based on number of ones\n    arr.sort(key=lambda x: len(bin(x)[2:]))\n    # sort based on decimal value\n    arr.sort()\n    return arr",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 117,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.784236907958984,
+      "final_passed": false,
+      "baseline_code": "def select_words(s, n):\n    \"\"\"Given a string s and a natural number n, you have been tasked to implement \n    a function that returns a list of all words from string s that contain exactly \n    n consonants, in order these words appear in the string s.\n    If the string s is empty then the function should return an empty list.\n    Note: you may assume the input string contains only letters and spaces.\n    Examples:\n    select_words(\"Mary had a little lamb\", 4) ==> [\"little\"]\n    select_words(\"Mary had a little lamb\", 3) ==> [\"Mary\", \"lamb\"]\n    select_words(\"simple white space\", 2) ==> []\n    select_words(\"Hello world\", 4) ==> [\"world\"]\n    select_words(\"Uncle sam\", 3) ==> [\"Uncle\"]\n    \"\"\"\n    words = s.split()\n    return [word for word in words if len(word) == n and len(set(word)) == n]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 118,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.266122817993164,
+      "final_passed": false,
+      "baseline_code": "def get_closest_vowel(word):\n    \"\"\"You are given a word. Your task is to find the closest vowel that stands between \n    two consonants from the right side of the word (case sensitive).\n    \n    Vowels in the beginning and ending doesn't count. Return empty string if you didn't\n    find any vowel met the above condition. \n\n    You may assume that the given string contains English letter only.\n\n    Example:\n    get_closest_vowel(\"yogurt\") ==> \"u\"\n    get_closest_vowel(\"FULL\") ==> \"U\"\n    get_closest_vowel(\"quick\") ==> \"\"\n    get_closest_vowel(\"ab\") ==> \"\"\n    \"\"\"\n    \n    # Get the last consonant\n    last_consonant = word[-1]\n    \n    # If the last consonant is a vowel, return empty string\n    if last_consonant in \"aeiou\":\n        return \"\"\n    \n    # Get the last vowel\n    last_vowel = word[-2]\n    \n    # If the last vowel is a consonant, return empty string\n    if last_vowel in \"bcdfghjklmnpqrstvwxyz\":\n        return \"\"\n    \n    # Get the first consonant\n    first_consonant = word[0]\n    \n    # If the first consonant is a vowel, return empty string\n    if first_consonant in \"aeiou\":\n        return \"\"\n    \n    # Get the first vowel\n    first_vowel = word[1]\n    \n    # If the first vowel is a consonant, return empty string\n    if first_vowel in \"bcdfghjklmnpqrstvwxyz\":\n        return \"\"\n    \n    # If the first vowel is a consonant, return empty string\n    if first_vowel in \"bcdfghjklmnpqrstvwxyz\":\n        return \"\"\n    \n    # If the first vowel is a consonant, return empty string\n    if first_vowel in \"bcdfghjklmnpqrstvwxyz\":\n        return \"\"\n    \n    # If the first vowel is a consonant, return empty string\n    if first_vowel in \"bcdfghjklmnpqrstvwxyz\":\n        return \"\"\n    \n    # If the first vowel is a consonant, return empty string\n    if first_vowel in \"bcdfghjklmnpqrstvwxyz\":\n        return \"\"\n    \n    # If the first vowel is a consonant, return empty string\n    if first_vowel in \"bcdfghjklmnpqrstvwxyz\":\n        return \"\"\n    \n    # If the first vowel is a consonant, return empty string\n    if first_vowel in \"bcdfghjklmnpqrstvwxyz\":\n        return \"\"\n    \n    # If the first vowel is a consonant, return empty string\n    if first_vowel in \"bcdfghjklmnpqrstvwxyz\":\n        return \"\"\n    \n    # If the first vowel is a consonant, return empty string\n    if first_vowel in \"bcdfghjklmnpqrstvwxyz\":\n        return \"\"\n    \n    # If the first vowel is a consonant, return empty string\n    if first_vowel in \"bcdfghjklmnpqrstvwxyz\":\n        return \"\"\n    \n    # If the first vowel is a consonant, return empty string\n    if first_vowel in \"bcdfghjklmnpqrstvwxyz\":\n        return \"\"\n    \n    # If the first vowel is a consonant, return empty string\n    if first_vowel in \"bcdfghjklmnpqrstvwxyz\":\n        return \"\"\n    \n    # If the first vowel",
+      "steered_code": "def get_closest_vowel(word):\n    \"\"\"You are given a word. Your task is to find the closest vowel that stands between \n    two consonants from the right side of the word (case sensitive).\n    \n    Vowels in the beginning and ending doesn't count. Return empty string if you didn't\n    find any vowel met the above condition. \n\n    You may assume that the given string contains English letter only.\n\n    Example:\n    get_closest_vowel(\"yogurt\") ==> \"u\"\n    get_closest_vowel(\"FULL\") ==> \"U\"\n    get_closest_vowel(\"quick\") ==> \"\"\n    get_closest_vowel(\"ab\") ==> \"\"\n    \"\"\"\n    \n    # Find the last consonant\n    last_consonant = word[-1]\n    \n    # Find the first vowel\n    for i in range(len(word)-1, -1, -1):\n        if word[i] in \"aeiou\":\n            return word[i]\n    \n    # If no vowel found, return empty string\n    return \"\"",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 119,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 23.08515167236328,
+      "final_passed": false,
+      "baseline_code": "def match_parens(lst):\n    '''\n    You are given a list of two strings, both strings consist of open\n    parentheses '(' or close parentheses ')' only.\n    Your job is to check if it is possible to concatenate the two strings in\n    some order, that the resulting string will be good.\n    A string S is considered to be good if and only if all parentheses in S\n    are balanced. For example: the string '(())()' is good, while the string\n    '())' is not.\n    Return 'Yes' if there's a way to make a good string, and return 'No' otherwise.\n\n    Examples:\n    match_parens(['()(', ')']) == 'Yes'\n    match_parens([')', ')']) == 'No'\n    '''\n    if len(lst) != 2:\n        return 'No'\n    if lst[0] == '(':\n        if lst[1] == ')':\n            return 'Yes'\n        else:\n            return 'No'\n    else:\n        if lst[0] == ')':\n            if lst[1] == '(':\n                return 'Yes'\n            else:\n                return 'No'\n        else:\n            return 'No'",
+      "steered_code": "def match_parens(lst):\n    '''\n    You are given a list of two strings, both strings consist of open\n    parentheses '(' or close parentheses ')' only.\n    Your job is to check if it is possible to concatenate the two strings in\n    some order, that the resulting string will be good.\n    A string S is considered to be good if and only if all parentheses in S\n    are balanced. For example: the string '(())()' is good, while the string\n    '())' is not.\n    Return 'Yes' if there's a way to make a good string, and return 'No' otherwise.\n\n    Examples:\n    match_parens(['()(', ')']) == 'Yes'\n    match_parens([')', ')']) == 'No'\n    '''\n    # Create a dictionary of open and close parentheses\n    open_parens = {'(': ')', '[': ']', '{': '}', '<': '>'}\n    # Create a list of all the open parentheses\n    open_parens_list = []\n    for char in lst[0]:\n        if char in open_parens:\n            open_parens_list.append(char)\n    # Create a list of all the close parentheses\n    close_parens_list = []\n    for char in lst[1]:\n        if char in open_parens:\n            close_parens_list.append(char)\n    # Create a list of all the open and close parentheses\n    open_close_parens_list = open_parens_list + close_parens_list\n    # Create a list of all the open parentheses\n    open_parens_list = []\n    for char in open_close_parens_list:\n        if char in open_parens:\n            open_parens_list.append(char)\n    # Create a list of all the close parentheses\n    close_parens_list = []\n    for char in open_close_parens_list:\n        if char in close_parens:\n            close_parens_list.append(char)\n    # Create a list of all the open parentheses\n    open_parens_list = []\n    for char in open_close_parens_list:\n        if char in open_parens:\n            open_parens_list.append(char)\n    # Create a list of all the close parentheses\n    close_parens_list = []\n    for char in open_close_parens_list:\n        if char in close_parens:\n            close_parens_list.append(char)\n    # Create a list of all the open parentheses\n    open_parens_list = []\n    for char in open_close_parens_list:\n        if char in open_parens:\n            open_parens_list.append(char)\n    # Create a list of all the close parentheses\n    close_parens_list = []\n    for char in open_close_parens_list:\n        if char in close_parens:\n            close_parens_list.append(char)\n    # Create a list of all the open parentheses\n    open_parens_list = []\n    for char in open_close_parens_list:\n        if char in open_parens:\n            open_parens_list.append(char)\n    # Create a list of all the close parentheses\n    close_parens_list = []\n    for char in open_close_parens_list:\n        if char in",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 120,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.357032775878906,
+      "final_passed": false,
+      "baseline_code": "def maximum(arr, k):\n    \"\"\"\n    Given an array arr of integers and a positive integer k, return a sorted list \n    of length k with the maximum k numbers in arr.\n\n    Example 1:\n\n        Input: arr = [-3, -4, 5], k = 3\n        Output: [-4, -3, 5]\n\n    Example 2:\n\n        Input: arr = [4, -4, 4], k = 2\n        Output: [4, 4]\n\n    Example 3:\n\n        Input: arr = [-3, 2, 1, 2, -1, -2, 1], k = 1\n        Output: [2]\n\n    Note:\n        1. The length of the array will be in the range of [1, 1000].\n        2. The elements in the array will be in the range of [-1000, 1000].\n        3. 0 <= k <= len(arr)\n    \"\"\"\n    # Sort the array\n    arr.sort()\n\n    # Return the first k elements\n    return arr[:k]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 121,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.61874771118164,
+      "final_passed": false,
+      "baseline_code": "def solution(lst):\n    return sum(lst[1::2])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 122,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.10401725769043,
+      "final_passed": false,
+      "baseline_code": "def add_elements(arr, k):\n    \"\"\"\n    Given a non-empty array of integers arr and an integer k, return\n    the sum of the elements with at most two digits from the first k elements of arr.\n\n    Example:\n\n        Input: arr = [111,21,3,4000,5,6,7,8,9], k = 4\n        Output: 24 # sum of 21 + 3\n\n    Constraints:\n        1. 1 <= len(arr) <= 100\n        2. 1 <= k <= len(arr)\n    \"\"\"\n    # Solution:\n    # 1. Create a new list to store the sum of the elements with at most two digits from the first k elements of arr.\n    # 2. Iterate through the first k elements of arr and add them to the new list.\n    # 3. Return the sum of the elements in the new list.\n    # 4. If the sum of the elements in the new list is greater than 10, then add 1 to the sum and subtract 10 from the sum.\n    # 5. If the sum of the elements in the new list is less than 10, then add 10 to the sum and subtract 1 from the sum.\n    # 6. Return the sum of the elements in the new list.\n    # 7. If the sum of the elements in the new list is greater than 10, then add 1 to the sum and subtract 10 from the sum.\n    # 8. If the sum of the elements in the new list is less than 10, then add 10 to the sum and subtract 1 from the sum.\n    # 9. Return the sum of the elements in the new list.\n    # 10. If the sum of the elements in the new list is greater than 10, then add 1 to the sum and subtract 10 from the sum.\n    # 11. If the sum of the elements in the new list is less than 10, then add 10 to the sum and subtract 1 from the sum.\n    # 12. Return the sum of the elements in the new list.\n    # 13. If the sum of the elements in the new list is greater than 10, then add 1 to the sum and subtract 10 from the sum.\n    # 14. If the sum of the elements in the new list is less than 10, then add 10 to the sum and subtract 1 from the sum.\n    # 15. Return the sum of the elements in the new list.\n    # 16. If the sum of the elements in the new list is greater than 10, then add 1 to the sum and subtract 10 from the sum.\n    # 17. If the sum of the elements in the new list is less than 10, then add 10 to the sum and subtract 1 from the sum.\n    # 18. Return the sum of the elements in the new list.\n    # 19. If the sum of the elements in the new list is greater than 10, then add 1 to the sum and subtract 10 from the sum.\n    # 20. If the sum of the elements in the new list is less than 10, then add 10 to the sum and subtract 1 from the sum.\n    # 21. Return the sum of the elements in the new list.\n    #",
+      "steered_code": "def add_elements(arr, k):\n    \"\"\"\n    Given a non-empty array of integers arr and an integer k, return\n    the sum of the elements with at most two digits from the first k elements of arr.\n\n    Example:\n\n        Input: arr = [111,21,3,4000,5,6,7,8,9], k = 4\n        Output: 24 # sum of 21 + 3\n\n    Constraints:\n        1. 1 <= len(arr) <= 100\n        2. 1 <= k <= len(arr)\n    \"\"\"\n    # Create a new list to store the sum of the elements\n    sum_list = []\n    # Iterate through the first k elements of arr\n    for i in range(k):\n        # Add the current element to the sum_list\n        sum_list.append(arr[i])\n    # Iterate through the remaining elements of arr\n    for i in range(k, len(arr)):\n        # Add the current element to the sum_list\n        sum_list.append(arr[i])\n    # Return the sum of the elements in the sum_list\n    return sum(sum_list)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 123,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.392902374267578,
+      "final_passed": false,
+      "baseline_code": "def get_odd_collatz(n):\n    \"\"\"\n    Given a positive integer n, return a sorted list that has the odd numbers in collatz sequence.\n\n    The Collatz conjecture is a conjecture in mathematics that concerns a sequence defined\n    as follows: start with any positive integer n. Then each term is obtained from the \n    previous term as follows: if the previous term is even, the next term is one half of \n    the previous term. If the previous term is odd, the next term is 3 times the previous\n    term plus 1. The conjecture is that no matter what value of n, the sequence will always reach 1.\n\n    Note: \n        1. Collatz(1) is [1].\n        2. returned list sorted in increasing order.\n\n    For example:\n    get_odd_collatz(5) returns [1, 5] # The collatz sequence for 5 is [5, 16, 8, 4, 2, 1], so the odd numbers are only 1, and 5.\n    \"\"\"\n    # Your code here\n    if n == 1:\n        return [1]\n    elif n % 2 == 0:\n        return [n] + get_odd_collatz(n // 2)\n    else:\n        return [n] + get_odd_collatz(3 * n + 1)",
+      "steered_code": "def get_odd_collatz(n):\n    \"\"\"\n    Given a positive integer n, return a sorted list that has the odd numbers in collatz sequence.\n\n    The Collatz conjecture is a conjecture in mathematics that concerns a sequence defined\n    as follows: start with any positive integer n. Then each term is obtained from the \n    previous term as follows: if the previous term is even, the next term is one half of \n    the previous term. If the previous term is odd, the next term is 3 times the previous\n    term plus 1. The conjecture is that no matter what value of n, the sequence will always reach 1.\n\n    Note: \n        1. Collatz(1) is [1].\n        2. returned list sorted in increasing order.\n\n    For example:\n    get_odd_collatz(5) returns [1, 5] # The collatz sequence for 5 is [5, 16, 8, 4, 2, 1], so the odd numbers are only 1, and 5.\n    \"\"\"\n    # Your code here\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    # return [n]\n    #",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 124,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.466344833374023,
+      "final_passed": false,
+      "baseline_code": "def valid_date(date):\n    \"\"\"You have to write a function which validates a given date string and\n    returns True if the date is valid otherwise False.\n    The date is valid if all of the following rules are satisfied:\n    1. The date string is not empty.\n    2. The number of days is not less than 1 or higher than 31 days for months 1,3,5,7,8,10,12. And the number of days is not less than 1 or higher than 30 days for months 4,6,9,11. And, the number of days is not less than 1 or higher than 29 for the month 2.\n    3. The months should not be less than 1 or higher than 12.\n    4. The date should be in the format: mm-dd-yyyy\n\n    for example: \n    valid_date('03-11-2000') => True\n\n    valid_date('15-01-2012') => False\n\n    valid_date('04-0-2040') => False\n\n    valid_date('06-04-2020') => True\n\n    valid_date('06/04/2020') => False\n    \"\"\"\n    if not date:\n        return False\n    \n    date_list = date.split('-')\n    if len(date_list) != 3:\n        return False\n    \n    month = int(date_list[0])\n    if month < 1 or month > 12:\n        return False\n    \n    day = int(date_list[1])\n    if day < 1 or day > 31:\n        if month == 1 or month == 3 or month == 5 or month == 7 or month == 8 or month == 10 or month == 12:\n            if day < 1 or day > 31:\n                return False\n        elif month == 4 or month == 6 or month == 9 or month == 11:\n            if day < 1 or day > 30:\n                return False\n        else:\n            if day < 1 or day > 29:\n                return False\n    \n    year = int(date_list[2])\n    if year < 1:\n        return False\n    \n    return True",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 125,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.402734756469727,
+      "final_passed": false,
+      "baseline_code": "def split_words(txt):\n    return [word.strip() for word in txt.split()]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 126,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.91899299621582,
+      "final_passed": false,
+      "baseline_code": "def is_sorted(lst):\n    return sorted(lst) == lst",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 127,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.762907028198242,
+      "final_passed": false,
+      "baseline_code": "def intersection(interval1, interval2):\n    \"\"\"You are given two intervals,\n    where each interval is a pair of integers. For example, interval = (start, end) = (1, 2).\n    The given intervals are closed which means that the interval (start, end)\n    includes both start and end.\n    For each given interval, it is assumed that its start is less or equal its end.\n    Your task is to determine whether the length of intersection of these two \n    intervals is a prime number.\n    Example, the intersection of the intervals (1, 3), (2, 4) is (2, 3)\n    which its length is 1, which not a prime number.\n    If the length of the intersection is a prime number, return \"YES\",\n    otherwise, return \"NO\".\n    If the two intervals don't intersect, return \"NO\".\n\n    [input/output] samples:\n    intersection((1, 2), (2, 3)) ==> \"NO\"\n    intersection((-1, 1), (0, 4)) ==> \"NO\"\n    intersection((-3, -1), (-5, 5)) ==> \"YES\"\n    intersection((-2, 2), (-4, 0)) ==> \"YES\"\n    intersection((-11, 2), (-1, -1)) ==> \"NO\"\n    intersection((1, 2), (3, 5)) ==> \"NO\"\n    intersection((1, 2), (1, 2)) ==> \"NO\"\n    intersection((-2, -2), (-3, -2)) ==> \"NO\"\n    \"\"\"\n\n    # Solution:\n    # 1. Check if the two intervals don't intersect\n    # 2. If they don't intersect, return \"NO\"\n    # 3. If they intersect, check if the length of the intersection is a prime number\n    # 4. If it is, return \"YES\"\n    # 5. If it is not, return \"NO\"\n\n    # 1. Check if the two intervals don't intersect\n    if interval1[1] < interval2[0]:\n        return \"NO\"\n    if interval2[1] < interval1[0]:\n        return \"NO\"\n\n    # 2. If they don't intersect, return \"NO\"\n    if interval1[1] < interval2[1] or interval2[1] < interval1[0]:\n        return \"NO\"\n\n    # 3. If they intersect, check if the length of the intersection is a prime number\n    if interval1[1] >= interval2[0] and interval2[1] >= interval1[0]:\n        return \"YES\"\n    return \"NO\"",
+      "steered_code": "def intersection(interval1, interval2):\n    \"\"\"You are given two intervals,\n    where each interval is a pair of integers. For example, interval = (start, end) = (1, 2).\n    The given intervals are closed which means that the interval (start, end)\n    includes both start and end.\n    For each given interval, it is assumed that its start is less or equal its end.\n    Your task is to determine whether the length of intersection of these two \n    intervals is a prime number.\n    Example, the intersection of the intervals (1, 3), (2, 4) is (2, 3)\n    which its length is 1, which not a prime number.\n    If the length of the intersection is a prime number, return \"YES\",\n    otherwise, return \"NO\".\n    If the two intervals don't intersect, return \"NO\".\n\n    [input/output] samples:\n    intersection((1, 2), (2, 3)) ==> \"NO\"\n    intersection((-1, 1), (0, 4)) ==> \"NO\"\n    intersection((-3, -1), (-5, 5)) ==> \"YES\"\n    intersection((-2, 2), (-4, 0)) ==> \"YES\"\n    intersection((-11, 2), (-1, -1)) ==> \"NO\"\n    intersection((1, 2), (3, 5)) ==> \"NO\"\n    intersection((1, 2), (1, 2)) ==> \"NO\"\n    intersection((-2, -2), (-3, -2)) ==> \"NO\"\n    \"\"\"\n\n    # Create a list of all the numbers in the first interval\n    interval1_list = []\n    for i in range(interval1[0], interval1[1]+1):\n        interval1_list.append(i)\n\n    # Create a list of all the numbers in the second interval\n    interval2_list = []\n    for i in range(interval2[0], interval2[1]+1):\n        interval2_list.append(i)\n\n    # Create a list of all the numbers that are in both intervals\n    intersection_list = []\n    for i in interval1_list:\n        if i in interval2_list:\n            intersection_list.append(i)\n\n    # If the intersection list is empty, return \"NO\"\n    if len(intersection_list) == 0:\n        return \"NO\"\n\n    # If the intersection list is not empty, check if the length of the intersection is a prime number\n    if len(intersection_list) == 1:\n        return \"YES\"\n    else:\n        for i in range(2, len(intersection_list)):\n            if intersection_list[i] == intersection_list[i-1]:\n                return \"NO\"\n        return \"YES\"",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 128,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.374940872192383,
+      "final_passed": false,
+      "baseline_code": "def prod_signs(arr):\n    \"\"\"\n    You are given an array arr of integers and you need to return\n    sum of magnitudes of integers multiplied by product of all signs\n    of each number in the array, represented by 1, -1 or 0.\n    Note: return None for empty arr.\n\n    Example:\n    >>> prod_signs([1, 2, 2, -4]) == -9\n    >>> prod_signs([0, 1]) == 0\n    >>> prod_signs([]) == None\n    \"\"\"\n    if not arr:\n        return None\n    return sum(map(lambda x: x * (1 if x > 0 else -1), arr))",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 129,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 25.051673889160156,
+      "final_passed": false,
+      "baseline_code": "def minPath(grid, k):\n    \"\"\"\n    Given a grid with N rows and N columns (N >= 2) and a positive integer k, \n    each cell of the grid contains a value. Every integer in the range [1, N * N]\n    inclusive appears exactly once on the cells of the grid.\n\n    You have to find the minimum path of length k in the grid. You can start\n    from any cell, and in each step you can move to any of the neighbor cells,\n    in other words, you can go to cells which share an edge with you current\n    cell.\n    Please note that a path of length k means visiting exactly k cells (not\n    necessarily distinct).\n    You CANNOT go off the grid.\n    A path A (of length k) is considered less than a path B (of length k) if\n    after making the ordered lists of the values on the cells that A and B go\n    through (let's call them lst_A and lst_B), lst_A is lexicographically less\n    than lst_B, in other words, there exist an integer index i (1 <= i <= k)\n    such that lst_A[i] < lst_B[i] and for any j (1 <= j < i) we have\n    lst_A[j] = lst_B[j].\n    It is guaranteed that the answer is unique.\n    Return an ordered list of the values on the cells that the minimum path go through.\n\n    Examples:\n\n        Input: grid = [ [1,2,3], [4,5,6], [7,8,9]], k = 3\n        Output: [1, 2, 1]\n\n        Input: grid = [ [5,9,3], [4,1,6], [7,8,2]], k = 1\n        Output: [1]\n    \"\"\"\n    # 1. Find the minimum path of length k in the grid.\n    # 2. Return the ordered list of the values on the cells that the minimum path go through.\n\n    # 1.\n    # Find the minimum path of length k in the grid.\n    # 1.1. Find the minimum path of length k in the grid.\n    # 1.1.1. Find the minimum path of length k in the grid.\n    # 1.1.2. Find the minimum path of length k in the grid.\n    # 1.1.3. Find the minimum path of length k in the grid.\n    # 1.1.4. Find the minimum path of length k in the grid.\n    # 1.1.5. Find the minimum path of length k in the grid.\n    # 1.1.6. Find the minimum path of length k in the grid.\n    # 1.1.7. Find the minimum path of length k in the grid.\n    # 1.1.8. Find the minimum path of length k in the grid.\n    # 1.1.9. Find the minimum path of length k in the grid.\n    # 1.1.10. Find the minimum path of length k in the grid.\n    # 1.1.11. Find the minimum path of length k in the grid.\n    # 1.1.12. Find the minimum path of length k in the grid.\n    # 1.1.13. Find the minimum path of length k in the grid.\n    # 1.1.14. Find the minimum path of length k in the grid.\n    #",
+      "steered_code": "def minPath(grid, k):\n    \"\"\"\n    Given a grid with N rows and N columns (N >= 2) and a positive integer k, \n    each cell of the grid contains a value. Every integer in the range [1, N * N]\n    inclusive appears exactly once on the cells of the grid.\n\n    You have to find the minimum path of length k in the grid. You can start\n    from any cell, and in each step you can move to any of the neighbor cells,\n    in other words, you can go to cells which share an edge with you current\n    cell.\n    Please note that a path of length k means visiting exactly k cells (not\n    necessarily distinct).\n    You CANNOT go off the grid.\n    A path A (of length k) is considered less than a path B (of length k) if\n    after making the ordered lists of the values on the cells that A and B go\n    through (let's call them lst_A and lst_B), lst_A is lexicographically less\n    than lst_B, in other words, there exist an integer index i (1 <= i <= k)\n    such that lst_A[i] < lst_B[i] and for any j (1 <= j < i) we have\n    lst_A[j] = lst_B[j].\n    It is guaranteed that the answer is unique.\n    Return an ordered list of the values on the cells that the minimum path go through.\n\n    Examples:\n\n        Input: grid = [ [1,2,3], [4,5,6], [7,8,9]], k = 3\n        Output: [1, 2, 1]\n\n        Input: grid = [ [5,9,3], [4,1,6], [7,8,2]], k = 1\n        Output: [1]\n    \"\"\"\n    # 1. Find the minimum path\n    # 2. Find the minimum path length\n    # 3. Return the minimum path\n    # 4. Return the minimum path length\n\n    # 1. Find the minimum path\n    def find_min_path(grid, k):\n        # 1.1 Find the minimum path\n        # 1.1.1 Find the minimum path length\n        # 1.1.2 Find the minimum path\n        # 1.1.3 Return the minimum path length\n        # 1.1.4 Return the minimum path\n        # 1.1.5 Return the minimum path length\n        # 1.1.6 Return the minimum path\n        # 1.1.7 Return the minimum path length\n        # 1.1.8 Return the minimum path\n        # 1.1.9 Return the minimum path length\n        # 1.1.10 Return the minimum path\n        # 1.1.11 Return the minimum path length\n        # 1.1.12 Return the minimum path\n        # 1.1.13 Return the minimum path length\n        # 1.1.14 Return the minimum path\n        # 1.1.15 Return the minimum path length\n        # 1.1.16 Return the minimum path\n        # 1.1.17 Return the minimum path length\n        # 1.1.18 Return the minimum path\n        # 1.1.19 Return the minimum path length\n        # 1.1.20 Return the minimum path\n        # 1.1.21 Return the minimum path length\n        # 1.1.2",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 130,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.400972366333008,
+      "final_passed": false,
+      "baseline_code": "def tri(n):\n    if n == 0:\n        return [1]\n    elif n == 1:\n        return [1, 3]\n    else:\n        return [1, 3, 2.0, 8.0, 3.0, 15.0, 4.0, 24.0, 5.0, 35.0, 6.0, 48.0, 7.0, 63.0, 8.0, 80.0, 9.0, 99.0, 10.0, 120.0, 11.0]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 131,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.00741958618164,
+      "final_passed": false,
+      "baseline_code": "def digits(n):\n    \"\"\"Given a positive integer n, return the product of the odd digits.\n    Return 0 if all digits are even.\n    For example:\n    digits(5)  == 1\n    digits(4)  == 0\n    digits(235) == 15\n    \"\"\"\n    if n == 0:\n        return 0\n    if n % 2 == 0:\n        return 0\n    return n % 10 * digits(n // 10)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 132,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.70045280456543,
+      "final_passed": false,
+      "baseline_code": "def is_nested(string):\n    '''\n    Create a function that takes a string as input which contains only square brackets.\n    The function should return True if and only if there is a valid subsequence of brackets \n    where at least one bracket in the subsequence is nested.\n\n    is_nested('[[]]') \u279e True\n    is_nested('[]]]]]]][[[[[]') \u279e False\n    is_nested('[][]') \u279e False\n    is_nested('[]') \u279e False\n    is_nested('[[][]]') \u279e True\n    is_nested('[[]][[') \u279e True\n    '''\n    \n    if len(string) == 0:\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return True\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False\n    \n    if string[0] == '[' and string[-1] == ']':\n        return False",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 133,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.608259201049805,
+      "final_passed": false,
+      "baseline_code": "def sum_squares(lst):\n    return sum([int(x**2) for x in lst])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 134,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.065149307250977,
+      "final_passed": false,
+      "baseline_code": "def check_if_last_char_is_a_letter(txt):\n    '''\n    Create a function that returns True if the last character\n    of a given string is an alphabetical character and is not\n    a part of a word, and False otherwise.\n    Note: \"word\" is a group of characters separated by space.\n\n    Examples:\n    check_if_last_char_is_a_letter(\"apple pie\") \u279e False\n    check_if_last_char_is_a_letter(\"apple pi e\") \u279e True\n    check_if_last_char_is_a_letter(\"apple pi e \") \u279e False\n    check_if_last_char_is_a_letter(\"\") \u279e False \n    '''\n    return len(txt) == len(txt.split()) and txt[-1].isalpha() and txt[-1] not in txt.split()",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 135,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.465017318725586,
+      "final_passed": false,
+      "baseline_code": "def can_arrange(arr):\n    \"\"\"\n    Create a function which returns the largest index of an element which\n    is not greater than or equal to the element immediately preceding it. If\n    no such element exists then return -1. The given array will not contain\n    duplicate values.\n\n    Examples:\n    can_arrange([1,2,4,3,5]) = 3\n    can_arrange([1,2,3]) = -1\n    can_arrange([1,4,2,5,6,7,8,9,10]) = 2\n    can_arrange([4,8,5,7,3]) = 4\n    can_arrange([]) = -1\n    \"\"\"\n    if len(arr) == 0:\n        return -1\n    if len(arr) == 1:\n        return 0\n    if len(arr) == 2:\n        return 1\n    if len(arr) == 3:\n        return 2\n    if len(arr) == 4:\n        return 3\n    if len(arr) == 5:\n        return 4\n    if len(arr) == 6:\n        return 5\n    if len(arr) == 7:\n        return 6\n    if len(arr) == 8:\n        return 7\n    if len(arr) == 9:\n        return 8\n    if len(arr) == 10:\n        return 9\n    if len(arr) == 11:\n        return 10\n    if len(arr) == 12:\n        return 11\n    if len(arr) == 13:\n        return 12\n    if len(arr) == 14:\n        return 13\n    if len(arr) == 15:\n        return 14\n    if len(arr) == 16:\n        return 15\n    if len(arr) == 17:\n        return 16\n    if len(arr) == 18:\n        return 17\n    if len(arr) == 19:\n        return 18\n    if len(arr) == 20:\n        return 19\n    if len(arr) == 21:\n        return 20\n    if len(arr) == 22:\n        return 21\n    if len(arr) == 23:\n        return 22\n    if len(arr) == 24:\n        return 23\n    if len(arr) == 25:\n        return 24\n    if len(arr) == 26:\n        return 25\n    if len(arr) == 27:\n        return 26\n    if len(arr) == 28:\n        return 27\n    if len(arr) == 29:\n        return 28\n    if len(arr) == 30:\n        return 29\n    if len(arr) == 31:\n        return 30\n    if len(arr) == 32:\n        return 31\n    if len(arr) == 33:\n        return 32\n    if len(arr) == 34:\n        return 33\n    if len(arr) == 35:\n        return 34\n    if len(arr) == 36:",
+      "steered_code": "def can_arrange(arr):\n    \"\"\"\n    Create a function which returns the largest index of an element which\n    is not greater than or equal to the element immediately preceding it. If\n    no such element exists then return -1. The given array will not contain\n    duplicate values.\n\n    Examples:\n    can_arrange([1,2,4,3,5]) = 3\n    can_arrange([1,2,3]) = -1\n    can_arrange([1,4,2,5,6,7,8,9,10]) = 2\n    can_arrange([4,8,5,7,3]) = 4\n    can_arrange([]) = -1\n    \"\"\"\n    if len(arr) == 0:\n        return -1\n    if len(arr) == 1:\n        return 0\n    if len(arr) == 2:\n        if arr[0] <= arr[1]:\n            return 0\n        else:\n            return 1\n    if len(arr) == 3:\n        if arr[0] <= arr[1] and arr[1] <= arr[2]:\n            return 0\n        else:\n            return 1\n    if len(arr) == 4:\n        if arr[0] <= arr[1] and arr[1] <= arr[2] and arr[2] <= arr[3]:\n            return 0\n        else:\n            return 1\n    if len(arr) == 5:\n        if arr[0] <= arr[1] and arr[1] <= arr[2] and arr[2] <= arr[3] and arr[3] <= arr[4]:\n            return 0\n        else:\n            return 1\n    if len(arr) == 6:\n        if arr[0] <= arr[1] and arr[1] <= arr[2] and arr[2] <= arr[3] and arr[3] <= arr[4] and arr[4] <= arr[5]:\n            return 0\n        else:\n            return 1\n    if len(arr) == 7:\n        if arr[0] <= arr[1] and arr[1] <= arr[2] and arr[2] <= arr[3] and arr[3] <= arr[4] and arr[4] <= arr[5] and arr[5] <= arr[6]:\n            return 0\n        else:\n            return 1\n    if len(arr) == 8:\n        if arr[0] <= arr[1] and arr[1] <= arr[2] and arr[2] <= arr[3] and arr[3] <= arr[4] and arr[4] <= arr[5] and arr[5] <= arr[6] and arr[6] <= arr[7]:\n            return 0\n        else:\n            return 1\n    if len(arr) == 9:\n        if arr[0] <= arr[1] and arr[1] <= arr[2] and arr[2] <= arr[3] and arr[3] <= arr[4] and arr[4] <= arr[5] and arr[5] <= arr[6] and arr[6] <= arr[7] and arr[7] <= arr[8]:\n            return 0\n        else:\n            return 1\n    if len(arr) == 10:\n        if arr[0] <= arr[1] and arr[1] <= arr[",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 136,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.9316349029541,
+      "final_passed": false,
+      "baseline_code": "def largest_smallest_integers(lst):\n    if len(lst) == 0:\n        return (None, None)\n    if len(lst) == 1:\n        return (lst[0], lst[0])\n    if lst[0] < 0:\n        return (lst[0], lst[0])\n    if lst[0] > 0:\n        return (lst[0], lst[0])\n    return (lst[0], lst[0])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 137,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.385982513427734,
+      "final_passed": false,
+      "baseline_code": "def compare_one(a, b):\n    \"\"\"\n    Create a function that takes integers, floats, or strings representing\n    real numbers, and returns the larger variable in its given variable type.\n    Return None if the values are equal.\n    Note: If a real number is represented as a string, the floating point might be . or ,\n\n    compare_one(1, 2.5) \u279e 2.5\n    compare_one(1, \"2,3\") \u279e \"2,3\"\n    compare_one(\"5,1\", \"6\") \u279e \"6\"\n    compare_one(\"1\", 1) \u279e None\n    \"\"\"\n    if isinstance(a, str):\n        a = float(a)\n    if isinstance(b, str):\n        b = float(b)\n    if a > b:\n        return a\n    elif a == b:\n        return None\n    else:\n        return b",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 138,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.026165008544922,
+      "final_passed": false,
+      "baseline_code": "def is_equal_to_sum_even(n):\n    \"\"\"Evaluate whether the given number n can be written as the sum of exactly 4 positive even numbers\n    Example\n    is_equal_to_sum_even(4) == False\n    is_equal_to_sum_even(6) == False\n    is_equal_to_sum_even(8) == True\n    is_equal_to_sum_even(10) == True\n    is_equal_to_sum_even(11) == False\n    is_equal_to_sum_even(12) == True\n    is_equal_to_sum_even(13) == False\n    is_equal_to_sum_even(16) == True\n    \"\"\"\n    if n % 2 == 0:\n        return False\n    if n == 0:\n        return True\n    if n < 0:\n        return False\n    if n == 1:\n        return False\n    if n == 2:\n        return True\n    if n == 3:\n        return False\n    if n == 4:\n        return True\n    if n == 5:\n        return False\n    if n == 6:\n        return True\n    if n == 7:\n        return False\n    if n == 8:\n        return True\n    if n == 9:\n        return False\n    if n == 10:\n        return True\n    if n == 11:\n        return False\n    if n == 12:\n        return True\n    if n == 13:\n        return False\n    if n == 14:\n        return True\n    if n == 15:\n        return False\n    if n == 16:\n        return True\n    if n == 17:\n        return False\n    if n == 18:\n        return True\n    if n == 19:\n        return False\n    if n == 20:\n        return True\n    if n == 21:\n        return False\n    if n == 22:\n        return True\n    if n == 23:\n        return False\n    if n == 24:\n        return True\n    if n == 25:\n        return False\n    if n == 26:\n        return True\n    if n == 27:\n        return False\n    if n == 28:\n        return True\n    if n == 29:\n        return False\n    if n == 30:\n        return True\n    if n == 31:\n        return False\n    if n == 32:\n        return True\n    if n == 33:\n        return False\n    if n == 34:\n        return True\n    if n == 35:\n        return False\n    if n == 36:\n        return True\n    if n == 37:\n        return False\n    if n == 38:\n        return True\n    if n == 39:\n        return False\n    if n == 40:\n        return True\n    if n == 41:\n        return False\n    if n == 42:\n        return True\n    if n == 43:\n        return False\n    if n == 44:\n        return True\n    if n == 45:\n        return False\n    if n == 46:",
+      "steered_code": "def is_equal_to_sum_even(n):\n    \"\"\"Evaluate whether the given number n can be written as the sum of exactly 4 positive even numbers\n    Example\n    is_equal_to_sum_even(4) == False\n    is_equal_to_sum_even(6) == False\n    is_equal_to_sum_even(8) == True\n    is_equal_to_sum_even(10) == True\n    is_equal_to_sum_even(11) == False\n    is_equal_to_sum_even(12) == True\n    is_equal_to_sum_even(13) == False\n    is_equal_to_sum_even(16) == True\n    \"\"\"\n    for i in range(1, n+1):\n        if n % i == 0 and i % 2 == 0:\n            return True\n    return False",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 139,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.556058883666992,
+      "final_passed": false,
+      "baseline_code": "def special_factorial(n):\n    if n == 0:\n        return 1\n    else:\n        return n * special_factorial(n-1)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 140,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.362051010131836,
+      "final_passed": false,
+      "baseline_code": "def fix_spaces(text):\n    return text.replace(\" \", \"_\")",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 141,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 16.80571937561035,
+      "final_passed": false,
+      "baseline_code": "def file_name_check(file_name):\n    \"\"\"Create a function which takes a string representing a file's name, and returns\n    'Yes' if the the file's name is valid, and returns 'No' otherwise.\n    A file's name is considered to be valid if and only if all the following conditions \n    are met:\n    - There should not be more than three digits ('0'-'9') in the file's name.\n    - The file's name contains exactly one dot '.'\n    - The substring before the dot should not be empty, and it starts with a letter from \n    the latin alphapet ('a'-'z' and 'A'-'Z').\n    - The substring after the dot should be one of these: ['txt', 'exe', 'dll']\n    Examples:\n    file_name_check(\"example.txt\") # => 'Yes'\n    file_name_check(\"1example.dll\") # => 'No' (the name should start with a latin alphapet letter)\n    \"\"\"\n    if len(file_name) > 3:\n        return 'No'\n    if file_name.count('.') == 1:\n        if file_name.count('0') > 0:\n            return 'No'\n        if file_name.count('a') == 0:\n            return 'No'\n        if file_name.count('A') == 0:\n            return 'No'\n        if file_name.count('e') == 0:\n            return 'No'\n        if file_name.count('E') == 0:\n            return 'No'\n        if file_name.count('x') == 0:\n            return 'No'\n        if file_name.count('X') == 0:\n            return 'No'\n        if file_name.count('t') == 0:\n            return 'No'\n        if file_name.count('T') == 0:\n            return 'No'\n        if file_name.count('y') == 0:\n            return 'No'\n        if file_name.count('Y') == 0:\n            return 'No'\n        if file_name.count('i') == 0:\n            return 'No'\n        if file_name.count('I') == 0:\n            return 'No'\n        if file_name.count('l') == 0:\n            return 'No'\n        if file_name.count('L') == 0:\n            return 'No'\n        if file_name.count('d') == 0:\n            return 'No'\n        if file_name.count('D') == 0:\n            return 'No'\n        if file_name.count('f') == 0:\n            return 'No'\n        if file_name.count('F') == 0:\n            return 'No'\n        if file_name.count('s') == 0:\n            return 'No'\n        if file_name.count('S') == 0:\n            return 'No'\n        if file_name.count('w') == 0:\n            return 'No'\n        if file_name.count('W') == 0:\n            return 'No'\n        if file_name.count('o') == 0:\n            return 'No'\n        if file_name.count('O') == 0:\n            return 'No'\n        if file_name.count('u') ==",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 142,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.78728675842285,
+      "final_passed": false,
+      "baseline_code": "def sum_squares(lst):\n    \"\"\"\n    This function will take a list of integers. For all entries in the list, the function shall square the integer entry if its index is a \n    multiple of 3 and will cube the integer entry if its index is a multiple of 4 and not a multiple of 3. The function will not \n    change the entries in the list whose indexes are not a multiple of 3 or 4. The function shall then return the sum of all entries. \n    \n    Examples:\n    For lst = [1,2,3] the output should be 6\n    For lst = []  the output should be 0\n    For lst = [-1,-5,2,-1,-5]  the output should be -126\n    \"\"\"\n    \n    sum = 0\n    for i in range(len(lst)):\n        if i % 3 == 0:\n            sum += lst[i] ** 2\n        elif i % 4 == 0:\n            sum += lst[i] ** 3\n    return sum",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 143,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.242876052856445,
+      "final_passed": false,
+      "baseline_code": "def words_in_sentence(sentence):\n    \"\"\"\n    You are given a string representing a sentence,\n    the sentence contains some words separated by a space,\n    and you have to return a string that contains the words from the original sentence,\n    whose lengths are prime numbers,\n    the order of the words in the new string should be the same as the original one.\n\n    Example 1:\n        Input: sentence = \"This is a test\"\n        Output: \"is\"\n\n    Example 2:\n        Input: sentence = \"lets go for swimming\"\n        Output: \"go for\"\n\n    Constraints:\n        * 1 <= len(sentence) <= 100\n        * sentence contains only letters\n    \"\"\"\n    words = sentence.split()\n    return \" \".join(word for word in words if is_prime(int(word)))",
+      "steered_code": "def words_in_sentence(sentence):\n    \"\"\"\n    You are given a string representing a sentence,\n    the sentence contains some words separated by a space,\n    and you have to return a string that contains the words from the original sentence,\n    whose lengths are prime numbers,\n    the order of the words in the new string should be the same as the original one.\n\n    Example 1:\n        Input: sentence = \"This is a test\"\n        Output: \"is\"\n\n    Example 2:\n        Input: sentence = \"lets go for swimming\"\n        Output: \"go for\"\n\n    Constraints:\n        * 1 <= len(sentence) <= 100\n        * sentence contains only letters\n    \"\"\"\n    words = sentence.split()\n    new_words = []\n    for word in words:\n        if len(word) > 1 and is_prime(int(word)):\n            new_words.append(word)\n    return \" \".join(new_words)",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 144,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.280654907226562,
+      "final_passed": false,
+      "baseline_code": "def simplify(x, n):\n    \"\"\"Your task is to implement a function that will simplify the expression\n    x * n. The function returns True if x * n evaluates to a whole number and False\n    otherwise. Both x and n, are string representation of a fraction, and have the following format,\n    <numerator>/<denominator> where both numerator and denominator are positive whole numbers.\n\n    You can assume that x, and n are valid fractions, and do not have zero as denominator.\n\n    simplify(\"1/5\", \"5/1\") = True\n    simplify(\"1/6\", \"2/1\") = False\n    simplify(\"7/10\", \"10/2\") = False\n    \"\"\"\n    if n == 1:\n        return True\n    if x == 1:\n        return True\n    if x == 0:\n        return False\n    if n == 0:\n        return False\n    if x == n:\n        return True\n    if x == 1:\n        return True\n    if x == -1:\n        return False\n    if x == -2:\n        return False\n    if x == -3:\n        return False\n    if x == -4:\n        return False\n    if x == -5:\n        return False\n    if x == -6:\n        return False\n    if x == -7:\n        return False\n    if x == -8:\n        return False\n    if x == -9:\n        return False\n    if x == -10:\n        return False\n    if x == -11:\n        return False\n    if x == -12:\n        return False\n    if x == -13:\n        return False\n    if x == -14:\n        return False\n    if x == -15:\n        return False\n    if x == -16:\n        return False\n    if x == -17:\n        return False\n    if x == -18:\n        return False\n    if x == -19:\n        return False\n    if x == -20:\n        return False\n    if x == -21:\n        return False\n    if x == -22:\n        return False\n    if x == -23:\n        return False\n    if x == -24:\n        return False\n    if x == -25:\n        return False\n    if x == -26:\n        return False\n    if x == -27:\n        return False\n    if x == -28:\n        return False\n    if x == -29:\n        return False\n    if x == -30:\n        return False\n    if x == -31:\n        return False\n    if x == -32:\n        return False\n    if x == -33:\n        return False\n    if x == -34:\n        return False\n    if x == -35:\n        return False\n    if x == -36:\n        return False\n    if x == -37:\n        return False\n    if x == -38:\n        return False\n    if x == -39:\n        return False\n    if x == -40:\n        return False\n    if x == -41:\n        return False\n    if x == -42:\n        return False\n    if x == -43:\n        return False\n    if x == -44:\n        return False\n    if x == -45:",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 145,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.469938278198242,
+      "final_passed": false,
+      "baseline_code": "def order_by_points(nums):\n    \"\"\"\n    Write a function which sorts the given list of integers\n    in ascending order according to the sum of their digits.\n    Note: if there are several items with similar sum of their digits,\n    order them based on their index in original list.\n\n    For example:\n    >>> order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]\n    >>> order_by_points([]) == []\n    \"\"\"\n    nums.sort(key=lambda x: sum(map(int, str(x))))\n    return nums",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 146,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.041393280029297,
+      "final_passed": false,
+      "baseline_code": "def specialFilter(nums):\n    return len([n for n in nums if n > 10 and (n % 10) % 2 == 1 and (n // 10) % 2 == 1])",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 147,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 25.571460723876953,
+      "final_passed": false,
+      "baseline_code": "def get_max_triples(n):\n    \"\"\"\n    You are given a positive integer n. You have to create an integer array a of length n.\n        For each i (1 \u2264 i \u2264 n), the value of a[i] = i * i - i + 1.\n        Return the number of triples (a[i], a[j], a[k]) of a where i < j < k, \n    and a[i] + a[j] + a[k] is a multiple of 3.\n\n    Example :\n        Input: n = 5\n        Output: 1\n        Explanation: \n        a = [1, 3, 7, 13, 21]\n        The only valid triple is (1, 7, 13).\n    \"\"\"\n    \n    # Create an array of length n\n    a = [i * i - i + 1 for i in range(1, n + 1)]\n    \n    # Initialize the count of triples\n    count = 0\n    \n    # Iterate through the array\n    for i in range(1, n):\n        # Check if the current triple is a multiple of 3\n        if a[i] + a[i + 1] + a[i + 2] % 3 == 0:\n            # Increment the count\n            count += 1\n    \n    # Return the count\n    return count",
+      "steered_code": "def get_max_triples(n):\n    \"\"\"\n    You are given a positive integer n. You have to create an integer array a of length n.\n        For each i (1 \u2264 i \u2264 n), the value of a[i] = i * i - i + 1.\n        Return the number of triples (a[i], a[j], a[k]) of a where i < j < k, \n    and a[i] + a[j] + a[k] is a multiple of 3.\n\n    Example :\n        Input: n = 5\n        Output: 1\n        Explanation: \n        a = [1, 3, 7, 13, 21]\n        The only valid triple is (1, 7, 13).\n    \"\"\"\n    # Your code here\n    a = [i * i - i + 1 for i in range(1, n + 1)]\n    count = 0\n    for i in range(1, n):\n        for j in range(i + 1, n):\n            for k in range(j + 1, n):\n                if a[i] + a[j] + a[k] % 3 == 0:\n                    count += 1\n    return count",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 148,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.02433204650879,
+      "final_passed": false,
+      "baseline_code": "def bf(planet1, planet2):\n    planets = [planet for planet in [\"Mercury\", \"Venus\", \"Earth\", \"Mars\", \"Jupiter\", \"Saturn\", \"Uranus\", \"Neptune\"] if planet != planet1 and planet != planet2]\n    return sorted(planets, key=lambda planet: planet.distance_from_sun)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 149,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.200590133666992,
+      "final_passed": false,
+      "baseline_code": "def sorted_list_sum(lst):\n    return sorted(lst, key=len, reverse=True)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 150,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.68889045715332,
+      "final_passed": false,
+      "baseline_code": "def x_or_y(n, x, y):\n    if n % 2 == 0:\n        return x\n    else:\n        return y",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 151,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.61897087097168,
+      "final_passed": false,
+      "baseline_code": "def double_the_difference(lst):\n    odd_sum = 0\n    for num in lst:\n        if num % 2 != 0:\n            odd_sum += num * num\n    return odd_sum",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 153,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.912582397460938,
+      "final_passed": false,
+      "baseline_code": "def Strongest_Extension(class_name, extensions):\n    \"\"\"You will be given the name of a class (a string) and a list of extensions.\n    The extensions are to be used to load additional classes to the class. The\n    strength of the extension is as follows: Let CAP be the number of the uppercase\n    letters in the extension's name, and let SM be the number of lowercase letters \n    in the extension's name, the strength is given by the fraction CAP - SM. \n    You should find the strongest extension and return a string in this \n    format: ClassName.StrongestExtensionName.\n    If there are two or more extensions with the same strength, you should\n    choose the one that comes first in the list.\n    For example, if you are given \"Slices\" as the class and a list of the\n    extensions: ['SErviNGSliCes', 'Cheese', 'StuFfed'] then you should\n    return 'Slices.SErviNGSliCes' since 'SErviNGSliCes' is the strongest extension \n    (its strength is -1).\n    Example:\n    for Strongest_Extension('my_class', ['AA', 'Be', 'CC']) == 'my_class.AA'\n    \"\"\"\n    # Your code here\n    # return the strongest extension\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name\n    # return the class name + the strongest extension name",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 154,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.448225021362305,
+      "final_passed": false,
+      "baseline_code": "def cycpattern_check(a , b):\n    \"\"\"You are given 2 words. You need to return True if the second word or any of its rotations is a substring in the first word\n    cycpattern_check(\"abcd\",\"abd\") => False\n    cycpattern_check(\"hello\",\"ell\") => True\n    cycpattern_check(\"whassup\",\"psus\") => False\n    cycpattern_check(\"abab\",\"baa\") => True\n    cycpattern_check(\"efef\",\"eeff\") => False\n    cycpattern_check(\"himenss\",\"simen\") => True\n\n    \"\"\"\n    if len(a) < len(b):\n        return False\n    if len(a) == len(b):\n        return True\n    if len(a) > len(b):\n        return False\n    if len(a) == 1:\n        return True\n    if len(a) == 2:\n        return True\n    if len(a) == 3:\n        return True\n    if len(a) == 4:\n        return True\n    if len(a) == 5:\n        return True\n    if len(a) == 6:\n        return True\n    if len(a) == 7:\n        return True\n    if len(a) == 8:\n        return True\n    if len(a) == 9:\n        return True\n    if len(a) == 10:\n        return True\n    if len(a) == 11:\n        return True\n    if len(a) == 12:\n        return True\n    if len(a) == 13:\n        return True\n    if len(a) == 14:\n        return True\n    if len(a) == 15:\n        return True\n    if len(a) == 16:\n        return True\n    if len(a) == 17:\n        return True\n    if len(a) == 18:\n        return True\n    if len(a) == 19:\n        return True\n    if len(a) == 20:\n        return True\n    if len(a) == 21:\n        return True\n    if len(a) == 22:\n        return True\n    if len(a) == 23:\n        return True\n    if len(a) == 24:\n        return True\n    if len(a) == 25:\n        return True\n    if len(a) == 26:\n        return True\n    if len(a) == 27:\n        return True\n    if len(a) == 28:\n        return True\n    if len(a) == 29:\n        return True\n    if len(a) == 30:\n        return True\n    if len(a) == 31:\n        return True\n    if len(a) == 32:\n        return True\n    if len(a) == 33:\n        return True\n    if len(a) == 34:\n        return True\n    if len(a) == 35:\n        return True\n    if len(a) == 36:\n        return True\n    if len(a) == 37:\n        return True\n    if len(a) == 38:\n        return True\n    if len(a) == 39:\n        return True\n    if len(a",
+      "steered_code": "def cycpattern_check(a , b):\n    \"\"\"You are given 2 words. You need to return True if the second word or any of its rotations is a substring in the first word\n    cycpattern_check(\"abcd\",\"abd\") => False\n    cycpattern_check(\"hello\",\"ell\") => True\n    cycpattern_check(\"whassup\",\"psus\") => False\n    cycpattern_check(\"abab\",\"baa\") => True\n    cycpattern_check(\"efef\",\"eeff\") => False\n    cycpattern_check(\"himenss\",\"simen\") => True\n\n    \"\"\"\n    if len(a) < len(b):\n        return False\n    if len(a) == len(b):\n        if a == b:\n            return True\n        else:\n            return False\n    else:\n        for i in range(len(a)):\n            if a[i:i+len(b)] == b:\n                return True\n        return False",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 155,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.078716278076172,
+      "final_passed": false,
+      "baseline_code": "def even_odd_count(num):\n    \"\"\"Given an integer. return a tuple that has the number of even and odd digits respectively.\n\n     Example:\n        even_odd_count(-12) ==> (1, 1)\n        even_odd_count(123) ==> (1, 2)\n    \"\"\"\n    even = 0\n    odd = 0\n    while num > 0:\n        if num % 10 % 2 == 0:\n            even += 1\n        else:\n            odd += 1\n        num //= 10\n    return (even, odd)",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 157,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 17.87293243408203,
+      "final_passed": false,
+      "baseline_code": "def right_angle_triangle(a, b, c):\n    return a**2 + b**2 == c**2",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 158,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 19.413095474243164,
+      "final_passed": false,
+      "baseline_code": "def find_max(words):\n    \"\"\"Write a function that accepts a list of strings.\n    The list contains different words. Return the word with maximum number\n    of unique characters. If multiple strings have maximum number of unique\n    characters, return the one which comes first in lexicographical order.\n\n    find_max([\"name\", \"of\", \"string\"]) == \"string\"\n    find_max([\"name\", \"enam\", \"game\"]) == \"enam\"\n    find_max([\"aaaaaaa\", \"bb\" ,\"cc\"]) == \"aaaaaaa\"\n    find_max([\"abc\", \"cba\"]) == \"abc\"\n    find_max([\"play\", \"this\", \"game\", \"of\",\"footbott\"]) == \"footbott\"\n    find_max([\"we\", \"are\", \"gonna\", \"rock\"]) == \"gonna\"\n    find_max([\"we\", \"are\", \"a\", \"mad\", \"nation\"]) == \"nation\"\n    find_max([\"this\", \"is\", \"a\", \"prrk\"]) == \"this\"\n    find_max([\"b\"]) == \"b\"\n    find_max([\"play\", \"play\", \"play\"]) == \"play\"\n    \"\"\"\n    # Write your code here.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return the one which comes first in lexicographical order.\n    # return the word with maximum number of unique characters\n    # if multiple strings have maximum number of unique characters, return",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 159,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.142284393310547,
+      "final_passed": false,
+      "baseline_code": "def eat(number, need, remaining):\n    if remaining < need:\n        return [number + remaining, remaining]\n    else:\n        return [number + remaining, remaining - need]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 160,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 21.210222244262695,
+      "final_passed": false,
+      "baseline_code": "def do_algebra(operator, operand):\n    \"\"\"\n    Given two lists operator, and operand. The first list has basic algebra operations, and \n    the second list is a list of integers. Use the two given lists to build the algebric \n    expression and return the evaluation of this expression.\n\n    The basic algebra operations:\n    Addition ( + ) \n    Subtraction ( - ) \n    Multiplication ( * ) \n    Floor division ( // ) \n    Exponentiation ( ** ) \n\n    Example:\n    operator['+', '*', '-']\n    array = [2, 3, 4, 5]\n    result = 2 + 3 * 4 - 5\n    => result = 9\n\n    Note:\n        The length of operator list is equal to the length of operand list minus one.\n        Operand is a list of of non-negative integers.\n        Operator list has at least one operator, and operand list has at least two operands.\n\n    \"\"\"\n    # Your code here\n    # return the evaluation of the expression\n    #\n    # Example:\n    # operator = ['+', '*', '-']\n    # operand = [2, 3, 4, 5]\n    # result = 2 + 3 * 4 - 5\n    # => result = 9\n    #\n    # Note:\n    #     The length of operator list is equal to the length of operand list minus one.\n    #     Operand is a list of of non-negative integers.\n    #     Operator list has at least one operator, and operand list has at least two operands.\n    #\n    # Hint:\n    #     Use the following functions:\n    #         len()\n    #         min()\n    #         max()\n    #         sum()\n    #         list()\n    #         range()\n    #         input()\n    #         print()\n    #         eval()\n    #\n    # Hint:\n    #     Use the following functions:\n    #         len()\n    #         min()\n    #         max()\n    #         sum()\n    #         list()\n    #         range()\n    #         input()\n    #         print()\n    #         eval()\n    #\n    # Hint:\n    #     Use the following functions:\n    #         len()\n    #         min()\n    #         max()\n    #         sum()\n    #         list()\n    #         range()\n    #         input()\n    #         print()\n    #         eval()\n    #\n    # Hint:\n    #     Use the following functions:\n    #         len()\n    #         min()\n    #         max()\n    #         sum()\n    #         list()\n    #         range()\n    #         input()\n    #         print()\n    #         eval()\n    #\n    # Hint:\n    #     Use the following functions:\n    #         len()\n    #         min()\n    #         max()\n    #         sum()\n    #         list()\n    #         range()\n    #         input()\n    #         print()\n    #         eval()\n    #\n    # Hint:\n    #     Use the following functions:\n    #         len()\n    #         min()\n    #         max()\n    #         sum()\n    #         list()\n    #         range()\n    #         input()\n    #         print()\n    #         eval()\n    #\n    # Hint:\n    #     Use the following functions",
+      "steered_code": "def do_algebra(operator, operand):\n    \"\"\"\n    Given two lists operator, and operand. The first list has basic algebra operations, and \n    the second list is a list of integers. Use the two given lists to build the algebric \n    expression and return the evaluation of this expression.\n\n    The basic algebra operations:\n    Addition ( + ) \n    Subtraction ( - ) \n    Multiplication ( * ) \n    Floor division ( // ) \n    Exponentiation ( ** ) \n\n    Example:\n    operator['+', '*', '-']\n    array = [2, 3, 4, 5]\n    result = 2 + 3 * 4 - 5\n    => result = 9\n\n    Note:\n        The length of operator list is equal to the length of operand list minus one.\n        Operand is a list of of non-negative integers.\n        Operator list has at least one operator, and operand list has at least two operands.\n\n    \"\"\"\n    # Your code here\n    result = 0\n    for i in range(len(operand) - 1):\n        if operator[i] == '+':\n            result += operand[i]\n        elif operator[i] == '-':\n            result -= operand[i]\n        elif operator[i] == '*':\n            result *= operand[i]\n        elif operator[i] == '/':\n            result /= operand[i]\n        elif operator[i] == '**':\n            result = result ** operand[i]\n    return result",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 161,
+      "initial_passed": false,
+      "steered": true,
+      "incorrect_pred_activation": 22.58904457092285,
+      "final_passed": false,
+      "baseline_code": "def solve(s):\n    return ''.join(reversed(s.lower()) if s.isalpha() else s)",
+      "steered_code": "def solve(s):\n    return ''.join(reversed(s.lower()) if s.islower() else s.upper())",
+      "source": "selective_steering"
+    },
+    {
+      "task_id": 162,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 20.457250595092773,
+      "final_passed": false,
+      "baseline_code": "def string_to_md5(text):\n    \"\"\"\n    Given a string 'text', return its md5 hash equivalent string.\n    If 'text' is an empty string, return None.\n\n    >>> string_to_md5('Hello world') == '3e25960a79dbc69b674cd4ec67a72c62'\n    \"\"\"\n    if text == '':\n        return None\n    return hashlib.md5(text.encode('utf-8')).hexdigest()",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    },
+    {
+      "task_id": 163,
+      "initial_passed": false,
+      "steered": false,
+      "incorrect_pred_activation": 18.51658058166504,
+      "final_passed": false,
+      "baseline_code": "def generate_integers(a, b):\n    \"\"\"\n    Given two positive integers a and b, return the even digits between a\n    and b, in ascending order.\n\n    For example:\n    generate_integers(2, 8) => [2, 4, 6, 8]\n    generate_integers(8, 2) => [2, 4, 6, 8]\n    generate_integers(10, 14) => []\n    \"\"\"\n    return [int(i) for i in str(a) if i.isdigit() and int(i) % 2 == 0] + [int(i) for i in str(b) if i.isdigit() and int(i) % 2 == 0]",
+      "steered_code": null,
+      "source": "phase3_5_baseline"
+    }
+  ],
+  "excluded_tasks": [],
+  "last_processed_idx": 138,
+  "total_tasks": 139,
+  "timestamp": "2025-11-24T11:13:42.049855",
+  "checkpoint_version": 1
+}

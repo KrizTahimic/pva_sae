@@ -1,0 +1,57 @@
+2025-11-26 03:59:57,036 [INFO] [sae_analyzer] setup_logging:167 - Phase: 2.5, GPU: CPU
+2025-11-26 03:59:57,036 [INFO] [phase7_12.instruct_auroc_f1_evaluator] setup_logging:167 - Phase: 7.12, GPU: CPU
+2025-11-26 03:59:57,037 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:375 - Using HumanEval data from Phase 0.2: data/phase0_2_humaneval
+2025-11-26 03:59:57,038 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:392 - Auto-discovered Phase 7.3 output: data/phase7_3_humaneval
+2025-11-26 03:59:57,038 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:409 - Output directory: data/phase7_12
+2025-11-26 03:59:57,038 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:412 - Loading best features from Phase 2.10...
+2025-11-26 03:59:57,038 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:443 - Best correct-preferring feature: idx 14439 at layer 16
+2025-11-26 03:59:57,038 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:444 - Best incorrect-preferring feature: idx 5441 at layer 19
+2025-11-26 03:59:57,038 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:447 - 
+============================================================
+2025-11-26 03:59:57,038 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:448 - EVALUATING CORRECT-PREFERRING FEATURE (INSTRUCT MODEL)
+2025-11-26 03:59:57,038 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:449 - ============================================================
+2025-11-26 03:59:57,062 [INFO] [sae_analyzer] load_gemma_scope_sae:47 - Loading GemmaScope SAE for layer 16
+2025-11-26 03:59:57,062 [INFO] [sae_analyzer] load_gemma_scope_sae:61 - Loading from HuggingFace: google/gemma-scope-2b-pt-res/layer_16/width_16k/average_l0_78/params.npz
+2025-11-26 03:59:57,062 [INFO] [sae_analyzer] load_gemma_scope_sae:62 - This may take a while if the model is not cached...
+2025-11-26 03:59:57,351 [INFO] [sae_analyzer] load_gemma_scope_sae:70 - Download complete, loading from: /home/kriz.tahimic/.cache/huggingface/hub/models--google--gemma-scope-2b-pt-res/snapshots/fd571b47c1c64851e9b1989792367b9babb4af63/layer_16/width_16k/average_l0_78/params.npz
+2025-11-26 03:59:58,415 [INFO] [sae_analyzer] load_gemma_scope_sae:87 - Loaded SAE with d_model=2304, d_sae=16384, sparsity=78
+2025-11-26 03:59:58,415 [INFO] [phase7_12.instruct_auroc_f1_evaluator] load_instruct_activations:289 - Loaded SAE for layer 16 with 16,384 features on cuda
+2025-11-26 03:59:58,857 [INFO] [phase7_12.instruct_auroc_f1_evaluator] load_instruct_activations:345 - Loaded 164 samples from instruction-tuned model data
+2025-11-26 03:59:58,857 [INFO] [phase7_12.instruct_auroc_f1_evaluator] load_instruct_activations:346 - Class distribution: [105  59]
+2025-11-26 03:59:59,424 [INFO] [phase7_12.instruct_auroc_f1_evaluator] find_optimal_threshold:129 - 
+F1 optimal for correct-preferring feature:
+2025-11-26 03:59:59,441 [INFO] [phase7_12.instruct_auroc_f1_evaluator] calculate_metrics:62 - 
+Metrics for correct-preferring feature:
+2025-11-26 03:59:59,442 [INFO] [phase7_12.instruct_auroc_f1_evaluator] calculate_metrics:63 - Precision: 0.4375
+2025-11-26 03:59:59,442 [INFO] [phase7_12.instruct_auroc_f1_evaluator] calculate_metrics:64 - Recall: 0.8305
+2025-11-26 03:59:59,442 [INFO] [phase7_12.instruct_auroc_f1_evaluator] calculate_metrics:65 - F1 Score: 0.5731
+2025-11-26 03:59:59,442 [INFO] [phase7_12.instruct_auroc_f1_evaluator] calculate_metrics:66 - AUROC: 0.5897
+2025-11-26 03:59:59,759 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:472 - 
+============================================================
+2025-11-26 03:59:59,759 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:473 - EVALUATING INCORRECT-PREFERRING FEATURE (INSTRUCT MODEL)
+2025-11-26 03:59:59,759 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:474 - ============================================================
+2025-11-26 03:59:59,766 [INFO] [sae_analyzer] load_gemma_scope_sae:47 - Loading GemmaScope SAE for layer 19
+2025-11-26 03:59:59,766 [INFO] [sae_analyzer] load_gemma_scope_sae:61 - Loading from HuggingFace: google/gemma-scope-2b-pt-res/layer_19/width_16k/average_l0_73/params.npz
+2025-11-26 03:59:59,766 [INFO] [sae_analyzer] load_gemma_scope_sae:62 - This may take a while if the model is not cached...
+2025-11-26 04:00:00,015 [INFO] [sae_analyzer] load_gemma_scope_sae:70 - Download complete, loading from: /home/kriz.tahimic/.cache/huggingface/hub/models--google--gemma-scope-2b-pt-res/snapshots/fd571b47c1c64851e9b1989792367b9babb4af63/layer_19/width_16k/average_l0_73/params.npz
+2025-11-26 04:00:00,913 [INFO] [sae_analyzer] load_gemma_scope_sae:87 - Loaded SAE with d_model=2304, d_sae=16384, sparsity=73
+2025-11-26 04:00:00,914 [INFO] [phase7_12.instruct_auroc_f1_evaluator] load_instruct_activations:289 - Loaded SAE for layer 19 with 16,384 features on cuda
+2025-11-26 04:00:01,212 [INFO] [phase7_12.instruct_auroc_f1_evaluator] load_instruct_activations:345 - Loaded 164 samples from instruction-tuned model data
+2025-11-26 04:00:01,213 [INFO] [phase7_12.instruct_auroc_f1_evaluator] load_instruct_activations:346 - Class distribution: [ 59 105]
+2025-11-26 04:00:01,681 [INFO] [phase7_12.instruct_auroc_f1_evaluator] find_optimal_threshold:129 - 
+F1 optimal for incorrect-preferring feature:
+2025-11-26 04:00:01,689 [INFO] [phase7_12.instruct_auroc_f1_evaluator] calculate_metrics:62 - 
+Metrics for incorrect-preferring feature:
+2025-11-26 04:00:01,689 [INFO] [phase7_12.instruct_auroc_f1_evaluator] calculate_metrics:63 - Precision: 0.6380
+2025-11-26 04:00:01,689 [INFO] [phase7_12.instruct_auroc_f1_evaluator] calculate_metrics:64 - Recall: 0.9905
+2025-11-26 04:00:01,689 [INFO] [phase7_12.instruct_auroc_f1_evaluator] calculate_metrics:65 - F1 Score: 0.7761
+2025-11-26 04:00:01,689 [INFO] [phase7_12.instruct_auroc_f1_evaluator] calculate_metrics:66 - AUROC: 0.5945
+2025-11-26 04:00:01,894 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:496 - 
+============================================================
+2025-11-26 04:00:01,894 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:497 - SAVING RESULTS
+2025-11-26 04:00:01,895 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:498 - ============================================================
+2025-11-26 04:00:02,418 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:569 - 
+All results saved to data/phase7_12
+2025-11-26 04:00:02,418 [INFO] [main] run_phase7_12:714 - 
+✅ Phase 7.12 completed successfully
+2025-11-26 04:00:02,418 [INFO] [main] run_phase7_12:715 - Results saved to: data/phase7_12

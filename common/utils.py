@@ -439,13 +439,13 @@ PHASE_CONFIGS = {
 def get_phase_dir(phase: str) -> str:
     """
     Get the directory path for a given phase.
-    
+
     Args:
         phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8", "3.10", "3.12", "4.5", "4.8", "4.10", "4.12", "4.14", "5.3", "5.6", "5.9", "6.3", "7.3", "7.6", "7.12")
-        
+
     Returns:
         str: Directory path for the phase
-        
+
     Examples:
         get_phase_dir("0") -> "data/phase0"
         get_phase_dir("1") -> "data/phase1_0"
@@ -460,8 +460,88 @@ def get_phase_dir(phase: str) -> str:
     """
     if phase not in PHASE_CONFIGS:
         raise ValueError(f"Unknown phase: {phase}. Valid phases are: {list(PHASE_CONFIGS.keys())}")
-    
+
     return PHASE_CONFIGS[phase]["dir"]
+
+
+def get_phase_output_dir(phase: str, config) -> str:
+    """
+    Generate model/dataset-aware output directory for a phase.
+
+    This function creates output directory paths with suffixes based on the
+    current model and dataset, allowing separate experiments for different
+    model/dataset combinations.
+
+    Args:
+        phase: Phase string (e.g., "1", "2.5", "3.5")
+        config: Config object with model_name and dataset_name
+
+    Returns:
+        str: Output directory path with appropriate suffix
+
+    Examples:
+        # Gemma + MBPP (default): "data/phase1_0"
+        # LLAMA + MBPP: "data/phase1_0_llama"
+        # Gemma + HumanEval: "data/phase1_0_humaneval"
+        # LLAMA + HumanEval: "data/phase1_0_llama_humaneval"
+    """
+    # Get base directory for the phase
+    if phase in PHASE_CONFIGS:
+        base_dir = PHASE_CONFIGS[phase]["dir"]
+    else:
+        # Fallback to standard naming
+        phase_key = phase.replace(".", "_")
+        base_dir = f"data/phase{phase_key}"
+
+    # Build suffix based on model and dataset
+    suffixes = []
+
+    # Add model suffix if not default Gemma
+    model_name = getattr(config, 'model_name', 'google/gemma-2-2b')
+    if 'llama' in model_name.lower():
+        suffixes.append('llama')
+
+    # Add dataset suffix if not default MBPP
+    dataset_name = getattr(config, 'dataset_name', 'mbpp')
+    if dataset_name.lower() == 'humaneval':
+        suffixes.append('humaneval')
+
+    # Return base directory with suffixes
+    if suffixes:
+        return f"{base_dir}_{'_'.join(suffixes)}"
+    return base_dir
+
+
+def get_model_suffix(config) -> str:
+    """
+    Get a short suffix string for the current model.
+
+    Args:
+        config: Config object with model_name
+
+    Returns:
+        str: Model suffix (e.g., "", "llama")
+    """
+    model_name = getattr(config, 'model_name', 'google/gemma-2-2b')
+    if 'llama' in model_name.lower():
+        return 'llama'
+    return ''
+
+
+def get_dataset_suffix(config) -> str:
+    """
+    Get a short suffix string for the current dataset.
+
+    Args:
+        config: Config object with dataset_name
+
+    Returns:
+        str: Dataset suffix (e.g., "", "humaneval")
+    """
+    dataset_name = getattr(config, 'dataset_name', 'mbpp')
+    if dataset_name.lower() == 'humaneval':
+        return 'humaneval'
+    return ''
 
 
 def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None) -> Optional[str]:

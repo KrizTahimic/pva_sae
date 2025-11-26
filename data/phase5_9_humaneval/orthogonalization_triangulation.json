@@ -1,0 +1,159 @@
+{
+  "metadata": {
+    "phase": "5.9",
+    "description": "Statistical triangulation testing for weight orthogonalization validation",
+    "test_type": "binomial",
+    "significance_level": 0.05,
+    "timestamp": "2025-11-24T11:01:09.457954"
+  },
+  "baseline_metrics": {
+    "n_correct": 25,
+    "n_incorrect": 139,
+    "n_total": 164,
+    "correct_rate": 0.1524390243902439,
+    "incorrect_rate": 0.8475609756097561
+  },
+  "triangulation_results": {
+    "correction": {
+      "rates": {
+        "baseline": 0.0,
+        "zero_discrimination": 0.05755395683453238,
+        "pva": 0.007194244604316547
+      },
+      "counts": {
+        "baseline": {
+          "n_corrected": 0,
+          "n_total": 139
+        },
+        "zero_discrimination": {
+          "n_corrected": 8,
+          "n_total": 139
+        },
+        "pva": {
+          "n_corrected": 1,
+          "n_total": 139
+        }
+      },
+      "comparisons": {
+        "baseline_vs_pva": {
+          "n_successes": 1,
+          "n_trials": 139,
+          "observed_rate": 0.007194244604316547,
+          "expected_rate": 0.0,
+          "p_value": 0.0,
+          "significant": "True",
+          "alternative": "greater",
+          "confidence_interval": [
+            0.000368948428187016,
+            1.0
+          ],
+          "effect_size": 0.007194244604316547
+        },
+        "pva_vs_control": {
+          "n_successes": 1,
+          "n_trials": 139,
+          "observed_rate": 0.007194244604316547,
+          "expected_rate": 0.05755395683453238,
+          "p_value": 0.9997359702522266,
+          "significant": "False",
+          "alternative": "greater",
+          "confidence_interval": [
+            0.000368948428187016,
+            1.0
+          ],
+          "effect_size": -0.05035971223021583
+        }
+      }
+    },
+    "corruption": {
+      "rates": {
+        "baseline": 0.0,
+        "zero_discrimination": 0.08,
+        "pva": 1.0
+      },
+      "counts": {
+        "baseline": {
+          "n_corrupted": 0,
+          "n_total": 25
+        },
+        "zero_discrimination": {
+          "n_corrupted": 2,
+          "n_total": 25
+        },
+        "pva": {
+          "n_corrupted": 25,
+          "n_total": 25
+        }
+      },
+      "comparisons": {
+        "baseline_vs_pva": {
+          "n_successes": 25,
+          "n_trials": 25,
+          "observed_rate": 1.0,
+          "expected_rate": 0.0,
+          "p_value": 0.0,
+          "significant": "True",
+          "alternative": "greater",
+          "confidence_interval": [
+            0.8870718549931568,
+            1.0
+          ],
+          "effect_size": 1.0
+        },
+        "pva_vs_control": {
+          "n_successes": 25,
+          "n_trials": 25,
+          "observed_rate": 1.0,
+          "expected_rate": 0.08,
+          "p_value": 3.777893186295718e-28,
+          "significant": "True",
+          "alternative": "greater",
+          "confidence_interval": [
+            0.8870718549931568,
+            1.0
+          ],
+          "effect_size": 0.92
+        }
+      }
+    }
+  },
+  "interpretation": {
+    "validity_checks": {
+      "orthogonalization_works": "True",
+      "correction_specific": "False",
+      "corruption_not_specific": false
+    },
+    "validation_strength": "MODERATE",
+    "interpretation": "Mixed validation: Weight orthogonalization shows effects compared to baseline, but the pattern of specificity is inconsistent. This suggests weight modifications work but may have complex interactions with different feature types.",
+    "detailed_findings": {
+      "correction": "PVA orthogonalization corrects errors (0.7% improvement, p=0.00e+00) | PVA and control correction rates similar",
+      "corruption": "Incorrect-preferring features significantly corrupt (100.0% corruption, p=0.00e+00) | PVA corrupts MORE than control (100.0% vs 8.0%, p=3.78e-28)"
+    }
+  },
+  "summary": {
+    "validation_strength": "MODERATE",
+    "validity_checks": {
+      "orthogonalization_works": "True",
+      "correction_specific": "False",
+      "corruption_not_specific": false
+    },
+    "correction_p_values": {
+      "baseline_vs_pva": 0.0,
+      "pva_vs_control": 0.9997359702522266
+    },
+    "corruption_p_values": {
+      "baseline_vs_pva": 0.0,
+      "pva_vs_control": 3.777893186295718e-28
+    },
+    "effect_sizes": {
+      "correction": {
+        "baseline_to_pva": 0.007194244604316547,
+        "control_to_pva": -0.05035971223021583
+      },
+      "corruption": {
+        "baseline_to_pva": 1.0,
+        "control_to_pva": 0.92
+      }
+    }
+  }
+}

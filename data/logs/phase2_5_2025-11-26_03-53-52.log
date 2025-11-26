@@ -1,0 +1,13 @@
+2025-11-26 03:53:52,115 [INFO] [sae_analyzer] setup_logging:167 - Phase: 2.5, GPU: CPU
+2025-11-26 03:53:52,115 [INFO] [phase7_12.instruct_auroc_f1_evaluator] setup_logging:167 - Phase: 7.12, GPU: CPU
+2025-11-26 03:53:52,117 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:371 - Using HumanEval data from Phase 0.2: data/phase0_2_humaneval
+2025-11-26 03:53:52,117 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:388 - Auto-discovered Phase 7.3 output: data/phase7_3_humaneval
+2025-11-26 03:53:52,117 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:405 - Output directory: data/phase7_12
+2025-11-26 03:53:52,117 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:408 - Loading best features from Phase 2.10...
+2025-11-26 03:53:52,117 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:439 - Best correct-preferring feature: idx 14439 at layer 16
+2025-11-26 03:53:52,117 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:440 - Best incorrect-preferring feature: idx 5441 at layer 19
+2025-11-26 03:53:52,117 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:443 - 
+============================================================
+2025-11-26 03:53:52,118 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:444 - EVALUATING CORRECT-PREFERRING FEATURE (INSTRUCT MODEL)
+2025-11-26 03:53:52,118 [INFO] [phase7_12.instruct_auroc_f1_evaluator] main:445 - ============================================================
+2025-11-26 03:53:52,124 [ERROR] [main] main:1954 - Phase 7.12 failed: [Errno 2] No such file or directory: 'data/phase0_2_humaneval/validation_mbpp.parquet'

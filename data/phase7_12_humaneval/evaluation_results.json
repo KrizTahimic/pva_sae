@@ -1,0 +1,41 @@
+{
+  "phase": "7.12",
+  "model_type": "instruction-tuned (gemma-2-2b-it)",
+  "correct_preferring_feature": {
+    "feature": {
+      "idx": 14439,
+      "layer": 16
+    },
+    "validation_metrics": {
+      "split": "validation",
+      "n_samples": 164,
+      "optimal_threshold": 4.731754302978516,
+      "metrics": {
+        "auroc": 0.5897497982243745,
+        "f1": 0.5730994152046783,
+        "precision": 0.4375,
+        "recall": 0.8305084745762712,
+        "threshold": 4.731754302978516
+      }
+    }
+  },
+  "incorrect_preferring_feature": {
+    "feature": {
+      "idx": 5441,
+      "layer": 19
+    },
+    "validation_metrics": {
+      "split": "validation",
+      "n_samples": 164,
+      "optimal_threshold": 8.177486419677734,
+      "metrics": {
+        "auroc": 0.5945117029862793,
+        "f1": 0.7761194029850746,
+        "precision": 0.6380368098159509,
+        "recall": 0.9904761904761905,
+        "threshold": 8.177486419677734
+      }
+    }
+  },
+  "creation_timestamp": "2025-11-26T08:30:15.210031"
+}

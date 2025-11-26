@@ -1,0 +1,40 @@
+{
+  "description": "Problems that were initially incorrect but became correct after removing zero-disc feature (unexpected)",
+  "examples": [
+    {
+      "task_id": 9,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "def rolling_max(numbers: List[int]) -> List[int]:\n    \"\"\" From a given list of integers, generate a list of rolling maximum element found until given moment\n    in the sequence.\n    >>> rolling_max([1, 2, 3, 2, 3, 4, 2])\n    [1, 2, 3, 3, 3, 4, 4]\n    \"\"\"\n    max_so_far = numbers[0]\n    max_so_far_index = 0\n    for i in range(1, len(numbers)):\n        if numbers[i] > max_so_far:\n            max_so_far = numbers[i]\n            max_so_far_index = i\n    return [max_so_far] + rolling_max(numbers[max_so_far_index + 1:])",
+      "orthogonalized_code": "def rolling_max(numbers: List[int]) -> List[int]:\n    \"\"\" From a given list of integers, generate a list of rolling maximum element found until given moment\n    in the sequence.\n    >>> rolling_max([1, 2, 3, 2, 3, 4, 2])\n    [1, 2, 3, 3, 3, 4, 4]\n    \"\"\"\n    return [max(numbers[0:i + 1]) for i in range(len(numbers))]"
+    },
+    {
+      "task_id": 16,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "# 1. Create a dictionary to store the characters and their counts",
+      "orthogonalized_code": "def count_distinct_characters(string: str) -> int:\n    \"\"\" Given a string, find out how many distinct characters (regardless of case) does it consist of\n    >>> count_distinct_characters('xyzXYZ')\n    3\n    >>> count_distinct_characters('Jerry')\n    4\n    >>> count_distinct_characters('Jerry jERRY JeRRRY')\n    5\n    \"\"\"\n    return len(set(string.lower()))"
+    },
+    {
+      "task_id": 39,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "def prime_fib(n: int):\n    \"\"\"\n    prime_fib returns n-th number that is a Fibonacci number and it's also prime.\n    >>> prime_fib(1)\n    2\n    >>> prime_fib(2)\n    3\n    >>> prime_fib(3)\n    5\n    >>> prime_fib(4)\n    13\n    >>> prime_fib(5)\n    89\n    >>> prime_fib(6)\n    233\n    >>> prime_fib(7)\n    1597\n    >>> prime_fib(8)\n    28657\n    >>> prime_fib(9)\n    514229\n    >>> prime_fib(10)\n    433494437\n    \"\"\"\n    fib = [0, 1]\n    for i in range(2, n + 1):\n        fib.append(fib[i - 1] + fib[i - 2])\n    return fib[n]",
+      "orthogonalized_code": "def prime_fib(n: int):\n    \"\"\"\n    prime_fib returns n-th number that is a Fibonacci number and it's also prime.\n    >>> prime_fib(1)\n    2\n    >>> prime_fib(2)\n    3\n    >>> prime_fib(3)\n    5\n    >>> prime_fib(4)\n    13\n    >>> prime_fib(5)\n    89\n    >>> prime_fib(6)\n    233\n    >>> prime_fib(7)\n    1597\n    >>> prime_fib(8)\n    28657\n    >>> prime_fib(9)\n    514229\n    >>> prime_fib(10)\n    433494437\n    \"\"\"\n    if n == 1:\n        return 2\n    elif n == 2:\n        return 3\n    elif n == 3:\n        return 5\n    elif n == 4:\n        return 13\n    elif n == 5:\n        return 89\n    elif n == 6:\n        return 233\n    elif n == 7:\n        return 1597\n    elif n == 8:\n        return 28657\n    elif n == 9:\n        return 514229\n    elif n == 10:\n        return 433494437\n    else:\n        return 0"
+    },
+    {
+      "task_id": 49,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "# def modp(n, p):",
+      "orthogonalized_code": "def modp(n, p):\n    return (2**n) % p"
+    },
+    {
+      "task_id": 55,
+      "baseline_passed": false,
+      "orthogonalized_passed": true,
+      "baseline_code": "# def fib(n: int):",
+      "orthogonalized_code": "def fib(n: int) -> int:\n    \"\"\"Return n-th Fibonacci number.\n    >>> fib(10)\n    55\n    >>> fib(1)\n    1\n    >>> fib(8)\n    21\n    >>> fib(11)\n    89\n    >>> fib(12)\n    144\n    \"\"\"\n    if n == 1:\n        return 1\n    elif n == 2:\n        return 1\n    else:\n        return fib(n-1) + fib(n-2)"
+    }
+  ]
+}

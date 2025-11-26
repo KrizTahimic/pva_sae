@@ -1,0 +1,59 @@
+{
+  "phase": "8.3",
+  "timestamp": "2025-11-24T11:16:45.032449",
+  "threshold_info": {
+    "layer": 19,
+    "feature": 5441,
+    "threshold": 20.580138778686525
+  },
+  "steering_info": {
+    "layer": 16,
+    "feature": 11225,
+    "coefficient": 29
+  },
+  "correction_experiment": {
+    "total_problems": 139,
+    "valid_problems": 139,
+    "n_steered": 33,
+    "n_not_steered": 106,
+    "n_corrected": 2,
+    "correction_rate": 0.0144,
+    "steering_trigger_rate": 0.2374,
+    "correction_efficiency": 0.0606,
+    "activation_stats": {
+      "mean": 19.286118816128738,
+      "std": 2.0457291416068646,
+      "min": 15.280847549438477,
+      "max": 25.571460723876953,
+      "threshold": 20.580138778686525
+    }
+  },
+  "preservation_experiment": {
+    "total_problems": 25,
+    "valid_problems": 25,
+    "n_steered": 2,
+    "n_not_steered": 23,
+    "n_preserved": 25,
+    "n_corrupted": 0,
+    "preservation_rate": 1.0,
+    "corruption_rate": 0.0,
+    "steering_avoidance_rate": 0.92,
+    "activation_stats": {
+      "mean": 17.51889389038086,
+      "std": 1.7650394159648144,
+      "min": 13.142641067504883,
+      "max": 21.021696090698242,
+      "threshold": 20.580138778686525
+    }
+  },
+  "combined_metrics": {
+    "total_problems": 164,
+    "total_steered": 35,
+    "overall_steering_rate": 0.2134,
+    "comparison_to_phase4_8": {
+      "phase4_8_correction_rate": 0.0404,
+      "phase4_8_corruption_rate": 0.1466,
+      "note": "Phase 4.8 values are from always-steering approach"
+    }
+  }
+}

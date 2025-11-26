@@ -12,7 +12,7 @@ import psutil  # For memory monitoring
 from common.config import Config
 from common.logging import get_logger
 from common.prompt_utils import PromptBuilder
-from common.utils import detect_device
+from common.utils import detect_device, get_phase_output_dir
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.activation_hooks import ActivationExtractor
@@ -284,14 +284,17 @@ class Phase1Runner:
         logger.info(f"Processing tasks {start_idx} to {end_idx} ({len(df)} out of {total_tasks} tasks in {split_name} split)")
         
         # Create output directories
-        # Check for environment variable override (for checkpointing)
+        # Use model/dataset-aware output directory
+        # For LLAMA + MBPP: data/phase1_0_llama/
+        # For Gemma + MBPP: data/phase1_0/ (default)
         import os
         output_dir_env = os.environ.get('PHASE1_OUTPUT_DIR')
         if output_dir_env:
             output_dir = Path(output_dir_env)
             logger.info(f"Using output directory from environment: {output_dir}")
         else:
-            output_dir = Path(self.config.phase1_output_dir)
+            output_dir = Path(get_phase_output_dir("1", self.config))
+            logger.info(f"Output directory: {output_dir} (model: {self.config.model_name})")
         
         output_dir.mkdir(parents=True, exist_ok=True)
         

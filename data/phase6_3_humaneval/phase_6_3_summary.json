@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-11-24T10:24:43.518464",
+  "n_tasks_analyzed": 62,
+  "layers_analyzed": {
+    "correct": 16,
+    "incorrect": 25
+  },
+  "key_findings": {
+    "correct_steering": {
+      "significant_sections": [
+        {
+          "section": "problem",
+          "mean_change": -3.889465808868408,
+          "p_value": 3.8051202843723425e-05
+        },
+        {
+          "section": "tests",
+          "mean_change": 5.328914165496826,
+          "p_value": 1.1734315295206563e-15
+        }
+      ],
+      "test_case_change": 5.328914165496826,
+      "test_case_significant": "True"
+    },
+    "incorrect_steering": {
+      "significant_sections": [
+        {
+          "section": "tests",
+          "mean_change": -10.811091423034668,
+          "p_value": 0.006482895804510998
+        },
+        {
+          "section": "solution_marker",
+          "mean_change": 14.191515922546387,
+          "p_value": 0.002914312347895908
+        }
+      ],
+      "test_case_change": -10.811091423034668,
+      "test_case_significant": "True"
+    }
+  }
+}

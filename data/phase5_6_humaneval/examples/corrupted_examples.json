@@ -1,0 +1,21 @@
+{
+  "description": "Problems that were initially correct but became incorrect after removing zero-disc feature (unexpected)",
+  "examples": [
+    {
+      "task_id": 15,
+      "baseline_passed": true,
+      "orthogonalized_passed": false,
+      "baseline_code": "def string_sequence(n: int) -> str:\n    \"\"\" Return a string containing space-delimited numbers starting from 0 upto n inclusive.\n    >>> string_sequence(0)\n    '0'\n    >>> string_sequence(5)\n    '0 1 2 3 4 5'\n    \"\"\"\n    return ' '.join(str(i) for i in range(n+1))",
+      "orthogonalized_code": "def string_sequence(n: int) -> str:\n    return ' '.join(map(str, range(n)))",
+      "similarity": 0.7636363636363637
+    },
+    {
+      "task_id": 47,
+      "baseline_passed": true,
+      "orthogonalized_passed": false,
+      "baseline_code": "def median(l: list):\n    \"\"\"Return median of elements in the list l.\n    >>> median([3, 1, 2, 4, 5])\n    3\n    >>> median([-10, 4, 6, 1000, 10, 20])\n    15.0\n    \"\"\"\n    l.sort()\n    if len(l) % 2 == 0:\n        return (l[len(l)//2] + l[len(l)//2 - 1]) / 2\n    else:\n        return l[len(l)//2]",
+      "orthogonalized_code": "def median(l: list):\n    l.sort()\n    return l[len(l)//2]",
+      "similarity": 0.5411764705882353
+    }
+  ]
+}
