@@ -1,0 +1,10 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{c+c1}{\PYGZsh{} Baseline: Unmodified model}
+\PYG{n}{baseline\PYGZus{}model} \PYG{o}{=} \PYG{n}{load\PYGZus{}model}\PYG{p}{(}\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} Control: Orthogonalize random zero\PYGZhy{}separation feature}
+\PYG{n}{control\PYGZus{}model} \PYG{o}{=} \PYG{n}{orthogonalize\PYGZus{}weights}\PYG{p}{(}\PYG{n}{load\PYGZus{}model}\PYG{p}{(}\PYG{p}{)}\PYG{p}{,} \PYG{n}{random\PYGZus{}direction}\PYG{p}{,} \PYG{n}{layer}\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} Orthogonalization: Orthogonalize our identified feature}
+\PYG{n}{ortho\PYGZus{}model} \PYG{o}{=} \PYG{n}{orthogonalize\PYGZus{}weights}\PYG{p}{(}\PYG{n}{load\PYGZus{}model}\PYG{p}{(}\PYG{p}{)}\PYG{p}{,} \PYG{n}{target\PYGZus{}direction}\PYG{p}{,} \PYG{n}{layer}\PYG{p}{)}
+\end{MintedVerbatim}

@@ -1,0 +1,17 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+Predicting Direction Transfer (Layer 16, Feature 14439):
+  Base Model (gemma\PYGZhy{}2\PYGZhy{}2b):
+    AUROC: 0.6430, F1: 0.5039
+  Instruction\PYGZhy{}Tuned (gemma\PYGZhy{}2\PYGZhy{}2b\PYGZhy{}it):
+    AUROC: 0.5555, F1: 0.3817
+  Retention: 86.4\PYGZpc{} (AUROC), 75.7\PYGZpc{} (F1)
+
+Steering Direction Transfer (Layer 16, Feature 11225):
+  Base Model Correction Rate: 4.0\PYGZpc{}
+  Instruction\PYGZhy{}Tuned Correction Rate: 2.9\PYGZpc{}
+  Retention: 72.4\PYGZpc{}
+
+Conclusion: Directions show partial transfer to instruction\PYGZhy{}tuned
+model with moderate degradation, suggesting representations are
+partially restructured during fine\PYGZhy{}tuning.
+\end{MintedVerbatim}

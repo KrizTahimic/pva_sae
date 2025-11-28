@@ -1,0 +1,28 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{simple\PYGZus{}grid\PYGZus{}search}\PYG{p}{(}\PYG{n}{steering\PYGZus{}type}\PYG{p}{)}\PYG{p}{:}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Test coefficients from 10 to 100 in steps of 10.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{n}{grid\PYGZus{}points} \PYG{o}{=} \PYG{p}{[}\PYG{l+m+mi}{10}\PYG{p}{,} \PYG{l+m+mi}{20}\PYG{p}{,} \PYG{l+m+mi}{30}\PYG{p}{,} \PYG{l+m+mi}{40}\PYG{p}{,} \PYG{l+m+mi}{50}\PYG{p}{,} \PYG{l+m+mi}{60}\PYG{p}{,} \PYG{l+m+mi}{70}\PYG{p}{,} \PYG{l+m+mi}{80}\PYG{p}{,} \PYG{l+m+mi}{90}\PYG{p}{,} \PYG{l+m+mi}{100}\PYG{p}{]}
+    \PYG{n}{best\PYGZus{}coefficient} \PYG{o}{=} \PYG{l+m+mi}{10}
+    \PYG{n}{best\PYGZus{}score} \PYG{o}{=} \PYG{l+m+mi}{0}
+
+    \PYG{k}{for} \PYG{n}{coeff} \PYG{o+ow}{in} \PYG{n}{grid\PYGZus{}points}\PYG{p}{:}
+        \PYG{c+c1}{\PYGZsh{} Create steering hook}
+        \PYG{n}{hook\PYGZus{}fn} \PYG{o}{=} \PYG{n}{create\PYGZus{}steering\PYGZus{}hook}\PYG{p}{(}\PYG{n}{decoder\PYGZus{}direction}\PYG{p}{,} \PYG{n}{coeff}\PYG{p}{)}
+        \PYG{n}{layer}\PYG{o}{.}\PYG{n}{register\PYGZus{}forward\PYGZus{}pre\PYGZus{}hook}\PYG{p}{(}\PYG{n}{hook\PYGZus{}fn}\PYG{p}{)}
+
+        \PYG{c+c1}{\PYGZsh{} Test on hyperparameter set}
+        \PYG{k}{if} \PYG{n}{steering\PYGZus{}type} \PYG{o}{==} \PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{correct}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{:}
+            \PYG{n}{score} \PYG{o}{=} \PYG{n}{calculate\PYGZus{}correction\PYGZus{}rate}\PYG{p}{(}\PYG{n}{results}\PYG{p}{)}
+        \PYG{k}{else}\PYG{p}{:}
+            \PYG{n}{score} \PYG{o}{=} \PYG{n}{calculate\PYGZus{}composite\PYGZus{}score}\PYG{p}{(}\PYG{n}{results}\PYG{p}{)}
+
+        \PYG{k}{if} \PYG{n}{score} \PYG{o}{\PYGZgt{}} \PYG{n}{best\PYGZus{}score}\PYG{p}{:}
+            \PYG{n}{best\PYGZus{}score} \PYG{o}{=} \PYG{n}{score}
+            \PYG{n}{best\PYGZus{}coefficient} \PYG{o}{=} \PYG{n}{coeff}
+
+        \PYG{c+c1}{\PYGZsh{} Early stopping if performance drops}
+        \PYG{k}{if} \PYG{n}{found\PYGZus{}peak} \PYG{o+ow}{and} \PYG{n}{score} \PYG{o}{\PYGZlt{}} \PYG{n}{best\PYGZus{}score}\PYG{p}{:}
+            \PYG{k}{break}
+
+    \PYG{k}{return} \PYG{n}{best\PYGZus{}coefficient}
+\end{MintedVerbatim}

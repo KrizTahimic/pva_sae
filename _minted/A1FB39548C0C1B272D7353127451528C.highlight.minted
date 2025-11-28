@@ -1,0 +1,20 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{aggregate\PYGZus{}to\PYGZus{}sections}\PYG{p}{(}\PYG{n}{attention\PYGZus{}tensor}\PYG{p}{,} \PYG{n}{boundaries}\PYG{p}{)}\PYG{p}{:}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+\PYG{l+s+sd}{    Args:}
+\PYG{l+s+sd}{        attention\PYGZus{}tensor: [n\PYGZus{}heads, seq\PYGZus{}len]}
+\PYG{l+s+sd}{        boundaries: \PYGZob{}\PYGZsq{}problem\PYGZus{}end\PYGZsq{}: int, \PYGZsq{}test\PYGZus{}end\PYGZsq{}: int\PYGZcb{}}
+
+\PYG{l+s+sd}{    Returns:}
+\PYG{l+s+sd}{        Attention percentages for each section}
+\PYG{l+s+sd}{    \PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{n}{section\PYGZus{}attn} \PYG{o}{=} \PYG{p}{\PYGZob{}}
+        \PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{problem}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{:} \PYG{n}{attention\PYGZus{}tensor}\PYG{p}{[}\PYG{p}{:}\PYG{p}{,} \PYG{p}{:}\PYG{n}{boundaries}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{problem\PYGZus{}end}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]}\PYG{p}{]}\PYG{o}{.}\PYG{n}{sum}\PYG{p}{(}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{)}\PYG{p}{,}
+        \PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{tests}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{:} \PYG{n}{attention\PYGZus{}tensor}\PYG{p}{[}\PYG{p}{:}\PYG{p}{,} \PYG{n}{boundaries}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{problem\PYGZus{}end}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]}\PYG{p}{:}\PYG{n}{boundaries}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{test\PYGZus{}end}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]}\PYG{p}{]}\PYG{o}{.}\PYG{n}{sum}\PYG{p}{(}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{)}\PYG{p}{,}
+        \PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{solution}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{:} \PYG{n}{attention\PYGZus{}tensor}\PYG{p}{[}\PYG{p}{:}\PYG{p}{,} \PYG{n}{boundaries}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{test\PYGZus{}end}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]}\PYG{p}{:}\PYG{p}{]}\PYG{o}{.}\PYG{n}{sum}\PYG{p}{(}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{)}
+    \PYG{p}{\PYGZcb{}}
+
+    \PYG{c+c1}{\PYGZsh{} Normalize to percentages}
+    \PYG{n}{total} \PYG{o}{=} \PYG{n+nb}{sum}\PYG{p}{(}\PYG{n}{section\PYGZus{}attn}\PYG{o}{.}\PYG{n}{values}\PYG{p}{(}\PYG{p}{)}\PYG{p}{)}
+    \PYG{k}{return} \PYG{p}{\PYGZob{}}\PYG{n}{k}\PYG{p}{:} \PYG{p}{(}\PYG{n}{v} \PYG{o}{/} \PYG{n}{total} \PYG{o}{*} \PYG{l+m+mi}{100}\PYG{p}{)} \PYG{k}{for} \PYG{n}{k}\PYG{p}{,} \PYG{n}{v} \PYG{o+ow}{in} \PYG{n}{section\PYGZus{}attn}\PYG{o}{.}\PYG{n}{items}\PYG{p}{(}\PYG{p}{)}\PYG{p}{\PYGZcb{}}
+\end{MintedVerbatim}

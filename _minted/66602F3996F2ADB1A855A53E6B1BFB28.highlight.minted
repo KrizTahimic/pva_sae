@@ -1,0 +1,11 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{c+c1}{\PYGZsh{} Phase 2.2: Cache Pile\PYGZhy{}10k activations for filtering}
+python3\PYG{+w}{ }run.py\PYG{+w}{ }phase\PYG{+w}{ }\PYG{l+m}{2}.2
+
+\PYG{c+c1}{\PYGZsh{} Phase 2.5: SAE analysis with separation scores}
+\PYG{c+c1}{\PYGZsh{} Auto\PYGZhy{}discovers Phase 1 output}
+python3\PYG{+w}{ }run.py\PYG{+w}{ }phase\PYG{+w}{ }\PYG{l+m}{2}.5
+
+\PYG{c+c1}{\PYGZsh{} Phase 2.10: T\PYGZhy{}statistic based feature selection}
+python3\PYG{+w}{ }run.py\PYG{+w}{ }phase\PYG{+w}{ }\PYG{l+m}{2}.10
+\end{MintedVerbatim}

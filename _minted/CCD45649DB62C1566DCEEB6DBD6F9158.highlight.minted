@@ -1,0 +1,16 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{c+c1}{\PYGZsh{} 1. Identify feature in base model (google/gemma\PYGZhy{}2\PYGZhy{}2b)}
+\PYG{n}{base\PYGZus{}model} \PYG{o}{=} \PYG{l+s+s2}{\PYGZdq{}}\PYG{l+s+s2}{google/gemma\PYGZhy{}2\PYGZhy{}2b}\PYG{l+s+s2}{\PYGZdq{}}
+\PYG{n}{best\PYGZus{}feature} \PYG{o}{=} \PYG{n}{phase2\PYGZus{}10\PYGZus{}results}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{correct}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]}  \PYG{c+c1}{\PYGZsh{} Layer 13, Feature 8472}
+
+\PYG{c+c1}{\PYGZsh{} 2. Apply SAME feature to instruction\PYGZhy{}tuned model}
+\PYG{n}{instruct\PYGZus{}model} \PYG{o}{=} \PYG{l+s+s2}{\PYGZdq{}}\PYG{l+s+s2}{google/gemma\PYGZhy{}2\PYGZhy{}2b\PYGZhy{}it}\PYG{l+s+s2}{\PYGZdq{}}
+\PYG{c+c1}{\PYGZsh{} Use same layer (13), same feature\PYGZus{}idx (8472), same coefficient (10.0)}
+
+\PYG{c+c1}{\PYGZsh{} 3. Evaluate with identical metrics}
+\PYG{n}{f1\PYGZus{}base} \PYG{o}{=} \PYG{n}{evaluate\PYGZus{}predicting\PYGZus{}direction}\PYG{p}{(}\PYG{n}{base\PYGZus{}model}\PYG{p}{,} \PYG{n}{best\PYGZus{}feature}\PYG{p}{)}
+\PYG{n}{f1\PYGZus{}instruct} \PYG{o}{=} \PYG{n}{evaluate\PYGZus{}predicting\PYGZus{}direction}\PYG{p}{(}\PYG{n}{instruct\PYGZus{}model}\PYG{p}{,} \PYG{n}{best\PYGZus{}feature}\PYG{p}{)}
+
+\PYG{n}{correction\PYGZus{}rate\PYGZus{}base} \PYG{o}{=} \PYG{n}{evaluate\PYGZus{}steering}\PYG{p}{(}\PYG{n}{base\PYGZus{}model}\PYG{p}{,} \PYG{n}{best\PYGZus{}feature}\PYG{p}{,} \PYG{n}{coeff}\PYG{o}{=}\PYG{l+m+mf}{10.0}\PYG{p}{)}
+\PYG{n}{correction\PYGZus{}rate\PYGZus{}instruct} \PYG{o}{=} \PYG{n}{evaluate\PYGZus{}steering}\PYG{p}{(}\PYG{n}{instruct\PYGZus{}model}\PYG{p}{,} \PYG{n}{best\PYGZus{}feature}\PYG{p}{,} \PYG{n}{coeff}\PYG{o}{=}\PYG{l+m+mf}{10.0}\PYG{p}{)}
+\end{MintedVerbatim}

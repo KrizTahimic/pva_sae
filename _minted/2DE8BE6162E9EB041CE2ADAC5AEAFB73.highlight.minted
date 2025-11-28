@@ -1,0 +1,9 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{c+c1}{\PYGZsh{} For predicting directions (Phase 2.10)}
+\PYG{n}{correct\PYGZus{}predicting} \PYG{o}{=} \PYG{n}{argmax}\PYG{p}{(}\PYG{n}{t\PYGZus{}stats\PYGZus{}correct} \PYG{n}{across} \PYG{n+nb}{all} \PYG{n}{layers} \PYG{o+ow}{and} \PYG{n}{features}\PYG{p}{)}
+\PYG{n}{incorrect\PYGZus{}predicting} \PYG{o}{=} \PYG{n}{argmax}\PYG{p}{(}\PYG{n}{t\PYGZus{}stats\PYGZus{}incorrect} \PYG{n}{across} \PYG{n+nb}{all} \PYG{n}{layers} \PYG{o+ow}{and} \PYG{n}{features}\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} For steering directions (Phase 2.5)}
+\PYG{n}{correct\PYGZus{}steering} \PYG{o}{=} \PYG{n}{argmax}\PYG{p}{(}\PYG{n}{separation\PYGZus{}correct} \PYG{n}{across} \PYG{n+nb}{all} \PYG{n}{layers} \PYG{o+ow}{and} \PYG{n}{features}\PYG{p}{)}
+\PYG{n}{incorrect\PYGZus{}steering} \PYG{o}{=} \PYG{n}{argmax}\PYG{p}{(}\PYG{n}{separation\PYGZus{}incorrect} \PYG{n}{across} \PYG{n+nb}{all} \PYG{n}{layers} \PYG{o+ow}{and} \PYG{n}{features}\PYG{p}{)}
+\end{MintedVerbatim}

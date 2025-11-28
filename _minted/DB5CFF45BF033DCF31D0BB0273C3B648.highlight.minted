@@ -1,0 +1,24 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{c+c1}{\PYGZsh{} Load model and SAE}
+\PYG{n}{model}\PYG{p}{,} \PYG{n}{tokenizer} \PYG{o}{=} \PYG{n}{load\PYGZus{}model\PYGZus{}and\PYGZus{}tokenizer}\PYG{p}{(}\PYG{l+s+s2}{\PYGZdq{}}\PYG{l+s+s2}{google/gemma\PYGZhy{}2\PYGZhy{}2b}\PYG{l+s+s2}{\PYGZdq{}}\PYG{p}{)}
+\PYG{n}{sae} \PYG{o}{=} \PYG{n}{load\PYGZus{}gemma\PYGZus{}scope\PYGZus{}sae}\PYG{p}{(}\PYG{n}{layer\PYGZus{}idx}\PYG{o}{=}\PYG{l+m+mi}{13}\PYG{p}{,} \PYG{n}{device}\PYG{o}{=}\PYG{l+s+s2}{\PYGZdq{}}\PYG{l+s+s2}{cuda}\PYG{l+s+s2}{\PYGZdq{}}\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} Get best feature from Phase 2.5}
+\PYG{k}{with} \PYG{n+nb}{open}\PYG{p}{(}\PYG{l+s+s2}{\PYGZdq{}}\PYG{l+s+s2}{data/phase2\PYGZus{}5/top\PYGZus{}20\PYGZus{}features.json}\PYG{l+s+s2}{\PYGZdq{}}\PYG{p}{)} \PYG{k}{as} \PYG{n}{f}\PYG{p}{:}
+    \PYG{n}{features} \PYG{o}{=} \PYG{n}{json}\PYG{o}{.}\PYG{n}{load}\PYG{p}{(}\PYG{n}{f}\PYG{p}{)}
+\PYG{n}{best} \PYG{o}{=} \PYG{n}{features}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{correct}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]}
+
+\PYG{c+c1}{\PYGZsh{} Extract decoder direction}
+\PYG{n}{decoder\PYGZus{}dir} \PYG{o}{=} \PYG{n}{sae}\PYG{o}{.}\PYG{n}{W\PYGZus{}dec}\PYG{p}{[}\PYG{n}{best}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{feature}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]}\PYG{p}{]}  \PYG{c+c1}{\PYGZsh{} Shape: [2048]}
+
+\PYG{c+c1}{\PYGZsh{} Create and register steering hook}
+\PYG{n}{hook\PYGZus{}fn} \PYG{o}{=} \PYG{n}{create\PYGZus{}steering\PYGZus{}hook}\PYG{p}{(}\PYG{n}{decoder\PYGZus{}dir}\PYG{p}{,} \PYG{n}{coefficient}\PYG{o}{=}\PYG{l+m+mf}{10.0}\PYG{p}{)}
+\PYG{n}{layer} \PYG{o}{=} \PYG{n}{model}\PYG{o}{.}\PYG{n}{model}\PYG{o}{.}\PYG{n}{layers}\PYG{p}{[}\PYG{l+m+mi}{13}\PYG{p}{]}
+\PYG{n}{hook\PYGZus{}handle} \PYG{o}{=} \PYG{n}{layer}\PYG{o}{.}\PYG{n}{register\PYGZus{}forward\PYGZus{}pre\PYGZus{}hook}\PYG{p}{(}\PYG{n}{hook\PYGZus{}fn}\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} Generate with steering active}
+\PYG{n}{outputs} \PYG{o}{=} \PYG{n}{model}\PYG{o}{.}\PYG{n}{generate}\PYG{p}{(}\PYG{o}{*}\PYG{o}{*}\PYG{n}{inputs}\PYG{p}{,} \PYG{n}{max\PYGZus{}new\PYGZus{}tokens}\PYG{o}{=}\PYG{l+m+mi}{800}\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} Remove hook}
+\PYG{n}{hook\PYGZus{}handle}\PYG{o}{.}\PYG{n}{remove}\PYG{p}{(}\PYG{p}{)}
+\end{MintedVerbatim}

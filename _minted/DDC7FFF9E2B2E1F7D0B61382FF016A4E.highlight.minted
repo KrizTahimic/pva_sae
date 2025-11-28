@@ -1,0 +1,3 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+python3\PYG{+w}{ }run.py\PYG{+w}{ }phase\PYG{+w}{ }\PYGZlt{}phase\PYGZus{}number\PYGZgt{}\PYG{+w}{ }\PYG{o}{[}options\PYG{o}{]}
+\end{MintedVerbatim}

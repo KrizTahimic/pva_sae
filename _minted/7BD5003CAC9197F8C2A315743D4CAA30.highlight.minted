@@ -1,0 +1,6 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+Complexity    n\PYGZus{}samples   AUROC   F1
+Easy (=1)     106         0.641   0.638
+Medium (2\PYGZhy{}3)  181         0.586   0.456
+Hard (\PYGZgt{}=4)    101         0.679   0.361
+\end{MintedVerbatim}

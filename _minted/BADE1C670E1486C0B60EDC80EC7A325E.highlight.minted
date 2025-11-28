@@ -1,0 +1,8 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+Correct Direction Orthogonalization:
+  Corruption of initially correct: 97/116 (83.6\PYGZpc{})
+  p\PYGZhy{}value: \PYGZlt{}0.001 (significant)
+
+Interpretation: Removing correct direction severely degrades
+code quality, proving it\PYGZsq{}s causally necessary for generation.
+\end{MintedVerbatim}

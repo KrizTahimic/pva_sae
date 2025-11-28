@@ -1,0 +1,8 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+Correct\PYGZhy{}Predicting Feature (Layer 16, Feature 14439):
+  Hyperparameter Optimal Threshold: 10.8109
+  Validation AUROC: 0.6430
+  Validation F1: 0.5039
+  Validation Precision: 0.3623
+  Validation Recall: 0.8276
+\end{MintedVerbatim}

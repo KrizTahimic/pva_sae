@@ -1,0 +1,28 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{find\PYGZus{}optimal\PYGZus{}threshold}\PYG{p}{(}\PYG{n}{y\PYGZus{}true}\PYG{p}{,} \PYG{n}{scores}\PYG{p}{)}\PYG{p}{:}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Find threshold maximizing F1 on hyperparameter set.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{n}{thresholds} \PYG{o}{=} \PYG{n}{np}\PYG{o}{.}\PYG{n}{linspace}\PYG{p}{(}\PYG{n}{scores}\PYG{o}{.}\PYG{n}{min}\PYG{p}{(}\PYG{p}{)}\PYG{p}{,} \PYG{n}{scores}\PYG{o}{.}\PYG{n}{max}\PYG{p}{(}\PYG{p}{)}\PYG{p}{,} \PYG{l+m+mi}{100}\PYG{p}{)}
+    \PYG{n}{f1\PYGZus{}scores} \PYG{o}{=} \PYG{p}{[}\PYG{p}{]}
+
+    \PYG{k}{for} \PYG{n}{threshold} \PYG{o+ow}{in} \PYG{n}{thresholds}\PYG{p}{:}
+        \PYG{n}{y\PYGZus{}pred} \PYG{o}{=} \PYG{p}{(}\PYG{n}{scores} \PYG{o}{\PYGZgt{}}\PYG{o}{=} \PYG{n}{threshold}\PYG{p}{)}\PYG{o}{.}\PYG{n}{astype}\PYG{p}{(}\PYG{n+nb}{int}\PYG{p}{)}
+        \PYG{n}{f1} \PYG{o}{=} \PYG{n}{f1\PYGZus{}score}\PYG{p}{(}\PYG{n}{y\PYGZus{}true}\PYG{p}{,} \PYG{n}{y\PYGZus{}pred}\PYG{p}{,} \PYG{n}{zero\PYGZus{}division}\PYG{o}{=}\PYG{l+m+mi}{0}\PYG{p}{)}
+        \PYG{n}{f1\PYGZus{}scores}\PYG{o}{.}\PYG{n}{append}\PYG{p}{(}\PYG{n}{f1}\PYG{p}{)}
+
+    \PYG{c+c1}{\PYGZsh{} Select threshold with max F1}
+    \PYG{n}{optimal\PYGZus{}idx} \PYG{o}{=} \PYG{n}{np}\PYG{o}{.}\PYG{n}{argmax}\PYG{p}{(}\PYG{n}{f1\PYGZus{}scores}\PYG{p}{)}
+    \PYG{n}{optimal\PYGZus{}threshold} \PYG{o}{=} \PYG{n}{thresholds}\PYG{p}{[}\PYG{n}{optimal\PYGZus{}idx}\PYG{p}{]}
+
+    \PYG{k}{return} \PYG{n}{optimal\PYGZus{}threshold}
+
+\PYG{c+c1}{\PYGZsh{} Find on hyperparameter set}
+\PYG{n}{optimal\PYGZus{}threshold} \PYG{o}{=} \PYG{n}{find\PYGZus{}optimal\PYGZus{}threshold}\PYG{p}{(}
+    \PYG{n}{y\PYGZus{}true\PYGZus{}hyperparam}\PYG{p}{,} \PYG{n}{scores\PYGZus{}hyperparam}
+\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} Evaluate on validation set}
+\PYG{n}{y\PYGZus{}pred\PYGZus{}val} \PYG{o}{=} \PYG{p}{(}\PYG{n}{scores\PYGZus{}val} \PYG{o}{\PYGZgt{}}\PYG{o}{=} \PYG{n}{optimal\PYGZus{}threshold}\PYG{p}{)}\PYG{o}{.}\PYG{n}{astype}\PYG{p}{(}\PYG{n+nb}{int}\PYG{p}{)}
+\PYG{n}{f1\PYGZus{}val} \PYG{o}{=} \PYG{n}{f1\PYGZus{}score}\PYG{p}{(}\PYG{n}{y\PYGZus{}true\PYGZus{}val}\PYG{p}{,} \PYG{n}{y\PYGZus{}pred\PYGZus{}val}\PYG{p}{)}
+\PYG{n}{precision\PYGZus{}val} \PYG{o}{=} \PYG{n}{precision\PYGZus{}score}\PYG{p}{(}\PYG{n}{y\PYGZus{}true\PYGZus{}val}\PYG{p}{,} \PYG{n}{y\PYGZus{}pred\PYGZus{}val}\PYG{p}{)}
+\PYG{n}{recall\PYGZus{}val} \PYG{o}{=} \PYG{n}{recall\PYGZus{}score}\PYG{p}{(}\PYG{n}{y\PYGZus{}true\PYGZus{}val}\PYG{p}{,} \PYG{n}{y\PYGZus{}pred\PYGZus{}val}\PYG{p}{)}
+\end{MintedVerbatim}

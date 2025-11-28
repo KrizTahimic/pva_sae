@@ -14,7 +14,7 @@ This document outlines additional experiments to extend my thesis "Mechanistic I
 
 ## Proposed Experiments
 
-### Experiment 1: Feature Emergence Timeline
+### Experiment 2: Feature Emergence Timeline
 
 **Goal:** Track when code correctness directions become predictive during training
 
@@ -32,7 +32,7 @@ This document outlines additional experiments to extend my thesis "Mechanistic I
 
 ---
 
-### Experiment 2: Influence Dynamics Between Code Samples
+### Experiment 1: Influence Dynamics Between Code Samples
 
 **Goal:** Test if influence between correct/incorrect code changes non-monotonically over training (sign flips, peaks at transitions)
 
@@ -163,8 +163,8 @@ Recommended: 100-200 pairs for stable covariance estimates
 
 ## Priority Order
 
-1. **Experiment 2 (Influence Dynamics)** — Most novel, directly tests developmental hypothesis
-2. **Experiment 1 (Feature Emergence)** — Straightforward extension of existing work
+1. **Experiment 1 (Influence Dynamics)** — Most novel, directly tests developmental hypothesis
+2. **Experiment 2 (Feature Emergence)** — Straightforward extension of existing work
 3. **Experiment 3 (Susceptibility)** — Can do at single checkpoint first
 4. **Experiment 4 (Visualization)** — Nice to have, depends on results from 1-3
 
@@ -176,7 +176,7 @@ Recommended: 100-200 pairs for stable covariance estimates
 - **arXiv:** 2510.12071
 - **Key idea:** Influence between samples changes over training, peaks at phase transitions
 - **Method:** BIF estimated via RMSProp-SGLD across checkpoints
-- **Use for:** Experiment 2
+- **Use for:** Experiment 1
 
 ### Wang et al. 2025b — Differentiation and Specialization of Attention Heads
 - **arXiv:** 2410.02984
@@ -252,8 +252,8 @@ pip install devinterp
 
 | Experiment | Compute | Analysis | Total |
 |------------|---------|----------|-------|
-| Exp 1: Feature Emergence | 2-3 days | 1 day | 3-4 days |
-| Exp 2: Influence Dynamics | 3-5 days | 2 days | 5-7 days |
+| Exp 1: Influence Dynamics | 3-5 days | 2 days | 5-7 days |
+| Exp 2: Feature Emergence | 2-3 days | 1 day | 3-4 days |
 | Exp 3: Susceptibility | 1-2 days | 1 day | 2-3 days |
 | Exp 4: Visualization | 1 day | 1 day | 2 days |
 

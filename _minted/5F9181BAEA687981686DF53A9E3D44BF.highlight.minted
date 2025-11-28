@@ -1,0 +1,7 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{c+c1}{\PYGZsh{} Phase 2.2 caches Pile activations}
+\PYG{n}{pile\PYGZus{}freq} \PYG{o}{=} \PYG{p}{(}\PYG{n}{pile\PYGZus{}features} \PYG{o}{\PYGZgt{}} \PYG{l+m+mi}{0}\PYG{p}{)}\PYG{o}{.}\PYG{n}{float}\PYG{p}{(}\PYG{p}{)}\PYG{o}{.}\PYG{n}{mean}\PYG{p}{(}\PYG{n}{dim}\PYG{o}{=}\PYG{l+m+mi}{0}\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} Filter features}
+\PYG{n}{code\PYGZus{}specific\PYGZus{}features} \PYG{o}{=} \PYG{n}{features}\PYG{p}{[}\PYG{n}{pile\PYGZus{}freq} \PYG{o}{\PYGZlt{}} \PYG{l+m+mf}{0.02}\PYG{p}{]}
+\end{MintedVerbatim}

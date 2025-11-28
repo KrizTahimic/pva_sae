@@ -1,0 +1,43 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k}{class}\PYG{+w}{ }\PYG{n+nc}{JumpReLUSAE}\PYG{p}{(}\PYG{n}{torch}\PYG{o}{.}\PYG{n}{nn}\PYG{o}{.}\PYG{n}{Module}\PYG{p}{)}\PYG{p}{:}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}JumpReLU Sparse Autoencoder from GemmaScope.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+
+    \PYG{k}{def}\PYG{+w}{ }\PYG{n+nf+fm}{\PYGZus{}\PYGZus{}init\PYGZus{}\PYGZus{}}\PYG{p}{(}\PYG{n+nb+bp}{self}\PYG{p}{,} \PYG{n}{d\PYGZus{}model}\PYG{p}{:} \PYG{n+nb}{int}\PYG{p}{,} \PYG{n}{d\PYGZus{}sae}\PYG{p}{:} \PYG{n+nb}{int}\PYG{p}{)}\PYG{p}{:}
+\PYG{+w}{        }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+\PYG{l+s+sd}{        Args:}
+\PYG{l+s+sd}{            d\PYGZus{}model: Hidden dimension (2048 for Gemma\PYGZhy{}2\PYGZhy{}2B)}
+\PYG{l+s+sd}{            d\PYGZus{}sae: SAE feature dimension (16384 for 16k SAE)}
+\PYG{l+s+sd}{        \PYGZdq{}\PYGZdq{}\PYGZdq{}}
+        \PYG{n+nb}{super}\PYG{p}{(}\PYG{p}{)}\PYG{o}{.}\PYG{n+nf+fm}{\PYGZus{}\PYGZus{}init\PYGZus{}\PYGZus{}}\PYG{p}{(}\PYG{p}{)}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{d\PYGZus{}model} \PYG{o}{=} \PYG{n}{d\PYGZus{}model}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{d\PYGZus{}sae} \PYG{o}{=} \PYG{n}{d\PYGZus{}sae}
+
+        \PYG{c+c1}{\PYGZsh{} Encoder projects residual to SAE features}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{W\PYGZus{}enc} \PYG{o}{=} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{nn}\PYG{o}{.}\PYG{n}{Parameter}\PYG{p}{(}\PYG{n}{torch}\PYG{o}{.}\PYG{n}{zeros}\PYG{p}{(}\PYG{n}{d\PYGZus{}model}\PYG{p}{,} \PYG{n}{d\PYGZus{}sae}\PYG{p}{)}\PYG{p}{)}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{b\PYGZus{}enc} \PYG{o}{=} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{nn}\PYG{o}{.}\PYG{n}{Parameter}\PYG{p}{(}\PYG{n}{torch}\PYG{o}{.}\PYG{n}{zeros}\PYG{p}{(}\PYG{n}{d\PYGZus{}sae}\PYG{p}{)}\PYG{p}{)}
+
+        \PYG{c+c1}{\PYGZsh{} Decoder projects SAE features back}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{W\PYGZus{}dec} \PYG{o}{=} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{nn}\PYG{o}{.}\PYG{n}{Parameter}\PYG{p}{(}\PYG{n}{torch}\PYG{o}{.}\PYG{n}{zeros}\PYG{p}{(}\PYG{n}{d\PYGZus{}sae}\PYG{p}{,} \PYG{n}{d\PYGZus{}model}\PYG{p}{)}\PYG{p}{)}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{b\PYGZus{}dec} \PYG{o}{=} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{nn}\PYG{o}{.}\PYG{n}{Parameter}\PYG{p}{(}\PYG{n}{torch}\PYG{o}{.}\PYG{n}{zeros}\PYG{p}{(}\PYG{n}{d\PYGZus{}model}\PYG{p}{)}\PYG{p}{)}
+
+        \PYG{c+c1}{\PYGZsh{} JumpReLU threshold (learned per feature)}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{threshold} \PYG{o}{=} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{nn}\PYG{o}{.}\PYG{n}{Parameter}\PYG{p}{(}\PYG{n}{torch}\PYG{o}{.}\PYG{n}{zeros}\PYG{p}{(}\PYG{n}{d\PYGZus{}sae}\PYG{p}{)}\PYG{p}{)}
+
+    \PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{encode}\PYG{p}{(}\PYG{n+nb+bp}{self}\PYG{p}{,} \PYG{n}{x}\PYG{p}{:} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{Tensor}\PYG{p}{)} \PYG{o}{\PYGZhy{}}\PYG{o}{\PYGZgt{}} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{Tensor}\PYG{p}{:}
+\PYG{+w}{        }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Encode to sparse features.}
+
+\PYG{l+s+sd}{        Args:}
+\PYG{l+s+sd}{            x: Residual stream [batch, d\PYGZus{}model]}
+
+\PYG{l+s+sd}{        Returns:}
+\PYG{l+s+sd}{            Sparse features [batch, d\PYGZus{}sae]}
+\PYG{l+s+sd}{        \PYGZdq{}\PYGZdq{}\PYGZdq{}}
+        \PYG{c+c1}{\PYGZsh{} Pre\PYGZhy{}activation}
+        \PYG{n}{pre\PYGZus{}acts} \PYG{o}{=} \PYG{n}{x} \PYG{o}{@} \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{W\PYGZus{}enc} \PYG{o}{+} \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{b\PYGZus{}enc}
+
+        \PYG{c+c1}{\PYGZsh{} JumpReLU: threshold then ReLU}
+        \PYG{n}{mask} \PYG{o}{=} \PYG{p}{(}\PYG{n}{pre\PYGZus{}acts} \PYG{o}{\PYGZgt{}} \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{threshold}\PYG{p}{)}
+        \PYG{n}{acts} \PYG{o}{=} \PYG{n}{mask} \PYG{o}{*} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{nn}\PYG{o}{.}\PYG{n}{functional}\PYG{o}{.}\PYG{n}{relu}\PYG{p}{(}\PYG{n}{pre\PYGZus{}acts}\PYG{p}{)}
+
+        \PYG{k}{return} \PYG{n}{acts}
+\end{MintedVerbatim}

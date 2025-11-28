@@ -1,0 +1,13 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k+kn}{from}\PYG{+w}{ }\PYG{n+nn}{sklearn}\PYG{n+nn}{.}\PYG{n+nn}{metrics}\PYG{+w}{ }\PYG{k+kn}{import} \PYG{n}{roc\PYGZus{}auc\PYGZus{}score}\PYG{p}{,} \PYG{n}{roc\PYGZus{}curve}
+
+\PYG{c+c1}{\PYGZsh{} Load feature activations on validation set}
+\PYG{n}{y\PYGZus{}true} \PYG{o}{=} \PYG{n}{labels}  \PYG{c+c1}{\PYGZsh{} 1=correct, 0=incorrect}
+\PYG{n}{scores} \PYG{o}{=} \PYG{n}{feature\PYGZus{}activations}  \PYG{c+c1}{\PYGZsh{} SAE feature values}
+
+\PYG{c+c1}{\PYGZsh{} Compute AUROC}
+\PYG{n}{auroc} \PYG{o}{=} \PYG{n}{roc\PYGZus{}auc\PYGZus{}score}\PYG{p}{(}\PYG{n}{y\PYGZus{}true}\PYG{p}{,} \PYG{n}{scores}\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} Get ROC curve points}
+\PYG{n}{fpr}\PYG{p}{,} \PYG{n}{tpr}\PYG{p}{,} \PYG{n}{thresholds} \PYG{o}{=} \PYG{n}{roc\PYGZus{}curve}\PYG{p}{(}\PYG{n}{y\PYGZus{}true}\PYG{p}{,} \PYG{n}{scores}\PYG{p}{)}
+\end{MintedVerbatim}

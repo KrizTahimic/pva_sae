@@ -1,0 +1,13 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k+kn}{from}\PYG{+w}{ }\PYG{n+nn}{scipy}\PYG{n+nn}{.}\PYG{n+nn}{stats}\PYG{+w}{ }\PYG{k+kn}{import} \PYG{n}{binomtest}
+
+\PYG{c+c1}{\PYGZsh{} Test steering vs baseline}
+\PYG{n}{n\PYGZus{}trials} \PYG{o}{=} \PYG{n+nb}{len}\PYG{p}{(}\PYG{n}{initially\PYGZus{}incorrect}\PYG{p}{)}
+\PYG{n}{n\PYGZus{}successes} \PYG{o}{=} \PYG{n+nb}{sum}\PYG{p}{(}\PYG{l+m+mi}{1} \PYG{k}{for} \PYG{n}{r} \PYG{o+ow}{in} \PYG{n}{steering\PYGZus{}results} \PYG{k}{if} \PYG{n}{r}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{flipped\PYGZus{}correct}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]}\PYG{p}{)}
+\PYG{n}{baseline\PYGZus{}p} \PYG{o}{=} \PYG{l+m+mf}{0.0}  \PYG{c+c1}{\PYGZsh{} Baseline correction rate}
+
+\PYG{n}{result} \PYG{o}{=} \PYG{n}{binomtest}\PYG{p}{(}\PYG{n}{n\PYGZus{}successes}\PYG{p}{,} \PYG{n}{n\PYGZus{}trials}\PYG{p}{,} \PYG{n}{baseline\PYGZus{}p}\PYG{p}{,} \PYG{n}{alternative}\PYG{o}{=}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{greater}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{)}
+
+\PYG{k}{if} \PYG{n}{result}\PYG{o}{.}\PYG{n}{pvalue} \PYG{o}{\PYGZlt{}} \PYG{l+m+mf}{0.05}\PYG{p}{:}
+    \PYG{n+nb}{print}\PYG{p}{(}\PYG{l+s+sa}{f}\PYG{l+s+s2}{\PYGZdq{}}\PYG{l+s+s2}{Significant: }\PYG{l+s+si}{\PYGZob{}}\PYG{n}{n\PYGZus{}successes}\PYG{l+s+si}{\PYGZcb{}}\PYG{l+s+s2}{/}\PYG{l+s+si}{\PYGZob{}}\PYG{n}{n\PYGZus{}trials}\PYG{l+s+si}{\PYGZcb{}}\PYG{l+s+s2}{ corrected, p=}\PYG{l+s+si}{\PYGZob{}}\PYG{n}{result}\PYG{o}{.}\PYG{n}{pvalue}\PYG{l+s+si}{:}\PYG{l+s+s2}{.4f}\PYG{l+s+si}{\PYGZcb{}}\PYG{l+s+s2}{\PYGZdq{}}\PYG{p}{)}
+\end{MintedVerbatim}

@@ -1,0 +1,15 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{calculate\PYGZus{}corruption\PYGZus{}rate}\PYG{p}{(}\PYG{n}{results}\PYG{p}{:} \PYG{n}{List}\PYG{p}{[}\PYG{n}{Dict}\PYG{p}{]}\PYG{p}{)} \PYG{o}{\PYGZhy{}}\PYG{o}{\PYGZgt{}} \PYG{n+nb}{float}\PYG{p}{:}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Measure \PYGZpc{} of correct→incorrect transitions.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{n}{corrupted} \PYG{o}{=} \PYG{n+nb}{sum}\PYG{p}{(}
+        \PYG{l+m+mi}{1} \PYG{k}{for} \PYG{n}{r} \PYG{o+ow}{in} \PYG{n}{results}
+        \PYG{k}{if} \PYG{n}{r}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{baseline\PYGZus{}passed}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]} \PYG{o+ow}{and} \PYG{o+ow}{not} \PYG{n}{r}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{steered\PYGZus{}passed}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]}
+    \PYG{p}{)}
+    \PYG{n}{total\PYGZus{}correct} \PYG{o}{=} \PYG{n+nb}{sum}\PYG{p}{(}
+        \PYG{l+m+mi}{1} \PYG{k}{for} \PYG{n}{r} \PYG{o+ow}{in} \PYG{n}{results}
+        \PYG{k}{if} \PYG{n}{r}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{baseline\PYGZus{}passed}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]}
+    \PYG{p}{)}
+    \PYG{k}{return} \PYG{p}{(}\PYG{n}{corrupted} \PYG{o}{/} \PYG{n}{total\PYGZus{}correct}\PYG{p}{)} \PYG{o}{*} \PYG{l+m+mi}{100} \PYG{k}{if} \PYG{n}{total\PYGZus{}correct} \PYG{o}{\PYGZgt{}} \PYG{l+m+mi}{0} \PYG{k}{else} \PYG{l+m+mf}{0.0}
+
+\PYG{c+c1}{\PYGZsh{} Example: 200 correct, 10 become incorrect → 5\PYGZpc{} corruption rate}
+\end{MintedVerbatim}

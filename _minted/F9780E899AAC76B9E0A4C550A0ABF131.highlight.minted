@@ -1,0 +1,29 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{compute\PYGZus{}separation\PYGZus{}scores}\PYG{p}{(}
+    \PYG{n}{correct\PYGZus{}features}\PYG{p}{:} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{Tensor}\PYG{p}{,}
+    \PYG{n}{incorrect\PYGZus{}features}\PYG{p}{:} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{Tensor}
+\PYG{p}{)} \PYG{o}{\PYGZhy{}}\PYG{o}{\PYGZgt{}} \PYG{n}{Dict}\PYG{p}{[}\PYG{n+nb}{str}\PYG{p}{,} \PYG{n}{np}\PYG{o}{.}\PYG{n}{ndarray}\PYG{p}{]}\PYG{p}{:}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+\PYG{l+s+sd}{    Calculate separation scores for steering directions.}
+
+\PYG{l+s+sd}{    Returns:}
+\PYG{l+s+sd}{        Dictionary with activation frequencies and separation scores}
+\PYG{l+s+sd}{    \PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{c+c1}{\PYGZsh{} Compute activation frequencies}
+    \PYG{n}{n\PYGZus{}correct} \PYG{o}{=} \PYG{n}{correct\PYGZus{}features}\PYG{o}{.}\PYG{n}{shape}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]}
+    \PYG{n}{n\PYGZus{}incorrect} \PYG{o}{=} \PYG{n}{incorrect\PYGZus{}features}\PYG{o}{.}\PYG{n}{shape}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]}
+
+    \PYG{n}{freq\PYGZus{}correct} \PYG{o}{=} \PYG{p}{(}\PYG{n}{correct\PYGZus{}features} \PYG{o}{\PYGZgt{}} \PYG{l+m+mi}{0}\PYG{p}{)}\PYG{o}{.}\PYG{n}{float}\PYG{p}{(}\PYG{p}{)}\PYG{o}{.}\PYG{n}{mean}\PYG{p}{(}\PYG{n}{dim}\PYG{o}{=}\PYG{l+m+mi}{0}\PYG{p}{)}\PYG{o}{.}\PYG{n}{cpu}\PYG{p}{(}\PYG{p}{)}\PYG{o}{.}\PYG{n}{numpy}\PYG{p}{(}\PYG{p}{)}
+    \PYG{n}{freq\PYGZus{}incorrect} \PYG{o}{=} \PYG{p}{(}\PYG{n}{incorrect\PYGZus{}features} \PYG{o}{\PYGZgt{}} \PYG{l+m+mi}{0}\PYG{p}{)}\PYG{o}{.}\PYG{n}{float}\PYG{p}{(}\PYG{p}{)}\PYG{o}{.}\PYG{n}{mean}\PYG{p}{(}\PYG{n}{dim}\PYG{o}{=}\PYG{l+m+mi}{0}\PYG{p}{)}\PYG{o}{.}\PYG{n}{cpu}\PYG{p}{(}\PYG{p}{)}\PYG{o}{.}\PYG{n}{numpy}\PYG{p}{(}\PYG{p}{)}
+
+    \PYG{c+c1}{\PYGZsh{} Separation = difference in activation frequencies}
+    \PYG{n}{separation\PYGZus{}correct} \PYG{o}{=} \PYG{n}{freq\PYGZus{}correct} \PYG{o}{\PYGZhy{}} \PYG{n}{freq\PYGZus{}incorrect}
+    \PYG{n}{separation\PYGZus{}incorrect} \PYG{o}{=} \PYG{n}{freq\PYGZus{}incorrect} \PYG{o}{\PYGZhy{}} \PYG{n}{freq\PYGZus{}correct}
+
+    \PYG{k}{return} \PYG{p}{\PYGZob{}}
+        \PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{separation\PYGZus{}correct}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{:} \PYG{n}{separation\PYGZus{}correct}\PYG{p}{,}
+        \PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{separation\PYGZus{}incorrect}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{:} \PYG{n}{separation\PYGZus{}incorrect}\PYG{p}{,}
+        \PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{freq\PYGZus{}correct}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{:} \PYG{n}{freq\PYGZus{}correct}\PYG{p}{,}
+        \PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{freq\PYGZus{}incorrect}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{:} \PYG{n}{freq\PYGZus{}incorrect}
+    \PYG{p}{\PYGZcb{}}
+\end{MintedVerbatim}

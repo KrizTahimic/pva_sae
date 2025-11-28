@@ -1,0 +1,12 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{c+c1}{\PYGZsh{} Stratify by complexity}
+\PYG{n}{easy} \PYG{o}{=} \PYG{n}{df}\PYG{p}{[}\PYG{n}{df}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{cyclomatic\PYGZus{}complexity}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]} \PYG{o}{==} \PYG{l+m+mi}{1}\PYG{p}{]}
+\PYG{n}{medium} \PYG{o}{=} \PYG{n}{df}\PYG{p}{[}\PYG{n}{df}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{cyclomatic\PYGZus{}complexity}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]}\PYG{o}{.}\PYG{n}{between}\PYG{p}{(}\PYG{l+m+mi}{2}\PYG{p}{,} \PYG{l+m+mi}{3}\PYG{p}{)}\PYG{p}{]}
+\PYG{n}{hard} \PYG{o}{=} \PYG{n}{df}\PYG{p}{[}\PYG{n}{df}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{cyclomatic\PYGZus{}complexity}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]} \PYG{o}{\PYGZgt{}}\PYG{o}{=} \PYG{l+m+mi}{4}\PYG{p}{]}
+
+\PYG{c+c1}{\PYGZsh{} Compute metrics for each group}
+\PYG{k}{for} \PYG{n}{complexity\PYGZus{}group} \PYG{o+ow}{in} \PYG{p}{[}\PYG{n}{easy}\PYG{p}{,} \PYG{n}{medium}\PYG{p}{,} \PYG{n}{hard}\PYG{p}{]}\PYG{p}{:}
+    \PYG{n}{auroc} \PYG{o}{=} \PYG{n}{roc\PYGZus{}auc\PYGZus{}score}\PYG{p}{(}\PYG{n}{complexity\PYGZus{}group}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{labels}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]}\PYG{p}{,}
+                          \PYG{n}{complexity\PYGZus{}group}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{activations}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{]}\PYG{p}{)}
+    \PYG{n}{f1} \PYG{o}{=} \PYG{n}{f1\PYGZus{}score}\PYG{p}{(}\PYG{o}{.}\PYG{o}{.}\PYG{o}{.}\PYG{p}{)}
+\end{MintedVerbatim}

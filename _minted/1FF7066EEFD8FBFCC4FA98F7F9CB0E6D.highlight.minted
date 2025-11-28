@@ -1,0 +1,59 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k}{class}\PYG{+w}{ }\PYG{n+nc}{ActivationExtractor}\PYG{p}{:}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Extract residual stream activations using PyTorch hooks.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+
+    \PYG{k}{def}\PYG{+w}{ }\PYG{n+nf+fm}{\PYGZus{}\PYGZus{}init\PYGZus{}\PYGZus{}}\PYG{p}{(}\PYG{n+nb+bp}{self}\PYG{p}{,} \PYG{n}{model}\PYG{p}{:} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{nn}\PYG{o}{.}\PYG{n}{Module}\PYG{p}{,}
+                 \PYG{n}{layers}\PYG{p}{:} \PYG{n}{List}\PYG{p}{[}\PYG{n+nb}{int}\PYG{p}{]}\PYG{p}{,}
+                 \PYG{n}{position}\PYG{p}{:} \PYG{n+nb}{int} \PYG{o}{=} \PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{)}\PYG{p}{:}
+\PYG{+w}{        }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+\PYG{l+s+sd}{        Args:}
+\PYG{l+s+sd}{            model: Gemma model to extract from}
+\PYG{l+s+sd}{            layers: Layer indices (e.g., [0,1,...,25])}
+\PYG{l+s+sd}{            position: Token position (\PYGZhy{}1 = last prompt token)}
+\PYG{l+s+sd}{        \PYGZdq{}\PYGZdq{}\PYGZdq{}}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{model} \PYG{o}{=} \PYG{n}{model}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{layers} \PYG{o}{=} \PYG{n}{layers}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{position} \PYG{o}{=} \PYG{n}{position}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{hooks} \PYG{o}{=} \PYG{p}{[}\PYG{p}{]}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{activations} \PYG{o}{=} \PYG{p}{\PYGZob{}}\PYG{p}{\PYGZcb{}}
+
+    \PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{setup\PYGZus{}hooks}\PYG{p}{(}\PYG{n+nb+bp}{self}\PYG{p}{)} \PYG{o}{\PYGZhy{}}\PYG{o}{\PYGZgt{}} \PYG{k+kc}{None}\PYG{p}{:}
+\PYG{+w}{        }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Attach pre\PYGZhy{}forward hooks to specified layers.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{remove\PYGZus{}hooks}\PYG{p}{(}\PYG{p}{)}  \PYG{c+c1}{\PYGZsh{} Clean up existing hooks}
+
+        \PYG{k}{for} \PYG{n}{layer\PYGZus{}idx} \PYG{o+ow}{in} \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{layers}\PYG{p}{:}
+            \PYG{c+c1}{\PYGZsh{} Access transformer layer}
+            \PYG{n}{layer} \PYG{o}{=} \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{model}\PYG{o}{.}\PYG{n}{model}\PYG{o}{.}\PYG{n}{layers}\PYG{p}{[}\PYG{n}{layer\PYGZus{}idx}\PYG{p}{]}
+
+            \PYG{c+c1}{\PYGZsh{} Register hook that captures BEFORE layer transformation}
+            \PYG{n}{hook} \PYG{o}{=} \PYG{n}{layer}\PYG{o}{.}\PYG{n}{register\PYGZus{}forward\PYGZus{}pre\PYGZus{}hook}\PYG{p}{(}
+                \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{\PYGZus{}create\PYGZus{}hook}\PYG{p}{(}\PYG{n}{layer\PYGZus{}idx}\PYG{p}{)}
+            \PYG{p}{)}
+            \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{hooks}\PYG{o}{.}\PYG{n}{append}\PYG{p}{(}\PYG{n}{hook}\PYG{p}{)}
+
+    \PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{\PYGZus{}create\PYGZus{}hook}\PYG{p}{(}\PYG{n+nb+bp}{self}\PYG{p}{,} \PYG{n}{layer\PYGZus{}idx}\PYG{p}{:} \PYG{n+nb}{int}\PYG{p}{)} \PYG{o}{\PYGZhy{}}\PYG{o}{\PYGZgt{}} \PYG{n}{Callable}\PYG{p}{:}
+\PYG{+w}{        }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Create hook function for a specific layer.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+        \PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{hook\PYGZus{}fn}\PYG{p}{(}\PYG{n}{module}\PYG{p}{,} \PYG{n+nb}{input}\PYG{p}{)}\PYG{p}{:}
+            \PYG{c+c1}{\PYGZsh{} Only capture on FIRST forward pass (prompt processing)}
+            \PYG{c+c1}{\PYGZsh{} Ignore subsequent passes during autoregressive generation}
+            \PYG{k}{if} \PYG{n}{layer\PYGZus{}idx} \PYG{o+ow}{not} \PYG{o+ow}{in} \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{activations}\PYG{p}{:}
+                \PYG{c+c1}{\PYGZsh{} input[0]: residual stream (batch, seq\PYGZus{}len, hidden)}
+                \PYG{n}{residual\PYGZus{}stream} \PYG{o}{=} \PYG{n+nb}{input}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]}
+
+                \PYG{c+c1}{\PYGZsh{} Extract last token: [:, \PYGZhy{}1, :] \PYGZhy{}\PYGZgt{} (1, 2048)}
+                \PYG{n}{activation} \PYG{o}{=} \PYG{n}{residual\PYGZus{}stream}\PYG{p}{[}\PYG{p}{:}\PYG{p}{,} \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{position}\PYG{p}{,} \PYG{p}{:}\PYG{p}{]}
+                \PYG{n}{activation} \PYG{o}{=} \PYG{n}{activation}\PYG{o}{.}\PYG{n}{detach}\PYG{p}{(}\PYG{p}{)}\PYG{o}{.}\PYG{n}{clone}\PYG{p}{(}\PYG{p}{)}\PYG{o}{.}\PYG{n}{cpu}\PYG{p}{(}\PYG{p}{)}
+
+                \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{activations}\PYG{p}{[}\PYG{n}{layer\PYGZus{}idx}\PYG{p}{]} \PYG{o}{=} \PYG{n}{activation}
+
+            \PYG{c+c1}{\PYGZsh{} CRITICAL: Return input unchanged for steering hooks}
+            \PYG{k}{return} \PYG{n+nb}{input}
+        \PYG{k}{return} \PYG{n}{hook\PYGZus{}fn}
+
+    \PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{remove\PYGZus{}hooks}\PYG{p}{(}\PYG{n+nb+bp}{self}\PYG{p}{)} \PYG{o}{\PYGZhy{}}\PYG{o}{\PYGZgt{}} \PYG{k+kc}{None}\PYG{p}{:}
+\PYG{+w}{        }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Remove all registered hooks.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+        \PYG{k}{for} \PYG{n}{hook} \PYG{o+ow}{in} \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{hooks}\PYG{p}{:}
+            \PYG{n}{hook}\PYG{o}{.}\PYG{n}{remove}\PYG{p}{(}\PYG{p}{)}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{hooks}\PYG{o}{.}\PYG{n}{clear}\PYG{p}{(}\PYG{p}{)}
+        \PYG{n+nb+bp}{self}\PYG{o}{.}\PYG{n}{activations}\PYG{o}{.}\PYG{n}{clear}\PYG{p}{(}\PYG{p}{)}
+\end{MintedVerbatim}

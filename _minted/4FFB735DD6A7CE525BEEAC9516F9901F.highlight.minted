@@ -1,0 +1,7 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{c+c1}{\PYGZsh{} Initial run (crashes at problem 250)}
+python3\PYG{+w}{ }run.py\PYG{+w}{ }phase\PYG{+w}{ }\PYG{l+m}{1}\PYG{+w}{ }\PYGZhy{}\PYGZhy{}start\PYG{+w}{ }\PYG{l+m}{0}\PYG{+w}{ }\PYGZhy{}\PYGZhy{}end\PYG{+w}{ }\PYG{l+m}{487}
+
+\PYG{c+c1}{\PYGZsh{} Re\PYGZhy{}run same command \PYGZhy{} automatically resumes from problem 250}
+python3\PYG{+w}{ }run.py\PYG{+w}{ }phase\PYG{+w}{ }\PYG{l+m}{1}\PYG{+w}{ }\PYGZhy{}\PYGZhy{}start\PYG{+w}{ }\PYG{l+m}{0}\PYG{+w}{ }\PYGZhy{}\PYGZhy{}end\PYG{+w}{ }\PYG{l+m}{487}
+\end{MintedVerbatim}

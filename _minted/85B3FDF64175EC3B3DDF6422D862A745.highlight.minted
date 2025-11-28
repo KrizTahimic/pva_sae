@@ -1,0 +1,20 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{orthogonalize\PYGZus{}weights}\PYG{p}{(}\PYG{n}{model}\PYG{p}{,} \PYG{n}{direction}\PYG{p}{,} \PYG{n}{layer\PYGZus{}idx}\PYG{p}{)}\PYG{p}{:}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+\PYG{l+s+sd}{    Modify W\PYGZus{}out to prevent writing direction d.}
+
+\PYG{l+s+sd}{    W\PYGZus{}new = W\PYGZus{}old \PYGZhy{} W\PYGZus{}old @ d.T @ d}
+\PYG{l+s+sd}{    \PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{n}{layer} \PYG{o}{=} \PYG{n}{model}\PYG{o}{.}\PYG{n}{model}\PYG{o}{.}\PYG{n}{layers}\PYG{p}{[}\PYG{n}{layer\PYGZus{}idx}\PYG{p}{]}
+
+    \PYG{c+c1}{\PYGZsh{} Normalize direction}
+    \PYG{n}{d} \PYG{o}{=} \PYG{n}{direction} \PYG{o}{/} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{norm}\PYG{p}{(}\PYG{n}{direction}\PYG{p}{)}
+
+    \PYG{c+c1}{\PYGZsh{} Orthogonalize all output matrices}
+    \PYG{k}{for} \PYG{n}{module} \PYG{o+ow}{in} \PYG{p}{[}\PYG{n}{layer}\PYG{o}{.}\PYG{n}{self\PYGZus{}attn}\PYG{o}{.}\PYG{n}{o\PYGZus{}proj}\PYG{p}{,} \PYG{n}{layer}\PYG{o}{.}\PYG{n}{mlp}\PYG{o}{.}\PYG{n}{down\PYGZus{}proj}\PYG{p}{]}\PYG{p}{:}
+        \PYG{n}{W\PYGZus{}out} \PYG{o}{=} \PYG{n}{module}\PYG{o}{.}\PYG{n}{weight}\PYG{o}{.}\PYG{n}{data}
+        \PYG{c+c1}{\PYGZsh{} Project out direction}
+        \PYG{n}{W\PYGZus{}out} \PYG{o}{\PYGZhy{}}\PYG{o}{=} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{outer}\PYG{p}{(}\PYG{n}{W\PYGZus{}out} \PYG{o}{@} \PYG{n}{d}\PYG{p}{,} \PYG{n}{d}\PYG{p}{)}
+
+    \PYG{k}{return} \PYG{n}{model}
+\end{MintedVerbatim}

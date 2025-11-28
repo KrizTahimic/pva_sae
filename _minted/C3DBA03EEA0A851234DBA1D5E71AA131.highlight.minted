@@ -1,0 +1,6 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+Correct Steering Attention Changes:
+  Problem Description: \PYGZhy{}7.75\PYGZpc{} (p\PYGZlt{}0.001, significant decrease)
+  Test Cases: +14.60\PYGZpc{} (p\PYGZlt{}0.001, significant increase)
+  Solution Marker: \PYGZhy{}6.85\PYGZpc{} (p\PYGZlt{}0.001, significant decrease)
+\end{MintedVerbatim}

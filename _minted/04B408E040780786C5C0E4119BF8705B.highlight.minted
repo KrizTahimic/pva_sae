@@ -1,0 +1,11 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{c+c1}{\PYGZsh{} Baseline: No intervention (0\PYGZpc{} correction/corruption expected)}
+\PYG{n}{baseline\PYGZus{}results} \PYG{o}{=} \PYG{n}{generate\PYGZus{}without\PYGZus{}steering}\PYG{p}{(}\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} Control: Random feature from different layer (noise check)}
+\PYG{n}{random\PYGZus{}feature\PYGZus{}idx} \PYG{o}{=} \PYG{n}{random}\PYG{o}{.}\PYG{n}{choice}\PYG{p}{(}\PYG{n}{zero\PYGZus{}separation\PYGZus{}features}\PYG{p}{)}
+\PYG{n}{control\PYGZus{}results} \PYG{o}{=} \PYG{n}{generate\PYGZus{}with\PYGZus{}steering}\PYG{p}{(}\PYG{n}{random\PYGZus{}feature\PYGZus{}idx}\PYG{p}{,} \PYG{n}{coeff}\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} Steering: Our identified feature}
+\PYG{n}{steering\PYGZus{}results} \PYG{o}{=} \PYG{n}{generate\PYGZus{}with\PYGZus{}steering}\PYG{p}{(}\PYG{n}{best\PYGZus{}feature\PYGZus{}idx}\PYG{p}{,} \PYG{n}{coeff}\PYG{p}{)}
+\end{MintedVerbatim}

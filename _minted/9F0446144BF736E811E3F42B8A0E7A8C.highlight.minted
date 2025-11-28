@@ -1,0 +1,14 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{n+nt}{\PYGZdq{}correct\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{p}{[}
+\PYG{+w}{    }\PYG{p}{\PYGZob{}}\PYG{n+nt}{\PYGZdq{}layer\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mi}{16}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nt}{\PYGZdq{}feature\PYGZus{}idx\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mi}{14439}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nt}{\PYGZdq{}t\PYGZus{}statistic\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mf}{5.09}\PYG{p}{\PYGZcb{},}
+\PYG{+w}{    }\PYG{p}{\PYGZob{}}\PYG{n+nt}{\PYGZdq{}layer\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mi}{16}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nt}{\PYGZdq{}feature\PYGZus{}idx\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mi}{11225}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nt}{\PYGZdq{}t\PYGZus{}statistic\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mf}{5.06}\PYG{p}{\PYGZcb{},}
+\PYG{+w}{    }\PYG{p}{\PYGZob{}}\PYG{n+nt}{\PYGZdq{}layer\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mi}{10}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nt}{\PYGZdq{}feature\PYGZus{}idx\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mi}{513}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nt}{\PYGZdq{}t\PYGZus{}statistic\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mf}{4.91}\PYG{p}{\PYGZcb{}}
+\PYG{+w}{  }\PYG{p}{],}
+\PYG{+w}{  }\PYG{n+nt}{\PYGZdq{}incorrect\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{p}{[}
+\PYG{+w}{    }\PYG{p}{\PYGZob{}}\PYG{n+nt}{\PYGZdq{}layer\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mi}{19}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nt}{\PYGZdq{}feature\PYGZus{}idx\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mi}{5441}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nt}{\PYGZdq{}t\PYGZus{}statistic\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mf}{5.68}\PYG{p}{\PYGZcb{},}
+\PYG{+w}{    }\PYG{p}{\PYGZob{}}\PYG{n+nt}{\PYGZdq{}layer\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mi}{22}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nt}{\PYGZdq{}feature\PYGZus{}idx\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mi}{13837}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nt}{\PYGZdq{}t\PYGZus{}statistic\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mf}{4.77}\PYG{p}{\PYGZcb{},}
+\PYG{+w}{    }\PYG{p}{\PYGZob{}}\PYG{n+nt}{\PYGZdq{}layer\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mi}{20}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nt}{\PYGZdq{}feature\PYGZus{}idx\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mi}{9996}\PYG{p}{,}\PYG{+w}{ }\PYG{n+nt}{\PYGZdq{}t\PYGZus{}statistic\PYGZdq{}}\PYG{p}{:}\PYG{+w}{ }\PYG{l+m+mf}{4.64}\PYG{p}{\PYGZcb{}}
+\PYG{+w}{  }\PYG{p}{]}
+\PYG{p}{\PYGZcb{}}
+\end{MintedVerbatim}

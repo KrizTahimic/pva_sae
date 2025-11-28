@@ -1,0 +1,46 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{compute\PYGZus{}t\PYGZus{}statistics}\PYG{p}{(}
+    \PYG{n}{correct\PYGZus{}features}\PYG{p}{:} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{Tensor}\PYG{p}{,}
+    \PYG{n}{incorrect\PYGZus{}features}\PYG{p}{:} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{Tensor}
+\PYG{p}{)} \PYG{o}{\PYGZhy{}}\PYG{o}{\PYGZgt{}} \PYG{n}{Dict}\PYG{p}{[}\PYG{n+nb}{str}\PYG{p}{,} \PYG{n}{List}\PYG{p}{[}\PYG{n+nb}{float}\PYG{p}{]}\PYG{p}{]}\PYG{p}{:}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+\PYG{l+s+sd}{    Calculate t\PYGZhy{}statistics for predicting directions.}
+
+\PYG{l+s+sd}{    Args:}
+\PYG{l+s+sd}{        correct\PYGZus{}features: [n\PYGZus{}correct\PYGZus{}samples, 16384]}
+\PYG{l+s+sd}{        incorrect\PYGZus{}features: [n\PYGZus{}incorrect\PYGZus{}samples, 16384]}
+
+\PYG{l+s+sd}{    Returns:}
+\PYG{l+s+sd}{        Dict with t\PYGZus{}stats\PYGZus{}correct and t\PYGZus{}stats\PYGZus{}incorrect lists}
+\PYG{l+s+sd}{    \PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{n}{t\PYGZus{}stats\PYGZus{}correct} \PYG{o}{=} \PYG{p}{[}\PYG{p}{]}
+    \PYG{n}{t\PYGZus{}stats\PYGZus{}incorrect} \PYG{o}{=} \PYG{p}{[}\PYG{p}{]}
+
+    \PYG{n}{n\PYGZus{}features} \PYG{o}{=} \PYG{n}{correct\PYGZus{}features}\PYG{o}{.}\PYG{n}{shape}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{]}
+
+    \PYG{k}{for} \PYG{n}{i} \PYG{o+ow}{in} \PYG{n+nb}{range}\PYG{p}{(}\PYG{n}{n\PYGZus{}features}\PYG{p}{)}\PYG{p}{:}
+        \PYG{n}{correct\PYGZus{}acts} \PYG{o}{=} \PYG{n}{correct\PYGZus{}features}\PYG{p}{[}\PYG{p}{:}\PYG{p}{,} \PYG{n}{i}\PYG{p}{]}\PYG{o}{.}\PYG{n}{cpu}\PYG{p}{(}\PYG{p}{)}\PYG{o}{.}\PYG{n}{numpy}\PYG{p}{(}\PYG{p}{)}
+        \PYG{n}{incorrect\PYGZus{}acts} \PYG{o}{=} \PYG{n}{incorrect\PYGZus{}features}\PYG{p}{[}\PYG{p}{:}\PYG{p}{,} \PYG{n}{i}\PYG{p}{]}\PYG{o}{.}\PYG{n}{cpu}\PYG{p}{(}\PYG{p}{)}\PYG{o}{.}\PYG{n}{numpy}\PYG{p}{(}\PYG{p}{)}
+
+        \PYG{c+c1}{\PYGZsh{} Welch\PYGZsq{}s t\PYGZhy{}test (unequal variances)}
+        \PYG{n}{t\PYGZus{}stat\PYGZus{}correct} \PYG{o}{=} \PYG{n}{stats}\PYG{o}{.}\PYG{n}{ttest\PYGZus{}ind}\PYG{p}{(}
+            \PYG{n}{correct\PYGZus{}acts}\PYG{p}{,}
+            \PYG{n}{incorrect\PYGZus{}acts}\PYG{p}{,}
+            \PYG{n}{equal\PYGZus{}var}\PYG{o}{=}\PYG{k+kc}{False}
+        \PYG{p}{)}\PYG{o}{.}\PYG{n}{statistic}
+
+        \PYG{c+c1}{\PYGZsh{} Swap order for incorrect direction}
+        \PYG{n}{t\PYGZus{}stat\PYGZus{}incorrect} \PYG{o}{=} \PYG{n}{stats}\PYG{o}{.}\PYG{n}{ttest\PYGZus{}ind}\PYG{p}{(}
+            \PYG{n}{incorrect\PYGZus{}acts}\PYG{p}{,}
+            \PYG{n}{correct\PYGZus{}acts}\PYG{p}{,}
+            \PYG{n}{equal\PYGZus{}var}\PYG{o}{=}\PYG{k+kc}{False}
+        \PYG{p}{)}\PYG{o}{.}\PYG{n}{statistic}
+
+        \PYG{n}{t\PYGZus{}stats\PYGZus{}correct}\PYG{o}{.}\PYG{n}{append}\PYG{p}{(}\PYG{n+nb}{float}\PYG{p}{(}\PYG{n}{t\PYGZus{}stat\PYGZus{}correct}\PYG{p}{)}\PYG{p}{)}
+        \PYG{n}{t\PYGZus{}stats\PYGZus{}incorrect}\PYG{o}{.}\PYG{n}{append}\PYG{p}{(}\PYG{n+nb}{float}\PYG{p}{(}\PYG{n}{t\PYGZus{}stat\PYGZus{}incorrect}\PYG{p}{)}\PYG{p}{)}
+
+    \PYG{k}{return} \PYG{p}{\PYGZob{}}
+        \PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{t\PYGZus{}stats\PYGZus{}correct}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{:} \PYG{n}{t\PYGZus{}stats\PYGZus{}correct}\PYG{p}{,}
+        \PYG{l+s+s1}{\PYGZsq{}}\PYG{l+s+s1}{t\PYGZus{}stats\PYGZus{}incorrect}\PYG{l+s+s1}{\PYGZsq{}}\PYG{p}{:} \PYG{n}{t\PYGZus{}stats\PYGZus{}incorrect}
+    \PYG{p}{\PYGZcb{}}
+\end{MintedVerbatim}

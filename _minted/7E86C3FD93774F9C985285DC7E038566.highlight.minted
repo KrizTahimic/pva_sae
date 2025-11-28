@@ -1,0 +1,29 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{create\PYGZus{}steering\PYGZus{}hook}\PYG{p}{(}\PYG{n}{sae\PYGZus{}decoder\PYGZus{}direction}\PYG{p}{:} \PYG{n}{torch}\PYG{o}{.}\PYG{n}{Tensor}\PYG{p}{,}
+                        \PYG{n}{coefficient}\PYG{p}{:} \PYG{n+nb}{float}\PYG{p}{)} \PYG{o}{\PYGZhy{}}\PYG{o}{\PYGZgt{}} \PYG{n}{Callable}\PYG{p}{:}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+\PYG{l+s+sd}{    Create PyTorch hook that adds SAE decoder direction to residual stream.}
+
+\PYG{l+s+sd}{    Args:}
+\PYG{l+s+sd}{        sae\PYGZus{}decoder\PYGZus{}direction: Decoder vector [d\PYGZus{}model=2048]}
+\PYG{l+s+sd}{        coefficient: Steering strength (positive/negative)}
+
+\PYG{l+s+sd}{    Returns:}
+\PYG{l+s+sd}{        Hook function for register\PYGZus{}forward\PYGZus{}pre\PYGZus{}hook()}
+\PYG{l+s+sd}{    \PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{hook\PYGZus{}fn}\PYG{p}{(}\PYG{n}{module}\PYG{p}{,} \PYG{n+nb}{input}\PYG{p}{)}\PYG{p}{:}
+        \PYG{c+c1}{\PYGZsh{} input[0]: residual stream [batch, seq\PYGZus{}len, d\PYGZus{}model]}
+        \PYG{n}{residual} \PYG{o}{=} \PYG{n+nb}{input}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]}
+
+        \PYG{c+c1}{\PYGZsh{} Create steering vector [1, 1, 2048]}
+        \PYG{n}{steering} \PYG{o}{=} \PYG{n}{sae\PYGZus{}decoder\PYGZus{}direction}\PYG{o}{.}\PYG{n}{unsqueeze}\PYG{p}{(}\PYG{l+m+mi}{0}\PYG{p}{)}\PYG{o}{.}\PYG{n}{unsqueeze}\PYG{p}{(}\PYG{l+m+mi}{0}\PYG{p}{)}
+        \PYG{n}{steering} \PYG{o}{=} \PYG{n}{steering} \PYG{o}{*} \PYG{n}{coefficient}
+
+        \PYG{c+c1}{\PYGZsh{} Add to ALL token positions via broadcasting}
+        \PYG{n}{residual} \PYG{o}{=} \PYG{n}{residual} \PYG{o}{+} \PYG{n}{steering}\PYG{o}{.}\PYG{n}{to}\PYG{p}{(}\PYG{n}{residual}\PYG{o}{.}\PYG{n}{device}\PYG{p}{,} \PYG{n}{residual}\PYG{o}{.}\PYG{n}{dtype}\PYG{p}{)}
+
+        \PYG{c+c1}{\PYGZsh{} Return modified input tuple}
+        \PYG{k}{return} \PYG{p}{(}\PYG{n}{residual}\PYG{p}{,}\PYG{p}{)} \PYG{o}{+} \PYG{n+nb}{input}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:}\PYG{p}{]}
+
+    \PYG{k}{return} \PYG{n}{hook\PYGZus{}fn}
+\end{MintedVerbatim}

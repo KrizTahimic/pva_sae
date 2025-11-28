@@ -1,0 +1,17 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{c+c1}{\PYGZsh{} Phase 3.5: Generate solutions at different temperatures}
+python3\PYG{+w}{ }run.py\PYG{+w}{ }phase\PYG{+w}{ }\PYG{l+m}{3}.5
+
+\PYG{c+c1}{\PYGZsh{} Phase 3.8: Evaluate AUROC and F1 scores}
+python3\PYG{+w}{ }run.py\PYG{+w}{ }phase\PYG{+w}{ }\PYG{l+m}{3}.8
+
+\PYG{c+c1}{\PYGZsh{} Phase 4.5: Find optimal steering coefficients}
+\PYG{c+c1}{\PYGZsh{} Run only correction experiments}
+python3\PYG{+w}{ }run.py\PYG{+w}{ }phase\PYG{+w}{ }\PYG{l+m}{4}.5\PYG{+w}{ }\PYGZhy{}\PYGZhy{}correction\PYGZhy{}only
+
+\PYG{c+c1}{\PYGZsh{} Phase 4.8: Steering effect analysis on validation set}
+python3\PYG{+w}{ }run.py\PYG{+w}{ }phase\PYG{+w}{ }\PYG{l+m}{4}.8
+
+\PYG{c+c1}{\PYGZsh{} Phase 6.3: Attention pattern analysis}
+python3\PYG{+w}{ }run.py\PYG{+w}{ }phase\PYG{+w}{ }\PYG{l+m}{6}.3
+\end{MintedVerbatim}

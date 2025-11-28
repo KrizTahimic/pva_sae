@@ -1,0 +1,13 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{c+c1}{\PYGZsh{} Temperature 0: capture activations (single generation)}
+\PYG{n}{extractor}\PYG{o}{.}\PYG{n}{setup\PYGZus{}hooks}\PYG{p}{(}\PYG{p}{)}
+\PYG{n}{outputs} \PYG{o}{=} \PYG{n}{model}\PYG{o}{.}\PYG{n}{generate}\PYG{p}{(}\PYG{o}{.}\PYG{o}{.}\PYG{o}{.}\PYG{p}{,} \PYG{n}{temperature}\PYG{o}{=}\PYG{l+m+mf}{0.0}\PYG{p}{,} \PYG{n}{do\PYGZus{}sample}\PYG{o}{=}\PYG{k+kc}{False}\PYG{p}{)}
+\PYG{n}{activations} \PYG{o}{=} \PYG{n}{extractor}\PYG{o}{.}\PYG{n}{get\PYGZus{}activations}\PYG{p}{(}\PYG{p}{)}
+\PYG{n}{extractor}\PYG{o}{.}\PYG{n}{remove\PYGZus{}hooks}\PYG{p}{(}\PYG{p}{)}
+
+\PYG{c+c1}{\PYGZsh{} Temperatures 0.2, 0.4, ..., 1.4: sample without re\PYGZhy{}capturing}
+\PYG{k}{for} \PYG{n}{temp} \PYG{o+ow}{in} \PYG{p}{[}\PYG{l+m+mf}{0.2}\PYG{p}{,} \PYG{l+m+mf}{0.4}\PYG{p}{,} \PYG{l+m+mf}{0.6}\PYG{p}{,} \PYG{l+m+mf}{0.8}\PYG{p}{,} \PYG{l+m+mf}{1.0}\PYG{p}{,} \PYG{l+m+mf}{1.2}\PYG{p}{,} \PYG{l+m+mf}{1.4}\PYG{p}{]}\PYG{p}{:}
+    \PYG{k}{for} \PYG{n}{sample} \PYG{o+ow}{in} \PYG{n+nb}{range}\PYG{p}{(}\PYG{l+m+mi}{3}\PYG{p}{)}\PYG{p}{:}  \PYG{c+c1}{\PYGZsh{} 3 generations per temperature}
+        \PYG{n}{outputs} \PYG{o}{=} \PYG{n}{model}\PYG{o}{.}\PYG{n}{generate}\PYG{p}{(}\PYG{o}{.}\PYG{o}{.}\PYG{o}{.}\PYG{p}{,} \PYG{n}{temperature}\PYG{o}{=}\PYG{n}{temp}\PYG{p}{,} \PYG{n}{do\PYGZus{}sample}\PYG{o}{=}\PYG{k+kc}{True}\PYG{p}{)}
+        \PYG{c+c1}{\PYGZsh{} Evaluate each generation}
+\end{MintedVerbatim}
