@@ -175,23 +175,62 @@ Recommended: 100-200 pairs for stable covariance estimates
 ### [Lee et al. 2025 — Influence Dynamics and Stagewise Data Attribution](https://arxiv.org/abs/2510.12071)
 - **arXiv:** 2510.12071
 - **Key idea:** Influence between samples changes over training, peaks at phase transitions
-- **Method:** BIF estimated via RMSProp-SGLD across checkpoints
 - **Use for:** Experiment 1
+
+**Detailed Methodology (BIF via RMSProp-SGLD):**
+1. **Initialization**: Start from training checkpoint `w*`, prepare multiple MCMC chains (2-8 chains)
+2. **SGLD Sampling**: For each step s, update parameters with noise:
+   - `w_{s+1} = w_s - (ε̂_s/2) * [β*n/m * Σ∇ℓ_k + γ(w_s - w*)] + √ε̂_s * η_t`
+   - RMSProp preconditioning: `ε̂_t = ε / (√V̂_t + α)` where `V_t = b*V_{t-1} + (1-b)*∇ℓ²`
+   - Run for 200-1000 steps per chain
+3. **Loss Computation**: At each SGLD draw, compute per-sample losses `L_{i,draw} = ℓ_i(w_s)` and store across all chains
+4. **BIF Estimation**: Compute negative covariance between losses:
+   - `BIF = (1/(CT-1)) * L * (I - 1/(CT)*11^T)^2 * Φ^T`
+   - Use Pearson correlation for numerical stability in language models
+5. **Key Hyperparameters**: ε ∈ [1e-7, 1e-2], β ∈ [10, 10000], γ ∈ [0.01, 1e6], C=2-8 chains, T=200-1000 steps
+   - High γ and low ε → strongest correlation with ground truth (LOO experiments)
 
 ### [Wang et al. 2025b — Differentiation and Specialization of Attention Heads](https://arxiv.org/abs/2410.02984)
 - **arXiv:** 2410.02984
 - **Venue:** [ICLR 2025 Spotlight](https://iclr.cc/virtual/2025/poster/29600)
 - **Key idea:** Refined LLC tracks individual component complexity over training
-- **Method:** 
-  - Weight-refined LLC: complexity of specific head
-  - Data-refined LLC: complexity on specific data subset
 - **Use for:** Tracking which heads specialize to code
+
+**Detailed Methodology (Refined LLC):**
+1. **Parameter Decomposition**: Split parameters w* = (u*, v*) where V is component of interest (e.g., attention head)
+2. **Gibbs Posterior Sampling**: Sample from tempered distribution `p(v) ∝ exp{-nβℓ'ₙ(u*, v) - (γ/2)||v - v*||²₂}`
+   - β = inverse temperature (controls loss weight)
+   - γ = localization strength (keeps samples near checkpoint)
+3. **SGLD Sampling**: Generate posterior samples via `vₜ₊₁ = vₜ - (lr/2)∇ℓₙ(vₜ) + noise`
+   - For wrLLC: Update only component V parameters, fix others
+   - For drLLC: Use alternative data distribution q' (e.g., GitHub code vs all data)
+4. **LLC Estimation**: Compute `λ̂(w*; V, q') = nβ × mean[ℓₙ(v) - ℓₙ(v*)]` over posterior samples
+   - Lower λ → more degenerate geometry → simpler solution
+5. **Developmental Analysis**: Track rLLC curves over training checkpoints to identify specialization patterns
+   - Cluster heads by time-series similarity of rLLC trajectories
+   - Compare drLLC on different data subsets to detect specialization
 
 ### [Baker et al. 2025 — Structural Inference via Susceptibilities](https://arxiv.org/abs/2504.18274)
 - **arXiv:** 2504.18274
 - **Key idea:** Perturb data distribution, measure component responses
-- **Method:** Susceptibility matrix from SGLD covariances
 - **Use for:** Experiment 3
+
+**Detailed Methodology (Susceptibility Estimation):**
+1. **Bayesian Framework**: Treat neural network as statistical mechanical system with posterior distribution over weights
+2. **Data Perturbation**: Create shifted data distributions (e.g., Pile → GitHub code, Pile → legal text)
+   - Define perturbation direction j (e.g., +GitHub, -general text)
+3. **Observable Selection**: Choose component-localized observables φᵢ(w) for each component i
+   - Examples: output norm of attention head, activation magnitude, layer output
+4. **SGLD Sampling**: Generate posterior samples around checkpoint w*
+   - Use local SGLD with 8 chains, 2000 draws per chain
+   - Maintain samples near checkpoint with localization penalty
+5. **Susceptibility Computation**: Estimate `χᵢⱼ = -Cov(φᵢ(w), ℓⱼ(w))` from SGLD samples
+   - φᵢ(w) = observable for component i
+   - ℓⱼ(w) = loss on perturbed distribution j
+   - Negative covariance = sensitivity to distribution shift
+6. **Per-Token Attribution**: Factorize susceptibility into signed per-token contributions
+7. **Response Matrix Analysis**: Build matrix [χᵢⱼ] and apply low-rank decomposition (SVD/PCA)
+   - Clusters reveal functional modules (e.g., induction heads, multigram circuits)
 
 ---
 
@@ -203,17 +242,88 @@ Recommended: 100-200 pairs for stable covariance estimates
 - **Discovers:** Novel structures like "spacing fin" for counting spaces
 - **Potential use:** Visualize code structure emergence
 
+**Detailed Methodology (Embryology Visualization):**
+1. **Susceptibility Matrix Computation**: For each training checkpoint, compute χᵢⱼ = -Cov(φᵢ(w), ℓⱼ(w))
+   - i = component index (attention heads, MLP layers, etc.)
+   - j = perturbation direction (data distribution shifts)
+   - Creates C×P matrix (C components × P perturbations)
+2. **Temporal Stacking**: Collect susceptibility matrices across T training checkpoints
+   - Build 3D tensor: χ(t) for t ∈ [checkpoint₁, ..., checkpointₜ]
+3. **UMAP Dimensionality Reduction**: Apply UMAP to component vectors
+   - Each component i represented by its susceptibility profile across perturbations
+   - UMAP projects from P-dimensional space → 2D or 3D for visualization
+   - Preserves local structure: similar response profiles cluster together
+4. **Body Plan Identification**: Visualize component trajectories through UMAP space over training
+   - Color components by layer, head index, or function type
+   - Identify stable clusters = functional modules (e.g., induction circuit)
+5. **Novel Structure Discovery**: Look for unexpected clusters or trajectory patterns
+   - Example: "spacing fin" = components specialized to space token counting
+   - Validate discoveries via mechanistic probing and ablation studies
+6. **Animation/Timeline**: Create developmental visualization showing cluster formation and separation over training
+
 ### [Carroll et al. 2025 — Dynamics of Transient Structure](https://arxiv.org/abs/2501.17745)
 - **arXiv:** 2501.17745
 - **Key idea:** Models can learn general solution first, then specialize (transient ridge phenomenon)
-- **Method:** Joint trajectory PCA + LLC tracking
 - **Potential use:** Does model learn "general programming" before "correctness"?
+
+**Detailed Methodology (Transient Structure Detection):**
+1. **Function Space Encoding**: At each checkpoint t, map model predictions to fixed dataset
+   - Compute f(D,wₜ) ∈ ℝᴮᴷ (B sequences × K tokens)
+   - Creates trajectory through function space over training
+2. **Joint Trajectory PCA**: Aggregate trajectories across multiple task diversities M
+   - Stack all checkpoints into matrix F_M, then vertically concatenate across diversities
+   - Apply SVD to get principal components: F = UΛVᵀ
+   - Project trajectories into v-dimensional subspace (v=2 or 4): γₘ(t) = πᵥ(f(D,wₜᴹ))
+3. **Idealized Solution Projection**: Compute and project reference solutions
+   - Ridge regression: t̂ₖ∞ = (XᵀX + σ²I)⁻¹XᵀY
+   - dMMSE: Discrete minimum mean squared error over finite task set
+   - Both appear as fixed points in PC space
+4. **LLC Tracking**: Estimate complexity at each checkpoint
+   - Sample from localized Gibbs posterior: p(w) ∝ exp{-nβℓₙ(w) - (γ/2)||w - w*||²}
+   - Compute LLC: λ̂(w*) = nβ × [E[ℓₙ(w)] - ℓₙ(w*)]
+   - Track λ across training to measure solution complexity evolution
+5. **Transient Ridge Identification**: Monitor out-of-distribution (OOD) loss over training
+   - Evaluate on data from q∞(S) (infinite diversity)
+   - Find tᴹ_crit where OOD loss minimizes before increasing again
+   - Non-monotonic OOD loss curve indicates transient ridge (general → specialized transition)
+6. **Loss/Complexity Tradeoff Analysis**: Compare Δℓₙ·n vs Δλ·log(n)
+   - At small n: ridge preferred (lower loss dominates)
+   - At large n: dMMSE preferred (lower complexity dominates)
+   - Crossover point predicts when model switches solutions
 
 ### [Urdshals & Urdshals 2025 — Structure Development in List-Sorting](https://arxiv.org/abs/2501.18666)
 - **arXiv:** 2501.18666
 - **Key idea:** Vocabulary-splitting and copy-suppression modes emerge in sorting task
-- **Method:** LLC + mechanistic analysis of attention heads
 - **Potential use:** Methodology template for algorithmic task interpretability
+
+**Detailed Methodology (LLC + Mechanistic Analysis):**
+1. **Circuit Decomposition**: Extract attention head circuits from trained model
+   - QK circuit: W_QK^h = W_E W_Q^h (W_K^h)^T W_E^T (determines attention patterns)
+   - OV circuit: W_OV^h = W_E W_V^h W_O^h W_U (controls value propagation)
+   - Visualize as heatmaps to identify diagonal structures
+2. **LLC Computation**: Estimate complexity at checkpoints
+   - Compute LLC on validation data using parameter volume near loss minima
+   - Lower LLC = broader basin = simpler solution
+   - Track LLC evolution to identify when simplification occurs
+3. **Development Stage Identification**: Monitor transitions through training
+   - Initial learning: Steep loss decrease, rising LLC, forming diagonals
+   - Head overlapping: Flat loss, constant LLC, overlapping OV regions across heads
+   - Specialization: LLC decreases, heads split into non-overlapping regions
+4. **Vocabulary-Splitting Detection**: Heads divide number range into non-overlapping regions
+   - Each head's OV circuit shows positive diagonal in distinct vocabulary range
+   - Quantify via region size and overlap metrics
+   - Emerges naturally even without weight decay
+5. **Copy-Suppression Detection**: Parallel heads with complementary roles
+   - One head copies (positive OV diagonal), another suppresses (negative OV diagonal)
+   - Both attend similarly (similar QK circuits)
+   - Validate via ablation: measure accuracy and entropy changes
+6. **Dataset Feature Analysis**: Relate structure to data properties
+   - Compute gap distribution δᵢ = l_{i+1} - l_i in sorted lists
+   - Vary mean gap δ̄ across datasets
+   - Map δ̄ to emergent specialization modes (vocabulary-splitting vs copy-suppression)
+7. **Weight Decay Effect**: Test simplification with/without regularization
+   - Compare circuit emergence across WD strengths
+   - Confirm vocabulary-splitting persists without WD (natural preference for simplicity)
 
 ---
 
@@ -224,6 +334,32 @@ Recommended: 100-200 pairs for stable covariance estimates
 - **Key idea:** k-gon critical points determine phase transitions in TMS
 - **Very theoretical:** Primarily useful for understanding SLT foundations
 - **Why low relevance:** Toy model only, no language model experiments
+
+**Detailed Methodology (TMS Phase Transitions via LLC):**
+1. **Toy Model Setup**: Define TMS with n features, d hidden dimensions
+   - Feature importance weights: wᵢ for i=1,...,n
+   - Hidden representation: W ∈ ℝᵈˣⁿ (parameter matrix)
+   - Reconstruction loss: minimize ||WᵀW - diag(w)||²
+2. **k-gon Critical Points**: Identify symmetric geometric configurations
+   - For d=2 (two hidden dimensions): regular k-gons in parameter space
+   - k features arranged symmetrically around origin
+   - Each k-gon represents a local/global minimum depending on k and feature weights
+3. **LLC Computation for Each k-gon**: Calculate geometric complexity
+   - Use analytic formula for TMS: λ can be computed in closed form
+   - λ(k-gon) is a geometric invariant depending on k and feature configuration
+   - Lower k (fewer features represented) → lower λ (simpler)
+   - Higher k (more features) → higher λ (more complex)
+4. **Phase Transition Identification**: Compare Bayesian posterior probabilities
+   - At sample size n, posterior ratio: log(p(k₁-gon)/p(k₂-gon)) ≈ Δℓₙ·n + Δλ·log(n)
+   - Transition occurs when ratios flip: smaller n favors lower loss, larger n favors lower complexity
+   - Critical sample size: n* where (Δℓ)/(Δλ/n) ≈ log(n)
+5. **SGD Trajectory Analysis**: Track optimization path through k-gon landscape
+   - Models travel from high-loss, low-complexity (small k) to low-loss, high-complexity (large k)
+   - Phase transitions manifest as jumps between k-gon basins during training
+6. **Bayesian vs Dynamical Comparison**: Verify SLT predictions match SGD behavior
+   - Bayesian posterior (via SLT) predicts which k-gon dominates at each sample size
+   - SGD experiments confirm models converge to predicted k-gon configurations
+   - Validates that LLC correctly characterizes phase transition boundaries
 
 ---
 
