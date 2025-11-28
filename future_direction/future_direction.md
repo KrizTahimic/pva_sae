@@ -172,22 +172,22 @@ Recommended: 100-200 pairs for stable covariance estimates
 
 ## High-Relevance Papers (Detailed)
 
-### Lee et al. 2025 — Influence Dynamics and Stagewise Data Attribution
+### [Lee et al. 2025 — Influence Dynamics and Stagewise Data Attribution](https://arxiv.org/abs/2510.12071)
 - **arXiv:** 2510.12071
 - **Key idea:** Influence between samples changes over training, peaks at phase transitions
 - **Method:** BIF estimated via RMSProp-SGLD across checkpoints
 - **Use for:** Experiment 1
 
-### Wang et al. 2025b — Differentiation and Specialization of Attention Heads
+### [Wang et al. 2025b — Differentiation and Specialization of Attention Heads](https://arxiv.org/abs/2410.02984)
 - **arXiv:** 2410.02984
-- **Venue:** ICLR 2025 Spotlight
+- **Venue:** [ICLR 2025 Spotlight](https://iclr.cc/virtual/2025/poster/29600)
 - **Key idea:** Refined LLC tracks individual component complexity over training
 - **Method:** 
   - Weight-refined LLC: complexity of specific head
   - Data-refined LLC: complexity on specific data subset
 - **Use for:** Tracking which heads specialize to code
 
-### Baker et al. 2025 — Structural Inference via Susceptibilities
+### [Baker et al. 2025 — Structural Inference via Susceptibilities](https://arxiv.org/abs/2504.18274)
 - **arXiv:** 2504.18274
 - **Key idea:** Perturb data distribution, measure component responses
 - **Method:** Susceptibility matrix from SGLD covariances
@@ -197,19 +197,19 @@ Recommended: 100-200 pairs for stable covariance estimates
 
 ## Medium-Relevance Papers (For Future Exploration)
 
-### Wang et al. 2025a — Embryology of a Language Model
+### [Wang et al. 2025a — Embryology of a Language Model](https://arxiv.org/abs/2508.00331)
 - **arXiv:** 2508.00331
 - **Key idea:** UMAP on susceptibility matrix reveals "body plan" emergence
 - **Discovers:** Novel structures like "spacing fin" for counting spaces
 - **Potential use:** Visualize code structure emergence
 
-### Carroll et al. 2025 — Dynamics of Transient Structure
+### [Carroll et al. 2025 — Dynamics of Transient Structure](https://arxiv.org/abs/2501.17745)
 - **arXiv:** 2501.17745
 - **Key idea:** Models can learn general solution first, then specialize (transient ridge phenomenon)
 - **Method:** Joint trajectory PCA + LLC tracking
 - **Potential use:** Does model learn "general programming" before "correctness"?
 
-### Urdshals & Urdshals 2025 — Structure Development in List-Sorting
+### [Urdshals & Urdshals 2025 — Structure Development in List-Sorting](https://arxiv.org/abs/2501.18666)
 - **arXiv:** 2501.18666
 - **Key idea:** Vocabulary-splitting and copy-suppression modes emerge in sorting task
 - **Method:** LLC + mechanistic analysis of attention heads
@@ -219,7 +219,7 @@ Recommended: 100-200 pairs for stable covariance estimates
 
 ## Low-Relevance Papers (Background Reading)
 
-### Chen et al. 2023 — Phase Transitions in Toy Model of Superposition
+### [Chen et al. 2023 — Phase Transitions in Toy Model of Superposition](https://arxiv.org/abs/2310.06301)
 - **arXiv:** 2310.06301
 - **Key idea:** k-gon critical points determine phase transitions in TMS
 - **Very theoretical:** Primarily useful for understanding SLT foundations
@@ -242,9 +242,9 @@ pip install devinterp
 - Papers: https://devinterp.com/research
 
 ### Key References for SLT Background
-- Watanabe 2009 — "Algebraic Geometry and Statistical Learning Theory"
-- Watanabe 2018 — "Mathematical Theory of Bayesian Statistics"
-- Lau et al. 2025 — "The Local Learning Coefficient" (foundational LLC paper)
+- [Watanabe 2009 — "Algebraic Geometry and Statistical Learning Theory"](https://www.cambridge.org/core/books/algebraic-geometry-and-statistical-learning-theory/9C8FD1BDC817E2FC79117C7F41544A3A) (Cambridge University Press)
+- [Watanabe 2018 — "Mathematical Theory of Bayesian Statistics"](https://www.routledge.com/Mathematical-Theory-of-Bayesian-Statistics/Watanabe/p/book/9780367734817) (CRC Press)
+- [Lau et al. 2025 — "The Local Learning Coefficient"](https://arxiv.org/abs/2308.12108) (foundational LLC paper, [PMLR](https://proceedings.mlr.press/v258/lau25a.html))
 
 ---
 
