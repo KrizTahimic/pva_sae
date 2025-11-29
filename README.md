@@ -1,4 +1,4 @@
-# PVA-SAE: Python Value Attribution using Sparse Autoencoders
+# Mechanistic Interpretability of Code Correctness in LLMs via Sparse Autoencoders
 
 This repository contains the implementation for investigating program validity awareness in language models using Sparse Autoencoders (SAEs).
 
