@@ -321,8 +321,14 @@ def square_perimeter(side):
 \label{fig:incorrect-steering-examples}
 \end{figure}
 
+\begin{figure}[!h]
+    \centering
+    \includegraphics[width=0.75\linewidth]{figures/steering_by_difficulty_trends.png}
+    \caption{Steering success rates across problem difficulty levels (Easy: cyclomatic complexity = 1, Medium: 2-3, Hard: $\geq$4).}
+    \label{fig:steering-difficulty}
+\end{figure}
 
-
+Unlike prediction metrics which diverge with problem complexity, steering effects remain consistent across difficulty levels. Chi-square tests reveal no significant relationship between cyclomatic complexity and steering success: correction ($\chi^2=3.22$, $p=0.20$), corruption ($\chi^2=0.13$, $p=0.94$), and preservation ($\chi^2=0.23$, $p=0.89$) rates are statistically independent of difficulty. This consistency suggests the identified steering directions capture general correctness signals rather than difficulty-specific patterns, though we note that MBPP problems remain within beginner-level complexity even at the ``hard'' tier.
 
 
 

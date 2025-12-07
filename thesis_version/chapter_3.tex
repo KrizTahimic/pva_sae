@@ -213,7 +213,7 @@ To establish valid baseline flip rates ($p_0$), we employ three setups:
 
 \begin{itemize}
     \item \textbf{Baseline}: No steering (hence 0\% correction/corruption as code maintains initial state)
-    \item \textbf{Control}: Random feature from a different layer with zero separation score, using the same steering coefficients $\alpha$ as the corresponding steering direction
+    \item \textbf{Control}: Random feature from a different layer with zero separation score, following \citeA{ferrando2024know}. We use the same steering coefficients $\alpha$ as the corresponding steering direction to isolate the effect of feature selection from coefficient magnitude
     \item \textbf{Steering directions}: Our identified correct-steering and incorrect-steering directions
 \end{itemize}
 

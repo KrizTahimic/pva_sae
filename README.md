@@ -11,6 +11,36 @@ This research analyzes how language models internally represent the concept of c
 3. Apply Sparse Autoencoders from GemmaScope to identify latent directions that encode correctness
 4. Validate findings through statistical analysis (AUROC, F1) and causal intervention via model steering
 
+## Architecture Decisions
+
+### Why This Codebase Has 30+ Phases
+
+This project is inspired by [sae_entities](https://github.com/javiferran/sae_entities) (Ferrando et al., 2024 - "Do I Know This Entity? Knowledge Awareness and Hallucinations in Language Models"), which accomplishes similar goals with ~11K lines of notebook-style code. Our implementation is ~30K lines across 94 files.
+
+**This is intentional, not over-engineering.** The difference comes from resource constraints:
+
+| Aspect | sae_entities | pva_sae |
+|--------|-------------|---------|
+| Compute budget | Abundant (research lab) | Limited (thesis project) |
+| If a run fails | Re-run, no problem | Hours of GPU time lost |
+| Activation caching | Recompute as needed | Must cache - too expensive |
+| Checkpointing | Optional | Essential (SSH timeouts, disconnects) |
+
+### Design Principles
+
+1. **Phase separation** - Each phase is a checkpoint boundary. If Phase 4.5 fails, you don't lose Phases 1-4.
+2. **Checkpointing every 50 records** - Resume interrupted runs automatically without losing progress.
+3. **Activation caching** (Phase 2.2) - Compute expensive Pile activations once, reuse across all experiments.
+4. **Auto-discovery** - Later phases automatically find outputs from earlier phases.
+5. **`--start`/`--end` flags** - Test on small subsets before committing to multi-hour runs.
+
+### For Contributors
+
+- Don't consolidate phases unless you have compute to re-run everything
+- Keep checkpointing infrastructure - it prevents lost GPU hours
+- When adding new experiments (LLAMA, HumanEval, CoT), add new phases rather than modifying existing ones
+- Compare with `sae_entities` for simpler implementations of similar concepts
+
 ## Installation
 
 ```bash

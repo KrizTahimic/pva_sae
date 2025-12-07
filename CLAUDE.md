@@ -101,6 +101,53 @@ PVA-SAE (Python Value Attribution using Sparse Autoencoders) is a research proje
 3. Validate findings through statistical analysis (AUROC, F1 scores)
 4. Perform causal interventions via model steering
 
+## Architecture Decisions: Why This Codebase Is Structured This Way
+
+### Inspiration vs. Implementation
+
+This project is inspired by [sae_entities](../sae_entities/) (Ferrando et al., 2024 - "Do I Know This Entity?"), which uses ~11K lines of code in a notebook-style codebase. Our implementation is ~30K lines across 94 files. This is intentional, not over-engineering.
+
+**Reference:** `../sae_entities/` - Compare their approach for context.
+
+### Resource-Constrained Design
+
+The key difference: **they have abundant compute, we don't.**
+
+| Constraint | sae_entities (Research Lab) | pva_sae (Thesis Project) |
+|------------|----------------------------|--------------------------|
+| If run fails | Re-run, no big deal | Lost hours of GPU time |
+| Activation computation | Recompute if needed | Must cache - too expensive |
+| Checkpointing | Nice to have | **Essential** - SSH disconnects, timeouts |
+| Code reuse | Generate fresh each time | Must reuse - generation takes hours |
+
+### Why 30+ Phases?
+
+Each phase is a **checkpoint boundary**. If Phase 4.5 fails after 3 hours, you don't lose Phases 1-4. Benefits:
+
+1. **Granular reruns** - Fix a bug in Phase 4.8, rerun only that phase
+2. **Checkpointing every 50 records** - Resume interrupted runs automatically
+3. **Activation caching** (Phase 2.2) - Compute Pile activations once, reuse forever
+4. **Auto-discovery** - Phases find outputs from previous phases automatically
+
+### Infrastructure That Exists Because of Constraints
+
+| Infrastructure | Why It Exists |
+|---------------|---------------|
+| `--start N --end M` flags | Test on subset before committing to 6-hour run |
+| Checkpoint files | Resume after SSH disconnect or timeout |
+| `common/utils.py` auto-discovery | Don't manually track paths across 30+ phases |
+| Config dataclass | Switch model/dataset without editing 30 files |
+| Phase-specific output dirs | Don't overwrite Gemma results when running LLAMA |
+
+### What This Means for Development
+
+- **Don't consolidate phases** unless you have unlimited compute to re-run everything
+- **Keep checkpointing** - it saves hours of GPU time
+- **Preserve activation caching** - Phase 2.2 outputs are expensive to regenerate
+- **When adding features** (LLAMA, HumanEval, CoT), add new phases rather than modifying existing ones
+
+---
+
 ## Core Architecture
 
 ### PCDGE Pattern

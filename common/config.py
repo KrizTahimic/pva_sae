@@ -114,7 +114,7 @@ class Config:
     
     # === MODEL SETTINGS ===
     # Options: "google/gemma-2-2b", "meta-llama/Llama-3.1-8B"
-    model_name: str = "meta-llama/Llama-3.1-8B"  # Changed for LLAMA experiments
+    model_name: str = "google/gemma-2-2b"  # Reverted to Gemma for MBPP experiments
     model_max_new_tokens: int = MAX_NEW_TOKENS
     model_temperature: float = 0.0
     model_device: Optional[str] = None  # Auto-detect if None
@@ -130,9 +130,9 @@ class Config:
     dataset_end_idx: Optional[int] = None
     
     # === ACTIVATION SETTINGS ===
-    # For Gemma: list(range(1, 26)) = layers 1-25
-    # For LLAMA: list(range(1, 32)) = layers 1-31
-    activation_layers: List[int] = field(default_factory=lambda: list(range(1, 32, 1)))  # All layers for LLAMA
+    # Dynamically set based on model_name in __post_init__
+    # Gemma: layers 1-25, LLAMA: layers 1-31
+    activation_layers: Optional[List[int]] = None  # Set dynamically from MODEL_CONFIGS
     activation_hook_type: str = "resid_post"
     activation_position: int = -1  # Final token
     activation_max_cache_gb: float = 10.0
@@ -271,6 +271,9 @@ class Config:
     phase4_14_significance_level: float = 0.05  # Alpha level for statistical tests
     phase4_14_output_dir: str = "data/phase4_14"
 
+    # === DIFFICULTY-STRATIFIED STEERING ANALYSIS (Phase 4.16) ===
+    phase4_16_output_dir: str = "data/phase4_16"
+
     # === PERCENTILE THRESHOLD CALCULATOR (Phase 8.1) ===
     phase8_1_output_dir: str = "data/phase8_1"
 
@@ -304,7 +307,15 @@ class Config:
     # === LOGGING ===
     log_dir: str = DEFAULT_LOG_DIR
     verbose: bool = False
-    
+
+    def __post_init__(self):
+        """Set dynamic defaults based on model_name."""
+        # Dynamically set activation_layers from MODEL_CONFIGS if not explicitly provided
+        if self.activation_layers is None:
+            model_config = MODEL_CONFIGS.get(self.model_name, MODEL_CONFIGS['google/gemma-2-2b'])
+            # Use layers 1 to n_layers-1 (skip layer 0)
+            self.activation_layers = list(range(1, model_config['n_layers']))
+
     @classmethod
     def from_args(cls, args, phase: Optional[str] = None) -> 'Config':
         """
