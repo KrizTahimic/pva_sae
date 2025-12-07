@@ -45,4 +45,4 @@ env/
 .env
 
 # Jupyter notebook checkpoints
-.ipynb_checkpoints/
+.ipynb_checkpoints/*.local.json
