@@ -1,7 +1,17 @@
 # Refactor TODO
 
 ## Preamble: Is This Worth It?
-
+- [ ] Think why trying exchanging predicting and steering wont make sense? Or maybe make sense?
+- [ ]  Replicate also to qwen r1 1.5B!! Its mlp sae only
+    - [ ]  Check
+    - [ ]  
+    
+    from sae import Sae
+    saes = Sae.load_many("EleutherAI/sae-DeepSeek-R1-Distill-Qwen-1.5B-65k")
+    print(list(saes.keys()))
+    
+- [ ]  Its not important if initially correct ir incorrect. Whats important is if it predict it will generate incorrect code does the model say it?
+- [ ]  What many latents did they steer or f1 with? The inspiration paper
 - [ ] Is this worth it before doing future_directions.md and iclr_reviewers_feedback.md?
     - [ ] Pros: I want to learn how to code and setup codebase better. It seems to be a gift that keeps on giving.
     - [ ] Cons: This may consume a lot of time. Better to use it to implement other experiments. Most likely it will be ugly again after adding those experiments anyway.
@@ -89,15 +99,29 @@ Can be done in parallel with any phase.
 
 Address reviewer concerns with minimal compute.
 
+- [x] **Selective steering implementation** (Reviewers RXZd, vRko) - DONE
+    - Applied selective steering approach to reduce corruption rate
+    - Conclusion: Selective steering in current form still not advisable. Better strategy: generate without steering first, only apply steering on retry if code is detected as wrong.
+
+- [ ] **LLAMA + HumanEval experiments** (All reviewers) - IN PROGRESS
+    - [ ] Run all tests on `meta-llama/Llama-3.1-8B` and `meta-llama/Llama-3.1-8B-Instruct` with `llama_scope_lxr_8x`
+    - [ ] Perform Mechanistic Analysis with HumanEval
+    - **SAE Verified**: `fnlp/Llama-Scope` 32K (8x expansion) matches Neuronpedia's `llamascope-res-32k`. The 128K (32x) variant NOT recommended due to inactive features.
+    - Addresses "single model, single benchmark" criticism
+    - HumanEval transfer results already show strong generalization (F1: 0.821 → 0.920 for incorrect-predicting)
+
 - [ ] **Top-10 features table + Feature-Selection Landscape scatter plot** (Reviewers 7JAK, jwL5)
     - [ ] Create table showing top-10 features per direction with separation scores, t-statistics, and AUROC
     - [ ] Create scatter plot of separation scores vs t-statistics to show chosen features are statistical outliers (>3σ from mean)
     - Response: "We added Table X showing the top-10 features and Figure Y visualizing the feature landscape. Our top features are clear statistical outliers (>3σ from mean). We focus on top-1 as steering experiments are computationally expensive; examining multiple features is valuable future work."
     - **Decision:** Skip full steering on top-5 features - prediction metrics + visualization sufficient to address concern
 
-- [x] **LLAMA + HumanEval experiments** (All reviewers) - IN PROGRESS
-    - Addresses "single model, single benchmark" criticism
-    - HumanEval transfer results already show strong generalization (F1: 0.821 → 0.920 for incorrect-predicting)
+- [ ] **Feature threshold sensitivity analysis** (Reviewer RXZd)
+    - [ ] Test sensitivity to the >2% activation threshold on pile-10k
+    - [ ] Report how many features get filtered out in top 25
+
+- [ ] **Steering coefficient search plots** (Reviewer 7JAK)
+    - [ ] Add plots showing steering coefficient search process to appendix
 
 - [x] **Language-agnostic directions** (Reviewers vRko, jwL5) - SKIP
     - **Decision:** Not worth the effort. Reviewers said "ideally" not "required"
