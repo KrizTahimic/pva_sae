@@ -9,6 +9,7 @@
 - [ ] Plan intensively with Claude. Create new file or just redo this?
 - [ ] Is there other improvements/refactor I need to consider? Ask Claude.
 - [ ] I want to write code better and have better design foresight on what I'm about to do. Do this while on learning mode I guess. Also have learning_notes.md while doing this.
+- [ ] Should I use einops and einsum?
 
 ---
 
@@ -81,3 +82,31 @@ Can be done in parallel with any phase.
 
 - [ ] Consider other improvements to Claude Code like skills.md or hooks to improve my workflow.
     - [ ] Install Claude Code marketplace.
+
+---
+
+## ICML Submission Tasks (Based on ICLR Reviewer Feedback)
+
+Address reviewer concerns with minimal compute.
+
+- [ ] **Top-10 features table + Feature-Selection Landscape scatter plot** (Reviewers 7JAK, jwL5)
+    - [ ] Create table showing top-10 features per direction with separation scores, t-statistics, and AUROC
+    - [ ] Create scatter plot of separation scores vs t-statistics to show chosen features are statistical outliers (>3σ from mean)
+    - Response: "We added Table X showing the top-10 features and Figure Y visualizing the feature landscape. Our top features are clear statistical outliers (>3σ from mean). We focus on top-1 as steering experiments are computationally expensive; examining multiple features is valuable future work."
+    - **Decision:** Skip full steering on top-5 features - prediction metrics + visualization sufficient to address concern
+
+- [x] **LLAMA + HumanEval experiments** (All reviewers) - IN PROGRESS
+    - Addresses "single model, single benchmark" criticism
+    - HumanEval transfer results already show strong generalization (F1: 0.821 → 0.920 for incorrect-predicting)
+
+- [x] **Language-agnostic directions** (Reviewers vRko, jwL5) - SKIP
+    - **Decision:** Not worth the effort. Reviewers said "ideally" not "required"
+    - Would require HumanEval-X, uncertain SAE behavior on other languages
+    - With MBPP + HumanEval + LLAMA, we have 3 evaluation points already
+    - Frame as future work: "Investigating language-agnostic directions across programming languages is an important direction for future work."
+
+- [x] **Difficulty-agnostic directions** (Reviewer 7JAK) - SKIP
+    - **Decision:** Current difficulty stratification (cyclomatic complexity bucketing) is flawed
+    - All MBPP/HumanEval problems are beginner-level - artificial bucketing not meaningful
+    - Model can't solve harder benchmarks (APPS, CodeContests) so can't study correctness on them
+    - Frame honestly: "Our study focuses on entry-level programming tasks where the model achieves non-trivial performance (~30% pass rate). Generalization to more complex programming challenges is limited by current model capabilities."
