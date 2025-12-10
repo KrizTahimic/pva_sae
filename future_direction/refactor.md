@@ -9,7 +9,6 @@
 - [x] What many latents did they steer or F1 with? The inspiration paper → **Only 1** (same as us)
 - [x] Is refactoring worth it? → **YES, COMMITTED**
     - Worth learning better code architecture and design
-    - Will do "low effort, high reward" items to balance implementation timeline
     - Follow the phase-based approach outlined below
 - [x] Plan complete. Ready to implement.
 - [ ] I want to write code better and have better design foresight on what I'm about to do. Do this while on learning mode I guess. Also have learning_notes.md while doing this.
