@@ -568,3 +568,124 @@ If encountering OOM errors:
 3. Use `activation_clear_cache_between_layers = True`
 4. Run phases sequentially instead of in parallel
 5. Use `python3 run.py cleanup-gpu --aggressive`
+
+---
+
+## Code Style Conventions
+
+Follow these conventions when writing or modifying code in this project.
+
+### Tensor Operations (einops)
+
+Use `einops.rearrange` for complex reshapes - makes tensor shapes self-documenting:
+
+```python
+# ✅ GOOD - Shape transformation is explicit
+from einops import rearrange
+steering = rearrange(decoder_direction, 'd -> 1 1 d') * coefficient
+
+# ❌ AVOID - Shape not obvious without tracing
+steering = decoder_direction.unsqueeze(0).unsqueeze(0) * coefficient
+```
+
+**When NOT to use einops** (keep simple):
+- Simple matmul: `x @ self.W_enc` - `@` operator is clearer
+- Basic squeeze: `activation.squeeze(0)` - obvious enough
+- Transpose for loading: `weights['encoder.weight'].T` - standard pattern
+
+Add shape comments where einops isn't used:
+```python
+# Shape: [batch, seq_len, d_model]
+residual = input[0]
+```
+
+### List Comprehensions (Pythonic Style)
+
+Prefer comprehensions over verbose loops:
+
+```python
+# ✅ GOOD - List comprehension
+features = [{'idx': i, 'score': scores[i].item()} for i in range(n)]
+
+# ❌ AVOID - Verbose loop
+features = []
+for i in range(n):
+    features.append({'idx': i, 'score': scores[i].item()})
+
+# ✅ GOOD - Dict unpacking for adding keys
+all_features = [{**feat, 'layer': layer_idx} for feat in features]
+
+# ❌ AVOID - Copy and modify
+for feat in features:
+    new_feat = feat.copy()
+    new_feat['layer'] = layer_idx
+    all_features.append(new_feat)
+
+# ✅ GOOD - Counter for counting
+from collections import Counter
+layer_counts = Counter(feat['layer'] for feat in features)
+
+# ❌ AVOID - Manual dict tracking
+layer_counts = {}
+for feat in features:
+    layer = feat['layer']
+    layer_counts[layer] = layer_counts.get(layer, 0) + 1
+```
+
+### Type Hints (Python 3.9+)
+
+Use modern type hint syntax:
+
+```python
+# ✅ GOOD - Built-in generics (Python 3.9+)
+def process(items: list[dict[str, Any]], config: Config) -> tuple[list, int]:
+
+# ❌ AVOID - Old typing imports
+from typing import List, Dict, Tuple
+def process(items: List[Dict[str, Any]], config: Config) -> Tuple[List, int]:
+```
+
+Keep `Optional`, `Union`, `Callable` from typing module (still needed).
+
+### Variable Naming
+
+```python
+# ✅ GOOD - Descriptive names
+lower_bound = bounds['lower']
+upper_bound = bounds['upper']
+temperature_indices = np.arange(len(temperatures))
+
+# ❌ AVOID - Single letters outside comprehensions
+a = bounds['lower']
+b = bounds['upper']
+x = np.arange(len(temperatures))
+```
+
+**Terminology for correctness states:**
+- `test_passed` = original test result (from Phase 1)
+- `baseline_passed` = generation without any intervention
+- `steered_passed` = generation with steering hook
+- `orthogonalized_passed` = generation with weight orthogonalization
+
+### Function Structure
+
+- Use **early returns** to reduce nesting
+- Split functions >50 lines into smaller helpers
+- Follow **single responsibility principle**
+
+```python
+# ✅ GOOD - Early returns, flat structure
+def calculate_rate(results):
+    if isinstance(results, pd.DataFrame):
+        return _rate_from_dataframe(results)
+    if isinstance(results, list):
+        return _rate_from_list(results)
+    raise TypeError(f"Expected list or DataFrame, got {type(results)}")
+
+# ❌ AVOID - Deep nesting
+def calculate_rate(results):
+    if isinstance(results, pd.DataFrame):
+        if not results.empty:
+            if 'column' in results.columns:
+                # ... deeply nested logic
+```
