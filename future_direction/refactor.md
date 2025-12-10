@@ -1,23 +1,17 @@
 # Refactor TODO
 
 ## Preamble: Is This Worth It?
-- [ ] Think why trying exchanging predicting and steering wont make sense? Or maybe make sense?
-- [ ]  Replicate also to qwen r1 1.5B!! Its mlp sae only
-    - [ ]  Check
-    - [ ]  
-    
-    from sae import Sae
-    saes = Sae.load_many("EleutherAI/sae-DeepSeek-R1-Distill-Qwen-1.5B-65k")
-    print(list(saes.keys()))
-    
-- [ ]  Its not important if initially correct ir incorrect. Whats important is if it predict it will generate incorrect code does the model say it?
-- [ ]  What many latents did they steer or f1 with? The inspiration paper
-- [ ] Is this worth it before doing future_directions.md and iclr_reviewers_feedback.md?
-    - [ ] Pros: I want to learn how to code and setup codebase better. It seems to be a gift that keeps on giving.
-    - [ ] Cons: This may consume a lot of time. Better to use it to implement other experiments. Most likely it will be ugly again after adding those experiments anyway.
-    - [ ] Maybe do something in the middle. Do only the low effort, high reward.
-- [ ] Plan intensively with Claude. Create new file or just redo this?
-- [ ] Is there other improvements/refactor I need to consider? Ask Claude.
+- [x] Think why trying exchanging predicting and steering wont make sense? Or maybe make sense?
+- [x] ~~Replicate to Qwen R1 1.5B~~ - **ABANDONED**
+    - **Reason:** MLP SAE only, no residual stream SAEs available
+    - Our methodology requires residual stream SAEs (like GemmaScope, LlamaScope)
+    - Findings: 28 MLP layers available (layers.0.mlp to layers.27.mlp) but not compatible with current approach
+- [x] What many latents did they steer or F1 with? The inspiration paper → **Only 1** (same as us)
+- [x] Is refactoring worth it? → **YES, COMMITTED**
+    - Worth learning better code architecture and design
+    - Will do "low effort, high reward" items to balance implementation timeline
+    - Follow the phase-based approach outlined below
+- [x] Plan complete. Ready to implement.
 - [ ] I want to write code better and have better design foresight on what I'm about to do. Do this while on learning mode I guess. Also have learning_notes.md while doing this.
 - [ ] Should I use einops and einsum?
 
@@ -134,3 +128,10 @@ Address reviewer concerns with minimal compute.
     - All MBPP/HumanEval problems are beginner-level - artificial bucketing not meaningful
     - Model can't solve harder benchmarks (APPS, CodeContests) so can't study correctness on them
     - Frame honestly: "Our study focuses on entry-level programming tasks where the model achieves non-trivial performance (~30% pass rate). Generalization to more complex programming challenges is limited by current model capabilities."
+
+- [ ] **CoT faithfulness experiment** - Statistical testing methodology
+    - [ ] Figure out how to do statistical testing for correct/incorrect related directions (both predicting and steering)
+    - [ ]  Its not important if initially correct or incorrect. Whats important is if it predict it will generate incorrect code does the model say it?
+    - **Clarification:** No need to test swapping predicting and steering latents - current setup makes sense:
+        - t-statistic → for predicting directions
+        - separation score → for steering directions
