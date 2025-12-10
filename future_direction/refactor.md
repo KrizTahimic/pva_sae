@@ -115,16 +115,17 @@ These decisions affect how you approach everything else.
 
 Quick wins that make the codebase easier to work with.
 
-- [ ] Delete not needed md or files anymore.
-- [ ] Add better folder names especially the folders with no names just phase number.
-    - [ ] `phase3_6/` → `phase3_6_hyperparameter_tuning/`
-    - [ ] `phase3_8/` → `phase3_8_auroc_f1_evaluation/`
-    - [ ] `phase7_12/` → `phase7_12_instruct_evaluation/`
-    - [ ] Check for other unnamed folders
+- [x] Delete not needed md or files anymore.
+    - Deleted: `docs/*_abandon.md`, `investigation_results/`, phase design docs
+- [x] Add better folder names especially the folders with no names just phase number.
+    - [x] `phase3_6/` → `phase3_6_threshold_tuning_data/`
+    - [x] `phase3_8/` → `phase3_8_auroc_f1_evaluation/`
+    - [x] `phase7_12/` → `phase7_12_instruct_auroc_f1/`
+    - [x] Check for other unnamed folders - none remaining
 - [ ] Improve logging by a lot. Right now it's almost useless as you don't know where it is going and it's mixed up and sometimes it's working, sometimes not.
-- [ ] Delete unused data files:
-    - [ ] `data/phase2_5/layer_*_features.json` (25 files × 5.2MB = 130MB) - never used
-    - [ ] `data/phase2_5/sae_analysis_results.json` - legacy, possibly incorrect
+- [x] Delete unused data files:
+    - [x] `data/phase2_5/layer_*_features.json` (25 files × 5.2MB = 130MB) - never used
+    - [x] `data/phase2_5/sae_analysis_results.json` - legacy, possibly incorrect
 
 ---
 

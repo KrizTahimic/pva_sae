@@ -600,7 +600,7 @@ def run_phase3_5(config: Config, logger, device: str):
 
 def run_phase3_6(config: Config, logger, device: str):
     """Run Phase 3.6: Hyperparameter Tuning Set Processing"""
-    from phase3_6.hyperparameter_runner import HyperparameterDataRunner
+    from phase3_6_threshold_tuning_data.hyperparameter_runner import HyperparameterDataRunner
     
     logger.info("Starting Phase 3.6: Hyperparameter Tuning Set Processing")
     logger.info("Will auto-discover best layers from Phase 3.5 output")
@@ -709,7 +709,7 @@ def run_phase7_12(config: Config, logger, device: str):
         logger.info(f"Running Phase 7.12 evaluator with args: {sys.argv[1:]}")
 
         # Import and run the main function directly
-        from phase7_12.instruct_auroc_f1_evaluator import main
+        from phase7_12_instruct_auroc_f1.instruct_auroc_f1_evaluator import main
         main()
 
         logger.info("\n✅ Phase 7.12 completed successfully")
@@ -814,7 +814,7 @@ def run_phase3_8(config: Config, logger, device: str):
         logger.info(f"Running Phase 3.8 evaluator with args: {sys.argv[1:]}")
         
         # Import and run the main function directly
-        from phase3_8.auroc_f1_evaluator import main
+        from phase3_8_auroc_f1_evaluation.auroc_f1_evaluator import main
         main()
         
         logger.info("\n✅ Phase 3.8 completed successfully")
