@@ -515,5 +515,22 @@ class SimplifiedSAEAnalyzer:
         output_file = output_dir / "sae_analysis_results.json"
         with open(output_file, 'w') as f:
             json.dump(summary_results, f, indent=2)
-        
+
         logger.info(f"Saved summary results to {output_file}")
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+        write_phase_output(
+            phase="2.5",
+            outputs={
+                "primary": "sae_analysis_results.json",
+                "features": "top_20_features.json",
+            },
+            config=self.config,
+            output_dir=str(output_dir),
+            dependencies={
+                "1": str(self.activation_dir),
+            },
+            config_keys=['model_name', 'dataset_name', 'pile_filter_enabled', 'pile_threshold']
+        )
+        logger.info(f"Saved phase_output.json manifest to {output_dir}")

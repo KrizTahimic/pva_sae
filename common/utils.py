@@ -415,6 +415,153 @@ def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None) ->
     return find_latest_file(directory, patterns, exclude_keywords)
 
 
+# ============================================================================
+# Phase Output Manifest (phase_output.json)
+# ============================================================================
+
+def write_phase_output(
+    phase: str,
+    outputs: dict[str, str],
+    config,
+    output_dir: Optional[str] = None,
+    dependencies: Optional[dict[str, str]] = None,
+    config_keys: Optional[list[str]] = None
+) -> Path:
+    """
+    Write phase_output.json manifest for a completed phase.
+
+    Args:
+        phase: Phase ID (e.g., "2.5")
+        outputs: Dict mapping semantic names to filenames. Must include "primary".
+        config: Config object (extracts relevant fields)
+        output_dir: Optional override for output directory
+        dependencies: Optional dict of phase_id -> file path used as input
+        config_keys: Optional list of config keys to include (default: model_name, dataset_name)
+
+    Returns:
+        Path to the written phase_output.json
+
+    Example:
+        write_phase_output(
+            phase="2.5",
+            outputs={"primary": "sae_analysis_results.json", "features": "top_20_features.json"},
+            config=self.config,
+            dependencies={"1": "data/phase1_0/dataset_sae.parquet"}
+        )
+    """
+    import json
+    from datetime import datetime
+
+    # Determine output directory
+    directory = Path(output_dir) if output_dir else Path(get_phase_output_dir(phase, config))
+    directory.mkdir(parents=True, exist_ok=True)
+
+    # Extract config subset
+    default_keys = ['model_name', 'dataset_name']
+    keys_to_include = config_keys or default_keys
+    config_subset = {k: getattr(config, k, None) for k in keys_to_include if hasattr(config, k)}
+
+    # Build manifest
+    manifest = {
+        "phase": phase,
+        "created_at": datetime.now().isoformat(),
+        "config": config_subset,
+        "outputs": outputs,
+    }
+    if dependencies:
+        manifest["dependencies"] = dependencies
+
+    # Write manifest
+    manifest_path = directory / "phase_output.json"
+    with open(manifest_path, 'w') as f:
+        json.dump(manifest, f, indent=2)
+
+    return manifest_path
+
+
+def discover_phase_outputs(phase: str, phase_dir: Optional[str] = None, config=None) -> dict:
+    """
+    Discover phase outputs via phase_output.json manifest.
+
+    Args:
+        phase: Phase ID (e.g., "2.5")
+        phase_dir: Optional override for phase directory
+        config: Optional config for model/dataset-aware directory lookup
+
+    Returns:
+        Dict with keys:
+            - 'dir': Directory path
+            - 'primary': Path to primary output file
+            - 'outputs': Dict of semantic_name -> Path
+            - 'config': Config used to produce outputs
+            - 'dependencies': Dict of phase_id -> file path
+
+    Raises:
+        FileNotFoundError: If phase_output.json doesn't exist
+    """
+    import json
+
+    # Determine directory
+    if phase_dir:
+        directory = Path(phase_dir)
+    elif config:
+        directory = Path(get_phase_output_dir(phase, config))
+    else:
+        from common.phase_registry import get_phase_output_dir as registry_get_dir
+        directory = Path(registry_get_dir(phase))
+
+    manifest_path = directory / "phase_output.json"
+
+    if not manifest_path.exists():
+        raise FileNotFoundError(
+            f"No phase_output.json in {directory}. Run phase {phase} first."
+        )
+
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+
+    # Build output paths
+    outputs = {k: directory / v for k, v in manifest.get('outputs', {}).items()}
+
+    return {
+        'dir': str(directory),
+        'primary': outputs.get('primary'),
+        'outputs': outputs,
+        'config': manifest.get('config', {}),
+        'dependencies': manifest.get('dependencies', {}),
+        'created_at': manifest.get('created_at'),
+    }
+
+
+def get_phase_output_file(phase: str, output_key: str = "primary", phase_dir: Optional[str] = None, config=None) -> Path:
+    """
+    Get a specific output file from a phase by semantic name.
+
+    Args:
+        phase: Phase ID (e.g., "2.5")
+        output_key: Semantic name of output (default: "primary")
+        phase_dir: Optional override for phase directory
+        config: Optional config for model/dataset-aware directory lookup
+
+    Returns:
+        Path to the output file
+
+    Raises:
+        FileNotFoundError: If phase_output.json doesn't exist
+        KeyError: If output_key not found in manifest
+
+    Example:
+        features_file = get_phase_output_file("2.5", "features")
+    """
+    phase_outputs = discover_phase_outputs(phase, phase_dir, config)
+
+    if output_key not in phase_outputs['outputs']:
+        available = list(phase_outputs['outputs'].keys())
+        raise KeyError(
+            f"Output '{output_key}' not found in phase {phase}. Available: {available}"
+        )
+
+    return phase_outputs['outputs'][output_key]
 
 
 # ============================================================================

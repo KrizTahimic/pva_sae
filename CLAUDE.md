@@ -575,6 +575,27 @@ If encountering OOM errors:
 
 Follow these conventions when writing or modifying code in this project.
 
+### No Backward Compatibility
+
+When refactoring, make clean breaks - don't add legacy fallbacks or backward compatibility code:
+
+```python
+# ❌ AVOID - Legacy fallback clutters code
+def discover_outputs(phase):
+    if manifest.exists():
+        return parse_manifest(manifest)
+    # Legacy fallback
+    return legacy_discover(phase)
+
+# ✅ GOOD - Clean break, clear error
+def discover_outputs(phase):
+    if not manifest.exists():
+        raise FileNotFoundError(f"Run phase {phase} first.")
+    return parse_manifest(manifest)
+```
+
+**Rationale:** This is research code with one user. Backward compatibility adds complexity without benefit. When refactoring, update all call sites rather than maintaining two code paths.
+
 ### Tensor Operations (einops)
 
 Use `einops.rearrange` for complex reshapes - makes tensor shapes self-documenting:
