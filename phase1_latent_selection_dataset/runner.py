@@ -1,6 +1,7 @@
 """Simplified Phase 1 runner for dataset building."""
 
 import gc
+import sys
 import time
 import torch
 import pandas as pd
@@ -8,12 +9,12 @@ from pathlib import Path
 from typing import Dict, Optional
 import psutil  # For memory monitoring
 
-# Use absolute imports since we'll add to path in run.py
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
 from common.prompt_utils import PromptBuilder
 from common.utils import detect_device, get_phase_output_dir
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
+from common.gpu_utils import setup_cuda_environment, cleanup_gpu_memory
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.activation_hooks import ActivationExtractor
 from common_simplified.helpers import (
@@ -22,7 +23,7 @@ from common_simplified.helpers import (
 )
 
 # Use the project's phase-based logger
-logger = get_logger("phase1_latent_selection_dataset.runner", phase="1.0")
+logger = get_logger("phase1_latent_selection_dataset.runner", phase="1")
 
 
 class Phase1Runner:
@@ -46,6 +47,12 @@ class Phase1Runner:
         if device is None:
             device = detect_device()
             logger.info(f"Auto-detected device: {device}")
+
+        # Setup CUDA environment and cleanup GPUs before starting
+        if torch.cuda.is_available() and device == "cuda":
+            logger.info("Setting up CUDA environment and cleaning GPU memory...")
+            setup_cuda_environment()
+            cleanup_gpu_memory()
         
         # Load model and tokenizer
         self.model, self.tokenizer = load_model_and_tokenizer(
@@ -299,13 +306,27 @@ class Phase1Runner:
     
     def run(self, split_name: str = "sae"):
         """Run Phase 1 dataset building for specified split."""
-        logger.info(f"Starting Phase 1 for {split_name} split")
-        
+        logger.info("Starting Phase 1: Dataset Building")
+        logger.info(f"Model: {self.config.model_name}, Split: {split_name}")
+        logger.info("Processing mode: Sequential (use multi_gpu_launcher.py for parallel processing)")
+        logger.info("\n" + self.config.dump(phase="1"))
+
+        # Verify Phase 0.1 has been run (split files must exist)
+        phase0_1_dir = get_phase_output_dir("0.1", self.config)
+        sae_split_path = Path(phase0_1_dir) / f"{split_name}_mbpp.parquet"
+        if not sae_split_path.exists():
+            logger.error(f"Split file not found at {sae_split_path}")
+            logger.error("Phase 1 requires Phase 0.1 to be completed first.")
+            logger.error("Please run: python3 run.py phase 0.1")
+            sys.exit(1)
+
+        logger.info(f"Found {split_name} split: {sae_split_path}")
+
         # Setup model and hooks
         self.setup()
         
         # Load split data
-        df = load_mbpp_from_phase0_1(split_name, Path(self.config.phase0_1_output_dir))
+        df = load_mbpp_from_phase0_1(split_name, Path(phase0_1_dir))
         
         # Apply start/end indices from config (matching original behavior)
         total_tasks = len(df)
@@ -456,7 +477,7 @@ class Phase1Runner:
         
         # Merge with original data (only successful tasks)
         # Need to reload full dataset to get all original data including checkpointed tasks
-        full_df = load_mbpp_from_phase0_1(split_name, Path(self.config.phase0_1_output_dir))
+        full_df = load_mbpp_from_phase0_1(split_name, Path(phase0_1_dir))
         full_df = full_df.iloc[start_idx:end_idx + 1]  # Apply original range
         
         successful_task_ids = set(results_df['task_id'])

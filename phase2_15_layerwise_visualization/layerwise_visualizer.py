@@ -31,7 +31,7 @@ import seaborn as sns
 from datetime import datetime
 
 from common.logging import get_logger
-from common.utils import discover_latest_phase_output, ensure_directory_exists
+from common.utils import discover_latest_phase_output, ensure_directory_exists, get_phase_output_dir
 from common.config import Config
 
 logger = get_logger("phase2_15.layerwise_visualizer")
@@ -45,7 +45,7 @@ class LayerwiseVisualizer:
         self.config = config
 
         # Output directories
-        self.output_dir = Path(config.phase2_15_output_dir)
+        self.output_dir = Path(get_phase_output_dir("2.15", config))
         ensure_directory_exists(self.output_dir)
 
         self.visualizations_dir = self.output_dir / "visualizations"

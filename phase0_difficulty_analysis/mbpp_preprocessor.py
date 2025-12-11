@@ -11,31 +11,64 @@ import pandas as pd
 
 from common.logging import get_logger
 from .difficulty_analyzer import MBPPDifficultyAnalyzer
-from common.utils import get_phase_dir
+from common.utils import get_phase_dir, get_phase_output_dir
 from datasets import load_dataset
 
 
 class MBPPPreprocessor:
     """Main orchestrator for Phase 0 MBPP difficulty preprocessing"""
-    
-    def __init__(self, output_dir: str = None):
+
+    def __init__(self, config=None, output_dir: str = None):
         """
         Initialize MBPP preprocessor
-        
+
         Args:
-            output_dir: Directory to save preprocessed data
+            config: Config object (preferred)
+            output_dir: Directory to save preprocessed data (legacy, for backward compatibility)
         """
-        self.output_dir = Path(output_dir or get_phase_dir(0))
-        self.logger = get_logger("mbpp_preprocessor", phase="0.0")
-        
+        # Support both config-based and legacy output_dir initialization
+        if config is not None:
+            self.config = config
+            self.output_dir = Path(get_phase_output_dir("0", config))
+        else:
+            self.config = None
+            self.output_dir = Path(output_dir or get_phase_dir("0"))
+
+        self.logger = get_logger("mbpp_preprocessor", phase="0")
+
         # Initialize difficulty analyzer
-        self.difficulty_analyzer = MBPPDifficultyAnalyzer(str(output_dir))
-        
+        self.difficulty_analyzer = MBPPDifficultyAnalyzer(str(self.output_dir))
+
         # We'll load MBPP dataset directly from HuggingFace
         self.dataset = None
         self.test_data = None
-        
+
         self.logger.info("MBPPPreprocessor initialized")
+
+    def run(self) -> pd.DataFrame:
+        """
+        Standard entry point for Phase 0.
+
+        Returns:
+            pd.DataFrame: Enriched dataset with difficulty metrics
+        """
+        self.logger.info("Starting Phase 0: MBPP difficulty analysis")
+
+        if self.config:
+            self.logger.info("\n" + self.config.dump(phase="0"))
+
+        enriched_df = self.preprocess_dataset(save_mapping=True)
+
+        self.logger.info(f"Analyzed {len(enriched_df)} MBPP problems")
+
+        # Show path to newly created parquet file
+        latest_enriched = self.get_latest_enriched_dataset_path()
+        if latest_enriched:
+            self.logger.info(f"Enriched dataset available at: {latest_enriched}")
+        else:
+            self.logger.error("Failed to find saved enriched dataset after Phase 0 completion")
+
+        return enriched_df
     
     def preprocess_dataset(self, save_mapping: bool = True) -> pd.DataFrame:
         """

@@ -181,19 +181,6 @@ class Config:
     # === T-STATISTIC SELECTION (Phase 2.10) ===
     t_statistic_min_samples: int = 10  # Minimum samples for reliable t-test
     
-    # === PHASE-SPECIFIC OUTPUT DIRECTORIES ===
-    phase0_output_dir: str = "data/phase0"
-    phase1_output_dir: str = "data/phase1_0"
-    phase0_1_output_dir: str = "data/phase0_1"
-    phase0_2_output_dir: str = "data/phase0_2_humaneval"
-    phase0_3_output_dir: str = "data/phase0_3_humaneval"
-    phase2_output_dir: str = "data/phase2"
-    phase2_2_output_dir: str = "data/phase2_2"
-    phase2_5_output_dir: str = "data/phase2_5"
-    phase2_10_output_dir: str = "data/phase2_10"
-    phase2_15_output_dir: str = "data/phase2_15"
-    phase3_output_dir: str = "data/phase3"
-    
     # === PROBLEM SPLITTING (Phase 0.1) ===
     split_random_seed: int = 42
     split_n_strata: int = 10
@@ -204,37 +191,13 @@ class Config:
     temperature_variation_temps: List[float] = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
 
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
-    phase3_5_output_dir: str = "data/phase3_5"
-    
-    # === HYPERPARAMETER TUNING SET (Phase 3.6) ===
-    phase3_6_output_dir: str = "data/phase3_6"
-    
-    # === INSTRUCTION-TUNED BASELINE (Phase 7.3) ===
-    phase7_3_output_dir: str = "data/phase7_3"
+
+    # === INSTRUCTION-TUNED MODEL SETTINGS ===
     phase7_3_model_name: str = "google/gemma-2-2b-it"
-    
-    # === INSTRUCTION-TUNED MODEL STEERING (Phase 7.6) ===
-    phase7_6_output_dir: str = "data/phase7_6"
     phase7_6_model_name: str = "google/gemma-2-2b-it"
 
-    # === UNIVERSALITY ANALYSIS (Phase 7.9) ===
-    phase7_9_output_dir: str = "data/phase7_9"
-
-    # === INSTRUCTION-TUNED MODEL AUROC/F1 EVALUATION (Phase 7.12) ===
-    phase7_12_output_dir: str = "data/phase7_12"
-
-    # === AUROC AND F1 EVALUATION (Phase 3.8) ===
-    phase3_8_output_dir: str = "data/phase3_8"
-    
     # === TEMPERATURE-BASED AUROC ANALYSIS (Phase 3.10) ===
-    phase3_10_output_dir: str = "data/phase3_10"
-    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4]) #
-
-    # === TEMPERATURE TRENDS VISUALIZATION UPDATE (Phase 3.11) ===
-    phase3_11_output_dir: str = "data/phase3_11"
-
-    # === DIFFICULTY-BASED AUROC ANALYSIS (Phase 3.12) ===
-    phase3_12_output_dir: str = "data/phase3_12"
+    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
     
     # === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
     # Separate coefficient grids for correct vs incorrect steering
@@ -244,62 +207,34 @@ class Config:
     phase4_5_search_tolerance: float = 2.0  # Stop binary search when range < tolerance
     phase4_5_meaningful_effect_threshold: float = 5.0  # Minimum % for meaningful effect
     phase4_5_plateau_threshold: float = 2.0  # Max % change to consider plateaued
-    phase4_5_output_dir: str = "data/phase4_5"
     phase4_5_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption'
-    
+
     # === GOLDEN SECTION SEARCH COEFFICIENT REFINEMENT (Phase 4.6) ===
     phase4_6_tolerance: float = 1.0  # Stop when range < tolerance (no max_iterations - runs to convergence)
-    phase4_6_output_dir: str = "data/phase4_6"
     phase4_6_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption'
-    
+
     # === STEERING EFFECT ANALYSIS (Phase 4.8) ===
     phase4_8_correct_coefficient: float = 29
     phase4_8_incorrect_coefficient: float = 287
     phase4_8_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption', 'preservation'
-    phase4_8_output_dir: str = "data/phase4_8"
-    
+
     # === ZERO-DISCRIMINATION FEATURE SELECTION (Phase 4.10) ===
     phase4_10_n_features: int = 10  # Number of zero-discrimination features to select
-    phase4_10_separation_threshold: float = 0.01  # Maximum separation score for zero-discrimination (increased from 0.001)
-    phase4_10_min_activation_freq: float = 0.001  # Minimum activation frequency to consider (decreased from 0.01)
-    phase4_10_output_dir: str = "data/phase4_10"
-    
-    # === ZERO-DISCRIMINATION STEERING (Phase 4.12) ===
-    phase4_12_output_dir: str = "data/phase4_12"
-    
+    phase4_10_separation_threshold: float = 0.01  # Maximum separation score for zero-discrimination
+    phase4_10_min_activation_freq: float = 0.001  # Minimum activation frequency to consider
+
     # === STATISTICAL SIGNIFICANCE TESTING (Phase 4.14) ===
     phase4_14_significance_level: float = 0.05  # Alpha level for statistical tests
-    phase4_14_output_dir: str = "data/phase4_14"
-
-    # === DIFFICULTY-STRATIFIED STEERING ANALYSIS (Phase 4.16) ===
-    phase4_16_output_dir: str = "data/phase4_16"
-
-    # === PERCENTILE THRESHOLD CALCULATOR (Phase 8.1) ===
-    phase8_1_output_dir: str = "data/phase8_1"
-
-    # === PERCENTILE THRESHOLD OPTIMIZER (Phase 8.2) ===
-    phase8_2_output_dir: str = "data/phase8_2"
 
     # === SELECTIVE STEERING BASED ON THRESHOLD (Phase 8.3) ===
-    phase8_3_output_dir: str = "data/phase8_3"
-    phase8_3_use_percentile_threshold: bool = True  # Use percentile-based threshold instead of Phase 3.8 threshold
+    phase8_3_use_percentile_threshold: bool = True  # Use percentile-based threshold
     phase8_3_percentile: float = 70.0  # Percentile for threshold (90 = steer top 10%)
 
-    # === WEIGHT ORTHOGONALIZATION (Phase 5.3) ===
-    phase5_3_output_dir: str = "data/phase5_3"
+    # === WEIGHT ORTHOGONALIZATION (Phase 5.3, 5.9) ===
     orthogonalization_target_weights: List[str] = field(
         default_factory=lambda: ['embed', 'attn_o', 'mlp_down']
     )
-    
-    # === ZERO-DISC WEIGHT ORTHOGONALIZATION (Phase 5.6) ===
-    phase5_6_output_dir: str = "data/phase5_6"
-    
-    # === WEIGHT ORTHOGONALIZATION SIGNIFICANCE (Phase 5.9) ===
     phase5_9_significance_level: float = 0.05  # Alpha level for statistical tests
-    phase5_9_output_dir: str = "data/phase5_9"
-    
-    # === ATTENTION ANALYSIS (Phase 6.3) ===
-    phase6_3_output_dir: str = "data/phase6_3"
     
     # === EVALUATION (Phase 3.8) ===
     evaluation_random_seed: int = 42
@@ -341,11 +276,7 @@ class Config:
             'start': 'dataset_start_idx',
             'end': 'dataset_end_idx',
             'dataset_dir': 'dataset_dir',
-            
-            # Phase-specific output dirs
-            'output_dir': f'phase{phase.replace(".", "_")}_output_dir' if phase else None,
-            'split_output_dir': 'phase0_1_output_dir',
-            
+
             # Robustness args
             'checkpoint_frequency': 'checkpoint_frequency',
             'checkpoint_dir': 'checkpoint_dir',
@@ -382,8 +313,7 @@ class Config:
         
         # Store special CLI args that aren't in Config fields
         # These are accessed via getattr(config, '_argname', default)
-        special_args = ['input', 'dry_run', 'generate_report', 
-                       'test_temps', 'test_samples_per_temp', 'run_count']
+        special_args = ['input', 'test_temps', 'test_samples_per_temp']
         for arg_name in special_args:
             if hasattr(args, arg_name):
                 value = getattr(args, arg_name)
@@ -488,9 +418,8 @@ class Config:
         
         # Phase-specific validations
         if phase == "0":
-            # Phase 0 just needs output directory
-            if not self.phase0_output_dir:
-                raise ValueError("phase0_output_dir required for Phase 0")
+            # Phase 0 just needs output directory (validated via registry)
+            pass
         
         elif phase == "1":
             # Phase 1 requires model
@@ -565,16 +494,10 @@ class Config:
     def get_phase_output_dir(self, phase: str) -> str:
         """Get output directory for specific phase.
 
-        Uses the phase registry as the source of truth.
-        Falls back to attribute lookup for backward compatibility.
+        Uses the phase registry as the single source of truth.
         """
-        try:
-            from common.phase_registry import get_phase_output_dir as registry_get_dir
-            return registry_get_dir(phase)
-        except (ImportError, ValueError):
-            # Fallback to old behavior if registry not available or phase not found
-            phase_key = f"phase{phase.replace('.', '_')}_output_dir"
-            return getattr(self, phase_key, f"data/phase{phase}")
+        from common.phase_registry import get_phase_output_dir as registry_get_dir
+        return registry_get_dir(phase)
     
     def get_split_ratios(self) -> List[float]:
         """Get fixed split ratios for Phase 0.1."""

@@ -28,7 +28,8 @@ from common.utils import (
     ensure_directory_exists,
     discover_latest_phase_output,
     get_timestamp,
-    detect_device
+    detect_device,
+    get_phase_output_dir
 )
 from common_simplified.helpers import load_json, save_json
 from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
@@ -54,7 +55,7 @@ class ThresholdCalculator:
         self.device = torch.device(detect_device())
 
         # Create output directory
-        self.output_dir = Path(config.phase8_1_output_dir)
+        self.output_dir = Path(get_phase_output_dir("8.1", config))
         ensure_directory_exists(self.output_dir)
 
         logger.info(f"Initializing Threshold Calculator")

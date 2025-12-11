@@ -9,6 +9,7 @@ from pathlib import Path
 from .converter import convert_humaneval_to_mbpp, inspect_sample_conversions
 from common.config import Config
 from common.logging import get_logger
+from common.utils import get_phase_output_dir
 
 logger = get_logger("phase0_2.runner")
 
@@ -24,8 +25,8 @@ def run_phase_0_2(config: Config):
     logger.info("PHASE 0.2: HUMANEVAL TO MBPP CONVERSION")
     logger.info("=" * 80)
 
-    # Get output directory from config
-    output_dir = config.phase0_2_output_dir
+    # Get output directory from registry
+    output_dir = get_phase_output_dir("0.2", config)
 
     # Run conversion
     df = convert_humaneval_to_mbpp(output_dir=output_dir)

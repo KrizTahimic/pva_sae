@@ -5,7 +5,7 @@ This module eliminates the need to edit 5+ locations when adding a new phase.
 All phase metadata (name, output_dir, runner, patterns) is defined here.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Union
 
 
@@ -21,6 +21,7 @@ class PhaseInfo:
     category: str = "other"     # "data_prep", "feature_discovery", "validation", "steering", etc.
     patterns: Union[str, list[str]] = ""  # File patterns for auto-discovery
     exclude_keywords: Optional[list[str]] = None  # Keywords to exclude in file search
+    experiment_modes: Optional[dict] = None  # CLI flag -> config attr mapping for experiment modes
 
 
 # =============================================================================
@@ -45,9 +46,9 @@ PHASES: dict[str, PhaseInfo] = {
         id="0.1",
         name="Problem Splitting",
         output_dir="data/phase0_1",
-        module="phase0_1_problem_splitting",
-        runner="split_problems",
-        runner_type="function",
+        module="phase0_1_problem_splitting.problem_splitter",
+        runner="Phase01Runner",
+        runner_type="class",
         category="data_prep",
         patterns="split_metadata.json",
     ),
@@ -169,8 +170,8 @@ PHASES: dict[str, PhaseInfo] = {
         name="AUROC and F1 Evaluation",
         output_dir="data/phase3_8",
         module="phase3_8_auroc_f1_evaluation.auroc_f1_evaluator",
-        runner="main",
-        runner_type="function",
+        runner="Phase38Runner",
+        runner_type="class",
         category="validation",
         patterns=["evaluation_results.json", "*.png", "evaluation_summary.txt"],
     ),
@@ -199,8 +200,8 @@ PHASES: dict[str, PhaseInfo] = {
         name="Difficulty-Based AUROC Analysis",
         output_dir="data/phase3_12",
         module="phase3_12_difficulty_auroc_f1.difficulty_evaluator",
-        runner="main",
-        runner_type="function",
+        runner="Phase312Runner",
+        runner_type="class",
         category="validation",
         patterns=["difficulty_analysis_results.json", "*.png", "difficulty_summary.txt"],
     ),
@@ -217,6 +218,10 @@ PHASES: dict[str, PhaseInfo] = {
         runner_type="class",
         category="steering",
         patterns=["selected_coefficients.json", "phase_4_5_summary.json"],
+        experiment_modes={
+            "config_attr": "phase4_5_experiment_mode",
+            "flags": [("correction_only", "correction"), ("corruption_only", "corruption")],
+        },
     ),
     "4.6": PhaseInfo(
         id="4.6",
@@ -227,13 +232,17 @@ PHASES: dict[str, PhaseInfo] = {
         runner_type="class",
         category="steering",
         patterns="refined_coefficients.json",
+        experiment_modes={
+            "config_attr": "phase4_6_experiment_mode",
+            "flags": [("correction_only", "correction"), ("corruption_only", "corruption")],
+        },
     ),
     "4.7": PhaseInfo(
         id="4.7",
         name="Coefficient Optimization Visualization",
         output_dir="data/phase4_7",
         module="phase4_7_coefficient_visualization.coefficient_plotter",
-        runner="CoefficientVisualizer",
+        runner="Phase47Runner",
         runner_type="class",
         category="steering",
         patterns="*.png",
@@ -247,6 +256,10 @@ PHASES: dict[str, PhaseInfo] = {
         runner_type="class",
         category="steering",
         patterns=["steering_effect_analysis.json", "phase_4_8_summary.json"],
+        experiment_modes={
+            "config_attr": "phase4_8_experiment_mode",
+            "flags": [("preservation_only", "preservation"), ("correction_only", "correction"), ("corruption_only", "corruption")],
+        },
     ),
     "4.10": PhaseInfo(
         id="4.10",
@@ -283,8 +296,8 @@ PHASES: dict[str, PhaseInfo] = {
         name="Difficulty-Stratified Steering Analysis",
         output_dir="data/phase4_16",
         module="phase4_16_difficulty_steering.difficulty_steering_analyzer",
-        runner="main",
-        runner_type="function",
+        runner="Phase416Runner",
+        runner_type="class",
         category="steering",
         patterns="difficulty_steering_results.json",
     ),
@@ -365,7 +378,7 @@ PHASES: dict[str, PhaseInfo] = {
         name="Universality Analysis",
         output_dir="data/phase7_9",
         module="phase7_9_universality_analysis.universality_analysis",
-        runner="UniversalityAnalyzer",
+        runner="Phase79Runner",
         runner_type="class",
         category="instruct",
         patterns=["universality_metrics.json", "phase_7_9_summary.json"],
@@ -375,8 +388,8 @@ PHASES: dict[str, PhaseInfo] = {
         name="Instruction-Tuned Model AUROC/F1 Evaluation",
         output_dir="data/phase7_12",
         module="phase7_12_instruct_auroc_f1.instruct_auroc_f1_evaluator",
-        runner="main",
-        runner_type="function",
+        runner="Phase712Runner",
+        runner_type="class",
         category="instruct",
         patterns=["evaluation_results.json", "evaluation_summary.txt"],
     ),

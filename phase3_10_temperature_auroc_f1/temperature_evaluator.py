@@ -18,7 +18,7 @@ import matplotlib.cm as cm
 
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import detect_device, discover_latest_phase_output, format_duration
+from common.utils import detect_device, discover_latest_phase_output, format_duration, get_phase_output_dir
 from common_simplified.helpers import save_json, load_json
 from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
@@ -40,20 +40,16 @@ class TemperatureAUROCEvaluator:
         # Discover dependencies
         self._discover_dependencies()
 
-        # Output directory with dataset suffix
-        base_output_dir = Path(config.phase3_10_output_dir)
-        if config.dataset_name != "mbpp":
-            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
-        else:
-            self.output_dir = base_output_dir
+        # Output directory (registry handles model/dataset suffixes)
+        self.output_dir = Path(get_phase_output_dir("3.10", config))
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # No aggregation tracking needed for per-sample analysis
     
     def _discover_dependencies(self) -> None:
         """Discover and load dependencies from previous phases."""
-        # Phase 3.8: Best features and thresholds (with dataset suffix if needed)
-        phase3_8_dir = f"data/phase3_8_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_8"
+        # Phase 3.8: Best features and thresholds
+        phase3_8_dir = get_phase_output_dir("3.8", self.config)
         phase3_8_path = discover_latest_phase_output("3.8", phase_dir=phase3_8_dir)
         if not phase3_8_path:
             raise ValueError(f"Phase 3.8 output not found in {phase3_8_dir}. Please run Phase 3.8 first.")

@@ -17,7 +17,8 @@ import torch
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import (
     discover_latest_phase_output,
-    ensure_directory_exists
+    ensure_directory_exists,
+    get_phase_output_dir
 )
 from common_simplified.helpers import load_json, save_json
 from common.config import Config
@@ -34,9 +35,9 @@ class ZeroDiscriminationSelector:
         self.config = config
         
         # Phase directories
-        self.phase1_dir = Path(config.phase1_output_dir) 
-        self.phase2_5_dir = Path(config.phase2_5_output_dir)
-        self.output_dir = Path(config.phase4_10_output_dir)
+        self.phase1_dir = Path(get_phase_output_dir("1", config))
+        self.phase2_5_dir = Path(get_phase_output_dir("2.5", config))
+        self.output_dir = Path(get_phase_output_dir("4.10", config))
         ensure_directory_exists(self.output_dir)
         
         # Feature selection parameters

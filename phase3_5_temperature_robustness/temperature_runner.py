@@ -26,7 +26,7 @@ from common_simplified.helpers import evaluate_code, extract_code, save_json, lo
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import detect_device, discover_latest_phase_output
+from common.utils import detect_device, discover_latest_phase_output, get_phase_output_dir
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
 # Module-level logger
@@ -44,7 +44,7 @@ class TemperatureRobustnessRunner:
             Dict with 'correct' and 'incorrect' feature info (layer and feature_idx)
         """
         # Use Phase 2.10 (t-statistic selection) - no fallback
-        phase_2_10_dir = Path(getattr(self.config, 'phase2_10_output_dir', 'data/phase2_10'))
+        phase_2_10_dir = Path(get_phase_output_dir("2.10", self.config))
         top_features_file = phase_2_10_dir / "top_20_features.json"
 
         if not top_features_file.exists():
@@ -337,11 +337,11 @@ class TemperatureRobustnessRunner:
     def _load_validation_data(self) -> pd.DataFrame:
         """Load validation data from Phase 0.1 (MBPP) or Phase 0.2 (HumanEval)."""
         if self.config.dataset_name == "mbpp":
-            validation_file = Path(self.config.phase0_1_output_dir) / "validation_mbpp.parquet"
+            validation_file = Path(get_phase_output_dir("0.1", self.config)) / "validation_mbpp.parquet"
             dataset_desc = "MBPP validation"
             prerequisite = "Phase 0.1"
         elif self.config.dataset_name == "humaneval":
-            validation_file = Path(self.config.phase0_2_output_dir) / "humaneval.parquet"
+            validation_file = Path(get_phase_output_dir("0.2", self.config)) / "humaneval.parquet"
             dataset_desc = "HumanEval"
             prerequisite = "Phase 0.2"
         else:
@@ -368,16 +368,8 @@ class TemperatureRobustnessRunner:
             output_dir = Path(output_dir_env)
             logger.info(f"Using output directory from environment: {output_dir}")
         else:
-            # Use base output directory from config
-            base_output_dir = Path(self.config.phase3_5_output_dir)
-
-            # Add suffix for non-MBPP datasets
-            if self.config.dataset_name != "mbpp":
-                # data/phase3_5 -> data/phase3_5_humaneval
-                output_dir = Path(str(base_output_dir) + f"_{self.config.dataset_name}")
-            else:
-                output_dir = base_output_dir
-
+            # Use registry-based output directory (handles model/dataset suffixes)
+            output_dir = Path(get_phase_output_dir("3.5", self.config))
             logger.info(f"Using output directory: {output_dir} (dataset: {self.config.dataset_name})")
 
         output_dir.mkdir(parents=True, exist_ok=True)

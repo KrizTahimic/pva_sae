@@ -16,6 +16,7 @@ from datetime import datetime
 
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
+from common.utils import get_phase_output_dir
 from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
 # Module-level logger
@@ -31,7 +32,7 @@ class TStatisticSelector:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         # Activation directory from Phase 1
-        self.activation_dir = Path(config.phase1_output_dir) / "activations"
+        self.activation_dir = Path(get_phase_output_dir("1", config)) / "activations"
         if not self.activation_dir.exists():
             raise FileNotFoundError(
                 f"Activation directory not found at {self.activation_dir}. "
@@ -323,7 +324,7 @@ class TStatisticSelector:
     
     def load_pile_activations_for_layer(self, layer_idx: int) -> torch.Tensor:
         """Load pile activations for a specific layer from Phase 2.2."""
-        pile_dir = Path(self.config.phase2_2_output_dir) / "pile_activations"
+        pile_dir = Path(get_phase_output_dir("2.2", self.config)) / "pile_activations"
         
         if not pile_dir.exists():
             logger.warning(f"Pile activation directory not found at {pile_dir}")
@@ -486,7 +487,7 @@ class TStatisticSelector:
     
     def _save_results(self, results: Dict) -> None:
         """Save analysis results to file."""
-        output_dir = Path(getattr(self.config, 'phase2_10_output_dir', 'data/phase2_10'))
+        output_dir = Path(get_phase_output_dir("2.10", self.config))
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Save per-layer features (complete rankings)

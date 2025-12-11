@@ -291,150 +291,6 @@ def safe_json_dumps(obj: any, indent: int = 2) -> str:
 # Auto-discovery Utilities
 # ============================================================================
 
-# Simple configuration for phase directories and output patterns
-PHASE_CONFIGS = {
-    "0": {
-        "dir": "data/phase0",
-        "patterns": "mbpp_with_complexity_*.parquet",  # Updated to look for enriched dataset
-        "exclude_keywords": None
-    },
-    "1": {  # Phase 1.0 - Dataset Building
-        "dir": "data/phase1_0",
-        "patterns": "dataset_*.parquet",
-        "exclude_keywords": ['checkpoint', 'autosave', 'emergency']
-    },
-    "0.1": {  # Phase 0.1 - Problem Splitting
-        "dir": "data/phase0_1",
-        "patterns": "split_metadata.json",
-        "exclude_keywords": None
-    },
-    "2.2": {
-        "dir": "data/phase2_2",
-        "patterns": "pile_activations/*.npz",
-        "exclude_keywords": None
-    },
-    "2.5": {
-        "dir": "data/phase2_5",
-        "patterns": ["sae_analysis_results.json", "top_20_features.json"],
-        "exclude_keywords": None
-    },
-    "2.10": {  # Phase 2.10 - T-Statistic Feature Selection
-        "dir": "data/phase2_10",
-        "patterns": ["sae_analysis_results.json", "top_20_features.json"],
-        "exclude_keywords": None
-    },
-    "3": {
-        "dir": "data/phase3",
-        "patterns": ["validation_results_*.json", "steering_results_*.json"],
-        "exclude_keywords": None
-    },
-    "3.5": {
-        "dir": "data/phase3_5",
-        "patterns": ["dataset_temp_*.parquet", "metadata.json"],
-        "exclude_keywords": None
-    },
-    "3.6": {
-        "dir": "data/phase3_6",
-        "patterns": ["dataset_hyperparams_temp_0_0.parquet", "metadata.json"],
-        "exclude_keywords": None
-    },
-    "3.8": {
-        "dir": "data/phase3_8",
-        "patterns": ["evaluation_results.json", "*.png", "evaluation_summary.txt"],
-        "exclude_keywords": None
-    },
-    "3.10": {
-        "dir": "data/phase3_10",
-        "patterns": ["temperature_analysis_results.json", "*.png", "temperature_summary.txt"],
-        "exclude_keywords": None
-    },
-    "3.12": {
-        "dir": "data/phase3_12",
-        "patterns": ["difficulty_analysis_results.json", "*.png", "difficulty_summary.txt"],
-        "exclude_keywords": None
-    },
-    "4.5": {
-        "dir": "data/phase4_5",
-        "patterns": ["selected_coefficients.json", "phase_4_5_summary.json"],
-        "exclude_keywords": None
-    },
-    "4.8": {
-        "dir": "data/phase4_8",
-        "patterns": ["steering_effect_analysis.json", "phase_4_8_summary.json"],
-        "exclude_keywords": None
-    },
-    "4.10": {
-        "dir": "data/phase4_10",
-        "patterns": ["zero_discrimination_features.json", "zero_discrimination_summary.json"],
-        "exclude_keywords": None
-    },
-    "4.12": {
-        "dir": "data/phase4_12",
-        "patterns": ["zero_disc_steering_results.json", "random_steering_results.json"],
-        "exclude_keywords": None
-    },
-    "4.14": {
-        "dir": "data/phase4_14",
-        "patterns": ["significance_test_results.json", "significance_summary.json", "triangulation_analysis.json"],
-        "exclude_keywords": None
-    },
-    "5.3": {
-        "dir": "data/phase5_3",
-        "patterns": ["orthogonalization_results.json", "phase_5_3_summary.json"],
-        "exclude_keywords": None
-    },
-    "5.6": {
-        "dir": "data/phase5_6",
-        "patterns": ["zero_disc_orthogonalization_results.json", "phase_5_6_summary.json"],
-        "exclude_keywords": None
-    },
-    "5.9": {
-        "dir": "data/phase5_9",
-        "patterns": ["orthogonalization_triangulation.json", "phase_5_9_summary.json"],
-        "exclude_keywords": None
-    },
-    "6.3": {
-        "dir": "data/phase6_3",
-        "patterns": ["attention_analysis_results.json", "phase_6_3_summary.json"],
-        "exclude_keywords": None
-    },
-    "7.3": {
-        "dir": "data/phase7_3",
-        "patterns": ["dataset_instruct_temp_0_0.parquet", "metadata.json"],
-        "exclude_keywords": None
-    },
-    "7.6": {
-        "dir": "data/phase7_6",
-        "patterns": ["steering_effect_analysis.json", "phase_7_6_summary.json"],
-        "exclude_keywords": None
-    },
-    "7.9": {
-        "dir": "data/phase7_9",
-        "patterns": ["universality_metrics.json", "phase_7_9_summary.json"],
-        "exclude_keywords": None
-    },
-    "7.12": {
-        "dir": "data/phase7_12",
-        "patterns": ["evaluation_results.json", "evaluation_summary.txt"],
-        "exclude_keywords": None
-    },
-    "8.1": {
-        "dir": "data/phase8_1",
-        "patterns": ["percentile_thresholds.json", "threshold_summary.txt"],
-        "exclude_keywords": None
-    },
-    "8.2": {
-        "dir": "data/phase8_2",
-        "patterns": ["optimal_percentile.json", "threshold_comparison.json"],
-        "exclude_keywords": None
-    },
-    "8.3": {
-        "dir": "data/phase8_3",
-        "patterns": ["selective_steering_summary.json", "selective_correction_results.json", "selective_preservation_results.json"],
-        "exclude_keywords": None
-    }
-}
-
 
 def get_phase_dir(phase: str) -> str:
     """
@@ -455,14 +311,8 @@ def get_phase_dir(phase: str) -> str:
         get_phase_dir("2.5") -> "data/phase2_5"
         get_phase_dir("3.5") -> "data/phase3_5"
     """
-    try:
-        from common.phase_registry import get_phase_output_dir as registry_get_dir
-        return registry_get_dir(phase)
-    except ImportError:
-        # Fallback to PHASE_CONFIGS if registry not available
-        if phase not in PHASE_CONFIGS:
-            raise ValueError(f"Unknown phase: {phase}. Valid phases are: {list(PHASE_CONFIGS.keys())}")
-        return PHASE_CONFIGS[phase]["dir"]
+    from common.phase_registry import get_phase_output_dir as registry_get_dir
+    return registry_get_dir(phase)
 
 
 def get_phase_output_dir(phase: str, config) -> str:
@@ -486,16 +336,8 @@ def get_phase_output_dir(phase: str, config) -> str:
         # LLAMA + HumanEval: "data/phase1_0_llama_humaneval"
     """
     # Get base directory from registry (single source of truth)
-    try:
-        from common.phase_registry import get_phase_output_dir as registry_get_dir
-        base_dir = registry_get_dir(phase)
-    except ImportError:
-        # Fallback to PHASE_CONFIGS if registry not available
-        if phase in PHASE_CONFIGS:
-            base_dir = PHASE_CONFIGS[phase]["dir"]
-        else:
-            phase_key = phase.replace(".", "_")
-            base_dir = f"data/phase{phase_key}"
+    from common.phase_registry import get_phase_output_dir as registry_get_dir
+    base_dir = registry_get_dir(phase)
 
     # Build suffix based on model and dataset
     suffixes = []
@@ -551,28 +393,26 @@ def get_dataset_suffix(config) -> str:
 def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None) -> Optional[str]:
     """
     Discover the latest output file from any phase.
-    
+
     Args:
-        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8", "3.10", "3.12", "4.5", "4.8", "4.10", "4.12", "4.14", "5.3", "5.6", "5.9", "6.3", "7.3", "7.6", "7.12")
+        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", etc.)
         phase_dir: Optional override for phase directory
-        
+
     Returns:
         str: Path to latest output file, or None if not found
-        
+
     Raises:
         ValueError: If phase is invalid
     """
-    if phase not in PHASE_CONFIGS:
-        raise ValueError(f"Unknown phase: {phase}. Valid phases are: {list(PHASE_CONFIGS.keys())}")
-    
-    config = PHASE_CONFIGS[phase]
-    directory = phase_dir or config["dir"]
-    
-    return find_latest_file(
-        directory,
-        config["patterns"],
-        config.get("exclude_keywords")
-    )
+    from common.phase_registry import get_phase, get_phase_patterns
+
+    # Get phase info from registry (single source of truth)
+    phase_info = get_phase(phase)
+    directory = phase_dir or phase_info.output_dir
+    patterns = get_phase_patterns(phase)
+    exclude_keywords = phase_info.exclude_keywords
+
+    return find_latest_file(directory, patterns, exclude_keywords)
 
 
 

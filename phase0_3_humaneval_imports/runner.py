@@ -3,6 +3,7 @@
 from pathlib import Path
 from common.config import Config
 from common.logging import get_logger
+from common.utils import get_phase_output_dir
 from .scanner import scan_humaneval_imports, save_imports
 
 logger = get_logger("phase0_3.runner", phase="0.3")
@@ -22,8 +23,8 @@ def run_phase_0_3(config: Config):
     logger.info("PHASE 0.3: HUMANEVAL IMPORT SCANNING")
     logger.info("=" * 80)
 
-    # Output directory
-    output_dir = Path(config.phase0_3_output_dir)
+    # Output directory from registry
+    output_dir = Path(get_phase_output_dir("0.3", config))
     logger.info(f"Output directory: {output_dir}")
 
     # Scan imports

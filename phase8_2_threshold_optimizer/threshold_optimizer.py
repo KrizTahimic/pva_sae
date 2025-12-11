@@ -38,7 +38,8 @@ from common.utils import (
     detect_device,
     ensure_directory_exists,
     discover_latest_phase_output,
-    get_timestamp
+    get_timestamp,
+    get_phase_output_dir
 )
 from common_simplified.helpers import (
     save_json,
@@ -91,7 +92,7 @@ class ThresholdOptimizer:
         self.device = torch.device(detect_device())
 
         # Create output directory
-        self.output_dir = Path(config.phase8_2_output_dir)
+        self.output_dir = Path(get_phase_output_dir("8.2", config))
         ensure_directory_exists(self.output_dir)
 
         # Create checkpoint directory

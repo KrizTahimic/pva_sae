@@ -20,9 +20,10 @@ import psutil
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import (
-    discover_latest_phase_output, 
+    discover_latest_phase_output,
     ensure_directory_exists,
-    detect_device
+    detect_device,
+    get_phase_output_dir
 )
 from common.config import Config
 from common.steering_metrics import (
@@ -58,7 +59,7 @@ class GoldenSectionCoefficientRefiner:
         self.evaluation_checkpoint_frequency = 20  # Save every 20 tasks during evaluation
         
         # Phase output directories
-        self.output_dir = Path(config.phase4_6_output_dir)
+        self.output_dir = Path(get_phase_output_dir("4.6", config))
         ensure_directory_exists(self.output_dir)
         
         self.examples_dir = self.output_dir / "refinement_examples"

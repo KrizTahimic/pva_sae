@@ -26,7 +26,7 @@ from common_simplified.helpers import evaluate_code, extract_code, save_json, fo
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists, get_phase_dir
+from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists, get_phase_dir, get_phase_output_dir
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
 # Module-level logger
@@ -44,7 +44,7 @@ class InstructBaselineRunner:
             Dict with 'correct' and 'incorrect' best layers
         """
         # Try Phase 2.10 first (t-statistic selection)
-        phase_2_10_dir = Path(getattr(self.config, 'phase2_10_output_dir', 'data/phase2_10'))
+        phase_2_10_dir = Path(get_phase_output_dir("2.10", self.config))
         top_features_file = phase_2_10_dir / "top_20_features.json"
         phase_source = "2.10"
         
@@ -58,7 +58,7 @@ class InstructBaselineRunner:
         
         # Fall back to Phase 2.5 if Phase 2.10 not found
         if not top_features_file.exists():
-            phase_2_5_dir = Path(self.config.phase2_5_output_dir)
+            phase_2_5_dir = Path(get_phase_output_dir("2.5", self.config))
             top_features_file = phase_2_5_dir / "top_20_features.json"
             phase_source = "2.5"
             
@@ -154,9 +154,9 @@ class InstructBaselineRunner:
     def _load_validation_data(self) -> pd.DataFrame:
         """Load validation split from Phase 0.1 (MBPP) or Phase 0.2 (HumanEval)."""
         if self.config.dataset_name == "mbpp":
-            validation_file = Path(self.config.phase0_1_output_dir) / "validation_mbpp.parquet"
+            validation_file = Path(get_phase_output_dir("0.1", self.config)) / "validation_mbpp.parquet"
         elif self.config.dataset_name == "humaneval":
-            validation_file = Path("data/phase0_2_humaneval") / "humaneval.parquet"
+            validation_file = Path(get_phase_output_dir("0.2", self.config)) / "humaneval.parquet"
         else:
             raise ValueError(f"Unknown dataset: {self.config.dataset_name}")
 

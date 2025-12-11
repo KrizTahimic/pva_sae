@@ -18,18 +18,9 @@ from common.gpu_utils import cleanup_gpu_memory, setup_cuda_environment
 
 
 # Phases that require special handling and cannot use the generic runner
-# These are kept in run.py with custom logic
+# Most phases have been refactored to follow the standard Runner(config).run() pattern
 SPECIAL_PHASES = {
-    "0": "has dry_run parameter and custom preprocessor call",
-    "0.1": "needs DataFrame discovery from Phase 0",
-    "1": "CUDA setup + dependency check + split_name='sae' parameter",
-    "3": "placeholder - not implemented",
-    "3.8": "legacy argparse pattern with sys.argv manipulation",
-    "3.12": "legacy argparse pattern with sys.argv manipulation",
-    "4.7": "custom data_dir/output_dir setup for visualization",
-    "4.16": "legacy argparse pattern",
-    "7.9": "needs load_data() call before run()",
-    "7.12": "legacy argparse pattern with sys.argv manipulation",
+    "3": "placeholder - not implemented (skip this phase)",
 }
 
 

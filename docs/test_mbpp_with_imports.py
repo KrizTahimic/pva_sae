@@ -334,7 +334,8 @@ class ImportTestRunner:
         logger.info(f"Model: {self.config.model_name}")
 
         # Load validation data
-        validation_file = Path(self.config.phase0_1_output_dir) / "validation_mbpp.parquet"
+        from common.utils import get_phase_output_dir
+        validation_file = Path(get_phase_output_dir("0.1", self.config)) / "validation_mbpp.parquet"
         if not validation_file.exists():
             raise FileNotFoundError(f"Validation data not found: {validation_file}")
 

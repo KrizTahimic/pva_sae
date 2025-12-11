@@ -8,6 +8,7 @@ It ensures equal complexity distribution across splits by:
 3. Applying interleaved sampling across strata
 """
 
+import sys
 from numpy import random, arange, mean, std, linspace, ndarray
 from numpy.random import seed, shuffle
 import pandas as pd
@@ -18,9 +19,85 @@ from datetime import datetime
 
 from common.config import Config
 from common.logging import get_logger
+from common.utils import discover_latest_phase_output, get_phase_output_dir
 
 # Module-level logger
 logger = get_logger("problem_splitter", phase="0.1")
+
+
+class Phase01Runner:
+    """Standard runner for Phase 0.1: Problem Splitting"""
+
+    def __init__(self, config: Config):
+        """
+        Initialize Phase 0.1 runner.
+
+        Args:
+            config: Configuration object
+        """
+        self.config = config
+        self.logger = get_logger("phase0_1_runner", phase="0.1")
+
+    def run(self) -> Dict[str, List[int]]:
+        """
+        Standard entry point for Phase 0.1.
+
+        Returns:
+            Dictionary mapping split names to lists of task_ids
+        """
+        self.logger.info("Starting Phase 0.1: Problem Splitting")
+        self.logger.info("Split ratios: 50% SAE, 10% hyperparameters, 40% validation")
+        self.logger.info("\n" + self.config.dump(phase="0.1"))
+
+        # Auto-discover or use provided difficulty mapping
+        if hasattr(self.config, '_input_file') and self.config._input_file:
+            mapping_path = self.config._input_file
+            self.logger.info(f"Using provided difficulty mapping: {mapping_path}")
+        else:
+            self.logger.info("Auto-discovering difficulty mapping from Phase 0...")
+            mapping_path = discover_latest_phase_output("0", phase_dir=get_phase_output_dir("0", self.config))
+
+            if not mapping_path:
+                self.logger.error("No Phase 0 difficulty mapping found! Please run Phase 0 first.")
+                sys.exit(1)
+
+            self.logger.info(f"Found difficulty mapping: {mapping_path}")
+
+        # Load and validate difficulty mapping
+        df = self._load_and_validate(mapping_path)
+
+        # Perform splitting
+        self.logger.info("Performing stratified interleaving split...")
+        split_dict = split_problems(df, self.config)
+
+        self.logger.info(f"Split complete! Created {len(split_dict)} splits:")
+        for name, task_ids in split_dict.items():
+            self.logger.info(f"  - {name}: {len(task_ids)} problems")
+
+        return split_dict
+
+    def _load_and_validate(self, mapping_path: str) -> pd.DataFrame:
+        """Load and validate the difficulty mapping DataFrame."""
+        try:
+            df = pd.read_parquet(mapping_path)
+            self.logger.info(f"Loaded difficulty mapping with {len(df)} problems")
+
+            # Check minimum size
+            if len(df) < 10:
+                self.logger.error(f"Too few problems for splitting: {len(df)} problems (minimum 10 required)")
+                sys.exit(1)
+
+            # Verify required columns
+            required_columns = ['task_id', 'cyclomatic_complexity']
+            if not all(col in df.columns for col in required_columns):
+                self.logger.error(f"Difficulty mapping missing required columns: {required_columns}")
+                sys.exit(1)
+
+            return df
+
+        except Exception as e:
+            self.logger.error(f"Failed to load difficulty mapping: {e}")
+            sys.exit(1)
 
 
 def split_problems(
@@ -50,8 +127,9 @@ def split_problems(
         raise ValueError("split_random_seed must be specified")
     if config.split_n_strata is None or config.split_n_strata < 2:
         raise ValueError("split_n_strata must be >= 2")
-    if config.phase0_1_output_dir is None:
-        raise ValueError("phase0_1_output_dir must be specified")
+    phase0_1_output = get_phase_output_dir("0.1", config)
+    if phase0_1_output is None:
+        raise ValueError("Phase 0.1 output directory could not be determined")
     required_columns = ['task_id', 'cyclomatic_complexity']
     if not all(col in df.columns for col in required_columns):
         raise ValueError(f"DataFrame must contain columns: {required_columns}")
@@ -85,7 +163,7 @@ def split_problems(
                    f"std={std(split_complexity):.2f}")
     
     # Save splits
-    save_splits(split_dict, config.phase0_1_output_dir, df)
+    save_splits(split_dict, phase0_1_output, df)
     
     return split_dict
 
