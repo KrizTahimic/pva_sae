@@ -118,10 +118,14 @@ Quick wins that make the codebase easier to work with.
 - [x] Delete not needed md or files anymore.
     - Deleted: `docs/*_abandon.md`, `investigation_results/`, phase design docs
 - [x] Add better folder names especially the folders with no names just phase number.
-    - [x] `phase3_6/` → `phase3_6_threshold_tuning_data/`
+    - [x] `phase3_6/` → `phase3_6_hyperparameter_baseline/`
     - [x] `phase3_8/` → `phase3_8_auroc_f1_evaluation/`
     - [x] `phase7_12/` → `phase7_12_instruct_auroc_f1/`
-    - [x] Check for other unnamed folders - none remaining
+    - [x] `phase1_simplified/` → `phase1_latent_selection_dataset/`
+    - [x] `phase2_5_simplified/` → `phase2_5_separation_score_analysis/`
+    - [x] `phase4_5_model_steering/` → `phase4_5_coefficient_grid_search/`
+    - [x] `phase4_6_binary_refinement/` → `phase4_6_golden_section_refinement/`
+    - [x] All folders now have descriptive names
 - [ ] Improve logging by a lot. Right now it's almost useless as you don't know where it is going and it's mixed up and sometimes it's working, sometimes not.
 - [x] Delete unused data files:
     - [x] `data/phase2_5/layer_*_features.json` (25 files × 5.2MB = 130MB) - never used
@@ -310,6 +314,8 @@ residual = input[0]
 ---
 
 ### 4.3 Variable Naming Consistency
+
+rename the latents, directions, features etc. Use one name. Find other variables that have called different names.
 
 #### Single-Letter Variables (outside comprehensions)
 - [ ] **golden_section_refiner.py:772-773** - `a = bounds['lower']` → `lower_bound = bounds['lower']`

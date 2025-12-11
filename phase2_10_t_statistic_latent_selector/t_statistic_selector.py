@@ -17,7 +17,7 @@ from datetime import datetime
 
 from common.config import Config
 from common.logging import get_logger
-from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
+from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
 # Module-level logger
 logger = get_logger("t_statistic_selector", phase="2.10")

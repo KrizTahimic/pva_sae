@@ -36,7 +36,7 @@ from common.steering_metrics import (
 from common.retry_utils import retry_generation, retry_with_timeout, create_exclusion_summary
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.helpers import evaluate_code, extract_code, load_json, save_json
-from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
+from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
 logger = get_logger("phase4_6.golden_section_refiner")
 

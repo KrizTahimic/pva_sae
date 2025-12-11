@@ -339,7 +339,7 @@ def run_phase1(config: Config, logger, device: str):
     import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent))  # Add project root to path
-    from phase1_simplified.runner import Phase1Runner
+    from phase1_latent_selection_dataset.runner import Phase1Runner
     
     logger.info("Starting Phase 1: Dataset Building")
     logger.info(f"Model: {config.model_name}, Split: sae")
@@ -486,7 +486,7 @@ def run_phase2_2(config: Config, logger, device: str):
 
 def run_phase2_5(config: Config, logger, device: str):
     """Run Phase 2.5: SAE Analysis with Pile Filtering using simplified implementation"""
-    from phase2_5_simplified.sae_analyzer import SimplifiedSAEAnalyzer
+    from phase2_5_separation_score_analysis.sae_analyzer import SimplifiedSAEAnalyzer
     
     logger.info("Starting Phase 2.5: SAE Analysis with Pile Filtering")
     logger.info("Using simplified implementation")
@@ -600,7 +600,7 @@ def run_phase3_5(config: Config, logger, device: str):
 
 def run_phase3_6(config: Config, logger, device: str):
     """Run Phase 3.6: Hyperparameter Tuning Set Processing"""
-    from phase3_6_threshold_tuning_data.hyperparameter_runner import HyperparameterDataRunner
+    from phase3_6_hyperparameter_baseline.hyperparameter_runner import HyperparameterDataRunner
     
     logger.info("Starting Phase 3.6: Hyperparameter Tuning Set Processing")
     logger.info("Will auto-discover best layers from Phase 3.5 output")
@@ -912,7 +912,7 @@ def run_phase3_12(config: Config, logger, device: str):
 
 def run_phase4_5(config: Config, logger, device: str):
     """Run Phase 4.5: Steering Coefficient Selection"""
-    from phase4_5_model_steering.steering_coefficient_selector import SteeringCoefficientSelector
+    from phase4_5_coefficient_grid_search.steering_coefficient_selector import SteeringCoefficientSelector
     
     logger.info("Starting Phase 4.5: Steering Coefficient Selection")
     logger.info(f"Experiment mode: {config.phase4_5_experiment_mode}")
@@ -930,7 +930,7 @@ def run_phase4_5(config: Config, logger, device: str):
 
 def run_phase4_6(config: Config, logger, device: str):
     """Run Phase 4.6: Golden Section Search Coefficient Refinement"""
-    from phase4_6_binary_refinement.golden_section_refiner import GoldenSectionCoefficientRefiner
+    from phase4_6_golden_section_refinement.golden_section_refiner import GoldenSectionCoefficientRefiner
     
     logger.info("Starting Phase 4.6: Golden Section Search Coefficient Refinement")
     logger.info(f"Experiment mode: {config.phase4_6_experiment_mode}")

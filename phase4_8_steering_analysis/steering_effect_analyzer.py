@@ -40,7 +40,7 @@ from common_simplified.activation_hooks import (
     AttentionExtractor,
     save_raw_attention_with_boundaries
 )
-from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
+from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
 logger = get_logger("phase4_8.steering_effect_analyzer")
 

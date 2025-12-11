@@ -22,7 +22,7 @@ from common.utils import (
 )
 from common_simplified.helpers import load_json, save_json
 from common.config import Config
-from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
+from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
 logger = get_logger("phase4_10.zero_discrimination_selector")
 

@@ -53,7 +53,7 @@ from common_simplified.helpers import (
 from common_simplified.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_steering_hook
 from common.prompt_utils import PromptBuilder
-from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
+from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
 logger = get_logger(__name__)
 

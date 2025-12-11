@@ -31,7 +31,7 @@ from common.utils import (
     detect_device
 )
 from common_simplified.helpers import load_json, save_json
-from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
+from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
 logger = get_logger(__name__)
 

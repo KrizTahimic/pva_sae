@@ -24,7 +24,7 @@ from sklearn.metrics import (
 from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists, discover_latest_phase_output
 from common_simplified.helpers import save_json, load_json
-from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
+from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
 logger = get_logger("phase7_12.instruct_auroc_f1_evaluator")
 

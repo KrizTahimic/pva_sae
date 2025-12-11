@@ -21,7 +21,7 @@ from common.config import Config
 from common.logging import get_logger
 from common.utils import detect_device, discover_latest_phase_output, format_duration
 from common_simplified.helpers import save_json, load_json
-from phase2_5_simplified.sae_analyzer import load_gemma_scope_sae
+from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
 
 class TemperatureAUROCEvaluator:

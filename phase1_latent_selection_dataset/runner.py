@@ -22,7 +22,7 @@ from common_simplified.helpers import (
 )
 
 # Use the project's phase-based logger
-logger = get_logger("phase1_simplified.runner", phase="1.0")
+logger = get_logger("phase1_latent_selection_dataset.runner", phase="1.0")
 
 
 class Phase1Runner:
