@@ -55,6 +55,46 @@ pip install -r requirements.txt
 pip install accelerate
 ```
 
+## Data
+
+Experiment data is hosted on HuggingFace: [kriztahimic/pva-sae-data](https://huggingface.co/datasets/kriztahimic/pva-sae-data)
+
+### Download All Data (~1.7 GB)
+
+```bash
+# Install HuggingFace CLI (if needed)
+pip install huggingface_hub
+
+# Download all data
+huggingface-cli download kriztahimic/pva-sae-data --local-dir ./data --repo-type dataset
+```
+
+### Download Specific Phase Only
+
+```bash
+# Download only steering analysis (Phase 4.8)
+huggingface-cli download kriztahimic/pva-sae-data \
+    --local-dir ./data \
+    --include "phase4_8/*" \
+    --repo-type dataset
+
+# Download evaluation results only
+huggingface-cli download kriztahimic/pva-sae-data \
+    --local-dir ./data \
+    --include "phase3_8/*" "phase7_12/*" \
+    --repo-type dataset
+```
+
+### Upload Data (Maintainers Only)
+
+```bash
+# Preview what will be uploaded
+python3 scripts/upload_to_hf.py --dry-run
+
+# Upload all data to HuggingFace
+python3 scripts/upload_to_hf.py
+```
+
 ## Supported Configurations
 
 ### Datasets
@@ -249,7 +289,7 @@ This is useful for iterating on plot aesthetics without recomputing data. Requir
 
 ## Data Output Structure
 
-Each phase outputs to its own directory with structured results:
+Each phase outputs to its own directory with structured results. All data is available on [HuggingFace](https://huggingface.co/datasets/kriztahimic/pva-sae-data):
 
 ```
 data/

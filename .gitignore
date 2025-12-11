@@ -4,9 +4,9 @@ __pycache__/
 *$py.class
 *.so
 
-# Data directories and files - IGNORING NEW DATA ON HUMANEVAL BRANCH
-# Original ICLR data is already committed in main branch history
-# This prevents committing new experimental data from HumanEval experiments
+# Data directories and files
+# All experiment data is hosted on HuggingFace: https://huggingface.co/datasets/kriztahimic/pva-sae-data
+# Download with: huggingface-cli download kriztahimic/pva-sae-data --local-dir ./data --repo-type dataset
 data/logs/*
 data/datasets/*
 !data/logs/.gitkeep
