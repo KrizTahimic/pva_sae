@@ -23,6 +23,24 @@ from phase3_12_difficulty_auroc_f1.difficulty_evaluator import group_by_difficul
 logger = get_logger("phase4_16.difficulty_steering_analyzer")
 
 
+class Phase416Runner:
+    """Standard runner for Phase 4.16: Difficulty-Stratified Steering Analysis."""
+
+    def __init__(self, config):
+        """Initialize with config object."""
+        self.config = config
+        self.logger = get_logger("phase4_16.runner", phase="4.16")
+
+    def run(self):
+        """Run Phase 4.16 difficulty steering analysis."""
+        self.logger.info("Starting Phase 4.16: Difficulty-Stratified Steering Analysis")
+        self.logger.info("Analyzing whether problem difficulty affects steering success rates")
+        self.logger.info("\n" + self.config.dump(phase="4.16"))
+
+        # main() creates its own Config internally
+        return main()
+
+
 def load_json(path: Path) -> Any:
     """Load JSON file."""
     with open(path, 'r') as f:
@@ -35,30 +53,15 @@ def save_json(data: Any, path: Path) -> None:
         json.dump(data, f, indent=2)
 
 
-def find_phase_dir(phase: str, config: Config) -> Path:
-    """Find phase directory with fallback to base path if model-specific doesn't exist."""
-    # Try model-specific path first
-    model_specific_dir = Path(get_phase_output_dir(phase, config))
-    if model_specific_dir.exists():
-        return model_specific_dir
-
-    # Fall back to base path (without model suffix)
-    base_dir = Path(f"data/phase{phase.replace('.', '_')}")
-    if base_dir.exists():
-        logger.info(f"Using base path (model-specific not found): {base_dir}")
-        return base_dir
-
-    # If neither exists, return model-specific for error message
-    return model_specific_dir
-
-
 def load_steering_results(config: Config) -> Dict[str, List[Dict]]:
     """Load steering results from Phase 4.8 with fallback for preservation.
 
     Returns:
         Dictionary with keys 'correction', 'corruption', 'preservation'
     """
-    phase4_8_dir = find_phase_dir("4.8", config)
+    phase4_8_dir = Path(get_phase_output_dir("4.8", config))
+    if not phase4_8_dir.exists():
+        raise FileNotFoundError(f"Phase 4.8 output not found at {phase4_8_dir}. Run Phase 4.8 first.")
     phase4_8_preserve_dir = Path("data/phase4_8_preserve_only")
 
     results = {}
@@ -108,7 +111,9 @@ def load_steering_results(config: Config) -> Dict[str, List[Dict]]:
 
 def load_validation_with_difficulty(config: Config) -> pd.DataFrame:
     """Load validation dataset with cyclomatic complexity."""
-    phase0_1_dir = find_phase_dir("0_1", config)
+    phase0_1_dir = Path(get_phase_output_dir("0.1", config))
+    if not phase0_1_dir.exists():
+        raise FileNotFoundError(f"Phase 0.1 output not found at {phase0_1_dir}. Run Phase 0.1 first.")
     validation_path = phase0_1_dir / "validation_mbpp.parquet"
 
     if not validation_path.exists():
@@ -582,6 +587,25 @@ def main():
         f.write(summary_text)
 
     logger.info(f"\nAll results saved to: {output_dir}")
+
+    # Write phase_output.json manifest
+    from common.utils import write_phase_output
+
+    write_phase_output(
+        phase="4.16",
+        outputs={
+            "primary": "difficulty_steering_analysis.json",
+            "summary": "difficulty_steering_summary.txt",
+        },
+        config=config,
+        output_dir=str(output_dir),
+        dependencies={
+            "4.8": str(phase4_8_dir),
+        },
+        config_keys=['model_name', 'dataset_name']
+    )
+    logger.info(f"Saved phase_output.json manifest to {output_dir}")
+
     logger.info("✅ Phase 4.16 completed successfully")
 
 

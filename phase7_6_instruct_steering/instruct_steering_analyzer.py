@@ -27,7 +27,8 @@ from common.utils import (
     ensure_directory_exists,
     detect_device,
     get_phase_dir,
-    write_phase_output
+    write_phase_output,
+    get_dataset_range
 )
 from common.config import Config
 from common.steering_metrics import (
@@ -133,20 +134,9 @@ class InstructSteeringAnalyzer:
         
         self.baseline_data = pd.read_parquet(baseline_file)
         logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 7.3 instruction-tuned baseline")
-        
+
         # Apply --start and --end arguments if provided
-        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
-            start_idx = self.config.dataset_start_idx
-        else:
-            start_idx = 0
-        
-        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
-            # dataset_end_idx is inclusive
-            end_idx = min(self.config.dataset_end_idx + 1, len(self.baseline_data))
-        else:
-            end_idx = len(self.baseline_data)
-        
-        # Apply range filtering
+        start_idx, end_idx = get_dataset_range(self.config, len(self.baseline_data))
         if start_idx > 0 or end_idx < len(self.baseline_data):
             logger.info(f"Processing instruction-tuned baseline rows {start_idx}-{end_idx-1} (inclusive)")
             self.baseline_data = self.baseline_data.iloc[start_idx:end_idx].copy()

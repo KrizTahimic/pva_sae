@@ -26,7 +26,7 @@ from common_simplified.helpers import evaluate_code, extract_code, save_json, lo
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import detect_device, discover_latest_phase_output, get_phase_output_dir
+from common.utils import detect_device, discover_latest_phase_output, get_phase_output_dir, get_dataset_range
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
 # Module-level logger
@@ -279,19 +279,8 @@ class TemperatureRobustnessRunner:
         validation_data = self._load_validation_data()
         logger.info(f"Loaded {len(validation_data)} validation problems")
         
-        # Check for task range from config first, then environment variables
-        import os
-        # Use config values if set, otherwise fall back to environment variables
-        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
-            task_start = self.config.dataset_start_idx
-        else:
-            task_start = int(os.environ.get('TASK_START_IDX', '0'))
-        
-        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
-            # dataset_end_idx is inclusive, but iloc expects exclusive end
-            task_end = min(self.config.dataset_end_idx + 1, len(validation_data))
-        else:
-            task_end = int(os.environ.get('TASK_END_IDX', str(len(validation_data))))
+        # Apply --start and --end arguments if provided
+        task_start, task_end = get_dataset_range(self.config, len(validation_data))
         
         # Apply range filtering if needed
         if task_start > 0 or task_end < len(validation_data):

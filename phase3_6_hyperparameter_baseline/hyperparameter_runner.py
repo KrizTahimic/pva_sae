@@ -23,7 +23,7 @@ from common_simplified.helpers import evaluate_code, extract_code, save_json, fo
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists, get_phase_output_dir
+from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists, get_phase_output_dir, get_dataset_range
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
 # Module-level logger
@@ -345,16 +345,7 @@ class HyperparameterDataRunner:
         logger.info(f"Loaded {len(hyperparams_data)} hyperparameter problems")
         
         # Apply --start and --end arguments if provided
-        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
-            start_idx = self.config.dataset_start_idx
-        else:
-            start_idx = 0
-        
-        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
-            # dataset_end_idx is inclusive
-            end_idx = min(self.config.dataset_end_idx + 1, len(hyperparams_data))
-        else:
-            end_idx = len(hyperparams_data)
+        start_idx, end_idx = get_dataset_range(self.config, len(hyperparams_data))
         
         # Apply range filtering
         if start_idx > 0 or end_idx < len(hyperparams_data):
@@ -464,14 +455,7 @@ class HyperparameterDataRunner:
         
         # Get original task IDs for metadata
         original_hyperparams_data = self._load_hyperparameter_data()
-        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
-            start_idx = self.config.dataset_start_idx
-        else:
-            start_idx = 0
-        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
-            end_idx = min(self.config.dataset_end_idx + 1, len(original_hyperparams_data))
-        else:
-            end_idx = len(original_hyperparams_data)
+        start_idx, end_idx = get_dataset_range(self.config, len(original_hyperparams_data))
         original_hyperparams_data = original_hyperparams_data.iloc[start_idx:end_idx]
         
         # Create and save metadata (with exclusion info)

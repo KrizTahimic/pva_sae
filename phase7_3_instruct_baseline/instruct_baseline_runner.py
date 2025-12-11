@@ -26,7 +26,7 @@ from common_simplified.helpers import evaluate_code, extract_code, save_json, fo
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists, get_phase_dir, get_phase_output_dir, write_phase_output
+from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists, get_phase_dir, get_phase_output_dir, write_phase_output, get_dataset_range
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
 # Module-level logger
@@ -376,20 +376,9 @@ class InstructBaselineRunner:
         # Load validation data
         validation_data = self._load_validation_data()
         logger.info(f"Loaded {len(validation_data)} validation problems")
-        
+
         # Apply --start and --end arguments if provided
-        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
-            start_idx = self.config.dataset_start_idx
-        else:
-            start_idx = 0
-        
-        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
-            # dataset_end_idx is inclusive
-            end_idx = min(self.config.dataset_end_idx + 1, len(validation_data))
-        else:
-            end_idx = len(validation_data)
-        
-        # Apply range filtering
+        start_idx, end_idx = get_dataset_range(self.config, len(validation_data))
         if start_idx > 0 or end_idx < len(validation_data):
             logger.info(f"Processing validation dataset rows {start_idx}-{end_idx-1} (inclusive)")
             validation_data = validation_data.iloc[start_idx:end_idx].copy()
@@ -497,14 +486,7 @@ class InstructBaselineRunner:
         
         # Get original task IDs for metadata
         original_validation_data = self._load_validation_data()
-        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
-            start_idx = self.config.dataset_start_idx
-        else:
-            start_idx = 0
-        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
-            end_idx = min(self.config.dataset_end_idx + 1, len(original_validation_data))
-        else:
-            end_idx = len(original_validation_data)
+        start_idx, end_idx = get_dataset_range(self.config, len(original_validation_data))
         original_validation_data = original_validation_data.iloc[start_idx:end_idx]
         
         # Create and save metadata (with exclusion info)

@@ -14,7 +14,7 @@ from datasets import load_dataset
 
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import get_phase_output_dir
+from common.utils import get_phase_output_dir, get_dataset_range
 from common_simplified.model_loader import load_model_and_tokenizer
 from .pile_activation_hook import PileActivationHook
 from .utils import find_word_position, validate_pile_sample
@@ -38,9 +38,7 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
     output_dir = Path(get_phase_output_dir("2.2", config)) / "pile_activations"
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Get run count from config (defaults to pile_samples)
-    run_count = getattr(config, '_run_count', config.pile_samples)
-    logger.info(f"Processing {run_count} pile samples")
+    logger.info(f"Processing {config.pile_samples} pile samples")
     
     # Load model and tokenizer
     logger.info(f"Loading model: {config.model_name}")
@@ -50,7 +48,7 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
     # Load pile-10k dataset
     logger.info("Loading pile-10k dataset...")
     dataset = load_dataset("NeelNanda/pile-10k", split='train')
-    texts = dataset['text'][:run_count]  # Use specified count
+    texts = dataset['text'][:config.pile_samples]
     
     # Pre-select random words from each text
     logger.info("Selecting random words from texts...")
@@ -67,9 +65,7 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
             substrings.append(None)  # Handle empty texts
     
     # Handle start/end indices for multi-GPU processing
-    start_idx = getattr(config, 'dataset_start_idx', 0)
-    end_idx = getattr(config, 'dataset_end_idx', None) or len(texts)
-    end_idx = min(end_idx, len(texts))  # Ensure we don't exceed dataset size
+    start_idx, end_idx = get_dataset_range(config, len(texts))
     
     logger.info(f"Processing pile samples {start_idx} to {end_idx-1} one at a time...")
     
@@ -147,6 +143,21 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
     
     # Final cleanup
     torch.cuda.empty_cache()
-    
+
     logger.info(f"Completed: {processed_count} processed, {skipped_count} skipped from range [{start_idx}, {end_idx})")
     logger.info(f"Activations saved to: {output_dir}")
+
+    # Write phase_output.json manifest
+    from common.utils import write_phase_output
+
+    phase_output_dir = output_dir.parent  # phase2_2 dir, not pile_activations subdir
+    write_phase_output(
+        phase="2.2",
+        outputs={
+            "primary": "pile_activations/",
+        },
+        config=config,
+        output_dir=str(phase_output_dir),
+        config_keys=['model_name', 'pile_samples', 'activation_layers']
+    )
+    logger.info(f"Saved phase_output.json manifest to {phase_output_dir}")

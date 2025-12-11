@@ -415,6 +415,34 @@ def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None) ->
     return find_latest_file(directory, patterns, exclude_keywords)
 
 
+def get_dataset_range(config, total_length: int) -> tuple[int, int]:
+    """
+    Get start/end indices from config for dataset slicing.
+
+    Consolidates the common hasattr pattern used across 13+ phase runners
+    into a single utility function.
+
+    Args:
+        config: Config object with optional dataset_start_idx and dataset_end_idx
+        total_length: Total length of the dataset
+
+    Returns:
+        tuple[int, int]: (start_idx, end_idx) for slicing. end_idx is exclusive.
+
+    Example:
+        start_idx, end_idx = get_dataset_range(self.config, len(data))
+        data = data.iloc[start_idx:end_idx]
+    """
+    start_idx = getattr(config, 'dataset_start_idx', None) or 0
+    end_idx = getattr(config, 'dataset_end_idx', None)
+    if end_idx is not None:
+        # dataset_end_idx is inclusive, convert to exclusive for slicing
+        end_idx = min(end_idx + 1, total_length)
+    else:
+        end_idx = total_length
+    return start_idx, end_idx
+
+
 # ============================================================================
 # Phase Output Manifest (phase_output.json)
 # ============================================================================

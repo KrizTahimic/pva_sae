@@ -23,7 +23,8 @@ from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists,
     detect_device,
-    get_phase_output_dir
+    get_phase_output_dir,
+    get_dataset_range
 )
 from common.config import Config
 from common.steering_metrics import (
@@ -318,18 +319,10 @@ class GoldenSectionCoefficientRefiner:
         
         self.baseline_data = pd.read_parquet(baseline_file)
         logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.6 baseline")
-        
+
         # Apply --start and --end arguments if provided for testing
-        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
-            start_idx = self.config.dataset_start_idx
-        else:
-            start_idx = 0
-        
-        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
-            end_idx = min(self.config.dataset_end_idx + 1, len(self.baseline_data))
-        else:
-            end_idx = len(self.baseline_data)
-        
+        start_idx, end_idx = get_dataset_range(self.config, len(self.baseline_data))
+
         # Apply range filtering for testing
         if start_idx > 0 or end_idx < len(self.baseline_data):
             logger.info(f"Limiting dataset for testing: rows {start_idx}-{end_idx-1}")
@@ -1168,8 +1161,7 @@ class GoldenSectionCoefficientRefiner:
                 torch.cuda.empty_cache()
         
         # Save all results
-        save_json(refinement_results, self.output_dir / "refinement_analysis.json")  # Full analysis
-        save_json(refinement_results, self.output_dir / "golden_section_history.json")  # Keep for compatibility
+        save_json(refinement_results, self.output_dir / "refinement_analysis.json")
         save_json(refined_coefficients, self.output_dir / "refined_coefficients.json")
         
         # Clean up all checkpoints now that both steering types are complete
@@ -1223,5 +1215,25 @@ class GoldenSectionCoefficientRefiner:
         logger.info(f"Results saved to: {self.output_dir}")
         logger.info(f"Method: Golden Section Search (mathematically optimal for unimodal functions)")
         logger.info(f"{'='*80}\n")
-        
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="4.6",
+            outputs={
+                "primary": "phase_4_6_summary.json",
+                "refined_coefficients": "refined_coefficients.json",
+                "refinement_analysis": "refinement_analysis.json",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "4.5": str(self.phase4_5_dir),
+                "3.6": str(self.phase3_6_dir),
+            },
+            config_keys=['model_name', 'dataset_name']
+        )
+        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+
         return summary

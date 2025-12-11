@@ -42,7 +42,8 @@ from common.utils import (
     discover_latest_phase_output,
     get_timestamp,
     get_phase_dir,
-    write_phase_output
+    write_phase_output,
+    get_dataset_range
 )
 from common_simplified.helpers import (
     save_json,
@@ -231,16 +232,7 @@ class SelectiveSteeringAnalyzer:
                        f"with {len(first_test_list)} test cases")
 
         # Apply --start and --end arguments if provided
-        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
-            start_idx = self.config.dataset_start_idx
-        else:
-            start_idx = 0
-
-        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
-            # dataset_end_idx is inclusive
-            end_idx = min(self.config.dataset_end_idx + 1, len(self.baseline_data))
-        else:
-            end_idx = len(self.baseline_data)
+        start_idx, end_idx = get_dataset_range(self.config, len(self.baseline_data))
 
         # Apply range filtering
         if start_idx > 0 or end_idx < len(self.baseline_data):

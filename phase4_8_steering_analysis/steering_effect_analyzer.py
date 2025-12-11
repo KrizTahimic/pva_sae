@@ -22,9 +22,10 @@ import seaborn as sns
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import (
-    discover_latest_phase_output, 
+    discover_latest_phase_output,
     ensure_directory_exists,
-    detect_device
+    detect_device,
+    get_dataset_range
 )
 from common.config import Config
 from common.steering_metrics import (
@@ -141,20 +142,9 @@ class SteeringEffectAnalyzer:
         
         self.baseline_data = pd.read_parquet(baseline_file)
         logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.5 baseline")
-        
+
         # Apply --start and --end arguments if provided
-        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
-            start_idx = self.config.dataset_start_idx
-        else:
-            start_idx = 0
-        
-        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
-            # dataset_end_idx is inclusive
-            end_idx = min(self.config.dataset_end_idx + 1, len(self.baseline_data))
-        else:
-            end_idx = len(self.baseline_data)
-        
-        # Apply range filtering
+        start_idx, end_idx = get_dataset_range(self.config, len(self.baseline_data))
         if start_idx > 0 or end_idx < len(self.baseline_data):
             logger.info(f"Processing validation dataset rows {start_idx}-{end_idx-1} (inclusive)")
             self.baseline_data = self.baseline_data.iloc[start_idx:end_idx].copy()
@@ -243,69 +233,29 @@ class SteeringEffectAnalyzer:
 
         try:
             checkpoint_data = load_json(latest_checkpoint)
-            checkpoint_version = checkpoint_data.get('checkpoint_version', 1)
+            checkpoint_version = checkpoint_data.get('checkpoint_version')
 
-            # Handle v1 checkpoints (legacy index-based)
-            if checkpoint_version == 1:
-                logger.warning("=" * 80)
-                logger.warning("LEGACY CHECKPOINT DETECTED (v1 - index-based)")
-                logger.warning("=" * 80)
-                logger.warning("This checkpoint uses index-based tracking which can cause data corruption")
-                logger.warning("when dataset size changes or --start/--end arguments differ between runs.")
-                logger.warning("")
-                logger.warning("Validating dataset size...")
+            # Only v2 checkpoints are supported (task ID-based tracking)
+            if checkpoint_version != 2:
+                logger.error("=" * 80)
+                logger.error(f"UNSUPPORTED CHECKPOINT VERSION: {checkpoint_version}")
+                logger.error("=" * 80)
+                logger.error("Only v2 checkpoints (task ID-based) are supported.")
+                logger.error("Delete old checkpoints and restart:")
+                logger.error(f"  rm -rf {self.checkpoint_dir}/checkpoint_{steering_type}_*.json")
+                logger.error("=" * 80)
+                raise ValueError(f"Unsupported checkpoint version: {checkpoint_version}. Delete old checkpoints and restart.")
 
-                # Validate dataset size for v1 checkpoints
-                checkpoint_dataset_size = checkpoint_data.get('total_tasks', -1)
-                if checkpoint_dataset_size != dataset_size:
-                    logger.error(f"CHECKPOINT ERROR: Dataset size mismatch!")
-                    logger.error(f"  Checkpoint expects: {checkpoint_dataset_size} tasks")
-                    logger.error(f"  Current dataset has: {dataset_size} tasks")
-                    logger.error(f"  This indicates --start/--end arguments changed between runs")
-                    logger.error("")
-                    logger.error(f"Deleting checkpoint to prevent data corruption...")
+            processed_task_ids = checkpoint_data.get('processed_task_ids', [])
+            excluded_task_ids = checkpoint_data.get('excluded_task_ids', [])
 
-                    # Delete invalid checkpoint
-                    for f in checkpoint_files:
-                        f.unlink()
-                        logger.info(f"Deleted invalid checkpoint: {f.name}")
-
-                    logger.warning("Starting fresh without checkpoint")
-                    logger.warning("=" * 80)
-                    return None
-
-                # V1 checkpoint valid - convert to v2 format for compatibility
-                logger.warning("Dataset size matches - checkpoint is valid")
-                logger.warning("Consider deleting and restarting for v2 checkpoint format")
-                logger.warning("=" * 80)
-
-                # Convert v1 → v2 format (extract task IDs from results)
-                processed_task_ids = [r['task_id'] for r in checkpoint_data.get('results', [])]
-                excluded_task_ids = [t['task_id'] for t in checkpoint_data.get('excluded_tasks', [])]
-
-                checkpoint_data['processed_task_ids'] = processed_task_ids
-                checkpoint_data['excluded_task_ids'] = excluded_task_ids
-                checkpoint_data['n_processed'] = len(processed_task_ids)
-
-                logger.info(f"Resuming {steering_type} steering: {len(processed_task_ids)} tasks already processed")
-                return checkpoint_data
-
-            # Handle v2 checkpoints (task ID-based)
-            elif checkpoint_version == 2:
-                processed_task_ids = checkpoint_data.get('processed_task_ids', [])
-                excluded_task_ids = checkpoint_data.get('excluded_task_ids', [])
-
-                logger.info(f"Resuming {steering_type} steering: {len(processed_task_ids)} tasks already processed, "
-                           f"{len(excluded_task_ids)} excluded")
-                return checkpoint_data
-
-            else:
-                logger.error(f"Unknown checkpoint version: {checkpoint_version}")
-                return None
+            logger.info(f"Resuming {steering_type} steering: {len(processed_task_ids)} tasks already processed, "
+                       f"{len(excluded_task_ids)} excluded")
+            return checkpoint_data
 
         except Exception as e:
             logger.error(f"Failed to load checkpoint: {e}")
-            return None
+            raise
     
     def cleanup_old_checkpoints(self, steering_type: str, keep_last: int = 3) -> None:
         """Remove old checkpoint files, keeping only the most recent ones."""
@@ -1001,6 +951,28 @@ class SteeringEffectAnalyzer:
         save_json(summary, self.output_dir / "phase_4_8_summary.json")
 
         logger.info(f"Saved results to {self.output_dir}")
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="4.8",
+            outputs={
+                "primary": "phase_4_8_summary.json",
+                "steering_analysis": "steering_effect_analysis.json",
+                "correction_results": "all_correction_results.json",
+                "corruption_results": "all_corruption_results.json",
+                "preservation_results": "all_preservation_results.json",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "2.5": str(self.phase2_5_dir),
+                "3.5": str(self.phase3_5_dir),
+            },
+            config_keys=['model_name', 'dataset_name', 'phase4_8_correct_coefficient', 'phase4_8_incorrect_coefficient']
+        )
+        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
         
     def run(self) -> Dict:
         """Run full steering effect analysis pipeline."""

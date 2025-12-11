@@ -21,7 +21,8 @@ from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists,
     detect_device,
-    get_phase_dir
+    get_phase_dir,
+    get_dataset_range
 )
 from common_simplified.helpers import load_json, save_json
 from common.config import Config
@@ -94,10 +95,7 @@ class ZeroDiscSteeringGenerator:
         
         features_file = Path(phase4_10_output).parent / "zero_discrimination_features.json"
         if not features_file.exists():
-            # Try legacy filename
-            features_file = Path(phase4_10_output).parent / "random_features.json"
-            if not features_file.exists():
-                raise FileNotFoundError(f"Zero-discrimination features not found at {features_file}")
+            raise FileNotFoundError(f"Zero-discrimination features not found at {features_file}. Run Phase 4.10 first.")
         
         self.zero_disc_features = load_json(features_file)
         logger.info(f"Loaded {len(self.zero_disc_features['features'])} zero-discrimination features")
@@ -116,20 +114,9 @@ class ZeroDiscSteeringGenerator:
         
         self.validation_data = pd.read_parquet(baseline_file)
         logger.info(f"Loaded {len(self.validation_data)} validation problems")
-        
+
         # Apply --start and --end arguments if provided
-        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
-            start_idx = self.config.dataset_start_idx
-        else:
-            start_idx = 0
-        
-        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
-            # dataset_end_idx is inclusive
-            end_idx = min(self.config.dataset_end_idx + 1, len(self.validation_data))
-        else:
-            end_idx = len(self.validation_data)
-        
-        # Apply range filtering
+        start_idx, end_idx = get_dataset_range(self.config, len(self.validation_data))
         if start_idx > 0 or end_idx < len(self.validation_data):
             logger.info(f"Processing validation dataset rows {start_idx}-{end_idx-1} (inclusive)")
             self.validation_data = self.validation_data.iloc[start_idx:end_idx].copy()
@@ -448,7 +435,26 @@ class ZeroDiscSteeringGenerator:
         logger.info(f"Preservation rate: {preservation_rate:.2%} (expected: ~99%)")
         logger.info(f"Total problems tested: {len(correction_results) + len(corruption_results) + len(preservation_results)}")
         logger.info("="*60)
-        
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="4.12",
+            outputs={
+                "primary": "zero_disc_steering_results.json",
+                "examples": "examples/zero_disc_examples.json",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "4.10": str(self.phase4_10_dir),
+                "3.5": str(self.phase3_5_dir),
+            },
+            config_keys=['model_name', 'dataset_name']
+        )
+        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+
         return results
         
     def _save_examples(self, correction_examples: List[Dict], corruption_examples: List[Dict],

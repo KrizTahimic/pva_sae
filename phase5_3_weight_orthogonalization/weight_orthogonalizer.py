@@ -26,7 +26,8 @@ from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists,
     detect_device,
-    get_phase_dir
+    get_phase_dir,
+    get_dataset_range
 )
 from common.config import Config
 from common.steering_metrics import (
@@ -123,20 +124,9 @@ class WeightOrthogonalizer:
         
         self.baseline_data = pd.read_parquet(baseline_file)
         logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.5 baseline")
-        
+
         # Apply --start and --end arguments if provided
-        if hasattr(self.config, 'dataset_start_idx') and self.config.dataset_start_idx is not None:
-            start_idx = self.config.dataset_start_idx
-        else:
-            start_idx = 0
-        
-        if hasattr(self.config, 'dataset_end_idx') and self.config.dataset_end_idx is not None:
-            # dataset_end_idx is inclusive
-            end_idx = min(self.config.dataset_end_idx + 1, len(self.baseline_data))
-        else:
-            end_idx = len(self.baseline_data)
-        
-        # Apply range filtering
+        start_idx, end_idx = get_dataset_range(self.config, len(self.baseline_data))
         if start_idx > 0 or end_idx < len(self.baseline_data):
             logger.info(f"Processing validation dataset rows {start_idx}-{end_idx-1} (inclusive)")
             self.baseline_data = self.baseline_data.iloc[start_idx:end_idx].copy()
@@ -872,5 +862,25 @@ class WeightOrthogonalizer:
         logger.info(f"Runtime: {time.time() - start_time:.1f} seconds")
         logger.info(f"Results saved to: {self.output_dir}")
         logger.info("="*60)
-        
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="5.3",
+            outputs={
+                "primary": "phase_5_3_summary.json",
+                "orthogonalization_results": "orthogonalization_results.json",
+                "weight_changes": "weight_changes.json",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "2.5": str(self.phase2_5_dir),
+                "3.5": str(self.phase3_5_dir),
+            },
+            config_keys=['model_name', 'dataset_name']
+        )
+        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+
         return results

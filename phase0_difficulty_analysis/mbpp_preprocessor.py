@@ -11,28 +11,23 @@ import pandas as pd
 
 from common.logging import get_logger
 from .difficulty_analyzer import MBPPDifficultyAnalyzer
-from common.utils import get_phase_dir, get_phase_output_dir
+from common.utils import get_phase_output_dir
+from common.config import Config
 from datasets import load_dataset
 
 
 class MBPPPreprocessor:
     """Main orchestrator for Phase 0 MBPP difficulty preprocessing"""
 
-    def __init__(self, config=None, output_dir: str = None):
+    def __init__(self, config: Config):
         """
         Initialize MBPP preprocessor
 
         Args:
-            config: Config object (preferred)
-            output_dir: Directory to save preprocessed data (legacy, for backward compatibility)
+            config: Config object (required)
         """
-        # Support both config-based and legacy output_dir initialization
-        if config is not None:
-            self.config = config
-            self.output_dir = Path(get_phase_output_dir("0", config))
-        else:
-            self.config = None
-            self.output_dir = Path(output_dir or get_phase_dir("0"))
+        self.config = config
+        self.output_dir = Path(get_phase_output_dir("0", config))
 
         self.logger = get_logger("mbpp_preprocessor", phase="0")
 
@@ -53,9 +48,7 @@ class MBPPPreprocessor:
             pd.DataFrame: Enriched dataset with difficulty metrics
         """
         self.logger.info("Starting Phase 0: MBPP difficulty analysis")
-
-        if self.config:
-            self.logger.info("\n" + self.config.dump(phase="0"))
+        self.logger.info("\n" + self.config.dump(phase="0"))
 
         enriched_df = self.preprocess_dataset(save_mapping=True)
 
@@ -65,6 +58,20 @@ class MBPPPreprocessor:
         latest_enriched = self.get_latest_enriched_dataset_path()
         if latest_enriched:
             self.logger.info(f"Enriched dataset available at: {latest_enriched}")
+
+            # Write phase_output.json manifest
+            from common.utils import write_phase_output
+
+            write_phase_output(
+                phase="0",
+                outputs={
+                    "primary": Path(latest_enriched).name,
+                },
+                config=self.config,
+                output_dir=str(self.output_dir),
+                config_keys=['dataset_name']
+            )
+            self.logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
         else:
             self.logger.error("Failed to find saved enriched dataset after Phase 0 completion")
 
