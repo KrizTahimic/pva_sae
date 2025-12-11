@@ -29,7 +29,8 @@ from common.utils import (
     discover_latest_phase_output,
     get_timestamp,
     detect_device,
-    get_phase_output_dir
+    get_phase_output_dir,
+    write_phase_output
 )
 from common_simplified.helpers import load_json, save_json
 from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
@@ -332,6 +333,17 @@ class ThresholdCalculator:
 
         summary = self.calculate_thresholds()
         self.save_results(summary)
+
+        # Write phase output manifest
+        write_phase_output(
+            phase="8.1",
+            outputs={
+                "primary": "percentile_thresholds.json",
+                "summary": "threshold_summary.txt"
+            },
+            config=self.config,
+            output_dir=str(self.output_dir)
+        )
 
         logger.info("\n✅ Phase 8.1 completed successfully")
 

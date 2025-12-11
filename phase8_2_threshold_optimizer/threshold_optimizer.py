@@ -39,7 +39,8 @@ from common.utils import (
     ensure_directory_exists,
     discover_latest_phase_output,
     get_timestamp,
-    get_phase_output_dir
+    get_phase_output_dir,
+    write_phase_output
 )
 from common_simplified.helpers import (
     save_json,
@@ -1109,6 +1110,18 @@ class ThresholdOptimizer:
 
         # Save results
         self.save_results(optimization_results)
+
+        # Write phase output manifest
+        write_phase_output(
+            phase="8.2",
+            outputs={
+                "primary": "optimal_percentile.json",
+                "comparison": "threshold_comparison.json",
+                "summary": "threshold_summary.txt"
+            },
+            config=self.config,
+            output_dir=str(self.output_dir)
+        )
 
         logger.info("\n✅ Phase 8.2 completed successfully")
 

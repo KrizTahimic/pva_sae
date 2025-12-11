@@ -9,7 +9,7 @@ from pathlib import Path
 from .converter import convert_humaneval_to_mbpp, inspect_sample_conversions
 from common.config import Config
 from common.logging import get_logger
-from common.utils import get_phase_output_dir
+from common.utils import get_phase_output_dir, write_phase_output
 
 logger = get_logger("phase0_2.runner")
 
@@ -39,6 +39,17 @@ def run_phase_0_2(config: Config):
     logger.info("=" * 80)
     logger.info(f"\nOutput: {output_dir}/humaneval.parquet")
     logger.info(f"Total problems converted: {len(df)}")
+
+    # Write phase output manifest
+    write_phase_output(
+        phase="0.2",
+        outputs={
+            "primary": "humaneval.parquet"
+        },
+        config=config,
+        output_dir=output_dir
+    )
+
     logger.info("\nNext steps:")
     logger.info("  1. Verify schema matches validation_mbpp.parquet")
     logger.info("  2. Manually inspect converted problems")

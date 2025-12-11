@@ -26,7 +26,7 @@ from common_simplified.helpers import evaluate_code, extract_code, save_json, fo
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists, get_phase_dir, get_phase_output_dir
+from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists, get_phase_dir, get_phase_output_dir, write_phase_output
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
 # Module-level logger
@@ -542,7 +542,18 @@ class InstructBaselineRunner:
         if all_excluded:
             logger.warning(f"Excluded tasks: {[t['task_id'] for t in all_excluded]}")
         logger.info("="*60 + "\n")
-        
+
+        # Write phase output manifest
+        write_phase_output(
+            phase="7.3",
+            outputs={
+                "primary": "dataset_instruct_temp_0_0.parquet",
+                "metadata": "metadata.json"
+            },
+            config=self.config,
+            output_dir=str(self.output_dir)
+        )
+
         logger.info("Phase 7.3 completed successfully")
         return metadata
     

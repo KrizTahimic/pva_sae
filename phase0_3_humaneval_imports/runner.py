@@ -3,7 +3,7 @@
 from pathlib import Path
 from common.config import Config
 from common.logging import get_logger
-from common.utils import get_phase_output_dir
+from common.utils import get_phase_output_dir, write_phase_output
 from .scanner import scan_humaneval_imports, save_imports
 
 logger = get_logger("phase0_3.runner", phase="0.3")
@@ -46,5 +46,15 @@ def run_phase_0_3(config: Config):
     logger.info("Import statements:")
     for imp in imports_data['imports']:
         logger.info(f"  {imp}")
+
+    # Write phase output manifest
+    write_phase_output(
+        phase="0.3",
+        outputs={
+            "primary": "required_imports.json"
+        },
+        config=config,
+        output_dir=str(output_dir)
+    )
 
     return imports_data

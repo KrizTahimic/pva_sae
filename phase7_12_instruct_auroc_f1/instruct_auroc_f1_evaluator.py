@@ -22,11 +22,29 @@ from sklearn.metrics import (
 )
 
 from common.logging import get_logger
-from common.utils import detect_device, ensure_directory_exists, discover_latest_phase_output
+from common.utils import detect_device, ensure_directory_exists, discover_latest_phase_output, write_phase_output
 from common_simplified.helpers import save_json, load_json
 from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
 logger = get_logger("phase7_12.instruct_auroc_f1_evaluator")
+
+
+class Phase712Runner:
+    """Standard runner for Phase 7.12: Instruct Model AUROC/F1 Evaluation."""
+
+    def __init__(self, config):
+        """Initialize with config object."""
+        self.config = config
+        self.logger = get_logger("phase7_12.runner", phase="7.12")
+
+    def run(self):
+        """Run Phase 7.12 AUROC/F1 evaluation for instruction-tuned model."""
+        self.logger.info("Starting Phase 7.12: AUROC and F1 Evaluation for Instruction-Tuned Model")
+        self.logger.info("This phase evaluates PVA features on instruction-tuned model outputs")
+        self.logger.info("\n" + self.config.dump(phase="7.12"))
+
+        # main() creates its own Config internally
+        return main()
 
 
 def calculate_metrics(
@@ -567,6 +585,18 @@ def main():
         f.write(summary_text)
 
     logger.info(f"\nAll results saved to {output_dir}")
+
+    # Write phase output manifest
+    write_phase_output(
+        phase="7.12",
+        outputs={
+            "primary": "evaluation_results.json",
+            "summary": "evaluation_summary.txt",
+            "visualization": "comparative_metrics.png"
+        },
+        config=config,
+        output_dir=str(output_dir)
+    )
 
 
 if __name__ == "__main__":

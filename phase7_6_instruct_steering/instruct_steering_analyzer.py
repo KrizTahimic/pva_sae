@@ -26,7 +26,8 @@ from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists,
     detect_device,
-    get_phase_dir
+    get_phase_dir,
+    write_phase_output
 )
 from common.config import Config
 from common.steering_metrics import (
@@ -984,7 +985,19 @@ class InstructSteeringAnalyzer:
         
         logger.info(f"\nAll success criteria met: {'✓ YES' if all_criteria_met else '✗ NO'}")
         logger.info("="*60 + "\n")
-        
+
+        # Write phase output manifest
+        write_phase_output(
+            phase="7.6",
+            outputs={
+                "primary": "phase_7_6_summary.json",
+                "cross_model": "cross_model_comparison.json",
+                "analysis": "steering_effect_analysis.json"
+            },
+            config=self.config,
+            output_dir=str(self.output_dir)
+        )
+
         logger.info(f"Phase 7.6 completed in {duration:.1f} seconds")
-        
+
         return metrics

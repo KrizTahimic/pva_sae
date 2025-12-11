@@ -41,7 +41,8 @@ from common.utils import (
     ensure_directory_exists,
     discover_latest_phase_output,
     get_timestamp,
-    get_phase_dir
+    get_phase_dir,
+    write_phase_output
 )
 from common_simplified.helpers import (
     save_json,
@@ -1066,5 +1067,17 @@ class SelectiveSteeringAnalyzer:
         # Checkpoints are preserved for resuming subsequent runs
         # To start from scratch, manually delete: data/phase8_3/checkpoints/
         # self.cleanup_all_checkpoints()
+
+        # Write phase output manifest
+        write_phase_output(
+            phase="8.3",
+            outputs={
+                "primary": "selective_steering_summary.json",
+                "correction_results": "all_selective_correction_results.json",
+                "preservation_results": "all_selective_preservation_results.json"
+            },
+            config=self.config,
+            output_dir=str(self.output_dir)
+        )
 
         return summary

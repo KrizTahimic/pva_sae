@@ -21,7 +21,8 @@ from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists,
     detect_device,
-    get_phase_dir
+    get_phase_dir,
+    write_phase_output
 )
 from common.config import Config
 from common_simplified.helpers import load_json, save_json
@@ -153,7 +154,19 @@ class AttentionAnalyzer:
         }
         
         self.save_analysis_results(results)
-        
+
+        # Write phase output manifest
+        write_phase_output(
+            phase="6.3",
+            outputs={
+                "primary": "attention_analysis_results.json",
+                "summary": "phase_6_3_summary.json",
+                "t_tests": "paired_t_tests.json"
+            },
+            config=self.config,
+            output_dir=str(self.output_dir)
+        )
+
         logger.info("✅ Phase 6.3 completed successfully")
         return results
         

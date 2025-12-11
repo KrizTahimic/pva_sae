@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Dict, Any, Tuple
 
 from common.config import Config
-from common.utils import get_phase_dir
+from common.utils import get_phase_dir, write_phase_output
 from common.logging import get_logger
 
 logger = get_logger("phase7_9.universality_analysis")
@@ -557,7 +557,39 @@ class UniversalityAnalyzer:
         logger.info(f"All outputs saved to: {self.output_dir}")
         logger.info("="*60)
 
+        # Write phase output manifest
+        write_phase_output(
+            phase="7.9",
+            outputs={
+                "primary": "detailed_metrics.json",
+                "report": "summary_report.md",
+                "latex": "latex_tables.txt",
+                "visualization": "universality_comparison.png"
+            },
+            config=self.config,
+            output_dir=str(self.output_dir)
+        )
+
+
+class Phase79Runner:
+    """Standard runner for Phase 7.9: Universality Analysis."""
+
+    def __init__(self, config: Config):
+        self.config = config
+        self.logger = get_logger("phase7_9.runner", phase="7.9")
+
+    def run(self):
+        """Run Phase 7.9: Universality Analysis."""
+        self.logger.info("Starting Phase 7.9: Universality Analysis")
+        self.logger.info("\n" + self.config.dump(phase="7.9"))
+
+        analyzer = UniversalityAnalyzer(self.config)
+        analyzer.run()
+
+        self.logger.info("Phase 7.9 completed successfully")
+
 
 if __name__ == "__main__":
-    analyzer = UniversalityAnalyzer()
-    analyzer.run()
+    config = Config()
+    runner = Phase79Runner(config)
+    runner.run()
