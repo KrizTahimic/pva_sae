@@ -823,5 +823,25 @@ class SteeringCoefficientSelector:
         logger.info(f"\nPhase 4.5 completed in {time.time() - start_time:.1f} seconds")
         logger.info(f"Results saved to: {self.output_dir}")
         logger.info(f"{'='*80}\n")
-        
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="4.5",
+            outputs={
+                "primary": "phase_4_5_summary.json",
+                "selected_coefficients": "selected_coefficients.json",
+                "coefficient_analysis": "coefficient_analysis.json",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "2.5": str(Path(self.phase2_5_output).parent),
+                "3.6": str(self.phase3_6_output),
+            },
+            config_keys=['model_name', 'dataset_name', 'phase4_5_correct_coefficients', 'phase4_5_incorrect_coefficients']
+        )
+        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+
         return summary

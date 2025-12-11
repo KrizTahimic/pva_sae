@@ -566,3 +566,21 @@ class HyperparameterDataRunner:
         output_file = self.output_dir / "metadata.json"
         save_json(metadata, output_file)
         logger.info(f"Saved metadata to {output_file}")
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="3.6",
+            outputs={
+                "primary": "metadata.json",
+                "dataset": "dataset_hyperparams_temp_0_0.parquet",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "0.1": str(Path(get_phase_output_dir("0.1", self.config)) / "hyperparams_mbpp.parquet"),
+            },
+            config_keys=['model_name', 'dataset_name']
+        )
+        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")

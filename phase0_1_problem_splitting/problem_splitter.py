@@ -163,8 +163,8 @@ def split_problems(
                    f"std={std(split_complexity):.2f}")
     
     # Save splits
-    save_splits(split_dict, phase0_1_output, df)
-    
+    save_splits(split_dict, phase0_1_output, df, config)
+
     return split_dict
 
 
@@ -326,20 +326,22 @@ def create_interleaved_pattern(ratios: List[float]) -> List[int]:
 def save_splits(
     splits: Dict[str, List[int]],
     output_dir: str,
-    df: pd.DataFrame
+    df: pd.DataFrame,
+    config: Optional[Config] = None
 ) -> None:
     """
     Save split data as parquet files with full MBPP information.
-    
+
     Creates the following files:
     - {split_name}_mbpp.parquet for each split (containing all MBPP columns)
     - split_metadata.json with statistics
     - timestamp.txt with creation time
-    
+
     Args:
         splits: Dictionary mapping split names to task_id lists
         output_dir: Directory to save outputs
         df: Original dataframe with all MBPP data and cyclomatic complexity
+        config: Configuration object (optional, for writing phase_output.json)
     """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -390,8 +392,26 @@ def save_splits(
     
     with open(output_path / 'split_metadata.json', 'w') as f:
         json_dump(metadata, f, indent=2)
-    
+
     logger.info(f"Saved metadata to {output_path / 'split_metadata.json'}")
+
+    # Write phase_output.json manifest
+    if config is not None:
+        from common.utils import write_phase_output
+
+        # Build outputs dict from split names
+        outputs = {"primary": "split_metadata.json"}
+        for split_name in splits.keys():
+            outputs[split_name] = f"{split_name}_mbpp.parquet"
+
+        write_phase_output(
+            phase="0.1",
+            outputs=outputs,
+            config=config,
+            output_dir=str(output_path),
+            config_keys=['dataset_name', 'split_random_seed', 'split_n_strata']
+        )
+        logger.info(f"Saved phase_output.json manifest to {output_path}")
 
 
 def load_splits(split_dir: str, return_dataframes: bool = False) -> Dict[str, Union[List[int], pd.DataFrame]]:

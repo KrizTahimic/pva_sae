@@ -28,6 +28,235 @@ from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 logger = get_logger("phase3_8.auroc_f1_evaluator")
 
 
+class Phase38Runner:
+    """Standard runner for Phase 3.8: AUROC and F1 Evaluation."""
+
+    def __init__(self, config):
+        """Initialize with config object."""
+        self.config = config
+        self.logger = get_logger("phase3_8.runner", phase="3.8")
+
+    def run(self):
+        """Run Phase 3.8 AUROC and F1 evaluation."""
+        self.logger.info("Starting Phase 3.8: AUROC and F1 Evaluation for PVA-SAE")
+        self.logger.info("This phase evaluates bidirectional SAE features using AUROC and F1 metrics")
+        self.logger.info("\n" + self.config.dump(phase="3.8"))
+
+        # Run the main evaluation logic with our config
+        return run_evaluation(self.config)
+
+
+def run_evaluation(config):
+    """Core evaluation logic extracted from main()."""
+    np.random.seed(config.evaluation_random_seed)
+    torch.manual_seed(config.evaluation_random_seed)
+
+    # Autodiscover Phase 3.5 (with dataset suffix if needed)
+    phase3_5_dir_str = f"data/phase3_5_{config.dataset_name}" if config.dataset_name != "mbpp" else "data/phase3_5"
+    phase3_5_path = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
+    if not phase3_5_path:
+        raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
+    phase3_5_dir = Path(phase3_5_path).parent
+    logger.info(f"Using Phase 3.5 output: {phase3_5_dir}")
+
+    # Autodiscover Phase 3.6 (no dataset suffix - hyperparameters are model-specific, shared across datasets)
+    phase3_6_dir_str = "data/phase3_6"
+    phase3_6_path = discover_latest_phase_output("3.6", phase_dir=phase3_6_dir_str)
+    if not phase3_6_path:
+        raise FileNotFoundError(f"No Phase 3.6 output found in {phase3_6_dir_str}. Please run Phase 3.6 first.")
+    phase3_6_dir = Path(phase3_6_path).parent
+    logger.info(f"Using Phase 3.6 output: {phase3_6_dir}")
+
+    # Setup output directory (with dataset suffix if needed)
+    from common.utils import get_phase_dir
+    base_output_dir = Path(get_phase_dir('3.8'))
+    if config.dataset_name != "mbpp":
+        output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
+    else:
+        output_dir = base_output_dir
+    ensure_directory_exists(output_dir)
+    logger.info(f"Output directory: {output_dir}")
+
+    # Phase 1: Load best features from Phase 2.10 (t-statistic based selection)
+    logger.info("Loading best features from Phase 2.10...")
+
+    # Auto-discover Phase 2.10 output
+    phase2_10_dir = discover_latest_phase_output("2.10")
+    if not phase2_10_dir:
+        raise FileNotFoundError("No Phase 2.10 output found. Please run Phase 2.10 first.")
+    phase2_10_dir = Path(phase2_10_dir).parent
+
+    # Load best features from Phase 2.10
+    top_features_file = phase2_10_dir / 'top_20_features.json'
+    if not top_features_file.exists():
+        raise FileNotFoundError(f"top_20_features.json not found in {phase2_10_dir}. Please run Phase 2.10 first.")
+
+    top_features = load_json(top_features_file)
+
+    # Validate structure
+    if 'correct' not in top_features or 'incorrect' not in top_features:
+        raise ValueError("Missing 'correct' or 'incorrect' in top_20_features.json")
+
+    if not top_features['correct'] or not top_features['incorrect']:
+        raise ValueError("Empty feature list in top_20_features.json")
+
+    # Get the best (index 0) features
+    best_correct = top_features['correct'][0]
+    best_incorrect = top_features['incorrect'][0]
+
+    correct_layer = best_correct['layer']
+    correct_feature_idx = best_correct['feature_idx']
+    incorrect_layer = best_incorrect['layer']
+    incorrect_feature_idx = best_incorrect['feature_idx']
+
+    logger.info(f"Best correct-predicting feature: idx {correct_feature_idx} at layer {correct_layer}")
+    logger.info(f"Best incorrect-predicting feature: idx {incorrect_feature_idx} at layer {incorrect_layer}")
+
+    # Phase 2: Evaluate Correct-Predicting Feature
+    logger.info("\n" + "="*60)
+    logger.info("EVALUATING CORRECT-PREDICTING FEATURE")
+    logger.info("="*60)
+
+    # Load hyperparameter split for correct feature
+    y_true_hp_correct, scores_hp_correct = load_split_activations(
+        'hyperparams', correct_layer, correct_feature_idx, 'correct',
+        phase3_5_dir, phase3_6_dir
+    )
+
+    logger.info(f"Correct-predicting feature (hyperparameter split):")
+    logger.info(f"  Total samples: {len(y_true_hp_correct)}")
+    logger.info(f"  Positive class (correct code): {sum(y_true_hp_correct == 1)}")
+    logger.info(f"  Negative class (incorrect code): {sum(y_true_hp_correct == 0)}")
+
+    # Find optimal threshold
+    optimal_threshold_correct, hp_metrics_correct = find_optimal_threshold(
+        y_true_hp_correct,
+        scores_hp_correct,
+        'correct',
+        output_dir
+    )
+
+    # Load validation split
+    y_true_val_correct, scores_val_correct = load_split_activations(
+        'validation', correct_layer, correct_feature_idx, 'correct',
+        phase3_5_dir, phase3_6_dir
+    )
+
+    logger.info(f"\nCorrect-predicting feature (validation split):")
+    logger.info(f"  Total samples: {len(y_true_val_correct)}")
+    logger.info(f"  Positive class (correct code): {sum(y_true_val_correct == 1)}")
+    logger.info(f"  Negative class (incorrect code): {sum(y_true_val_correct == 0)}")
+
+    # Evaluate on validation using hyperparameter threshold
+    val_metrics_correct = calculate_metrics(
+        y_true_val_correct, scores_val_correct,
+        optimal_threshold_correct, 'correct_validation', output_dir
+    )
+
+    # Phase 3: Evaluate Incorrect-Predicting Feature
+    logger.info("\n" + "="*60)
+    logger.info("EVALUATING INCORRECT-PREDICTING FEATURE")
+    logger.info("="*60)
+
+    # Load hyperparameter split for incorrect feature
+    y_true_hp_incorrect, scores_hp_incorrect = load_split_activations(
+        'hyperparams', incorrect_layer, incorrect_feature_idx, 'incorrect',
+        phase3_5_dir, phase3_6_dir
+    )
+
+    logger.info(f"Incorrect-predicting feature (hyperparameter split):")
+    logger.info(f"  Total samples: {len(y_true_hp_incorrect)}")
+    logger.info(f"  Positive class (incorrect code): {sum(y_true_hp_incorrect == 1)}")
+    logger.info(f"  Negative class (correct code): {sum(y_true_hp_incorrect == 0)}")
+
+    # Find optimal threshold (for incorrect-predicting, high activation = incorrect)
+    optimal_threshold_incorrect, hp_metrics_incorrect = find_optimal_threshold(
+        y_true_hp_incorrect,
+        scores_hp_incorrect,
+        'incorrect',
+        output_dir
+    )
+
+    # Load validation split
+    y_true_val_incorrect, scores_val_incorrect = load_split_activations(
+        'validation', incorrect_layer, incorrect_feature_idx, 'incorrect',
+        phase3_5_dir, phase3_6_dir
+    )
+
+    logger.info(f"\nIncorrect-predicting feature (validation split):")
+    logger.info(f"  Total samples: {len(y_true_val_incorrect)}")
+    logger.info(f"  Positive class (incorrect code): {sum(y_true_val_incorrect == 1)}")
+    logger.info(f"  Negative class (correct code): {sum(y_true_val_incorrect == 0)}")
+
+    # Evaluate on validation using hyperparameter threshold
+    val_metrics_incorrect = calculate_metrics(
+        y_true_val_incorrect, scores_val_incorrect,
+        optimal_threshold_incorrect, 'incorrect_validation', output_dir
+    )
+
+    # Save results
+    results = {
+        'timestamp': datetime.now().isoformat(),
+        'correct_predicting_feature': {
+            'layer': correct_layer,
+            'feature_idx': correct_feature_idx,
+            'hyperparameter_split': hp_metrics_correct,
+            'validation_split': val_metrics_correct
+        },
+        'incorrect_predicting_feature': {
+            'layer': incorrect_layer,
+            'feature_idx': incorrect_feature_idx,
+            'hyperparameter_split': hp_metrics_incorrect,
+            'validation_split': val_metrics_incorrect
+        },
+        'source_files': {
+            'phase3_5_dir': str(phase3_5_dir),
+            'phase3_6_dir': str(phase3_6_dir),
+            'phase2_10_dir': str(phase2_10_dir)
+        }
+    }
+
+    results_path = output_dir / 'auroc_f1_results.json'
+    save_json(results, results_path)
+    logger.info(f"\nResults saved to: {results_path}")
+
+    # Print final summary
+    logger.info("\n" + "="*60)
+    logger.info("FINAL SUMMARY")
+    logger.info("="*60)
+    logger.info(f"Correct-predicting feature (validation):")
+    logger.info(f"  AUROC: {val_metrics_correct['auroc']:.4f}")
+    logger.info(f"  F1: {val_metrics_correct['f1']:.4f}")
+    logger.info(f"Incorrect-predicting feature (validation):")
+    logger.info(f"  AUROC: {val_metrics_incorrect['auroc']:.4f}")
+    logger.info(f"  F1: {val_metrics_incorrect['f1']:.4f}")
+
+    # Write phase_output.json manifest
+    from common.utils import write_phase_output
+
+    write_phase_output(
+        phase="3.8",
+        outputs={
+            "primary": "auroc_f1_results.json",
+            "f1_plot": "f1_threshold_plot_combined.png",
+            "confusion_correct": "confusion_matrix_correct.png",
+            "confusion_incorrect": "confusion_matrix_incorrect.png",
+            "comparative_metrics": "comparative_metrics.png",
+        },
+        config=config,
+        output_dir=str(output_dir),
+        dependencies={
+            "3.5": str(phase3_5_dir),
+            "3.6": str(phase3_6_dir),
+            "2.10": str(phase2_10_dir),
+        },
+        config_keys=['model_name', 'dataset_name', 'evaluation_random_seed']
+    )
+    logger.info(f"Saved phase_output.json manifest to {output_dir}")
+
+    return results
+
+
 def calculate_metrics(
     y_true: np.ndarray,
     scores: np.ndarray,
@@ -441,258 +670,11 @@ def load_split_activations(
 
 
 def main():
-    # Use seed from config
+    """Legacy entry point for running directly. Uses Phase38Runner."""
     from common.config import Config
     config = Config()
-    np.random.seed(config.evaluation_random_seed)
-    torch.manual_seed(config.evaluation_random_seed)
-
-    # Autodiscover Phase 3.5 (with dataset suffix if needed)
-    phase3_5_dir_str = f"data/phase3_5_{config.dataset_name}" if config.dataset_name != "mbpp" else "data/phase3_5"
-    phase3_5_path = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
-    if not phase3_5_path:
-        raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
-    phase3_5_dir = Path(phase3_5_path).parent
-    logger.info(f"Using Phase 3.5 output: {phase3_5_dir}")
-    
-    # Autodiscover Phase 3.6 (no dataset suffix - hyperparameters are model-specific, shared across datasets)
-    phase3_6_dir_str = "data/phase3_6"
-    phase3_6_path = discover_latest_phase_output("3.6", phase_dir=phase3_6_dir_str)
-    if not phase3_6_path:
-        raise FileNotFoundError(f"No Phase 3.6 output found in {phase3_6_dir_str}. Please run Phase 3.6 first.")
-    phase3_6_dir = Path(phase3_6_path).parent
-    logger.info(f"Using Phase 3.6 output: {phase3_6_dir}")
-    
-    # Setup output directory (with dataset suffix if needed)
-    from common.utils import get_phase_dir
-    base_output_dir = Path(get_phase_dir('3.8'))
-    if config.dataset_name != "mbpp":
-        output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
-    else:
-        output_dir = base_output_dir
-    ensure_directory_exists(output_dir)
-    logger.info(f"Output directory: {output_dir}")
-    
-    # Phase 1: Load best features from Phase 2.10 (t-statistic based selection)
-    logger.info("Loading best features from Phase 2.10...")
-    
-    # Auto-discover Phase 2.10 output
-    phase2_10_dir = discover_latest_phase_output("2.10")
-    if not phase2_10_dir:
-        raise FileNotFoundError("No Phase 2.10 output found. Please run Phase 2.10 first.")
-    phase2_10_dir = Path(phase2_10_dir).parent
-    
-    # Load best features from Phase 2.10
-    top_features_file = phase2_10_dir / 'top_20_features.json'
-    if not top_features_file.exists():
-        raise FileNotFoundError(f"top_20_features.json not found in {phase2_10_dir}. Please run Phase 2.10 first.")
-
-    top_features = load_json(top_features_file)
-
-    # Validate structure
-    if 'correct' not in top_features or 'incorrect' not in top_features:
-        raise ValueError("Missing 'correct' or 'incorrect' in top_20_features.json")
-
-    if not top_features['correct'] or not top_features['incorrect']:
-        raise ValueError("Empty feature list in top_20_features.json")
-
-    # Get the best (index 0) features
-    best_correct = top_features['correct'][0]
-    best_incorrect = top_features['incorrect'][0]
-
-    correct_layer = best_correct['layer']
-    correct_feature_idx = best_correct['feature_idx']
-    incorrect_layer = best_incorrect['layer']
-    incorrect_feature_idx = best_incorrect['feature_idx']
-    
-    logger.info(f"Best correct-predicting feature: idx {correct_feature_idx} at layer {correct_layer}")
-    logger.info(f"Best incorrect-predicting feature: idx {incorrect_feature_idx} at layer {incorrect_layer}")
-
-    # Phase 2: Evaluate Correct-Predicting Feature
-    logger.info("\n" + "="*60)
-    logger.info("EVALUATING CORRECT-PREDICTING FEATURE")
-    logger.info("="*60)
-    
-    # Load hyperparameter split for correct feature
-    y_true_hp_correct, scores_hp_correct = load_split_activations(
-        'hyperparams', correct_layer, correct_feature_idx, 'correct',
-        phase3_5_dir, phase3_6_dir
-    )
-    
-    logger.info(f"Correct-predicting feature (hyperparameter split):")
-    logger.info(f"  Total samples: {len(y_true_hp_correct)}")
-    logger.info(f"  Positive class (correct code): {sum(y_true_hp_correct == 1)}")
-    logger.info(f"  Negative class (incorrect code): {sum(y_true_hp_correct == 0)}")
-    
-    # Find optimal threshold
-    optimal_threshold_correct, hp_metrics_correct = find_optimal_threshold(
-        y_true_hp_correct, 
-        scores_hp_correct,
-        'correct',
-        output_dir
-    )
-    
-    # Load validation split
-    y_true_val_correct, scores_val_correct = load_split_activations(
-        'validation', correct_layer, correct_feature_idx, 'correct',
-        phase3_5_dir, phase3_6_dir
-    )
-    
-    logger.info(f"Correct-predicting feature (validation split):")
-    logger.info(f"  Total samples: {len(y_true_val_correct)}")
-    
-    # Evaluate on validation set
-    val_metrics_correct = calculate_metrics(
-        y_true_val_correct, 
-        scores_val_correct, 
-        optimal_threshold_correct,
-        'correct',
-        output_dir
-    )
-    
-    # Phase 3: Evaluate Incorrect-Predicting Feature
-    logger.info("\n" + "="*60)
-    logger.info("EVALUATING INCORRECT-PREDICTING FEATURE")
-    logger.info("="*60)
-    
-    # Load hyperparameter split for incorrect feature
-    y_true_hp_incorrect, scores_hp_incorrect = load_split_activations(
-        'hyperparams', incorrect_layer, incorrect_feature_idx, 'incorrect',
-        phase3_5_dir, phase3_6_dir
-    )
-    
-    logger.info(f"Incorrect-predicting feature (hyperparameter split):")
-    logger.info(f"  Total samples: {len(y_true_hp_incorrect)}")
-    logger.info(f"  Positive class (incorrect code): {sum(y_true_hp_incorrect == 1)}")
-    logger.info(f"  Negative class (correct code): {sum(y_true_hp_incorrect == 0)}")
-    
-    # Find optimal threshold
-    optimal_threshold_incorrect, hp_metrics_incorrect = find_optimal_threshold(
-        y_true_hp_incorrect, 
-        scores_hp_incorrect,
-        'incorrect',
-        output_dir
-    )
-    
-    # Load validation split
-    y_true_val_incorrect, scores_val_incorrect = load_split_activations(
-        'validation', incorrect_layer, incorrect_feature_idx, 'incorrect',
-        phase3_5_dir, phase3_6_dir
-    )
-    
-    logger.info(f"Incorrect-predicting feature (validation split):")
-    logger.info(f"  Total samples: {len(y_true_val_incorrect)}")
-    
-    # Evaluate on validation set
-    val_metrics_incorrect = calculate_metrics(
-        y_true_val_incorrect, 
-        scores_val_incorrect, 
-        optimal_threshold_incorrect,
-        'incorrect',
-        output_dir
-    )
-    
-    # Phase 4: Generate Combined F1 Threshold Plot
-    logger.info("\n" + "="*60)
-    logger.info("GENERATING COMBINED F1 THRESHOLD PLOT")
-    logger.info("="*60)
-
-    plot_combined_f1_thresholds(hp_metrics_correct, hp_metrics_incorrect, output_dir)
-
-    # Phase 5: Save Combined Results
-    logger.info("\n" + "="*60)
-    logger.info("SAVING RESULTS")
-    logger.info("="*60)
-
-    # Compile results for both features
-    results = {
-        'phase': '3.8',
-        'correct_predicting_feature': {
-            'feature': {
-                'idx': int(correct_feature_idx),
-                'layer': int(correct_layer)
-            },
-            'threshold_optimization': {
-                'split': 'hyperparameter',
-                'n_samples': int(len(y_true_hp_correct)),
-                'optimal_threshold': float(optimal_threshold_correct),
-                'metrics': hp_metrics_correct
-            },
-            'validation_metrics': {
-                'split': 'validation',
-                'n_samples': int(len(y_true_val_correct)),
-                'metrics': val_metrics_correct
-            }
-        },
-        'incorrect_predicting_feature': {
-            'feature': {
-                'idx': int(incorrect_feature_idx),
-                'layer': int(incorrect_layer)
-            },
-            'threshold_optimization': {
-                'split': 'hyperparameter',
-                'n_samples': int(len(y_true_hp_incorrect)),
-                'optimal_threshold': float(optimal_threshold_incorrect),
-                'metrics': hp_metrics_incorrect
-            },
-            'validation_metrics': {
-                'split': 'validation',
-                'n_samples': int(len(y_true_val_incorrect)),
-                'metrics': val_metrics_incorrect
-            }
-        },
-        'creation_timestamp': datetime.now().isoformat()
-    }
-    
-    # Save comprehensive results
-    save_json(results, output_dir / 'evaluation_results.json')
-    
-    # Generate comparative visualization
-    plot_comparative_metrics(
-        results, output_dir,
-        y_true_val_correct, scores_val_correct,
-        y_true_val_incorrect, scores_val_incorrect
-    )
-
-    # Generate precision-recall curves (standalone figure for paper)
-    logger.info("\n" + "="*60)
-    logger.info("GENERATING PRECISION-RECALL CURVES")
-    logger.info("="*60)
-
-    plot_precision_recall_curves(
-        output_dir,
-        y_true_val_correct, scores_val_correct,
-        y_true_val_incorrect, scores_val_incorrect
-    )
-
-    # Generate summary
-    summary_lines = [
-        "=" * 60,
-        "PHASE 3.8 FINAL RESULTS SUMMARY",
-        "=" * 60,
-        f"\nCorrect-Predicting Feature (Layer {correct_layer}, Feature {correct_feature_idx}):",
-        f"  Hyperparameter Optimal Threshold: {optimal_threshold_correct:.4f}",
-        f"  Validation AUROC: {val_metrics_correct['auroc']:.4f}",
-        f"  Validation F1: {val_metrics_correct['f1']:.4f}",
-        f"  Validation Precision: {val_metrics_correct['precision']:.4f}",
-        f"  Validation Recall: {val_metrics_correct['recall']:.4f}",
-        f"\nIncorrect-Predicting Feature (Layer {incorrect_layer}, Feature {incorrect_feature_idx}):",
-        f"  Hyperparameter Optimal Threshold: {optimal_threshold_incorrect:.4f}",
-        f"  Validation AUROC: {val_metrics_incorrect['auroc']:.4f}",
-        f"  Validation F1: {val_metrics_incorrect['f1']:.4f}",
-        f"  Validation Precision: {val_metrics_incorrect['precision']:.4f}",
-        f"  Validation Recall: {val_metrics_incorrect['recall']:.4f}",
-        "\n" + "=" * 60
-    ]
-    
-    summary_text = "\n".join(summary_lines)
-    logger.info(summary_text)
-
-    # Save summary to file
-    with open(output_dir / 'evaluation_summary.txt', 'w') as f:
-        f.write(summary_text)
-    
-    logger.info(f"\nAll results saved to {output_dir}")
+    runner = Phase38Runner(config)
+    runner.run()
 
 
 if __name__ == "__main__":

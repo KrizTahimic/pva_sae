@@ -754,5 +754,23 @@ class TemperatureRobustnessRunner:
         output_file = self.output_dir / "metadata.json"
         with open(output_file, 'w') as f:
             json.dump(metadata, f, indent=2)
-        
+
         logger.info(f"Saved metadata to {output_file}")
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        # Build outputs dict with temperature-specific files
+        outputs = {"primary": "metadata.json"}
+        for temp in self.config.temperature_variation_temps:
+            temp_str = f"{temp}".replace(".", "_")
+            outputs[f"temp_{temp_str}"] = f"dataset_temp_{temp_str}.parquet"
+
+        write_phase_output(
+            phase="3.5",
+            outputs=outputs,
+            config=self.config,
+            output_dir=str(self.output_dir),
+            config_keys=['model_name', 'dataset_name', 'temperature_variation_temps']
+        )
+        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
