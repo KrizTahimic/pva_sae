@@ -16,6 +16,7 @@ from typing import Dict, List, Tuple
 
 from common.logging import get_logger
 from common.utils import ensure_directory_exists
+from common.viz_utils import handle_viz_only_mode
 
 logger = get_logger("phase4_7.coefficient_plotter")
 
@@ -251,16 +252,66 @@ class CoefficientVisualizer:
         logger.info("All coefficient optimization plots generated successfully!")
 
 
-def main():
-    """Main execution function."""
-    # Setup paths
-    project_root = Path(__file__).parent.parent
-    data_dir = project_root / "data"
-    output_dir = data_dir / "phase4_7"
+class Phase47Runner:
+    """Standard runner for Phase 4.7: Coefficient Visualization."""
 
-    # Create visualizer and generate plots
-    visualizer = CoefficientVisualizer(data_dir, output_dir)
-    visualizer.generate_all_plots()
+    def __init__(self, config):
+        self.config = config
+        self.logger = get_logger("phase4_7.runner", phase="4.7")
+
+    def run(self):
+        """Run Phase 4.7: Coefficient Optimization Visualization."""
+        # Setup paths using config
+        from common.utils import get_phase_output_dir
+        data_dir = Path(self.config.data_dir)
+        self.output_dir = Path(get_phase_output_dir("4.7", self.config))
+
+        # Handle --viz-only mode
+        def viz_from_data(data):
+            visualizer = CoefficientVisualizer(data_dir, self.output_dir)
+            visualizer.generate_all_plots()
+
+        if handle_viz_only_mode(self, "phase_4_7_summary.json", viz_from_data):
+            return
+
+        self.logger.info("Starting Phase 4.7: Coefficient Visualization")
+        self.logger.info("\n" + self.config.dump(phase="4.7"))
+
+        output_dir = self.output_dir
+
+        # Create visualizer and generate plots
+        visualizer = CoefficientVisualizer(data_dir, output_dir)
+        visualizer.generate_all_plots()
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="4.7",
+            outputs={
+                "primary": "phase_4_7_summary.json",
+                "correct_plot": "correct_coefficient_search.png",
+                "incorrect_plot": "incorrect_coefficient_search.png",
+            },
+            config=self.config,
+            output_dir=str(output_dir),
+            dependencies={
+                "4.5": str(data_dir / "phase4_5"),
+                "4.6": str(data_dir / "phase4_6"),
+            },
+            config_keys=['model_name', 'dataset_name']
+        )
+        self.logger.info(f"Saved phase_output.json manifest to {output_dir}")
+
+        self.logger.info("Phase 4.7 completed successfully")
+
+
+def main():
+    """Legacy entry point."""
+    from common.config import Config
+    config = Config()
+    runner = Phase47Runner(config)
+    runner.run()
 
 
 if __name__ == "__main__":

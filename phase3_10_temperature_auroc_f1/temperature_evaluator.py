@@ -19,6 +19,7 @@ import matplotlib.cm as cm
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device, discover_latest_phase_output, format_duration, get_phase_output_dir
+from common.viz_utils import handle_viz_only_mode
 from common_simplified.helpers import save_json, load_json
 from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
@@ -644,12 +645,44 @@ class TemperatureAUROCEvaluator:
         with open(summary_path, 'w') as f:
             f.write(summary)
         self.logger.info(f"Saved summary to {summary_path}")
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="3.10",
+            outputs={
+                "primary": "temperature_analysis_results.json",
+                "summary": "temperature_summary.txt",
+                "trends_plot": "temperature_trends.png",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "3.5": str(self.phase3_5_dir),
+                "3.8": str(self.phase3_8_dir),
+            },
+            config_keys=['model_name', 'dataset_name']
+        )
+        self.logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
     
     def run(self) -> Dict:
         """Run the complete temperature-based AUROC analysis."""
+        # Handle --viz-only mode
+        def viz_from_data(data):
+            results = data['results_by_temperature']
+            # Convert string keys to float for plotting functions
+            results_float_keys = {float(k): v for k, v in results.items()}
+            self.plot_temperature_trends(results_float_keys)
+            self.plot_roc_curves(results_float_keys)
+            self.plot_precision_recall_curves(results_float_keys)
+
+        if handle_viz_only_mode(self, "temperature_analysis_results.json", viz_from_data):
+            return {}
+
         self.logger.info("Starting Phase 3.10: Temperature-Based AUROC Analysis")
         self.logger.info("Using per-sample analysis (no aggregation)")
-        
+
         # Load best features from Phase 3.8
         best_features = self.load_best_features()
         

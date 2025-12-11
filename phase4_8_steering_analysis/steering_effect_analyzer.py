@@ -27,6 +27,7 @@ from common.utils import (
     detect_device,
     get_dataset_range
 )
+from common.viz_utils import handle_viz_only_mode
 from common.config import Config
 from common.steering_metrics import (
     create_steering_hook,
@@ -976,6 +977,10 @@ class SteeringEffectAnalyzer:
         
     def run(self) -> Dict:
         """Run full steering effect analysis pipeline."""
+        # Handle --viz-only mode
+        if handle_viz_only_mode(self, "steering_effect_analysis.json", self.create_visualizations):
+            return {}
+
         start_time = time.time()
         logger.info("Starting Phase 4.8: Steering Effect Analysis")
         logger.info(f"Coefficients - Correct: {self.config.phase4_8_correct_coefficient}, "

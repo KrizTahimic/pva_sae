@@ -33,6 +33,7 @@ from datetime import datetime
 from common.logging import get_logger
 from common.utils import discover_latest_phase_output, ensure_directory_exists, get_phase_output_dir
 from common.config import Config
+from common.viz_utils import handle_viz_only_mode
 
 logger = get_logger("phase2_15.layerwise_visualizer")
 
@@ -76,6 +77,16 @@ class LayerwiseVisualizer:
 
     def run(self) -> Dict:
         """Main analysis pipeline."""
+        # Handle --viz-only mode
+        def viz_from_data(data):
+            separation_matrix = np.array(data['matrices']['separation_matrix'])
+            tstat_matrix = np.array(data['matrices']['tstat_matrix'])
+            self.create_separation_heatmap(separation_matrix)
+            self.create_tstat_heatmap(tstat_matrix)
+
+        if handle_viz_only_mode(self, "layerwise_analysis_results.json", viz_from_data):
+            return {}
+
         logger.info("Starting Phase 2.15: Layer-wise Analysis Visualization")
 
         # 1. Load data from both phases
@@ -95,7 +106,7 @@ class LayerwiseVisualizer:
         self.create_separation_heatmap(separation_matrix)
         self.create_tstat_heatmap(tstat_matrix)
 
-        # 4. Save results
+        # 4. Save results (include matrices for --viz-only regeneration)
         results = {
             'timestamp': datetime.now().isoformat(),
             'n_layers_analyzed': 26,
@@ -106,6 +117,10 @@ class LayerwiseVisualizer:
                 'incorrect_predicting': 19,
                 'correct_steering': 16,
                 'incorrect_steering': 25
+            },
+            'matrices': {
+                'separation_matrix': separation_matrix.tolist(),
+                'tstat_matrix': tstat_matrix.tolist()
             }
         }
 
@@ -287,3 +302,23 @@ class LayerwiseVisualizer:
             json.dump(results, f, indent=2)
 
         logger.info(f"Saved results to {output_file}")
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="2.15",
+            outputs={
+                "primary": "layerwise_analysis_results.json",
+                "separation_heatmap": "visualizations/layerwise_separation_heatmap.png",
+                "tstat_heatmap": "visualizations/layerwise_tstatistics_heatmap.png",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "2.5": str(self.phase2_5_dir),
+                "2.10": str(self.phase2_10_dir),
+            },
+            config_keys=['model_name', 'dataset_name']
+        )
+        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")

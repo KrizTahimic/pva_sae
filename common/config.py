@@ -161,7 +161,9 @@ class Config:
     show_progress_bar: bool = True
     enable_timing_stats: bool = True
 
-    
+    # === VISUALIZATION SETTINGS ===
+    viz_only: bool = False  # If True, regenerate visualizations without recomputing
+
     # === SAE SETTINGS (Phase 2) ===
     sae_repo_id: str = "google/gemma-scope-2b-pt-res"
     sae_width: str = "16k"
@@ -298,6 +300,9 @@ class Config:
             
             # General
             'verbose': 'verbose',
+
+            # Visualization
+            'viz_only': 'viz_only',
         }
         
         # Apply overrides from CLI args

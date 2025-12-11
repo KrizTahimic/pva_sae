@@ -16,6 +16,7 @@ from typing import Dict, Any, Tuple
 from common.config import Config
 from common.utils import get_phase_dir, write_phase_output
 from common.logging import get_logger
+from common.viz_utils import handle_viz_only_mode
 
 logger = get_logger("phase7_9.universality_analysis")
 
@@ -523,10 +524,14 @@ class UniversalityAnalyzer:
     
     def run(self):
         """Run complete universality analysis."""
+        # Handle --viz-only mode
+        if handle_viz_only_mode(self, "detailed_metrics.json", self.create_comprehensive_visualization):
+            return
+
         logger.info("="*60)
         logger.info("PVA Feature Universality Analysis")
         logger.info("="*60)
-        
+
         # Load data
         self.load_data()
         

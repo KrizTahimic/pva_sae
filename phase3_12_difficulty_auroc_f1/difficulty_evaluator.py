@@ -24,10 +24,29 @@ from sklearn.metrics import (
 
 from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists, discover_latest_phase_output
+from common.viz_utils import handle_viz_only_mode
 from common_simplified.helpers import save_json, load_json
 from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
 logger = get_logger("phase3_12.difficulty_evaluator")
+
+
+class Phase312Runner:
+    """Standard runner for Phase 3.12: Difficulty-Based AUROC Analysis."""
+
+    def __init__(self, config):
+        """Initialize with config object."""
+        self.config = config
+        self.logger = get_logger("phase3_12.runner", phase="3.12")
+
+    def run(self):
+        """Run Phase 3.12 difficulty-based AUROC analysis."""
+        self.logger.info("Starting Phase 3.12: Difficulty-Based AUROC Analysis for PVA-SAE")
+        self.logger.info("This phase evaluates PVA features across different problem difficulty levels")
+        self.logger.info("\n" + self.config.dump(phase="3.12"))
+
+        # main() creates its own Config internally, so just call it
+        return main()
 
 
 def group_by_difficulty(validation_data: pd.DataFrame) -> Dict[str, pd.DataFrame]:
@@ -451,7 +470,61 @@ def main():
         from common.utils import get_phase_dir
         output_dir = Path(get_phase_dir('3.12'))
     ensure_directory_exists(output_dir)
-    
+
+    # Handle --viz-only mode
+    if config.viz_only:
+        data_path = output_dir / "difficulty_analysis_results.json"
+        if not data_path.exists():
+            raise FileNotFoundError(
+                f"Cannot run --viz-only: {data_path} not found. "
+                f"Run phase normally first to generate data."
+            )
+        logger.info(f"--viz-only mode: Loading data from {data_path}")
+        results = load_json(data_path)
+
+        # Regenerate plots that don't require SAE loading
+        correct_results = results['correct_predicting_results']
+        incorrect_results = results['incorrect_predicting_results']
+
+        # Regenerate metrics comparison plot
+        difficulties = list(correct_results.keys())
+        correct_aurocs = [correct_results[d]['auroc'] for d in difficulties]
+        incorrect_aurocs = [incorrect_results[d]['auroc'] for d in difficulties]
+        correct_f1s = [correct_results[d]['f1'] for d in difficulties]
+        incorrect_f1s = [incorrect_results[d]['f1'] for d in difficulties]
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+        ax1.plot(difficulties, correct_aurocs, 'b-o', label='Correct-predicting', markersize=8)
+        ax1.plot(difficulties, incorrect_aurocs, 'r-s', label='Incorrect-predicting', markersize=8)
+        ax1.set_xlabel('Difficulty Level')
+        ax1.set_ylabel('AUROC')
+        ax1.set_title('AUROC vs Difficulty Level')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        ax1.set_ylim(0, 1.05)
+        ax1.set_xticks(range(len(difficulties)))
+        ax1.set_xticklabels([d.capitalize() for d in difficulties])
+        ax2.plot(difficulties, correct_f1s, 'b-o', label='Correct-predicting', markersize=8)
+        ax2.plot(difficulties, incorrect_f1s, 'r-s', label='Incorrect-predicting', markersize=8)
+        ax2.set_xlabel('Difficulty Level')
+        ax2.set_ylabel('F1 Score')
+        ax2.set_title('F1 Score vs Difficulty Level')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+        ax2.set_ylim(0, 1.05)
+        ax2.set_xticks(range(len(difficulties)))
+        ax2.set_xticklabels([d.capitalize() for d in difficulties])
+        plt.tight_layout()
+        plt.savefig(output_dir / 'metrics_comparison_by_difficulty.png', dpi=150, bbox_inches='tight')
+        plt.close()
+
+        # Regenerate AUROC trends plot
+        plot_auroc_trends(correct_results, incorrect_results, output_dir)
+
+        logger.info("Visualization regeneration complete")
+        logger.info("Note: ROC curves and confusion matrices require full rerun to regenerate")
+        return results
+
     # Phase 1: Load Dependencies and Setup
     logger.info("="*60)
     logger.info("PHASE 3.12: DIFFICULTY-BASED AUROC ANALYSIS")
@@ -710,8 +783,28 @@ def main():
     # Save summary to file
     with open(output_dir / 'difficulty_summary.txt', 'w') as f:
         f.write(summary_text)
-    
+
     logger.info(f"\nAll results saved to {output_dir}")
+
+    # Write phase_output.json manifest
+    from common.utils import write_phase_output
+
+    write_phase_output(
+        phase="3.12",
+        outputs={
+            "primary": "difficulty_analysis_results.json",
+            "summary": "difficulty_summary.txt",
+            "distribution_plot": "difficulty_distribution.png",
+            "metrics_comparison": "metrics_comparison_by_difficulty.png",
+        },
+        config=config,
+        output_dir=str(output_dir),
+        dependencies={
+            "3.5": str(phase3_5_dir),
+        },
+        config_keys=['model_name', 'dataset_name']
+    )
+    logger.info(f"Saved phase_output.json manifest to {output_dir}")
 
 
 if __name__ == "__main__":

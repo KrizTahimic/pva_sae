@@ -20,6 +20,7 @@ import seaborn as sns
 
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger, tqdm_with_logging
+from common.viz_utils import handle_viz_only_mode
 from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists,
@@ -607,6 +608,14 @@ class ZeroDiscWeightOrthogonalizer:
     
     def run(self) -> Dict:
         """Main execution pipeline."""
+        # Handle --viz-only mode
+        def viz_from_data(data):
+            self.results = data['zero_disc_orthogonalization']
+            self.create_visualizations()
+
+        if handle_viz_only_mode(self, "zero_disc_orthogonalization_results.json", viz_from_data):
+            return {}
+
         logger.info("\n" + "="*60)
         logger.info("Starting Phase 5.6: Zero-Discrimination Weight Orthogonalization")
         logger.info("Control experiment to validate Phase 5.3 specificity")

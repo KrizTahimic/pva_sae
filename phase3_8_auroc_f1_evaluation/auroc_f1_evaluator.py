@@ -22,6 +22,7 @@ from sklearn.metrics import (
 
 from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists, discover_latest_phase_output
+from common.viz_utils import handle_viz_only_mode
 from common_simplified.helpers import save_json, load_json
 from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
@@ -76,6 +77,44 @@ def run_evaluation(config):
         output_dir = base_output_dir
     ensure_directory_exists(output_dir)
     logger.info(f"Output directory: {output_dir}")
+
+    # Handle --viz-only mode
+    if config.viz_only:
+        data_path = output_dir / "auroc_f1_results.json"
+        if not data_path.exists():
+            raise FileNotFoundError(
+                f"Cannot run --viz-only: {data_path} not found. "
+                f"Run phase normally first to generate data."
+            )
+        logger.info(f"--viz-only mode: Loading data from {data_path}")
+        results = load_json(data_path)
+
+        # Reconstruct metrics for visualizations
+        hp_metrics_correct = results['correct_predicting_feature']['hyperparameter_split']
+        hp_metrics_incorrect = results['incorrect_predicting_feature']['hyperparameter_split']
+
+        # Regenerate F1 threshold plot (uses saved f1_curve data)
+        plot_combined_f1_thresholds(hp_metrics_correct, hp_metrics_incorrect, output_dir)
+
+        # Regenerate comparative metrics (without ROC curves)
+        # Need to restructure results for the plot function
+        viz_results = {
+            'correct_predicting_feature': {
+                'validation_metrics': {
+                    'metrics': results['correct_predicting_feature']['validation_split']
+                }
+            },
+            'incorrect_predicting_feature': {
+                'validation_metrics': {
+                    'metrics': results['incorrect_predicting_feature']['validation_split']
+                }
+            }
+        }
+        plot_comparative_metrics(viz_results, output_dir)
+
+        logger.info("Visualization regeneration complete")
+        logger.info("Note: Confusion matrices and PR curves require full rerun to regenerate")
+        return results
 
     # Phase 1: Load best features from Phase 2.10 (t-statistic based selection)
     logger.info("Loading best features from Phase 2.10...")

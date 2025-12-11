@@ -25,6 +25,7 @@ from common.utils import (
     write_phase_output
 )
 from common.config import Config
+from common.viz_utils import handle_viz_only_mode
 from common_simplified.helpers import load_json, save_json
 
 logger = get_logger("phase6_3.attention_analyzer")
@@ -119,8 +120,21 @@ class AttentionAnalyzer:
         
     def run(self) -> Dict[str, Any]:
         """Main analysis pipeline."""
+        # Handle --viz-only mode
+        def viz_from_data(data):
+            # For visualization, we need to reload attention data
+            # This is still expensive but avoids recomputing statistics
+            logger.info("Reloading attention data for visualization...")
+            attention_data = self.load_attention_data()
+            differences_correct = self.compute_differences(attention_data, 'correct')
+            differences_incorrect = self.compute_differences(attention_data, 'incorrect')
+            self.create_all_visualizations(attention_data, differences_correct, differences_incorrect)
+
+        if handle_viz_only_mode(self, "attention_analysis_results.json", viz_from_data):
+            return {}
+
         logger.info("Starting Phase 6.3: Attention Pattern Analysis")
-        
+
         # 1. Load attention data
         logger.info("Loading attention data from Phases 3.5 and 4.8...")
         attention_data = self.load_attention_data()

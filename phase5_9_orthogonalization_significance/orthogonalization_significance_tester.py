@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from common.logging import get_logger
+from common.viz_utils import handle_viz_only_mode
 from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists,
@@ -426,10 +427,20 @@ class OrthogonalizationSignificanceTester:
         
     def run(self) -> Dict:
         """Run triangulation statistical significance testing for weight orthogonalization."""
+        # Handle --viz-only mode
+        if handle_viz_only_mode(
+            self, "orthogonalization_triangulation.json",
+            lambda data: self.create_visualization(
+                data['triangulation_results']['correction'],
+                data['triangulation_results']['corruption']
+            )
+        ):
+            return {}
+
         logger.info("="*60)
         logger.info("Starting Weight Orthogonalization Triangulation Testing")
         logger.info("="*60)
-        
+
         # Load all results
         baseline_metrics, pva_results, zero_disc_results = self.load_all_results()
         
@@ -547,7 +558,27 @@ class OrthogonalizationSignificanceTester:
         logger.info("")
         logger.info(f"Conclusion: {interpretation['interpretation']}")
         logger.info("="*60)
-        
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="5.9",
+            outputs={
+                "primary": "phase_5_9_summary.json",
+                "triangulation_results": "orthogonalization_triangulation.json",
+                "summary_report": "triangulation_summary.txt",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "5.3": str(self.phase5_3_dir),
+                "5.6": str(self.phase5_6_dir),
+            },
+            config_keys=['model_name', 'dataset_name']
+        )
+        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+
         return results
         
     def _save_summary_report(self, results: Dict) -> None:

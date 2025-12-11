@@ -233,6 +233,20 @@ python3 run.py phase 8.3   # Selective steering
 - Statistical validation uses bootstrap resampling for confidence intervals
 - Switch datasets/models by editing `dataset_name` and `model_name` in `common/config.py`
 
+### Visualization Regeneration
+
+Many phases generate plots that can be regenerated without rerunning expensive computations:
+
+```bash
+# Full run (hours)
+python3 run.py phase 4.8
+
+# Regenerate visualizations only (seconds)
+python3 run.py phase 4.8 --viz-only
+```
+
+This is useful for iterating on plot aesthetics without recomputing data. Requires a previous successful run of the phase.
+
 ## Data Output Structure
 
 Each phase outputs to its own directory with structured results:

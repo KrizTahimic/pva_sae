@@ -23,6 +23,7 @@ from common.utils import (
 )
 from common_simplified.helpers import load_json, save_json
 from common.config import Config
+from common.viz_utils import handle_viz_only_mode
 
 logger = get_logger("phase4_14.significance_tester")
 
@@ -550,10 +551,21 @@ class SignificanceTester:
         
     def run(self) -> Dict:
         """Run triangulation statistical significance testing."""
+        # Handle --viz-only mode
+        if handle_viz_only_mode(
+            self, "triangulation_analysis.json",
+            lambda data: self.create_visualization(
+                data['triangulation_results']['correction'],
+                data['triangulation_results']['corruption'],
+                data['triangulation_results']['preservation']
+            )
+        ):
+            return {}
+
         logger.info("="*60)
         logger.info("Starting Triangulation Statistical Testing")
         logger.info("="*60)
-        
+
         # Load all results
         baseline_data, targeted_results, zero_disc_results = self.load_all_results()
         
@@ -678,7 +690,26 @@ class SignificanceTester:
         logger.info("")
         logger.info(f"Conclusion: {interpretation['interpretation']}")
         logger.info("="*60)
-        
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="4.14",
+            outputs={
+                "primary": "triangulation_analysis.json",
+                "summary_report": "triangulation_summary.txt",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "4.8": str(self.phase4_8_dir),
+                "4.12": str(self.phase4_12_dir),
+            },
+            config_keys=['model_name', 'dataset_name']
+        )
+        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+
         return results
         
     def _save_summary_report(self, results: Dict) -> None:

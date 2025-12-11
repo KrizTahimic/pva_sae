@@ -18,6 +18,7 @@ from scipy.stats import chi2_contingency
 from common.logging import get_logger
 from common.config import Config
 from common.utils import ensure_directory_exists, get_phase_output_dir
+from common.viz_utils import handle_viz_only_mode
 from phase3_12_difficulty_auroc_f1.difficulty_evaluator import group_by_difficulty
 
 logger = get_logger("phase4_16.difficulty_steering_analyzer")
@@ -468,6 +469,31 @@ def main():
     # Create output directory
     output_dir = Path(get_phase_output_dir("4.16", config))
     ensure_directory_exists(output_dir)
+
+    # Handle --viz-only mode
+    if config.viz_only:
+        data_path = output_dir / "difficulty_steering_analysis.json"
+        if not data_path.exists():
+            raise FileNotFoundError(
+                f"Cannot run --viz-only: {data_path} not found. "
+                f"Run phase normally first to generate data."
+            )
+        logger.info(f"--viz-only mode: Loading data from {data_path}")
+        data = load_json(data_path)
+
+        # Reconstruct metrics for visualization
+        correction_metrics = data['correction_analysis']['counts']
+        corruption_metrics = data['corruption_analysis']['counts']
+        preservation_metrics = data['preservation_analysis']['counts']
+
+        # For difficulty distribution we need validation data
+        validation_data = load_validation_with_difficulty(config)
+        difficulty_groups = group_by_difficulty(validation_data)
+
+        plot_steering_trends(correction_metrics, corruption_metrics, preservation_metrics, output_dir)
+        plot_difficulty_distribution(difficulty_groups, output_dir)
+        logger.info("Visualization regeneration complete")
+        return
 
     logger.info("=" * 60)
     logger.info("PHASE 4.16: DIFFICULTY-STRATIFIED STEERING ANALYSIS")

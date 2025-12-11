@@ -223,6 +223,9 @@ python3 run.py phase 7.12        # Instruction-tuned evaluation
 # Input override (skip auto-discovery)
 --input PATH                     # Use specific input file
 
+# Visualization regeneration (skip computation)
+--viz-only                       # Regenerate plots from saved data (seconds vs hours)
+
 # Experiment modes (phases 4.5, 4.6, 4.8)
 --correction-only                # Only correction experiments
 --corruption-only                # Only corruption experiments
@@ -232,6 +235,22 @@ python3 run.py phase 7.12        # Instruction-tuned evaluation
 --model google/gemma-2-2b        # Base model (default)
 --model google/gemma-2-2b-it     # Instruction-tuned model
 ```
+
+### Visualization Regeneration (--viz-only)
+
+Many phases produce visualizations (plots, charts). To iterate on visualizations without rerunning expensive computations:
+
+```bash
+# Full run (hours) - generates data + visualizations
+python3 run.py phase 4.8
+
+# Regenerate visualizations only (seconds) - uses saved JSON
+python3 run.py phase 4.8 --viz-only
+```
+
+Supported phases: 2.15, 3.8, 3.10, 3.11, 3.12, 4.7, 4.8, 4.14, 4.16, 5.3, 5.6, 5.9, 6.3, 7.6, 7.9, 7.12
+
+**Requirement**: The phase must have been run normally at least once to generate the data JSON file.
 
 ## Configuration System
 

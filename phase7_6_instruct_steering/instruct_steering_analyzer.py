@@ -22,6 +22,7 @@ import seaborn as sns
 
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger, tqdm_with_logging
+from common.viz_utils import handle_viz_only_mode
 from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists,
@@ -879,6 +880,10 @@ class InstructSteeringAnalyzer:
         
     def run(self) -> Dict:
         """Run full instruction-tuned model steering effect analysis pipeline."""
+        # Handle --viz-only mode
+        if handle_viz_only_mode(self, "steering_effect_analysis.json", self.create_visualizations):
+            return {}
+
         start_time = time.time()
         logger.info("Starting Phase 7.6: Instruction-Tuned Model Steering Analysis")
         logger.info(f"Using instruction-tuned model: {self.config.phase7_6_model_name}")

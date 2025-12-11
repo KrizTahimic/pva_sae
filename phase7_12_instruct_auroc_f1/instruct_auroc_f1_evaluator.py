@@ -23,6 +23,7 @@ from sklearn.metrics import (
 
 from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists, discover_latest_phase_output, write_phase_output
+from common.viz_utils import handle_viz_only_mode
 from common_simplified.helpers import save_json, load_json
 from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
@@ -425,6 +426,22 @@ def main():
             output_dir = base_output_dir
     ensure_directory_exists(output_dir)
     logger.info(f"Output directory: {output_dir}")
+
+    # Handle --viz-only mode
+    if config.viz_only:
+        data_path = output_dir / "evaluation_results.json"
+        if not data_path.exists():
+            raise FileNotFoundError(
+                f"Cannot run --viz-only: {data_path} not found. "
+                f"Run phase normally first to generate data."
+            )
+        logger.info(f"--viz-only mode: Loading data from {data_path}")
+        results = load_json(data_path)
+
+        # Regenerate comparative metrics (without ROC curves since we don't have raw data)
+        plot_comparative_metrics(results, output_dir)
+        logger.info("Visualization regeneration complete")
+        return
 
     # Phase 1: Load best features from Phase 2.10 (t-statistic based selection)
     logger.info("Loading best features from Phase 2.10...")

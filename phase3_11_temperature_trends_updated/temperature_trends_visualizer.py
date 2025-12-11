@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from common.config import Config
 from common.logging import get_logger
 from common.utils import discover_latest_phase_output, get_phase_output_dir
+from common.viz_utils import handle_viz_only_mode
 from common_simplified.helpers import load_json
 
 
@@ -170,8 +171,35 @@ class TemperatureTrendsVisualizer:
             json.dump(metadata, f, indent=2)
         self.logger.info(f"Saved metadata to {json_path}")
 
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="3.11",
+            outputs={
+                "primary": "metadata.json",
+                "trends_plot": "temperature_trends.png",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "3.10": str(self.phase3_10_results_path.parent),
+            },
+            config_keys=['model_name', 'dataset_name']
+        )
+        self.logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+
     def run(self) -> None:
         """Run the visualization update process."""
+        # Handle --viz-only mode (reloads Phase 3.10 data)
+        def viz_from_data(data):
+            # Load Phase 3.10 results again for visualization
+            results = self.load_phase3_10_results()
+            self.plot_temperature_trends(results)
+
+        if handle_viz_only_mode(self, "metadata.json", viz_from_data):
+            return
+
         self.logger.info("Starting Phase 3.11: Temperature Trends Visualization Update")
 
         # Load Phase 3.10 results
