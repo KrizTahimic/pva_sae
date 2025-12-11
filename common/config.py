@@ -563,9 +563,18 @@ class Config:
                 raise ValueError("phase4_6_tolerance must be > 0")
     
     def get_phase_output_dir(self, phase: str) -> str:
-        """Get output directory for specific phase."""
-        phase_key = f"phase{phase.replace('.', '_')}_output_dir"
-        return getattr(self, phase_key, f"data/phase{phase}")
+        """Get output directory for specific phase.
+
+        Uses the phase registry as the source of truth.
+        Falls back to attribute lookup for backward compatibility.
+        """
+        try:
+            from common.phase_registry import get_phase_output_dir as registry_get_dir
+            return registry_get_dir(phase)
+        except (ImportError, ValueError):
+            # Fallback to old behavior if registry not available or phase not found
+            phase_key = f"phase{phase.replace('.', '_')}_output_dir"
+            return getattr(self, phase_key, f"data/phase{phase}")
     
     def get_split_ratios(self) -> List[float]:
         """Get fixed split ratios for Phase 0.1."""

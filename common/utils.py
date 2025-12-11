@@ -440,8 +440,10 @@ def get_phase_dir(phase: str) -> str:
     """
     Get the directory path for a given phase.
 
+    Uses the phase registry as single source of truth.
+
     Args:
-        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8", "3.10", "3.12", "4.5", "4.8", "4.10", "4.12", "4.14", "5.3", "5.6", "5.9", "6.3", "7.3", "7.6", "7.12")
+        phase: Phase string ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", etc.)
 
     Returns:
         str: Directory path for the phase
@@ -450,27 +452,25 @@ def get_phase_dir(phase: str) -> str:
         get_phase_dir("0") -> "data/phase0"
         get_phase_dir("1") -> "data/phase1_0"
         get_phase_dir("0.1") -> "data/phase0_1"
-        get_phase_dir("2.2") -> "data/phase2_2"
         get_phase_dir("2.5") -> "data/phase2_5"
-        get_phase_dir("3") -> "data/phase3"
         get_phase_dir("3.5") -> "data/phase3_5"
-        get_phase_dir("4.5") -> "data/phase4_5"
-        get_phase_dir("4.8") -> "data/phase4_8"
-        get_phase_dir("6.3") -> "data/phase6_3"
     """
-    if phase not in PHASE_CONFIGS:
-        raise ValueError(f"Unknown phase: {phase}. Valid phases are: {list(PHASE_CONFIGS.keys())}")
-
-    return PHASE_CONFIGS[phase]["dir"]
+    try:
+        from common.phase_registry import get_phase_output_dir as registry_get_dir
+        return registry_get_dir(phase)
+    except ImportError:
+        # Fallback to PHASE_CONFIGS if registry not available
+        if phase not in PHASE_CONFIGS:
+            raise ValueError(f"Unknown phase: {phase}. Valid phases are: {list(PHASE_CONFIGS.keys())}")
+        return PHASE_CONFIGS[phase]["dir"]
 
 
 def get_phase_output_dir(phase: str, config) -> str:
     """
     Generate model/dataset-aware output directory for a phase.
 
-    This function creates output directory paths with suffixes based on the
-    current model and dataset, allowing separate experiments for different
-    model/dataset combinations.
+    Uses the phase registry as single source of truth for base directory,
+    then adds model/dataset suffixes for experiment separation.
 
     Args:
         phase: Phase string (e.g., "1", "2.5", "3.5")
@@ -485,13 +485,17 @@ def get_phase_output_dir(phase: str, config) -> str:
         # Gemma + HumanEval: "data/phase1_0_humaneval"
         # LLAMA + HumanEval: "data/phase1_0_llama_humaneval"
     """
-    # Get base directory for the phase
-    if phase in PHASE_CONFIGS:
-        base_dir = PHASE_CONFIGS[phase]["dir"]
-    else:
-        # Fallback to standard naming
-        phase_key = phase.replace(".", "_")
-        base_dir = f"data/phase{phase_key}"
+    # Get base directory from registry (single source of truth)
+    try:
+        from common.phase_registry import get_phase_output_dir as registry_get_dir
+        base_dir = registry_get_dir(phase)
+    except ImportError:
+        # Fallback to PHASE_CONFIGS if registry not available
+        if phase in PHASE_CONFIGS:
+            base_dir = PHASE_CONFIGS[phase]["dir"]
+        else:
+            phase_key = phase.replace(".", "_")
+            base_dir = f"data/phase{phase_key}"
 
     # Build suffix based on model and dataset
     suffixes = []

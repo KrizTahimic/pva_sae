@@ -34,6 +34,10 @@ from common.config import Config
 # Import centralized phase directory function
 from common.utils import get_phase_dir
 
+# Import phase registry for single source of truth
+from common.phase_registry import get_phase, get_all_phase_ids, get_phase_choices_help
+from common.phase_runner import run_phase as generic_run_phase, can_use_generic_runner
+
 
 def setup_argument_parser():
     """Setup command line argument parser with phase-specific argument groups"""
@@ -87,12 +91,12 @@ def setup_argument_parser():
     # Phase command (existing functionality)
     phase_parser = subparsers.add_parser('phase', help='Run a specific phase')
     
-    # Required phase selection
+    # Required phase selection - uses string IDs from registry (avoids float precision issues)
     phase_parser.add_argument(
         'phase',
-        type=float,
-        choices=[0, 0.1, 0.2, 0.3, 1, 2.2, 2.5, 2.10, 2.15, 3, 3.5, 3.6, 3.8, 3.10, 3.11, 3.12, 4.5, 4.6, 4.7, 4.8, 4.10, 4.12, 4.14, 4.16, 5.3, 5.6, 5.9, 6.3, 7.3, 7.6, 7.9, 7.12, 8.1, 8.2, 8.3],
-        help='Phase to run: 0=Difficulty Analysis, 0.1=Problem Splitting, 0.2=HumanEval to MBPP Conversion, 0.3=HumanEval Import Scanning, 1=Dataset Building, 2.2=Pile Caching, 2.5=SAE Analysis with Filtering, 2.10=T-Statistic Latent Selection, 2.15=Layer-wise Analysis Visualization, 3=Validation, 3.5=Temperature Robustness, 3.6=Hyperparameter Tuning Set Processing, 3.8=AUROC and F1 Evaluation, 3.10=Temperature-Based AUROC Analysis, 3.11=Temperature Trends Visualization Update, 3.12=Difficulty-Based AUROC Analysis, 4.5=Steering Coefficient Selection, 4.6=Golden Section Search Coefficient Refinement, 4.7=Coefficient Optimization Visualization, 4.8=Steering Effect Analysis, 4.10=Zero-Discrimination Feature Selection, 4.12=Zero-Discrimination Steering Generation, 4.14=Statistical Significance Testing, 4.16=Difficulty-Stratified Steering Analysis, 5.3=Weight Orthogonalization, 5.6=Zero-Discrimination Weight Orthogonalization, 5.9=Weight Orthogonalization Statistical Significance, 6.3=Attention Pattern Analysis, 7.3=Instruction-Tuned Model Baseline, 7.6=Instruction-Tuned Model Steering Analysis, 7.9=Universality Analysis, 7.12=Instruction-Tuned Model AUROC/F1 Evaluation, 8.1=Percentile Threshold Calculator, 8.2=Percentile Threshold Optimizer, 8.3=Selective Steering Based on Threshold Analysis'
+        type=str,
+        choices=get_all_phase_ids(),
+        help=f'Phase to run: {get_phase_choices_help()}'
     )
     
     # Global arguments (add to phase parser)
@@ -1702,18 +1706,9 @@ def main():
         sys.exit(1)
     
     # Set global phase context first (before any logging)
+    # args.phase is now a string, so no float precision issues
     if args.command == 'phase' and hasattr(args, 'phase'):
-        # Preserve .0 suffix for whole numbers: 0.0 -> "0.0", 1.0 -> "1.0", 0.1 -> "0.1"
-        # Handle special cases like 3.10 which would become "3.1" with str()
-        if args.phase == 3.10:
-            phase_str = "3.10"
-        elif args.phase == 3.11:
-            phase_str = "3.11"
-        elif args.phase == 3.12:
-            phase_str = "3.12"
-        else:
-            phase_str = str(args.phase)
-        set_logging_phase(phase_str)
+        set_logging_phase(args.phase)
     
     # For non-phase commands, create logger without phase context
     # For phase commands, delay logger creation until after phase is set
@@ -1769,51 +1764,43 @@ def main():
         logger.info(f"Detected device: {device}")
         
         # Create unified config from args
-        # Use the properly formatted phase_str we created earlier
-        if args.phase == 3.10:
-            phase_str_for_config = "3.10"
-        elif args.phase == 3.11:
-            phase_str_for_config = "3.11"
-        elif args.phase == 3.12:
-            phase_str_for_config = "3.12"
-        else:
-            phase_str_for_config = str(args.phase)
-        config = Config.from_args(args, phase=phase_str_for_config)
+        # args.phase is now a string, so no conversion needed
+        config = Config.from_args(args, phase=args.phase)
         
         # Store input file path if provided
         if args.input:
             config._input_file = args.input
         
         # Handle phase-specific special arguments
-        if args.phase == 0 and hasattr(args, 'dry_run'):
+        if args.phase == "0" and hasattr(args, 'dry_run'):
             config._dry_run = args.dry_run
-        
-        if args.phase == 0.1 and hasattr(args, 'generate_report'):
+
+        if args.phase == "0.1" and hasattr(args, 'generate_report'):
             config._generate_report = args.generate_report
-        
-        if args.phase == 2.2 and hasattr(args, 'run_count'):
+
+        if args.phase == "2.2" and hasattr(args, 'run_count'):
             config._run_count = args.run_count
         
         # Handle Phase 4.5 experiment mode arguments
-        if args.phase == 4.5:
+        if args.phase == "4.5":
             if hasattr(args, 'correction_only') and args.correction_only:
                 config.phase4_5_experiment_mode = 'correction'
             elif hasattr(args, 'corruption_only') and args.corruption_only:
                 config.phase4_5_experiment_mode = 'corruption'
             else:
                 config.phase4_5_experiment_mode = 'all'
-        
+
         # Handle Phase 4.6 experiment mode arguments
-        if args.phase == 4.6:
+        if args.phase == "4.6":
             if hasattr(args, 'correction_only') and args.correction_only:
                 config.phase4_6_experiment_mode = 'correction'
             elif hasattr(args, 'corruption_only') and args.corruption_only:
                 config.phase4_6_experiment_mode = 'corruption'
             else:
                 config.phase4_6_experiment_mode = 'all'
-        
+
         # Handle Phase 4.8 experiment mode arguments
-        if args.phase == 4.8:
+        if args.phase == "4.8":
             if hasattr(args, 'preservation_only') and args.preservation_only:
                 config.phase4_8_experiment_mode = 'preservation'
             elif hasattr(args, 'correction_only') and args.correction_only:
@@ -1825,149 +1812,48 @@ def main():
         
         # Validate config for the phase
         try:
-            config.validate(str(args.phase))
+            config.validate(args.phase)
         except ValueError as e:
             logger.error(f"Configuration validation failed: {e}")
             sys.exit(1)
-        
+
         # Show config and exit if requested
         if args.show_config:
-            print("\n" + config.dump(phase=str(args.phase)))
+            print("\n" + config.dump(phase=args.phase))
             sys.exit(0)
         
-        # Display phase info
-        phase_names = {
-            0: "Difficulty Analysis",
-            0.1: "Problem Splitting",
-            0.2: "HumanEval to MBPP Conversion",
-            0.3: "HumanEval Import Scanning",
-            1: "Dataset Building",
-            2.2: "Pile Activation Caching",
-            2.5: "SAE Analysis with Pile Filtering",
-            2.10: "T-Statistic Latent Selection",
-            2.15: "Layer-wise Analysis Visualization",
-            3: "Validation",
-            3.5: "Temperature Robustness",
-            3.6: "Hyperparameter Tuning Set Processing",
-            3.8: "AUROC and F1 Evaluation",
-            3.10: "Temperature-Based AUROC Analysis",
-            3.11: "Temperature Trends Visualization Update",
-            3.12: "Difficulty-Based AUROC Analysis",
-            4.5: "Steering Coefficient Selection",
-            4.6: "Golden Section Search Coefficient Refinement",
-            4.7: "Coefficient Optimization Visualization",
-            4.8: "Steering Effect Analysis",
-            4.10: "Random PVA Feature Selection",
-            4.12: "Random Steering Analysis",
-            4.14: "Statistical Significance Testing",
-            4.16: "Difficulty-Stratified Steering Analysis",
-            5.3: "Weight Orthogonalization Analysis",
-            5.6: "Zero-Discrimination Weight Orthogonalization",
-            5.9: "Weight Orthogonalization Statistical Significance",
-            6.3: "Attention Pattern Analysis",
-            7.3: "Instruction-Tuned Model Baseline",
-            7.6: "Instruction-Tuned Model Steering Analysis",
-            7.9: "Universality Analysis",
-            7.12: "Instruction-Tuned Model AUROC/F1 Evaluation",
-            8.1: "Percentile Threshold Calculator",
-            8.2: "Percentile Threshold Optimizer",
-            8.3: "Selective Steering Based on Threshold Analysis"
-        }
-        
+        # Display phase info using registry (single source of truth)
+        phase_info = get_phase(args.phase)
         print(f"\n{'='*60}")
-        # Use properly formatted phase string for display
-        # Handle float precision issues (2.10 becomes 2.1, 3.10 becomes 3.1, etc.)
-        if abs(args.phase - 2.1) < 0.01:
-            display_phase = "2.10"
-            phase_key = 2.10
-        elif abs(args.phase - 3.1) < 0.01:
-            display_phase = "3.10"
-            phase_key = 3.10
-        elif abs(args.phase - 3.11) < 0.01:
-            display_phase = "3.11"
-            phase_key = 3.11
-        elif abs(args.phase - 3.12) < 0.01:
-            display_phase = "3.12"
-            phase_key = 3.12
-        else:
-            display_phase = str(args.phase)
-            phase_key = args.phase
-        print(f"PHASE {display_phase}: {phase_names[phase_key].upper()}")
+        print(f"PHASE {args.phase}: {phase_info.name.upper()}")
         print(f"{'='*60}")
         
         try:
-            # Run selected phase with unified config
-            if args.phase == 0:
-                dry_run = getattr(config, '_dry_run', False)
-                run_phase0(config, logger, device, dry_run=dry_run)
-            elif args.phase == 1:
-                run_phase1(config, logger, device)
-            elif args.phase == 0.1:
-                run_phase0_1(config, logger, device)
-            elif args.phase == 0.2:
-                run_phase0_2(config, logger, device)
-            elif args.phase == 0.3:
-                run_phase0_3(config, logger, device)
-            elif args.phase == 2.2:
-                run_phase2_2(config, logger, device)
-            elif args.phase == 2.5:
-                run_phase2_5(config, logger, device)
-            elif args.phase == 2.10:
-                run_phase2_10(config, logger, device)
-            elif args.phase == 2.15:
-                run_phase2_15(config, logger, device)
-            elif args.phase == 3:
-                run_phase3(config, logger, device)
-            elif args.phase == 3.5:
-                run_phase3_5(config, logger, device)
-            elif args.phase == 3.6:
-                run_phase3_6(config, logger, device)
-            elif args.phase == 3.8:
-                run_phase3_8(config, logger, device)
-            elif args.phase == 3.10:
-                run_phase3_10(config, logger, device)
-            elif args.phase == 3.11:
-                run_phase3_11(config, logger, device)
-            elif args.phase == 3.12:
-                run_phase3_12(config, logger, device)
-            elif args.phase == 4.5:
-                run_phase4_5(config, logger, device)
-            elif args.phase == 4.6:
-                run_phase4_6(config, logger, device)
-            elif args.phase == 4.7:
-                run_phase4_7(config, logger, device)
-            elif args.phase == 4.8:
-                run_phase4_8(config, logger, device)
-            elif args.phase == 4.10:
-                run_phase4_10(config, logger, device)
-            elif args.phase == 4.12:
-                run_phase4_12(config, logger, device)
-            elif args.phase == 4.14:
-                run_phase4_14(config, logger, device)
-            elif args.phase == 4.16:
-                run_phase4_16(config, logger, device)
-            elif args.phase == 5.3:
-                run_phase5_3(config, logger, device)
-            elif args.phase == 5.6:
-                run_phase5_6(config, logger, device)
-            elif args.phase == 5.9:
-                run_phase5_9(config, logger, device)
-            elif args.phase == 6.3:
-                run_phase6_3(config, logger, device)
-            elif args.phase == 7.3:
-                run_phase7_3(config, logger, device)
-            elif args.phase == 7.6:
-                run_phase7_6(config, logger, device)
-            elif args.phase == 7.9:
-                run_phase7_9(config, logger, device)
-            elif args.phase == 7.12:
-                run_phase7_12(config, logger, device)
-            elif args.phase == 8.1:
-                run_phase8_1(config, logger, device)
-            elif args.phase == 8.2:
-                run_phase8_2(config, logger, device)
-            elif args.phase == 8.3:
-                run_phase8_3(config, logger, device)
+            # Run selected phase
+            # Special phases that need custom handling (kept for backward compatibility)
+            special_phase_runners = {
+                "0": lambda: run_phase0(config, logger, device, dry_run=getattr(config, '_dry_run', False)),
+                "0.1": lambda: run_phase0_1(config, logger, device),
+                "1": lambda: run_phase1(config, logger, device),
+                "3": lambda: run_phase3(config, logger, device),
+                "3.8": lambda: run_phase3_8(config, logger, device),
+                "3.12": lambda: run_phase3_12(config, logger, device),
+                "4.7": lambda: run_phase4_7(config, logger, device),
+                "4.16": lambda: run_phase4_16(config, logger, device),
+                "7.9": lambda: run_phase7_9(config, logger, device),
+                "7.12": lambda: run_phase7_12(config, logger, device),
+            }
+
+            if args.phase in special_phase_runners:
+                # Use dedicated runner for phases with special requirements
+                special_phase_runners[args.phase]()
+            elif can_use_generic_runner(args.phase):
+                # Use generic runner for standard phases
+                generic_run_phase(args.phase, config, device)
+            else:
+                # Fallback to dedicated functions (shouldn't reach here)
+                logger.error(f"Phase {args.phase} has no runner defined")
+                sys.exit(1)
 
             print(f"✅ Phase {args.phase} completed successfully!")
             
