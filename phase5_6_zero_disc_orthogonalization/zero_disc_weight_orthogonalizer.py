@@ -15,12 +15,11 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import torch
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 from common.prompt_utils import PromptBuilder
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists,
@@ -319,9 +318,8 @@ class ZeroDiscWeightOrthogonalizer:
         incorrect_list = list(self.incorrect_baseline.iterrows())
         total_tasks = len(incorrect_list)
         
-        for enum_idx, (idx, row) in enumerate(tqdm(incorrect_list[start_idx:], 
-                                                   initial=start_idx,
-                                                   total=total_tasks,
+        for enum_idx, (idx, row) in enumerate(tqdm_with_logging(incorrect_list[start_idx:],
+                                                   logger, total=total_tasks,
                                                    desc="Evaluating incorrect baseline"),
                                               start=start_idx):
             # Define generation function for retry
@@ -398,9 +396,8 @@ class ZeroDiscWeightOrthogonalizer:
         correct_list = list(self.correct_baseline.iterrows())
         total_tasks = len(correct_list)
         
-        for enum_idx, (idx, row) in enumerate(tqdm(correct_list[start_idx:],
-                                                   initial=start_idx,
-                                                   total=total_tasks,
+        for enum_idx, (idx, row) in enumerate(tqdm_with_logging(correct_list[start_idx:],
+                                                   logger, total=total_tasks,
                                                    desc="Evaluating correct baseline"),
                                               start=start_idx):
             # Define generation function for retry

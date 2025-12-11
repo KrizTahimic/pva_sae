@@ -12,11 +12,10 @@ from typing import Dict, List, Tuple, Optional
 import torch
 import numpy as np
 from scipy import stats
-from tqdm import tqdm
 from datetime import datetime
 
 from common.config import Config
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
 
 # Module-level logger
@@ -418,7 +417,7 @@ class TStatisticSelector:
         pile_frequencies = {}
         
         # Analyze each layer
-        for layer_idx in tqdm(self.config.activation_layers, desc="Analyzing layers"):
+        for layer_idx in tqdm_with_logging(self.config.activation_layers, logger, desc="Analyzing layers"):
             try:
                 layer_results = self.analyze_layer(layer_idx)
                 all_results[layer_idx] = layer_results

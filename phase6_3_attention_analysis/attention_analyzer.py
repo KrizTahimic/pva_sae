@@ -15,9 +15,8 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
-from tqdm import tqdm
 
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists,
@@ -171,7 +170,7 @@ class AttentionAnalyzer:
         validation_df = pd.read_parquet(validation_path)
         
         # Load attention for each task
-        for task_id in tqdm(validation_df['task_id'], desc="Loading attention data"):
+        for task_id in tqdm_with_logging(validation_df['task_id'], logger, desc="Loading attention data"):
             task_data = {}
             
             # Load baseline attention from Phase 3.5

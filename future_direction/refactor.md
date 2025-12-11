@@ -126,7 +126,11 @@ Quick wins that make the codebase easier to work with.
     - [x] `phase4_5_model_steering/` → `phase4_5_coefficient_grid_search/`
     - [x] `phase4_6_binary_refinement/` → `phase4_6_golden_section_refinement/`
     - [x] All folders now have descriptive names
-- [ ] Improve logging by a lot. Right now it's almost useless as you don't know where it is going and it's mixed up and sometimes it's working, sometimes not.
+- [x] Improve logging by a lot. Right now it's almost useless as you don't know where it is going and it's mixed up and sometimes it's working, sometimes not.
+    - Created `tqdm_with_logging()` wrapper in `common/logging.py` for milestone logging (25%, 50%, 75%, 100%)
+    - Converted 96 print() statements → logger.info() across 7 files
+    - Converted all phase tqdm usages (17 files) to use tqdm_with_logging
+    - Terminal shows live tqdm bar as usual, log files get milestone updates
 - [x] Delete unused data files:
     - [x] `data/phase2_5/layer_*_features.json` (25 files × 5.2MB = 130MB) - never used
     - [x] `data/phase2_5/sae_analysis_results.json` - legacy, possibly incorrect
@@ -163,6 +167,9 @@ Do these in order - each step depends on the previous.
 ---
 
 ## Step 4: Code Quality (Depends on Step 3)
+
+- [ ] Examine this kind of code: `Fixed bfloat16→float32 conversion: .cpu().float().numpy() instead of .cpu().numpy()` What should I do? 
+- [ ] How to get steering coefficent? Autodiscovery or config? WHat is better for the script?
 
 Polish the code after the structure is stable.
 

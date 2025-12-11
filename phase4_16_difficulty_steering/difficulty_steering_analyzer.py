@@ -576,7 +576,7 @@ def main():
         preservation_chi2
     )
 
-    print("\n" + summary_text)
+    logger.info("\n" + summary_text)
 
     with open(output_dir / 'difficulty_steering_summary.txt', 'w') as f:
         f.write(summary_text)

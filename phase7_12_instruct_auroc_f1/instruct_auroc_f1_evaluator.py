@@ -454,10 +454,10 @@ def main():
         phase0_1_dir, phase7_3_dir, config.dataset_name
     )
 
-    print(f"\nCorrect-preferring feature (instruction-tuned model):")
-    print(f"Total samples: {len(y_true_correct)}")
-    print(f"Positive class (correct code): {sum(y_true_correct == 1)}")
-    print(f"Negative class (incorrect code): {sum(y_true_correct == 0)}")
+    logger.info(f"\nCorrect-preferring feature (instruction-tuned model):")
+    logger.info(f"Total samples: {len(y_true_correct)}")
+    logger.info(f"Positive class (correct code): {sum(y_true_correct == 1)}")
+    logger.info(f"Negative class (incorrect code): {sum(y_true_correct == 0)}")
 
     # Find optimal threshold for instruction-tuned model
     # Note: We use the same validation data for threshold optimization since Phase 7.3 only has validation
@@ -479,10 +479,10 @@ def main():
         phase0_1_dir, phase7_3_dir, config.dataset_name
     )
 
-    print(f"\nIncorrect-preferring feature (instruction-tuned model):")
-    print(f"Total samples: {len(y_true_incorrect)}")
-    print(f"Positive class (incorrect code): {sum(y_true_incorrect == 1)}")
-    print(f"Negative class (correct code): {sum(y_true_incorrect == 0)}")
+    logger.info(f"\nIncorrect-preferring feature (instruction-tuned model):")
+    logger.info(f"Total samples: {len(y_true_incorrect)}")
+    logger.info(f"Positive class (incorrect code): {sum(y_true_incorrect == 1)}")
+    logger.info(f"Negative class (correct code): {sum(y_true_incorrect == 0)}")
 
     # Find optimal threshold for instruction-tuned model
     optimal_threshold_incorrect, metrics_incorrect = find_optimal_threshold(
@@ -560,7 +560,7 @@ def main():
     ]
 
     summary_text = "\n".join(summary_lines)
-    print(summary_text)
+    logger.info(summary_text)
 
     # Save summary to file
     with open(output_dir / 'evaluation_summary.txt', 'w') as f:

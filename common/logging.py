@@ -59,25 +59,22 @@ class LoggingManager:
         if self._initialized:
             return
             
-        # Setup file handler with rotation
-        if self.log_to_file:
+        # Setup file handler with rotation (only for phase-specific logging)
+        # Skip file creation for phase=None to avoid empty log files
+        if self.log_to_file and self.phase is not None:
             os.makedirs(self.log_dir, exist_ok=True)
             # Generate timestamp once for consistent file naming
             if self.timestamp is None:
                 from common.utils import get_readable_timestamp
                 self.timestamp = get_readable_timestamp()
-            
+
             # Construct phase-based filename
-            if self.phase:
-                phase_str = f"phase{self.phase.replace('.', '_')}"
-                if self.gpu_id is not None:
-                    filename = f"{phase_str}_gpu{self.gpu_id}_{self.timestamp}.log"
-                else:
-                    filename = f"{phase_str}_{self.timestamp}.log"
+            phase_str = f"phase{self.phase.replace('.', '_')}"
+            if self.gpu_id is not None:
+                filename = f"{phase_str}_gpu{self.gpu_id}_{self.timestamp}.log"
             else:
-                # Fallback for non-phase specific logging
-                filename = f"pva_sae_{self.timestamp}.log"
-            
+                filename = f"{phase_str}_{self.timestamp}.log"
+
             self.log_file = os.path.join(self.log_dir, filename)
             
             # Use RotatingFileHandler for automatic rotation
@@ -333,3 +330,104 @@ def get_logger(module_name: str, phase: Optional[str] = None, gpu_id: Optional[i
     
     # Get logger from the manager
     return manager.setup_logging(module_name)
+
+
+def tqdm_with_logging(
+    iterable,
+    logger: logging.Logger,
+    desc: str = "Processing",
+    total: int = None,
+    milestones: list[int] = None,
+    **tqdm_kwargs
+):
+    """
+    Wrap tqdm with milestone logging to capture progress in log files.
+
+    Terminal shows live tqdm bar as usual.
+    Log file gets milestone updates at 25%, 50%, 75%, 100% (or custom).
+
+    Args:
+        iterable: The iterable to wrap
+        logger: Logger instance for milestone logging
+        desc: Description for the progress bar
+        total: Total number of items (auto-detected if possible)
+        milestones: List of percentages to log (default: [25, 50, 75, 100])
+        **tqdm_kwargs: Additional arguments passed to tqdm
+
+    Yields:
+        Items from the iterable
+
+    Example:
+        for item in tqdm_with_logging(items, logger, desc="Processing"):
+            process(item)
+    """
+    from tqdm import tqdm
+    import time
+
+    if milestones is None:
+        milestones = [25, 50, 75, 100]
+
+    # Determine total
+    if total is None:
+        try:
+            total = len(iterable)
+        except TypeError:
+            total = None
+
+    # Track which milestones we've logged
+    logged_milestones = set()
+    start_time = time.time()
+
+    # Log start
+    if total:
+        logger.info(f"Starting: {desc} ({total} items)...")
+    else:
+        logger.info(f"Starting: {desc}...")
+
+    # Create tqdm iterator
+    pbar = tqdm(iterable, desc=desc, total=total, **tqdm_kwargs)
+
+    for i, item in enumerate(pbar):
+        yield item
+
+        # Check milestones after yielding (so we count completed items)
+        if total and total > 0:
+            progress_pct = ((i + 1) / total) * 100
+
+            for milestone in milestones:
+                if milestone not in logged_milestones and progress_pct >= milestone:
+                    elapsed = time.time() - start_time
+
+                    if milestone < 100:
+                        # Estimate remaining time
+                        items_done = i + 1
+                        items_remaining = total - items_done
+                        time_per_item = elapsed / items_done if items_done > 0 else 0
+                        eta_seconds = time_per_item * items_remaining
+                        eta_str = _format_duration(eta_seconds)
+                        logger.info(f"Progress: {milestone}% ({items_done}/{total}) - ETA: {eta_str}")
+                    else:
+                        # 100% milestone - log completion
+                        duration_str = _format_duration(elapsed)
+                        logger.info(f"Completed: {desc} - {total}/{total} in {duration_str}")
+
+                    logged_milestones.add(milestone)
+
+    # If we never hit 100% milestone (e.g., total was wrong), log completion anyway
+    if 100 not in logged_milestones:
+        elapsed = time.time() - start_time
+        duration_str = _format_duration(elapsed)
+        count = i + 1 if 'i' in dir() else 0
+        logger.info(f"Completed: {desc} - {count} items in {duration_str}")
+
+
+def _format_duration(seconds: float) -> str:
+    """Format duration in human-readable form."""
+    if seconds < 60:
+        return f"{seconds:.0f}s"
+    elif seconds < 3600:
+        minutes = seconds / 60
+        return f"{minutes:.1f}m"
+    else:
+        hours = seconds / 3600
+        return f"{hours:.1f}h"

@@ -32,11 +32,10 @@ from datetime import datetime
 import torch
 import pandas as pd
 import numpy as np
-from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from common.config import Config
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.utils import (
     detect_device,
     ensure_directory_exists,
@@ -521,10 +520,9 @@ class SelectiveSteeringAnalyzer:
         # Process with tqdm progress bar
         problems_list = list(problems_df.iterrows())
 
-        for enum_idx, (_, row) in enumerate(tqdm(problems_list[start_idx:],
-                                             desc=f"{experiment_type.capitalize()} experiment",
-                                             total=total_problems,
-                                             initial=start_idx),
+        for enum_idx, (_, row) in enumerate(tqdm_with_logging(problems_list[start_idx:],
+                                             logger, desc=f"{experiment_type.capitalize()} experiment",
+                                             total=total_problems),
                                         start=start_idx):
             task_id = row['task_id']
 

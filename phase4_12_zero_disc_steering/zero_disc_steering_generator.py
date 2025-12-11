@@ -15,10 +15,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import torch
-from tqdm import tqdm
-
 from common.prompt_utils import PromptBuilder
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists,
@@ -239,9 +237,8 @@ class ZeroDiscSteeringGenerator:
         else:
             logger.info(f"Applying {steering_type} steering to {total_problems} problems...")
         
-        for idx, (_, row) in enumerate(tqdm(problems.iterrows(), total=len(problems), 
-                                           desc=f"{steering_type} steering", 
-                                           initial=start_index),
+        for idx, (_, row) in enumerate(tqdm_with_logging(problems.iterrows(), logger, total=len(problems),
+                                           desc=f"{steering_type} steering"),
                                        start=start_index):
             # Create steering hook
             hook_fn = create_steering_hook(decoder_direction, coefficient)

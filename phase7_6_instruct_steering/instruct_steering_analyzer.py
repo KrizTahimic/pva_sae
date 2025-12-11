@@ -16,13 +16,12 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import torch
-from tqdm import tqdm
 from scipy.stats import binomtest
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 from common.prompt_utils import PromptBuilder
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists,
@@ -313,9 +312,8 @@ class InstructSteeringAnalyzer:
         problems_list = list(problems_df.iterrows())
         total_tasks = len(problems_list)
         
-        for enum_idx, (_, row) in enumerate(tqdm(problems_list[start_idx:], 
-                                                   initial=start_idx,
-                                                   total=total_tasks,
+        for enum_idx, (_, row) in enumerate(tqdm_with_logging(problems_list[start_idx:],
+                                                   logger, total=total_tasks,
                                                    desc=f"{steering_type.capitalize()} steering (instruct)"),
                                               start=start_idx):
             

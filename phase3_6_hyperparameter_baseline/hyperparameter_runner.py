@@ -15,7 +15,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import torch
-from tqdm import tqdm
 import psutil  # For memory monitoring
 
 from common_simplified.model_loader import load_model_and_tokenizer
@@ -23,7 +22,7 @@ from common_simplified.activation_hooks import ActivationExtractor
 from common_simplified.helpers import evaluate_code, extract_code, save_json, format_time, load_json
 from common.prompt_utils import PromptBuilder
 from common.config import Config
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
@@ -211,7 +210,8 @@ class HyperparameterDataRunner:
             )
             
             # Save as simple numpy array (matching Phase 3.5 format)
-            np.savez_compressed(save_path, layer_activations.clone().cpu().numpy())
+            # Convert to float32 first since numpy doesn't support bfloat16
+            np.savez_compressed(save_path, layer_activations.clone().cpu().float().numpy())
     
     def _setup_output_directories(self) -> Path:
         """Create output directory structure and return output path."""
@@ -385,10 +385,8 @@ class HyperparameterDataRunner:
         # Calculate total attempted BEFORE the loop (needed for logging)
         total_attempted = len(hyperparams_data) + len(processed_task_ids)
         
-        # Progress bar
-        pbar = tqdm(total=len(hyperparams_data), desc="Hyperparameter data generation")
-        
-        for idx, row in hyperparams_data.iterrows():
+        # Progress bar with milestone logging
+        for idx, row in tqdm_with_logging(hyperparams_data.iterrows(), logger, total=len(hyperparams_data), desc="Hyperparameter data generation"):
             # Log which task we're about to process (helps identify hanging tasks)
             task_number = len(all_results) + len(results) + 1  # Current position in overall processing
             logger.info(f"Starting task {task_number}/{total_attempted}: {row['task_id']}")
@@ -415,8 +413,7 @@ class HyperparameterDataRunner:
                 logger.debug(f"Excluding task {row['task_id']} from hyperparameter dataset")
             
             tasks_since_checkpoint += 1
-            pbar.update(1)
-            
+
             # Save checkpoint periodically
             if tasks_since_checkpoint >= self.checkpoint_frequency and results:
                 checkpoint_counter += 1
@@ -437,9 +434,7 @@ class HyperparameterDataRunner:
                     torch.mps.empty_cache()
                 
                 logger.info(f"Memory after checkpoint: {psutil.virtual_memory().percent:.1f}%")
-        
-        pbar.close()
-        
+
         # Save final checkpoint if there are remaining results
         if results:
             checkpoint_counter += 1

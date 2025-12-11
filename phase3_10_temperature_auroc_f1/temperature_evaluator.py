@@ -12,13 +12,12 @@ from typing import Dict, List, Tuple, Optional, Any
 import numpy as np
 import pandas as pd
 import torch
-from tqdm import tqdm
 from sklearn.metrics import roc_auc_score, f1_score, roc_curve, precision_recall_curve
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 from common.config import Config
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device, discover_latest_phase_output, format_duration
 from common_simplified.helpers import save_json, load_json
 from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
@@ -153,7 +152,7 @@ class TemperatureAUROCEvaluator:
         activation_cache = {}
         
         # Process each row as an individual sample
-        for _, row in tqdm(temp_dataset.iterrows(), total=len(temp_dataset), desc="Processing samples"):
+        for _, row in tqdm_with_logging(temp_dataset.iterrows(), logger, total=len(temp_dataset), desc="Processing samples"):
             task_id = row['task_id']
             
             # Check cache first

@@ -18,7 +18,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import torch
-from tqdm import tqdm
 import psutil  # For memory monitoring
 
 from common_simplified.model_loader import load_model_and_tokenizer
@@ -26,7 +25,7 @@ from common_simplified.activation_hooks import ActivationExtractor
 from common_simplified.helpers import evaluate_code, extract_code, save_json, format_time, load_json
 from common.prompt_utils import PromptBuilder
 from common.config import Config
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists, get_phase_dir
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
@@ -419,10 +418,8 @@ class InstructBaselineRunner:
         # Calculate total attempted BEFORE the loop (needed for logging)
         total_attempted = len(validation_data) + len(processed_task_ids)
         
-        # Progress bar
-        pbar = tqdm(total=len(validation_data), desc="Instruction-tuned baseline generation")
-        
-        for idx, row in validation_data.iterrows():
+        # Progress bar with milestone logging
+        for idx, row in tqdm_with_logging(validation_data.iterrows(), logger, total=len(validation_data), desc="Instruction-tuned baseline generation"):
             # Log which task we're about to process (helps identify hanging tasks)
             task_number = len(all_results) + len(results) + 1  # Current position in overall processing
             logger.info(f"Starting task {task_number}/{total_attempted}: {row['task_id']}")
@@ -449,8 +446,7 @@ class InstructBaselineRunner:
                 logger.debug(f"Excluding task {row['task_id']} from validation dataset")
             
             tasks_since_checkpoint += 1
-            pbar.update(1)
-            
+
             # Save checkpoint periodically
             if tasks_since_checkpoint >= self.checkpoint_frequency and results:
                 checkpoint_counter += 1
@@ -471,9 +467,7 @@ class InstructBaselineRunner:
                     torch.mps.empty_cache()
                 
                 logger.info(f"Memory after checkpoint: {psutil.virtual_memory().percent:.1f}%")
-        
-        pbar.close()
-        
+
         # Save final checkpoint if there are remaining results
         if results:
             checkpoint_counter += 1

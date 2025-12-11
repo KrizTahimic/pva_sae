@@ -10,12 +10,11 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, List, Tuple
 from datetime import datetime
-from tqdm import tqdm
 import gc
 import psutil
 import torch
 
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists
@@ -205,7 +204,7 @@ class ZeroDiscriminationSelector:
         all_candidates = []
         
         # Process each layer
-        for layer in tqdm(self.layers, desc="Processing layers"):
+        for layer in tqdm_with_logging(self.layers, logger, desc="Processing layers"):
             self.check_memory_usage()
             
             # Calculate frequencies for this layer

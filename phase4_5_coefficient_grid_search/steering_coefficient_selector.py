@@ -14,11 +14,10 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import torch
-from tqdm import tqdm
 import psutil  # For memory monitoring
 
 from common.prompt_utils import PromptBuilder
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.utils import (
     discover_latest_phase_output, 
     ensure_directory_exists,
@@ -290,7 +289,7 @@ class SteeringCoefficientSelector:
         
         iterator = problems_df.iterrows()
         if show_progress:
-            iterator = tqdm(iterator, total=len(problems_df), 
+            iterator = tqdm_with_logging(iterator, logger, total=len(problems_df),
                           desc=f"Coefficient {coefficient}")
         
         for task_idx, row in iterator:

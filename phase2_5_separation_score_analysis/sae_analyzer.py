@@ -11,12 +11,11 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import torch
 import numpy as np
-from tqdm import tqdm
 from datetime import datetime
 from huggingface_hub import hf_hub_download
 
 from common.config import Config, GEMMA_2B_SPARSITY
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 
 # Module-level logger
 logger = get_logger("sae_analyzer", phase="2.5")
@@ -415,7 +414,7 @@ class SimplifiedSAEAnalyzer:
         pile_frequencies = {}
         
         # Analyze each layer
-        for layer_idx in tqdm(self.config.activation_layers, desc="Analyzing layers"):
+        for layer_idx in tqdm_with_logging(self.config.activation_layers, logger, desc="Analyzing layers"):
             try:
                 layer_results = self.analyze_layer(layer_idx)
                 all_results[layer_idx] = layer_results

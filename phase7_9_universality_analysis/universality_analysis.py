@@ -15,6 +15,9 @@ from typing import Dict, Any, Tuple
 
 from common.config import Config
 from common.utils import get_phase_dir
+from common.logging import get_logger
+
+logger = get_logger("phase7_9.universality_analysis")
 
 # Set style for publication-quality figures
 plt.style.use('seaborn-v0_8-darkgrid')
@@ -34,7 +37,7 @@ class UniversalityAnalyzer:
         else:
             self.output_dir = base_output_dir
         self.output_dir.mkdir(exist_ok=True, parents=True)
-        print(f"Output directory: {self.output_dir}")
+        logger.info(f"Output directory: {self.output_dir}")
 
         # Build dataset-aware phase directories
         dataset_suffix = f"_{config.dataset_name}" if config.dataset_name != "mbpp" else ""
@@ -53,7 +56,7 @@ class UniversalityAnalyzer:
         
     def load_data(self):
         """Load all relevant phase data."""
-        print("Loading data from all relevant phases...")
+        logger.info("Loading data from all relevant phases...")
 
         # Phase 3.5: Base model baseline at temp 0
         self.base_temp0 = pd.read_parquet(self.phase3_5_dir / "dataset_temp_0_0.parquet")
@@ -74,7 +77,7 @@ class UniversalityAnalyzer:
             with open(preserve_only_file, 'r') as f:
                 preserve_data = json.load(f)
             self.base_steering["results"]["preservation_rate"] = preserve_data["results"]["preservation_rate"]
-            print(f"Using preservation rate from phase4_8_preserve_only: {preserve_data['results']['preservation_rate']:.2f}%")
+            logger.info(f"Using preservation rate from phase4_8_preserve_only: {preserve_data['results']['preservation_rate']:.2f}%")
 
         # Phase 4.14: Statistical significance tests for base model
         phase4_14_file = self.phase4_14_dir / "triangulation_analysis.json"
@@ -107,9 +110,9 @@ class UniversalityAnalyzer:
                     "significant": tri_results["preservation"]["comparisons"]["baseline_vs_targeted"]["significant"]
                 }
             }
-            print(f"Loaded statistical tests from Phase 4.14")
+            logger.info(f"Loaded statistical tests from Phase 4.14")
         else:
-            print(f"Warning: Phase 4.14 data not found at {phase4_14_file}, statistical_tests will be empty")
+            logger.info(f"Warning: Phase 4.14 data not found at {phase4_14_file}, statistical_tests will be empty")
             self.base_steering["results"]["statistical_tests"] = {}
 
         # Phase 7.6: Instruction-tuned steering results
@@ -119,7 +122,7 @@ class UniversalityAnalyzer:
         with open(self.phase7_6_dir / "cross_model_comparison.json", 'r') as f:
             self.cross_model = json.load(f)
 
-        print("Data loaded successfully!")
+        logger.info("Data loaded successfully!")
         
     def calculate_metrics(self) -> Dict[str, Any]:
         """Calculate comprehensive comparison metrics."""
@@ -339,7 +342,7 @@ class UniversalityAnalyzer:
         # Save figure
         output_path = self.output_dir / "universality_comparison.png"
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        print(f"Visualization saved to {output_path}")
+        logger.info(f"Visualization saved to {output_path}")
         
         return fig
     
@@ -398,7 +401,7 @@ class UniversalityAnalyzer:
         with open(output_path, 'w') as f:
             f.write(latex_text)
         
-        print(f"LaTeX tables saved to {output_path}")
+        logger.info(f"LaTeX tables saved to {output_path}")
         return latex_text
     
     def generate_markdown_report(self, metrics: Dict[str, Any]):
@@ -515,44 +518,44 @@ class UniversalityAnalyzer:
         with open(output_path, 'w') as f:
             f.write(report_text)
         
-        print(f"Markdown report saved to {output_path}")
+        logger.info(f"Markdown report saved to {output_path}")
         return report_text
     
     def run(self):
         """Run complete universality analysis."""
-        print("="*60)
-        print("PVA Feature Universality Analysis")
-        print("="*60)
+        logger.info("="*60)
+        logger.info("PVA Feature Universality Analysis")
+        logger.info("="*60)
         
         # Load data
         self.load_data()
         
         # Calculate metrics
-        print("\nCalculating comprehensive metrics...")
+        logger.info("\nCalculating comprehensive metrics...")
         metrics = self.calculate_metrics()
         
         # Save metrics
         metrics_path = self.output_dir / "detailed_metrics.json"
         with open(metrics_path, 'w') as f:
             json.dump(metrics, f, indent=2)
-        print(f"Metrics saved to {metrics_path}")
+        logger.info(f"Metrics saved to {metrics_path}")
         
         # Generate visualization
-        print("\nGenerating comprehensive visualization...")
+        logger.info("\nGenerating comprehensive visualization...")
         self.create_comprehensive_visualization(metrics)
         
         # Generate LaTeX tables
-        print("\nGenerating LaTeX tables...")
+        logger.info("\nGenerating LaTeX tables...")
         self.generate_latex_tables(metrics)
         
         # Generate markdown report
-        print("\nGenerating markdown report...")
+        logger.info("\nGenerating markdown report...")
         self.generate_markdown_report(metrics)
         
-        print("\n" + "="*60)
-        print("Analysis Complete!")
-        print(f"All outputs saved to: {self.output_dir}")
-        print("="*60)
+        logger.info("\n" + "="*60)
+        logger.info("Analysis Complete!")
+        logger.info(f"All outputs saved to: {self.output_dir}")
+        logger.info("="*60)
 
 
 if __name__ == "__main__":

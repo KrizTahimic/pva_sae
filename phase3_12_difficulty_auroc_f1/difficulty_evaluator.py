@@ -705,8 +705,8 @@ def main():
     ])
     
     summary_text = "\n".join(summary_lines)
-    print(summary_text)
-    
+    logger.info(summary_text)
+
     # Save summary to file
     with open(output_dir / 'difficulty_summary.txt', 'w') as f:
         f.write(summary_text)

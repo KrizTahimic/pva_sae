@@ -14,7 +14,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import torch
-from tqdm import tqdm
 import psutil  # For memory monitoring
 
 from common_simplified.model_loader import load_model_and_tokenizer
@@ -26,7 +25,7 @@ from common_simplified.activation_hooks import (
 from common_simplified.helpers import evaluate_code, extract_code, save_json, load_json
 from common.prompt_utils import PromptBuilder
 from common.config import Config
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device, discover_latest_phase_output
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
@@ -470,19 +469,9 @@ class TemperatureRobustnessRunner:
         
         checkpoint_counter = len(list(output_dir.glob("checkpoint_*.parquet")))
         tasks_since_checkpoint = 0
-        
-        # Calculate total expected samples for remaining tasks
-        total_expected = 0
-        for temp in self.config.temperature_variation_temps:
-            if temp == 0.0:
-                total_expected += len(validation_data)  # Only 1 sample for temp 0
-            else:
-                total_expected += len(validation_data) * self.config.temperature_samples_per_temp
-        
-        # Progress bar
-        pbar = tqdm(total=total_expected, desc="Temperature robustness testing")
-        
-        for idx, row in validation_data.iterrows():
+
+        # Progress bar with milestone logging (tracks tasks, not individual samples)
+        for idx, row in tqdm_with_logging(validation_data.iterrows(), logger, total=len(validation_data), desc="Temperature robustness testing"):
             # Build prompt once
             test_cases_str = "\n".join([
                 test.strip() if test.strip().startswith('assert ') else f"assert {test.strip()}"
@@ -549,9 +538,7 @@ class TemperatureRobustnessRunner:
                     # Temperature 0 failed - exclude entire task
                     task_failed = True
                     logger.warning(f"Temperature 0 generation failed for task {row['task_id']}, excluding entire task")
-                
-                pbar.update(1)
-            
+
             # Process other temperatures (without activations, multiple generations)
             if not task_failed:
                 for temperature in self.config.temperature_variation_temps:
@@ -575,22 +562,13 @@ class TemperatureRobustnessRunner:
                             results.append(result)  # Add to current batch, not all_results
                         # Note: individual temperature/sample failures don't exclude the entire task
                         # We only exclude if temperature 0 fails (needed for activations)
-                        
-                        pbar.update(1)
             else:
                 # Task failed at temperature 0 - skip all other temperatures and record exclusion
                 excluded_tasks.append({
                     'task_id': row['task_id'],
                     'error': error_msg if 'error_msg' in locals() else 'Temperature 0 generation failed'
                 })
-                
-                # Still need to update progress bar for skipped samples
-                skip_count = sum(
-                    self.config.temperature_samples_per_temp if temp != 0.0 else 0
-                    for temp in self.config.temperature_variation_temps
-                )
-                pbar.update(skip_count)
-            
+
             # Increment task counter
             tasks_since_checkpoint += 1
             
@@ -621,9 +599,7 @@ class TemperatureRobustnessRunner:
                     torch.mps.empty_cache()
                 
                 logger.info(f"Memory after checkpoint: {psutil.virtual_memory().percent:.1f}%")
-        
-        pbar.close()
-        
+
         # Save final checkpoint if there are remaining results
         if results:
             checkpoint_counter += 1

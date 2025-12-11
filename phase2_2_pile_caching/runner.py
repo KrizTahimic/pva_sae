@@ -10,11 +10,10 @@ import numpy as np
 from pathlib import Path
 from typing import List, Tuple, Optional
 import random
-from tqdm import tqdm
 from datasets import load_dataset
 
 from common.config import Config
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.utils import get_phase_output_dir
 from common_simplified.model_loader import load_model_and_tokenizer
 from .pile_activation_hook import PileActivationHook
@@ -79,9 +78,7 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
     skipped_count = 0
     
     # Progress bar for current GPU's work
-    pbar = tqdm(range(start_idx, end_idx), desc="Processing pile samples")
-    
-    for idx in pbar:
+    for idx in tqdm_with_logging(range(start_idx, end_idx), logger, desc="Processing pile samples"):
         text = texts[idx]
         random_word = substrings[idx]
         

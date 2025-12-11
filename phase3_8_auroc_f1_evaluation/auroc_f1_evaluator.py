@@ -519,10 +519,10 @@ def main():
         phase3_5_dir, phase3_6_dir
     )
     
-    print(f"\nCorrect-predicting feature (hyperparameter split):")
-    print(f"Total samples: {len(y_true_hp_correct)}")
-    print(f"Positive class (correct code): {sum(y_true_hp_correct == 1)}")
-    print(f"Negative class (incorrect code): {sum(y_true_hp_correct == 0)}")
+    logger.info(f"Correct-predicting feature (hyperparameter split):")
+    logger.info(f"  Total samples: {len(y_true_hp_correct)}")
+    logger.info(f"  Positive class (correct code): {sum(y_true_hp_correct == 1)}")
+    logger.info(f"  Negative class (incorrect code): {sum(y_true_hp_correct == 0)}")
     
     # Find optimal threshold
     optimal_threshold_correct, hp_metrics_correct = find_optimal_threshold(
@@ -538,8 +538,8 @@ def main():
         phase3_5_dir, phase3_6_dir
     )
     
-    print(f"\nCorrect-predicting feature (validation split):")
-    print(f"Total samples: {len(y_true_val_correct)}")
+    logger.info(f"Correct-predicting feature (validation split):")
+    logger.info(f"  Total samples: {len(y_true_val_correct)}")
     
     # Evaluate on validation set
     val_metrics_correct = calculate_metrics(
@@ -561,10 +561,10 @@ def main():
         phase3_5_dir, phase3_6_dir
     )
     
-    print(f"\nIncorrect-predicting feature (hyperparameter split):")
-    print(f"Total samples: {len(y_true_hp_incorrect)}")
-    print(f"Positive class (incorrect code): {sum(y_true_hp_incorrect == 1)}")
-    print(f"Negative class (correct code): {sum(y_true_hp_incorrect == 0)}")
+    logger.info(f"Incorrect-predicting feature (hyperparameter split):")
+    logger.info(f"  Total samples: {len(y_true_hp_incorrect)}")
+    logger.info(f"  Positive class (incorrect code): {sum(y_true_hp_incorrect == 1)}")
+    logger.info(f"  Negative class (correct code): {sum(y_true_hp_incorrect == 0)}")
     
     # Find optimal threshold
     optimal_threshold_incorrect, hp_metrics_incorrect = find_optimal_threshold(
@@ -580,8 +580,8 @@ def main():
         phase3_5_dir, phase3_6_dir
     )
     
-    print(f"\nIncorrect-predicting feature (validation split):")
-    print(f"Total samples: {len(y_true_val_incorrect)}")
+    logger.info(f"Incorrect-predicting feature (validation split):")
+    logger.info(f"  Total samples: {len(y_true_val_incorrect)}")
     
     # Evaluate on validation set
     val_metrics_incorrect = calculate_metrics(
@@ -686,8 +686,8 @@ def main():
     ]
     
     summary_text = "\n".join(summary_lines)
-    print(summary_text)
-    
+    logger.info(summary_text)
+
     # Save summary to file
     with open(output_dir / 'evaluation_summary.txt', 'w') as f:
         f.write(summary_text)

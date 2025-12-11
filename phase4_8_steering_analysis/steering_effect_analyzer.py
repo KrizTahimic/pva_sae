@@ -16,12 +16,11 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import torch
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 from common.prompt_utils import PromptBuilder
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.utils import (
     discover_latest_phase_output, 
     ensure_directory_exists,
@@ -489,8 +488,8 @@ class SteeringEffectAnalyzer:
             logger.info(f"Returning {len(steered_df)} completed results from checkpoint")
             return steered_df
 
-        for enum_idx, (_, row) in enumerate(tqdm(problems_to_process.iterrows(),
-                                                   total=total_remaining,
+        for enum_idx, (_, row) in enumerate(tqdm_with_logging(problems_to_process.iterrows(),
+                                                   logger, total=total_remaining,
                                                    desc=f"{steering_type.capitalize()} steering")):
             
             # Setup hook for this specific task

@@ -10,7 +10,7 @@ import psutil  # For memory monitoring
 
 # Use absolute imports since we'll add to path in run.py
 from common.config import Config
-from common.logging import get_logger
+from common.logging import get_logger, tqdm_with_logging
 from common.prompt_utils import PromptBuilder
 from common.utils import detect_device, get_phase_output_dir
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
@@ -347,22 +347,20 @@ class Phase1Runner:
             df = df[~df['task_id'].isin(processed_task_ids)]
             logger.info(f"Remaining tasks to process: {len(df)}")
         
-        # Process tasks with progress bar
-        from tqdm import tqdm
-        
+        # Process tasks with progress bar (uses tqdm_with_logging for milestone tracking)
         # Initialize with checkpoint data
         results = []  # Current batch results
         excluded_tasks = []  # Current batch exclusions
         all_results = checkpoint_results  # All results including checkpoints
         all_excluded = checkpoint_excluded  # All exclusions including checkpoints
-        
+
         checkpoint_counter = len(list(output_dir.glob("checkpoint_*.parquet")))
         tasks_since_checkpoint = 0
-        
+
         # Calculate total attempted BEFORE the loop (needed for logging)
         total_attempted = len(df) + len(processed_task_ids)
-        
-        for idx, task in tqdm(df.iterrows(), total=len(df), desc="Processing tasks"):
+
+        for idx, task in tqdm_with_logging(df.iterrows(), logger, total=len(df), desc="Processing tasks"):
             # Log which task we're about to process (helps identify hanging tasks)
             task_number = len(all_results) + len(results) + 1  # Current position in overall processing
             logger.info(f"Starting task {task_number}/{total_attempted}: {task['task_id']}")
