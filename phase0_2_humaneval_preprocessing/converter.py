@@ -16,6 +16,46 @@ from common.logging import get_logger
 logger = get_logger("phase0_2.converter")
 
 
+def extract_description_from_prompt(prompt: str) -> str:
+    """
+    Extract the problem description from HumanEval's docstring.
+
+    HumanEval format:
+        def function_name(args) -> type:
+            '''Problem description here
+            >>> example1
+            >>> example2
+            '''
+
+    Returns:
+        The problem description text (without examples or function signature).
+        This matches MBPP format where 'text' is just a natural language description.
+    """
+    # Find docstring between triple quotes
+    docstring_match = re.search(r'"""(.*?)"""', prompt, re.DOTALL)
+    if not docstring_match:
+        docstring_match = re.search(r"'''(.*?)'''", prompt, re.DOTALL)
+
+    if not docstring_match:
+        # Fallback: use the whole prompt
+        return prompt.strip()
+
+    docstring = docstring_match.group(1).strip()
+
+    # Remove examples (lines starting with >>> or ...)
+    lines = docstring.split('\n')
+    description_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('>>>') or stripped.startswith('...'):
+            break  # Stop at first example
+        description_lines.append(stripped)
+
+    description = '\n'.join(description_lines).strip()
+
+    return description if description else "Write a function that solves the problem."
+
+
 def parse_humaneval_test(test_code: str, entry_point: str) -> List[str]:
     """
     Parse HumanEval test function and extract assertions.
@@ -97,10 +137,13 @@ def convert_humaneval_to_mbpp(output_dir: str = "data/phase0_2_humaneval") -> pd
                     'error': 'No assertions found in test code'
                 })
 
+            # Extract description from docstring (MBPP-style: just natural language)
+            description = extract_description_from_prompt(problem['prompt'])
+
             # Create record matching MBPP schema
             record = {
                 'task_id': idx,  # Sequential 0-163
-                'text': problem['prompt'],
+                'text': description,  # MBPP-style: just the description, no function signature
                 'code': problem['canonical_solution'],
                 'test_list': test_list,
                 'cyclomatic_complexity': 0  # Not applicable for HumanEval
