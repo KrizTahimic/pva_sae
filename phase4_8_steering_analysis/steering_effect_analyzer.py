@@ -55,12 +55,8 @@ class SteeringEffectAnalyzer:
         self.device = detect_device()
 
         # Phase output directories with dataset suffix
-        from common.utils import get_phase_dir
-        base_output_dir = Path(get_phase_dir('4.8'))
-        if config.dataset_name != "mbpp":
-            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
-        else:
-            self.output_dir = base_output_dir
+        from common.utils import get_phase_output_dir
+        self.output_dir = Path(get_phase_output_dir('4.8', config))
         ensure_directory_exists(self.output_dir)
         logger.info(f"Output directory: {self.output_dir}")
         

@@ -26,7 +26,7 @@ from common.helpers import evaluate_code, extract_code, save_json, format_time, 
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists, get_phase_dir, get_phase_output_dir, write_phase_output, get_dataset_range
+from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists, get_phase_output_dir, write_phase_output, get_dataset_range
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
 # Module-level logger
@@ -243,11 +243,7 @@ class InstructBaselineRunner:
     def _setup_output_directories(self) -> Path:
         """Create output directory structure and return output path."""
         # Output directory with dataset suffix
-        base_output_dir = Path(get_phase_dir('7.3'))
-        if self.config.dataset_name != "mbpp":
-            output_dir = Path(str(base_output_dir) + f"_{self.config.dataset_name}")
-        else:
-            output_dir = base_output_dir
+        output_dir = Path(get_phase_output_dir('7.3', self.config))
         logger.info(f"Using output directory: {output_dir}")
         
         output_dir.mkdir(parents=True, exist_ok=True)

@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Dict, Any, Tuple
 
 from common.config import Config
-from common.utils import get_phase_dir, write_phase_output
+from common.utils import get_phase_output_dir, write_phase_output
 from common.logging import get_logger
 from common.viz_utils import handle_viz_only_mode
 
@@ -32,11 +32,7 @@ class UniversalityAnalyzer:
         self.data_dir = Path("data")
 
         # Output directory with dataset suffix
-        base_output_dir = Path(get_phase_dir('7.9'))
-        if config.dataset_name != "mbpp":
-            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
-        else:
-            self.output_dir = base_output_dir
+        self.output_dir = Path(get_phase_output_dir('7.9', config))
         self.output_dir.mkdir(exist_ok=True, parents=True)
         logger.info(f"Output directory: {self.output_dir}")
 

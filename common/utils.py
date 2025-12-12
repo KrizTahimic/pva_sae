@@ -349,8 +349,8 @@ def get_phase_output_dir(phase: str, config) -> str:
 
     # Add dataset suffix if not default MBPP
     dataset_name = getattr(config, 'dataset_name', 'mbpp')
-    if dataset_name.lower() == 'humaneval':
-        suffixes.append('humaneval')
+    if dataset_name.lower() != 'mbpp':
+        suffixes.append(dataset_name.lower())
 
     # Return base directory with suffixes
     if suffixes:

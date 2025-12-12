@@ -69,12 +69,8 @@ def run_evaluation(config):
     logger.info(f"Using Phase 3.6 output: {phase3_6_dir}")
 
     # Setup output directory (with dataset suffix if needed)
-    from common.utils import get_phase_dir
-    base_output_dir = Path(get_phase_dir('3.8'))
-    if config.dataset_name != "mbpp":
-        output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
-    else:
-        output_dir = base_output_dir
+    from common.utils import get_phase_output_dir
+    output_dir = Path(get_phase_output_dir('3.8', config))
     ensure_directory_exists(output_dir)
     logger.info(f"Output directory: {output_dir}")
 

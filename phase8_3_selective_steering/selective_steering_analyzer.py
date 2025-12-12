@@ -41,7 +41,7 @@ from common.utils import (
     ensure_directory_exists,
     discover_latest_phase_output,
     get_timestamp,
-    get_phase_dir,
+    get_phase_output_dir,
     write_phase_output,
     get_dataset_range
 )
@@ -95,11 +95,7 @@ class SelectiveSteeringAnalyzer:
         self.device = torch.device(detect_device())
 
         # Create output directory with dataset suffix
-        base_output_dir = Path(get_phase_dir('8.3'))
-        if config.dataset_name != "mbpp":
-            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
-        else:
-            self.output_dir = base_output_dir
+        self.output_dir = Path(get_phase_output_dir('8.3', config))
         ensure_directory_exists(self.output_dir)
 
         # Create checkpoint directory

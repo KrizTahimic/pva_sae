@@ -66,6 +66,32 @@ from .prompt_utils import (
     PromptBuilder
 )
 
+# Dataset utilities
+from .dataset_utils import (
+    split_by_correctness,
+    discover_task_ids,
+    discover_layer_indices
+)
+
+# Initialization utilities
+from .initialization import (
+    setup_deterministic_generation
+)
+
+# Statistics utilities
+from .statistics_utils import (
+    binomial_significance_test,
+    calculate_effect_size,
+    format_significance_result
+)
+
+# Metrics utilities
+from .metrics_utils import (
+    calculate_classification_metrics,
+    load_and_encode_activation,
+    load_raw_activation
+)
+
 __all__ = [
     # Utils
     'detect_device',
@@ -114,5 +140,23 @@ __all__ = [
     'create_orthogonalized_model',
 
     # Prompt utilities
-    'PromptBuilder'
+    'PromptBuilder',
+
+    # Dataset utilities
+    'split_by_correctness',
+    'discover_task_ids',
+    'discover_layer_indices',
+
+    # Initialization utilities
+    'setup_deterministic_generation',
+
+    # Statistics utilities
+    'binomial_significance_test',
+    'calculate_effect_size',
+    'format_significance_result',
+
+    # Metrics utilities
+    'calculate_classification_metrics',
+    'load_and_encode_activation',
+    'load_raw_activation'
 ]

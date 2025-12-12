@@ -27,7 +27,7 @@ from common.utils import (
     discover_latest_phase_output,
     ensure_directory_exists,
     detect_device,
-    get_phase_dir,
+    get_phase_output_dir,
     get_dataset_range
 )
 from common.config import Config
@@ -55,11 +55,7 @@ class WeightOrthogonalizer:
         self.device = detect_device()
         
         # Phase output directories with dataset suffix
-        base_output_dir = Path(get_phase_dir('5.3'))
-        if config.dataset_name != "mbpp":
-            self.output_dir = Path(str(base_output_dir) + f"_{config.dataset_name}")
-        else:
-            self.output_dir = base_output_dir
+        self.output_dir = Path(get_phase_output_dir('5.3', config))
         ensure_directory_exists(self.output_dir)
         logger.info(f"Output directory: {self.output_dir}")
         

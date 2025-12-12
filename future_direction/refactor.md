@@ -171,9 +171,9 @@ Fix the plumbing before building on top.
 Do these in order - each step depends on the previous.
 
 - [x] Merge common and common_simplified → **Done!** All 4 modules moved to common/, 30+ imports updated
-- [ ] Add other common/reused functions in common
-    - [ ] Not only the things I already use that is just located in other phase files but also notice the other repeated functions throughout most of the phases. Or is this even a good decision because sometimes it may constrain us. Flexibility is also a trait we want in some instances.
-- [ ] Have better categorization for common
+- [x] Add other common/reused functions in common
+    - [x] Not only the things I already use that is just located in other phase files but also notice the other repeated functions throughout most of the phases. Or is this even a good decision because sometimes it may constrain us. Flexibility is also a trait we want in some instances.
+- [ ] Have better categorization for common or file separation or groupings of the functions.
 - [ ] Make/create a checkpointing function as a wrapper something so I don't need to reimplement it every phase? Is this possible? What is the design?
 - [ ] **Model-agnostic abstractions** (supports LLAMA + HumanEval)
     - [x] `common/sae_loader.py` handles both GemmaScope (JumpReLU) and LlamaScope (TopK) ✓
@@ -338,13 +338,20 @@ residual = input[0]
 
 ### 4.3 Variable Naming Consistency
 
-rename the latents, directions, features etc. Use one name. Find other variables that have called different names.
+- [ ] rename the latents, directions, features etc. Use one name. Find other variables that have called different names.
+
 
 #### Single-Letter Variables (outside comprehensions)
 - [ ] **golden_section_refiner.py:772-773** - `a = bounds['lower']` → `lower_bound = bounds['lower']`
 - [ ] **temperature_trends_visualizer.py:109** - `x = np.arange(...)` → `temperature_indices = np.arange(...)`
 
 #### Inconsistent Terminology
+
+**NOTE (from Step 3 refactor):** Result dict naming convention was considered but deferred here.
+Two options exist - consult user before deciding:
+- Option A (current): Keep `*_passed` suffix (`test_passed`, `baseline_passed`, `steered_passed`, `orthogonalized_passed`)
+- Option B: Use `*_correct` suffix (`initial_correct`, `final_correct`) with semantic focus on outcome not method
+
 - [ ] Standardize: `test_passed` vs `baseline_passed` vs `steered_passed` vs `orthogonalized_passed`
   - Document the naming convention in CLAUDE.md or a style guide
   - `test_passed` = original test result
