@@ -53,7 +53,24 @@ from .utils import (
     load_json,
     save_activations,
     load_activations,
-    create_activation_filename
+    create_activation_filename,
+    cleanup_old_files,
+    cleanup_all_files
+)
+
+# Checkpoint management
+from .checkpoint_manager import (
+    CheckpointManager,
+    CheckpointData
+)
+
+# Memory monitoring utilities
+from .memory_utils import (
+    get_memory_percent,
+    check_memory_usage,
+    cleanup_memory,
+    cleanup_memory_aggressive,
+    log_memory_status
 )
 
 from .weight_orthogonalization import (
@@ -150,6 +167,19 @@ __all__ = [
     'save_activations',
     'load_activations',
     'create_activation_filename',
+    'cleanup_old_files',
+    'cleanup_all_files',
+
+    # Checkpoint management
+    'CheckpointManager',
+    'CheckpointData',
+
+    # Memory monitoring
+    'get_memory_percent',
+    'check_memory_usage',
+    'cleanup_memory',
+    'cleanup_memory_aggressive',
+    'log_memory_status',
 
     # Weight orthogonalization
     'orthogonalize_gemma_weights',

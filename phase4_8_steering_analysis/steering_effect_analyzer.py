@@ -9,7 +9,6 @@ Validates that SAE features capture program validity awareness.
 import json
 import time
 import gc
-import psutil
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import pandas as pd
@@ -43,6 +42,8 @@ from common.activation_hooks import (
     save_raw_attention_with_boundaries
 )
 from common.sae_loader import load_sae_for_config
+from common.checkpoint_manager import CheckpointManager
+from common.memory_utils import check_memory_usage, cleanup_memory
 
 logger = get_logger("phase4_8.steering_effect_analyzer")
 
@@ -80,13 +81,11 @@ class SteeringEffectAnalyzer:
         
         # Note: AttentionExtractor will be created dynamically in _apply_steering
         # to avoid hook conflicts between steering and attention capture
-        
-        # Checkpoint tracking
+
+        # Checkpoint managers for each steering type (created on-demand)
         self.checkpoint_dir = self.output_dir / "checkpoints"
-        ensure_directory_exists(self.checkpoint_dir)
-        self.checkpoint_counter = 0
-        self.autosave_counter = 0
-        
+        self._checkpoint_managers: dict[str, CheckpointManager] = {}
+
         logger.info("SteeringEffectAnalyzer initialized successfully")
         
     def _load_dependencies(self) -> None:
@@ -176,122 +175,23 @@ class SteeringEffectAnalyzer:
         logger.info(f"Decoder directions converted to model dtype: {model_dtype}")
         logger.info("Dependencies loaded successfully")
         
-    def save_checkpoint(self, steering_type: str, results: List[Dict],
-                       excluded_tasks: List[Dict]) -> None:
-        """Save checkpoint for current steering experiment.
+    def _get_checkpoint_manager(self, steering_type: str) -> CheckpointManager:
+        """Get or create checkpoint manager for a steering type."""
+        if steering_type not in self._checkpoint_managers:
+            self._checkpoint_managers[steering_type] = CheckpointManager(
+                checkpoint_dir=self.checkpoint_dir,
+                experiment_name=steering_type,
+                frequency=50,
+                keep_last=3,
+                memory_threshold=95.0
+            )
+        return self._checkpoint_managers[steering_type]
 
-        Uses task ID tracking (v2) instead of index tracking (v1) for robustness
-        against dataset size changes and --start/--end argument variations.
-        """
-        # Extract task IDs from results and excluded tasks
-        processed_task_ids = [r['task_id'] for r in results]
-        excluded_task_ids = [t['task_id'] for t in excluded_tasks]
-
-        checkpoint_data = {
-            'steering_type': steering_type,
-            'results': results,
-            'excluded_tasks': excluded_tasks,
-            'processed_task_ids': processed_task_ids,  # NEW: Track task IDs
-            'excluded_task_ids': excluded_task_ids,    # NEW: Track excluded IDs
-            'n_processed': len(processed_task_ids),    # For logging
-            'timestamp': datetime.now().isoformat(),
-            'checkpoint_version': 2  # UPDATED: Version 2 uses task ID tracking
-        }
-
-        # Create checkpoint filename with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        checkpoint_file = self.checkpoint_dir / f"checkpoint_{steering_type}_{timestamp}.json"
-
-        # Save checkpoint
-        save_json(checkpoint_data, checkpoint_file)
-        logger.info(f"Saved {steering_type} checkpoint: {len(processed_task_ids)} processed, "
-                   f"{len(excluded_task_ids)} excluded")
-
-        # Clean up old checkpoints (keep only last 3)
-        self.cleanup_old_checkpoints(steering_type)
-    
-    def load_checkpoint(self, steering_type: str, dataset_size: int) -> Optional[Dict]:
-        """Load most recent checkpoint for steering type if available.
-
-        Args:
-            steering_type: Type of steering experiment (correction, corruption, preservation)
-            dataset_size: Current dataset size for validation
-
-        Returns:
-            Checkpoint data with task IDs, or None if no valid checkpoint found
-        """
-        checkpoint_pattern = f"checkpoint_{steering_type}_*.json"
-        checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
-
-        if not checkpoint_files:
-            return None
-
-        # Load most recent checkpoint
-        latest_checkpoint = checkpoint_files[-1]
-        logger.info(f"Loading checkpoint from {latest_checkpoint}")
-
-        try:
-            checkpoint_data = load_json(latest_checkpoint)
-            checkpoint_version = checkpoint_data.get('checkpoint_version')
-
-            # Only v2 checkpoints are supported (task ID-based tracking)
-            if checkpoint_version != 2:
-                logger.error("=" * 80)
-                logger.error(f"UNSUPPORTED CHECKPOINT VERSION: {checkpoint_version}")
-                logger.error("=" * 80)
-                logger.error("Only v2 checkpoints (task ID-based) are supported.")
-                logger.error("Delete old checkpoints and restart:")
-                logger.error(f"  rm -rf {self.checkpoint_dir}/checkpoint_{steering_type}_*.json")
-                logger.error("=" * 80)
-                raise ValueError(f"Unsupported checkpoint version: {checkpoint_version}. Delete old checkpoints and restart.")
-
-            processed_task_ids = checkpoint_data.get('processed_task_ids', [])
-            excluded_task_ids = checkpoint_data.get('excluded_task_ids', [])
-
-            logger.info(f"Resuming {steering_type} steering: {len(processed_task_ids)} tasks already processed, "
-                       f"{len(excluded_task_ids)} excluded")
-            return checkpoint_data
-
-        except Exception as e:
-            logger.error(f"Failed to load checkpoint: {e}")
-            raise
-    
-    def cleanup_old_checkpoints(self, steering_type: str, keep_last: int = 3) -> None:
-        """Remove old checkpoint files, keeping only the most recent ones."""
-        checkpoint_pattern = f"checkpoint_{steering_type}_*.json"
-        checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
-        
-        if len(checkpoint_files) > keep_last:
-            for old_checkpoint in checkpoint_files[:-keep_last]:
-                old_checkpoint.unlink()
-                logger.debug(f"Removed old checkpoint: {old_checkpoint}")
-    
-    def cleanup_all_checkpoints(self) -> None:
+    def _cleanup_all_checkpoints(self) -> None:
         """Remove all checkpoint files after successful completion."""
-        checkpoint_files = list(self.checkpoint_dir.glob("checkpoint_*.json"))
-        for checkpoint_file in checkpoint_files:
-            checkpoint_file.unlink()
-            logger.debug(f"Removed checkpoint: {checkpoint_file}")
-        
-        if checkpoint_files:
-            logger.info(f"Cleaned up {len(checkpoint_files)} checkpoint files")
-    
-    def check_memory_usage(self) -> None:
-        """Check current memory usage and log warnings if high."""
-        memory = psutil.virtual_memory()
-        memory_percent = memory.percent
-        memory_gb = memory.used / (1024**3)
-        
-        if memory_percent > 90:
-            logger.critical(f"CRITICAL: Memory usage at {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
-            # Force garbage collection
-            gc.collect()
-            if self.device.type == "cuda":
-                torch.cuda.empty_cache()
-        elif memory_percent > 80:
-            logger.warning(f"High memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
-        else:
-            logger.debug(f"Memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
+        for steering_type in ['correct', 'incorrect', 'preservation']:
+            manager = self._get_checkpoint_manager(steering_type)
+            manager.cleanup_all()
     
     def _split_baseline_by_correctness(self) -> None:
         """Split baseline data into initially correct and incorrect subsets."""
@@ -393,18 +293,24 @@ class SteeringEffectAnalyzer:
         # Store original problems_df for final merge (before any filtering)
         original_problems_df = problems_df.copy()
 
+        # Get checkpoint manager for this steering type
+        checkpoint_mgr = self._get_checkpoint_manager(steering_type)
+
         # Check for existing checkpoint
-        checkpoint_data = self.load_checkpoint(steering_type, dataset_size=len(problems_df))
-        if checkpoint_data:
-            results = checkpoint_data['results']
-            excluded_tasks = checkpoint_data['excluded_tasks']
-            processed_task_ids = set(checkpoint_data['processed_task_ids'])
-            excluded_task_ids = set(checkpoint_data.get('excluded_task_ids', []))
+        checkpoint = checkpoint_mgr.load()
+        if checkpoint:
+            # Reconstruct results and excluded_tasks from checkpoint
+            # Note: CheckpointManager stores results in checkpoint data
+            results = checkpoint.results
+            excluded_tasks = [{'task_id': tid, 'error': 'previous_exclusion'}
+                             for tid in checkpoint.excluded_task_ids]
+            processed_task_ids = checkpoint.processed_task_ids
+            excluded_task_ids = checkpoint.excluded_task_ids
 
             # Filter out already processed and excluded tasks
             problems_to_process = problems_df[
-                ~problems_df['task_id'].isin(processed_task_ids) &
-                ~problems_df['task_id'].isin(excluded_task_ids)
+                ~problems_df['task_id'].astype(str).isin(processed_task_ids) &
+                ~problems_df['task_id'].astype(str).isin(excluded_task_ids)
             ].copy()
 
             logger.info(f"Resuming from checkpoint: {len(processed_task_ids)} already processed, "
@@ -412,6 +318,8 @@ class SteeringEffectAnalyzer:
         else:
             results = []
             excluded_tasks = []
+            processed_task_ids = set()
+            excluded_task_ids = set()
             problems_to_process = problems_df.copy()
 
         # Process remaining tasks (no index tracking needed)
@@ -535,14 +443,16 @@ class SteeringEffectAnalyzer:
                         'steering_type': steering_type,
                         'coefficient': coefficient
                     }
-                    
+
                     results.append(result)
+                    processed_task_ids.add(str(row['task_id']))
                 else:
                     # Task failed after all retries - exclude from dataset
                     excluded_tasks.append({
                         'task_id': row['task_id'],
                         'error': error_msg
                     })
+                    excluded_task_ids.add(str(row['task_id']))
                     logger.warning(f"Excluding task {row['task_id']} from {steering_type} steering results")
                 
             finally:
@@ -559,13 +469,12 @@ class SteeringEffectAnalyzer:
             
             # Memory monitoring every 10 tasks
             if (enum_idx + 1) % 10 == 0:
-                self.check_memory_usage()
+                memory_percent = check_memory_usage()
                 gc.collect()
-            
-            # Autosave every 50 tasks
-            if (enum_idx + 1) % 50 == 0:
-                logger.info(f"Autosaving at task {enum_idx + 1}/{total_remaining}")
-                self.save_checkpoint(steering_type, results, excluded_tasks)
+
+            # Autosave using CheckpointManager (handles frequency and memory-aware saving)
+            if checkpoint_mgr.should_save(len(results), check_memory_usage()):
+                checkpoint_mgr.save(results, processed_task_ids, excluded_task_ids)
 
         # Log results summary including exclusions
         n_flipped = sum(r['flipped'] for r in results)
@@ -683,7 +592,7 @@ class SteeringEffectAnalyzer:
             logger.info(f"Saved {len(preservation_data)} preservation steering results to all_preservation_results.json")
         
         # Clean up checkpoints after successful completion
-        self.cleanup_all_checkpoints()
+        self._cleanup_all_checkpoints()
         
         # Calculate exclusion summary (only for experiments that were actually run)
         correction_excluded = 0 if experiment_mode not in ['all', 'correction'] else n_initially_incorrect - len(correction_results)
@@ -833,14 +742,7 @@ class SteeringEffectAnalyzer:
         plt.close()
 
         logger.info(f"Saved visualization to {output_file}")
-        
-    def save_all_results(self, correction_results: pd.DataFrame, 
-                        corruption_results: pd.DataFrame) -> None:
-        """Save all steering results for debugging."""
-        # NOTE: Results are now saved immediately in evaluate_steering_effects()
-        # This method is kept for compatibility but no longer needed
-        pass
-    
+
     def save_examples(self, correction_results: pd.DataFrame, 
                      corruption_results: pd.DataFrame,
                      preservation_results: pd.DataFrame) -> None:
@@ -1023,9 +925,6 @@ class SteeringEffectAnalyzer:
 
         # Create visualizations
         self.create_visualizations(metrics)
-
-        # Save ALL steering results for debugging
-        self.save_all_results(correction_results, corruption_results)
 
         # Save example generations
         self.save_examples(correction_results, corruption_results, preservation_results)

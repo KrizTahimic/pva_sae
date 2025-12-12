@@ -56,7 +56,7 @@ def save_json(data: Any, path: Path) -> None:
 
 
 def load_steering_results(config: Config) -> Dict[str, List[Dict]]:
-    """Load steering results from Phase 4.8 with fallback for preservation.
+    """Load steering results from Phase 4.8.
 
     Returns:
         Dictionary with keys 'correction', 'corruption', 'preservation'
@@ -64,7 +64,6 @@ def load_steering_results(config: Config) -> Dict[str, List[Dict]]:
     phase4_8_dir = Path(get_phase_output_dir("4.8", config))
     if not phase4_8_dir.exists():
         raise FileNotFoundError(f"Phase 4.8 output not found at {phase4_8_dir}. Run Phase 4.8 first.")
-    phase4_8_preserve_dir = Path("data/phase4_8_preserve_only")
 
     results = {}
 
@@ -84,26 +83,10 @@ def load_steering_results(config: Config) -> Dict[str, List[Dict]]:
     else:
         raise FileNotFoundError(f"Corruption results not found: {corruption_path}")
 
-    # Load preservation results with fallback
+    # Load preservation results
     preservation_path = phase4_8_dir / "all_preservation_results.json"
-    preservation_fallback_path = phase4_8_preserve_dir / "all_preservation_results.json"
-
     if preservation_path.exists():
-        preservation_data = load_json(preservation_path)
-
-        # Check if steered_passed has NaN values (represented as None in JSON)
-        has_nan = any(
-            r.get('steered_passed') is None or
-            (isinstance(r.get('steered_passed'), float) and np.isnan(r.get('steered_passed')))
-            for r in preservation_data
-        )
-
-        if has_nan and preservation_fallback_path.exists():
-            logger.info(f"Primary preservation has NaN values, using fallback: {preservation_fallback_path}")
-            results['preservation'] = load_json(preservation_fallback_path)
-        else:
-            results['preservation'] = preservation_data
-
+        results['preservation'] = load_json(preservation_path)
         logger.info(f"Loaded {len(results['preservation'])} preservation results")
     else:
         raise FileNotFoundError(f"Preservation results not found: {preservation_path}")

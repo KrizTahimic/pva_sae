@@ -332,6 +332,67 @@ def create_activation_filename(task_id: int, layer: int) -> str:
     return f"{task_id}_layer_{layer}.npz"
 
 
+# ============================================================================
+# File Cleanup Utilities
+# ============================================================================
+
+def cleanup_old_files(directory: Path, pattern: str, keep_last: int = 3) -> int:
+    """Delete old files matching pattern, keeping last N files.
+
+    Files are sorted by modification time, and oldest files are deleted first.
+
+    Args:
+        directory: Directory to search in
+        pattern: Glob pattern for files (e.g., "checkpoint_*.json")
+        keep_last: Number of most recent files to keep
+
+    Returns:
+        Number of files deleted
+
+    Example:
+        # Keep only the 3 most recent checkpoint files
+        deleted = cleanup_old_files(output_dir, "checkpoint_*.json", keep_last=3)
+    """
+    directory = Path(directory)
+    if not directory.exists():
+        return 0
+
+    files = sorted(directory.glob(pattern), key=lambda f: f.stat().st_mtime)
+
+    if len(files) <= keep_last:
+        return 0
+
+    deleted = 0
+    for old_file in files[:-keep_last]:
+        old_file.unlink()
+        deleted += 1
+
+    return deleted
+
+
+def cleanup_all_files(directory: Path, pattern: str) -> int:
+    """Delete all files matching pattern.
+
+    Args:
+        directory: Directory to search in
+        pattern: Glob pattern for files (e.g., "checkpoint_*.json")
+
+    Returns:
+        Number of files deleted
+
+    Example:
+        # Remove all checkpoint files after successful completion
+        deleted = cleanup_all_files(output_dir, "checkpoint_*.json")
+    """
+    directory = Path(directory)
+    if not directory.exists():
+        return 0
+
+    files = list(directory.glob(pattern))
+    for f in files:
+        f.unlink()
+
+    return len(files)
 
 
 # ============================================================================

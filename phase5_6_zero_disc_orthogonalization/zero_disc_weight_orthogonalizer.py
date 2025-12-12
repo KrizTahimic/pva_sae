@@ -8,7 +8,6 @@ from Phase 4.10 to validate that Phase 5.3 effects are specific to PVA features.
 import json
 import time
 import gc
-import psutil
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import pandas as pd
@@ -40,6 +39,8 @@ from common.utils import load_json, save_json
 from common.dataset_utils import evaluate_code, extract_code
 from common.weight_orthogonalization import orthogonalize_gemma_weights
 from common.sae_loader import load_sae_for_config
+from common.checkpoint_manager import CheckpointManager
+from common.memory_utils import check_memory_usage
 
 logger = get_logger("phase5_6.zero_disc_weight_orthogonalizer")
 
@@ -65,11 +66,11 @@ class ZeroDiscWeightOrthogonalizer:
         
         # Split baseline data by correctness
         self._split_baseline_by_correctness()
-        
-        # Checkpoint tracking
+
+        # Checkpoint managers for each experiment (created on-demand)
         self.checkpoint_dir = self.output_dir / "checkpoints"
-        ensure_directory_exists(self.checkpoint_dir)
-        
+        self._checkpoint_managers: dict[str, CheckpointManager] = {}
+
         logger.info("ZeroDiscWeightOrthogonalizer initialized successfully")
         
     def _load_dependencies(self) -> None:
@@ -83,10 +84,7 @@ class ZeroDiscWeightOrthogonalizer:
         # Load zero-discrimination features
         features_file = Path(phase4_10_output).parent / "zero_discrimination_features.json"
         if not features_file.exists():
-            # Try legacy filename
-            features_file = Path(phase4_10_output).parent / "random_features.json"
-            if not features_file.exists():
-                raise FileNotFoundError(f"Zero-discrimination features not found: {features_file}")
+            raise FileNotFoundError(f"Zero-discrimination features not found: {features_file}")
         
         zero_disc_data = load_json(features_file)
         self.zero_disc_features = zero_disc_data['features']
@@ -149,89 +147,24 @@ class ZeroDiscWeightOrthogonalizer:
         logger.info(f"Baseline split: {len(self.correct_baseline)} correct, "
                    f"{len(self.incorrect_baseline)} incorrect")
     
-    def save_checkpoint(self, experiment_name: str, baseline_type: str,
-                       results: List[Dict], last_idx: int, 
-                       total_tasks: int) -> None:
-        """Save checkpoint for current experiment."""
-        checkpoint_data = {
-            'experiment_name': experiment_name,
-            'baseline_type': baseline_type,
-            'results': results,
-            'last_processed_idx': last_idx,
-            'total_tasks': total_tasks,
-            'timestamp': datetime.now().isoformat()
-        }
-        
-        # Create checkpoint filename with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        checkpoint_file = self.checkpoint_dir / f"checkpoint_{experiment_name}_{baseline_type}_{timestamp}.json"
-        
-        # Save checkpoint
-        save_json(checkpoint_data, checkpoint_file)
-        logger.info(f"Saved {experiment_name}/{baseline_type} checkpoint at index {last_idx}/{total_tasks-1}")
-        
-        # Clean up old checkpoints
-        self.cleanup_old_checkpoints(experiment_name, baseline_type)
-    
-    def load_checkpoint(self, experiment_name: str, baseline_type: str) -> Optional[Dict]:
-        """Load most recent checkpoint for experiment if available."""
-        checkpoint_pattern = f"checkpoint_{experiment_name}_{baseline_type}_*.json"
-        checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
-        
-        if not checkpoint_files:
-            return None
-        
-        # Load most recent checkpoint
-        latest_checkpoint = checkpoint_files[-1]
-        logger.info(f"Loading checkpoint from {latest_checkpoint}")
-        
-        try:
-            checkpoint_data = load_json(latest_checkpoint)
-            logger.info(f"Resuming {experiment_name}/{baseline_type} from index "
-                       f"{checkpoint_data['last_processed_idx']}/{checkpoint_data['total_tasks']-1}")
-            return checkpoint_data
-        except Exception as e:
-            logger.error(f"Failed to load checkpoint: {e}")
-            return None
-    
-    def cleanup_old_checkpoints(self, experiment_name: str, baseline_type: str, keep_last: int = 3) -> None:
-        """Remove old checkpoint files, keeping only the most recent ones."""
-        checkpoint_pattern = f"checkpoint_{experiment_name}_{baseline_type}_*.json"
-        checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
-        
-        if len(checkpoint_files) > keep_last:
-            for old_checkpoint in checkpoint_files[:-keep_last]:
-                old_checkpoint.unlink()
-                logger.debug(f"Removed old checkpoint: {old_checkpoint}")
-    
-    def cleanup_all_checkpoints(self) -> None:
+    def _get_checkpoint_manager(self, experiment_name: str, baseline_type: str) -> CheckpointManager:
+        """Get or create checkpoint manager for an experiment."""
+        key = f"{experiment_name}_{baseline_type}"
+        if key not in self._checkpoint_managers:
+            self._checkpoint_managers[key] = CheckpointManager(
+                checkpoint_dir=self.checkpoint_dir,
+                experiment_name=key,
+                frequency=50,
+                keep_last=3,
+                memory_threshold=95.0
+            )
+        return self._checkpoint_managers[key]
+
+    def _cleanup_all_checkpoints(self) -> None:
         """Remove all checkpoint files after successful completion."""
-        checkpoint_files = list(self.checkpoint_dir.glob("checkpoint_*.json"))
-        for checkpoint_file in checkpoint_files:
-            checkpoint_file.unlink()
-            logger.debug(f"Removed checkpoint: {checkpoint_file}")
-        
-        if checkpoint_files:
-            logger.info(f"Cleaned up {len(checkpoint_files)} checkpoint files")
-    
-    def check_memory_usage(self) -> None:
-        """Check current memory usage and log warnings if high."""
-        memory = psutil.virtual_memory()
-        memory_percent = memory.percent
-        memory_gb = memory.used / (1024**3)
-        
-        if memory_percent > 90:
-            logger.critical(f"CRITICAL: Memory usage at {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
-            # Force garbage collection
-            gc.collect()
-            if self.device.type == "cuda":
-                torch.cuda.empty_cache()
-            elif self.device.type == "mps":
-                torch.mps.empty_cache()
-        elif memory_percent > 80:
-            logger.warning(f"High memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
-        else:
-            logger.debug(f"Memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
+        for key in ['zero_disc_ortho_incorrect', 'zero_disc_ortho_correct']:
+            manager = self._get_checkpoint_manager(*key.rsplit('_', 1))
+            manager.cleanup_all()
                    
     def _generate_with_model(self, model, tokenizer, prompt: str) -> str:
         """Generate code using the model."""
@@ -292,164 +225,168 @@ class ZeroDiscWeightOrthogonalizer:
         
         # Test on incorrect baseline (expect minimal corrections)
         logger.info("\nTesting on initially incorrect problems...")
-        
-        # Check for existing checkpoint
-        checkpoint_data = self.load_checkpoint('zero_disc_ortho', 'incorrect')
-        if checkpoint_data:
-            incorrect_results = checkpoint_data['results']
-            start_idx = checkpoint_data['last_processed_idx'] + 1
+
+        # Get checkpoint manager and load existing checkpoint
+        checkpoint_mgr_incorrect = self._get_checkpoint_manager('zero_disc_ortho', 'incorrect')
+        checkpoint_incorrect = checkpoint_mgr_incorrect.load()
+        if checkpoint_incorrect:
+            incorrect_results = checkpoint_incorrect.results
+            processed_incorrect_ids = checkpoint_incorrect.processed_task_ids
         else:
             incorrect_results = []
-            start_idx = 0
-        
-        # Process tasks
-        incorrect_list = list(self.incorrect_baseline.iterrows())
-        total_tasks = len(incorrect_list)
-        
-        for enum_idx, (idx, row) in enumerate(tqdm_with_logging(incorrect_list[start_idx:],
-                                                   logger, total=total_tasks,
-                                                   desc="Evaluating incorrect baseline"),
-                                              start=start_idx):
-            # Define generation function for retry
-            def generate_and_evaluate():
-                prompt = row['prompt']
-                
-                # Generate with orthogonalized model
-                generated = self._generate_with_model(model, tokenizer, prompt)
-                code = extract_code(generated, prompt)
-                test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-                passed = evaluate_code(code, test_cases)
-                
-                return {
-                    'task_id': row['task_id'],
-                    'baseline_passed': False,
-                    'orthogonalized_passed': passed,
-                    'baseline_code': row['generated_code'],
-                    'orthogonalized_code': code
-                }
-            
-            # Attempt generation with retry and timeout
-            success, result, error_msg = retry_with_timeout(
-                generate_and_evaluate,
-                row['task_id'],
-                self.config,
-                operation_name="zero_disc_ortho generation"
-            )
-            
-            if success:
-                incorrect_results.append(result)
-            else:
-                logger.warning(f"Skipping task {row['task_id']} due to error: {error_msg}")
-                # Append a failed result to maintain consistency
-                incorrect_results.append({
-                    'task_id': row['task_id'],
-                    'baseline_passed': False,
-                    'orthogonalized_passed': False,
-                    'baseline_code': row['generated_code'],
-                    'orthogonalized_code': '',
-                    'error': error_msg
-                })
-            
-            # Memory monitoring every 10 tasks
-            if (enum_idx + 1) % 10 == 0:
-                self.check_memory_usage()
-                gc.collect()
-                if self.device.type == "cuda":
-                    torch.cuda.empty_cache()
-                elif self.device.type == "mps":
-                    torch.mps.empty_cache()
-            
-            # Checkpointing every 50 tasks
-            if (enum_idx + 1) % 50 == 0:
-                self.save_checkpoint('zero_disc_ortho', 'incorrect', incorrect_results, enum_idx, total_tasks)
-            
-            # Autosave every 100 tasks
-            if (enum_idx + 1) % 100 == 0:
-                logger.info(f"Autosaving at task {enum_idx + 1}/{total_tasks}")
-                self.save_checkpoint('zero_disc_ortho', 'incorrect', incorrect_results, enum_idx, total_tasks)
+            processed_incorrect_ids = set()
+
+        # Filter to unprocessed tasks
+        incorrect_to_process = self.incorrect_baseline[
+            ~self.incorrect_baseline['task_id'].astype(str).isin(processed_incorrect_ids)
+        ]
+        total_incorrect_remaining = len(incorrect_to_process)
+
+        if total_incorrect_remaining == 0:
+            logger.info("All incorrect baseline tasks already processed from checkpoint")
+        else:
+            for enum_idx, (_, row) in enumerate(tqdm_with_logging(incorrect_to_process.iterrows(),
+                                                       logger, total=total_incorrect_remaining,
+                                                       desc="Evaluating incorrect baseline")):
+                # Define generation function for retry
+                def generate_and_evaluate():
+                    prompt = row['prompt']
+
+                    # Generate with orthogonalized model
+                    generated = self._generate_with_model(model, tokenizer, prompt)
+                    code = extract_code(generated, prompt)
+                    test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                    passed = evaluate_code(code, test_cases)
+
+                    return {
+                        'task_id': row['task_id'],
+                        'baseline_passed': False,
+                        'orthogonalized_passed': passed,
+                        'baseline_code': row['generated_code'],
+                        'orthogonalized_code': code
+                    }
+
+                # Attempt generation with retry and timeout
+                success, result, error_msg = retry_with_timeout(
+                    generate_and_evaluate,
+                    row['task_id'],
+                    self.config,
+                    operation_name="zero_disc_ortho generation"
+                )
+
+                if success:
+                    incorrect_results.append(result)
+                    processed_incorrect_ids.add(str(row['task_id']))
+                else:
+                    logger.warning(f"Skipping task {row['task_id']} due to error: {error_msg}")
+                    # Append a failed result to maintain consistency
+                    incorrect_results.append({
+                        'task_id': row['task_id'],
+                        'baseline_passed': False,
+                        'orthogonalized_passed': False,
+                        'baseline_code': row['generated_code'],
+                        'orthogonalized_code': '',
+                        'error': error_msg
+                    })
+                    processed_incorrect_ids.add(str(row['task_id']))
+
+                # Memory monitoring every 10 tasks
+                if (enum_idx + 1) % 10 == 0:
+                    check_memory_usage()
+                    gc.collect()
+                    if self.device.type == "cuda":
+                        torch.cuda.empty_cache()
+                    elif self.device.type == "mps":
+                        torch.mps.empty_cache()
+
+                # Checkpoint using CheckpointManager
+                if checkpoint_mgr_incorrect.should_save(len(incorrect_results), check_memory_usage()):
+                    checkpoint_mgr_incorrect.save(incorrect_results, processed_incorrect_ids)
         
         # Test on correct baseline (expect minimal corruptions)
         logger.info("\nTesting on initially correct problems...")
-        
-        # Check for existing checkpoint
-        checkpoint_data = self.load_checkpoint('zero_disc_ortho', 'correct')
-        if checkpoint_data:
-            correct_results = checkpoint_data['results']
-            start_idx = checkpoint_data['last_processed_idx'] + 1
+
+        # Get checkpoint manager and load existing checkpoint
+        checkpoint_mgr_correct = self._get_checkpoint_manager('zero_disc_ortho', 'correct')
+        checkpoint_correct = checkpoint_mgr_correct.load()
+        if checkpoint_correct:
+            correct_results = checkpoint_correct.results
+            processed_correct_ids = checkpoint_correct.processed_task_ids
         else:
             correct_results = []
-            start_idx = 0
-        
-        # Process tasks
-        correct_list = list(self.correct_baseline.iterrows())
-        total_tasks = len(correct_list)
-        
-        for enum_idx, (idx, row) in enumerate(tqdm_with_logging(correct_list[start_idx:],
-                                                   logger, total=total_tasks,
-                                                   desc="Evaluating correct baseline"),
-                                              start=start_idx):
-            # Define generation function for retry
-            def generate_and_evaluate():
-                prompt = row['prompt']
-                
-                # Generate with orthogonalized model
-                generated = self._generate_with_model(model, tokenizer, prompt)
-                code = extract_code(generated, prompt)
-                test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-                passed = evaluate_code(code, test_cases)
-                
-                # Calculate code similarity
-                similarity = calculate_code_similarity(row['generated_code'], code)
-                
-                return {
-                    'task_id': row['task_id'],
-                    'baseline_passed': True,
-                    'orthogonalized_passed': passed,
-                    'baseline_code': row['generated_code'],
-                    'orthogonalized_code': code,
-                    'similarity': similarity
-                }
-            
-            # Attempt generation with retry and timeout
-            success, result, error_msg = retry_with_timeout(
-                generate_and_evaluate,
-                row['task_id'],
-                self.config,
-                operation_name="zero_disc_ortho preservation"
-            )
-            
-            if success:
-                correct_results.append(result)
-            else:
-                logger.warning(f"Skipping task {row['task_id']} due to error: {error_msg}")
-                # Append a failed result
-                correct_results.append({
-                    'task_id': row['task_id'],
-                    'baseline_passed': True,
-                    'orthogonalized_passed': True,
-                    'baseline_code': row['generated_code'],
-                    'orthogonalized_code': '',
-                    'similarity': 1.0,
-                    'error': error_msg
-                })
-            
-            # Memory monitoring every 10 tasks
-            if (enum_idx + 1) % 10 == 0:
-                self.check_memory_usage()
-                gc.collect()
-                if self.device.type == "cuda":
-                    torch.cuda.empty_cache()
-                elif self.device.type == "mps":
-                    torch.mps.empty_cache()
-            
-            # Checkpointing every 50 tasks
-            if (enum_idx + 1) % 50 == 0:
-                self.save_checkpoint('zero_disc_ortho', 'correct', correct_results, enum_idx, total_tasks)
-            
-            # Autosave every 100 tasks
-            if (enum_idx + 1) % 100 == 0:
-                logger.info(f"Autosaving at task {enum_idx + 1}/{total_tasks}")
-                self.save_checkpoint('zero_disc_ortho', 'correct', correct_results, enum_idx, total_tasks)
+            processed_correct_ids = set()
+
+        # Filter to unprocessed tasks
+        correct_to_process = self.correct_baseline[
+            ~self.correct_baseline['task_id'].astype(str).isin(processed_correct_ids)
+        ]
+        total_correct_remaining = len(correct_to_process)
+
+        if total_correct_remaining == 0:
+            logger.info("All correct baseline tasks already processed from checkpoint")
+        else:
+            for enum_idx, (_, row) in enumerate(tqdm_with_logging(correct_to_process.iterrows(),
+                                                       logger, total=total_correct_remaining,
+                                                       desc="Evaluating correct baseline")):
+                # Define generation function for retry
+                def generate_and_evaluate():
+                    prompt = row['prompt']
+
+                    # Generate with orthogonalized model
+                    generated = self._generate_with_model(model, tokenizer, prompt)
+                    code = extract_code(generated, prompt)
+                    test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                    passed = evaluate_code(code, test_cases)
+
+                    # Calculate code similarity
+                    similarity = calculate_code_similarity(row['generated_code'], code)
+
+                    return {
+                        'task_id': row['task_id'],
+                        'baseline_passed': True,
+                        'orthogonalized_passed': passed,
+                        'baseline_code': row['generated_code'],
+                        'orthogonalized_code': code,
+                        'similarity': similarity
+                    }
+
+                # Attempt generation with retry and timeout
+                success, result, error_msg = retry_with_timeout(
+                    generate_and_evaluate,
+                    row['task_id'],
+                    self.config,
+                    operation_name="zero_disc_ortho preservation"
+                )
+
+                if success:
+                    correct_results.append(result)
+                    processed_correct_ids.add(str(row['task_id']))
+                else:
+                    logger.warning(f"Skipping task {row['task_id']} due to error: {error_msg}")
+                    # Append a failed result
+                    correct_results.append({
+                        'task_id': row['task_id'],
+                        'baseline_passed': True,
+                        'orthogonalized_passed': True,
+                        'baseline_code': row['generated_code'],
+                        'orthogonalized_code': '',
+                        'similarity': 1.0,
+                        'error': error_msg
+                    })
+                    processed_correct_ids.add(str(row['task_id']))
+
+                # Memory monitoring every 10 tasks
+                if (enum_idx + 1) % 10 == 0:
+                    check_memory_usage()
+                    gc.collect()
+                    if self.device.type == "cuda":
+                        torch.cuda.empty_cache()
+                    elif self.device.type == "mps":
+                        torch.mps.empty_cache()
+
+                # Checkpoint using CheckpointManager
+                if checkpoint_mgr_correct.should_save(len(correct_results), check_memory_usage()):
+                    checkpoint_mgr_correct.save(correct_results, processed_correct_ids)
         
         # Calculate metrics
         correction_rate = calculate_correction_rate(incorrect_results)
@@ -624,8 +561,8 @@ class ZeroDiscWeightOrthogonalizer:
         self.results = self.apply_zero_disc_orthogonalization()
         
         # Clean up checkpoints after successful completion
-        self.cleanup_all_checkpoints()
-        
+        self._cleanup_all_checkpoints()
+
         # Create visualizations
         self.create_visualizations()
         

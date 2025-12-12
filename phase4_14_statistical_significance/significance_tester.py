@@ -85,10 +85,7 @@ class SignificanceTester:
         
         zero_disc_file = Path(phase4_12_output).parent / "zero_disc_steering_results.json"
         if not zero_disc_file.exists():
-            # Try legacy filename
-            zero_disc_file = Path(phase4_12_output).parent / "random_steering_results.json"
-            if not zero_disc_file.exists():
-                raise FileNotFoundError(f"Zero-discrimination results not found at {zero_disc_file}")
+            raise FileNotFoundError(f"Zero-discrimination results not found at {zero_disc_file}")
         
         zero_disc_results = load_json(zero_disc_file)
         logger.info(f"Loaded zero-discrimination steering results")
