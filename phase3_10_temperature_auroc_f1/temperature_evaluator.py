@@ -20,7 +20,7 @@ from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device, discover_latest_phase_output, format_duration, get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
-from common_simplified.helpers import save_json, load_json
+from common.helpers import save_json, load_json
 from common.sae_loader import load_sae_for_config
 
 

@@ -6,7 +6,7 @@ from typing import Tuple, Optional, Union
 from common.logging import get_logger
 from common.utils import detect_device
 
-logger = get_logger("common_simplified.model_loader")
+logger = get_logger("common.model_loader")
 
 
 def load_model_and_tokenizer(

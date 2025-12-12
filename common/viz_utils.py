@@ -8,7 +8,7 @@ recomputing expensive phase data.
 from pathlib import Path
 from typing import Callable, Any
 
-from common_simplified.helpers import load_json
+from common.helpers import load_json
 from common.logging import get_logger
 
 

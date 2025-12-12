@@ -321,7 +321,7 @@ def scan_humaneval_imports() -> Dict:
     }
 ```
 
-**Evaluation Fix (`common_simplified/helpers.py`)**:
+**Evaluation Fix (`common/helpers.py`)**:
 ```python
 def evaluate_code(code: str, test_list: list[str]) -> bool:
     namespace = {}
@@ -372,7 +372,7 @@ python3 run.py phase 0.3
 - [x] Implement `scanner.py` with import detection logic
 - [x] Fix false positives (docstring text starting with "from")
 - [x] Implement `runner.py` for Phase 0.3
-- [x] Update `evaluate_code()` in `common_simplified/helpers.py`
+- [x] Update `evaluate_code()` in `common/helpers.py`
 - [x] Add Phase 0.3 handler to `run.py`
 - [x] Run Phase 0.3 to scan imports
 - [x] Verify: `required_imports.json` created with 5 imports
@@ -676,7 +676,7 @@ class MBPPDatasetLoader(DatasetLoader):
     def evaluate_code(self, code: str, problem: Dict) -> bool:
         """Evaluate by running assertions."""
         # Use existing evaluation logic
-        from common_simplified.helpers import evaluate_code
+        from common.helpers import evaluate_code
         return evaluate_code(code, problem["test_list"])
 
 

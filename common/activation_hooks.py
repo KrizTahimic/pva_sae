@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Callable, Optional, Tuple
 from common.logging import get_logger
 
-logger = get_logger("common_simplified.activation_hooks")
+logger = get_logger("common.activation_hooks")
 
 
 class ActivationExtractor:

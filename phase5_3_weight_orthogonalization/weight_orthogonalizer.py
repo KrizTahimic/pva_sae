@@ -38,9 +38,9 @@ from common.steering_metrics import (
     calculate_code_similarity
 )
 from common.retry_utils import retry_with_timeout
-from common_simplified.model_loader import load_model_and_tokenizer
-from common_simplified.helpers import evaluate_code, extract_code, load_json, save_json
-from common_simplified.weight_orthogonalization import orthogonalize_gemma_weights
+from common.model_loader import load_model_and_tokenizer
+from common.helpers import evaluate_code, extract_code, load_json, save_json
+from common.weight_orthogonalization import orthogonalize_gemma_weights
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase5_3.weight_orthogonalizer")

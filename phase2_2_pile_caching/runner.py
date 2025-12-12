@@ -15,7 +15,7 @@ from datasets import load_dataset
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import get_phase_output_dir, get_dataset_range
-from common_simplified.model_loader import load_model_and_tokenizer
+from common.model_loader import load_model_and_tokenizer
 from .pile_activation_hook import PileActivationHook
 from .utils import find_word_position, validate_pile_sample
 

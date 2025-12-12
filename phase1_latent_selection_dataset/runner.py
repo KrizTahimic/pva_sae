@@ -15,9 +15,9 @@ from common.prompt_utils import PromptBuilder
 from common.utils import detect_device, get_phase_output_dir
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common.gpu_utils import setup_cuda_environment, cleanup_gpu_memory
-from common_simplified.model_loader import load_model_and_tokenizer
-from common_simplified.activation_hooks import ActivationExtractor
-from common_simplified.helpers import (
+from common.model_loader import load_model_and_tokenizer
+from common.activation_hooks import ActivationExtractor
+from common.helpers import (
     save_activations, get_timestamp, load_mbpp_from_phase0_1,
     extract_code, evaluate_code, create_activation_filename
 )
@@ -228,7 +228,7 @@ class Phase1Runner:
         # Save exclusions if any
         if excluded_tasks:
             exclusion_file = output_dir / f"checkpoint_{checkpoint_num:04d}_exclusions.json"
-            from common_simplified.helpers import save_json
+            from common.helpers import save_json
             save_json(excluded_tasks, exclusion_file)
         
     def load_checkpoints(self, output_dir: Path) -> tuple[list, list, set]:
@@ -256,7 +256,7 @@ class Phase1Runner:
                 # Load exclusions if they exist
                 exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
                 if exclusion_file.exists():
-                    from common_simplified.helpers import load_json
+                    from common.helpers import load_json
                     exclusions = load_json(exclusion_file)
                     all_excluded.extend(exclusions)
                     processed_task_ids.update([e['task_id'] for e in exclusions])
@@ -282,7 +282,7 @@ class Phase1Runner:
         # Also check for excluded_tasks.json (from completed runs)
         exclusion_file = output_dir / "excluded_tasks.json"
         if exclusion_file.exists():
-            from common_simplified.helpers import load_json
+            from common.helpers import load_json
             exclusion_data = load_json(exclusion_file)
             if 'excluded_tasks' in exclusion_data:
                 for excl in exclusion_data['excluded_tasks']:
@@ -467,7 +467,7 @@ class Phase1Runner:
             if excluded_tasks:
                 exclusion_file = output_dir / "excluded_tasks.json"
                 exclusion_summary = create_exclusion_summary(excluded_tasks, total_attempted)
-                from common_simplified.helpers import save_json
+                from common.helpers import save_json
                 save_json(exclusion_summary, exclusion_file)
                 logger.info(f"Saved exclusion summary to {exclusion_file}")
             raise RuntimeError("Phase 1 failed: no tasks were successfully processed")
@@ -503,7 +503,7 @@ class Phase1Runner:
         # Save exclusion summary for transparency
         if all_excluded:
             exclusion_summary = create_exclusion_summary(all_excluded, total_attempted)
-            from common_simplified.helpers import save_json
+            from common.helpers import save_json
             exclusion_file = output_dir / "excluded_tasks.json"
             save_json(exclusion_summary, exclusion_file)
             logger.info(f"Saved exclusion summary to {exclusion_file}")
@@ -540,8 +540,26 @@ class Phase1Runner:
         if all_excluded:
             logger.warning(f"Excluded tasks: {[t['task_id'] for t in all_excluded]}")
         logger.info("="*60 + "\n")
-        
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="1",
+            outputs={
+                "primary": output_file.name,
+                "activations_dir": "activations/",
+            },
+            config=self.config,
+            output_dir=str(output_dir),
+            dependencies={
+                "0.1": str(phase0_1_dir),
+            },
+            config_keys=['model_name', 'dataset_name', 'model_temperature']
+        )
+        logger.info(f"Saved phase_output.json manifest to {output_dir}")
+
         # Cleanup hooks to free memory
         self.activation_extractor.remove_hooks()
-        
+
         return final_df

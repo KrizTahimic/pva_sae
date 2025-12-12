@@ -95,7 +95,7 @@ These decisions affect how you approach everything else.
     - Auto-discovery between phases
 
     **Cleanup needed (already in Step 1 & 3):**
-    - Merge `common/` and `common_simplified/`
+    - Merge `common/` and `common/`
     - Add descriptions to unnamed phase folders
 
 - [x] Why is the inspiration code so few? While mine is so long? → **Compute constraints justify the extra infrastructure**
@@ -170,7 +170,7 @@ Fix the plumbing before building on top.
 
 Do these in order - each step depends on the previous.
 
-- [ ] Merge common and common_simplified
+- [x] Merge common and common_simplified → **Done!** All 4 modules moved to common/, 30+ imports updated
 - [ ] Add other common/reused functions in common
     - [ ] Not only the things I already use that is just located in other phase files but also notice the other repeated functions throughout most of the phases. Or is this even a good decision because sometimes it may constrain us. Flexibility is also a trait we want in some instances.
 - [ ] Have better categorization for common

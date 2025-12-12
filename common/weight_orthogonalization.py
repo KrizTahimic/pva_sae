@@ -154,7 +154,7 @@ def create_orthogonalized_model(
     Returns:
         Tuple of (orthogonalized model, weight change dictionary)
     """
-    from common_simplified.model_loader import load_model_and_tokenizer
+    from common.model_loader import load_model_and_tokenizer
     
     logger.info(f"Loading fresh model: {model_name}")
     model, tokenizer = load_model_and_tokenizer(model_name, device=device)

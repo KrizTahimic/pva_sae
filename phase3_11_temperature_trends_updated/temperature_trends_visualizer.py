@@ -17,7 +17,7 @@ from common.config import Config
 from common.logging import get_logger
 from common.utils import discover_latest_phase_output, get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
-from common_simplified.helpers import load_json
+from common.helpers import load_json
 
 
 class TemperatureTrendsVisualizer:

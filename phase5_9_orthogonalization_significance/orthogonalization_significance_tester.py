@@ -23,7 +23,7 @@ from common.utils import (
     ensure_directory_exists,
     get_phase_dir
 )
-from common_simplified.helpers import load_json, save_json
+from common.helpers import load_json, save_json
 from common.config import Config
 
 logger = get_logger("phase5_9.orthogonalization_significance_tester")

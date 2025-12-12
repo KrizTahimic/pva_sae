@@ -29,8 +29,8 @@ import torch
 from tqdm import tqdm
 
 # Import common utilities (these don't need to be copied)
-from common_simplified.model_loader import load_model_and_tokenizer
-from common_simplified.activation_hooks import ActivationExtractor, AttentionExtractor, save_raw_attention_with_boundaries
+from common.model_loader import load_model_and_tokenizer
+from common.activation_hooks import ActivationExtractor, AttentionExtractor, save_raw_attention_with_boundaries
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger
@@ -39,7 +39,7 @@ from common.utils import detect_device
 logger = get_logger("test_mbpp_with_imports", phase="TEST")
 
 # ============================================================================
-# EMBEDDED HELPER FUNCTIONS (copied and modified from common_simplified/helpers.py)
+# EMBEDDED HELPER FUNCTIONS (copied and modified from common/helpers.py)
 # ============================================================================
 
 # Combined import list from two sources:

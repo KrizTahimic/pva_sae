@@ -17,9 +17,9 @@ from datetime import datetime
 import torch
 import psutil  # For memory monitoring
 
-from common_simplified.model_loader import load_model_and_tokenizer
-from common_simplified.activation_hooks import ActivationExtractor
-from common_simplified.helpers import evaluate_code, extract_code, save_json, format_time, load_json
+from common.model_loader import load_model_and_tokenizer
+from common.activation_hooks import ActivationExtractor
+from common.helpers import evaluate_code, extract_code, save_json, format_time, load_json
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging

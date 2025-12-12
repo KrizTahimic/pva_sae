@@ -184,7 +184,7 @@ from __future__ import print_function  # 1x
 ## Comparison with HumanEval
 
 ### HumanEval Import Pre-Loading
-Location: `common_simplified/helpers.py:168-176`
+Location: `common/helpers.py:168-176`
 
 ```python
 if config.dataset_name == "humaneval":
@@ -286,7 +286,7 @@ Need to check: `data/phase0_3_humaneval/required_imports.json`
 ```
 
 ### Step 2: Update Code Evaluation Helper
-**File:** `common_simplified/helpers.py` (around line 168)
+**File:** `common/helpers.py` (around line 168)
 
 **Current Code:**
 ```python
@@ -450,7 +450,7 @@ These phases might not be critically affected:
 1. `data/phase0_3_mbpp/required_imports.json` (55 import statements)
 
 ### Files to Modify
-1. `common_simplified/helpers.py` (add 10 lines around line 168)
+1. `common/helpers.py` (add 10 lines around line 168)
 
 ### No Changes Needed To
 - `common/config.py` (no new config parameters)
@@ -521,7 +521,7 @@ Unique imports: 147 (after filtering → 55 valid)
 
 ### Where Import Pre-Loading Is Currently Used
 
-**File:** `common_simplified/helpers.py:168-176`
+**File:** `common/helpers.py:168-176`
 
 ```python
 if config.dataset_name == "humaneval":

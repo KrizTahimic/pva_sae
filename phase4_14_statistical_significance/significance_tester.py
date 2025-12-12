@@ -21,7 +21,7 @@ from common.utils import (
     ensure_directory_exists,
     get_phase_dir
 )
-from common_simplified.helpers import load_json, save_json
+from common.helpers import load_json, save_json
 from common.config import Config
 from common.viz_utils import handle_viz_only_mode
 

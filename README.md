@@ -122,7 +122,7 @@ model_name: str = "google/gemma-2-2b"  # See table above
 ```
 pva_sae/
 ├── common/                         # Shared utilities and configurations
-├── common_simplified/              # Simplified modules following KISS principle
+├── common/              # Simplified modules following KISS principle
 ├── phase0_difficulty_analysis/     # MBPP complexity preprocessing
 ├── phase0_1_problem_splitting/     # Problem splitting into train/val/test
 ├── phase0_2_humaneval_preprocessing/ # HumanEval to MBPP format conversion

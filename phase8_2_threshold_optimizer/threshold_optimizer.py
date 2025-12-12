@@ -43,13 +43,13 @@ from common.utils import (
     write_phase_output,
     get_dataset_range
 )
-from common_simplified.helpers import (
+from common.helpers import (
     save_json,
     load_json,
     extract_code,
     evaluate_code
 )
-from common_simplified.model_loader import load_model_and_tokenizer
+from common.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_steering_hook
 from common.prompt_utils import PromptBuilder
 from common.sae_loader import load_sae_for_config

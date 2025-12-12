@@ -24,8 +24,8 @@ import pandas as pd
 import sys
 sys.path.insert(0, '.')
 
-from common_simplified.model_loader import load_model_and_tokenizer
-from common_simplified.helpers import evaluate_code
+from common.model_loader import load_model_and_tokenizer
+from common.helpers import evaluate_code
 from common.prompt_utils import PromptBuilder
 
 
@@ -162,7 +162,7 @@ def convert_to_mbpp_style(humaneval_sample: dict) -> dict:
 def extract_code_mbpp_style(generated_text: str, prompt: str) -> str:
     """
     Extract generated code using MBPP-style extraction.
-    Same logic as common_simplified/helpers.py extract_code()
+    Same logic as common/helpers.py extract_code()
     """
     code = None
 
@@ -217,7 +217,7 @@ def is_comment_only(code: str) -> bool:
     return True
 
 
-# Using evaluate_code from common_simplified/helpers.py which has proper pre-imports
+# Using evaluate_code from common/helpers.py which has proper pre-imports
 
 
 def main():

@@ -23,7 +23,7 @@ from sklearn.metrics import (
 from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists, discover_latest_phase_output
 from common.viz_utils import handle_viz_only_mode
-from common_simplified.helpers import save_json, load_json
+from common.helpers import save_json, load_json
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase3_8.auroc_f1_evaluator")

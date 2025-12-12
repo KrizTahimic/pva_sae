@@ -16,7 +16,7 @@ from tqdm import tqdm
 import sys
 sys.path.insert(0, '.')
 
-from common_simplified.model_loader import load_model_and_tokenizer
+from common.model_loader import load_model_and_tokenizer
 
 
 def extract_function(generated_text: str, prompt: str, entry_point: str) -> str:

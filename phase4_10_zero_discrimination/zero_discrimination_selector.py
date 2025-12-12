@@ -20,7 +20,7 @@ from common.utils import (
     ensure_directory_exists,
     get_phase_output_dir
 )
-from common_simplified.helpers import load_json, save_json
+from common.helpers import load_json, save_json
 from common.config import Config
 from common.sae_loader import load_sae_for_config
 
