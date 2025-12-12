@@ -17,16 +17,14 @@ import seaborn as sns
 from scipy import stats
 
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import (
+from common.utils import ensure_directory_exists, detect_device, load_json, save_json
+from common.phase_discovery import (
     discover_latest_phase_output,
-    ensure_directory_exists,
-    detect_device,
     get_phase_output_dir,
     write_phase_output
 )
 from common.config import Config
 from common.viz_utils import handle_viz_only_mode
-from common.utils import load_json, save_json
 
 logger = get_logger("phase6_3.attention_analyzer")
 
@@ -62,7 +60,7 @@ class AttentionAnalyzer:
     def _load_pva_features(self) -> None:
         """Load best PVA features from Phase 2.5."""
         # Discover Phase 2.5 output
-        phase2_5_output = discover_latest_phase_output("2.5")
+        phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
         if not phase2_5_output:
             raise FileNotFoundError("Phase 2.5 output not found. Please run Phase 2.5 first.")
         
@@ -85,11 +83,10 @@ class AttentionAnalyzer:
         
     def _discover_phase_directories(self) -> None:
         """Discover Phase 3.5 and Phase 4.8 output directories."""
-        # Discover Phase 3.5 (baseline attention) - with dataset suffix
-        phase3_5_dir_str = f"data/phase3_5_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_5"
-        phase3_5_output = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
+        # Discover Phase 3.5 (baseline attention)
+        phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
         if not phase3_5_output:
-            raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
+            raise FileNotFoundError("Phase 3.5 output not found. Please run Phase 3.5 first.")
         
         self.phase3_5_dir = Path(phase3_5_output).parent
         self.baseline_attention_dir = self.phase3_5_dir / "activations" / "attention_patterns"
@@ -97,11 +94,10 @@ class AttentionAnalyzer:
         if not self.baseline_attention_dir.exists():
             raise FileNotFoundError(f"Baseline attention patterns not found at {self.baseline_attention_dir}")
         
-        # Discover Phase 4.8 (steered attention) - with dataset suffix
-        phase4_8_dir_str = f"data/phase4_8_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase4_8"
-        phase4_8_output = discover_latest_phase_output("4.8", phase_dir=phase4_8_dir_str)
+        # Discover Phase 4.8 (steered attention)
+        phase4_8_output = discover_latest_phase_output("4.8", config=self.config)
         if not phase4_8_output:
-            raise FileNotFoundError(f"No Phase 4.8 output found in {phase4_8_dir_str}. Please run Phase 4.8 first.")
+            raise FileNotFoundError("Phase 4.8 output not found. Please run Phase 4.8 first.")
         
         self.phase4_8_dir = Path(phase4_8_output).parent
         self.steered_attention_dir = self.phase4_8_dir / "attention_patterns"

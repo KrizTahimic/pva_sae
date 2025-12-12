@@ -36,16 +36,13 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import (
-    detect_device,
-    ensure_directory_exists,
+from common.utils import detect_device, ensure_directory_exists, get_timestamp, save_json, load_json
+from common.phase_discovery import (
     discover_latest_phase_output,
-    get_timestamp,
     get_phase_output_dir,
     write_phase_output,
     get_dataset_range
 )
-from common.utils import save_json, load_json
 from common.dataset_utils import extract_code, evaluate_code
 from common.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_steering_hook
@@ -120,12 +117,11 @@ class SelectiveSteeringAnalyzer:
         )
         logger.info(f"Model loaded: {self.config.model_name}")
 
-        # === LOAD PHASE 3.8 THRESHOLD (with dataset suffix) ===
+        # === LOAD PHASE 3.8 THRESHOLD ===
         logger.info("Loading optimal threshold from Phase 3.8...")
-        phase3_8_dir_str = f"data/phase3_8_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_8"
-        phase3_8_output = discover_latest_phase_output("3.8", phase_dir=phase3_8_dir_str)
+        phase3_8_output = discover_latest_phase_output("3.8", config=self.config)
         if not phase3_8_output:
-            raise FileNotFoundError(f"No Phase 3.8 output found in {phase3_8_dir_str}. Please run Phase 3.8 first.")
+            raise FileNotFoundError("Phase 3.8 output not found. Please run Phase 3.8 first.")
 
         phase3_8_results = load_json(Path(phase3_8_output).parent / "evaluation_results.json")
 
@@ -143,7 +139,7 @@ class SelectiveSteeringAnalyzer:
 
         # === LOAD PHASE 2.5 TOP FEATURES (for correct-steering direction) ===
         logger.info("Loading steering features from Phase 2.5...")
-        phase2_5_output = discover_latest_phase_output("2.5")
+        phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
         if not phase2_5_output:
             raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
 
@@ -181,12 +177,11 @@ class SelectiveSteeringAnalyzer:
         self.correct_decoder_direction = self.correct_decoder_direction.to(dtype=model_dtype)
         logger.info(f"Decoder direction converted to model dtype: {model_dtype}")
 
-        # === LOAD PHASE 3.5 BASELINE (with dataset suffix) ===
+        # === LOAD PHASE 3.5 BASELINE ===
         logger.info("Loading baseline data from Phase 3.5...")
-        phase3_5_dir_str = f"data/phase3_5_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_5"
-        phase3_5_output = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
+        phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
         if not phase3_5_output:
-            raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
+            raise FileNotFoundError("Phase 3.5 output not found. Please run Phase 3.5 first.")
 
         # Load validation dataset at temperature 0.0
         baseline_file = Path(phase3_5_output).parent / "dataset_temp_0_0.parquet"

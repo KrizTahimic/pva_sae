@@ -78,7 +78,7 @@ class SteeringCoefficientSelector:
         """Load features from Phase 2.5 and baseline data from Phase 3.6."""
         # Load Phase 2.5 features
         logger.info("Loading PVA features from Phase 2.5...")
-        phase2_5_output = discover_latest_phase_output("2.5")
+        phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
         if not phase2_5_output:
             raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
         

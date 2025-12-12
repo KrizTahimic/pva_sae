@@ -37,13 +37,16 @@ from common.logging import get_logger, tqdm_with_logging
 from common.utils import (
     detect_device,
     ensure_directory_exists,
-    discover_latest_phase_output,
     get_timestamp,
+    save_json,
+    load_json
+)
+from common.phase_discovery import (
+    discover_latest_phase_output,
     get_phase_output_dir,
     write_phase_output,
     get_dataset_range
 )
-from common.utils import save_json, load_json
 from common.dataset_utils import extract_code, evaluate_code
 from common.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_steering_hook
@@ -137,7 +140,7 @@ class ThresholdOptimizer:
 
         # === LOAD PHASE 2.5 TOP FEATURES (for correct-steering direction) ===
         logger.info("Loading steering features from Phase 2.5...")
-        phase2_5_output = discover_latest_phase_output("2.5")
+        phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
         if not phase2_5_output:
             raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
 

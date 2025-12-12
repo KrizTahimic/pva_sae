@@ -24,15 +24,12 @@ import torch
 
 from common.config import Config
 from common.logging import get_logger
-from common.utils import (
-    ensure_directory_exists,
+from common.utils import ensure_directory_exists, get_timestamp, detect_device, load_json, save_json
+from common.phase_discovery import (
     discover_latest_phase_output,
-    get_timestamp,
-    detect_device,
     get_phase_output_dir,
     write_phase_output
 )
-from common.utils import load_json, save_json
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger(__name__)

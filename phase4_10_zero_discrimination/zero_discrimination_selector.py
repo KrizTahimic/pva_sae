@@ -15,12 +15,8 @@ import psutil
 import torch
 
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import (
-    discover_latest_phase_output,
-    ensure_directory_exists,
-    get_phase_output_dir
-)
-from common.utils import load_json, save_json
+from common.utils import ensure_directory_exists, load_json, save_json
+from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.config import Config
 from common.sae_loader import load_sae_for_config
 

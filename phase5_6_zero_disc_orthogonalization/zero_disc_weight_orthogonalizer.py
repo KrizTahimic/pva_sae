@@ -99,12 +99,11 @@ class ZeroDiscWeightOrthogonalizer:
                    f"Index {self.best_zero_disc['feature_idx']}, "
                    f"Separation {self.best_zero_disc['separation_score']:.6f}")
         
-        # Load Phase 3.5 baseline data (with dataset suffix - temperature data is dataset-specific)
+        # Load Phase 3.5 baseline data
         logger.info("Loading baseline data from Phase 3.5...")
-        phase3_5_dir_str = f"data/phase3_5_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_5"
-        phase3_5_output = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
+        phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
         if not phase3_5_output:
-            raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
+            raise FileNotFoundError("Phase 3.5 output not found. Please run Phase 3.5 first.")
         
         # Load validation dataset at temperature 0.0
         baseline_file = Path(phase3_5_output).parent / "dataset_temp_0_0.parquet"

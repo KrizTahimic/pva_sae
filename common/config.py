@@ -45,6 +45,17 @@ GEMMA_2B_SPARSITY = {
     25: 116,
 }
 
+# GemmaScope 9B sparsity levels for each layer (16k width)
+# Source: https://github.com/javiferran/sae_entities
+GEMMA_9B_SPARSITY = {
+    0: 129, 1: 69, 2: 67, 3: 90, 4: 91, 5: 77, 6: 93, 7: 92,
+    8: 99, 9: 100, 10: 113, 11: 118, 12: 130, 13: 132, 14: 67, 15: 131,
+    16: 75, 17: 73, 18: 71, 19: 132, 20: 68, 21: 129, 22: 123, 23: 120,
+    24: 114, 25: 114, 26: 116, 27: 118, 28: 119, 29: 119, 30: 120, 31: 114,
+    32: 111, 33: 114, 34: 114, 35: 120, 36: 120, 37: 124, 38: 128, 39: 131,
+    40: 125, 41: 113,
+}
+
 # Model-specific configurations for multi-model support
 MODEL_CONFIGS = {
     'google/gemma-2-2b': {
@@ -68,6 +79,29 @@ MODEL_CONFIGS = {
         'sae_activation': 'jumprelu',
         'default_layers': list(range(0, 26)),
         'sparsity_map': GEMMA_2B_SPARSITY,
+        'sae_topk': None,
+    },
+    'google/gemma-2-9b': {
+        'hidden_size': 3584,
+        'n_layers': 42,
+        'sae_repo': 'google/gemma-scope-9b-pt-res',
+        'sae_width': 16384,  # 16k features
+        'sae_format': 'npz',
+        'sae_activation': 'jumprelu',
+        'default_layers': list(range(0, 42)),
+        'sparsity_map': GEMMA_9B_SPARSITY,
+        'sae_topk': None,
+    },
+    'google/gemma-2-9b-it': {
+        # Instruction-tuned uses same SAEs (trained on base model)
+        'hidden_size': 3584,
+        'n_layers': 42,
+        'sae_repo': 'google/gemma-scope-9b-pt-res',
+        'sae_width': 16384,
+        'sae_format': 'npz',
+        'sae_activation': 'jumprelu',
+        'default_layers': list(range(0, 42)),
+        'sparsity_map': GEMMA_9B_SPARSITY,
         'sae_topk': None,
     },
     'meta-llama/Llama-3.1-8B': {
@@ -113,8 +147,8 @@ class Config:
     """
     
     # === MODEL SETTINGS ===
-    # Options: "google/gemma-2-2b", "meta-llama/Llama-3.1-8B"
-    model_name: str = "google/gemma-2-2b"  # Reverted to Gemma for MBPP experiments
+    # Options: "google/gemma-2-2b", "google/gemma-2-9b", "meta-llama/Llama-3.1-8B"
+    model_name: str = "google/gemma-2-2b"  # Default model (change for experiments)
     model_max_new_tokens: int = MAX_NEW_TOKENS
     model_temperature: float = 0.0
     model_device: Optional[str] = None  # Auto-detect if None

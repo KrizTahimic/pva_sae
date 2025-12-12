@@ -69,11 +69,10 @@ class TemperatureAUROCEvaluator:
         
         self.logger.info(f"Found Phase 3.8 results: {self.phase3_8_results_path}")
 
-        # Phase 3.5: Temperature datasets (with dataset suffix if needed)
-        phase3_5_dir = f"data/phase3_5_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_5"
-        phase3_5_path = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir)
+        # Phase 3.5: Temperature datasets
+        phase3_5_path = discover_latest_phase_output("3.5", config=self.config)
         if not phase3_5_path:
-            raise ValueError(f"Phase 3.5 output not found in {phase3_5_dir}. Please run Phase 3.5 first.")
+            raise ValueError("Phase 3.5 output not found. Please run Phase 3.5 first.")
         
         # If path is a file, get its parent directory
         phase3_5_path = Path(phase3_5_path)

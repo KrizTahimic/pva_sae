@@ -17,14 +17,12 @@ from datetime import datetime
 import torch
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import (
+from common.utils import ensure_directory_exists, detect_device, load_json, save_json
+from common.phase_discovery import (
     discover_latest_phase_output,
-    ensure_directory_exists,
-    detect_device,
     get_phase_output_dir,
     get_dataset_range
 )
-from common.utils import load_json, save_json
 from common.config import Config
 from common.steering_metrics import (
     create_steering_hook,
@@ -96,12 +94,11 @@ class ZeroDiscSteeringGenerator:
         self.zero_disc_features = load_json(features_file)
         logger.info(f"Loaded {len(self.zero_disc_features['features'])} zero-discrimination features")
         
-        # Load Phase 3.5 validation data (with dataset suffix - temperature data is dataset-specific)
+        # Load Phase 3.5 validation data
         logger.info("Loading validation data from Phase 3.5...")
-        phase3_5_dir_str = f"data/phase3_5_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_5"
-        phase3_5_output = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
+        phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
         if not phase3_5_output:
-            raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
+            raise FileNotFoundError("Phase 3.5 output not found. Please run Phase 3.5 first.")
         
         # Use temperature 0.0 dataset for consistency
         baseline_file = Path(phase3_5_output).parent / "dataset_temp_0_0.parquet"

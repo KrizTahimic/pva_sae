@@ -68,12 +68,18 @@ def get_phase_output_dir(phase: str, config) -> str:
     # Build suffix based on model and dataset
     suffixes = []
 
-    # Add model suffix if not default Gemma
-    model_name = getattr(config, 'model_name', 'google/gemma-2-2b')
-    if 'llama' in model_name.lower():
-        suffixes.append('llama')
+    # Phases 0, 0.1, 0.2, 0.3 are data preprocessing - no model suffix
+    # Only phases that do model inference should have model suffixes
+    data_preprocessing_phases = {'0', '0.1', '0.2', '0.3'}
+    if phase not in data_preprocessing_phases:
+        # Add model suffix if not default Gemma 2B
+        model_name = getattr(config, 'model_name', 'google/gemma-2-2b')
+        if 'llama' in model_name.lower():
+            suffixes.append('llama')
+        elif 'gemma-2-9b' in model_name.lower():
+            suffixes.append('gemma9b')
 
-    # Add dataset suffix if not default MBPP
+    # Add dataset suffix if not default MBPP (applies to all phases)
     dataset_name = getattr(config, 'dataset_name', 'mbpp')
     if dataset_name.lower() != 'mbpp':
         suffixes.append(dataset_name.lower())
@@ -92,11 +98,13 @@ def get_model_suffix(config) -> str:
         config: Config object with model_name
 
     Returns:
-        str: Model suffix (e.g., "", "llama")
+        str: Model suffix (e.g., "", "llama", "gemma9b")
     """
     model_name = getattr(config, 'model_name', 'google/gemma-2-2b')
     if 'llama' in model_name.lower():
         return 'llama'
+    if 'gemma-2-9b' in model_name.lower():
+        return 'gemma9b'
     return ''
 
 
@@ -116,13 +124,14 @@ def get_dataset_suffix(config) -> str:
     return ''
 
 
-def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None) -> Optional[str]:
+def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None, config=None) -> Optional[str]:
     """
     Discover the latest output file from any phase.
 
     Args:
         phase: Phase string ("0", "0.1", "1", "2.2", "2.5", etc.)
         phase_dir: Optional override for phase directory
+        config: Optional config object for model/dataset-aware directory lookup
 
     Returns:
         str: Path to latest output file, or None if not found
@@ -135,9 +144,18 @@ def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None) ->
 
     # Get phase info from registry (single source of truth)
     phase_info = get_phase(phase)
-    directory = phase_dir or phase_info.output_dir
     patterns = get_phase_patterns(phase)
     exclude_keywords = phase_info.exclude_keywords
+
+    # Determine directory: explicit override > config-aware > registry default
+    if phase_dir:
+        directory = phase_dir
+    elif config:
+        # Use model/dataset-aware directory
+        directory = get_phase_output_dir(phase, config)
+    else:
+        # Fall back to registry base directory
+        directory = phase_info.output_dir
 
     return find_latest_file(directory, patterns, exclude_keywords)
 

@@ -90,12 +90,11 @@ class SteeringEffectAnalyzer:
         
     def _load_dependencies(self) -> None:
         """Load features from Phase 2.5 and baseline data from Phase 3.5."""
-        # Load Phase 2.5 features (no dataset suffix - features are model-specific, shared across datasets)
+        # Load Phase 2.5 features (model-specific, use config-aware discovery)
         logger.info("Loading PVA features from Phase 2.5...")
-        phase2_5_dir_str = "data/phase2_5"
-        phase2_5_output = discover_latest_phase_output("2.5", phase_dir=phase2_5_dir_str)
+        phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
         if not phase2_5_output:
-            raise FileNotFoundError(f"No Phase 2.5 output found in {phase2_5_dir_str}. Please run Phase 2.5 first.")
+            raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
         logger.info(f"Using Phase 2.5 output: {phase2_5_output}")
         
         # Load top features
@@ -123,12 +122,11 @@ class SteeringEffectAnalyzer:
                    f"Index {self.best_incorrect_feature['feature_idx']}, "
                    f"Score {self.best_incorrect_feature['separation_score']:.4f}")
 
-        # Load Phase 3.5 baseline data (with dataset suffix - temperature data is dataset-specific)
+        # Load Phase 3.5 baseline data
         logger.info("Loading baseline data from Phase 3.5...")
-        phase3_5_dir_str = f"data/phase3_5_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_5"
-        phase3_5_output = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
+        phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
         if not phase3_5_output:
-            raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
+            raise FileNotFoundError("Phase 3.5 output not found. Please run Phase 3.5 first.")
         logger.info(f"Using Phase 3.5 output: {Path(phase3_5_output).parent}")
         
         # Load validation dataset at temperature 0.0

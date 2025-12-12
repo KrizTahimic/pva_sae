@@ -61,7 +61,7 @@ class LayerwiseVisualizer:
     def _discover_phase_directories(self) -> None:
         """Discover Phase 2.5 and Phase 2.10 output directories."""
         # Discover Phase 2.5 (separation scores)
-        phase2_5_output = discover_latest_phase_output("2.5")
+        phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
         if not phase2_5_output:
             raise FileNotFoundError("Phase 2.5 output not found. Please run Phase 2.5 first.")
 
@@ -69,7 +69,7 @@ class LayerwiseVisualizer:
         logger.info(f"Discovered Phase 2.5 dir: {self.phase2_5_dir}")
 
         # Discover Phase 2.10 (t-statistics)
-        phase2_10_output = discover_latest_phase_output("2.10")
+        phase2_10_output = discover_latest_phase_output("2.10", config=self.config)
         if not phase2_10_output:
             raise FileNotFoundError("Phase 2.10 output not found. Please run Phase 2.10 first.")
 

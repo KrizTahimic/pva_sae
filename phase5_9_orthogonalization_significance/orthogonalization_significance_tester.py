@@ -18,12 +18,8 @@ import seaborn as sns
 
 from common.logging import get_logger
 from common.viz_utils import handle_viz_only_mode
-from common.utils import (
-    discover_latest_phase_output,
-    ensure_directory_exists,
-    get_phase_output_dir
-)
-from common.utils import load_json, save_json
+from common.utils import ensure_directory_exists, load_json, save_json
+from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.config import Config
 
 logger = get_logger("phase5_9.orthogonalization_significance_tester")
@@ -49,12 +45,11 @@ class OrthogonalizationSignificanceTester:
         
     def load_all_results(self) -> Tuple[Dict, Dict, Dict]:
         """Load baseline metrics, Phase 5.3 PVA results, and Phase 5.6 zero-disc results."""
-        # Get baseline metrics from Phase 3.5 data (with dataset suffix)
+        # Get baseline metrics from Phase 3.5 data
         logger.info("Loading Phase 3.5 baseline data (no orthogonalization)...")
-        phase3_5_dir_str = f"data/phase3_5_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase3_5"
-        phase3_5_output = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
+        phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
         if not phase3_5_output:
-            raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
+            raise FileNotFoundError("Phase 3.5 output not found. Please run Phase 3.5 first.")
         
         baseline_file = Path(phase3_5_output).parent / "dataset_temp_0_0.parquet"
         if not baseline_file.exists():
@@ -64,12 +59,11 @@ class OrthogonalizationSignificanceTester:
         baseline_metrics = self.extract_baseline_metrics(baseline_data)
         logger.info(f"Baseline: {baseline_metrics['n_correct']} correct, {baseline_metrics['n_incorrect']} incorrect")
         
-        # Load Phase 5.3 PVA orthogonalization results (with dataset suffix)
+        # Load Phase 5.3 PVA orthogonalization results
         logger.info("Loading Phase 5.3 PVA orthogonalization results...")
-        phase5_3_dir_str = f"data/phase5_3_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase5_3"
-        phase5_3_output = discover_latest_phase_output("5.3", phase_dir=phase5_3_dir_str)
+        phase5_3_output = discover_latest_phase_output("5.3", config=self.config)
         if not phase5_3_output:
-            raise FileNotFoundError(f"No Phase 5.3 output found in {phase5_3_dir_str}. Please run Phase 5.3 first.")
+            raise FileNotFoundError("Phase 5.3 output not found. Please run Phase 5.3 first.")
         
         pva_file = Path(phase5_3_output).parent / "orthogonalization_results.json"
         if not pva_file.exists():
@@ -78,12 +72,11 @@ class OrthogonalizationSignificanceTester:
         pva_results = load_json(pva_file)
         logger.info(f"Loaded PVA orthogonalization results")
         
-        # Load Phase 5.6 zero-discrimination orthogonalization results (with dataset suffix)
+        # Load Phase 5.6 zero-discrimination orthogonalization results
         logger.info("Loading Phase 5.6 zero-discrimination orthogonalization results...")
-        phase5_6_dir_str = f"data/phase5_6_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase5_6"
-        phase5_6_output = discover_latest_phase_output("5.6", phase_dir=phase5_6_dir_str)
+        phase5_6_output = discover_latest_phase_output("5.6", config=self.config)
         if not phase5_6_output:
-            raise FileNotFoundError(f"No Phase 5.6 output found in {phase5_6_dir_str}. Please run Phase 5.6 first.")
+            raise FileNotFoundError("Phase 5.6 output not found. Please run Phase 5.6 first.")
         
         zero_disc_file = Path(phase5_6_output).parent / "zero_disc_orthogonalization_results.json"
         if not zero_disc_file.exists():

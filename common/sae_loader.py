@@ -12,7 +12,7 @@ from typing import Dict, Optional, Union
 from abc import ABC, abstractmethod
 from huggingface_hub import hf_hub_download
 
-from common.config import Config, MODEL_CONFIGS, GEMMA_2B_SPARSITY
+from common.config import Config, MODEL_CONFIGS, GEMMA_2B_SPARSITY, GEMMA_9B_SPARSITY
 from common.logging import get_logger
 
 logger = get_logger("sae_loader")
@@ -112,31 +112,42 @@ class TopKSAE(BaseSAE):
 def load_gemma_scope_sae(
     layer_idx: int,
     device: str,
-    config: Optional[Config] = None
+    config: Optional[Config] = None,
+    model_name: Optional[str] = None
 ) -> JumpReLUSAE:
     """
     Load a GemmaScope SAE for a specific layer.
 
     Args:
-        layer_idx: Layer index (0-25 for Gemma-2B)
+        layer_idx: Layer index (0-25 for Gemma-2B, 0-41 for Gemma-9B)
         device: Device to load to ('cuda', 'cpu', 'mps')
         config: Optional config (uses defaults if not provided)
+        model_name: Model name to load SAE for (e.g., 'google/gemma-2-2b', 'google/gemma-2-9b')
 
     Returns:
         JumpReLUSAE instance with loaded weights
     """
-    repo_id = "google/gemma-scope-2b-pt-res"
+    # Determine model config
+    if model_name is None:
+        model_name = config.model_name if config else 'google/gemma-2-2b'
+
+    model_config = MODEL_CONFIGS.get(model_name)
+    if model_config is None:
+        raise ValueError(f"Unknown model: {model_name}")
+
+    repo_id = model_config['sae_repo']
+    sparsity_map = model_config['sparsity_map']
 
     # Get the correct sparsity level for this layer
-    if layer_idx not in GEMMA_2B_SPARSITY:
-        raise ValueError(f"No sparsity mapping for layer {layer_idx}")
+    if layer_idx not in sparsity_map:
+        raise ValueError(f"No sparsity mapping for layer {layer_idx} in {model_name}")
 
-    sparsity = GEMMA_2B_SPARSITY[layer_idx]
+    sparsity = sparsity_map[layer_idx]
 
     # Path within repository for this layer
     sae_path = f"layer_{layer_idx}/width_16k/average_l0_{sparsity}/params.npz"
 
-    logger.info(f"Loading GemmaScope SAE for layer {layer_idx} (sparsity={sparsity})")
+    logger.info(f"Loading GemmaScope SAE for {model_name} layer {layer_idx} (sparsity={sparsity})")
 
     # Download parameters
     path_to_params = hf_hub_download(
@@ -261,7 +272,7 @@ def load_sae(
 
     # Load appropriate SAE based on format
     if model_config['sae_format'] == 'npz':
-        return load_gemma_scope_sae(layer_idx, device, config)
+        return load_gemma_scope_sae(layer_idx, device, config, model_name=model_name)
     elif model_config['sae_format'] == 'safetensors':
         k = model_config.get('sae_topk', 64)
         return load_llama_scope_sae(layer_idx, device, config, k=k)

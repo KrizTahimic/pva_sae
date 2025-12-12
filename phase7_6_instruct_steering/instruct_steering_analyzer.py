@@ -23,10 +23,9 @@ import seaborn as sns
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger, tqdm_with_logging
 from common.viz_utils import handle_viz_only_mode
-from common.utils import (
+from common.utils import ensure_directory_exists, detect_device
+from common.phase_discovery import (
     discover_latest_phase_output,
-    ensure_directory_exists,
-    detect_device,
     get_phase_output_dir,
     write_phase_output,
     get_dataset_range
@@ -89,7 +88,7 @@ class InstructSteeringAnalyzer:
         """Load features from Phase 2.5 and baseline data from Phase 7.3."""
         # Load Phase 2.5 features
         logger.info("Loading PVA features from Phase 2.5...")
-        phase2_5_output = discover_latest_phase_output("2.5")
+        phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
         if not phase2_5_output:
             raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
         
@@ -118,12 +117,11 @@ class InstructSteeringAnalyzer:
                    f"Index {self.best_incorrect_feature['feature_idx']}, "
                    f"Score {self.best_incorrect_feature['separation_score']:.4f}")
         
-        # Load Phase 7.3 baseline data (instruction-tuned baseline) - with dataset suffix
+        # Load Phase 7.3 baseline data (instruction-tuned baseline)
         logger.info("Loading baseline data from Phase 7.3...")
-        phase7_3_dir_str = f"data/phase7_3_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else "data/phase7_3"
-        phase7_3_output = discover_latest_phase_output("7.3", phase_dir=phase7_3_dir_str)
+        phase7_3_output = discover_latest_phase_output("7.3", config=self.config)
         if not phase7_3_output:
-            raise FileNotFoundError(f"No Phase 7.3 output found in {phase7_3_dir_str}. Please run Phase 7.3 first.")
+            raise FileNotFoundError("Phase 7.3 output not found. Please run Phase 7.3 first.")
         
         # Load instruction-tuned dataset at temperature 0.0
         baseline_file = Path(phase7_3_output).parent / "dataset_instruct_temp_0_0.parquet"
