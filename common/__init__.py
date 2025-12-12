@@ -88,12 +88,19 @@ from .dataset_utils import (
     split_by_correctness,
     discover_task_ids,
     discover_layer_indices,
-    load_mbpp_from_phase0_1,
+    load_dataset_split,
     extract_code,
     evaluate_code,
     timeout,
     load_and_encode_activation,
     load_raw_activation
+)
+
+# Dataset configuration (for multi-dataset support)
+from .dataset_config import (
+    DatasetConfig,
+    DATASET_CONFIGS,
+    get_dataset_config
 )
 
 # Initialization utilities
@@ -192,12 +199,17 @@ __all__ = [
     'split_by_correctness',
     'discover_task_ids',
     'discover_layer_indices',
-    'load_mbpp_from_phase0_1',
+    'load_dataset_split',
     'extract_code',
     'evaluate_code',
     'timeout',
     'load_and_encode_activation',
     'load_raw_activation',
+
+    # Dataset configuration
+    'DatasetConfig',
+    'DATASET_CONFIGS',
+    'get_dataset_config',
 
     # Initialization utilities
     'setup_deterministic_generation',

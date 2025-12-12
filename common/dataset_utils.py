@@ -115,14 +115,39 @@ def discover_layer_indices(
 # Dataset Loading
 # ============================================================================
 
-def load_mbpp_from_phase0_1(split_name: str, phase0_1_dir: Path) -> pd.DataFrame:
-    """Load MBPP data for a specific split from Phase 0.1 output."""
-    split_file = phase0_1_dir / f"{split_name}_mbpp.parquet"
+def load_dataset_split(split_name: str, phase0_1_dir: Path, config) -> pd.DataFrame:
+    """
+    Load dataset split for any supported dataset.
+
+    This is the preferred function for loading dataset splits as it
+    supports both MBPP and HumanEval transparently based on config.
+
+    Args:
+        split_name: Split identifier ("sae", "hyperparams", or "validation")
+        phase0_1_dir: Phase 0.1 output directory
+        config: Config object with dataset_name attribute
+
+    Returns:
+        DataFrame with columns: task_id, text, code, test_list, cyclomatic_complexity
+
+    Raises:
+        FileNotFoundError: If split file doesn't exist
+
+    Example:
+        >>> from common.config import Config
+        >>> config = Config()  # Uses config.dataset_name
+        >>> df = load_dataset_split("sae", Path("data/phase0_1"), config)
+    """
+    split_file = phase0_1_dir / f"{split_name}_{config.dataset_name}.parquet"
+
     if not split_file.exists():
-        raise FileNotFoundError(f"Split file not found: {split_file}")
+        raise FileNotFoundError(
+            f"Split file not found: {split_file}\n"
+            f"Run: python3 run.py phase 0.1 (with dataset_name='{config.dataset_name}' in config)"
+        )
 
     df = pd.read_parquet(split_file)
-    logger.info(f"Loaded {len(df)} problems from {split_name} split")
+    logger.info(f"Loaded {len(df)} problems from {split_name} split ({config.dataset_name})")
     return df
 
 

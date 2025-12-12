@@ -19,7 +19,7 @@ from common.gpu_utils import setup_cuda_environment, cleanup_gpu_memory
 from common.model_loader import load_model_and_tokenizer
 from common.activation_hooks import ActivationExtractor
 from common.utils import save_activations, create_activation_filename
-from common.dataset_utils import load_mbpp_from_phase0_1, extract_code, evaluate_code
+from common.dataset_utils import load_dataset_split, extract_code, evaluate_code
 
 # Use the project's phase-based logger
 logger = get_logger("phase1_latent_selection_dataset.runner", phase="1")
@@ -312,20 +312,20 @@ class Phase1Runner:
 
         # Verify Phase 0.1 has been run (split files must exist)
         phase0_1_dir = get_phase_output_dir("0.1", self.config)
-        sae_split_path = Path(phase0_1_dir) / f"{split_name}_mbpp.parquet"
+        sae_split_path = Path(phase0_1_dir) / f"{split_name}_{self.config.dataset_name}.parquet"
         if not sae_split_path.exists():
             logger.error(f"Split file not found at {sae_split_path}")
             logger.error("Phase 1 requires Phase 0.1 to be completed first.")
-            logger.error("Please run: python3 run.py phase 0.1")
+            logger.error(f"Please run: python3 run.py phase 0.1 (with dataset_name='{self.config.dataset_name}')")
             sys.exit(1)
 
-        logger.info(f"Found {split_name} split: {sae_split_path}")
+        logger.info(f"Found {split_name} split ({self.config.dataset_name}): {sae_split_path}")
 
         # Setup model and hooks
         self.setup()
-        
-        # Load split data
-        df = load_mbpp_from_phase0_1(split_name, Path(phase0_1_dir))
+
+        # Load split data using generic loader
+        df = load_dataset_split(split_name, Path(phase0_1_dir), self.config)
         
         # Apply start/end indices from config (matching original behavior)
         total_tasks = len(df)
@@ -476,7 +476,7 @@ class Phase1Runner:
         
         # Merge with original data (only successful tasks)
         # Need to reload full dataset to get all original data including checkpointed tasks
-        full_df = load_mbpp_from_phase0_1(split_name, Path(phase0_1_dir))
+        full_df = load_dataset_split(split_name, Path(phase0_1_dir), self.config)
         full_df = full_df.iloc[start_idx:end_idx + 1]  # Apply original range
         
         successful_task_ids = set(results_df['task_id'])

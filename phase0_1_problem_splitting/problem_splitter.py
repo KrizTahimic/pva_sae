@@ -1,7 +1,9 @@
 """
 Problem splitting with stratified randomized interleaving.
 
-This module splits MBPP problems by task_id based on complexity scores from Phase 0.
+This module splits problems by task_id based on complexity scores.
+It supports both MBPP (from Phase 0) and HumanEval (from Phase 0.2).
+
 It ensures equal complexity distribution across splits by:
 1. Dividing problems into complexity strata
 2. Randomly shuffling within each stratum
@@ -46,22 +48,37 @@ class Phase01Runner:
             Dictionary mapping split names to lists of task_ids
         """
         self.logger.info("Starting Phase 0.1: Problem Splitting")
+        self.logger.info(f"Dataset: {self.config.dataset_name}")
         self.logger.info("Split ratios: 50% SAE, 10% hyperparameters, 40% validation")
         self.logger.info("\n" + self.config.dump(phase="0.1"))
 
-        # Auto-discover or use provided difficulty mapping
+        # Auto-discover or use provided input
         if hasattr(self.config, '_input_file') and self.config._input_file:
             mapping_path = self.config._input_file
-            self.logger.info(f"Using provided difficulty mapping: {mapping_path}")
+            self.logger.info(f"Using provided input: {mapping_path}")
         else:
-            self.logger.info("Auto-discovering difficulty mapping from Phase 0...")
-            mapping_path = discover_latest_phase_output("0", phase_dir=get_phase_output_dir("0", self.config))
+            # Dataset-specific source discovery
+            if self.config.dataset_name == "humaneval":
+                # HumanEval: Load from Phase 0.2 conversion output
+                humaneval_path = Path("data/phase0_2_humaneval/humaneval.parquet")
+                if not humaneval_path.exists():
+                    self.logger.error(
+                        f"HumanEval data not found at {humaneval_path}! "
+                        "Please run Phase 0.2 first: python3 run.py phase 0.2"
+                    )
+                    sys.exit(1)
+                mapping_path = str(humaneval_path)
+                self.logger.info(f"Found HumanEval data: {mapping_path}")
+            else:
+                # MBPP: Load from Phase 0 difficulty mapping
+                self.logger.info("Auto-discovering difficulty mapping from Phase 0...")
+                mapping_path = discover_latest_phase_output("0", phase_dir=get_phase_output_dir("0", self.config))
 
-            if not mapping_path:
-                self.logger.error("No Phase 0 difficulty mapping found! Please run Phase 0 first.")
-                sys.exit(1)
+                if not mapping_path:
+                    self.logger.error("No Phase 0 difficulty mapping found! Please run Phase 0 first.")
+                    sys.exit(1)
 
-            self.logger.info(f"Found difficulty mapping: {mapping_path}")
+                self.logger.info(f"Found difficulty mapping: {mapping_path}")
 
         # Load and validate difficulty mapping
         df = self._load_and_validate(mapping_path)
@@ -327,57 +344,60 @@ def save_splits(
     splits: Dict[str, List[int]],
     output_dir: str,
     df: pd.DataFrame,
-    config: Optional[Config] = None
+    config: Config
 ) -> None:
     """
-    Save split data as parquet files with full MBPP information.
+    Save split data as parquet files with full dataset information.
 
     Creates the following files:
-    - {split_name}_mbpp.parquet for each split (containing all MBPP columns)
+    - {split_name}_{dataset_name}.parquet for each split
     - split_metadata.json with statistics
     - timestamp.txt with creation time
 
     Args:
         splits: Dictionary mapping split names to task_id lists
         output_dir: Directory to save outputs
-        df: Original dataframe with all MBPP data and cyclomatic complexity
-        config: Configuration object (optional, for writing phase_output.json)
+        df: Original dataframe with all data and cyclomatic complexity
+        config: Configuration object (required for dataset_name)
     """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
+    dataset_name = config.dataset_name
+
     # Save timestamp
     timestamp = datetime.now().isoformat()
     with open(output_path / 'timestamp.txt', 'w') as f:
         f.write(timestamp)
-    
+
     # Save each split as a parquet file with full data
     for split_name, task_ids in splits.items():
         # Filter dataframe to get rows for this split
         split_df = df[df['task_id'].isin(task_ids)].copy()
-        
+
         # Ensure the split maintains the task_id order from the splitting algorithm
         # Create a mapping of task_id to its position in the split
         task_id_order = {task_id: idx for idx, task_id in enumerate(task_ids)}
         split_df['_sort_order'] = split_df['task_id'].map(task_id_order)
         split_df = split_df.sort_values('_sort_order').drop('_sort_order', axis=1)
-        
-        # Save as parquet
-        filepath = output_path / f"{split_name}_mbpp.parquet"
+
+        # Save as parquet with dataset-specific filename
+        filepath = output_path / f"{split_name}_{dataset_name}.parquet"
         split_df.to_parquet(filepath, index=False)
         logger.info(f"Saved {len(split_df)} problems to {filepath}")
-    
+
     # Calculate and save metadata
     metadata = {
         'creation_timestamp': timestamp,
+        'dataset_name': dataset_name,
         'total_problems': len(df),
         'split_sizes': {name: len(task_ids) for name, task_ids in splits.items()},
         'split_ratios': {name: len(task_ids) / len(df) for name, task_ids in splits.items()},
-        'complexity_range': [float(df['cyclomatic_complexity'].min()), 
+        'complexity_range': [float(df['cyclomatic_complexity'].min()),
                            float(df['cyclomatic_complexity'].max())],
         'split_complexity_stats': {}
     }
-    
+
     # Add complexity statistics for each split
     for split_name, task_ids in splits.items():
         # Filter dataframe by task_ids
@@ -389,64 +409,69 @@ def save_splits(
             'min': float(split_complexity.min()),
             'max': float(split_complexity.max())
         }
-    
+
     with open(output_path / 'split_metadata.json', 'w') as f:
         json_dump(metadata, f, indent=2)
 
     logger.info(f"Saved metadata to {output_path / 'split_metadata.json'}")
 
     # Write phase_output.json manifest
-    if config is not None:
-        from common.phase_discovery import write_phase_output
+    from common.phase_discovery import write_phase_output
 
-        # Build outputs dict from split names
-        outputs = {"primary": "split_metadata.json"}
-        for split_name in splits.keys():
-            outputs[split_name] = f"{split_name}_mbpp.parquet"
+    # Build outputs dict from split names
+    outputs = {"primary": "split_metadata.json"}
+    for split_name in splits.keys():
+        outputs[split_name] = f"{split_name}_{dataset_name}.parquet"
 
-        write_phase_output(
-            phase="0.1",
-            outputs=outputs,
-            config=config,
-            output_dir=str(output_path),
-            config_keys=['dataset_name', 'split_random_seed', 'split_n_strata']
-        )
-        logger.info(f"Saved phase_output.json manifest to {output_path}")
+    write_phase_output(
+        phase="0.1",
+        outputs=outputs,
+        config=config,
+        output_dir=str(output_path),
+        config_keys=['dataset_name', 'split_random_seed', 'split_n_strata']
+    )
+    logger.info(f"Saved phase_output.json manifest to {output_path}")
 
 
-def load_splits(split_dir: str, return_dataframes: bool = False) -> Dict[str, Union[List[int], pd.DataFrame]]:
+def load_splits(
+    split_dir: str,
+    dataset_name: str = "mbpp",
+    return_dataframes: bool = False
+) -> Dict[str, Union[List[int], pd.DataFrame]]:
     """
     Load previously saved splits from parquet files.
-    
+
     Args:
         split_dir: Directory containing split files
+        dataset_name: Dataset name ("mbpp" or "humaneval")
         return_dataframes: If True, return DataFrames; if False, return task_id lists
-        
+
     Returns:
         Dictionary mapping split names to either task_id lists or DataFrames
-        
+
     Raises:
         FileNotFoundError: If split directory doesn't exist or no split files found
     """
     split_path = Path(split_dir)
     if not split_path.exists():
         raise FileNotFoundError(f"Split directory not found: {split_dir}")
-    
+
     splits = {}
-    
-    # Load each parquet file
-    for split_file in sorted(split_path.glob("*_mbpp.parquet")):
-        split_name = split_file.stem.replace("_mbpp", "")
+
+    # Load each parquet file matching the dataset name
+    pattern = f"*_{dataset_name}.parquet"
+    for split_file in sorted(split_path.glob(pattern)):
+        split_name = split_file.stem.replace(f"_{dataset_name}", "")
         df = pd.read_parquet(split_file)
-        
+
         if return_dataframes:
             splits[split_name] = df
         else:
             splits[split_name] = df['task_id'].tolist()
-        
-        logger.info(f"Loaded {len(df)} problems for split '{split_name}'")
-    
+
+        logger.info(f"Loaded {len(df)} problems for split '{split_name}' ({dataset_name})")
+
     if not splits:
-        raise FileNotFoundError(f"No split files found in {split_dir}")
-    
+        raise FileNotFoundError(f"No {dataset_name} split files found in {split_dir}")
+
     return splits

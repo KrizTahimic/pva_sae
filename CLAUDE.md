@@ -16,6 +16,59 @@ When in planning mode:
 
 ---
 
+## 🚨 CRITICAL: No Backward Compatibility Code
+
+**NEVER add backward compatibility, legacy fallbacks, or migration code. Make clean breaks.**
+
+This is research code with one user. Backward compatibility adds complexity without benefit.
+
+### What This Means
+
+| ❌ DON'T | ✅ DO |
+|----------|-------|
+| Add "legacy" or "fallback" code paths | Make the change directly |
+| Keep old function signatures "for compatibility" | Update all call sites |
+| Add deprecation warnings | Remove old code entirely |
+| Support both old and new formats | Convert to new format only |
+| Add `if old_format: ... else new_format:` | Use new format everywhere |
+
+### Examples
+
+```python
+# ❌ WRONG - Legacy fallback
+def load_data(path):
+    if manifest.exists():
+        return load_from_manifest(manifest)
+    # Legacy fallback for old format
+    return legacy_load(path)
+
+# ✅ CORRECT - Clean break
+def load_data(path):
+    if not manifest.exists():
+        raise FileNotFoundError(f"No manifest found. Run phase X first.")
+    return load_from_manifest(manifest)
+```
+
+```python
+# ❌ WRONG - Supporting old parameter names
+def process(data, new_param=None, old_param=None):  # old_param for backward compat
+    param = new_param or old_param
+    ...
+
+# ✅ CORRECT - Just use the new name
+def process(data, param):
+    ...
+```
+
+**When tempted to add backward compatibility, STOP and ask:**
+1. Can I just update all call sites instead?
+2. Is this "compatibility" actually needed, or am I being overly cautious?
+3. Would deleting the old code and starting fresh be simpler?
+
+The answer is almost always: **just make the clean change**.
+
+---
+
 ## ⚠️ CRITICAL: Environment Setup
 
 **ALWAYS activate the conda environment before running ANY commands:**
@@ -594,27 +647,6 @@ If encountering OOM errors:
 
 Follow these conventions when writing or modifying code in this project.
 
-### No Backward Compatibility
-
-When refactoring, make clean breaks - don't add legacy fallbacks or backward compatibility code:
-
-```python
-# ❌ AVOID - Legacy fallback clutters code
-def discover_outputs(phase):
-    if manifest.exists():
-        return parse_manifest(manifest)
-    # Legacy fallback
-    return legacy_discover(phase)
-
-# ✅ GOOD - Clean break, clear error
-def discover_outputs(phase):
-    if not manifest.exists():
-        raise FileNotFoundError(f"Run phase {phase} first.")
-    return parse_manifest(manifest)
-```
-
-**Rationale:** This is research code with one user. Backward compatibility adds complexity without benefit. When refactoring, update all call sites rather than maintaining two code paths.
-
 ### Tensor Operations (einops)
 
 Use `einops.rearrange` for complex reshapes - makes tensor shapes self-documenting:
@@ -729,3 +761,62 @@ def calculate_rate(results):
             if 'column' in results.columns:
                 # ... deeply nested logic
 ```
+
+---
+
+## Multi-Model/Dataset Strategy
+
+This project supports multiple models (Gemma, LLAMA) and datasets (MBPP, HumanEval).
+
+### Feature Discovery (Answer A)
+
+- **LLAMA gets its own features** - Run full Phase 1 → Phase 2.5 pipeline with LLAMA
+- Output: `data/phase2_5_llama/` with LLAMA-specific features
+- Rationale: Different model architectures may encode correctness differently
+
+### HumanEval Scope (Answer B)
+
+- **Validation-only** - Use Gemma+MBPP features, test on HumanEval
+- Skip: Phase 1 generation for HumanEval (no new features needed)
+- Run: Phase 3.8 (AUROC/F1), Phase 4.8 (Steering) with HumanEval test set
+- Rationale: Validates generalization without expensive feature discovery
+
+### How to Switch Experiments
+
+Edit `common/config.py` to change model/dataset:
+
+```python
+# Gemma + MBPP (default)
+model_name: str = "google/gemma-2-2b"
+dataset_name: str = "mbpp"
+
+# LLAMA + MBPP (new features)
+model_name: str = "meta-llama/Llama-3.1-8B"
+dataset_name: str = "mbpp"
+
+# Gemma + HumanEval (validation only)
+model_name: str = "google/gemma-2-2b"
+dataset_name: str = "humaneval"
+```
+
+### Dataset Configuration
+
+Dataset-specific settings are in `common/dataset_config.py`:
+
+```python
+DATASET_CONFIGS = {
+    "mbpp": DatasetConfig(name="mbpp", n_problems=974, ...),
+    "humaneval": DatasetConfig(name="humaneval", n_problems=164, ...),
+}
+```
+
+### Output Directory Conventions
+
+Output directories automatically include model/dataset suffixes:
+
+| Config | Output Directory |
+|--------|------------------|
+| Gemma + MBPP | `data/phase1_0/` (default) |
+| LLAMA + MBPP | `data/phase1_0_llama/` |
+| Gemma + HumanEval | `data/phase1_0_humaneval/` |
+| LLAMA + HumanEval | `data/phase1_0_llama_humaneval/` |
