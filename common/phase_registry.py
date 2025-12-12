@@ -279,7 +279,7 @@ PHASES: dict[str, PhaseInfo] = {
         runner="ZeroDiscSteeringGenerator",
         runner_type="class",
         category="steering",
-        patterns=["zero_disc_steering_results.json", "random_steering_results.json"],
+        patterns=["zero_disc_steering_results.json"],
     ),
     "4.14": PhaseInfo(
         id="4.14",
