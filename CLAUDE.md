@@ -781,6 +781,24 @@ This project supports multiple models (Gemma, LLAMA) and datasets (MBPP, HumanEv
 - Run: Phase 3.8 (AUROC/F1), Phase 4.8 (Steering) with HumanEval test set
 - Rationale: Validates generalization without expensive feature discovery
 
+### HumanEval Prompt Format (Design Decision)
+
+HumanEval is converted to MBPP-style prompts for **experimental consistency**:
+
+| Aspect | MBPP | HumanEval (our format) |
+|--------|------|------------------------|
+| Description | Natural language | Extracted from docstring |
+| Test cases | Actual test assertions | Actual test assertions |
+| Imports | N/A | Prepended when present |
+
+**Why show actual test assertions (not docstring examples)?**
+- MBPP shows actual test cases → HumanEval should too for consistency
+- We're testing SAE feature generalization, not benchmarking HumanEval
+- Varying only the problems (not prompt style) isolates the variable being tested
+- Document as: "HumanEval problems with MBPP-style prompting"
+
+**Note:** This differs from standard HumanEval evaluation which only shows docstring examples (>>> format). Our approach prioritizes experimental consistency over benchmark authenticity.
+
 ### How to Switch Experiments
 
 Edit `common/config.py` to change model/dataset:
