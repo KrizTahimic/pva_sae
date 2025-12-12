@@ -17,7 +17,7 @@ from datetime import datetime
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import get_phase_output_dir
-from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
+from common.sae_loader import load_sae_for_config
 
 # Module-level logger
 logger = get_logger("t_statistic_selector", phase="2.10")
@@ -169,7 +169,7 @@ class TStatisticSelector:
         logger.info(f"Analyzing layer {layer_idx}")
         
         # Load SAE for this layer
-        sae = load_gemma_scope_sae(layer_idx, self.device)
+        sae = load_sae_for_config(self.config, layer_idx, self.device)
         
         # Load activations
         correct_task_ids, correct_activations = self.load_activations_for_layer(
@@ -431,7 +431,7 @@ class TStatisticSelector:
                     
                     if pile_activations is not None:
                         # Load SAE for this layer
-                        sae = load_gemma_scope_sae(layer_idx, self.device)
+                        sae = load_sae_for_config(self.config, layer_idx, self.device)
                         
                         # Ensure dtype matches SAE parameters for matrix multiplication
                         pile_activations = pile_activations.to(sae.W_enc.dtype)
@@ -520,5 +520,23 @@ class TStatisticSelector:
         output_file = output_dir / "sae_analysis_results.json"
         with open(output_file, 'w') as f:
             json.dump(summary_results, f, indent=2)
-        
+
         logger.info(f"Saved summary results to {output_file}")
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="2.10",
+            outputs={
+                "primary": "sae_analysis_results.json",
+                "features": "top_20_features.json",
+            },
+            config=self.config,
+            output_dir=str(output_dir),
+            dependencies={
+                "1": str(self.activation_dir),
+            },
+            config_keys=['model_name', 'dataset_name', 'activation_layers']
+        )
+        logger.info(f"Saved phase_output.json manifest to {output_dir}")

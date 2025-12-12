@@ -36,7 +36,7 @@ from common.steering_metrics import (
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.helpers import evaluate_code, extract_code, load_json, save_json
-from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
+from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_5.steering_evaluator")
 
@@ -147,14 +147,16 @@ class SteeringCoefficientSelector:
         # Load SAEs for both features
         logger.info("Loading SAE models...")
         logger.info(f"Loading SAE for correct feature (layer {self.best_correct_feature['layer']})...")
-        self.correct_sae = load_gemma_scope_sae(
+        self.correct_sae = load_sae_for_config(
+            self.config,
             self.best_correct_feature['layer'], 
             self.device
         )
         logger.info(f"Correct feature SAE loaded successfully")
         
         logger.info(f"Loading SAE for incorrect feature (layer {self.best_incorrect_feature['layer']})...")
-        self.incorrect_sae = load_gemma_scope_sae(
+        self.incorrect_sae = load_sae_for_config(
+            self.config,
             self.best_incorrect_feature['layer'], 
             self.device
         )

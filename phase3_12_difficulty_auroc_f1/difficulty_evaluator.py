@@ -26,7 +26,7 @@ from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists, discover_latest_phase_output
 from common.viz_utils import handle_viz_only_mode
 from common_simplified.helpers import save_json, load_json
-from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
+from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase3_12.difficulty_evaluator")
 
@@ -579,7 +579,7 @@ def main():
 
     # Load SAE for correct-predicting feature
     correct_layer = best_features['correct']
-    sae_correct = load_gemma_scope_sae(correct_layer, device)
+    sae_correct = load_sae_for_config(config, correct_layer, device)
     logger.info(f"Loaded SAE for layer {correct_layer} on {device}")
     
     correct_results = calculate_difficulty_metrics(
@@ -608,7 +608,7 @@ def main():
 
     # Load SAE for incorrect-predicting feature
     incorrect_layer = best_features['incorrect']
-    sae_incorrect = load_gemma_scope_sae(incorrect_layer, device)
+    sae_incorrect = load_sae_for_config(config, incorrect_layer, device)
     logger.info(f"Loaded SAE for layer {incorrect_layer} on {device}")
     
     incorrect_results = calculate_difficulty_metrics(
@@ -675,14 +675,14 @@ def main():
     
     # Generate additional comparative visualizations
     # Note: We need to reload SAEs since they were deleted after individual analyses
-    sae_correct = load_gemma_scope_sae(best_features['correct'], device)
+    sae_correct = load_sae_for_config(config, best_features['correct'], device)
     plot_roc_curves_by_difficulty(difficulty_groups, 'correct', correct_results, output_dir, 
                                    best_features, sae_correct, device, temp_data, phase3_5_dir)
     del sae_correct
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     
-    sae_incorrect = load_gemma_scope_sae(best_features['incorrect'], device)
+    sae_incorrect = load_sae_for_config(config, best_features['incorrect'], device)
     plot_roc_curves_by_difficulty(difficulty_groups, 'incorrect', incorrect_results, output_dir,
                                    best_features, sae_incorrect, device, temp_data, phase3_5_dir)
     del sae_incorrect

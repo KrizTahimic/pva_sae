@@ -33,7 +33,7 @@ from common.utils import (
     write_phase_output
 )
 from common_simplified.helpers import load_json, save_json
-from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
+from common.sae_loader import load_sae_for_config
 
 logger = get_logger(__name__)
 
@@ -123,7 +123,7 @@ class ThresholdCalculator:
 
         # === LOAD SAE FOR DECOMPOSITION ===
         logger.info(f"Loading SAE for Layer {self.feature_layer}...")
-        self.sae = load_gemma_scope_sae(self.feature_layer, self.device)
+        self.sae = load_sae_for_config(self.config, self.feature_layer, self.device)
         logger.info(f"✓ SAE loaded for Layer {self.feature_layer}")
 
         logger.info("Dependencies loaded successfully")

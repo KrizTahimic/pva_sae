@@ -35,7 +35,7 @@ from common.steering_metrics import (
 from common.retry_utils import retry_with_timeout
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.helpers import evaluate_code, extract_code
-from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
+from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_12.zero_disc_steering_generator")
 
@@ -209,7 +209,7 @@ class ZeroDiscSteeringGenerator:
         feature_idx = feature['feature_idx']
         
         logger.info(f"Loading SAE for layer {layer}...")
-        sae = load_gemma_scope_sae(layer, self.device)
+        sae = load_sae_for_config(self.config, layer, self.device)
         
         # Get decoder direction for steering
         if feature.get('decoder_direction'):

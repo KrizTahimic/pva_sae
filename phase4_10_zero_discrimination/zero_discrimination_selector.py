@@ -22,7 +22,7 @@ from common.utils import (
 )
 from common_simplified.helpers import load_json, save_json
 from common.config import Config
-from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
+from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_10.zero_discrimination_selector")
 
@@ -87,7 +87,7 @@ class ZeroDiscriminationSelector:
         
         # Load SAE for this layer
         try:
-            sae = load_gemma_scope_sae(layer, "cpu")  # Use CPU for Phase 4.10
+            sae = load_sae_for_config(self.config, layer, "cpu")  # Use CPU for Phase 4.10
         except Exception as e:
             logger.warning(f"Failed to load SAE for layer {layer}: {e}")
             return {}
@@ -247,7 +247,7 @@ class ZeroDiscriminationSelector:
             feature_idx = feature['feature_idx']
             
             try:
-                sae = load_gemma_scope_sae(layer, "cpu")  # Use CPU for Phase 4.10
+                sae = load_sae_for_config(self.config, layer, "cpu")  # Use CPU for Phase 4.10
                 decoder_weight = sae.W_dec[feature_idx].detach().cpu().numpy()
                 feature['decoder_direction'] = decoder_weight.tolist()
             except Exception as e:
@@ -295,6 +295,24 @@ class ZeroDiscriminationSelector:
         summary_file = self.output_dir / 'zero_discrimination_summary.json'
         save_json(summary, summary_file)
         logger.info(f"Saved summary to: {summary_file}")
+
+        # Write phase_output.json manifest
+        from common.utils import write_phase_output
+
+        write_phase_output(
+            phase="4.10",
+            outputs={
+                "primary": "zero_discrimination_summary.json",
+                "features": "zero_discrimination_features.json",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "2.5": str(self.phase2_5_dir),
+            },
+            config_keys=['model_name', 'dataset_name']
+        )
+        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
         
         # Log feature summary
         logger.info("\nSelected Zero-Discrimination Features:")

@@ -24,7 +24,7 @@ from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists, discover_latest_phase_output
 from common.viz_utils import handle_viz_only_mode
 from common_simplified.helpers import save_json, load_json
-from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
+from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase3_8.auroc_f1_evaluator")
 
@@ -159,7 +159,7 @@ def run_evaluation(config):
     # Load hyperparameter split for correct feature
     y_true_hp_correct, scores_hp_correct = load_split_activations(
         'hyperparams', correct_layer, correct_feature_idx, 'correct',
-        phase3_5_dir, phase3_6_dir
+        phase3_5_dir, phase3_6_dir, config
     )
 
     logger.info(f"Correct-predicting feature (hyperparameter split):")
@@ -178,7 +178,7 @@ def run_evaluation(config):
     # Load validation split
     y_true_val_correct, scores_val_correct = load_split_activations(
         'validation', correct_layer, correct_feature_idx, 'correct',
-        phase3_5_dir, phase3_6_dir
+        phase3_5_dir, phase3_6_dir, config
     )
 
     logger.info(f"\nCorrect-predicting feature (validation split):")
@@ -200,7 +200,7 @@ def run_evaluation(config):
     # Load hyperparameter split for incorrect feature
     y_true_hp_incorrect, scores_hp_incorrect = load_split_activations(
         'hyperparams', incorrect_layer, incorrect_feature_idx, 'incorrect',
-        phase3_5_dir, phase3_6_dir
+        phase3_5_dir, phase3_6_dir, config
     )
 
     logger.info(f"Incorrect-predicting feature (hyperparameter split):")
@@ -219,7 +219,7 @@ def run_evaluation(config):
     # Load validation split
     y_true_val_incorrect, scores_val_incorrect = load_split_activations(
         'validation', incorrect_layer, incorrect_feature_idx, 'incorrect',
-        phase3_5_dir, phase3_6_dir
+        phase3_5_dir, phase3_6_dir, config
     )
 
     logger.info(f"\nIncorrect-predicting feature (validation split):")
@@ -618,7 +618,8 @@ def load_split_activations(
     feature_idx: int,
     feature_type: str,
     phase3_5_dir: Path,
-    phase3_6_dir: Path
+    phase3_6_dir: Path,
+    config: Config
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Load activations for a specific feature from appropriate phase data.
 
@@ -647,7 +648,7 @@ def load_split_activations(
 
     # Detect device and load SAE for encoding
     device = detect_device()
-    sae = load_gemma_scope_sae(layer_num, device)
+    sae = load_sae_for_config(config, layer_num, device)
     logger.info(f"Loaded SAE for layer {layer_num} with 16,384 features on {device}")
 
     activations = []

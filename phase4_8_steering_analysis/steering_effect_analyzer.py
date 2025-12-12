@@ -41,7 +41,7 @@ from common_simplified.activation_hooks import (
     AttentionExtractor,
     save_raw_attention_with_boundaries
 )
-from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
+from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_8.steering_effect_analyzer")
 
@@ -153,11 +153,13 @@ class SteeringEffectAnalyzer:
         
         # Load SAEs for both features
         logger.info("Loading SAE models...")
-        self.correct_sae = load_gemma_scope_sae(
-            self.best_correct_feature['layer'], 
+        self.correct_sae = load_sae_for_config(
+            self.config,
+            self.best_correct_feature['layer'],
             self.device
         )
-        self.incorrect_sae = load_gemma_scope_sae(
+        self.incorrect_sae = load_sae_for_config(
+            self.config,
             self.best_incorrect_feature['layer'], 
             self.device
         )

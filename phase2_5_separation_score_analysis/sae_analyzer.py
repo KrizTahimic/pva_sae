@@ -17,75 +17,10 @@ from huggingface_hub import hf_hub_download
 from common.config import Config, GEMMA_2B_SPARSITY
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import get_phase_output_dir
+from common.sae_loader import load_sae_for_config
 
 # Module-level logger
 logger = get_logger("sae_analyzer", phase="2.5")
-
-
-class JumpReLUSAE(torch.nn.Module):
-    """JumpReLU Sparse Autoencoder implementation."""
-    
-    def __init__(self, d_model: int, d_sae: int):
-        super().__init__()
-        self.d_model = d_model
-        self.d_sae = d_sae
-        self.W_enc = torch.nn.Parameter(torch.zeros(d_model, d_sae))
-        self.W_dec = torch.nn.Parameter(torch.zeros(d_sae, d_model))
-        self.threshold = torch.nn.Parameter(torch.zeros(d_sae))
-        self.b_enc = torch.nn.Parameter(torch.zeros(d_sae))
-        self.b_dec = torch.nn.Parameter(torch.zeros(d_model))
-    
-    def encode(self, x: torch.Tensor) -> torch.Tensor:
-        pre_acts = x @ self.W_enc + self.b_enc
-        mask = (pre_acts > self.threshold)
-        acts = mask * torch.nn.functional.relu(pre_acts)
-        return acts
-
-
-def load_gemma_scope_sae(layer_idx: int, device: str) -> JumpReLUSAE:
-    """Load a GemmaScope SAE for a specific layer."""
-    logger.info(f"Loading GemmaScope SAE for layer {layer_idx}")
-    
-    # GemmaScope repository
-    repo_id = "google/gemma-scope-2b-pt-res"
-    
-    # Get the correct sparsity level for this layer
-    if layer_idx not in GEMMA_2B_SPARSITY:
-        raise ValueError(f"No sparsity mapping for layer {layer_idx}")
-    
-    sparsity = GEMMA_2B_SPARSITY[layer_idx]
-    
-    # Path within repository for this layer
-    sae_path = f"layer_{layer_idx}/width_16k/average_l0_{sparsity}/params.npz"
-    
-    logger.info(f"Loading from HuggingFace: {repo_id}/{sae_path}")
-    logger.info(f"This may take a while if the model is not cached...")
-    
-    # Download parameters
-    path_to_params = hf_hub_download(
-        repo_id=repo_id,
-        filename=sae_path,
-        force_download=False,
-    )
-    logger.info(f"Download complete, loading from: {path_to_params}")
-    
-    # Load parameters with appropriate dtype for device
-    params = np.load(path_to_params)
-    # Use float16 for MPS, keep original dtype for others
-    if device == "mps":
-        pt_params = {k: torch.from_numpy(v).to(torch.float16).to(device) for k, v in params.items()}
-    else:
-        pt_params = {k: torch.from_numpy(v).to(device) for k, v in params.items()}
-    
-    # Create and initialize SAE
-    d_model = params['W_enc'].shape[0]
-    d_sae = params['W_enc'].shape[1]
-    sae = JumpReLUSAE(d_model, d_sae)
-    sae.load_state_dict(pt_params)
-    sae.to(device)
-    
-    logger.info(f"Loaded SAE with d_model={d_model}, d_sae={d_sae}, sparsity={sparsity}")
-    return sae
 
 
 class SimplifiedSAEAnalyzer:
@@ -189,7 +124,7 @@ class SimplifiedSAEAnalyzer:
         logger.info(f"Analyzing layer {layer_idx}")
         
         # Load SAE for this layer
-        sae = load_gemma_scope_sae(layer_idx, self.device)
+        sae = load_sae_for_config(self.config, layer_idx, self.device)
         
         # Load activations
         correct_task_ids, correct_activations = self.load_activations_for_layer(
@@ -428,7 +363,7 @@ class SimplifiedSAEAnalyzer:
                     
                     if pile_activations is not None:
                         # Load SAE for this layer
-                        sae = load_gemma_scope_sae(layer_idx, self.device)
+                        sae = load_sae_for_config(self.config, layer_idx, self.device)
                         
                         # Ensure dtype matches SAE parameters for matrix multiplication
                         pile_activations = pile_activations.to(sae.W_enc.dtype)

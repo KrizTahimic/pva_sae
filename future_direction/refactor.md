@@ -141,13 +141,29 @@ Quick wins that make the codebase easier to work with.
 
 Fix the plumbing before building on top.
 
-- [ ] Fix why there are multiple things needed to add when adding a new phase in run.py multiple times, config.py
-- [ ] Make my data be in HuggingFace not in folders! IMPORTANT. Major improvement.
-- [ ] **Multi-model prerequisites** (enables LLAMA + HumanEval experiments)
-    - [ ] Ensure `phase_output.json` pattern works for LLAMA and HumanEval
-    - [ ] Verify model-aware output paths: `data/phase2_5_llama/`, `data/phase2_5_humaneval/`
-    - [ ] Test that config.py MODEL_CONFIGS correctly switches SAE repos
-
+- [x] Fix why there are multiple things needed to add when adding a new phase in run.py multiple times, config.py
+- [x] Is many if good practice or should we use swithc statements instead?
+- [x] Can we now delete phase_runners.py?
+- [x] Search for other legacy features that should be removed.
+- [x] Find other design flaw similar to to above.
+- [x] Is there a design improvement where we could make our code much better or shorter or fewer? or should we leave this for step 3? Or is there instance where it would not be scoped in by phase 3 especially its 2nd bullet?
+    - [x] Are you sure there is not more phases? I think most phases is consumed by another phase? There are only few exceptions. 
+- [x] In the previous commits we did in these refactoring saga is there left backward compatibility that should be removed? Feel free to search or git history.
+- [x] Adapting new consistency or standard for visualization. Like make separate the visualization from the main phase? or put it in notebook? For context I hate that we need to rerun the whole long phases just to change the visualization/table/figure. Help me think of a solution. Or should we do this in step 3 instead?
+- [x] Make my data be in HuggingFace not in folders! IMPORTANT. Major improvement.
+    - Created `scripts/upload_to_hf.py` for one-time uploads
+    - Data at: https://huggingface.co/datasets/kriztahimic/pva-sae-data
+    - Added `/hf-upload` slash command
+    - Local workflow unchanged (fast), HF for backup/sharing
+- [ ] ~~Should we consider designing here to run tests in parallel at for each model?~~ → **Deferred to Step 6**
+- [x] **Multi-model prerequisites** → **Complete!**
+    - [x] `common/sae_loader.py` exists with universal `load_sae()` and `load_sae_for_config()` functions
+    - [x] `MODEL_CONFIGS` in config.py with Gemma + LLAMA settings
+    - [x] `get_phase_output_dir()` adds `_llama`/`_humaneval` suffixes automatically
+    - [x] `phase_output.json` code added to 25 phase runners (creates manifest on next run)
+    - [x] **All 16 phase files updated to use `load_sae_for_config(config, layer_idx, device)`**
+    - [x] Removed duplicate `load_gemma_scope_sae()` and `JumpReLUSAE` from phase2_5
+    - Note: LLAMA only has `phase1_0_llama` data; run phases 2.5→8.3 when ready for LLAMA experiments
 ---
 
 ## Step 3: Common Module Refactor (Sequential Chain)
@@ -160,14 +176,14 @@ Do these in order - each step depends on the previous.
 - [ ] Have better categorization for common
 - [ ] Make/create a checkpointing function as a wrapper something so I don't need to reimplement it every phase? Is this possible? What is the design?
 - [ ] **Model-agnostic abstractions** (supports LLAMA + HumanEval)
-    - [ ] Verify `common/sae_loader.py` handles both GemmaScope (JumpReLU) and LlamaScope (TopK)
+    - [x] `common/sae_loader.py` handles both GemmaScope (JumpReLU) and LlamaScope (TopK) ✓
     - [ ] Ensure `apply_index_range_filter()` works for HumanEval (164 tasks) not just MBPP (974)
     - [ ] Abstract prompt building for different datasets (MBPP vs HumanEval format differences)
 
 ---
 
 ## Step 4: Code Quality (Depends on Step 3)
-
+- [ ] Remove hardcoded especially bandaid fix code. 
 - [ ] Examine this kind of code: `Fixed bfloat16→float32 conversion: .cpu().float().numpy() instead of .cpu().numpy()` What should I do? 
 - [ ] How to get steering coefficent? Autodiscovery or config? WHat is better for the script?
 
@@ -416,11 +432,13 @@ def apply_index_range_filter(df: pd.DataFrame, config: Config) -> pd.DataFrame:
 
 Nice-to-haves once the foundation is solid.
 
+- [ ] Update the docstrings/commetns.
 - [ ] Improve notebooks. Remove unnecessary cells. Also do list comprehensions.
     - [ ] Understand matplotlib and pandas logic or how it works.
 - [ ] Fix the figure generation code. Currently it looks soooo messy.
     - [ ] Make all figures correction green, corruption red, and pick a color for preservation.
 - [ ] Add here the ICML LaTeX.
+- [ ] Rename to code-correctness-sae( the folder, github repo, huggingface etc.)
 
 ### 5.1 ICML Visualizations (moved from ICML tasks)
 
@@ -465,17 +483,8 @@ These visualizations address reviewer feedback. Do after refactoring is stable.
 - [ ] **Steering coefficient search plots** (Reviewer 7JAK)
     - Show coefficient search process for appendix
     - X-axis: coefficient value, Y-axis: correction/corruption rate
+    - [ ] Fix this hardcoded  phase4_5_incorrect_coefficients: List[float] = field(default_factory=lambda: [100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0]). Make it do 1-100 in increments of 10. If still on corruption rate then do 200-1000 in increments of 1000
 
----
-
-## Independent (Anytime)
-
-Can be done in parallel with any phase.
-
-- [ ] Consider other improvements to Claude Code like skills.md or hooks to improve my workflow.
-    - [ ] Install Claude Code marketplace.
-
----
 
 ## ICML Submission Tasks (Based on ICLR Reviewer Feedback)
 
@@ -522,3 +531,52 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
     - **Clarification:** No need to test swapping predicting and steering latents - current setup makes sense:
         - t-statistic → for predicting directions
         - separation score → for steering directions
+
+---
+
+## Step 6: Multi-GPU Parallel Execution (After Experiments Work)
+
+Run experiments across 4 GPUs efficiently. Do this after multi-model support is verified.
+
+### Problem
+- 4 GPUs available, but experiments run sequentially
+- Different workloads: LLAMA takes longer than Gemma, not all phases run HumanEval
+- Static GPU assignment wastes resources (fast jobs finish, GPU sits idle)
+
+### Solution: Job Queue Pattern
+
+- [ ] Add `--model` and `--dataset` CLI flags to `run.py`
+- [ ] Create `scripts/job_queue.py` with task queue pattern
+- [ ] Workers (one per GPU) grab jobs from queue as they finish
+- [ ] Support for job dependencies (Phase 2.5 needs Phase 1)
+
+### Design
+
+```python
+# scripts/job_queue.py
+JOBS = [
+    ("1", "google/gemma-2-2b", "mbpp"),
+    ("1", "google/gemma-2-2b", "humaneval"),
+    ("1", "meta-llama/Llama-3.1-8B", "mbpp"),
+    ("2.5", "google/gemma-2-2b", "mbpp"),  # Runs when GPU free
+    # ...
+]
+
+# 4 worker threads, each assigned a GPU
+# Workers grab next job from queue when current job finishes
+```
+
+### Alternative: Task Spooler (Zero Code)
+```bash
+TS_SLOTS=4
+GPU=0 ts python3 run.py phase 1 --model gemma --dataset mbpp
+GPU=1 ts python3 run.py phase 1 --model llama --dataset mbpp
+# Queue auto-distributes to available GPUs
+```
+
+### Prerequisites
+- Step 2: Multi-model prerequisites complete
+- Step 3: Model-agnostic abstractions working
+- Verified: All phases work with `--model` and `--dataset` flags
+
+- [ ] Test run all 10 records.

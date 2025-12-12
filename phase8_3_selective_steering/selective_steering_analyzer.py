@@ -54,7 +54,7 @@ from common_simplified.helpers import (
 from common_simplified.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_steering_hook
 from common.prompt_utils import PromptBuilder
-from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
+from common.sae_loader import load_sae_for_config
 
 logger = get_logger(__name__)
 
@@ -174,11 +174,11 @@ class SelectiveSteeringAnalyzer:
         logger.info("Loading SAE models...")
 
         # SAE for incorrect-predicting threshold check (Layer 19)
-        self.sae_l19 = load_gemma_scope_sae(self.incorrect_pred_layer, self.device)
+        self.sae_l19 = load_sae_for_config(self.config, self.incorrect_pred_layer, self.device)
         logger.info(f"Loaded SAE for Layer {self.incorrect_pred_layer} (threshold checking)")
 
         # SAE for correct-steering (Layer 16)
-        self.sae_l16 = load_gemma_scope_sae(self.correct_steer_layer, self.device)
+        self.sae_l16 = load_sae_for_config(self.config, self.correct_steer_layer, self.device)
         logger.info(f"Loaded SAE for Layer {self.correct_steer_layer} (steering)")
 
         # Extract decoder direction for steering

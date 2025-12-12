@@ -21,7 +21,7 @@ from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device, discover_latest_phase_output, format_duration, get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
 from common_simplified.helpers import save_json, load_json
-from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
+from common.sae_loader import load_sae_for_config
 
 
 class TemperatureAUROCEvaluator:
@@ -203,8 +203,8 @@ class TemperatureAUROCEvaluator:
         
         # Load SAEs once for reuse
         self.logger.info("Loading SAEs for feature encoding")
-        sae_correct = load_gemma_scope_sae(best_features['correct']['layer'], self.device)
-        sae_incorrect = load_gemma_scope_sae(best_features['incorrect']['layer'], self.device)
+        sae_correct = load_sae_for_config(self.config, best_features['correct']['layer'], self.device)
+        sae_incorrect = load_sae_for_config(self.config, best_features['incorrect']['layer'], self.device)
         
         for temp in self.temperatures:
             self.logger.info(f"\nProcessing temperature {temp}")

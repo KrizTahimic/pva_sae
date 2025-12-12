@@ -39,7 +39,7 @@ from common.retry_utils import retry_with_timeout
 from common_simplified.model_loader import load_model_and_tokenizer
 from common_simplified.helpers import evaluate_code, extract_code, load_json, save_json
 from common_simplified.weight_orthogonalization import orthogonalize_gemma_weights
-from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
+from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase5_6.zero_disc_weight_orthogonalizer")
 
@@ -130,7 +130,8 @@ class ZeroDiscWeightOrthogonalizer:
         # Load SAE for the zero-disc feature
         logger.info("Loading SAE model for zero-disc feature...")
         # Use CPU first then move to device
-        self.sae = load_gemma_scope_sae(
+        self.sae = load_sae_for_config(
+            self.config,
             self.best_zero_disc['layer'], 
             "cpu"
         )

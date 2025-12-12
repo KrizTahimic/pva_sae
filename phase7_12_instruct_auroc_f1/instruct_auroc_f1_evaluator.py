@@ -25,7 +25,7 @@ from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists, discover_latest_phase_output, write_phase_output
 from common.viz_utils import handle_viz_only_mode
 from common_simplified.helpers import save_json, load_json
-from phase2_5_separation_score_analysis.sae_analyzer import load_gemma_scope_sae
+from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase7_12.instruct_auroc_f1_evaluator")
 
@@ -277,6 +277,7 @@ def load_instruct_activations(
     feature_type: str,
     phase0_1_dir: Path,
     phase7_3_dir: Path,
+    config: Config,
     dataset_name: str = "mbpp"
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Load activations for a specific feature from Phase 7.3 instruction-tuned model data.
@@ -304,7 +305,7 @@ def load_instruct_activations(
 
     # Detect device and load SAE for encoding
     device = detect_device()
-    sae = load_gemma_scope_sae(layer_num, device)
+    sae = load_sae_for_config(config, layer_num, device)
     logger.info(f"Loaded SAE for layer {layer_num} with 16,384 features on {device}")
 
     activations = []
@@ -486,7 +487,7 @@ def main():
     # Load validation data for correct feature from instruction-tuned model
     y_true_correct, scores_correct = load_instruct_activations(
         correct_layer, correct_feature_idx, 'correct',
-        phase0_1_dir, phase7_3_dir, config.dataset_name
+        phase0_1_dir, phase7_3_dir, config, config.dataset_name
     )
 
     logger.info(f"\nCorrect-preferring feature (instruction-tuned model):")
@@ -511,7 +512,7 @@ def main():
     # Load validation data for incorrect feature from instruction-tuned model
     y_true_incorrect, scores_incorrect = load_instruct_activations(
         incorrect_layer, incorrect_feature_idx, 'incorrect',
-        phase0_1_dir, phase7_3_dir, config.dataset_name
+        phase0_1_dir, phase7_3_dir, config, config.dataset_name
     )
 
     logger.info(f"\nIncorrect-preferring feature (instruction-tuned model):")
