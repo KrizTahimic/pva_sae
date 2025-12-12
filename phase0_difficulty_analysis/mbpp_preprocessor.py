@@ -11,7 +11,7 @@ import pandas as pd
 
 from common.logging import get_logger
 from .difficulty_analyzer import MBPPDifficultyAnalyzer
-from common.utils import get_phase_output_dir
+from common.phase_discovery import get_phase_output_dir
 from common.config import Config
 from datasets import load_dataset
 
@@ -60,7 +60,7 @@ class MBPPPreprocessor:
             self.logger.info(f"Enriched dataset available at: {latest_enriched}")
 
             # Write phase_output.json manifest
-            from common.utils import write_phase_output
+            from common.phase_discovery import write_phase_output
 
             write_phase_output(
                 phase="0",

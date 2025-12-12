@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Dict, Any, Tuple
 
 from common.config import Config
-from common.utils import get_phase_output_dir, write_phase_output
+from common.phase_discovery import get_phase_output_dir, write_phase_output
 from common.logging import get_logger
 from common.viz_utils import handle_viz_only_mode
 

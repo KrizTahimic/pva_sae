@@ -18,10 +18,9 @@ import psutil  # For memory monitoring
 
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import (
+from common.utils import ensure_directory_exists, detect_device
+from common.phase_discovery import (
     discover_latest_phase_output,
-    ensure_directory_exists,
-    detect_device,
     get_phase_output_dir,
     get_dataset_range
 )
@@ -35,7 +34,8 @@ from common.steering_metrics import (
 )
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common.model_loader import load_model_and_tokenizer
-from common.helpers import evaluate_code, extract_code, load_json, save_json
+from common.utils import load_json, save_json
+from common.dataset_utils import evaluate_code, extract_code
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_5.steering_evaluator")
@@ -819,7 +819,7 @@ class SteeringCoefficientSelector:
         logger.info(f"{'='*80}\n")
 
         # Write phase_output.json manifest
-        from common.utils import write_phase_output
+        from common.phase_discovery import write_phase_output
 
         write_phase_output(
             phase="4.5",

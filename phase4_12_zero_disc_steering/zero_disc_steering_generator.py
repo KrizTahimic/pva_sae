@@ -24,7 +24,7 @@ from common.utils import (
     get_phase_output_dir,
     get_dataset_range
 )
-from common.helpers import load_json, save_json
+from common.utils import load_json, save_json
 from common.config import Config
 from common.steering_metrics import (
     create_steering_hook,
@@ -34,7 +34,7 @@ from common.steering_metrics import (
 )
 from common.retry_utils import retry_with_timeout
 from common.model_loader import load_model_and_tokenizer
-from common.helpers import evaluate_code, extract_code
+from common.dataset_utils import evaluate_code, extract_code
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_12.zero_disc_steering_generator")
@@ -433,7 +433,7 @@ class ZeroDiscSteeringGenerator:
         logger.info("="*60)
 
         # Write phase_output.json manifest
-        from common.utils import write_phase_output
+        from common.phase_discovery import write_phase_output
 
         write_phase_output(
             phase="4.12",

@@ -21,10 +21,10 @@ import seaborn as sns
 
 from common.prompt_utils import PromptBuilder
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import (
+from common.utils import ensure_directory_exists, detect_device
+from common.phase_discovery import (
     discover_latest_phase_output,
-    ensure_directory_exists,
-    detect_device,
+    get_phase_output_dir,
     get_dataset_range
 )
 from common.viz_utils import handle_viz_only_mode
@@ -36,7 +36,8 @@ from common.steering_metrics import (
 )
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common.model_loader import load_model_and_tokenizer
-from common.helpers import evaluate_code, extract_code, load_json, save_json
+from common.utils import load_json, save_json
+from common.dataset_utils import evaluate_code, extract_code
 from common.activation_hooks import (
     AttentionExtractor,
     save_raw_attention_with_boundaries
@@ -55,7 +56,6 @@ class SteeringEffectAnalyzer:
         self.device = detect_device()
 
         # Phase output directories with dataset suffix
-        from common.utils import get_phase_output_dir
         self.output_dir = Path(get_phase_output_dir('4.8', config))
         ensure_directory_exists(self.output_dir)
         logger.info(f"Output directory: {self.output_dir}")
@@ -952,7 +952,7 @@ class SteeringEffectAnalyzer:
         logger.info(f"Saved results to {self.output_dir}")
 
         # Write phase_output.json manifest
-        from common.utils import write_phase_output
+        from common.phase_discovery import write_phase_output
 
         write_phase_output(
             phase="4.8",

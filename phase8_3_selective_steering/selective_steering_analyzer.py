@@ -45,12 +45,8 @@ from common.utils import (
     write_phase_output,
     get_dataset_range
 )
-from common.helpers import (
-    save_json,
-    load_json,
-    extract_code,
-    evaluate_code
-)
+from common.utils import save_json, load_json
+from common.dataset_utils import extract_code, evaluate_code
 from common.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_steering_hook
 from common.prompt_utils import PromptBuilder

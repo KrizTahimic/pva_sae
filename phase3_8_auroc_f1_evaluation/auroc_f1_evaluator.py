@@ -21,9 +21,11 @@ from sklearn.metrics import (
 )
 
 from common.logging import get_logger
-from common.utils import detect_device, ensure_directory_exists, discover_latest_phase_output
+from common.config import Config
+from common.utils import detect_device, ensure_directory_exists
+from common.phase_discovery import discover_latest_phase_output
 from common.viz_utils import handle_viz_only_mode
-from common.helpers import save_json, load_json
+from common.utils import save_json, load_json
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase3_8.auroc_f1_evaluator")
@@ -69,7 +71,7 @@ def run_evaluation(config):
     logger.info(f"Using Phase 3.6 output: {phase3_6_dir}")
 
     # Setup output directory (with dataset suffix if needed)
-    from common.utils import get_phase_output_dir
+    from common.phase_discovery import get_phase_output_dir
     output_dir = Path(get_phase_output_dir('3.8', config))
     ensure_directory_exists(output_dir)
     logger.info(f"Output directory: {output_dir}")
@@ -267,7 +269,7 @@ def run_evaluation(config):
     logger.info(f"  F1: {val_metrics_incorrect['f1']:.4f}")
 
     # Write phase_output.json manifest
-    from common.utils import write_phase_output
+    from common.phase_discovery import write_phase_output
 
     write_phase_output(
         phase="3.8",

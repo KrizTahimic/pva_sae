@@ -20,7 +20,7 @@ from common.utils import (
     ensure_directory_exists,
     get_phase_output_dir
 )
-from common.helpers import load_json, save_json
+from common.utils import load_json, save_json
 from common.config import Config
 from common.sae_loader import load_sae_for_config
 
@@ -297,7 +297,7 @@ class ZeroDiscriminationSelector:
         logger.info(f"Saved summary to: {summary_file}")
 
         # Write phase_output.json manifest
-        from common.utils import write_phase_output
+        from common.phase_discovery import write_phase_output
 
         write_phase_output(
             phase="4.10",

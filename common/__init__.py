@@ -47,13 +47,13 @@ from .activation_hooks import (
     extract_activations_simple
 )
 
-from .helpers import (
+# File I/O utilities (merged from helpers.py into utils.py)
+from .utils import (
     save_json,
     load_json,
     save_activations,
     load_activations,
-    extract_code,
-    evaluate_code
+    create_activation_filename
 )
 
 from .weight_orthogonalization import (
@@ -70,7 +70,13 @@ from .prompt_utils import (
 from .dataset_utils import (
     split_by_correctness,
     discover_task_ids,
-    discover_layer_indices
+    discover_layer_indices,
+    load_mbpp_from_phase0_1,
+    extract_code,
+    evaluate_code,
+    timeout,
+    load_and_encode_activation,
+    load_raw_activation
 )
 
 # Initialization utilities
@@ -87,9 +93,20 @@ from .statistics_utils import (
 
 # Metrics utilities
 from .metrics_utils import (
-    calculate_classification_metrics,
-    load_and_encode_activation,
-    load_raw_activation
+    calculate_classification_metrics
+)
+
+# Phase discovery utilities
+from .phase_discovery import (
+    get_phase_dir,
+    get_phase_output_dir,
+    get_model_suffix,
+    get_dataset_suffix,
+    discover_latest_phase_output,
+    get_dataset_range,
+    write_phase_output,
+    discover_phase_outputs,
+    get_phase_output_file
 )
 
 __all__ = [
@@ -127,13 +144,12 @@ __all__ = [
     'AttentionExtractor',
     'extract_activations_simple',
 
-    # Helpers
+    # Helpers (I/O)
     'save_json',
     'load_json',
     'save_activations',
     'load_activations',
-    'extract_code',
-    'evaluate_code',
+    'create_activation_filename',
 
     # Weight orthogonalization
     'orthogonalize_gemma_weights',
@@ -146,6 +162,12 @@ __all__ = [
     'split_by_correctness',
     'discover_task_ids',
     'discover_layer_indices',
+    'load_mbpp_from_phase0_1',
+    'extract_code',
+    'evaluate_code',
+    'timeout',
+    'load_and_encode_activation',
+    'load_raw_activation',
 
     # Initialization utilities
     'setup_deterministic_generation',
@@ -157,6 +179,15 @@ __all__ = [
 
     # Metrics utilities
     'calculate_classification_metrics',
-    'load_and_encode_activation',
-    'load_raw_activation'
+
+    # Phase discovery utilities
+    'get_phase_dir',
+    'get_phase_output_dir',
+    'get_model_suffix',
+    'get_dataset_suffix',
+    'discover_latest_phase_output',
+    'get_dataset_range',
+    'write_phase_output',
+    'discover_phase_outputs',
+    'get_phase_output_file'
 ]

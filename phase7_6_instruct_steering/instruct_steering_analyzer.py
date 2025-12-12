@@ -39,7 +39,8 @@ from common.steering_metrics import (
 )
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common.model_loader import load_model_and_tokenizer
-from common.helpers import evaluate_code, extract_code, load_json, save_json
+from common.utils import load_json, save_json
+from common.dataset_utils import evaluate_code, extract_code
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase7_6.instruct_steering_analyzer")

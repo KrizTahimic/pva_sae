@@ -23,7 +23,7 @@ from common.utils import (
     ensure_directory_exists,
     get_phase_output_dir
 )
-from common.helpers import load_json, save_json
+from common.utils import load_json, save_json
 from common.config import Config
 
 logger = get_logger("phase5_9.orthogonalization_significance_tester")
@@ -556,7 +556,7 @@ class OrthogonalizationSignificanceTester:
         logger.info("="*60)
 
         # Write phase_output.json manifest
-        from common.utils import write_phase_output
+        from common.phase_discovery import write_phase_output
 
         write_phase_output(
             phase="5.9",

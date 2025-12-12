@@ -13,6 +13,8 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 import json
 
+from common.utils import format_duration
+
 
 class LoggingManager:
     """Manages phase-based logging configuration for the project"""
@@ -404,11 +406,11 @@ def tqdm_with_logging(
                         items_remaining = total - items_done
                         time_per_item = elapsed / items_done if items_done > 0 else 0
                         eta_seconds = time_per_item * items_remaining
-                        eta_str = _format_duration(eta_seconds)
+                        eta_str = format_duration(eta_seconds)
                         logger.info(f"Progress: {milestone}% ({items_done}/{total}) - ETA: {eta_str}")
                     else:
                         # 100% milestone - log completion
-                        duration_str = _format_duration(elapsed)
+                        duration_str = format_duration(elapsed)
                         logger.info(f"Completed: {desc} - {total}/{total} in {duration_str}")
 
                     logged_milestones.add(milestone)
@@ -416,18 +418,6 @@ def tqdm_with_logging(
     # If we never hit 100% milestone (e.g., total was wrong), log completion anyway
     if 100 not in logged_milestones:
         elapsed = time.time() - start_time
-        duration_str = _format_duration(elapsed)
+        duration_str = format_duration(elapsed)
         count = i + 1 if 'i' in dir() else 0
         logger.info(f"Completed: {desc} - {count} items in {duration_str}")
-
-
-def _format_duration(seconds: float) -> str:
-    """Format duration in human-readable form."""
-    if seconds < 60:
-        return f"{seconds:.0f}s"
-    elif seconds < 3600:
-        minutes = seconds / 60
-        return f"{minutes:.1f}m"
-    else:
-        hours = seconds / 3600
-        return f"{hours:.1f}h"

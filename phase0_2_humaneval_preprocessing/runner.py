@@ -9,7 +9,7 @@ from pathlib import Path
 from .converter import convert_humaneval_to_mbpp, inspect_sample_conversions
 from common.config import Config
 from common.logging import get_logger
-from common.utils import get_phase_output_dir, write_phase_output
+from common.phase_discovery import get_phase_output_dir, write_phase_output
 
 logger = get_logger("phase0_2.runner")
 

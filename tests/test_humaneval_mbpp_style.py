@@ -25,7 +25,7 @@ import sys
 sys.path.insert(0, '.')
 
 from common.model_loader import load_model_and_tokenizer
-from common.helpers import evaluate_code
+from common.dataset_utils import evaluate_code
 from common.prompt_utils import PromptBuilder
 
 

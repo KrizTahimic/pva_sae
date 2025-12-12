@@ -18,9 +18,10 @@ import matplotlib.cm as cm
 
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import detect_device, discover_latest_phase_output, format_duration, get_phase_output_dir
+from common.utils import detect_device, format_duration
+from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
-from common.helpers import save_json, load_json
+from common.utils import save_json, load_json
 from common.sae_loader import load_sae_for_config
 
 
@@ -647,7 +648,7 @@ class TemperatureAUROCEvaluator:
         self.logger.info(f"Saved summary to {summary_path}")
 
         # Write phase_output.json manifest
-        from common.utils import write_phase_output
+        from common.phase_discovery import write_phase_output
 
         write_phase_output(
             phase="3.10",

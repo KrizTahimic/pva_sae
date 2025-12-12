@@ -19,7 +19,7 @@ from datetime import datetime
 
 from common.config import Config
 from common.logging import get_logger
-from common.utils import discover_latest_phase_output, get_phase_output_dir
+from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 
 # Module-level logger
 logger = get_logger("problem_splitter", phase="0.1")
@@ -397,7 +397,7 @@ def save_splits(
 
     # Write phase_output.json manifest
     if config is not None:
-        from common.utils import write_phase_output
+        from common.phase_discovery import write_phase_output
 
         # Build outputs dict from split names
         outputs = {"primary": "split_metadata.json"}

@@ -16,7 +16,7 @@ from datetime import datetime
 
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import get_phase_output_dir
+from common.phase_discovery import get_phase_output_dir
 from common.sae_loader import load_sae_for_config
 
 # Module-level logger
@@ -524,7 +524,7 @@ class TStatisticSelector:
         logger.info(f"Saved summary results to {output_file}")
 
         # Write phase_output.json manifest
-        from common.utils import write_phase_output
+        from common.phase_discovery import write_phase_output
 
         write_phase_output(
             phase="2.10",

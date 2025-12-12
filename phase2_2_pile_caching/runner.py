@@ -14,7 +14,7 @@ from datasets import load_dataset
 
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import get_phase_output_dir, get_dataset_range
+from common.phase_discovery import get_phase_output_dir, get_dataset_range
 from common.model_loader import load_model_and_tokenizer
 from .pile_activation_hook import PileActivationHook
 from .utils import find_word_position, validate_pile_sample
@@ -148,7 +148,7 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
     logger.info(f"Activations saved to: {output_dir}")
 
     # Write phase_output.json manifest
-    from common.utils import write_phase_output
+    from common.phase_discovery import write_phase_output
 
     phase_output_dir = output_dir.parent  # phase2_2 dir, not pile_activations subdir
     write_phase_output(

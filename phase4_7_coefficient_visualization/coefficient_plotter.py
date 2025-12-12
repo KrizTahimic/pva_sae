@@ -262,7 +262,7 @@ class Phase47Runner:
     def run(self):
         """Run Phase 4.7: Coefficient Optimization Visualization."""
         # Setup paths using config
-        from common.utils import get_phase_output_dir
+        from common.phase_discovery import get_phase_output_dir
         data_dir = Path(self.config.data_dir)
         self.output_dir = Path(get_phase_output_dir("4.7", self.config))
 
@@ -284,7 +284,7 @@ class Phase47Runner:
         visualizer.generate_all_plots()
 
         # Write phase_output.json manifest
-        from common.utils import write_phase_output
+        from common.phase_discovery import write_phase_output
 
         write_phase_output(
             phase="4.7",

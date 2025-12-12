@@ -1,16 +1,13 @@
 """
-Metrics and activation utilities.
+Classification metrics utilities.
 
-This module provides utilities for:
-- Classification metrics calculation (AUROC, F1, precision, recall)
-- Activation loading and SAE encoding
+This module provides utilities for calculating standard classification metrics
+(AUROC, F1, precision, recall) used in evaluation phases.
 """
 
-from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 import numpy as np
-import torch
 from sklearn.metrics import (
     f1_score,
     precision_score,
@@ -63,95 +60,3 @@ def calculate_classification_metrics(
         'threshold': threshold,
         'n_samples': len(y_true)
     }
-
-
-def load_and_encode_activation(
-    task_id: str,
-    layer: int,
-    feature_idx: int,
-    sae,
-    device: torch.device,
-    activation_dir: Path
-) -> Optional[float]:
-    """
-    Load activation from .npz and encode through SAE to get feature value.
-
-    This is the common pattern used across evaluation phases:
-    1. Load raw activation from npz file
-    2. Convert to correct dtype
-    3. Encode through SAE
-    4. Extract specific feature activation
-
-    Args:
-        task_id: Task identifier (used in filename)
-        layer: Layer number
-        feature_idx: SAE feature index to extract
-        sae: SAE model with encode() method
-        device: Target device for tensors
-        activation_dir: Directory containing activation files
-
-    Returns:
-        Feature activation value as float, or None if file doesn't exist
-
-    Example:
-        >>> value = load_and_encode_activation(
-        ...     task_id="42", layer=16, feature_idx=1234,
-        ...     sae=my_sae, device=torch.device("cuda"),
-        ...     activation_dir=Path("data/phase1_0/activations/task_activations")
-        ... )
-        >>> if value is not None:
-        ...     print(f"Feature activation: {value:.4f}")
-    """
-    filepath = activation_dir / f"{task_id}_layer_{layer}.npz"
-
-    if not filepath.exists():
-        return None
-
-    # Load from numpy
-    data = np.load(filepath)
-    raw_activation = torch.from_numpy(data['arr_0']).to(device)
-
-    # Match SAE dtype
-    raw_activation = raw_activation.to(sae.W_enc.dtype)
-
-    # Handle 1D activations (squeeze from earlier processing)
-    if raw_activation.ndim == 1:
-        raw_activation = raw_activation.unsqueeze(0)
-
-    # Encode and extract feature
-    with torch.no_grad():
-        sae_features = sae.encode(raw_activation)
-
-    return sae_features[0, feature_idx].item()
-
-
-def load_raw_activation(
-    task_id: str,
-    layer: int,
-    activation_dir: Path,
-    device: Optional[torch.device] = None
-) -> Optional[torch.Tensor]:
-    """
-    Load raw activation tensor from .npz file.
-
-    Args:
-        task_id: Task identifier (used in filename)
-        layer: Layer number
-        activation_dir: Directory containing activation files
-        device: Target device (if None, stays on CPU)
-
-    Returns:
-        Activation tensor, or None if file doesn't exist
-    """
-    filepath = activation_dir / f"{task_id}_layer_{layer}.npz"
-
-    if not filepath.exists():
-        return None
-
-    data = np.load(filepath)
-    activation = torch.from_numpy(data['arr_0'])
-
-    if device is not None:
-        activation = activation.to(device)
-
-    return activation

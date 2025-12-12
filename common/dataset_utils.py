@@ -4,12 +4,18 @@ Dataset utilities for common data operations.
 This module provides utilities for:
 - Splitting datasets by correctness (pass/fail)
 - Discovering task IDs from activation files
+- Code extraction and evaluation
+- Activation loading and SAE encoding
 """
 
+import contextlib
+import signal
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
+import numpy as np
 import pandas as pd
+import torch
 
 from .logging import get_logger
 
@@ -103,3 +109,264 @@ def discover_layer_indices(
                 continue
 
     return sorted(list(layer_indices))
+
+
+# ============================================================================
+# Dataset Loading
+# ============================================================================
+
+def load_mbpp_from_phase0_1(split_name: str, phase0_1_dir: Path) -> pd.DataFrame:
+    """Load MBPP data for a specific split from Phase 0.1 output."""
+    split_file = phase0_1_dir / f"{split_name}_mbpp.parquet"
+    if not split_file.exists():
+        raise FileNotFoundError(f"Split file not found: {split_file}")
+
+    df = pd.read_parquet(split_file)
+    logger.info(f"Loaded {len(df)} problems from {split_name} split")
+    return df
+
+
+# ============================================================================
+# Code Extraction and Evaluation
+# ============================================================================
+
+def extract_code(generated_text: str, prompt: str) -> str:
+    """
+    Extract generated code from model output.
+
+    Args:
+        generated_text: Generated text (may or may not include prompt)
+        prompt: Original prompt to remove if present
+
+    Returns:
+        Extracted code
+    """
+    code = None
+
+    # Method 1: Try exact prompt match (works for Gemma)
+    if generated_text.startswith(prompt):
+        code = generated_text[len(prompt):].strip()
+
+    # Method 2: Look for "# Solution:" marker (our code_initiator)
+    # This handles cases where tokenization changes whitespace slightly
+    if code is None:
+        solution_marker = "# Solution:"
+        marker_idx = generated_text.find(solution_marker)
+        if marker_idx != -1:
+            code = generated_text[marker_idx + len(solution_marker):].strip()
+
+    # Method 3: Try to find prompt substring (handles whitespace differences)
+    # Look for last occurrence of test assertions pattern before code
+    if code is None:
+        # Find the last assert statement that's part of test_list
+        last_assert_idx = generated_text.rfind("assert ")
+        if last_assert_idx != -1:
+            # Find the end of that line
+            newline_after_assert = generated_text.find('\n', last_assert_idx)
+            if newline_after_assert != -1:
+                code = generated_text[newline_after_assert:].strip()
+
+    # Method 4: Fallback - use entire text
+    if code is None:
+        code = generated_text.strip()
+
+    # Now find and extract the function definition
+    def_index = code.find('def ')
+    if def_index == -1:
+        # No function definition found, return as is
+        return code.strip()
+
+    # Start from the def
+    code = code[def_index:]
+
+    # Look for pattern: \n followed by non-space/non-tab after the def
+    # This indicates end of function (test cases, main function, etc.)
+    search_start = 4  # Skip past "def "
+
+    for i in range(search_start, len(code) - 1):
+        if code[i] == '\n' and i + 1 < len(code):
+            next_char = code[i + 1]
+            if next_char not in ' \t\n':
+                # Found newline followed by non-whitespace
+                # This is where function ends
+                return code[:i].rstrip()
+
+    # No such pattern found, return entire code
+    return code.strip()
+
+
+@contextlib.contextmanager
+def timeout(seconds):
+    """
+    Context manager for timeout protection.
+    Note: Only works on Unix/Mac systems (uses SIGALRM).
+    """
+    def timeout_handler(signum, frame):
+        raise TimeoutError(f"Code execution exceeded {seconds} seconds")
+
+    # Set up the timeout
+    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        # Restore previous handler and cancel alarm
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
+
+
+def evaluate_code(code: str, test_list: list[str]) -> bool:
+    """
+    Evaluate generated code against test cases with timeout protection.
+
+    Args:
+        code: Generated code to test
+        test_list: List of test assertion strings
+
+    Returns:
+        True if all tests pass, False otherwise
+    """
+    # Create namespace for execution
+    namespace = {}
+
+    # Pre-import dataset-specific imports
+    # For HumanEval: load from Phase 0.3, For MBPP: load from test_imports
+    try:
+        from common.config import Config
+        config = Config()
+
+        import_file = None
+        if config.dataset_name == "humaneval":
+            import_file = Path("data/phase0_3_humaneval/required_imports.json")
+        elif config.dataset_name == "mbpp":
+            import_file = Path("data/test_imports/metadata.json")
+
+        if import_file and import_file.exists():
+            import json
+            with open(import_file) as f:
+                imports_data = json.load(f)
+                import_code = '\n'.join(imports_data['imports'])
+                # Execute imports in namespace
+                exec(import_code, namespace)
+        # If file doesn't exist yet, silently continue
+    except Exception:
+        # If config loading fails, continue without pre-imports
+        pass
+
+    # Execute the code with timeout
+    try:
+        with timeout(5):  # 5 second timeout for code execution
+            exec(code, namespace)
+    except TimeoutError:
+        # Code took too long (likely blocked on input() or infinite loop)
+        return False
+    except Exception:
+        # Other execution errors
+        return False
+
+    # Run each test with timeout
+    for test in test_list:
+        try:
+            with timeout(5):  # 5 second timeout per test
+                exec(test, namespace)
+        except (TimeoutError, Exception):
+            return False
+
+    # All tests passed
+    return True
+
+
+# ============================================================================
+# Activation Loading and SAE Encoding
+# ============================================================================
+
+def load_and_encode_activation(
+    task_id: str,
+    layer: int,
+    feature_idx: int,
+    sae,
+    device: torch.device,
+    activation_dir: Path
+) -> Optional[float]:
+    """
+    Load activation from .npz and encode through SAE to get feature value.
+
+    This is the common pattern used across evaluation phases:
+    1. Load raw activation from npz file
+    2. Convert to correct dtype
+    3. Encode through SAE
+    4. Extract specific feature activation
+
+    Args:
+        task_id: Task identifier (used in filename)
+        layer: Layer number
+        feature_idx: SAE feature index to extract
+        sae: SAE model with encode() method
+        device: Target device for tensors
+        activation_dir: Directory containing activation files
+
+    Returns:
+        Feature activation value as float, or None if file doesn't exist
+
+    Example:
+        >>> value = load_and_encode_activation(
+        ...     task_id="42", layer=16, feature_idx=1234,
+        ...     sae=my_sae, device=torch.device("cuda"),
+        ...     activation_dir=Path("data/phase1_0/activations/task_activations")
+        ... )
+        >>> if value is not None:
+        ...     print(f"Feature activation: {value:.4f}")
+    """
+    filepath = activation_dir / f"{task_id}_layer_{layer}.npz"
+
+    if not filepath.exists():
+        return None
+
+    # Load from numpy
+    data = np.load(filepath)
+    raw_activation = torch.from_numpy(data['arr_0']).to(device)
+
+    # Match SAE dtype
+    raw_activation = raw_activation.to(sae.W_enc.dtype)
+
+    # Handle 1D activations (squeeze from earlier processing)
+    if raw_activation.ndim == 1:
+        raw_activation = raw_activation.unsqueeze(0)
+
+    # Encode and extract feature
+    with torch.no_grad():
+        sae_features = sae.encode(raw_activation)
+
+    return sae_features[0, feature_idx].item()
+
+
+def load_raw_activation(
+    task_id: str,
+    layer: int,
+    activation_dir: Path,
+    device: Optional[torch.device] = None
+) -> Optional[torch.Tensor]:
+    """
+    Load raw activation tensor from .npz file.
+
+    Args:
+        task_id: Task identifier (used in filename)
+        layer: Layer number
+        activation_dir: Directory containing activation files
+        device: Target device (if None, stays on CPU)
+
+    Returns:
+        Activation tensor, or None if file doesn't exist
+    """
+    filepath = activation_dir / f"{task_id}_layer_{layer}.npz"
+
+    if not filepath.exists():
+        return None
+
+    data = np.load(filepath)
+    activation = torch.from_numpy(data['arr_0'])
+
+    if device is not None:
+        activation = activation.to(device)
+
+    return activation

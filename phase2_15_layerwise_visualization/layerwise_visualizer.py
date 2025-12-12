@@ -31,7 +31,8 @@ import seaborn as sns
 from datetime import datetime
 
 from common.logging import get_logger
-from common.utils import discover_latest_phase_output, ensure_directory_exists, get_phase_output_dir
+from common.utils import ensure_directory_exists
+from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.config import Config
 from common.viz_utils import handle_viz_only_mode
 
@@ -304,7 +305,7 @@ class LayerwiseVisualizer:
         logger.info(f"Saved results to {output_file}")
 
         # Write phase_output.json manifest
-        from common.utils import write_phase_output
+        from common.phase_discovery import write_phase_output
 
         write_phase_output(
             phase="2.15",

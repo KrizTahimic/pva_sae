@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 
 from common.config import Config
 from common.logging import get_logger
-from common.utils import discover_latest_phase_output, get_phase_output_dir
+from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
-from common.helpers import load_json
+from common.utils import load_json
 
 
 class TemperatureTrendsVisualizer:
@@ -172,7 +172,7 @@ class TemperatureTrendsVisualizer:
         self.logger.info(f"Saved metadata to {json_path}")
 
         # Write phase_output.json manifest
-        from common.utils import write_phase_output
+        from common.phase_discovery import write_phase_output
 
         write_phase_output(
             phase="3.11",

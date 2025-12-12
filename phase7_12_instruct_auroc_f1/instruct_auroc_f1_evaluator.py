@@ -22,9 +22,10 @@ from sklearn.metrics import (
 )
 
 from common.logging import get_logger
-from common.utils import detect_device, ensure_directory_exists, discover_latest_phase_output, write_phase_output
+from common.utils import detect_device, ensure_directory_exists
+from common.phase_discovery import discover_latest_phase_output, write_phase_output
 from common.viz_utils import handle_viz_only_mode
-from common.helpers import save_json, load_json
+from common.utils import save_json, load_json
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase7_12.instruct_auroc_f1_evaluator")
@@ -419,7 +420,7 @@ def main():
     if args.output_dir:
         output_dir = Path(args.output_dir)
     else:
-        from common.utils import get_phase_output_dir
+        from common.phase_discovery import get_phase_output_dir
         output_dir = Path(get_phase_output_dir('7.12', config))
     ensure_directory_exists(output_dir)
     logger.info(f"Output directory: {output_dir}")

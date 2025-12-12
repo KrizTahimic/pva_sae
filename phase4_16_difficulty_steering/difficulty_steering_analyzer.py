@@ -17,7 +17,8 @@ from scipy.stats import chi2_contingency
 
 from common.logging import get_logger
 from common.config import Config
-from common.utils import ensure_directory_exists, get_phase_output_dir
+from common.utils import ensure_directory_exists
+from common.phase_discovery import get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
 from phase3_12_difficulty_auroc_f1.difficulty_evaluator import group_by_difficulty
 
@@ -615,7 +616,7 @@ def main():
     logger.info(f"\nAll results saved to: {output_dir}")
 
     # Write phase_output.json manifest
-    from common.utils import write_phase_output
+    from common.phase_discovery import write_phase_output
 
     write_phase_output(
         phase="4.16",

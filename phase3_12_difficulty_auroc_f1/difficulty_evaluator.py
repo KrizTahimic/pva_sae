@@ -23,9 +23,10 @@ from sklearn.metrics import (
 # rather than reusing calculate_metrics from Phase 3.8 due to different requirements
 
 from common.logging import get_logger
-from common.utils import detect_device, ensure_directory_exists, discover_latest_phase_output
+from common.utils import detect_device, ensure_directory_exists
+from common.phase_discovery import discover_latest_phase_output
 from common.viz_utils import handle_viz_only_mode
-from common.helpers import save_json, load_json
+from common.utils import save_json, load_json
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase3_12.difficulty_evaluator")
@@ -787,7 +788,7 @@ def main():
     logger.info(f"\nAll results saved to {output_dir}")
 
     # Write phase_output.json manifest
-    from common.utils import write_phase_output
+    from common.phase_discovery import write_phase_output
 
     write_phase_output(
         phase="3.12",

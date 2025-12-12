@@ -19,11 +19,13 @@ import psutil  # For memory monitoring
 
 from common.model_loader import load_model_and_tokenizer
 from common.activation_hooks import ActivationExtractor
-from common.helpers import evaluate_code, extract_code, save_json, format_time, load_json
+from common.utils import save_json, load_json
+from common.dataset_utils import evaluate_code, extract_code
 from common.prompt_utils import PromptBuilder
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import detect_device, discover_latest_phase_output, ensure_directory_exists, get_phase_output_dir, get_dataset_range
+from common.utils import detect_device, ensure_directory_exists
+from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir, get_dataset_range
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
 # Module-level logger
@@ -552,7 +554,7 @@ class HyperparameterDataRunner:
         logger.info(f"Saved metadata to {output_file}")
 
         # Write phase_output.json manifest
-        from common.utils import write_phase_output
+        from common.phase_discovery import write_phase_output
 
         write_phase_output(
             phase="3.6",

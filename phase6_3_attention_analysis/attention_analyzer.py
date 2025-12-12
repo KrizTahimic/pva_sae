@@ -26,7 +26,7 @@ from common.utils import (
 )
 from common.config import Config
 from common.viz_utils import handle_viz_only_mode
-from common.helpers import load_json, save_json
+from common.utils import load_json, save_json
 
 logger = get_logger("phase6_3.attention_analyzer")
 
