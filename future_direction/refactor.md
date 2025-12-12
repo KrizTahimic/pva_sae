@@ -173,18 +173,40 @@ Do these in order - each step depends on the previous.
 - [x] Merge common and common_simplified → **Done!** All 4 modules moved to common/, 30+ imports updated
 - [x] Add other common/reused functions in common
     - [x] Not only the things I already use that is just located in other phase files but also notice the other repeated functions throughout most of the phases. Or is this even a good decision because sometimes it may constrain us. Flexibility is also a trait we want in some instances.
-- [ ] Have better categorization for common or file separation or groupings of the functions.
-- [ ] Make/create a checkpointing function as a wrapper something so I don't need to reimplement it every phase? Is this possible? What is the design?
-- [ ] **Model-agnostic abstractions** (supports LLAMA + HumanEval)
+- [x] Have better categorization for common or file separation or groupings of the functions.
+- [x] Make/create a checkpointing function as a wrapper something so I don't need to reimplement it every phase? Is this possible? What is the design?
+    - [x] Also earlier you recommend CheckpointingManager in common to handle save, load etc. Is that still part of the plan? Is it still a good idea?
+- [x] **Model-agnostic abstractions** (supports LLAMA + HumanEval)
     - [x] `common/sae_loader.py` handles both GemmaScope (JumpReLU) and LlamaScope (TopK) ✓
-    - [ ] Ensure `apply_index_range_filter()` works for HumanEval (164 tasks) not just MBPP (974)
-    - [ ] Abstract prompt building for different datasets (MBPP vs HumanEval format differences)
-
+    - [x] Ensure `apply_index_range_filter()` works for HumanEval (164 tasks) not just MBPP (974)
+    - [x] Abstract prompt building for different datasets (MBPP vs HumanEval format differences)
+- [x] Given what we have accomplished so far in the past two days. Feel free to use git history and read refactor.md. Figure out what is outdated in README.md and CLAUDE.md and update them.
+    - Updated README.md: Added Gemma-9B support, fixed duplicate common/ entry, updated roadmap
+    - Updated CLAUDE.md: Fixed phase_discovery.py references, updated model options, simplified Model/Dataset-Aware Paths section
 ---
 
 ## Step 4: Code Quality (Depends on Step 3)
-- [ ] Remove hardcoded especially bandaid fix code. 
-- [ ] Examine this kind of code: `Fixed bfloat16→float32 conversion: .cpu().float().numpy() instead of .cpu().numpy()` What should I do? 
+- [x] Remove hardcoded path discovery patterns (16 instances across 11 files)
+    - **Issue Found:** `discover_latest_phase_output()` didn't accept `config` parameter
+    - **Fix Applied:** Added `config` parameter to `discover_latest_phase_output()` in `phase_discovery.py`
+    - **Files Updated (Phase 2.5 discovery):**
+        - `phase4_5_coefficient_grid_search/steering_coefficient_selector.py`
+        - `phase5_3_weight_orthogonalization/weight_orthogonalizer.py`
+        - `phase6_3_attention_analysis/attention_analyzer.py`
+        - `phase2_15_layerwise_visualization/layerwise_visualizer.py`
+        - `phase7_6_instruct_steering/instruct_steering_analyzer.py`
+        - `phase8_2_threshold_optimizer/threshold_optimizer.py`
+        - `phase4_6_golden_section_refinement/golden_section_refiner.py`
+        - `phase8_3_selective_steering/selective_steering_analyzer.py`
+        - `phase4_8_steering_analysis/steering_effect_analyzer.py`
+    - **Files Updated (bandaid phase_dir construction removed):**
+        - `phase4_14_statistical_significance/significance_tester.py` (3 fixes: 3.5, 4.8, 4.12)
+        - `phase5_9_orthogonalization_significance/orthogonalization_significance_tester.py` (3 fixes: 3.5, 5.3, 5.6)
+        - `phase4_12_zero_disc_steering/zero_disc_steering_generator.py` (1 fix: 3.5)
+        - `phase5_6_zero_disc_orthogonalization/zero_disc_weight_orthogonalizer.py` (1 fix: 3.5)
+        - `phase3_10_temperature_auroc_f1/temperature_evaluator.py` (1 fix: 3.5)
+        - `phase7_6_instruct_steering/instruct_steering_analyzer.py` (1 fix: 7.3)
+- [ ] Examine this kind of code: `Fixed bfloat16→float32 conversion: .cpu().float().numpy() instead of .cpu().numpy()` What should I do?
 - [ ] How to get steering coefficent? Autodiscovery or config? WHat is better for the script?
 
 Polish the code after the structure is stable.
@@ -542,6 +564,13 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 ---
 
 ## Step 6: Multi-GPU Parallel Execution (After Experiments Work)
+- [ ] Test all phase one by one first if it is all running.
+- [x] **Gemma-2-9B Support Added:**
+    - Added `GEMMA_9B_SPARSITY` dict (42 layers) to `common/config.py`
+    - Added `google/gemma-2-9b` and `google/gemma-2-9b-it` to `MODEL_CONFIGS`
+    - Updated `load_gemma_scope_sae()` to handle 9B via `model_name` parameter
+    - Added `gemma9b` suffix in `get_phase_output_dir()` for 9B models
+    - **Usage:** Set `model_name: str = "google/gemma-2-9b"` in config.py
 
 Run experiments across 4 GPUs efficiently. Do this after multi-model support is verified.
 

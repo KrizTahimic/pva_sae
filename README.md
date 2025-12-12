@@ -108,8 +108,10 @@ python3 scripts/upload_to_hf.py
 |-------|-----|--------|
 | `google/gemma-2-2b` | GemmaScope 16k | Supported |
 | `google/gemma-2-2b-it` | GemmaScope 16k | Supported |
-| `meta-llama/Llama-3.1-8B` | LlamaScope 8x | Planned |
-| `meta-llama/Llama-3.1-8B-Instruct` | LlamaScope 8x | Planned |
+| `google/gemma-2-9b` | GemmaScope 16k | Supported |
+| `google/gemma-2-9b-it` | GemmaScope 16k | Supported |
+| `meta-llama/Llama-3.1-8B` | LlamaScope 8x | Infrastructure Ready |
+| `meta-llama/Llama-3.1-8B-Instruct` | LlamaScope 8x | Infrastructure Ready |
 
 To switch configurations, edit `common/config.py`:
 ```python
@@ -122,7 +124,6 @@ model_name: str = "google/gemma-2-2b"  # See table above
 ```
 pva_sae/
 ├── common/                         # Shared utilities and configurations
-├── common/              # Simplified modules following KISS principle
 ├── phase0_difficulty_analysis/     # MBPP complexity preprocessing
 ├── phase0_1_problem_splitting/     # Problem splitting into train/val/test
 ├── phase0_2_humaneval_preprocessing/ # HumanEval to MBPP format conversion
@@ -344,14 +345,17 @@ The analysis identifies latent directions in language models that:
 - Gemma-2-2B analysis with MBPP dataset
 - HumanEval dataset support for selected phases
 - Instruction-tuned model (gemma-2-2b-it) comparison
+- Gemma-2-9B model support (infrastructure + sparsity configs)
+- Multi-model/dataset infrastructure (config-aware paths, auto-discovery)
+- LlamaScope SAE loader (`llama_scope_lxr_8x`) integration
 
-### In Progress
-- LLAMA-3.1-8B support with LlamaScope SAEs (`llama_scope_lxr_8x`)
-- Multi-model comparison analysis across Gemma and LLAMA families
+### Ready to Run
+- LLAMA-3.1-8B experiments (infrastructure complete, needs experiment runs)
+- LLAMA-3.1-8B-Instruct evaluation
 
 ### Planned
-- LLAMA-3.1-8B-Instruct evaluation
 - Cross-model mechanistic analysis
+- Multi-model comparison analysis across Gemma and LLAMA families
 
 ## License
 

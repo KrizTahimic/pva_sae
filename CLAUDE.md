@@ -147,7 +147,7 @@ screen -r phase8_selective_steering
 
 ## Project Overview
 
-PVA-SAE (Python Value Attribution using Sparse Autoencoders) is a research project investigating how language models internally represent program correctness. The project uses Google's Gemma 2 model (2B parameters), GemmaScope SAEs, and the MBPP dataset to:
+PVA-SAE (Python Value Attribution using Sparse Autoencoders) is a research project investigating how language models internally represent program correctness. The project uses Google's Gemma 2 models (2B/9B parameters), GemmaScope SAEs, and the MBPP/HumanEval datasets to:
 
 1. Generate code solutions and classify them as correct/incorrect
 2. Identify latent directions (SAE features) that encode correctness
@@ -372,6 +372,9 @@ class Config:
     model_name: str = "google/gemma-2-2b"  # ← Change this to switch models
     # Options:
     #   - "google/gemma-2-2b" (default)
+    #   - "google/gemma-2-2b-it" (instruction-tuned)
+    #   - "google/gemma-2-9b" (9B parameter model)
+    #   - "google/gemma-2-9b-it" (9B instruction-tuned)
     #   - "meta-llama/Llama-3.1-8B" (LLAMA)
 ```
 
@@ -421,11 +424,12 @@ python3 run.py phase 2.5
 
 - `run.py`: Main CLI entry point for all phases
 - `common/config.py`: Centralized configuration
-- `common/utils.py`: Auto-discovery, memory utilities, device detection
+- `common/phase_discovery.py`: Phase auto-discovery, output directory resolution
+- `common/utils.py`: Memory utilities, device detection, JSON/parquet helpers
 
 ### Shared Utilities
 
-- `common/prompt_utils.py`: MBPP prompt building
+- `common/prompt_utils.py`: MBPP/HumanEval prompt building
 - `common/gpu_utils.py`: GPU memory management, cleanup
 - `common/logging.py`: Phase-aware logging
 - `common/steering_metrics.py`: Correction/corruption rate calculation
@@ -540,43 +544,39 @@ python3 run.py cleanup-gpu
 python3 run.py status
 ```
 
-## 🚨 CRITICAL: Model/Dataset-Aware Paths
+## Model/Dataset-Aware Paths
 
-**LEARNED LESSON: We almost overwrote Gemma+MBPP results by running LLAMA+MBPP!**
+The codebase automatically handles model/dataset-specific output directories.
 
-### Problem 1: Output Directories
+### How It Works
 
-Many phases use `config.get_phase_output_dir()` which does NOT add model/dataset suffixes. This causes different experiments to overwrite each other.
+Output directories automatically include suffixes based on config:
+```
+Gemma-2B + MBPP     → data/phase1_0/           (default, no suffix)
+Gemma-9B + MBPP     → data/phase1_0_gemma9b/
+LLAMA + MBPP        → data/phase1_0_llama/
+Gemma-2B + HumanEval → data/phase1_0_humaneval/
+```
 
-**Always use the utils function, not the config method:**
+### Correct Usage Pattern
+
+**For output directories:**
 ```python
-# ❌ WRONG - outputs to data/phase2_2/ for ALL models
-output_dir = Path(config.get_phase_output_dir("2.2"))
-
-# ✅ CORRECT - outputs to data/phase2_2_llama/ for LLAMA
-from common.utils import get_phase_output_dir
+from common.phase_discovery import get_phase_output_dir
 output_dir = Path(get_phase_output_dir("2.2", config))
 ```
 
-### Problem 2: Input File Discovery
-
-Many phases have hardcoded input paths that only find Gemma+MBPP results. They need to dynamically find inputs based on current model/dataset.
-
-**Always use get_phase_output_dir for input discovery too:**
+**For input discovery (finding previous phase outputs):**
 ```python
-# ❌ WRONG - always looks in Gemma directory
-input_dir = Path(config.phase1_output_dir)
-
-# ✅ CORRECT - looks in model/dataset-specific directory
-input_dir = Path(get_phase_output_dir("1", config))
+from common.phase_discovery import discover_latest_phase_output
+phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
 ```
 
 ### Rules to Follow
 
-1. **NEVER** use `config.get_phase_output_dir()` - it doesn't add suffixes
-2. **NEVER** use hardcoded `config.phase{N}_output_dir` for input paths
-3. **ALWAYS** use `get_phase_output_dir(phase, config)` from `common/utils.py`
-4. **ALWAYS** check each phase for both output AND input path handling before running
+1. **ALWAYS** use `get_phase_output_dir(phase, config)` from `common/phase_discovery.py`
+2. **ALWAYS** use `discover_latest_phase_output(phase, config=self.config)` for input discovery
+3. **NEVER** use hardcoded paths like `f"data/phase3_5_{self.config.dataset_name}"`
 
 ---
 
@@ -804,8 +804,12 @@ HumanEval is converted to MBPP-style prompts for **experimental consistency**:
 Edit `common/config.py` to change model/dataset:
 
 ```python
-# Gemma + MBPP (default)
+# Gemma-2B + MBPP (default)
 model_name: str = "google/gemma-2-2b"
+dataset_name: str = "mbpp"
+
+# Gemma-9B + MBPP
+model_name: str = "google/gemma-2-9b"
 dataset_name: str = "mbpp"
 
 # LLAMA + MBPP (new features)
@@ -834,7 +838,8 @@ Output directories automatically include model/dataset suffixes:
 
 | Config | Output Directory |
 |--------|------------------|
-| Gemma + MBPP | `data/phase1_0/` (default) |
+| Gemma-2B + MBPP | `data/phase1_0/` (default) |
+| Gemma-9B + MBPP | `data/phase1_0_gemma9b/` |
 | LLAMA + MBPP | `data/phase1_0_llama/` |
 | Gemma + HumanEval | `data/phase1_0_humaneval/` |
 | LLAMA + HumanEval | `data/phase1_0_llama_humaneval/` |
