@@ -16,11 +16,32 @@ from common.logging import get_logger
 logger = get_logger("phase0_2.converter")
 
 
+def extract_imports_from_prompt(prompt: str) -> list[str]:
+    """
+    Extract import statements from HumanEval prompt.
+
+    Args:
+        prompt: The original HumanEval prompt
+
+    Returns:
+        List of import statement strings (e.g., ['from typing import List'])
+    """
+    imports = []
+    for line in prompt.split('\n'):
+        stripped = line.strip()
+        # Only match actual import statements (not "from" in docstrings)
+        if stripped.startswith('from typing import') or stripped.startswith('import '):
+            imports.append(stripped)
+    return imports
+
+
 def extract_description_from_prompt(prompt: str) -> str:
     """
     Extract the problem description from HumanEval's docstring.
 
     HumanEval format:
+        from typing import List
+
         def function_name(args) -> type:
             '''Problem description here
             >>> example1
@@ -28,9 +49,12 @@ def extract_description_from_prompt(prompt: str) -> str:
             '''
 
     Returns:
-        The problem description text (without examples or function signature).
-        This matches MBPP format where 'text' is just a natural language description.
+        The problem description text with any required imports prepended.
+        This matches MBPP format where 'text' is a natural language description.
     """
+    # Extract any imports first
+    imports = extract_imports_from_prompt(prompt)
+
     # Find docstring between triple quotes
     docstring_match = re.search(r'"""(.*?)"""', prompt, re.DOTALL)
     if not docstring_match:
@@ -53,7 +77,15 @@ def extract_description_from_prompt(prompt: str) -> str:
 
     description = '\n'.join(description_lines).strip()
 
-    return description if description else "Write a function that solves the problem."
+    if not description:
+        description = "Write a function that solves the problem."
+
+    # Prepend imports if any exist
+    if imports:
+        imports_str = '\n'.join(imports)
+        return f"{imports_str}\n\n{description}"
+
+    return description
 
 
 def parse_humaneval_test(test_code: str, entry_point: str) -> List[str]:
