@@ -23,6 +23,7 @@ from common.phase_discovery import discover_latest_phase_output, get_phase_outpu
 from common.viz_utils import handle_viz_only_mode
 from common.utils import save_json, load_json
 from common.sae_loader import load_sae_for_config
+from common.tensor_utils import load_activation
 
 
 class TemperatureAUROCEvaluator:
@@ -156,26 +157,26 @@ class TemperatureAUROCEvaluator:
             if task_id in activation_cache:
                 feature_value = activation_cache[task_id]
             else:
-                # Load pre-saved activation from Phase 3.5
-                activation_path = (self.phase3_5_dir / "activations" / "task_activations" / 
-                                 f"{task_id}_layer_{best_features['layer']}.npz")
-                
+                # Load pre-saved activation from Phase 3.5 (preserves bfloat16)
+                activation_path = (self.phase3_5_dir / "activations" / "task_activations" /
+                                 f"{task_id}_layer_{best_features['layer']}.safetensors")
+
                 # Fail fast if activation file missing
                 if not activation_path.exists():
                     raise FileNotFoundError(
                         f"Missing activation file for task {task_id} at {activation_path}. "
                         f"Phase 3.10 requires all activations from Phase 3.5 to be present."
                     )
-                
+
                 try:
-                    # Load activation
-                    raw_activation = np.load(activation_path)['arr_0']
-                    
+                    # Load activation (preserves bfloat16)
+                    raw_tensor = load_activation(activation_path, self.device)
+
                     # Encode through SAE to get feature value
                     with torch.no_grad():
                         # Get SAE dtype to ensure compatibility
                         sae_dtype = next(sae.parameters()).dtype
-                        raw_tensor = torch.from_numpy(raw_activation).to(dtype=sae_dtype, device=self.device)
+                        raw_tensor = raw_tensor.to(dtype=sae_dtype)
                         # Ensure correct shape
                         if raw_tensor.ndim == 1:
                             raw_tensor = raw_tensor.unsqueeze(0)

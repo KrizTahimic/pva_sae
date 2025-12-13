@@ -25,6 +25,7 @@ import torch
 from common.config import Config
 from common.logging import get_logger
 from common.utils import ensure_directory_exists, get_timestamp, detect_device, load_json, save_json
+from common.tensor_utils import load_activation
 from common.phase_discovery import (
     discover_latest_phase_output,
     get_phase_output_dir,
@@ -146,29 +147,20 @@ class ThresholdCalculator:
             task_id = row['task_id']
 
             # Construct NPZ filename
-            npz_file = self.activation_dir / f"{task_id}_layer_{self.feature_layer}.npz"
+            npz_file = self.activation_dir / f"{task_id}_layer_{self.feature_layer}.safetensors"
 
             if not npz_file.exists():
                 missing_files.append(task_id)
                 continue
 
             try:
-                # Load NPZ file containing raw activations (2304 dim)
-                data = np.load(npz_file)
-
-                # Extract raw activation vector
-                if 'arr_0' in data:
-                    raw_activation = data['arr_0']  # Shape: (1, 2304)
-                elif 'activations' in data:
-                    raw_activation = data['activations']
-                else:
-                    logger.warning(f"Task {task_id}: Unknown NPZ format, keys: {list(data.keys())}")
-                    continue
+                # Load activation (preserves bfloat16)
+                raw_tensor = load_activation(npz_file, self.device)
 
                 # Apply SAE decomposition to get features (16384 dim)
                 with torch.no_grad():
-                    # Convert to tensor
-                    raw_tensor = torch.from_numpy(raw_activation).to(dtype=torch.float32, device=self.device)
+                    # Ensure dtype matches SAE parameters
+                    raw_tensor = raw_tensor.to(dtype=self.sae.W_enc.dtype)
 
                     # Encode through SAE to get feature activations
                     sae_features = self.sae.encode(raw_tensor)  # Shape: (1, 16384)

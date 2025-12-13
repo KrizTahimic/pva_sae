@@ -23,6 +23,7 @@ import psutil  # For memory monitoring
 from common.model_loader import load_model_and_tokenizer
 from common.activation_hooks import ActivationExtractor
 from common.utils import save_json, load_json, detect_device, ensure_directory_exists
+from common.tensor_utils import save_activation
 from common.dataset_utils import evaluate_code, extract_code
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir, write_phase_output, get_dataset_range
 from common.prompt_utils import PromptBuilder
@@ -229,17 +230,14 @@ class InstructBaselineRunner:
             self.activation_extractor.remove_hooks()
     
     def _save_task_activations(self, task_id: str, activations: Dict[int, torch.Tensor]) -> None:
-        """Save activations for all extracted layers for this task."""
+        """Save activations for all extracted layers for this task (preserves bfloat16)."""
         # Save each layer's activations separately
         for layer_num, layer_activations in activations.items():
             save_path = (
-                self.output_dir / "activations" / 
-                "task_activations" / f"{task_id}_layer_{layer_num}.npz"
+                self.output_dir / "activations" /
+                "task_activations" / f"{task_id}_layer_{layer_num}.safetensors"
             )
-            
-            # Save as simple numpy array (matching Phase 3.5 format)
-            # Convert to float32 before numpy conversion (BFloat16 not supported by numpy)
-            np.savez_compressed(save_path, layer_activations.clone().cpu().float().numpy())
+            save_activation(layer_activations, save_path)
     
     def _setup_output_directories(self) -> Path:
         """Create output directory structure and return output path."""

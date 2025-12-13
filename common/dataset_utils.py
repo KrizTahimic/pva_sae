@@ -18,6 +18,7 @@ import pandas as pd
 import torch
 
 from .logging import get_logger
+from .tensor_utils import load_activation
 
 logger = get_logger("common.dataset_utils")
 
@@ -342,14 +343,13 @@ def load_and_encode_activation(
         >>> if value is not None:
         ...     print(f"Feature activation: {value:.4f}")
     """
-    filepath = activation_dir / f"{task_id}_layer_{layer}.npz"
+    filepath = activation_dir / f"{task_id}_layer_{layer}.safetensors"
 
     if not filepath.exists():
         return None
 
-    # Load from numpy
-    data = np.load(filepath)
-    raw_activation = torch.from_numpy(data['arr_0']).to(device)
+    # Load from safetensors (preserves bfloat16)
+    raw_activation = load_activation(filepath, device)
 
     # Match SAE dtype
     raw_activation = raw_activation.to(sae.W_enc.dtype)
@@ -372,7 +372,7 @@ def load_raw_activation(
     device: Optional[torch.device] = None
 ) -> Optional[torch.Tensor]:
     """
-    Load raw activation tensor from .npz file.
+    Load raw activation tensor from .safetensors file (preserves bfloat16).
 
     Args:
         task_id: Task identifier (used in filename)
@@ -383,15 +383,9 @@ def load_raw_activation(
     Returns:
         Activation tensor, or None if file doesn't exist
     """
-    filepath = activation_dir / f"{task_id}_layer_{layer}.npz"
+    filepath = activation_dir / f"{task_id}_layer_{layer}.safetensors"
 
     if not filepath.exists():
         return None
 
-    data = np.load(filepath)
-    activation = torch.from_numpy(data['arr_0'])
-
-    if device is not None:
-        activation = activation.to(device)
-
-    return activation
+    return load_activation(filepath, device if device is not None else "cpu")

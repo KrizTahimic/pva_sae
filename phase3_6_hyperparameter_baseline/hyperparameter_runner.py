@@ -20,6 +20,7 @@ import psutil  # For memory monitoring
 from common.model_loader import load_model_and_tokenizer
 from common.activation_hooks import ActivationExtractor
 from common.utils import save_json, load_json
+from common.tensor_utils import save_activation
 from common.dataset_utils import evaluate_code, extract_code
 from common.prompt_utils import PromptBuilder
 from common.config import Config
@@ -203,17 +204,14 @@ class HyperparameterDataRunner:
             self.activation_extractor.remove_hooks()
     
     def _save_task_activations(self, task_id: str, activations: Dict[int, torch.Tensor]) -> None:
-        """Save activations for all extracted layers for this task."""
+        """Save activations for all extracted layers for this task (preserves bfloat16)."""
         # Save each layer's activations separately
         for layer_num, layer_activations in activations.items():
             save_path = (
-                self.output_dir / "activations" / 
-                "task_activations" / f"{task_id}_layer_{layer_num}.npz"
+                self.output_dir / "activations" /
+                "task_activations" / f"{task_id}_layer_{layer_num}.safetensors"
             )
-            
-            # Save as simple numpy array (matching Phase 3.5 format)
-            # Convert to float32 first since numpy doesn't support bfloat16
-            np.savez_compressed(save_path, layer_activations.clone().cpu().float().numpy())
+            save_activation(layer_activations, save_path)
     
     def _setup_output_directories(self) -> Path:
         """Create output directory structure and return output path."""

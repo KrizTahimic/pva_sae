@@ -18,6 +18,7 @@ from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
 from common.phase_discovery import get_phase_output_dir
 from common.sae_loader import load_sae_for_config
+from common.tensor_utils import load_activation
 
 # Module-level logger
 logger = get_logger("t_statistic_selector", phase="2.10")
@@ -74,12 +75,10 @@ class TStatisticSelector:
         valid_task_ids = []
         
         for task_id in task_ids:
-            filepath = category_dir / f"{task_id}_layer_{layer_idx}.npz"
+            filepath = category_dir / f"{task_id}_layer_{layer_idx}.safetensors"
             if filepath.exists():
-                # Load activation (simple numpy array)
-                data = np.load(filepath)
-                # Get the first (and only) array from the npz file
-                activation = torch.from_numpy(data[data.files[0]])
+                # Load activation (preserves bfloat16)
+                activation = load_activation(filepath, "cpu")
                 # Squeeze out the batch dimension if present (shape should be [d_model])
                 if activation.ndim > 1 and activation.shape[0] == 1:
                     activation = activation.squeeze(0)
@@ -332,16 +331,15 @@ class TStatisticSelector:
             
         # Collect all pile activations for this layer
         activations = []
-        pile_files = sorted(pile_dir.glob(f"*_layer_{layer_idx}.npz"))
-        
+        pile_files = sorted(pile_dir.glob(f"*_layer_{layer_idx}.safetensors"))
+
         if not pile_files:
             logger.warning(f"No pile activations found for layer {layer_idx}")
             return None
-            
+
         for file_path in pile_files:
-            # Load activation
-            data = np.load(file_path)
-            activation = torch.from_numpy(data['activation'])
+            # Load activation (preserves bfloat16)
+            activation = load_activation(file_path, "cpu")
             activations.append(activation)
             
         if not activations:

@@ -15,10 +15,11 @@ import psutil
 import torch
 
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import ensure_directory_exists, load_json, save_json
+from common.utils import ensure_directory_exists, load_json, save_json, load_activations
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.config import Config
 from common.sae_loader import load_sae_for_config
+from common.tensor_utils import to_numpy
 
 logger = get_logger("phase4_10.zero_discrimination_selector")
 
@@ -65,8 +66,8 @@ class ZeroDiscriminationSelector:
         correct_dir = activations_dir / "correct"
         incorrect_dir = activations_dir / "incorrect"
         
-        n_correct = len(list(correct_dir.glob("*.npz"))) if correct_dir.exists() else 0
-        n_incorrect = len(list(incorrect_dir.glob("*.npz"))) if incorrect_dir.exists() else 0
+        n_correct = len(list(correct_dir.glob("*.safetensors"))) if correct_dir.exists() else 0
+        n_incorrect = len(list(incorrect_dir.glob("*.safetensors"))) if incorrect_dir.exists() else 0
         
         logger.info(f"Found {n_correct} correct and {n_incorrect} incorrect activation files")
         
@@ -88,41 +89,39 @@ class ZeroDiscriminationSelector:
             logger.warning(f"Failed to load SAE for layer {layer}: {e}")
             return {}
         
-        # Process correct programs
-        correct_files = list(Path(correct_dir).glob(f"*_layer_{layer}.npz"))
+        # Process correct programs (preserves bfloat16)
+        correct_files = list(Path(correct_dir).glob(f"*_layer_{layer}.safetensors"))
         actual_n_correct = min(len(correct_files), n_correct)
         correct_activations = np.zeros((actual_n_correct, self.features_per_layer))
         for i, file in enumerate(sorted(correct_files[:actual_n_correct])):
             try:
-                data = np.load(file)
-                # The key is 'layer_X' not 'residual_activation'
-                residual = data[f'layer_{layer}']  # Shape: (1, 2304)
-                
-                # Apply SAE to get feature activations 
+                # Load activation (preserves bfloat16)
+                activations_dict = load_activations(file, "cpu")
+                residual_tensor = activations_dict[layer]  # Shape: (1, 2304)
+
+                # Apply SAE to get feature activations
                 with torch.no_grad():
-                    residual_tensor = torch.from_numpy(residual).float().to("cpu")
                     # Already has batch dimension
-                    features = sae.encode(residual_tensor).cpu().numpy()  # Shape: (1, 16384)
+                    features = to_numpy(sae.encode(residual_tensor))  # Shape: (1, 16384)
                     correct_activations[i] = (features[0] > 0).astype(float)  # Binary activation
             except Exception as e:
                 logger.debug(f"Error processing {file}: {e}")
                 continue
-        
-        # Process incorrect programs
-        incorrect_files = list(Path(incorrect_dir).glob(f"*_layer_{layer}.npz"))
+
+        # Process incorrect programs (preserves bfloat16)
+        incorrect_files = list(Path(incorrect_dir).glob(f"*_layer_{layer}.safetensors"))
         actual_n_incorrect = min(len(incorrect_files), n_incorrect)
         incorrect_activations = np.zeros((actual_n_incorrect, self.features_per_layer))
         for i, file in enumerate(sorted(incorrect_files[:actual_n_incorrect])):
             try:
-                data = np.load(file)
-                # The key is 'layer_X' not 'residual_activation'
-                residual = data[f'layer_{layer}']  # Shape: (1, 2304)
-                
+                # Load activation (preserves bfloat16)
+                activations_dict = load_activations(file, "cpu")
+                residual_tensor = activations_dict[layer]  # Shape: (1, 2304)
+
                 # Apply SAE
                 with torch.no_grad():
-                    residual_tensor = torch.from_numpy(residual).float().to("cpu")
                     # Already has batch dimension
-                    features = sae.encode(residual_tensor).cpu().numpy()
+                    features = to_numpy(sae.encode(residual_tensor))
                     incorrect_activations[i] = (features[0] > 0).astype(float)
             except Exception as e:
                 logger.debug(f"Error processing {file}: {e}")
@@ -244,7 +243,7 @@ class ZeroDiscriminationSelector:
             
             try:
                 sae = load_sae_for_config(self.config, layer, "cpu")  # Use CPU for Phase 4.10
-                decoder_weight = sae.W_dec[feature_idx].detach().cpu().numpy()
+                decoder_weight = to_numpy(sae.W_dec[feature_idx])
                 feature['decoder_direction'] = decoder_weight.tolist()
             except Exception as e:
                 logger.warning(f"Failed to load decoder for L{layer}F{feature_idx}: {e}")

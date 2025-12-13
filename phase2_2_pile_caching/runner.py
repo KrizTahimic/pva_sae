@@ -16,6 +16,7 @@ from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
 from common.phase_discovery import get_phase_output_dir, get_dataset_range
 from common.model_loader import load_model_and_tokenizer
+from common.tensor_utils import save_activation
 from .pile_activation_hook import PileActivationHook
 from .utils import find_word_position, validate_pile_sample
 
@@ -119,10 +120,10 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
                     # Run forward pass
                     _ = model(inputs.input_ids)
                     
-                    # Save activation if extracted
+                    # Save activation if extracted (preserves bfloat16)
                     if hook.activation is not None:
-                        save_path = output_dir / f"{idx}_layer_{layer_idx}.npz"
-                        np.savez_compressed(save_path, activation=hook.activation.numpy())
+                        save_path = output_dir / f"{idx}_layer_{layer_idx}.safetensors"
+                        save_activation(hook.activation, save_path)
                 finally:
                     # Always remove hook
                     handle.remove()

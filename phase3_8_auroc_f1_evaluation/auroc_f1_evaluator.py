@@ -27,6 +27,7 @@ from common.phase_discovery import discover_latest_phase_output
 from common.viz_utils import handle_viz_only_mode
 from common.utils import save_json, load_json
 from common.sae_loader import load_sae_for_config
+from common.tensor_utils import load_activation
 
 logger = get_logger("phase3_8.auroc_f1_evaluator")
 
@@ -658,18 +659,15 @@ def load_split_activations(
         task_id = row['task_id']
         test_passed = row['test_passed']
 
-        # Load raw activations from appropriate phase
-        act_file = activation_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.npz'
+        # Load raw activations from appropriate phase (preserves bfloat16)
+        act_file = activation_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.safetensors'
 
         if not act_file.exists():
             missing_tasks.append(task_id)
             continue
 
-        act_data = np.load(act_file)
-
-        # Get raw activation from Phase 3.5/3.6 (stored as 'arr_0')
-        # Shape: (1, 2304) - raw residual stream activation
-        raw_activation = torch.from_numpy(act_data['arr_0']).to(device)
+        # Load activation (preserves bfloat16)
+        raw_activation = load_activation(act_file, device)
 
         # Ensure dtype matches SAE parameters for matrix multiplication
         raw_activation = raw_activation.to(sae.W_enc.dtype)

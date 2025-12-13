@@ -21,12 +21,14 @@ from sklearn.metrics import (
     confusion_matrix, roc_curve
 )
 
+from common.config import Config
 from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists
 from common.phase_discovery import discover_latest_phase_output, write_phase_output
 from common.viz_utils import handle_viz_only_mode
 from common.utils import save_json, load_json
 from common.sae_loader import load_sae_for_config
+from common.tensor_utils import load_activation
 
 logger = get_logger("phase7_12.instruct_auroc_f1_evaluator")
 
@@ -317,7 +319,7 @@ def load_instruct_activations(
         task_id = row['task_id']
 
         # Load raw activations from Phase 7.3
-        act_file = phase7_3_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.npz'
+        act_file = phase7_3_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.safetensors'
 
         if not act_file.exists():
             missing_tasks.append(task_id)
@@ -329,11 +331,8 @@ def load_instruct_activations(
             logger.warning(f"No test results found for task {task_id}")
             continue
 
-        act_data = np.load(act_file)
-
-        # Get raw activation (stored as 'arr_0')
-        # Shape: (1, 2304) - raw residual stream activation
-        raw_activation = torch.from_numpy(act_data['arr_0']).to(device)
+        # Load activation (preserves bfloat16)
+        raw_activation = load_activation(act_file, device)
 
         # Ensure dtype matches SAE parameters for matrix multiplication
         raw_activation = raw_activation.to(sae.W_enc.dtype)

@@ -28,6 +28,7 @@ from common.phase_discovery import discover_latest_phase_output
 from common.viz_utils import handle_viz_only_mode
 from common.utils import save_json, load_json
 from common.sae_loader import load_sae_for_config
+from common.tensor_utils import load_activation
 
 logger = get_logger("phase3_12.difficulty_evaluator")
 
@@ -107,17 +108,16 @@ def load_group_activations(
     for _, row in group_data.iterrows():
         task_id = row['task_id']
         
-        # Load raw activations from Phase 3.5
-        act_file = phase3_5_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.npz'
-        
+        # Load raw activations from Phase 3.5 (preserves bfloat16)
+        act_file = phase3_5_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.safetensors'
+
         if not act_file.exists():
             missing_tasks.append(task_id)
             continue
-            
-        # Load and encode through SAE
-        act_data = np.load(act_file)
-        raw_activation = torch.from_numpy(act_data['arr_0']).to(device)
-        
+
+        # Load activation (preserves bfloat16)
+        raw_activation = load_activation(act_file, device)
+
         # Ensure dtype matches SAE parameters for matrix multiplication
         raw_activation = raw_activation.to(sae.W_enc.dtype)
         

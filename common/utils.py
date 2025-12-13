@@ -297,40 +297,49 @@ def load_json(filepath: Path) -> dict:
         return json.load(f)
 
 
-def save_activations(activations: dict[int, np.ndarray], filepath: Path) -> None:
-    """Save activations to compressed numpy file."""
+def save_activations(activations: dict[int, torch.Tensor], filepath: Path) -> None:
+    """Save activations to safetensors file (preserves bfloat16).
+
+    Args:
+        activations: Dict mapping layer index to activation tensor
+        filepath: Output path (should use .safetensors extension)
+    """
     from common.logging import get_logger
+    from common.tensor_utils import save_activations as _save_activations
     logger = get_logger("common.utils")
 
     filepath = Path(filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
 
-    # Convert torch tensors to numpy if needed
-    np_activations = {}
+    # Convert numpy arrays to torch tensors if needed
+    tensor_activations = {}
     for layer, act in activations.items():
-        if hasattr(act, 'cpu'):  # It's a torch tensor
-            np_activations[f"layer_{layer}"] = act.cpu().float().numpy()
+        if isinstance(act, np.ndarray):
+            tensor_activations[layer] = torch.from_numpy(act)
         else:
-            np_activations[f"layer_{layer}"] = act
+            tensor_activations[layer] = act
 
-    np.savez_compressed(filepath, **np_activations)
+    _save_activations(tensor_activations, filepath)
     logger.debug(f"Saved activations to {filepath}")
 
 
-def load_activations(filepath: Path) -> dict[int, np.ndarray]:
-    """Load activations from numpy file."""
-    data = np.load(filepath)
-    activations = {}
-    for key in data.files:
-        # Extract layer number from key like "layer_6"
-        layer_idx = int(key.split('_')[1])
-        activations[layer_idx] = data[key]
-    return activations
+def load_activations(filepath: Path, device: torch.device | str = "cpu") -> dict[int, torch.Tensor]:
+    """Load activations from safetensors file (preserves dtype).
+
+    Args:
+        filepath: Path to .safetensors file
+        device: Target device for tensors
+
+    Returns:
+        Dict mapping layer index to activation tensor
+    """
+    from common.tensor_utils import load_activations as _load_activations
+    return _load_activations(filepath, device)
 
 
 def create_activation_filename(task_id: int, layer: int) -> str:
     """Create consistent filename for activation storage."""
-    return f"{task_id}_layer_{layer}.npz"
+    return f"{task_id}_layer_{layer}.safetensors"
 
 
 # ============================================================================

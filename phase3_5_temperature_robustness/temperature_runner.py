@@ -18,11 +18,12 @@ import psutil  # For memory monitoring
 
 from common.model_loader import load_model_and_tokenizer
 from common.activation_hooks import (
-    ActivationExtractor, 
+    ActivationExtractor,
     AttentionExtractor,
     save_raw_attention_with_boundaries
 )
 from common.utils import save_json, load_json
+from common.tensor_utils import save_activation
 from common.dataset_utils import evaluate_code, extract_code
 from common.prompt_utils import PromptBuilder
 from common.config import Config
@@ -651,16 +652,14 @@ class TemperatureRobustnessRunner:
         }
     
     def _save_task_activations(self, task_id: str, activations: Dict[int, torch.Tensor]) -> None:
-        """Save activations for all layers for this task."""
+        """Save activations for all layers for this task (preserves bfloat16)."""
         # Save each layer's activations separately
         for layer_num, layer_activations in activations.items():
             save_path = (
-                self.output_dir / "activations" / 
-                "task_activations" / f"{task_id}_layer_{layer_num}.npz"
+                self.output_dir / "activations" /
+                "task_activations" / f"{task_id}_layer_{layer_num}.safetensors"
             )
-            
-            # Save as simple numpy array
-            np.savez_compressed(save_path, layer_activations.clone().cpu().float().numpy())
+            save_activation(layer_activations, save_path)
     
     def _save_task_attention(self, task_id: str, attention_patterns: Dict[int, torch.Tensor]) -> None:
         """Save raw attention patterns with section boundaries."""
