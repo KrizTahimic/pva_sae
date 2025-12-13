@@ -109,7 +109,7 @@ class ThresholdCalculator:
         self.dataset = pd.read_parquet(dataset_file)
         logger.info(f"Loaded {len(self.dataset)} samples from Phase 3.6")
 
-        # Activation files are stored separately as NPZ files
+        # Activation files are stored separately as safetensors files
         self.activation_dir = phase3_6_dir / "activations" / "task_activations"
         if not self.activation_dir.exists():
             raise FileNotFoundError(
@@ -137,8 +137,8 @@ class ThresholdCalculator:
         logger.info("Calculating Percentile Thresholds")
         logger.info("="*60)
 
-        # === EXTRACT ACTIVATIONS FROM NPZ FILES ===
-        logger.info(f"Extracting L{self.feature_layer}-{self.feature_idx} activations from NPZ files...")
+        # === EXTRACT ACTIVATIONS FROM SAFETENSORS FILES ===
+        logger.info(f"Extracting L{self.feature_layer}-{self.feature_idx} activations from safetensors files...")
 
         activations = []
         missing_files = []
@@ -146,16 +146,16 @@ class ThresholdCalculator:
         for idx, row in self.dataset.iterrows():
             task_id = row['task_id']
 
-            # Construct NPZ filename
-            npz_file = self.activation_dir / f"{task_id}_layer_{self.feature_layer}.safetensors"
+            # Construct activation filename
+            activation_file = self.activation_dir / f"{task_id}_layer_{self.feature_layer}.safetensors"
 
-            if not npz_file.exists():
+            if not activation_file.exists():
                 missing_files.append(task_id)
                 continue
 
             try:
                 # Load activation (preserves bfloat16)
-                raw_tensor = load_activation(npz_file, self.device)
+                raw_tensor = load_activation(activation_file, self.device)
 
                 # Apply SAE decomposition to get features (16384 dim)
                 with torch.no_grad():
@@ -178,7 +178,7 @@ class ThresholdCalculator:
             logger.debug(f"Missing tasks: {missing_files[:10]}...")  # Show first 10
 
         if not activations:
-            raise ValueError("No activations extracted! Check Phase 3.6 NPZ files.")
+            raise ValueError("No activations extracted! Check Phase 3.6 safetensors files.")
 
         logger.info(f"✓ Extracted {len(activations)} activations from {len(self.dataset)} samples")
 
