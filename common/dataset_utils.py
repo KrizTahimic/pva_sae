@@ -29,7 +29,7 @@ logger = get_logger("common.dataset_utils")
 
 def split_by_correctness(
     df: pd.DataFrame,
-    correctness_col: str = 'test_passed',
+    correctness_col: str = 'baseline_passed',
     verbose: bool = True
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """

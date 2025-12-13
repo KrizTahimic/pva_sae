@@ -20,128 +20,128 @@ logger = get_logger("common.steering_metrics")
 def calculate_correction_rate(results: Union[list[dict], pd.DataFrame]) -> float:
     """
     Calculate percentage of incorrect→correct transitions.
-    
+
     Used for evaluating "correct" steering applied to initially incorrect problems.
     Measures how effectively the steering/orthogonalization intervention fixes incorrect solutions.
-    
+
     Args:
-        results: Either a list of dicts with 'baseline_passed'/'test_passed' and 
-                'steered_passed'/'orthogonalized_passed' keys, or a DataFrame with those columns
-                
+        results: Either a list of dicts with 'baseline_passed' and
+                'steered_correct'/'orthogonalized_correct' keys, or a DataFrame with those columns
+
     Returns:
         Correction rate as percentage (0-100)
     """
     if isinstance(results, pd.DataFrame):
         if results.empty:
             return 0.0
-        
+
         # DataFrame path - check for either column name
-        if 'steered_passed' in results.columns:
-            modified_col = 'steered_passed'
-        elif 'orthogonalized_passed' in results.columns:
-            modified_col = 'orthogonalized_passed'
+        if 'steered_correct' in results.columns:
+            modified_col = 'steered_correct'
+        elif 'orthogonalized_correct' in results.columns:
+            modified_col = 'orthogonalized_correct'
         else:
-            logger.warning("DataFrame missing 'steered_passed' or 'orthogonalized_passed' column")
+            logger.warning("DataFrame missing 'steered_correct' or 'orthogonalized_correct' column")
             return 0.0
-        
+
         # Count incorrect→correct transitions
-        corrected = len(results[(results['test_passed'] == False) & results[modified_col]])
-        total_incorrect = len(results[results['test_passed'] == False])
-            
+        corrected = len(results[(results['baseline_passed'] == False) & results[modified_col]])
+        total_incorrect = len(results[results['baseline_passed'] == False])
+
     elif isinstance(results, list):
         if not results:
             return 0.0
-        
+
         # List of dicts path - check which key is present
         if results and len(results) > 0:
             # Check first item to determine key name
-            if 'steered_passed' in results[0]:
-                modified_key = 'steered_passed'
-            elif 'orthogonalized_passed' in results[0]:
-                modified_key = 'orthogonalized_passed'
+            if 'steered_correct' in results[0]:
+                modified_key = 'steered_correct'
+            elif 'orthogonalized_correct' in results[0]:
+                modified_key = 'orthogonalized_correct'
             else:
-                logger.warning("Results missing 'steered_passed' or 'orthogonalized_passed' key")
+                logger.warning("Results missing 'steered_correct' or 'orthogonalized_correct' key")
                 return 0.0
-            
-            corrected = sum(1 for r in results if not r.get('baseline_passed', r.get('test_passed', False)) and r[modified_key])
-            total_incorrect = sum(1 for r in results if not r.get('baseline_passed', r.get('test_passed', False)))
+
+            corrected = sum(1 for r in results if not r.get('baseline_passed', False) and r[modified_key])
+            total_incorrect = sum(1 for r in results if not r.get('baseline_passed', False))
         else:
             return 0.0
-        
+
     else:
         raise TypeError(f"Expected list or DataFrame, got {type(results)}")
-    
+
     if total_incorrect == 0:
         logger.warning("No initially incorrect problems found for correction rate calculation")
         return 0.0
-        
+
     correction_rate = (corrected / total_incorrect) * 100
     logger.debug(f"Correction rate: {corrected}/{total_incorrect} = {correction_rate:.1f}%")
-    
+
     return correction_rate
 
 
 def calculate_corruption_rate(results: Union[list[dict], pd.DataFrame]) -> float:
     """
     Calculate percentage of correct→incorrect transitions.
-    
+
     Used for evaluating "incorrect" steering applied to initially correct problems.
     Measures how effectively the steering/orthogonalization intervention introduces bugs.
-    
+
     Args:
-        results: Either a list of dicts with 'baseline_passed'/'test_passed' and 
-                'steered_passed'/'orthogonalized_passed' keys, or a DataFrame with those columns
-                
+        results: Either a list of dicts with 'baseline_passed' and
+                'steered_correct'/'orthogonalized_correct' keys, or a DataFrame with those columns
+
     Returns:
         Corruption rate as percentage (0-100)
     """
     if isinstance(results, pd.DataFrame):
         if results.empty:
             return 0.0
-        
+
         # DataFrame path - check for either column name
-        if 'steered_passed' in results.columns:
-            modified_col = 'steered_passed'
-        elif 'orthogonalized_passed' in results.columns:
-            modified_col = 'orthogonalized_passed'
+        if 'steered_correct' in results.columns:
+            modified_col = 'steered_correct'
+        elif 'orthogonalized_correct' in results.columns:
+            modified_col = 'orthogonalized_correct'
         else:
-            logger.warning("DataFrame missing 'steered_passed' or 'orthogonalized_passed' column")
+            logger.warning("DataFrame missing 'steered_correct' or 'orthogonalized_correct' column")
             return 0.0
-        
+
         # Count correct→incorrect transitions
-        corrupted = len(results[results['test_passed'] & (results[modified_col] == False)])
-        total_correct = len(results[results['test_passed']])
-            
+        corrupted = len(results[results['baseline_passed'] & (results[modified_col] == False)])
+        total_correct = len(results[results['baseline_passed']])
+
     elif isinstance(results, list):
         if not results:
             return 0.0
-        
+
         # List of dicts path - check which key is present
         if results and len(results) > 0:
             # Check first item to determine key name
-            if 'steered_passed' in results[0]:
-                modified_key = 'steered_passed'
-            elif 'orthogonalized_passed' in results[0]:
-                modified_key = 'orthogonalized_passed'
+            if 'steered_correct' in results[0]:
+                modified_key = 'steered_correct'
+            elif 'orthogonalized_correct' in results[0]:
+                modified_key = 'orthogonalized_correct'
             else:
-                logger.warning("Results missing 'steered_passed' or 'orthogonalized_passed' key")
+                logger.warning("Results missing 'steered_correct' or 'orthogonalized_correct' key")
                 return 0.0
-            
-            corrupted = sum(1 for r in results if r.get('baseline_passed', r.get('test_passed', True)) and not r[modified_key])
-            total_correct = sum(1 for r in results if r.get('baseline_passed', r.get('test_passed', True)))
+
+            corrupted = sum(1 for r in results if r.get('baseline_passed', True) and not r[modified_key])
+            total_correct = sum(1 for r in results if r.get('baseline_passed', True))
         else:
             return 0.0
-        
+
     else:
         raise TypeError(f"Expected list or DataFrame, got {type(results)}")
-    
+
     if total_correct == 0:
         logger.warning("No initially correct problems found for corruption rate calculation")
         return 0.0
-        
+
     corruption_rate = (corrupted / total_correct) * 100
     logger.debug(f"Corruption rate: {corrupted}/{total_correct} = {corruption_rate:.1f}%")
-    
+
     return corruption_rate
 
 

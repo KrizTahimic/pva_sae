@@ -680,6 +680,38 @@ Use consistent terminology when working with Sparse Autoencoders (SAEs):
 
 ---
 
+## Test Outcome Terminology Standard
+
+Use consistent terminology for test/correctness results:
+
+| Term | Description | When Used |
+|------|-------------|-----------|
+| `baseline_passed` | Boolean: did baseline (unmodified) test pass? | Initial state, from Phase 1 generation |
+| `steered_correct` | Boolean: is steered output correct? | After steering intervention |
+| `orthogonalized_correct` | Boolean: is orthogonalized output correct? | After weight orthogonalization |
+
+**Metric calculation patterns:**
+```python
+# Correction: incorrect → correct
+correction = (baseline_passed == False) & steered_correct
+
+# Corruption: correct → incorrect
+corruption = baseline_passed & (steered_correct == False)
+
+# Preservation: correct → correct
+preservation = baseline_passed & steered_correct
+```
+
+**DO NOT USE:**
+- `test_passed` (use `baseline_passed`)
+- `steered_passed` (use `steered_correct`)
+- `orthogonalized_passed` (use `orthogonalized_correct`)
+- `initial_passed`/`final_passed` (use explicit intervention names)
+- `initial_correct`/`final_correct` (use explicit intervention names)
+- `is_correct` (use `baseline_passed`)
+
+---
+
 ## Code Style Conventions
 
 Follow these conventions when writing or modifying code in this project.
