@@ -77,37 +77,37 @@ class SteeringCoefficientSelector:
         
     def _load_dependencies(self) -> None:
         """Load features from Phase 2.5 and baseline data from Phase 3.6."""
-        # Load Phase 2.5 features
-        logger.info("Loading PVA features from Phase 2.5...")
+        # Load Phase 2.5 latents
+        logger.info("Loading PVA latents from Phase 2.5...")
         self.phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
         if not self.phase2_5_output:
             raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
-        
-        # Load top features
-        features_file = Path(self.phase2_5_output).parent / "top_20_features.json"
-        logger.info(f"Loading features from: {features_file}")
-        if not features_file.exists():
-            raise FileNotFoundError(f"Top features file not found: {features_file}")
-        
-        self.top_features = load_json(features_file)
-        
-        # Extract best correct and incorrect features
-        if 'correct' not in self.top_features or 'incorrect' not in self.top_features:
-            raise ValueError("Expected 'correct' and 'incorrect' keys in top_20_features.json")
-        
-        if len(self.top_features['correct']) == 0 or len(self.top_features['incorrect']) == 0:
-            raise ValueError("No features found in correct or incorrect arrays")
-        
-        # Get the best (first) feature from each category
-        self.best_correct_feature = self.top_features['correct'][0]
-        self.best_incorrect_feature = self.top_features['incorrect'][0]
-        
-        logger.info(f"Best correct feature: Layer {self.best_correct_feature['layer']}, "
-                   f"Index {self.best_correct_feature['feature_idx']}, "
-                   f"Score {self.best_correct_feature['separation_score']:.4f}")
-        logger.info(f"Best incorrect feature: Layer {self.best_incorrect_feature['layer']}, "
-                   f"Index {self.best_incorrect_feature['feature_idx']}, "
-                   f"Score {self.best_incorrect_feature['separation_score']:.4f}")
+
+        # Load top latents
+        latents_file = Path(self.phase2_5_output).parent / "top_20_latents.json"
+        logger.info(f"Loading latents from: {latents_file}")
+        if not latents_file.exists():
+            raise FileNotFoundError(f"Top latents file not found: {latents_file}")
+
+        self.top_latents = load_json(latents_file)
+
+        # Extract best correct and incorrect latents
+        if 'correct' not in self.top_latents or 'incorrect' not in self.top_latents:
+            raise ValueError("Expected 'correct' and 'incorrect' keys in top_20_latents.json")
+
+        if len(self.top_latents['correct']) == 0 or len(self.top_latents['incorrect']) == 0:
+            raise ValueError("No latents found in correct or incorrect arrays")
+
+        # Get the best (first) latent from each category
+        self.best_correct_latent = self.top_latents['correct'][0]
+        self.best_incorrect_latent = self.top_latents['incorrect'][0]
+
+        logger.info(f"Best correct latent: Layer {self.best_correct_latent['layer']}, "
+                   f"Index {self.best_correct_latent['latent_idx']}, "
+                   f"Score {self.best_correct_latent['separation_score']:.4f}")
+        logger.info(f"Best incorrect latent: Layer {self.best_incorrect_latent['layer']}, "
+                   f"Index {self.best_incorrect_latent['latent_idx']}, "
+                   f"Score {self.best_incorrect_latent['separation_score']:.4f}")
         
         # Load Phase 3.6 baseline data
         logger.info("Loading baseline data from Phase 3.6...")
@@ -145,37 +145,37 @@ class SteeringCoefficientSelector:
         else:
             logger.info("Using ALL problems for evaluation (no sampling)")
         
-        # Load SAEs for both features
+        # Load SAEs for both latents
         logger.info("Loading SAE models...")
-        logger.info(f"Loading SAE for correct feature (layer {self.best_correct_feature['layer']})...")
+        logger.info(f"Loading SAE for correct latent (layer {self.best_correct_latent['layer']})...")
         self.correct_sae = load_sae_for_config(
             self.config,
-            self.best_correct_feature['layer'], 
+            self.best_correct_latent['layer'],
             self.device
         )
-        logger.info(f"Correct feature SAE loaded successfully")
-        
-        logger.info(f"Loading SAE for incorrect feature (layer {self.best_incorrect_feature['layer']})...")
+        logger.info(f"Correct latent SAE loaded successfully")
+
+        logger.info(f"Loading SAE for incorrect latent (layer {self.best_incorrect_latent['layer']})...")
         self.incorrect_sae = load_sae_for_config(
             self.config,
-            self.best_incorrect_feature['layer'], 
+            self.best_incorrect_latent['layer'],
             self.device
         )
-        logger.info(f"Incorrect feature SAE loaded successfully")
-        
-        # Extract decoder directions and ensure consistent dtype
-        self.correct_decoder_direction = self.correct_sae.W_dec[
-            self.best_correct_feature['feature_idx']
+        logger.info(f"Incorrect latent SAE loaded successfully")
+
+        # Extract latent directions and ensure consistent dtype
+        self.correct_latent_direction = self.correct_sae.W_dec[
+            self.best_correct_latent['latent_idx']
         ].detach()
-        self.incorrect_decoder_direction = self.incorrect_sae.W_dec[
-            self.best_incorrect_feature['feature_idx']
+        self.incorrect_latent_direction = self.incorrect_sae.W_dec[
+            self.best_incorrect_latent['latent_idx']
         ].detach()
-        
-        # Ensure decoder directions are in the same dtype as the model
+
+        # Ensure latent directions are in the same dtype as the model
         model_dtype = next(self.model.parameters()).dtype
-        self.correct_decoder_direction = self.correct_decoder_direction.to(dtype=model_dtype)
-        self.incorrect_decoder_direction = self.incorrect_decoder_direction.to(dtype=model_dtype)
-        
+        self.correct_latent_direction = self.correct_latent_direction.to(dtype=model_dtype)
+        self.incorrect_latent_direction = self.incorrect_latent_direction.to(dtype=model_dtype)
+
         logger.info("Dependencies loaded successfully")
     
     def save_checkpoint(self, results: list, excluded_tasks: list, 
@@ -266,13 +266,13 @@ class SteeringCoefficientSelector:
         
         logger.info(f"Evaluating on {len(problems_df)} problems...")
         
-        # Select decoder direction and target layer
+        # Select latent direction and target layer
         if steering_type == 'correct':
-            decoder_direction = self.correct_decoder_direction
-            target_layer = self.best_correct_feature['layer']
+            latent_direction = self.correct_latent_direction
+            target_layer = self.best_correct_latent['layer']
         else:
-            decoder_direction = self.incorrect_decoder_direction
-            target_layer = self.best_incorrect_feature['layer']
+            latent_direction = self.incorrect_latent_direction
+            target_layer = self.best_incorrect_latent['layer']
         
         # Initialize with checkpoint data
         results = []  # Current batch
@@ -295,7 +295,7 @@ class SteeringCoefficientSelector:
             
             
             # Setup hook for this specific task
-            hook_fn = create_steering_hook(decoder_direction, coefficient)
+            hook_fn = create_steering_hook(latent_direction, coefficient)
             target_module = self.model.model.layers[target_layer]
             hook_handle = target_module.register_forward_pre_hook(hook_fn)
             
@@ -726,14 +726,14 @@ class SteeringCoefficientSelector:
                 metric_value = search_results['best_result']['metrics']['composite_score']
             
             # Save selected coefficient with metadata
-            feature_lookup = {'correct': self.best_correct_feature, 'incorrect': self.best_incorrect_feature}
+            latent_lookup = {'correct': self.best_correct_latent, 'incorrect': self.best_incorrect_latent}
             coeff_lookup = {'correct': self.config.phase4_5_correct_coefficients, 'incorrect': self.config.phase4_5_incorrect_coefficients}
-            best_feature = feature_lookup[steering_type]
+            best_latent = latent_lookup[steering_type]
 
             selected_coefficients[steering_type] = {
                 'coefficient': optimal_coeff,
-                'layer': best_feature['layer'],
-                'feature_index': best_feature['feature_idx'],
+                'layer': best_latent['layer'],
+                'latent_idx': best_latent['latent_idx'],
                 primary_metric: metric_value,
                 'metrics': search_results['best_result']['metrics'],
                 'n_problems_evaluated': search_results['best_result']['n_problems'],
@@ -787,8 +787,8 @@ class SteeringCoefficientSelector:
             },
             'results': {
                 'selected_coefficients': selected_coefficients,
-                'best_correct_feature': self.best_correct_feature,
-                'best_incorrect_feature': self.best_incorrect_feature
+                'best_correct_latent': self.best_correct_latent,
+                'best_incorrect_latent': self.best_incorrect_latent
             }
         }
         

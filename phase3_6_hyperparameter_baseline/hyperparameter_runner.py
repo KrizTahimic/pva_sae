@@ -37,60 +37,60 @@ logger = get_logger("hyperparameter_runner", phase="3.6")
 class HyperparameterDataRunner:
     """Hyperparameter split processing with best layer activation extraction."""
     
-    def _discover_best_features(self) -> dict[str, int]:
+    def _discover_best_latents(self) -> dict[str, int]:
         """
-        Discover best features from Phase 2.10 (required).
+        Discover best latents from Phase 2.10 (required).
 
         Returns:
-            Dict with 'correct' and 'incorrect' feature info (layer and feature_idx)
+            Dict with 'correct' and 'incorrect' latent info (layer and latent_idx)
         """
         # Use Phase 2.10 (t-statistic selection) - no fallback
         phase_2_10_dir = Path(get_phase_output_dir("2.10", self.config))
-        top_features_file = phase_2_10_dir / "top_20_features.json"
+        top_latents_file = phase_2_10_dir / "top_20_latents.json"
 
-        if not top_features_file.exists():
+        if not top_latents_file.exists():
             # Try auto-discovery for Phase 2.10
             latest_output = discover_latest_phase_output("2.10")
             if latest_output:
                 # Extract directory from the discovered file
                 output_dir = Path(latest_output).parent
-                top_features_file = output_dir / "top_20_features.json"
+                top_latents_file = output_dir / "top_20_latents.json"
 
-        if not top_features_file.exists():
+        if not top_latents_file.exists():
             raise FileNotFoundError(
-                f"top_20_features.json not found in Phase 2.10. "
+                f"top_20_latents.json not found in Phase 2.10. "
                 "Please run Phase 2.10 first."
             )
 
-        logger.info(f"Using features from Phase 2.10: {top_features_file}")
+        logger.info(f"Using latents from Phase 2.10: {top_latents_file}")
 
-        # Read top features and extract index 0 for each category
-        with open(top_features_file, 'r') as f:
-            top_features = json.load(f)
+        # Read top latents and extract index 0 for each category
+        with open(top_latents_file, 'r') as f:
+            top_latents = json.load(f)
 
         # Validate structure
-        if 'correct' not in top_features or 'incorrect' not in top_features:
-            raise ValueError("Missing 'correct' or 'incorrect' in top_20_features.json")
+        if 'correct' not in top_latents or 'incorrect' not in top_latents:
+            raise ValueError("Missing 'correct' or 'incorrect' in top_20_latents.json")
 
-        if not top_features['correct'] or not top_features['incorrect']:
-            raise ValueError("Empty feature list in top_20_features.json")
+        if not top_latents['correct'] or not top_latents['incorrect']:
+            raise ValueError("Empty latent list in top_20_latents.json")
 
-        # Get the best (index 0) features
-        best_correct = top_features['correct'][0]
-        best_incorrect = top_features['incorrect'][0]
+        # Get the best (index 0) latents
+        best_correct = top_latents['correct'][0]
+        best_incorrect = top_latents['incorrect'][0]
 
         # Build the return format compatible with existing code
-        best_features = {
+        best_latents = {
             'correct': best_correct['layer'],
             'incorrect': best_incorrect['layer'],
-            'correct_feature_idx': best_correct['feature_idx'],
-            'incorrect_feature_idx': best_incorrect['feature_idx']
+            'correct_latent_idx': best_correct['latent_idx'],
+            'incorrect_latent_idx': best_incorrect['latent_idx']
         }
 
-        logger.info(f"Discovered best features from Phase 2.10 - Correct: layer {best_features['correct']} (feature {best_features['correct_feature_idx']}), "
-                   f"Incorrect: layer {best_features['incorrect']} (feature {best_features['incorrect_feature_idx']})")
+        logger.info(f"Discovered best latents from Phase 2.10 - Correct: layer {best_latents['correct']} (latent {best_latents['correct_latent_idx']}), "
+                   f"Incorrect: layer {best_latents['incorrect']} (latent {best_latents['incorrect_latent_idx']})")
 
-        return best_features
+        return best_latents
     
     def __init__(self, config: Config):
         """Initialize with configuration."""
@@ -115,9 +115,9 @@ class HyperparameterDataRunner:
         else:
             logger.info(f"Model successfully loaded on {actual_device}")
         
-        # Discover best features from Phase 2.10
-        self.best_layers = self._discover_best_features()
-        
+        # Discover best latents from Phase 2.10
+        self.best_latents = self._discover_best_latents()
+
         # Setup activation extraction layers (copying Phase 3.5's elegant same/different layer handling)
         self._setup_activation_extraction()
     
@@ -126,13 +126,13 @@ class HyperparameterDataRunner:
         Setup activation extraction layers, handling same/different layer cases.
         """
         # Determine unique layers to extract from (same logic as Phase 3.5)
-        unique_layers = list(set([self.best_layers['correct'], self.best_layers['incorrect']]))
+        unique_layers = list(set([self.best_latents['correct'], self.best_latents['incorrect']]))
         self.extraction_layers = unique_layers
-        
+
         if len(unique_layers) == 1:
-            logger.info(f"Both correct and incorrect features use the same layer: {unique_layers[0]}")
+            logger.info(f"Both correct and incorrect latents use the same layer: {unique_layers[0]}")
         else:
-            logger.info(f"Using different layers - Correct: {self.best_layers['correct']}, Incorrect: {self.best_layers['incorrect']}")
+            logger.info(f"Using different layers - Correct: {self.best_latents['correct']}, Incorrect: {self.best_latents['incorrect']}")
         
         # Initialize activation extractor for unique layers only
         self.activation_extractor = ActivationExtractor(
@@ -521,11 +521,11 @@ class HyperparameterDataRunner:
         
         metadata = {
             "creation_timestamp": datetime.now().isoformat(),
-            "best_layers": {
-                "correct": self.best_layers['correct'],
-                "incorrect": self.best_layers['incorrect'],
-                "correct_feature_idx": self.best_layers['correct_feature_idx'],
-                "incorrect_feature_idx": self.best_layers['incorrect_feature_idx']
+            "best_latents": {
+                "correct": self.best_latents['correct'],
+                "incorrect": self.best_latents['incorrect'],
+                "correct_latent_idx": self.best_latents['correct_latent_idx'],
+                "incorrect_latent_idx": self.best_latents['incorrect_latent_idx']
             },
             "extraction_layers": self.extraction_layers,
             "temperature": 0.0,

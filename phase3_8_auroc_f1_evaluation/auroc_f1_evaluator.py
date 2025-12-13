@@ -87,8 +87,8 @@ def run_evaluation(config):
         results = load_json(data_path)
 
         # Reconstruct metrics for visualizations
-        hp_metrics_correct = results['correct_predicting_feature']['hyperparameter_split']
-        hp_metrics_incorrect = results['incorrect_predicting_feature']['hyperparameter_split']
+        hp_metrics_correct = results['correct_predicting_latent']['hyperparameter_split']
+        hp_metrics_incorrect = results['incorrect_predicting_latent']['hyperparameter_split']
 
         # Regenerate F1 threshold plot (uses saved f1_curve data)
         plot_combined_f1_thresholds(hp_metrics_correct, hp_metrics_incorrect, output_dir)
@@ -96,14 +96,14 @@ def run_evaluation(config):
         # Regenerate comparative metrics (without ROC curves)
         # Need to restructure results for the plot function
         viz_results = {
-            'correct_predicting_feature': {
+            'correct_predicting_latent': {
                 'validation_metrics': {
-                    'metrics': results['correct_predicting_feature']['validation_split']
+                    'metrics': results['correct_predicting_latent']['validation_split']
                 }
             },
-            'incorrect_predicting_feature': {
+            'incorrect_predicting_latent': {
                 'validation_metrics': {
-                    'metrics': results['incorrect_predicting_feature']['validation_split']
+                    'metrics': results['incorrect_predicting_latent']['validation_split']
                 }
             }
         }
@@ -113,8 +113,8 @@ def run_evaluation(config):
         logger.info("Note: Confusion matrices and PR curves require full rerun to regenerate")
         return results
 
-    # Phase 1: Load best features from Phase 2.10 (t-statistic based selection)
-    logger.info("Loading best features from Phase 2.10...")
+    # Phase 1: Load best latents from Phase 2.10 (t-statistic based selection)
+    logger.info("Loading best latents from Phase 2.10...")
 
     # Auto-discover Phase 2.10 output
     phase2_10_dir = discover_latest_phase_output("2.10")
@@ -122,40 +122,40 @@ def run_evaluation(config):
         raise FileNotFoundError("No Phase 2.10 output found. Please run Phase 2.10 first.")
     phase2_10_dir = Path(phase2_10_dir).parent
 
-    # Load best features from Phase 2.10
-    top_features_file = phase2_10_dir / 'top_20_features.json'
-    if not top_features_file.exists():
-        raise FileNotFoundError(f"top_20_features.json not found in {phase2_10_dir}. Please run Phase 2.10 first.")
+    # Load best latents from Phase 2.10
+    top_latents_file = phase2_10_dir / 'top_20_latents.json'
+    if not top_latents_file.exists():
+        raise FileNotFoundError(f"top_20_latents.json not found in {phase2_10_dir}. Please run Phase 2.10 first.")
 
-    top_features = load_json(top_features_file)
+    top_latents = load_json(top_latents_file)
 
     # Validate structure
-    if 'correct' not in top_features or 'incorrect' not in top_features:
-        raise ValueError("Missing 'correct' or 'incorrect' in top_20_features.json")
+    if 'correct' not in top_latents or 'incorrect' not in top_latents:
+        raise ValueError("Missing 'correct' or 'incorrect' in top_20_latents.json")
 
-    if not top_features['correct'] or not top_features['incorrect']:
-        raise ValueError("Empty feature list in top_20_features.json")
+    if not top_latents['correct'] or not top_latents['incorrect']:
+        raise ValueError("Empty latent list in top_20_latents.json")
 
-    # Get the best (index 0) features
-    best_correct = top_features['correct'][0]
-    best_incorrect = top_features['incorrect'][0]
+    # Get the best (index 0) latents
+    best_correct = top_latents['correct'][0]
+    best_incorrect = top_latents['incorrect'][0]
 
     correct_layer = best_correct['layer']
-    correct_feature_idx = best_correct['feature_idx']
+    correct_latent_idx = best_correct['latent_idx']
     incorrect_layer = best_incorrect['layer']
-    incorrect_feature_idx = best_incorrect['feature_idx']
+    incorrect_latent_idx = best_incorrect['latent_idx']
 
-    logger.info(f"Best correct-predicting feature: idx {correct_feature_idx} at layer {correct_layer}")
-    logger.info(f"Best incorrect-predicting feature: idx {incorrect_feature_idx} at layer {incorrect_layer}")
+    logger.info(f"Best correct-predicting latent: idx {correct_latent_idx} at layer {correct_layer}")
+    logger.info(f"Best incorrect-predicting latent: idx {incorrect_latent_idx} at layer {incorrect_layer}")
 
     # Phase 2: Evaluate Correct-Predicting Feature
     logger.info("\n" + "="*60)
     logger.info("EVALUATING CORRECT-PREDICTING FEATURE")
     logger.info("="*60)
 
-    # Load hyperparameter split for correct feature
+    # Load hyperparameter split for correct latent
     y_true_hp_correct, scores_hp_correct = load_split_activations(
-        'hyperparams', correct_layer, correct_feature_idx, 'correct',
+        'hyperparams', correct_layer, correct_latent_idx, 'correct',
         phase3_5_dir, phase3_6_dir, config
     )
 
@@ -174,7 +174,7 @@ def run_evaluation(config):
 
     # Load validation split
     y_true_val_correct, scores_val_correct = load_split_activations(
-        'validation', correct_layer, correct_feature_idx, 'correct',
+        'validation', correct_layer, correct_latent_idx, 'correct',
         phase3_5_dir, phase3_6_dir, config
     )
 
@@ -194,9 +194,9 @@ def run_evaluation(config):
     logger.info("EVALUATING INCORRECT-PREDICTING FEATURE")
     logger.info("="*60)
 
-    # Load hyperparameter split for incorrect feature
+    # Load hyperparameter split for incorrect latent
     y_true_hp_incorrect, scores_hp_incorrect = load_split_activations(
-        'hyperparams', incorrect_layer, incorrect_feature_idx, 'incorrect',
+        'hyperparams', incorrect_layer, incorrect_latent_idx, 'incorrect',
         phase3_5_dir, phase3_6_dir, config
     )
 
@@ -215,7 +215,7 @@ def run_evaluation(config):
 
     # Load validation split
     y_true_val_incorrect, scores_val_incorrect = load_split_activations(
-        'validation', incorrect_layer, incorrect_feature_idx, 'incorrect',
+        'validation', incorrect_layer, incorrect_latent_idx, 'incorrect',
         phase3_5_dir, phase3_6_dir, config
     )
 
@@ -233,15 +233,15 @@ def run_evaluation(config):
     # Save results
     results = {
         'timestamp': datetime.now().isoformat(),
-        'correct_predicting_feature': {
+        'correct_predicting_latent': {
             'layer': correct_layer,
-            'feature_idx': correct_feature_idx,
+            'latent_idx': correct_latent_idx,
             'hyperparameter_split': hp_metrics_correct,
             'validation_split': val_metrics_correct
         },
-        'incorrect_predicting_feature': {
+        'incorrect_predicting_latent': {
             'layer': incorrect_layer,
-            'feature_idx': incorrect_feature_idx,
+            'latent_idx': incorrect_latent_idx,
             'hyperparameter_split': hp_metrics_incorrect,
             'validation_split': val_metrics_incorrect
         },
@@ -489,11 +489,11 @@ def plot_comparative_metrics(
     # Extract metrics
     metrics = ['AUROC', 'F1', 'Precision', 'Recall']
     correct_vals = [
-        results['correct_predicting_feature']['validation_metrics']['metrics'][m.lower()]
+        results['correct_predicting_latent']['validation_metrics']['metrics'][m.lower()]
         for m in metrics
     ]
     incorrect_vals = [
-        results['incorrect_predicting_feature']['validation_metrics']['metrics'][m.lower()]
+        results['incorrect_predicting_latent']['validation_metrics']['metrics'][m.lower()]
         for m in metrics
     ]
 
@@ -526,17 +526,17 @@ def plot_comparative_metrics(
     ax2.set_title('ROC Curves')
     ax2.plot([0, 1], [0, 1], 'k--', alpha=0.5, label='Random (AUC = 0.5)')
     
-    # Plot ROC curve for correct-predicting feature if data provided
+    # Plot ROC curve for correct-predicting latent if data provided
     if y_true_val_correct is not None and scores_val_correct is not None:
         fpr_correct, tpr_correct, _ = roc_curve(y_true_val_correct, scores_val_correct)
-        auc_correct = results['correct_predicting_feature']['validation_metrics']['metrics']['auroc']
+        auc_correct = results['correct_predicting_latent']['validation_metrics']['metrics']['auroc']
         ax2.plot(fpr_correct, tpr_correct, color='blue', linewidth=2,
                 label=f'Correct-predicting (AUC = {auc_correct:.3f})')
 
-    # Plot ROC curve for incorrect-predicting feature if data provided
+    # Plot ROC curve for incorrect-predicting latent if data provided
     if y_true_val_incorrect is not None and scores_val_incorrect is not None:
         fpr_incorrect, tpr_incorrect, _ = roc_curve(y_true_val_incorrect, scores_val_incorrect)
-        auc_incorrect = results['incorrect_predicting_feature']['validation_metrics']['metrics']['auroc']
+        auc_incorrect = results['incorrect_predicting_latent']['validation_metrics']['metrics']['auroc']
         ax2.plot(fpr_incorrect, tpr_incorrect, color='red', linewidth=2,
                 label=f'Incorrect-predicting (AUC = {auc_incorrect:.3f})')
     
@@ -604,19 +604,19 @@ def plot_precision_recall_curves(
 def load_split_activations(
     split_name: str,
     layer_num: int,
-    feature_idx: int,
-    feature_type: str,
+    latent_idx: int,
+    latent_type: str,
     phase3_5_dir: Path,
     phase3_6_dir: Path,
     config: Config
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Load activations for a specific feature from appropriate phase data.
+    """Load activations for a specific latent from appropriate phase data.
 
     Args:
         split_name: 'hyperparams' or 'validation'
-        layer_num: Layer number for the feature
-        feature_idx: Index of the specific feature
-        feature_type: 'correct' or 'incorrect'
+        layer_num: Layer number for the latent
+        latent_idx: Index of the specific latent
+        latent_type: 'correct' or 'incorrect'
         phase3_5_dir: Directory containing Phase 3.5 outputs (validation split)
         phase3_6_dir: Directory containing Phase 3.6 outputs (hyperparams split)
 
@@ -638,7 +638,7 @@ def load_split_activations(
     # Detect device and load SAE for encoding
     device = detect_device()
     sae = load_sae_for_config(config, layer_num, device)
-    logger.info(f"Loaded SAE for layer {layer_num} with 16,384 features on {device}")
+    logger.info(f"Loaded SAE for layer {layer_num} with 16,384 latents on {device}")
 
     activations = []
     labels = []
@@ -662,17 +662,17 @@ def load_split_activations(
         # Ensure dtype matches SAE parameters for matrix multiplication
         raw_activation = raw_activation.to(sae.W_enc.dtype)
 
-        # Encode through SAE to get features
-        # Shape: (1, 16384) - SAE feature activations
+        # Encode through SAE to get latent activations
+        # Shape: (1, 16384) - SAE latent activations
         with torch.no_grad():
-            sae_features = sae.encode(raw_activation)
+            latent_activations = sae.encode(raw_activation)
 
-        # Extract specific feature value
-        feature_activation = sae_features[0, feature_idx].item()
-        activations.append(feature_activation)
+        # Extract specific latent value
+        latent_activation = latent_activations[0, latent_idx].item()
+        activations.append(latent_activation)
 
         # Create label based on what we're predicting
-        if feature_type == 'correct':
+        if latent_type == 'correct':
             # Predicting correctness: 1=correct, 0=incorrect
             label = 1 if test_passed else 0
         else:
