@@ -83,8 +83,8 @@ def verify_orthogonalization(
     direction = direction / torch.norm(direction)
     direction = direction.to(matrix.device).to(matrix.dtype)
     
-    # Compute projections of all rows onto direction
-    projections = torch.matmul(matrix, direction)
+    # Batch dot products: each row of matrix against direction vector
+    projections = einops.einsum(matrix, direction, '... d, d -> ...')
     
     # Check if all projections are near zero
     max_projection = torch.max(torch.abs(projections)).item()

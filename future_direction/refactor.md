@@ -314,6 +314,8 @@ Use `einops.rearrange` and `einops.reduce` for self-documenting tensor operation
 - Simple matmul: `x @ self.W_enc` - `@` operator is clearer
 - Basic squeeze: `activation.squeeze(0)` - obvious enough
 - Transpose for loading: `weights['encoder.weight'].T` - standard pattern
+
+- [x] einsum - **weight_utils.py:87** `torch.matmul` → `einops.einsum(..., '... d, d -> ...')` (only 1 opportunity; SAE `@` ops kept as-is)
 ---
 
 ### 4.3 Variable Naming Consistency
@@ -534,6 +536,7 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 - [ ] Test all phase one by one first if it is all running.
     - [ ] Exmaine each of the output file.
     - [ ] Code review manually. With CC help ofcourse but read all code manually. Make sure I understand and it is correct.
+    - [ ] Understand the methods especially the linear algebra. Visualize etc. 
 - [ ] Consider batching or not since one problem already do 50% GPU usage?
 - [ ] and running all four gpu at once. f
 - [x] **Gemma-2-9B Support Added:**
