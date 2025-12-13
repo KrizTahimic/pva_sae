@@ -117,8 +117,8 @@ class ZeroDiscSteeringGenerator:
             logger.info(f"Filtered to {len(self.validation_data)} problems")
         
         # Split by initial correctness
-        self.incorrect_problems = self.validation_data[self.validation_data['test_passed'] == False].copy()
-        self.correct_problems = self.validation_data[self.validation_data['test_passed'] == True].copy()
+        self.incorrect_problems = self.validation_data[self.validation_data['baseline_passed'] == False].copy()
+        self.correct_problems = self.validation_data[self.validation_data['baseline_passed'] == True].copy()
         
         logger.info(f"Split: {len(self.correct_problems)} correct, {len(self.incorrect_problems)} incorrect")
         
@@ -259,11 +259,11 @@ class ZeroDiscSteeringGenerator:
                     generated_code = extract_code(generated_text, prompt)
                     
                     # Evaluate code
-                    test_passed = evaluate_code(generated_code, row['test_list'])
-                    
+                    steered_correct = evaluate_code(generated_code, row['test_list'])
+
                     return {
                         'generated_code': generated_code,
-                        'test_passed': test_passed
+                        'steered_correct': steered_correct
                     }
                 
                 # Attempt generation with retry logic
@@ -277,8 +277,8 @@ class ZeroDiscSteeringGenerator:
                 if success:
                     result = {
                         'task_id': row['task_id'],
-                        'initial_correct': row['test_passed'],
-                        'steered_correct': generation_result['test_passed'],
+                        'baseline_passed': row['baseline_passed'],
+                        'steered_correct': generation_result['steered_correct'],
                         'baseline_code': row['generated_code'],
                         'steered_code': generation_result['generated_code'],
                         'steering_type': steering_type,
@@ -400,9 +400,9 @@ class ZeroDiscSteeringGenerator:
                 'correction_rate': correction_rate,
                 'corruption_rate': corruption_rate,
                 'preservation_rate': preservation_rate,
-                'n_corrected': sum(1 for r in correction_results if r['steered_correct'] and not r['initial_correct']),
-                'n_corrupted': sum(1 for r in corruption_results if not r['steered_correct'] and r['initial_correct']),
-                'n_preserved': sum(1 for r in preservation_results if r['steered_correct'] and r['initial_correct'])
+                'n_corrected': sum(1 for r in correction_results if r['steered_correct'] and not r['baseline_passed']),
+                'n_corrupted': sum(1 for r in corruption_results if not r['steered_correct'] and r['baseline_passed']),
+                'n_preserved': sum(1 for r in preservation_results if r['steered_correct'] and r['baseline_passed'])
             }
         }
         

@@ -139,8 +139,8 @@ class ZeroDiscWeightOrthogonalizer:
         
     def _split_baseline_by_correctness(self) -> None:
         """Split baseline data into correct and incorrect subsets."""
-        self.correct_baseline = self.baseline_data[self.baseline_data['test_passed'] == True].copy()
-        self.incorrect_baseline = self.baseline_data[self.baseline_data['test_passed'] == False].copy()
+        self.correct_baseline = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
+        self.incorrect_baseline = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
         
         logger.info(f"Baseline split: {len(self.correct_baseline)} correct, "
                    f"{len(self.incorrect_baseline)} incorrect")
@@ -259,7 +259,7 @@ class ZeroDiscWeightOrthogonalizer:
                     return {
                         'task_id': row['task_id'],
                         'baseline_passed': False,
-                        'orthogonalized_passed': passed,
+                        'orthogonalized_correct': passed,
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': code
                     }
@@ -281,7 +281,7 @@ class ZeroDiscWeightOrthogonalizer:
                     incorrect_results.append({
                         'task_id': row['task_id'],
                         'baseline_passed': False,
-                        'orthogonalized_passed': False,
+                        'orthogonalized_correct': False,
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': '',
                         'error': error_msg
@@ -342,7 +342,7 @@ class ZeroDiscWeightOrthogonalizer:
                     return {
                         'task_id': row['task_id'],
                         'baseline_passed': True,
-                        'orthogonalized_passed': passed,
+                        'orthogonalized_correct': passed,
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': code,
                         'similarity': similarity
@@ -365,7 +365,7 @@ class ZeroDiscWeightOrthogonalizer:
                     correct_results.append({
                         'task_id': row['task_id'],
                         'baseline_passed': True,
-                        'orthogonalized_passed': True,
+                        'orthogonalized_correct': True,
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': '',
                         'similarity': 1.0,
@@ -396,9 +396,9 @@ class ZeroDiscWeightOrthogonalizer:
         avg_similarity = np.mean(similarity_scores) if similarity_scores else 1.0
         
         n_incorrect = len(incorrect_results)
-        n_corrected = sum(1 for r in incorrect_results if r['orthogonalized_passed'])
+        n_corrected = sum(1 for r in incorrect_results if r['orthogonalized_correct'])
         n_correct = len(correct_results)
-        n_preserved = sum(1 for r in correct_results if r['orthogonalized_passed'])
+        n_preserved = sum(1 for r in correct_results if r['orthogonalized_correct'])
         n_corrupted = n_correct - n_preserved
         
         results = {
@@ -422,10 +422,10 @@ class ZeroDiscWeightOrthogonalizer:
                 'n_corrupted': n_corrupted
             },
             'examples': {
-                'corrected': [r for r in incorrect_results if r['orthogonalized_passed']][:5],
-                'not_corrected': [r for r in incorrect_results if not r['orthogonalized_passed']][:5],
-                'preserved': [r for r in correct_results if r['orthogonalized_passed']][:5],
-                'corrupted': [r for r in correct_results if not r['orthogonalized_passed']][:5]
+                'corrected': [r for r in incorrect_results if r['orthogonalized_correct']][:5],
+                'not_corrected': [r for r in incorrect_results if not r['orthogonalized_correct']][:5],
+                'preserved': [r for r in correct_results if r['orthogonalized_correct']][:5],
+                'corrupted': [r for r in correct_results if not r['orthogonalized_correct']][:5]
             }
         }
         

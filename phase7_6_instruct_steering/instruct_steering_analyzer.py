@@ -260,8 +260,8 @@ class InstructSteeringAnalyzer:
     def _split_baseline_by_correctness(self) -> None:
         """Split baseline data into initially correct and incorrect subsets."""
         # Split baseline data by initial correctness
-        self.initially_correct_data = self.baseline_data[self.baseline_data['test_passed'] == True].copy()
-        self.initially_incorrect_data = self.baseline_data[self.baseline_data['test_passed'] == False].copy()
+        self.initially_correct_data = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
+        self.initially_incorrect_data = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
         
         logger.info(f"Split instruction-tuned baseline: {len(self.initially_correct_data)} initially correct, "
                    f"{len(self.initially_incorrect_data)} initially incorrect problems")
@@ -351,11 +351,11 @@ class InstructSteeringAnalyzer:
                     generated_code = extract_code(generated_text, prompt)
                     
                     # Evaluate code
-                    test_passed = evaluate_code(generated_code, test_cases)
-                    
+                    steered_correct = evaluate_code(generated_code, test_cases)
+
                     return {
                         'generated_code': generated_code,
-                        'test_passed': test_passed,
+                        'steered_correct': steered_correct,
                         'test_cases': test_cases,
                         'prompt': prompt
                     }
@@ -370,14 +370,14 @@ class InstructSteeringAnalyzer:
                 
                 if success:
                     # Check if result flipped from baseline
-                    baseline_passed = row['test_passed']
-                    steered_passed = generation_result['test_passed']
-                    flipped = baseline_passed != steered_passed
-                    
+                    baseline_passed = row['baseline_passed']
+                    steered_correct = generation_result['steered_correct']
+                    flipped = baseline_passed != steered_correct
+
                     result = {
                         'task_id': row['task_id'],
-                        'test_passed': baseline_passed,  # unsteered version
-                        'steered_passed': steered_passed,
+                        'baseline_passed': baseline_passed,  # unsteered version
+                        'steered_correct': steered_correct,
                         'flipped': flipped,
                         'baseline_code': row['generated_code'],
                         'steered_code': generation_result['generated_code'],
@@ -439,7 +439,7 @@ class InstructSteeringAnalyzer:
         
         # Merge results with original problems_df on task_id to ensure proper alignment
         steered_df = problems_df.merge(
-            results_df[['task_id', 'steered_code', 'steered_passed', 'flipped']],
+            results_df[['task_id', 'steered_code', 'steered_correct', 'flipped']],
             on='task_id',
             how='left'
         )
@@ -467,7 +467,7 @@ class InstructSteeringAnalyzer:
         # Save correction results
         if not correction_results.empty:
             correction_data = correction_results[
-                ['task_id', 'test_passed', 'steered_passed', 'flipped', 
+                ['task_id', 'baseline_passed', 'steered_correct', 'flipped',
                  'generated_code', 'steered_generated_code']
             ].to_dict('records')
             save_json(correction_data, self.output_dir / "all_correction_results.json")
@@ -484,7 +484,7 @@ class InstructSteeringAnalyzer:
         # Save corruption results
         if not corruption_results.empty:
             corruption_data = corruption_results[
-                ['task_id', 'test_passed', 'steered_passed', 'flipped',
+                ['task_id', 'baseline_passed', 'steered_correct', 'flipped',
                  'generated_code', 'steered_generated_code']
             ].to_dict('records')
             save_json(corruption_data, self.output_dir / "all_corruption_results.json")
@@ -501,7 +501,7 @@ class InstructSteeringAnalyzer:
         # Save preservation results
         if not preservation_results.empty:
             preservation_data = preservation_results[
-                ['task_id', 'test_passed', 'steered_passed', 'flipped',
+                ['task_id', 'baseline_passed', 'steered_correct', 'flipped',
                  'generated_code', 'steered_generated_code']
             ].to_dict('records')
             save_json(preservation_data, self.output_dir / "all_preservation_results.json")
@@ -565,8 +565,8 @@ class InstructSteeringAnalyzer:
         logger.info("Running statistical tests on instruction-tuned model results...")
         
         # Test correction effect
-        correction_successes = len(correction_results[(correction_results['test_passed'] == False) & correction_results['steered_passed']])
-        correction_trials = len(correction_results[correction_results['test_passed'] == False])
+        correction_successes = len(correction_results[(correction_results['baseline_passed'] == False) & correction_results['steered_correct']])
+        correction_trials = len(correction_results[correction_results['baseline_passed'] == False])
         
         if correction_trials > 0:
             correction_test = binomtest(correction_successes, correction_trials, p=0, alternative='greater')
@@ -576,9 +576,9 @@ class InstructSteeringAnalyzer:
             correction_pvalue = 1.0
             correction_significant = False
             
-        # Test corruption effect  
-        corruption_successes = len(corruption_results[corruption_results['test_passed'] & (corruption_results['steered_passed'] == False)])
-        corruption_trials = len(corruption_results[corruption_results['test_passed']])
+        # Test corruption effect
+        corruption_successes = len(corruption_results[corruption_results['baseline_passed'] & (corruption_results['steered_correct'] == False)])
+        corruption_trials = len(corruption_results[corruption_results['baseline_passed']])
         
         if corruption_trials > 0:
             corruption_test = binomtest(corruption_successes, corruption_trials, p=0, alternative='greater')
@@ -589,8 +589,8 @@ class InstructSteeringAnalyzer:
             corruption_significant = False
             
         # Test preservation effect
-        preservation_successes = len(preservation_results[preservation_results['test_passed'] & preservation_results['steered_passed']])
-        preservation_trials = len(preservation_results[preservation_results['test_passed']])
+        preservation_successes = len(preservation_results[preservation_results['baseline_passed'] & preservation_results['steered_correct']])
+        preservation_trials = len(preservation_results[preservation_results['baseline_passed']])
         
         if preservation_trials > 0:
             preservation_test = binomtest(preservation_successes, preservation_trials, p=0.5, alternative='greater')
@@ -797,7 +797,7 @@ class InstructSteeringAnalyzer:
         """Save example generations that flipped or were preserved."""
         # Extract corrected examples (incorrect→correct)
         corrected_df = correction_results[
-            (correction_results['test_passed'] == False) & correction_results['steered_passed']
+            (correction_results['baseline_passed'] == False) & correction_results['steered_correct']
         ].head(10)
         
         corrected_examples = [
@@ -811,7 +811,7 @@ class InstructSteeringAnalyzer:
         
         # Extract corrupted examples (correct→incorrect)
         corrupted_df = corruption_results[
-            corruption_results['test_passed'] & (corruption_results['steered_passed'] == False)
+            corruption_results['baseline_passed'] & (corruption_results['steered_correct'] == False)
         ].head(10)
         
         corrupted_examples = [
@@ -903,8 +903,8 @@ class InstructSteeringAnalyzer:
         
         # Calculate preservation rate directly
         if not preservation_results.empty:
-            preserved_count = len(preservation_results[preservation_results['test_passed'] & preservation_results['steered_passed']])
-            total_correct = len(preservation_results[preservation_results['test_passed']])
+            preserved_count = len(preservation_results[preservation_results['baseline_passed'] & preservation_results['steered_correct']])
+            total_correct = len(preservation_results[preservation_results['baseline_passed']])
             preservation_rate = (preserved_count / total_correct * 100) if total_correct > 0 else 0.0
         else:
             preservation_rate = 0.0
@@ -932,9 +932,9 @@ class InstructSteeringAnalyzer:
             },
             'exclusion_summary': exclusion_summary,
             'detailed_results': {
-                'correction': correction_results[['task_id', 'test_passed', 'steered_passed', 'flipped']].to_dict('records') if not correction_results.empty else [],
-                'corruption': corruption_results[['task_id', 'test_passed', 'steered_passed', 'flipped']].to_dict('records') if not corruption_results.empty else [],
-                'preservation': preservation_results[['task_id', 'test_passed', 'steered_passed', 'flipped']].to_dict('records') if not preservation_results.empty else []
+                'correction': correction_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not correction_results.empty else [],
+                'corruption': corruption_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not corruption_results.empty else [],
+                'preservation': preservation_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not preservation_results.empty else []
             }
         }
         

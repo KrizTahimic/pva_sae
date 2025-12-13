@@ -149,8 +149,8 @@ class WeightOrthogonalizer:
         
     def _split_baseline_by_correctness(self) -> None:
         """Split baseline data into correct and incorrect subsets."""
-        self.correct_baseline = self.baseline_data[self.baseline_data['test_passed'] == True].copy()
-        self.incorrect_baseline = self.baseline_data[self.baseline_data['test_passed'] == False].copy()
+        self.correct_baseline = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
+        self.incorrect_baseline = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
         
         logger.info(f"Baseline split: {len(self.correct_baseline)} correct, "
                    f"{len(self.incorrect_baseline)} incorrect")
@@ -263,7 +263,7 @@ class WeightOrthogonalizer:
                     return {
                         'task_id': row['task_id'],
                         'baseline_passed': False,
-                        'orthogonalized_passed': passed,
+                        'orthogonalized_correct': passed,
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': code
                     }
@@ -285,7 +285,7 @@ class WeightOrthogonalizer:
                     incorrect_results.append({
                         'task_id': row['task_id'],
                         'baseline_passed': False,
-                        'orthogonalized_passed': False,  # Mark as failed
+                        'orthogonalized_correct': False,  # Mark as failed
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': '',
                         'error': error_msg
@@ -341,7 +341,7 @@ class WeightOrthogonalizer:
                     return {
                         'task_id': row['task_id'],
                         'baseline_passed': True,
-                        'orthogonalized_passed': passed,
+                        'orthogonalized_correct': passed,
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': code
                     }
@@ -363,7 +363,7 @@ class WeightOrthogonalizer:
                     correct_results.append({
                         'task_id': row['task_id'],
                         'baseline_passed': True,
-                        'orthogonalized_passed': True,  # Assume preserved on error
+                        'orthogonalized_correct': True,  # Assume preserved on error
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': '',
                         'error': error_msg
@@ -387,11 +387,11 @@ class WeightOrthogonalizer:
         
         # Statistical significance testing
         n_incorrect = len(incorrect_results)
-        n_corrected = sum(1 for r in incorrect_results if r['orthogonalized_passed'])
+        n_corrected = sum(1 for r in incorrect_results if r['orthogonalized_correct'])
         correction_pvalue = binomtest(n_corrected, n_incorrect, p=0.5, alternative='greater').pvalue
         
         n_correct = len(correct_results)
-        n_preserved = sum(1 for r in correct_results if r['orthogonalized_passed'])
+        n_preserved = sum(1 for r in correct_results if r['orthogonalized_correct'])
         preservation_pvalue = binomtest(n_preserved, n_correct, p=0.5, alternative='greater').pvalue
         
         results = {
@@ -412,10 +412,10 @@ class WeightOrthogonalizer:
                 'preservation_significant': preservation_pvalue < 0.05
             },
             'examples': {
-                'corrected': [r for r in incorrect_results if r['orthogonalized_passed']][:5],
-                'not_corrected': [r for r in incorrect_results if not r['orthogonalized_passed']][:5],
-                'preserved': [r for r in correct_results if r['orthogonalized_passed']][:5],
-                'corrupted': [r for r in correct_results if not r['orthogonalized_passed']][:5]
+                'corrected': [r for r in incorrect_results if r['orthogonalized_correct']][:5],
+                'not_corrected': [r for r in incorrect_results if not r['orthogonalized_correct']][:5],
+                'preserved': [r for r in correct_results if r['orthogonalized_correct']][:5],
+                'corrupted': [r for r in correct_results if not r['orthogonalized_correct']][:5]
             }
         }
         
@@ -503,7 +503,7 @@ class WeightOrthogonalizer:
                     return {
                         'task_id': row['task_id'],
                         'baseline_passed': True,
-                        'orthogonalized_passed': passed,
+                        'orthogonalized_correct': passed,
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': code,
                         'similarity': similarity
@@ -527,7 +527,7 @@ class WeightOrthogonalizer:
                     correct_results.append({
                         'task_id': row['task_id'],
                         'baseline_passed': True,
-                        'orthogonalized_passed': True,  # Assume not corrupted on error
+                        'orthogonalized_correct': True,  # Assume not corrupted on error
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': '',
                         'similarity': 1.0,  # Assume high similarity on error
@@ -559,7 +559,7 @@ class WeightOrthogonalizer:
         
         # Statistical significance testing
         n_correct = len(correct_results)
-        n_corrupted = sum(1 for r in correct_results if not r['orthogonalized_passed'])
+        n_corrupted = sum(1 for r in correct_results if not r['orthogonalized_correct'])
         corruption_pvalue = binomtest(n_corrupted, n_correct, p=0.5, alternative='greater').pvalue
         
         results = {
@@ -578,8 +578,8 @@ class WeightOrthogonalizer:
                 'corruption_significant': corruption_pvalue < 0.05
             },
             'examples': {
-                'corrupted': [r for r in correct_results if not r['orthogonalized_passed']][:5],
-                'preserved': [r for r in correct_results if r['orthogonalized_passed']][:5],
+                'corrupted': [r for r in correct_results if not r['orthogonalized_correct']][:5],
+                'preserved': [r for r in correct_results if r['orthogonalized_correct']][:5],
                 'high_similarity': sorted(correct_results, key=lambda x: x['similarity'], reverse=True)[:5],
                 'low_similarity': sorted(correct_results, key=lambda x: x['similarity'])[:5]
             }

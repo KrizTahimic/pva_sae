@@ -332,8 +332,8 @@ class GoldenSectionCoefficientRefiner:
             logger.info(f"Reduced to {len(self.baseline_data)} problems for testing")
         
         # Split baseline data by initial correctness
-        self.initially_correct_data = self.baseline_data[self.baseline_data['test_passed'] == True].copy()
-        self.initially_incorrect_data = self.baseline_data[self.baseline_data['test_passed'] == False].copy()
+        self.initially_correct_data = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
+        self.initially_incorrect_data = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
         
         logger.info(f"Split baseline: {len(self.initially_correct_data)} initially correct, "
                    f"{len(self.initially_incorrect_data)} initially incorrect problems")
@@ -592,14 +592,14 @@ class GoldenSectionCoefficientRefiner:
                     generated_code = extract_code(generated_text, prompt)
                     
                     # Evaluate code
-                    test_passed = evaluate_code(
+                    steered_correct = evaluate_code(
                         generated_code,
                         json.loads(row['test_list'])
                     )
-                    
+
                     return {
                         'generated_code': generated_code,
-                        'test_passed': test_passed
+                        'steered_correct': steered_correct
                     }
                 
                 # Attempt generation with retry logic and timeout protection
@@ -613,19 +613,19 @@ class GoldenSectionCoefficientRefiner:
                 
                 if success:
                     # Check if result flipped from baseline
-                    baseline_passed = row['test_passed']
-                    steered_passed = generation_result['test_passed']
-                    
+                    baseline_passed = row['baseline_passed']
+                    steered_correct = generation_result['steered_correct']
+
                     # Calculate similarity
                     baseline_code = row['generated_code']
                     generated_code = generation_result['generated_code']
                     code_similarity = calculate_code_similarity(baseline_code, generated_code)
-                    
+
                     result = {
                         'task_id': row['task_id'],
                         'baseline_passed': baseline_passed,
-                        'steered_passed': steered_passed,
-                        'flipped': baseline_passed != steered_passed,
+                        'steered_correct': steered_correct,
+                        'flipped': baseline_passed != steered_correct,
                         'code_similarity': code_similarity,
                         'baseline_code': baseline_code,
                         'steered_code': generated_code
@@ -677,7 +677,7 @@ class GoldenSectionCoefficientRefiner:
                     'score': score,
                     'metrics': {
                         'correction_rate': correction_rate,
-                        'n_corrected': sum(1 for r in results if not r['baseline_passed'] and r['steered_passed']),
+                        'n_corrected': sum(1 for r in results if not r['baseline_passed'] and r['steered_correct']),
                         'n_total': len(results)
                     },
                     'results': results,
@@ -686,9 +686,9 @@ class GoldenSectionCoefficientRefiner:
         else:
             corruption_rate = calculate_corruption_rate(results)
             preservation_rate = calculate_preservation_rate(results)
-            
+
             # Calculate average similarity for corrupted cases
-            corrupted_results = [r for r in results if r['baseline_passed'] and not r['steered_passed']]
+            corrupted_results = [r for r in results if r['baseline_passed'] and not r['steered_correct']]
             avg_similarity = np.mean([r['code_similarity'] for r in corrupted_results]) if corrupted_results else 0
             
             # Composite score (similar to Phase 4.5)
@@ -703,8 +703,8 @@ class GoldenSectionCoefficientRefiner:
                         'corruption_rate': corruption_rate,
                         'preservation_rate': preservation_rate,
                         'avg_similarity': avg_similarity,
-                        'n_corrupted': sum(1 for r in results if r['baseline_passed'] and not r['steered_passed']),
-                        'n_preserved': sum(1 for r in results if r['baseline_passed'] and r['steered_passed']),
+                        'n_corrupted': sum(1 for r in results if r['baseline_passed'] and not r['steered_correct']),
+                        'n_preserved': sum(1 for r in results if r['baseline_passed'] and r['steered_correct']),
                         'n_total': len(results)
                     },
                     'results': results,
@@ -1016,16 +1016,16 @@ class GoldenSectionCoefficientRefiner:
         
         if steering_type == 'correct':
             # Save corrected examples (incorrect→correct)
-            corrected_examples = [r for r in results 
-                                 if not r['baseline_passed'] and r['steered_passed']][:10]
+            corrected_examples = [r for r in results
+                                 if not r['baseline_passed'] and r['steered_correct']][:10]
             if corrected_examples:
                 save_json(corrected_examples, coeff_dir / "corrected_examples.json")
                 # Also save in root examples directory
                 save_json(corrected_examples, self.examples_dir / "corrected_examples.json")
         else:
             # Save corrupted examples (correct→incorrect)
-            corrupted_examples = [r for r in results 
-                                if r['baseline_passed'] and not r['steered_passed']][:10]
+            corrupted_examples = [r for r in results
+                                if r['baseline_passed'] and not r['steered_correct']][:10]
             if corrupted_examples:
                 save_json(corrupted_examples, coeff_dir / "corrupted_examples.json")
                 # Also save in root examples directory

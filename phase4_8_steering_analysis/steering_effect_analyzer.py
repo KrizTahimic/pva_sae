@@ -204,8 +204,8 @@ class SteeringEffectAnalyzer:
     def _split_baseline_by_correctness(self) -> None:
         """Split baseline data into initially correct and incorrect subsets."""
         # Split baseline data by initial correctness
-        self.initially_correct_data = self.baseline_data[self.baseline_data['test_passed'] == True].copy()
-        self.initially_incorrect_data = self.baseline_data[self.baseline_data['test_passed'] == False].copy()
+        self.initially_correct_data = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
+        self.initially_incorrect_data = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
         
         logger.info(f"Split baseline: {len(self.initially_correct_data)} initially correct, "
                    f"{len(self.initially_incorrect_data)} initially incorrect problems")
@@ -227,7 +227,7 @@ class SteeringEffectAnalyzer:
         
         if experiment_type not in file_map:
             logger.warning(f"Unknown experiment type: {experiment_type}, returning empty DataFrame")
-            return pd.DataFrame(columns=['task_id', 'test_passed', 'steered_passed', 'flipped', 
+            return pd.DataFrame(columns=['task_id', 'baseline_passed', 'steered_correct', 'flipped',
                                         'generated_code', 'steered_generated_code'])
         
         result_file = self.output_dir / file_map[experiment_type]
@@ -245,7 +245,7 @@ class SteeringEffectAnalyzer:
             logger.info(f"No existing {experiment_type} results found at {result_file}, returning empty DataFrame")
         
         # Return empty DataFrame with correct columns
-        return pd.DataFrame(columns=['task_id', 'test_passed', 'steered_passed', 'flipped',
+        return pd.DataFrame(columns=['task_id', 'baseline_passed', 'steered_correct', 'flipped',
                                     'generated_code', 'steered_generated_code'])
     
     def _save_steered_attention(self, task_id: str, steering_type: str,
@@ -339,7 +339,7 @@ class SteeringEffectAnalyzer:
 
             # Merge with ORIGINAL unfiltered problems_df to get complete dataset
             steered_df = original_problems_df.merge(
-                results_df[['task_id', 'steered_code', 'steered_passed', 'flipped']],
+                results_df[['task_id', 'steered_code', 'steered_correct', 'flipped']],
                 on='task_id',
                 how='left'
             )
@@ -407,11 +407,11 @@ class SteeringEffectAnalyzer:
                     attention_patterns = attention_extractor.get_attention_patterns()
                     
                     # Evaluate code
-                    test_passed = evaluate_code(generated_code, test_cases)
-                    
+                    steered_correct = evaluate_code(generated_code, test_cases)
+
                     return {
                         'generated_code': generated_code,
-                        'test_passed': test_passed,
+                        'steered_correct': steered_correct,
                         'test_cases': test_cases,
                         'prompt': prompt,
                         'attention_patterns': attention_patterns,
@@ -437,14 +437,14 @@ class SteeringEffectAnalyzer:
                         )
                     
                     # Check if result flipped from baseline
-                    baseline_passed = row['test_passed']
-                    steered_passed = generation_result['test_passed']
-                    flipped = baseline_passed != steered_passed
-                    
+                    baseline_passed = row['baseline_passed']
+                    steered_correct = generation_result['steered_correct']
+                    flipped = baseline_passed != steered_correct
+
                     result = {
                         'task_id': row['task_id'],
-                        'test_passed': baseline_passed,  # unsteered version
-                        'steered_passed': steered_passed,
+                        'baseline_passed': baseline_passed,  # unsteered version
+                        'steered_correct': steered_correct,
                         'flipped': flipped,
                         'baseline_code': row['generated_code'],
                         'steered_code': generation_result['generated_code'],
@@ -508,7 +508,7 @@ class SteeringEffectAnalyzer:
 
         # Merge results with ORIGINAL problems_df on task_id to ensure proper alignment
         steered_df = original_problems_df.merge(
-            results_df[['task_id', 'steered_code', 'steered_passed', 'flipped']],
+            results_df[['task_id', 'steered_code', 'steered_correct', 'flipped']],
             on='task_id',
             how='left'
         )
@@ -546,7 +546,7 @@ class SteeringEffectAnalyzer:
             # Save correction results immediately for debugging
             if not correction_results.empty:
                 correction_data = correction_results[
-                    ['task_id', 'test_passed', 'steered_passed', 'flipped', 
+                    ['task_id', 'baseline_passed', 'steered_correct', 'flipped',
                      'generated_code', 'steered_generated_code']
                 ].to_dict('records')
                 save_json(correction_data, self.output_dir / "all_correction_results.json")
@@ -568,7 +568,7 @@ class SteeringEffectAnalyzer:
             # Save corruption results immediately for debugging
             if not corruption_results.empty:
                 corruption_data = corruption_results[
-                    ['task_id', 'test_passed', 'steered_passed', 'flipped',
+                    ['task_id', 'baseline_passed', 'steered_correct', 'flipped',
                      'generated_code', 'steered_generated_code']
                 ].to_dict('records')
                 save_json(corruption_data, self.output_dir / "all_corruption_results.json")
@@ -593,7 +593,7 @@ class SteeringEffectAnalyzer:
         # Save preservation results immediately for debugging
         if not preservation_results.empty:
             preservation_data = preservation_results[
-                ['task_id', 'test_passed', 'steered_passed', 'flipped',
+                ['task_id', 'baseline_passed', 'steered_correct', 'flipped',
                  'generated_code', 'steered_generated_code']
             ].to_dict('records')
             save_json(preservation_data, self.output_dir / "all_preservation_results.json")
@@ -757,7 +757,7 @@ class SteeringEffectAnalyzer:
         """Save example generations that flipped or were preserved."""
         # Extract corrected examples (incorrect→correct)
         corrected_df = correction_results[
-            (correction_results['test_passed'] == False) & correction_results['steered_passed']
+            (correction_results['baseline_passed'] == False) & correction_results['steered_correct']
         ].head(10)
         
         corrected_examples = [
@@ -771,7 +771,7 @@ class SteeringEffectAnalyzer:
         
         # Extract corrupted examples (correct→incorrect)
         corrupted_df = corruption_results[
-            corruption_results['test_passed'] & (corruption_results['steered_passed'] == False)
+            corruption_results['baseline_passed'] & (corruption_results['steered_correct'] == False)
         ].head(10)
         
         corrupted_examples = [
@@ -785,7 +785,7 @@ class SteeringEffectAnalyzer:
         
         # Extract preserved examples (correct→correct)
         preserved_df = preservation_results[
-            preservation_results['test_passed'] & preservation_results['steered_passed']
+            preservation_results['baseline_passed'] & preservation_results['steered_correct']
         ].head(10)
         
         preserved_examples = [
@@ -903,8 +903,8 @@ class SteeringEffectAnalyzer:
 
         # Calculate preservation rate directly (percentage of correct that stay correct)
         if not preservation_results.empty:
-            preserved_count = len(preservation_results[preservation_results['test_passed'] & preservation_results['steered_passed']])
-            total_correct = len(preservation_results[preservation_results['test_passed']])
+            preserved_count = len(preservation_results[preservation_results['baseline_passed'] & preservation_results['steered_correct']])
+            total_correct = len(preservation_results[preservation_results['baseline_passed']])
             preservation_rate = (preserved_count / total_correct * 100) if total_correct > 0 else 0.0
         else:
             preservation_rate = 0.0
@@ -925,9 +925,9 @@ class SteeringEffectAnalyzer:
             },
             'exclusion_summary': exclusion_summary,
             'detailed_results': {
-                'correction': correction_results[['task_id', 'test_passed', 'steered_passed', 'flipped']].to_dict('records') if not correction_results.empty else [],
-                'corruption': corruption_results[['task_id', 'test_passed', 'steered_passed', 'flipped']].to_dict('records') if not corruption_results.empty else [],
-                'preservation': preservation_results[['task_id', 'test_passed', 'steered_passed', 'flipped']].to_dict('records') if not preservation_results.empty else []
+                'correction': correction_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not correction_results.empty else [],
+                'corruption': corruption_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not corruption_results.empty else [],
+                'preservation': preservation_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not preservation_results.empty else []
             }
         }
 

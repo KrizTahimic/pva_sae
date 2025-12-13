@@ -89,8 +89,8 @@ class OrthogonalizationSignificanceTester:
     def extract_baseline_metrics(self, baseline_data: pd.DataFrame) -> Dict:
         """Extract correction and corruption metrics from baseline data."""
         # Split by correctness
-        baseline_correct = baseline_data[baseline_data['test_passed'] == True]
-        baseline_incorrect = baseline_data[baseline_data['test_passed'] == False]
+        baseline_correct = baseline_data[baseline_data['baseline_passed'] == True]
+        baseline_incorrect = baseline_data[baseline_data['baseline_passed'] == False]
         
         return {
             'n_correct': len(baseline_correct),

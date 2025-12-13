@@ -220,8 +220,7 @@ class ThresholdOptimizer:
             raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
 
         phase3_6_baseline = pd.read_parquet(baseline_file)
-        # Rename test_passed to is_correct for consistency
-        phase3_6_baseline = phase3_6_baseline.rename(columns={'test_passed': 'is_correct'})
+        # Phase 3.6 outputs baseline_passed column
         logger.info(f"Loaded full baseline data for {len(phase3_6_baseline)} problems from Phase 3.6 (including generated_code for baseline returns)")
 
         # Drop redundant columns from Phase 3.6 that already exist in Phase 0.1
@@ -285,9 +284,9 @@ class ThresholdOptimizer:
         """Split dataset into initially correct and initially incorrect problems."""
         logger.info("Splitting dataset by initial correctness...")
 
-        # Split into two groups based on is_correct
-        self.incorrect_problems = self.dataset[~self.dataset['is_correct']].copy()
-        self.correct_problems = self.dataset[self.dataset['is_correct']].copy()
+        # Split into two groups based on baseline_passed
+        self.incorrect_problems = self.dataset[~self.dataset['baseline_passed']].copy()
+        self.correct_problems = self.dataset[self.dataset['baseline_passed']].copy()
 
         n_incorrect = len(self.incorrect_problems)
         n_correct = len(self.correct_problems)
@@ -409,7 +408,7 @@ class ThresholdOptimizer:
         prompt: str,
         test_cases: list[str],
         threshold: float,
-        initial_correct: bool
+        baseline_passed: bool
     ) -> Dict:
         """
         Generate code with conditional steering based on feature activation.
@@ -419,7 +418,7 @@ class ThresholdOptimizer:
             prompt: Problem prompt
             test_cases: Test cases for evaluation
             threshold: Threshold for selective steering
-            initial_correct: Whether problem was initially correct (baseline)
+            baseline_passed: Whether problem passed baseline test (from Phase 3.6)
 
         Returns:
             Dict with generation results and steering info
@@ -517,14 +516,14 @@ class ThresholdOptimizer:
                 # Return baseline result matching Phase 8.3 structure
                 return {
                     'task_id': task_id,
-                    'initial_correct': initial_correct,
+                    'baseline_passed': baseline_passed,
                     'was_steered': False,
                     'incorrect_pred_activation': steering_state.incorrect_pred_activation,
                     'threshold': threshold,
-                    'is_correct': baseline_row['is_correct'],
+                    'steered_correct': baseline_row['baseline_passed'],  # Passthrough baseline result
                     'corrected': False,  # Baseline doesn't correct initially incorrect problems
-                    'preserved': baseline_row['is_correct'] if initial_correct else False,
-                    'corrupted': not baseline_row['is_correct'] if initial_correct else False,
+                    'preserved': baseline_row['baseline_passed'] if baseline_passed else False,
+                    'corrupted': not baseline_row['baseline_passed'] if baseline_passed else False,
                     'generated_code': baseline_row['generated_code'],
                     'source': 'phase3_6_baseline'  # Track that we used baseline
                 }
@@ -537,7 +536,7 @@ class ThresholdOptimizer:
             generated_code = extract_code(generated_text, prompt)
 
             # Evaluate code
-            is_correct = evaluate_code(
+            steered_correct = evaluate_code(
                 generated_code,
                 test_cases
             )
@@ -545,9 +544,9 @@ class ThresholdOptimizer:
             # Determine outcome
             was_steered = steering_state.should_steer
 
-            if initial_correct:
+            if baseline_passed:
                 # Preservation experiment
-                if is_correct:
+                if steered_correct:
                     preserved = True
                     corrupted = False
                 else:
@@ -556,7 +555,7 @@ class ThresholdOptimizer:
                 corrected = False
             else:
                 # Correction experiment
-                if is_correct:
+                if steered_correct:
                     corrected = True
                 else:
                     corrected = False
@@ -565,11 +564,11 @@ class ThresholdOptimizer:
 
             return {
                 'task_id': task_id,
-                'initial_correct': initial_correct,
+                'baseline_passed': baseline_passed,
                 'was_steered': was_steered,
                 'incorrect_pred_activation': steering_state.incorrect_pred_activation,
                 'threshold': threshold,
-                'is_correct': is_correct,
+                'steered_correct': steered_correct,
                 'corrected': corrected,
                 'preserved': preserved,
                 'corrupted': corrupted,
@@ -625,7 +624,7 @@ class ThresholdOptimizer:
             _, row = problems_list[idx]
 
             task_id = row['task_id']
-            initial_correct = row['is_correct']
+            baseline_passed = row['baseline_passed']
 
             try:
                 # Build prompt using PromptBuilder
@@ -649,7 +648,7 @@ class ThresholdOptimizer:
                     prompt=prompt,
                     test_cases=row['test_list'],
                     threshold=threshold,
-                    initial_correct=initial_correct
+                    baseline_passed=baseline_passed
                 )
 
                 results.append(result)
@@ -674,13 +673,13 @@ class ThresholdOptimizer:
                 # Add error result
                 results.append({
                     'task_id': task_id,
-                    'initial_correct': initial_correct,
+                    'baseline_passed': baseline_passed,
                     'was_steered': False,
                     'incorrect_pred_activation': None,
                     'threshold': threshold,
-                    'is_correct': initial_correct,  # Keep baseline
+                    'steered_correct': baseline_passed,  # Keep baseline
                     'corrected': False,
-                    'preserved': initial_correct,
+                    'preserved': baseline_passed,
                     'corrupted': False,
                     'generated_code': None,
                     'execution_result': None,

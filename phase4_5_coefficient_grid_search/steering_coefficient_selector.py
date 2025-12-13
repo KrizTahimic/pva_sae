@@ -134,8 +134,8 @@ class SteeringCoefficientSelector:
         
         # Split baseline data by initial correctness for proper experimental design
         # Use ALL problems in the (potentially limited) dataset
-        self.initially_correct_data = self.baseline_data[self.baseline_data['test_passed'] == True].copy()
-        self.initially_incorrect_data = self.baseline_data[self.baseline_data['test_passed'] == False].copy()
+        self.initially_correct_data = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
+        self.initially_incorrect_data = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
         
         logger.info(f"Split baseline: {len(self.initially_correct_data)} initially correct, "
                    f"{len(self.initially_incorrect_data)} initially incorrect problems")
@@ -333,11 +333,11 @@ class SteeringCoefficientSelector:
                     # Evaluate code
                     test_list = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
                     
-                    test_passed = evaluate_code(generated_code, test_list)
-                    
+                    steered_correct = evaluate_code(generated_code, test_list)
+
                     return {
                         'generated_code': generated_code,
-                        'test_passed': test_passed
+                        'steered_correct': steered_correct
                     }
                 
                 # Attempt generation with retry logic and timeout protection
@@ -350,13 +350,13 @@ class SteeringCoefficientSelector:
                 )
                 
                 if success:
-                    logger.info(f"Task {row['task_id']}: {'PASS' if generation_result['test_passed'] else 'FAIL'} "
+                    logger.info(f"Task {row['task_id']}: {'PASS' if generation_result['steered_correct'] else 'FAIL'} "
                                f"(steering: {steering_type}, coeff: {coefficient})")
-                    
+
                     # Check if result flipped from baseline
-                    baseline_passed = row['test_passed']
-                    steered_passed = generation_result['test_passed']
-                    flipped = baseline_passed != steered_passed
+                    baseline_passed = row['baseline_passed']
+                    steered_correct = generation_result['steered_correct']
+                    flipped = baseline_passed != steered_correct
                     
                     # Calculate similarity with baseline using token-based approach
                     baseline_code = row['generated_code']
@@ -366,9 +366,9 @@ class SteeringCoefficientSelector:
                     result = {
                         'task_id': row['task_id'],
                         'baseline_passed': baseline_passed,
-                        'steered_passed': steered_passed,
+                        'steered_correct': steered_correct,
                         'flipped': flipped,
-                        'flip_direction': f"{'pass' if baseline_passed else 'fail'}→{'pass' if steered_passed else 'fail'}",
+                        'flip_direction': f"{'pass' if baseline_passed else 'fail'}→{'pass' if steered_correct else 'fail'}",
                         'code_similarity': code_similarity,
                         'baseline_code': baseline_code,
                         'steered_code': generated_code,
@@ -663,8 +663,8 @@ class SteeringCoefficientSelector:
             all_results = results if isinstance(results, list) else []
             
             # Save corrected examples (incorrect→correct)
-            corrected_examples = [r for r in all_results 
-                                 if not r['baseline_passed'] and r['steered_passed']][:10]
+            corrected_examples = [r for r in all_results
+                                 if not r['baseline_passed'] and r['steered_correct']][:10]
             if corrected_examples:
                 save_json(corrected_examples, coeff_dir / "corrected_examples.json")
                 
@@ -673,8 +673,8 @@ class SteeringCoefficientSelector:
             all_results = results if isinstance(results, list) else []
             
             # Save corrupted examples (correct→incorrect)
-            corrupted_examples = [r for r in all_results 
-                                if r['baseline_passed'] and not r['steered_passed']][:10]
+            corrupted_examples = [r for r in all_results
+                                if r['baseline_passed'] and not r['steered_correct']][:10]
             if corrupted_examples:
                 save_json(corrupted_examples, coeff_dir / "corrupted_examples.json")
         
