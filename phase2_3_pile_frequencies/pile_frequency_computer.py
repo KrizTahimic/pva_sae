@@ -9,6 +9,7 @@ from pathlib import Path
 from datetime import datetime
 
 import torch
+from einops import reduce
 
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
@@ -90,8 +91,8 @@ class PileFrequencyComputer:
         # Encode pile activations through SAE and compute frequencies
         with torch.no_grad():
             pile_features = sae.encode(pile_activations)
-            # Frequency = fraction of samples where feature activates (> 0)
-            frequencies = (pile_features > 0).float().mean(dim=0)
+            # Average over samples to get per-feature activation frequency
+            frequencies = reduce((pile_features > 0).float(), 'n f -> f', 'mean')
 
         # Clean up
         del sae, pile_activations, pile_features

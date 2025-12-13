@@ -11,6 +11,7 @@ import torch
 import tokenize
 import io
 from difflib import SequenceMatcher
+from einops import rearrange
 from common.logging import get_logger
 
 logger = get_logger("common.steering_metrics")
@@ -237,8 +238,8 @@ def create_steering_hook(sae_decoder_direction: torch.Tensor,
         # input[0] is residual stream: [batch_size, seq_len, d_model]
         residual = input[0]
         
-        # Add steering vector scaled by coefficient to all positions
-        steering = sae_decoder_direction.unsqueeze(0).unsqueeze(0) * coefficient
+        # Shape: [d_model] -> [1, 1, d_model] for broadcasting with [batch, seq, d_model]
+        steering = rearrange(sae_decoder_direction, 'd -> 1 1 d') * coefficient
         residual = residual + steering.to(residual.device, residual.dtype)
         
         return (residual,) + input[1:]

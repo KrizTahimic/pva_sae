@@ -30,6 +30,7 @@ from datetime import datetime
 import torch
 import pandas as pd
 import numpy as np
+from einops import rearrange
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from common.config import Config
@@ -477,7 +478,8 @@ class ThresholdOptimizer:
             # Apply steering: add decoder direction scaled by coefficient
             # Ensure dtype and device consistency with residual tensor
             decoder_direction = self.correct_decoder_direction.to(residual.dtype)
-            steering = decoder_direction.unsqueeze(0).unsqueeze(0) * self.steering_coefficient
+            # Shape: [d_model] -> [1, 1, d_model] for residual stream broadcasting
+            steering = rearrange(decoder_direction, 'd -> 1 1 d') * self.steering_coefficient
             residual = residual + steering.to(residual.device, residual.dtype)
 
             # Return modified input tuple for pre-hook

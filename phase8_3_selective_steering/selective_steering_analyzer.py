@@ -32,6 +32,7 @@ from datetime import datetime
 import torch
 import pandas as pd
 import numpy as np
+from einops import rearrange
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from common.config import Config
@@ -374,7 +375,8 @@ class SelectiveSteeringAnalyzer:
                 residual = input[0]
                 # Convert decoder direction to match residual dtype
                 decoder_direction = self.correct_decoder_direction.to(residual.dtype)
-                steering = decoder_direction.unsqueeze(0).unsqueeze(0) * self.correct_coefficient
+                # Shape: [d_model] -> [1, 1, d_model] for residual stream broadcasting
+                steering = rearrange(decoder_direction, 'd -> 1 1 d') * self.correct_coefficient
                 residual = residual + steering.to(residual.device, residual.dtype)
                 return (residual,) + input[1:]
 

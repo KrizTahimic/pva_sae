@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 import numpy as np
 import pandas as pd
 import torch
+from einops import rearrange
 
 from .logging import get_logger
 from .tensor_utils import load_activation
@@ -357,9 +358,9 @@ def load_and_encode_activation(
     # Match SAE dtype
     raw_activation = raw_activation.to(sae.W_enc.dtype)
 
-    # Handle 1D activations (squeeze from earlier processing)
+    # Ensure [1, d_model] shape for SAE encoding
     if raw_activation.ndim == 1:
-        raw_activation = raw_activation.unsqueeze(0)
+        raw_activation = rearrange(raw_activation, 'd -> 1 d')
 
     # Encode and extract feature
     with torch.no_grad():

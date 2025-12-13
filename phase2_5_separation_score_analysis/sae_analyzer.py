@@ -13,6 +13,7 @@ from typing import Optional
 import torch
 import numpy as np
 from datetime import datetime
+from einops import reduce
 from huggingface_hub import hf_hub_download
 
 from common.config import Config, GEMMA_2B_SPARSITY
@@ -98,17 +99,17 @@ class SimplifiedSAEAnalyzer:
         incorrect_features: torch.Tensor
     ) -> dict[str, torch.Tensor]:
         """Compute separation scores for PVA identification."""
-        # Calculate activation fractions
-        f_correct = (correct_features > 0).float().mean(dim=0)
-        f_incorrect = (incorrect_features > 0).float().mean(dim=0)
-        
+        # Average over samples (n) to get per-feature (f) statistics
+        f_correct = reduce((correct_features > 0).float(), 'n f -> f', 'mean')
+        f_incorrect = reduce((incorrect_features > 0).float(), 'n f -> f', 'mean')
+
         # Calculate separation scores
         s_correct = f_correct - f_incorrect
         s_incorrect = f_incorrect - f_correct
-        
-        # Calculate mean activations
-        mean_correct = correct_features.mean(dim=0)
-        mean_incorrect = incorrect_features.mean(dim=0)
+
+        # Calculate mean activations per feature
+        mean_correct = reduce(correct_features, 'n f -> f', 'mean')
+        mean_incorrect = reduce(incorrect_features, 'n f -> f', 'mean')
         
         return {
             'f_correct': f_correct,

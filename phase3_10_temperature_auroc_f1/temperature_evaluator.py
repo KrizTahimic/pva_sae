@@ -12,6 +12,7 @@ from typing import Optional, Any
 import numpy as np
 import pandas as pd
 import torch
+from einops import rearrange
 from sklearn.metrics import roc_auc_score, f1_score, roc_curve, precision_recall_curve
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -176,9 +177,9 @@ class TemperatureAUROCEvaluator:
                         # Get SAE dtype to ensure compatibility
                         sae_dtype = next(sae.parameters()).dtype
                         raw_tensor = raw_tensor.to(dtype=sae_dtype)
-                        # Ensure correct shape
+                        # Ensure [1, d_model] shape for SAE encoding
                         if raw_tensor.ndim == 1:
-                            raw_tensor = raw_tensor.unsqueeze(0)
+                            raw_tensor = rearrange(raw_tensor, 'd -> 1 d')
                         sae_features = sae.encode(raw_tensor)
                         feature_value = sae_features[0, best_features['feature_idx']].item()
                     
