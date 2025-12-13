@@ -1,10 +1,10 @@
 """Simple activation extraction using PyTorch hooks."""
 
 import torch
-import numpy as np
 from pathlib import Path
 from typing import Dict, List, Callable, Optional, Tuple
 from common.logging import get_logger
+from common.tensor_utils import save_attention
 
 logger = get_logger("common.activation_hooks")
 
@@ -277,10 +277,10 @@ def save_raw_attention_with_boundaries(
 ) -> Path:
     """
     Save raw attention patterns with section boundaries for flexible Phase 6.3 analysis.
-    
+
     CRITICAL: Saves raw attention tensor (n_heads × seq_len) plus boundaries.
     This allows different aggregation strategies in Phase 6.3.
-    
+
     Args:
         task_id: Task identifier
         attention_tensor: Raw attention weights (n_heads, seq_len)
@@ -288,35 +288,35 @@ def save_raw_attention_with_boundaries(
         tokenizer: Tokenizer for decoding
         output_dir: Directory to save attention patterns
         layer_idx: Layer index
-    
+
     Returns:
-        Path to saved file
+        Path to saved tensor file (.safetensors)
     """
     # Ensure output directory exists
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Decode prompt to identify sections
     prompt_text = tokenizer.decode(tokenized_prompt.squeeze(0), skip_special_tokens=True)
-    
+
     # Calculate token boundaries
     boundaries = calculate_section_boundaries(prompt_text, tokenizer, tokenized_prompt)
-    
-    # Save raw attention and boundaries - NO pre-aggregation
-    save_path = output_dir / f"{task_id}_layer_{layer_idx}_attention.npz"
-    
-    np.savez_compressed(
-        save_path,
-        raw_attention=attention_tensor.cpu().float().numpy() if isinstance(attention_tensor, torch.Tensor) else attention_tensor,
-        boundaries=boundaries,
-        prompt_length=len(tokenized_prompt.squeeze(0)),
-        layer=layer_idx,
-        task_id=task_id,
-        prompt_text=prompt_text  # Save for verification/debugging
-    )
-    
+
+    # Save using safetensors (tensor) + JSON (metadata)
+    save_path = output_dir / f"{task_id}_layer_{layer_idx}_attention"
+
+    metadata = {
+        "boundaries": boundaries,
+        "prompt_length": len(tokenized_prompt.squeeze(0)),
+        "layer": layer_idx,
+        "task_id": task_id,
+        "prompt_text": prompt_text,
+    }
+
+    save_attention(attention_tensor, save_path, metadata=metadata)
+
     logger.debug(f"Saved raw attention for task {task_id}, layer {layer_idx} to {save_path}")
-    return save_path
+    return save_path.with_suffix(".safetensors")
 
 
 def calculate_section_boundaries(prompt_text: str, tokenizer, tokenized_prompt: torch.Tensor) -> Dict[str, int]:

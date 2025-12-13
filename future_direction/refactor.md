@@ -206,7 +206,16 @@ Do these in order - each step depends on the previous.
         - `phase5_6_zero_disc_orthogonalization/zero_disc_weight_orthogonalizer.py` (1 fix: 3.5)
         - `phase3_10_temperature_auroc_f1/temperature_evaluator.py` (1 fix: 3.5)
         - `phase7_6_instruct_steering/instruct_steering_analyzer.py` (1 fix: 7.3)
-- [ ] Examine this kind of code: `Fixed bfloat16→float32 conversion: .cpu().float().numpy() instead of .cpu().numpy()` What should I do?
+- [x] Examine this kind of code: `Fixed bfloat16→float32 conversion: .cpu().float().numpy() instead of .cpu().numpy()` What should I do? There's often error here. I think there are other forms of this.
+    - **COMPLETED**: Migrated all activation storage to safetensors format
+    - Created `common/tensor_utils.py` with centralized utilities:
+      - `save_activation()` / `load_activation()` - single tensor
+      - `save_activations()` / `load_activations()` - multi-layer dict
+      - `save_attention()` / `load_attention()` - attention with metadata (.safetensors + .json)
+      - `to_numpy()` - explicit float32 conversion only when needed
+    - Updated 16 files to use safetensors, preserving bfloat16 throughout
+    - Attention uses companion .json file for metadata (strings, dicts)
+
 - [ ] How to get steering coefficent? Autodiscovery or config? WHat is better for the script?
 
 Polish the code after the structure is stable.

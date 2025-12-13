@@ -25,6 +25,7 @@ from common.phase_discovery import (
 )
 from common.config import Config
 from common.viz_utils import handle_viz_only_mode
+from common.tensor_utils import load_attention, to_numpy
 
 logger = get_logger("phase6_3.attention_analyzer")
 
@@ -231,32 +232,28 @@ class AttentionAnalyzer:
         
     def _load_task_attention(self, attention_dir: Path, task_id: str, condition: str) -> Optional[Dict]:
         """Load attention patterns for a specific task."""
-        # Try different file naming patterns
+        # Try different file naming patterns (.safetensors format)
         patterns = [
-            f"{task_id}_layer_*_attention.npz",
-            f"{task_id}_attention.npz",
-            f"task_{task_id}_layer_*_attention.npz"
+            f"{task_id}_layer_*_attention.safetensors",
+            f"{task_id}_attention.safetensors",
+            f"task_{task_id}_layer_*_attention.safetensors"
         ]
-        
+
         for pattern in patterns:
             files = list(attention_dir.glob(pattern))
             if files:
-                # Load the first matching file
-                data = np.load(files[0], allow_pickle=True)
-                
-                # Get raw attention data
-                raw_attention = data['raw_attention'] if 'raw_attention' in data else data['attention']
-                
-                # Convert float16 to float32 for compatibility with linalg operations
-                if raw_attention.dtype == np.float16:
-                    raw_attention = raw_attention.astype(np.float32)
-                
+                # Load using tensor_utils (returns dict with 'attention' tensor + metadata)
+                data = load_attention(files[0], device="cpu")
+
+                # Convert to numpy for analysis (float32)
+                raw_attention = to_numpy(data['attention'])
+
                 return {
                     'raw': raw_attention,
-                    'boundaries': data['boundaries'].item() if 'boundaries' in data else {},
-                    'layer': data['layer'].item() if 'layer' in data else None
+                    'boundaries': data.get('boundaries', {}),
+                    'layer': data.get('layer')
                 }
-        
+
         return None
         
     def aggregate_to_3_bins(self, attention_tensor: np.ndarray, boundaries: Dict) -> Dict:

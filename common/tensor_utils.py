@@ -74,71 +74,66 @@ def load_activations(path: Path | str, device: torch.device | str = "cpu") -> di
 def save_attention(
     attention: torch.Tensor,
     path: Path | str,
-    boundaries: dict | None = None,
-    prompt_length: int | None = None,
-    layer: int | None = None,
-    task_id: int | None = None,
+    metadata: dict | None = None,
 ) -> None:
-    """Save attention tensor with metadata.
+    """Save attention tensor with metadata to safetensors + JSON.
 
     Args:
-        attention: Attention tensor to save
-        path: Output path
-        boundaries: Optional section boundaries dict
-        prompt_length: Optional prompt length
-        layer: Optional layer index
-        task_id: Optional task identifier
+        attention: Attention tensor to save (n_heads, seq_len)
+        path: Output path (.safetensors extension will be used for tensor)
+        metadata: Optional dict with boundaries, prompt_text, layer, task_id, etc.
+                  Non-tensor data (strings, dicts) saved to companion .json file.
     """
+    import json
+
     path = Path(path)
-    tensors = {"attention": attention.detach().cpu()}
+    tensor_path = path.with_suffix(".safetensors")
+    metadata_path = path.with_suffix(".json")
 
-    # Store metadata as 1D tensors (safetensors only stores tensors)
-    if prompt_length is not None:
-        tensors["prompt_length"] = torch.tensor([prompt_length])
-    if layer is not None:
-        tensors["layer"] = torch.tensor([layer])
-    if task_id is not None:
-        tensors["task_id"] = torch.tensor([task_id])
-    if boundaries is not None:
-        # Store boundaries as separate tensors for each section
-        for section, (start, end) in boundaries.items():
-            tensors[f"boundary_{section}"] = torch.tensor([start, end])
+    # Save tensor
+    save_file({"attention": attention.detach().cpu()}, str(tensor_path))
 
-    save_file(tensors, str(path))
+    # Save metadata to JSON (handles strings, dicts, etc.)
+    if metadata:
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f, indent=2)
 
 
 def load_attention(path: Path | str, device: torch.device | str = "cpu") -> dict:
     """Load attention tensor with metadata.
 
     Args:
-        path: Path to .safetensors file
+        path: Path to attention file (with or without extension)
         device: Target device for attention tensor
 
     Returns:
-        Dict with 'attention' tensor and metadata
+        Dict with 'attention' tensor and metadata fields
     """
-    path = Path(path)
-    data = load_file(str(path))
+    import json
 
+    path = Path(path)
+
+    # Handle path with or without extension
+    if path.suffix == ".safetensors":
+        tensor_path = path
+        metadata_path = path.with_suffix(".json")
+    elif path.suffix == ".json":
+        tensor_path = path.with_suffix(".safetensors")
+        metadata_path = path
+    else:
+        # No extension - assume base name
+        tensor_path = path.with_suffix(".safetensors")
+        metadata_path = path.with_suffix(".json")
+
+    # Load tensor
+    data = load_file(str(tensor_path))
     result = {"attention": data["attention"].to(device)}
 
-    # Extract metadata
-    if "prompt_length" in data:
-        result["prompt_length"] = data["prompt_length"].item()
-    if "layer" in data:
-        result["layer"] = data["layer"].item()
-    if "task_id" in data:
-        result["task_id"] = data["task_id"].item()
-
-    # Extract boundaries
-    boundaries = {}
-    for key in data:
-        if key.startswith("boundary_"):
-            section = key[9:]  # Remove "boundary_" prefix
-            bounds = data[key].tolist()
-            boundaries[section] = (bounds[0], bounds[1])
-    if boundaries:
-        result["boundaries"] = boundaries
+    # Load metadata if exists
+    if metadata_path.exists():
+        with open(metadata_path) as f:
+            metadata = json.load(f)
+        result.update(metadata)
 
     return result
 
