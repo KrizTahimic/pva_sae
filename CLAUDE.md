@@ -663,6 +663,23 @@ If encountering OOM errors:
 
 ---
 
+## SAE Terminology Standard
+
+Use consistent terminology when working with Sparse Autoencoders (SAEs):
+
+| Term | Description | Type |
+|------|-------------|------|
+| `latent_idx` | Integer index into SAE's latent space | `int` |
+| `latent_direction` | Decoder weight vector for a latent (`W_dec[latent_idx]`) | `torch.Tensor [d_model]` |
+| `latent_activation` | Scalar activation value for one latent | `float` |
+| `latent_activations` | Full encoded output from SAE | `torch.Tensor [batch, n_latents]` |
+
+**Correctness classification terminology**: Use "predicting" (correct-predicting, incorrect-predicting), not "detecting".
+
+**File naming**: Use `top_20_latents.json` (not `top_20_features.json`).
+
+---
+
 ## Code Style Conventions
 
 Follow these conventions when writing or modifying code in this project.
@@ -674,10 +691,10 @@ Use `einops.rearrange` for complex reshapes - makes tensor shapes self-documenti
 ```python
 # ✅ GOOD - Shape transformation is explicit
 from einops import rearrange
-steering = rearrange(decoder_direction, 'd -> 1 1 d') * coefficient
+steering = rearrange(latent_direction, 'd -> 1 1 d') * coefficient
 
 # ❌ AVOID - Shape not obvious without tracing
-steering = decoder_direction.unsqueeze(0).unsqueeze(0) * coefficient
+steering = latent_direction.unsqueeze(0).unsqueeze(0) * coefficient
 ```
 
 **When NOT to use einops** (keep simple):
