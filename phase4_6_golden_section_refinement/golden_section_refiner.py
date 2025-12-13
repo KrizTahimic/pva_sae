@@ -308,12 +308,13 @@ class GoldenSectionCoefficientRefiner:
         
         # Load Phase 3.6 baseline data
         logger.info("Loading baseline data from Phase 3.6...")
-        phase3_6_output = discover_latest_phase_output("3.6")
+        phase3_6_output = discover_latest_phase_output("3.6", config=self.config)
         if not phase3_6_output:
             raise FileNotFoundError("Phase 3.6 output not found. Run Phase 3.6 first.")
-        
+        self.phase3_6_dir = Path(phase3_6_output).parent
+
         # Load hyperparameter dataset
-        baseline_file = Path(phase3_6_output).parent / "dataset_hyperparams_temp_0_0.parquet"
+        baseline_file = self.phase3_6_dir / "dataset_hyperparams_temp_0_0.parquet"
         if not baseline_file.exists():
             raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
         
@@ -360,13 +361,14 @@ class GoldenSectionCoefficientRefiner:
     def _load_phase4_5_results(self) -> None:
         """Load Phase 4.5 results to determine search bounds and cache scores."""
         logger.info("Loading Phase 4.5 results for golden section search...")
-        
-        phase4_5_output = discover_latest_phase_output("4.5")
+
+        phase4_5_output = discover_latest_phase_output("4.5", config=self.config)
         if not phase4_5_output:
             raise FileNotFoundError("Phase 4.5 output not found. Run Phase 4.5 first.")
-        
+        self.phase4_5_dir = Path(phase4_5_output).parent
+
         # Load coefficient analysis
-        analysis_file = Path(phase4_5_output).parent / "coefficient_analysis.json"
+        analysis_file = self.phase4_5_dir / "coefficient_analysis.json"
         if not analysis_file.exists():
             raise FileNotFoundError(f"Phase 4.5 analysis not found: {analysis_file}")
         

@@ -171,6 +171,14 @@ class SteeringEffectAnalyzer:
         self.incorrect_decoder_direction = self.incorrect_decoder_direction.to(dtype=model_dtype)
         
         logger.info(f"Decoder directions converted to model dtype: {model_dtype}")
+
+        # Load steering coefficients from Phase 4.6 (via manifest system)
+        from common.phase_discovery import discover_steering_coefficients
+        coefficients = discover_steering_coefficients(self.config)
+        self.correct_coefficient = coefficients["correct"]
+        self.incorrect_coefficient = coefficients["incorrect"]
+        logger.info(f"Loaded coefficients from Phase 4.6: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
+
         logger.info("Dependencies loaded successfully")
         
     def _get_checkpoint_manager(self, steering_type: str) -> CheckpointManager:
@@ -530,7 +538,7 @@ class SteeringEffectAnalyzer:
             correction_results = self._apply_steering(
                 self.initially_incorrect_data,
                 steering_type='correct',
-                coefficient=self.config.phase4_8_correct_coefficient
+                coefficient=self.correct_coefficient
             )
             
             # Save correction results immediately for debugging
@@ -552,7 +560,7 @@ class SteeringEffectAnalyzer:
             corruption_results = self._apply_steering(
                 self.initially_correct_data,
                 steering_type='incorrect',
-                coefficient=self.config.phase4_8_incorrect_coefficient
+                coefficient=self.incorrect_coefficient
             )
             
             # Save corruption results immediately for debugging
@@ -574,7 +582,7 @@ class SteeringEffectAnalyzer:
             preservation_results = self._apply_steering(
                 self.initially_correct_data,
                 steering_type='preservation',
-                coefficient=self.config.phase4_8_correct_coefficient
+                coefficient=self.correct_coefficient
             )
         else:
             logger.info("Skipping preservation experiment, loading existing results...")
@@ -814,8 +822,8 @@ class SteeringEffectAnalyzer:
             'timestamp': datetime.now().isoformat(),
             'duration_seconds': duration,
             'config': {
-                'correct_coefficient': self.config.phase4_8_correct_coefficient,
-                'incorrect_coefficient': self.config.phase4_8_incorrect_coefficient,
+                'correct_coefficient': self.correct_coefficient,
+                'incorrect_coefficient': self.incorrect_coefficient,
                 'model': self.config.model_name
             },
             'results': {
@@ -869,7 +877,7 @@ class SteeringEffectAnalyzer:
                 "2.5": str(self.phase2_5_dir),
                 "3.5": str(self.phase3_5_dir),
             },
-            config_keys=['model_name', 'dataset_name', 'phase4_8_correct_coefficient', 'phase4_8_incorrect_coefficient']
+            config_keys=['model_name', 'dataset_name']
         )
         logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
         
@@ -881,8 +889,8 @@ class SteeringEffectAnalyzer:
 
         start_time = time.time()
         logger.info("Starting Phase 4.8: Steering Effect Analysis")
-        logger.info(f"Coefficients - Correct: {self.config.phase4_8_correct_coefficient}, "
-                   f"Incorrect: {self.config.phase4_8_incorrect_coefficient}")
+        logger.info(f"Coefficients - Correct: {self.correct_coefficient}, "
+                   f"Incorrect: {self.incorrect_coefficient}")
 
         # Apply steering and evaluate effects
         correction_results, corruption_results, preservation_results, exclusion_summary = self.evaluate_steering_effects()
@@ -905,8 +913,8 @@ class SteeringEffectAnalyzer:
             'corruption_rate': corruption_rate,
             'preservation_rate': preservation_rate,
             'coefficients': {
-                'correct': self.config.phase4_8_correct_coefficient,
-                'incorrect': self.config.phase4_8_incorrect_coefficient
+                'correct': self.correct_coefficient,
+                'incorrect': self.incorrect_coefficient
             },
             'n_problems': {
                 'initially_correct': len(self.initially_correct_data),

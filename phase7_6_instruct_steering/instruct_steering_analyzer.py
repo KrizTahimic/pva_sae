@@ -165,6 +165,14 @@ class InstructSteeringAnalyzer:
         self.incorrect_decoder_direction = self.incorrect_decoder_direction.to(dtype=model_dtype)
         
         logger.info(f"Decoder directions converted to model dtype: {model_dtype}")
+
+        # Load steering coefficients from Phase 4.6 (via manifest system)
+        from common.phase_discovery import discover_steering_coefficients
+        coefficients = discover_steering_coefficients(self.config)
+        self.correct_coefficient = coefficients["correct"]
+        self.incorrect_coefficient = coefficients["incorrect"]
+        logger.info(f"Loaded coefficients from Phase 4.6: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
+
         logger.info("Dependencies loaded successfully")
         
     def save_checkpoint(self, steering_type: str, results: List[Dict], 
@@ -454,7 +462,7 @@ class InstructSteeringAnalyzer:
         correction_results = self._apply_steering(
             self.initially_incorrect_data,
             steering_type='correct',
-            coefficient=self.config.phase4_8_correct_coefficient
+            coefficient=self.correct_coefficient
         )
         
         # Save correction results
@@ -471,7 +479,7 @@ class InstructSteeringAnalyzer:
         corruption_results = self._apply_steering(
             self.initially_correct_data,
             steering_type='incorrect',
-            coefficient=self.config.phase4_8_incorrect_coefficient
+            coefficient=self.incorrect_coefficient
         )
         
         # Save corruption results
@@ -488,7 +496,7 @@ class InstructSteeringAnalyzer:
         preservation_results = self._apply_steering(
             self.initially_correct_data,
             steering_type='preservation',
-            coefficient=self.config.phase4_8_correct_coefficient
+            coefficient=self.correct_coefficient
         )
         
         # Save preservation results
@@ -841,8 +849,8 @@ class InstructSteeringAnalyzer:
             'timestamp': datetime.now().isoformat(),
             'duration_seconds': duration,
             'config': {
-                'correct_coefficient': self.config.phase4_8_correct_coefficient,
-                'incorrect_coefficient': self.config.phase4_8_incorrect_coefficient,
+                'correct_coefficient': self.correct_coefficient,
+                'incorrect_coefficient': self.incorrect_coefficient,
                 'model': self.config.phase7_6_model_name
             },
             'results': {
@@ -884,8 +892,8 @@ class InstructSteeringAnalyzer:
         start_time = time.time()
         logger.info("Starting Phase 7.6: Instruction-Tuned Model Steering Analysis")
         logger.info(f"Using instruction-tuned model: {self.config.phase7_6_model_name}")
-        logger.info(f"Coefficients - Correct: {self.config.phase4_8_correct_coefficient}, "
-                   f"Incorrect: {self.config.phase4_8_incorrect_coefficient}")
+        logger.info(f"Coefficients - Correct: {self.correct_coefficient}, "
+                   f"Incorrect: {self.incorrect_coefficient}")
         
         # Apply steering and evaluate effects
         correction_results, corruption_results, preservation_results, exclusion_summary = self.evaluate_steering_effects()
@@ -914,8 +922,8 @@ class InstructSteeringAnalyzer:
             'corruption_rate': corruption_rate,
             'preservation_rate': preservation_rate,
             'coefficients': {
-                'correct': self.config.phase4_8_correct_coefficient,
-                'incorrect': self.config.phase4_8_incorrect_coefficient
+                'correct': self.correct_coefficient,
+                'incorrect': self.incorrect_coefficient
             },
             'statistical_tests': statistical_tests,
             'n_problems': {

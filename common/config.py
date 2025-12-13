@@ -250,8 +250,7 @@ class Config:
     phase4_6_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption'
 
     # === STEERING EFFECT ANALYSIS (Phase 4.8) ===
-    phase4_8_correct_coefficient: float = 29
-    phase4_8_incorrect_coefficient: float = 287
+    # NOTE: Coefficients are now auto-discovered from Phase 4.6 via discover_steering_coefficients()
     phase4_8_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption', 'preservation'
 
     # === ZERO-DISCRIMINATION FEATURE SELECTION (Phase 4.10) ===

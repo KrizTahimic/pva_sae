@@ -130,7 +130,8 @@ from .phase_discovery import (
     get_dataset_range,
     write_phase_output,
     discover_phase_outputs,
-    get_phase_output_file
+    get_phase_output_file,
+    discover_steering_coefficients
 )
 
 __all__ = [
@@ -231,5 +232,6 @@ __all__ = [
     'get_dataset_range',
     'write_phase_output',
     'discover_phase_outputs',
-    'get_phase_output_file'
+    'get_phase_output_file',
+    'discover_steering_coefficients'
 ]

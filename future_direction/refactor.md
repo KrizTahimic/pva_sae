@@ -216,7 +216,13 @@ Do these in order - each step depends on the previous.
     - Updated 16 files to use safetensors, preserving bfloat16 throughout
     - Attention uses companion .json file for metadata (strings, dicts)
 
-- [ ] How to get steering coefficent? Autodiscovery or config? WHat is better for the script?
+- [x] How to get steering coefficient? Autodiscovery or config? What is better for the script?
+    - **COMPLETED**: Auto-discovery via manifest system
+    - Added `discover_steering_coefficients()` to `common/phase_discovery.py`
+    - Uses `get_phase_output_file("4.6", "refined_coefficients", config)` - manifest-based
+    - Removed hardcoded values from config.py
+    - Updated Phase 4.8, 7.6, 8.3 to use auto-discovered coefficients
+    - Fixed bugs in Phase 4.5 and 4.6 (undefined instance variables for manifest writing)
 
 Polish the code after the structure is stable.
 

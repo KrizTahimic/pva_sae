@@ -78,12 +78,12 @@ class SteeringCoefficientSelector:
         """Load features from Phase 2.5 and baseline data from Phase 3.6."""
         # Load Phase 2.5 features
         logger.info("Loading PVA features from Phase 2.5...")
-        phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
-        if not phase2_5_output:
+        self.phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
+        if not self.phase2_5_output:
             raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
         
         # Load top features
-        features_file = Path(phase2_5_output).parent / "top_20_features.json"
+        features_file = Path(self.phase2_5_output).parent / "top_20_features.json"
         logger.info(f"Loading features from: {features_file}")
         if not features_file.exists():
             raise FileNotFoundError(f"Top features file not found: {features_file}")
@@ -110,12 +110,12 @@ class SteeringCoefficientSelector:
         
         # Load Phase 3.6 baseline data
         logger.info("Loading baseline data from Phase 3.6...")
-        phase3_6_output = discover_latest_phase_output("3.6")
-        if not phase3_6_output:
+        self.phase3_6_output = discover_latest_phase_output("3.6", config=self.config)
+        if not self.phase3_6_output:
             raise FileNotFoundError("Phase 3.6 output not found. Run Phase 3.6 first.")
-        
+
         # Load hyperparameter dataset
-        baseline_file = Path(phase3_6_output).parent / "dataset_hyperparams_temp_0_0.parquet"
+        baseline_file = Path(self.phase3_6_output).parent / "dataset_hyperparams_temp_0_0.parquet"
         if not baseline_file.exists():
             raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
         

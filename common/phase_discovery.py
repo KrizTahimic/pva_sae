@@ -330,3 +330,26 @@ def get_phase_output_file(phase: str, output_key: str = "primary", phase_dir: Op
         )
 
     return phase_outputs['outputs'][output_key]
+
+
+def discover_steering_coefficients(config) -> dict[str, float]:
+    """
+    Load refined steering coefficients from Phase 4.6 via manifest system.
+
+    Args:
+        config: Config object for model/dataset-aware directory lookup
+
+    Returns:
+        Dict with 'correct' and 'incorrect' coefficient values
+
+    Raises:
+        FileNotFoundError: If Phase 4.6 hasn't been run (no phase_output.json)
+    """
+    from common.utils import load_json
+
+    coeff_file = get_phase_output_file("4.6", "refined_coefficients", config=config)
+    data = load_json(coeff_file)
+    return {
+        "correct": data["correct"]["refined_coefficient"],
+        "incorrect": data["incorrect"]["refined_coefficient"],
+    }

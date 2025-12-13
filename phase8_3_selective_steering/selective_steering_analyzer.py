@@ -259,6 +259,12 @@ class SelectiveSteeringAnalyzer:
             self.threshold = phase3_8_threshold
             logger.info(f"Using Phase 3.8 classification threshold: {self.threshold:.4f}")
 
+        # === LOAD STEERING COEFFICIENTS FROM PHASE 4.6 ===
+        from common.phase_discovery import discover_steering_coefficients
+        coefficients = discover_steering_coefficients(self.config)
+        self.correct_coefficient = coefficients["correct"]
+        logger.info(f"Loaded steering coefficient from Phase 4.6: {self.correct_coefficient}")
+
         logger.info("Dependencies loaded successfully")
 
     def _split_baseline_by_correctness(self):
@@ -370,7 +376,7 @@ class SelectiveSteeringAnalyzer:
                 residual = input[0]
                 # Convert decoder direction to match residual dtype
                 decoder_direction = self.correct_decoder_direction.to(residual.dtype)
-                steering = decoder_direction.unsqueeze(0).unsqueeze(0) * self.config.phase4_8_correct_coefficient
+                steering = decoder_direction.unsqueeze(0).unsqueeze(0) * self.correct_coefficient
                 residual = residual + steering.to(residual.device, residual.dtype)
                 return (residual,) + input[1:]
 
@@ -494,7 +500,7 @@ class SelectiveSteeringAnalyzer:
             logger.info(f"Goal: Measure selective preservation rate")
 
         logger.info(f"Threshold: {self.threshold:.4f} (Layer {self.incorrect_pred_layer}, Feature {self.incorrect_pred_feature})")
-        logger.info(f"Steering: Layer {self.correct_steer_layer}, Feature {self.correct_steer_feature}, Coefficient {self.config.phase4_8_correct_coefficient}")
+        logger.info(f"Steering: Layer {self.correct_steer_layer}, Feature {self.correct_steer_feature}, Coefficient {self.correct_coefficient}")
         logger.info(f"{'='*60}\n")
 
         # Process with tqdm progress bar
@@ -934,7 +940,7 @@ class SelectiveSteeringAnalyzer:
             'steering_info': {
                 'layer': self.correct_steer_layer,
                 'feature': self.correct_steer_feature,
-                'coefficient': self.config.phase4_8_correct_coefficient
+                'coefficient': self.correct_coefficient
             },
             'correction_experiment': correction_metrics,
             'preservation_experiment': preservation_metrics,
