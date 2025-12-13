@@ -208,6 +208,7 @@ class Config:
     sae_cleanup_after_layer: bool = True
     sae_use_memory_mapping: bool = False
     sae_latent_threshold: float = 0.02
+    sae_dtype: str = "bfloat16"  # SAE weight dtype: "bfloat16" (faster) or "float32" (original)
     
     # === PILE FILTERING (Phase 2) ===
     pile_filter_enabled: bool = True  # Enabled by default to filter out general language features

@@ -159,21 +159,31 @@ def load_gemma_scope_sae(
     # Load parameters
     params = np.load(path_to_params)
 
-    # Use float16 for MPS, keep original dtype for others
+    # Determine target dtype from config
+    target_dtype = torch.bfloat16  # default
+    if config and hasattr(config, 'sae_dtype'):
+        dtype_map = {'bfloat16': torch.bfloat16, 'float32': torch.float32, 'float16': torch.float16}
+        target_dtype = dtype_map.get(config.sae_dtype, torch.bfloat16)
+
+    # Use float16 for MPS (doesn't support bfloat16), target dtype for others
     if device == "mps":
         pt_params = {k: torch.from_numpy(v).to(torch.float16).to(device)
                      for k, v in params.items()}
     else:
-        pt_params = {k: torch.from_numpy(v).to(device) for k, v in params.items()}
+        pt_params = {k: torch.from_numpy(v).to(target_dtype).to(device)
+                     for k, v in params.items()}
 
     # Create and initialize SAE
     d_model = params['W_enc'].shape[0]
     d_sae = params['W_enc'].shape[1]
     sae = JumpReLUSAE(d_model, d_sae)
     sae.load_state_dict(pt_params)
-    sae.to(device)
 
-    logger.info(f"Loaded GemmaScope SAE: d_model={d_model}, d_sae={d_sae}")
+    # Convert to target dtype (load_state_dict copies values but keeps original parameter dtype)
+    actual_dtype = torch.float16 if device == "mps" else target_dtype
+    sae.to(device).to(actual_dtype)
+
+    logger.info(f"Loaded GemmaScope SAE: d_model={d_model}, d_sae={d_sae}, dtype={actual_dtype}")
     return sae
 
 
@@ -212,6 +222,16 @@ def load_llama_scope_sae(
     # Load weights from safetensors
     weights = load_file(local_path)
 
+    # Determine target dtype from config
+    target_dtype = torch.bfloat16  # default
+    if config and hasattr(config, 'sae_dtype'):
+        dtype_map = {'bfloat16': torch.bfloat16, 'float32': torch.float32, 'float16': torch.float16}
+        target_dtype = dtype_map.get(config.sae_dtype, torch.bfloat16)
+
+    # Use float16 for MPS (doesn't support bfloat16)
+    if device == "mps":
+        target_dtype = torch.float16
+
     # LlamaScope format:
     # encoder.weight: (d_sae, d_model) = (32768, 4096)
     # decoder.weight: (d_model, d_sae) = (4096, 32768)
@@ -222,15 +242,15 @@ def load_llama_scope_sae(
     # Create SAE
     sae = TopKSAE(d_model, d_sae, k=k)
 
-    # Load and transpose weights
-    sae.W_enc.data = weights['encoder.weight'].T.to(device).float()
-    sae.b_enc.data = weights['encoder.bias'].to(device).float()
-    sae.W_dec.data = weights['decoder.weight'].T.to(device).float()
-    sae.b_dec.data = weights['decoder.bias'].to(device).float()
+    # Load and transpose weights with target dtype
+    sae.W_enc.data = weights['encoder.weight'].T.to(device).to(target_dtype)
+    sae.b_enc.data = weights['encoder.bias'].to(device).to(target_dtype)
+    sae.W_dec.data = weights['decoder.weight'].T.to(device).to(target_dtype)
+    sae.b_dec.data = weights['decoder.bias'].to(device).to(target_dtype)
 
     sae.to(device)
 
-    logger.info(f"Loaded LlamaScope SAE: d_model={d_model}, d_sae={d_sae}, k={k}")
+    logger.info(f"Loaded LlamaScope SAE: d_model={d_model}, d_sae={d_sae}, k={k}, dtype={target_dtype}")
     return sae
 
 
