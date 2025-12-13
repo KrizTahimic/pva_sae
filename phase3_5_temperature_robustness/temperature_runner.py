@@ -478,14 +478,14 @@ class TemperatureRobustnessRunner:
                     
                     # Extract code and evaluate
                     generated_code = extract_code(generated_text, prompt)
-                    test_passed = evaluate_code(generated_code, row['test_list'])
+                    baseline_passed = evaluate_code(generated_code, row['test_list'])
                     
                     return {
                         'generated_text': generated_text,
                         'task_activations': task_activations,
                         'attention_patterns': attention_patterns,
                         'generated_code': generated_code,
-                        'test_passed': test_passed,
+                        'baseline_passed': baseline_passed,
                         'generation_time': generation_time
                     }
                 
@@ -512,7 +512,7 @@ class TemperatureRobustnessRunner:
                         'temperature': 0.0,
                         'prompt': prompt,
                         'generated_code': temp0_result['generated_code'],
-                        'test_passed': temp0_result['test_passed'],
+                        'baseline_passed': temp0_result['baseline_passed'],
                         'error_message': None,
                         'generation_time': temp0_result['generation_time'],
                         'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
@@ -604,7 +604,7 @@ class TemperatureRobustnessRunner:
         
         for temp in self.config.temperature_variation_temps:
             temp_results = [r for r in all_results if r['temperature'] == temp]
-            correct = sum(1 for r in temp_results if r['test_passed'])
+            correct = sum(1 for r in temp_results if r['baseline_passed'])
             logger.info(
                 f"Temperature {temp}: {correct}/{len(temp_results)} passed "
                 f"({correct/len(temp_results):.1%})" if len(temp_results) > 0 else f"Temperature {temp}: 0/0 passed (0%)"
@@ -628,13 +628,13 @@ class TemperatureRobustnessRunner:
             generated_code = extract_code(generated_text, prompt)
             
             # Evaluate solution
-            test_passed = evaluate_code(generated_code, row['test_list'])
+            baseline_passed = evaluate_code(generated_code, row['test_list'])
             error_message = None
             
         except Exception as e:
             logger.warning(f"Generation failed for {row['task_id']} at temp {temperature}: {e}")
             generated_code = ""
-            test_passed = False
+            baseline_passed = False
             error_message = str(e)
         
         generation_time = time.time() - start_time
@@ -644,7 +644,7 @@ class TemperatureRobustnessRunner:
             'temperature': temperature,
             'prompt': prompt,
             'generated_code': generated_code,
-            'test_passed': test_passed,
+            'baseline_passed': baseline_passed,
             'error_message': error_message,
             'generation_time': generation_time,
             'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
@@ -730,7 +730,7 @@ class TemperatureRobustnessRunner:
         # Add statistics for each temperature
         for temp in self.config.temperature_variation_temps:
             temp_results = [r for r in all_results if r['temperature'] == temp]
-            correct_count = sum(1 for r in temp_results if r['test_passed'])
+            correct_count = sum(1 for r in temp_results if r['baseline_passed'])
             metadata["temperature_stats"][str(temp)] = {
                 "n_correct": correct_count,
                 "n_incorrect": len(temp_results) - correct_count,

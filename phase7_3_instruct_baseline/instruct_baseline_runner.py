@@ -277,7 +277,7 @@ class InstructBaselineRunner:
             
             # Extract code and evaluate
             generated_code = extract_code(generated_text, prompt)
-            test_passed = evaluate_code(generated_code, row['test_list'])
+            baseline_passed = evaluate_code(generated_code, row['test_list'])
             
             generation_time = time.time() - start_time
             
@@ -286,7 +286,7 @@ class InstructBaselineRunner:
                 'temperature': 0.0,
                 'prompt': prompt,
                 'generated_code': generated_code,
-                'test_passed': test_passed,
+                'baseline_passed': baseline_passed,
                 'error_message': None,
                 'generation_time': generation_time,
                 'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
@@ -490,7 +490,7 @@ class InstructBaselineRunner:
         # Log summary including exclusions
         n_excluded = len(all_excluded)
         n_included = len(all_results)
-        correct = sum(1 for r in all_results if r['test_passed'])
+        correct = sum(1 for r in all_results if r['baseline_passed'])
         
         # Print clear summary
         logger.info("\n" + "="*60)
@@ -550,7 +550,7 @@ class InstructBaselineRunner:
         excluded_tasks: list[Dict]
     ) -> Dict:
         """Create metadata summary for instruction-tuned baseline."""
-        correct_count = sum(1 for r in all_results if r['test_passed'])
+        correct_count = sum(1 for r in all_results if r['baseline_passed'])
         n_attempted = len(validation_task_ids)
         n_excluded = len(excluded_tasks)
         n_included = len(all_results)

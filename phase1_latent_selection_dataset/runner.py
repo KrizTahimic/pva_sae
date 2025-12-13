@@ -186,12 +186,12 @@ class Phase1Runner:
                     logger.warning(f"Task {task_id}: Generated {len(generated_code)} chars of code - likely incorrect")
                 
                 # Evaluate code
-                test_passed = evaluate_code(generated_code, task['test_list'])
+                baseline_passed = evaluate_code(generated_code, task['test_list'])
                 
                 return {
                     'generated_code': generated_code,
                     'raw_output': generated_text,  # Full model output before extraction (for debugging)
-                    'test_passed': test_passed,
+                    'baseline_passed': baseline_passed,
                     'activations': activations,  # Residual stream from prompt processing
                     'generation_time': generation_time
                 }
@@ -209,7 +209,7 @@ class Phase1Runner:
         )
         
         if success:
-            logger.info(f"Task {task_id}: {'PASS' if result['test_passed'] else 'FAIL'} "
+            logger.info(f"Task {task_id}: {'PASS' if result['baseline_passed'] else 'FAIL'} "
                        f"({result['generation_time']:.2f}s)")
             return result
         else:
@@ -402,7 +402,7 @@ class Phase1Runner:
                 # Task succeeded - save activations and add to results
                 # Save residual stream activations to disk
                 # Activations are saved separately by correctness for Phase 2 analysis
-                category = "correct" if result['test_passed'] else "incorrect"
+                category = "correct" if result['baseline_passed'] else "incorrect"
                 for layer, activation in result['activations'].items():
                     filename = create_activation_filename(task['task_id'], layer)
                     filepath = activation_dir / category / filename
@@ -418,7 +418,7 @@ class Phase1Runner:
                     'task_id': task['task_id'],
                     'generated_code': result['generated_code'],
                     'raw_output': result['raw_output'],  # Full model output for debugging
-                    'test_passed': result['test_passed']
+                    'baseline_passed': result['baseline_passed']
                 })
             else:
                 # Task failed after all retries - exclude from dataset
@@ -511,8 +511,8 @@ class Phase1Runner:
             logger.info(f"Saved exclusion summary to {exclusion_file}")
         
         # Summary statistics
-        n_correct = final_df['test_passed'].sum()
-        n_incorrect = (~final_df['test_passed']).sum()
+        n_correct = final_df['baseline_passed'].sum()
+        n_incorrect = (~final_df['baseline_passed']).sum()
         n_total = len(final_df)
         pass_rate = n_correct/n_total*100 if n_total > 0 else 0
         
