@@ -9,6 +9,11 @@ from common.logging import get_logger
 # No module-level logger - get logger when needed to respect phase context
 
 
+def get_device() -> str:
+    """Get the best available device (cuda or cpu)."""
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
+
 def cleanup_gpu_memory(device_id: Optional[int] = None) -> None:
     """
     Cleanup GPU memory and handle zombie CUDA contexts.

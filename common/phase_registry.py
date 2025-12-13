@@ -99,7 +99,17 @@ PHASES: dict[str, PhaseInfo] = {
         runner="run_phase2_2_caching",
         runner_type="function",
         category="feature_discovery",
-        patterns="pile_activations/*.npz",
+        patterns="pile_activations/*.safetensors",
+    ),
+    "2.3": PhaseInfo(
+        id="2.3",
+        name="Pile SAE Frequency Computation",
+        output_dir="data/phase2_3",
+        module="phase2_3_pile_frequencies.runner",
+        runner="run_phase_2_3",
+        runner_type="function",
+        category="feature_discovery",
+        patterns="layer_*_frequencies.safetensors",
     ),
     "2.5": PhaseInfo(
         id="2.5",

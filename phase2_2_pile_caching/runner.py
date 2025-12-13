@@ -130,13 +130,6 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
         
         processed_count += 1
         
-        # Update progress bar description
-        pbar.set_postfix({
-            'processed': processed_count,
-            'skipped': skipped_count,
-            'word': random_word[:20] + '...' if len(random_word) > 20 else random_word
-        })
-        
         # Periodic memory cleanup
         if processed_count % 100 == 0:
             torch.cuda.empty_cache()

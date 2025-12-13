@@ -261,9 +261,13 @@ Convert verbose loops to Pythonic one-liners. **High-impact examples:**
   - Extracted `log_feature_summary(name, metrics)` helper function
 
 **Other comprehension opportunities** (lower priority):
-- [ ] sae_analyzer.py:378-401 - Nested filtering with pile threshold
-- [ ] sae_analyzer.py:490-498 - Dict iteration for JSON writing
-- [ ] auroc_f1_evaluator.py:246-253 - Bar labeling with zip + helper
+- [x] ~~sae_analyzer.py:378-401 - Nested filtering with pile threshold~~ → **Redesigned as Phase 2.3**
+    - Created `phase2_3_pile_frequencies/` to compute SAE frequencies once per layer
+    - Created `common/pile_filter_utils.py` with `load_pile_frequencies()` and `apply_pile_filter()`
+    - Removed ~85 lines of duplicated pile filtering code from Phase 2.5 and 2.10
+    - Test run: 0/20 features filtered (expected - only 67 pile samples, need 10,000 for real filtering)
+- [x] sae_analyzer.py:490-498 - Dict iteration for JSON writing → **Skipped** (low value)
+- [x] auroc_f1_evaluator.py:246-253 - Bar labeling with zip + helper → **Skipped** (low value)
 
 ---
 
@@ -424,7 +428,7 @@ def apply_index_range_filter(df: pd.DataFrame, config: Config) -> pd.DataFrame:
 ## Step 5: Polish & Extras (After Core Refactoring)
 
 Nice-to-haves once the foundation is solid.
-
+- [ ] Is there bad in my current approach in one source of truth 
 - [ ] Update the docstrings/commetns.
 - [ ] Improve notebooks. Remove unnecessary cells. Also do list comprehensions.
     - [ ] Understand matplotlib and pandas logic or how it works.
@@ -497,8 +501,17 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
     - Addresses "single model, single benchmark" criticism
 
 - [ ] **Feature threshold sensitivity analysis** (Reviewer RXZd)
-    - [ ] Test sensitivity to the >2% activation threshold on pile-10k
-    - [ ] Report how many features get filtered out in top 25
+    - [x] **Infrastructure ready**: Phase 2.3 extracts pile frequency computation, enabling easy threshold testing
+    - [ ] Test sensitivity to the >2% activation threshold on pile-10k (vary threshold, rerun Phase 2.5/2.10 only)
+    - [ ] Report how many features get filtered out in top-20 (needs full 10,000 pile samples)
+    - **Reporting plan**:
+        - Main paper: "Of top-20 candidates, X filtered at 2% threshold, Y remained. Selected feature ranked #Z."
+        - Appendix: Small table showing filtering counts at 1%, 2%, 5% thresholds (shows threshold isn't arbitrary)
+    - **Prediction (uncertain)**: Expect few filtered (0-5 out of 20) because top features by separation score should already be code-specific. Adjust interpretation based on actual results:
+        - 0-5 filtered → filter validates selection, report as safety net
+        - 5-10 filtered → filter is doing meaningful work, emphasize its importance
+        - 10+ filtered → may indicate selection method issues, investigate further
+    - **Note**: Current 2% threshold is copied from Ferrando et al. 2024 (entities paper). No first-principles justification yet. Results will inform whether to keep, adjust, or provide post-hoc justification.
 
 - [x] **Visualizations** → **Moved to Step 5.1**
     - Top-10 features table
@@ -529,6 +542,9 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 
 ## Step 6: Multi-GPU Parallel Execution (After Experiments Work)
 - [ ] Test all phase one by one first if it is all running.
+    - [ ] Exmaine each of the output file.
+- [ ] Consider batching or not since one problem already do 50% GPU usage?
+- [ ] and running all four gpu at once. f
 - [x] **Gemma-2-9B Support Added:**
     - Added `GEMMA_9B_SPARSITY` dict (42 layers) to `common/config.py`
     - Added `google/gemma-2-9b` and `google/gemma-2-9b-it` to `MODEL_CONFIGS`

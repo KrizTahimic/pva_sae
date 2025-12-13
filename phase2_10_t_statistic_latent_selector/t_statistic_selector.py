@@ -18,6 +18,7 @@ from datetime import datetime
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
 from common.phase_discovery import get_phase_output_dir
+from common.pile_filter_utils import load_pile_frequencies, apply_pile_filter
 from common.sae_loader import load_sae_for_config
 from common.tensor_utils import load_activation
 
@@ -53,11 +54,11 @@ class TStatisticSelector:
             f"{len(self.incorrect_task_ids)} incorrect tasks"
         )
     
-    def _get_task_ids(self, directory: Path) -> List[str]:
+    def _get_task_ids(self, directory: Path) -> list[str]:
         """Extract unique task IDs from activation files."""
         task_ids = set()
-        for file in directory.glob("*_layer_*.npz"):
-            # Extract task_id from filename pattern: {task_id}_layer_{n}.npz
+        for file in directory.glob("*_layer_*.safetensors"):
+            # Extract task_id from filename pattern: {task_id}_layer_{n}.safetensors
             parts = file.stem.split('_layer_')
             if len(parts) == 2:
                 task_ids.add(parts[0])
@@ -304,142 +305,34 @@ class TStatisticSelector:
             }
         }
     
-    def load_pile_activations_for_layer(self, layer_idx: int) -> torch.Tensor:
-        """Load pile activations for a specific layer from Phase 2.2."""
-        pile_dir = Path(get_phase_output_dir("2.2", self.config)) / "pile_activations"
-        
-        if not pile_dir.exists():
-            logger.warning(f"Pile activation directory not found at {pile_dir}")
-            return None
-            
-        # Collect all pile activations for this layer
-        activations = []
-        pile_files = sorted(pile_dir.glob(f"*_layer_{layer_idx}.safetensors"))
-
-        if not pile_files:
-            logger.warning(f"No pile activations found for layer {layer_idx}")
-            return None
-
-        for file_path in pile_files:
-            # Load activation (preserves bfloat16)
-            activation = load_activation(file_path, "cpu")
-            activations.append(activation)
-            
-        if not activations:
-            return None
-            
-        # Stack all activations
-        return torch.stack(activations).to(self.device)
-    
-    def compute_pile_frequencies(self, pile_features: torch.Tensor) -> torch.Tensor:
-        """Compute activation frequencies on pile dataset."""
-        # Calculate fraction of pile samples where each feature activates
-        freq_acts = (pile_features > 0).float().mean(dim=0)
-        return freq_acts
-    
-    def apply_pile_filter(
-        self, 
-        top_features: Dict[str, List], 
-        pile_frequencies: Dict[int, torch.Tensor]
-    ) -> Dict[str, List]:
-        """
-        Apply pile filtering to remove general language features.
-        
-        Args:
-            top_features: Dict with 'correct' and 'incorrect' lists of features
-            pile_frequencies: Dict mapping layer_idx to frequency tensors
-            
-        Returns:
-            Filtered features dict with same structure
-        """
-        if not self.config.pile_filter_enabled:
-            logger.info("Pile filtering disabled, returning original features")
-            return top_features
-            
-        logger.info(f"Applying pile filter with threshold {self.config.pile_threshold}")
-        filtered = {'correct': [], 'incorrect': []}
-        
-        for category in ['correct', 'incorrect']:
-            for feature in top_features[category]:
-                layer = feature['layer']
-                feat_idx = feature['feature_idx']
-                
-                # Check pile frequency if available
-                if layer in pile_frequencies and pile_frequencies[layer] is not None:
-                    pile_freq = pile_frequencies[layer][feat_idx].item()
-                    
-                    # Keep feature if it's below threshold (specific to code, not general)
-                    if pile_freq < self.config.pile_threshold:
-                        filtered[category].append(feature)
-                    else:
-                        logger.debug(
-                            f"Filtered out {category} feature {feat_idx} from layer {layer}: "
-                            f"pile frequency {pile_freq:.3f} >= {self.config.pile_threshold}"
-                        )
-                else:
-                    # If no pile data available, keep the feature
-                    filtered[category].append(feature)
-                    
-                # Stop if we have enough features
-                if len(filtered[category]) >= 20:
-                    break
-                    
-        logger.info(
-            f"Pile filtering complete: {len(filtered['correct'])} correct, "
-            f"{len(filtered['incorrect'])} incorrect features retained"
-        )
-        return filtered
-    
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Run t-statistic based analysis on all specified layers."""
         logger.info("Starting Phase 2.10: T-Statistic Based Latent Selection")
-        
+
         all_results = {}
         layer_summaries = []
-        pile_frequencies = {}
-        
+
         # Analyze each layer
         for layer_idx in tqdm_with_logging(self.config.activation_layers, logger, desc="Analyzing layers"):
             try:
                 layer_results = self.analyze_layer(layer_idx)
                 all_results[layer_idx] = layer_results
                 layer_summaries.append(layer_results)
-                
-                # If pile filtering is enabled, compute pile frequencies
-                if self.config.pile_filter_enabled:
-                    logger.info(f"Loading pile activations for layer {layer_idx}")
-                    pile_activations = self.load_pile_activations_for_layer(layer_idx)
-                    
-                    if pile_activations is not None:
-                        # Load SAE for this layer
-                        sae = load_sae_for_config(self.config, layer_idx, self.device)
-                        
-                        # Ensure dtype matches SAE parameters for matrix multiplication
-                        pile_activations = pile_activations.to(sae.W_enc.dtype)
-                        
-                        # Encode pile activations through SAE
-                        with torch.no_grad():
-                            pile_features = sae.encode(pile_activations)
-                        
-                        # Compute frequencies
-                        pile_frequencies[layer_idx] = self.compute_pile_frequencies(pile_features)
-                        
-                        # Clean up
-                        del sae, pile_activations, pile_features
-                        torch.cuda.empty_cache()
-                    else:
-                        pile_frequencies[layer_idx] = None
-                        
             except Exception as e:
                 logger.error(f"Failed to analyze layer {layer_idx}: {e}")
                 continue
-        
+
         # Select top features globally (before filtering)
-        top_features_unfiltered = self.select_top_k_features_globally(all_results, k=100)  # Get more to filter
-        
-        # Apply pile filtering if enabled
-        if self.config.pile_filter_enabled and pile_frequencies:
-            top_features = self.apply_pile_filter(top_features_unfiltered, pile_frequencies)
+        top_features_unfiltered = self.select_top_k_features_globally(all_results, k=100)
+
+        # Apply pile filtering if enabled (load precomputed frequencies from Phase 2.3)
+        if self.config.pile_filter_enabled:
+            pile_frequencies = load_pile_frequencies(self.config)
+            top_features = apply_pile_filter(
+                top_features_unfiltered,
+                pile_frequencies,
+                self.config.pile_threshold
+            )
         else:
             # If no pile filtering, just take top 20
             top_features = {
@@ -447,7 +340,7 @@ class TStatisticSelector:
                 'incorrect': top_features_unfiltered['incorrect'][:20],
                 'layer_distribution': top_features_unfiltered.get('layer_distribution', {})
             }
-        
+
         # Prepare final results
         results = {
             'creation_timestamp': datetime.now().isoformat(),
@@ -457,12 +350,12 @@ class TStatisticSelector:
             'top_20_features': top_features,
             'pile_filter_enabled': self.config.pile_filter_enabled,
             'pile_threshold': self.config.pile_threshold if self.config.pile_filter_enabled else None,
-            'selection_method': 't_statistic'  # Mark this as t-statistic selection
+            'selection_method': 't_statistic'
         }
-        
+
         # Save results
         self._save_results(results)
-        
+
         logger.info("Phase 2.10 completed. Top features selected using t-statistics.")
         return results
     

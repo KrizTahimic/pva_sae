@@ -110,9 +110,9 @@ from common.utils import save_json, load_json, save_activations, load_activation
 save_json(data, Path("results.json"))
 data = load_json(Path("results.json"))
 
-# Activation operations
-save_activations(activations_dict, Path("activations.npz"))
-activations = load_activations(Path("activations.npz"))
+# Activation operations (safetensors format)
+save_tensor(activation, Path("activation.safetensors"))
+activation = load_tensor(Path("activation.safetensors"))
 ```
 
 ## Best Practices

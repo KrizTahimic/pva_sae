@@ -608,6 +608,26 @@ GemmaScope SAEs are loaded from HuggingFace:
 - Each layer has different average sparsity (see `common/config.py::GEMMA_2B_SPARSITY`)
 - Layers 0-25 available for Gemma-2B
 
+### Tensor Storage Format (safetensors)
+
+**All activations and tensor data use `.safetensors` format.** Do NOT use legacy `.npz` format.
+
+```python
+# Saving activations
+from common.tensor_utils import save_tensor, load_tensor
+
+save_tensor(activation, Path("activation.safetensors"))
+activation = load_tensor(Path("activation.safetensors"), device="cpu")
+```
+
+**Why safetensors?**
+- Faster loading than numpy (memory-mapped)
+- Safe from pickle exploits
+- Preserves dtype (bfloat16 support)
+- Standard format for ML tensors
+
+**Exception**: GemmaScope SAE parameters use `.npz` (external Google format, can't change).
+
 ## When Making Changes
 
 ### Adding a New Phase

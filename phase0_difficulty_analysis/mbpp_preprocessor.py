@@ -144,8 +144,12 @@ class MBPPPreprocessor:
         """Load MBPP dataset directly from HuggingFace."""
         try:
             self.logger.info("Loading MBPP dataset from HuggingFace...")
-            self.dataset = load_dataset("Muennighoff/mbpp", "full")
-            self.test_data = self.dataset['test']
+            # Use official Google MBPP dataset (compatible with latest HF datasets library)
+            from datasets import concatenate_datasets
+            self.dataset = load_dataset("google-research-datasets/mbpp")
+            # Combine all splits for full 974 problems (matching original Muennighoff/mbpp)
+            all_splits = [self.dataset[split] for split in self.dataset.keys()]
+            self.test_data = concatenate_datasets(all_splits)
             self.logger.info(f"Loaded {len(self.test_data)} MBPP problems")
         except Exception as e:
             self.logger.error(f"Failed to load MBPP from HuggingFace: {str(e)}")

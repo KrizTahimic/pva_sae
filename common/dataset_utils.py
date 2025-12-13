@@ -56,13 +56,13 @@ def split_by_correctness(
 
 def discover_task_ids(
     directory: Path,
-    pattern: str = "*_layer_*.npz"
+    pattern: str = "*_layer_*.safetensors"
 ) -> List[str]:
     """
     Extract unique task IDs from activation files.
 
     Activation files are expected to follow the naming convention:
-    {task_id}_layer_{layer_num}.npz
+    {task_id}_layer_{layer_num}.safetensors
 
     Args:
         directory: Directory containing activation files
@@ -87,7 +87,7 @@ def discover_task_ids(
 
 def discover_layer_indices(
     directory: Path,
-    pattern: str = "*_layer_*.npz"
+    pattern: str = "*_layer_*.safetensors"
 ) -> List[int]:
     """
     Extract unique layer indices from activation files.
@@ -315,10 +315,10 @@ def load_and_encode_activation(
     activation_dir: Path
 ) -> Optional[float]:
     """
-    Load activation from .npz and encode through SAE to get feature value.
+    Load activation from safetensors and encode through SAE to get feature value.
 
     This is the common pattern used across evaluation phases:
-    1. Load raw activation from npz file
+    1. Load raw activation from safetensors file
     2. Convert to correct dtype
     3. Encode through SAE
     4. Extract specific feature activation

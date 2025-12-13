@@ -18,7 +18,8 @@ from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common.gpu_utils import setup_cuda_environment, cleanup_gpu_memory
 from common.model_loader import load_model_and_tokenizer
 from common.activation_hooks import ActivationExtractor
-from common.utils import save_activations, create_activation_filename
+from common.utils import create_activation_filename
+from common.tensor_utils import save_activation
 from common.dataset_utils import load_dataset_split, extract_code, evaluate_code
 
 # Use the project's phase-based logger
@@ -403,7 +404,7 @@ class Phase1Runner:
                 for layer, activation in result['activations'].items():
                     filename = create_activation_filename(task['task_id'], layer)
                     filepath = activation_dir / category / filename
-                    save_activations({layer: activation}, filepath)
+                    save_activation(activation, filepath)
                     # Explicitly delete the activation tensor to free memory
                     del activation
                 
