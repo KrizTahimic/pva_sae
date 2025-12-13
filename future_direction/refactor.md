@@ -320,7 +320,29 @@ Use `einops.rearrange` and `einops.reduce` for self-documenting tensor operation
 
 ### 4.3 Variable Naming Consistency
 
-- [ ] rename the latents, directions, features etc. Use one name or use them correctly not interchangebly. Find other variables that have called different names.
+- [x] **SAE Terminology Standardization** (Completed 2025-12-13)
+
+  Standardized all SAE-related variable names across the codebase:
+
+  | Old Term | New Term | Type |
+  |----------|----------|------|
+  | `feature_idx` | `latent_idx` | `int` |
+  | `decoder_direction` | `latent_direction` | `torch.Tensor [d_model]` |
+  | `feature_activation` | `latent_activation` | `float` |
+  | `sae_features` | `latent_activations` | `torch.Tensor [batch, n_latents]` |
+  | `correct_feature_idx` | `correct_latent_idx` | `int` |
+  | `incorrect_pred_feature` | `incorrect_pred_latent` | `int` |
+  | `feature_freqs` | `latent_freqs` | `dict` |
+
+  **Files updated:** 40+ files across common/, phase2_5/, phase2_10/, phase2_15/, phase3_x/, phase4_x/, phase5_x/, phase6_3/, phase7_x/, phase8_x/, docs/
+
+  **JSON output files renamed:** `top_20_features.json` → `top_20_latents.json`
+
+  **Documentation:** Added "SAE Terminology Standard" section to CLAUDE.md
+
+  **Commits:** ea3ce134c, 994963ac7, 0069b1904, c533194da, 2f1981f4b
+
+  **Verification:** grep confirms 0 remaining occurrences of old terminology
 
 
 #### Single-Letter Variables (outside comprehensions)
