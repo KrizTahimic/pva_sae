@@ -553,14 +553,10 @@ class SteeringCoefficientSelector:
         code_sims = [r['code_similarity'] for r in results]
         
         # Calculate length ratios
-        length_ratios = []
-        for r in results:
-            baseline_len = len(r['baseline_code'])
-            steered_len = len(r['steered_code'])
-            if baseline_len > 0:
-                length_ratios.append(steered_len / baseline_len)
-            else:
-                length_ratios.append(1.0)
+        length_ratios = [
+            len(r['steered_code']) / len(r['baseline_code']) if len(r['baseline_code']) > 0 else 1.0
+            for r in results
+        ]
         
         return {
             'mean_code_similarity': np.mean(code_sims),
@@ -729,15 +725,19 @@ class SteeringCoefficientSelector:
                 metric_value = search_results['best_result']['metrics']['composite_score']
             
             # Save selected coefficient with metadata
+            feature_lookup = {'correct': self.best_correct_feature, 'incorrect': self.best_incorrect_feature}
+            coeff_lookup = {'correct': self.config.phase4_5_correct_coefficients, 'incorrect': self.config.phase4_5_incorrect_coefficients}
+            best_feature = feature_lookup[steering_type]
+
             selected_coefficients[steering_type] = {
                 'coefficient': optimal_coeff,
-                'layer': self.best_correct_feature['layer'] if steering_type == 'correct' else self.best_incorrect_feature['layer'],
-                'feature_index': self.best_correct_feature['feature_idx'] if steering_type == 'correct' else self.best_incorrect_feature['feature_idx'],
+                'layer': best_feature['layer'],
+                'feature_index': best_feature['feature_idx'],
                 primary_metric: metric_value,
                 'metrics': search_results['best_result']['metrics'],
                 'n_problems_evaluated': search_results['best_result']['n_problems'],
                 'n_coefficients_tested': len(search_results['search_history']),
-                'early_stopped': len(search_results['search_history']) < len(self.config.phase4_5_correct_coefficients if steering_type == 'correct' else self.config.phase4_5_incorrect_coefficients),
+                'early_stopped': len(search_results['search_history']) < len(coeff_lookup[steering_type]),
                 'rationale': f"Optimal coefficient found via simple grid search with {primary_metric} {metric_value:.1f}%"
             }
             

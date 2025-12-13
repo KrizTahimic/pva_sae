@@ -248,49 +248,17 @@ Convert verbose loops to Pythonic one-liners. **High-impact examples:**
 - [x] **attention_analyzer.py** - Means/stds loop → list comprehension
   - Converted conditional append loop to ternary list comprehension
 
-- [ ] **steering_coefficient_selector.py:562-569** - Conditional append → ternary comprehension
-  ```python
-  # BEFORE: 6 lines
-  length_ratios = []
-  for r in results:
-      if len(r['baseline_code']) > 0:
-          length_ratios.append(len(r['steered_code']) / len(r['baseline_code']))
-      else:
-          length_ratios.append(1.0)
+- [x] **steering_coefficient_selector.py** - Conditional append → ternary comprehension
+  - Converted length_ratios loop to one-liner list comprehension
 
-  # AFTER: 1 line
-  length_ratios = [len(r['steered_code']) / len(r['baseline_code']) if len(r['baseline_code']) > 0 else 1.0 for r in results]
-  ```
+- [x] **auroc_f1_evaluator.py** - F1 threshold loop → comprehension
+  - Converted f1_scores loop to list comprehension
 
-- [ ] **auroc_f1_evaluator.py:97-103** - F1 threshold loop → comprehension
-  ```python
-  # BEFORE
-  f1_scores = []
-  for threshold in thresholds:
-      y_pred = (scores >= threshold).astype(int)
-      f1_scores.append(f1_score(y_true, y_pred, zero_division=0))
+- [x] **steering_coefficient_selector.py** - Nested ternary → dict lookup
+  - Added `feature_lookup` and `coeff_lookup` dicts, then `best_feature = feature_lookup[steering_type]`
 
-  # AFTER
-  f1_scores = [f1_score(y_true, (scores >= threshold).astype(int), zero_division=0) for threshold in thresholds]
-  ```
-
-- [ ] **steering_coefficient_selector.py:736-746** - Nested ternary → dict lookup
-  ```python
-  # BEFORE: Multiple ternary operators
-  'layer': self.best_correct_feature['layer'] if steering_type == 'correct' else self.best_incorrect_feature['layer'],
-  'feature_index': self.best_correct_feature['feature_idx'] if steering_type == 'correct' else self.best_incorrect_feature['feature_idx'],
-
-  # AFTER: Dict lookup pattern
-  feature_info = {'correct': self.best_correct_feature, 'incorrect': self.best_incorrect_feature}
-  best_feature = feature_info[steering_type]
-  # Then use: 'layer': best_feature['layer'], 'feature_index': best_feature['feature_idx']
-  ```
-
-- [ ] **auroc_f1_evaluator.py:669-686** - Summary lines → helper function + unpacking
-  ```python
-  # BEFORE: 16 lines of repeated f-string formatting
-  # AFTER: Extract format_feature_summary() helper, use list unpacking (*)
-  ```
+- [x] **auroc_f1_evaluator.py** - Summary lines → helper function
+  - Extracted `log_feature_summary(name, metrics)` helper function
 
 **Other comprehension opportunities** (lower priority):
 - [ ] sae_analyzer.py:378-401 - Nested filtering with pile threshold

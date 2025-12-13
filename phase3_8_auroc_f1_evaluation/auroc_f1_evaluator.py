@@ -259,15 +259,16 @@ def run_evaluation(config):
     logger.info(f"\nResults saved to: {results_path}")
 
     # Print final summary
+    def log_feature_summary(name: str, metrics: dict):
+        logger.info(f"{name}:")
+        logger.info(f"  AUROC: {metrics['auroc']:.4f}")
+        logger.info(f"  F1: {metrics['f1']:.4f}")
+
     logger.info("\n" + "="*60)
     logger.info("FINAL SUMMARY")
     logger.info("="*60)
-    logger.info(f"Correct-predicting feature (validation):")
-    logger.info(f"  AUROC: {val_metrics_correct['auroc']:.4f}")
-    logger.info(f"  F1: {val_metrics_correct['f1']:.4f}")
-    logger.info(f"Incorrect-predicting feature (validation):")
-    logger.info(f"  AUROC: {val_metrics_incorrect['auroc']:.4f}")
-    logger.info(f"  F1: {val_metrics_incorrect['f1']:.4f}")
+    log_feature_summary("Correct-predicting feature (validation)", val_metrics_correct)
+    log_feature_summary("Incorrect-predicting feature (validation)", val_metrics_incorrect)
 
     # Write phase_output.json manifest
     from common.phase_discovery import write_phase_output
@@ -362,12 +363,10 @@ def find_optimal_threshold(
     """
     # Grid search for F1-Optimal Threshold
     thresholds = np.linspace(scores.min(), scores.max(), 100)
-    f1_scores = []
-    
-    for threshold in thresholds:
-        y_pred = (scores >= threshold).astype(int)
-        f1 = f1_score(y_true, y_pred, zero_division=0)
-        f1_scores.append(f1)
+    f1_scores = [
+        f1_score(y_true, (scores >= threshold).astype(int), zero_division=0)
+        for threshold in thresholds
+    ]
     
     # Find threshold that maximizes F1 score
     optimal_idx = np.argmax(f1_scores)
