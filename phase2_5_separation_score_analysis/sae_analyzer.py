@@ -9,7 +9,7 @@ language features.
 import json
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Optional
 import torch
 import numpy as np
 from datetime import datetime
@@ -24,7 +24,6 @@ from common.tensor_utils import load_activation
 
 # Module-level logger
 logger = get_logger("sae_analyzer", phase="2.5")
-
 
 class SimplifiedSAEAnalyzer:
     """Simplified SAE analyzer without complex abstractions."""
@@ -68,7 +67,7 @@ class SimplifiedSAEAnalyzer:
         self, 
         layer_idx: int, 
         category: str
-    ) -> Tuple[List[str], torch.Tensor]:
+    ) -> tuple[list[str], torch.Tensor]:
         """Load all activations for a specific layer and category."""
         task_ids = self.correct_task_ids if category == "correct" else self.incorrect_task_ids
         category_dir = self.correct_dir if category == "correct" else self.incorrect_dir
@@ -97,7 +96,7 @@ class SimplifiedSAEAnalyzer:
         self,
         correct_features: torch.Tensor,
         incorrect_features: torch.Tensor
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """Compute separation scores for PVA identification."""
         # Calculate activation fractions
         f_correct = (correct_features > 0).float().mean(dim=0)

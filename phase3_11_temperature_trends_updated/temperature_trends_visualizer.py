@@ -8,7 +8,7 @@ Recreates temperature_trends.png from Phase 3.10 results with updated terminolog
 import os
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -18,7 +18,6 @@ from common.logging import get_logger
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
 from common.utils import load_json
-
 
 class TemperatureTrendsVisualizer:
     """Recreates temperature trends visualization with updated legend terminology."""

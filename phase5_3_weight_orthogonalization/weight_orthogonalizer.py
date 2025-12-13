@@ -10,7 +10,7 @@ import json
 import time
 import gc
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -45,7 +45,6 @@ from common.checkpoint_manager import CheckpointManager
 from common.memory_utils import check_memory_usage
 
 logger = get_logger("phase5_3.weight_orthogonalizer")
-
 
 class WeightOrthogonalizer:
     """Analyze weight orthogonalization effects on validation data."""

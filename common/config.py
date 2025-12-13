@@ -7,7 +7,7 @@ CLI args > environment variables > config file > defaults
 """
 
 from dataclasses import dataclass, field, fields, asdict
-from typing import Optional, List
+from typing import Optional
 import os
 
 # Default values - shared across phases
@@ -166,7 +166,7 @@ class Config:
     # === ACTIVATION SETTINGS ===
     # Dynamically set based on model_name in __post_init__
     # Gemma: layers 1-25, LLAMA: layers 1-31
-    activation_layers: Optional[List[int]] = None  # Set dynamically from MODEL_CONFIGS
+    activation_layers: Optional[list[int]] = None  # Set dynamically from MODEL_CONFIGS
     activation_hook_type: str = "resid_post"
     activation_position: int = -1  # Final token
     activation_max_cache_gb: float = 10.0
@@ -224,8 +224,8 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    # temperature_variation_temps: List[float] = field(default_factory=lambda: [0.0])
-    temperature_variation_temps: List[float] = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
+    # temperature_variation_temps: list[float] = field(default_factory=lambda: [0.0])
+    temperature_variation_temps: list[float] = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
 
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
 
@@ -234,12 +234,12 @@ class Config:
     phase7_6_model_name: str = "google/gemma-2-2b-it"
 
     # === TEMPERATURE-BASED AUROC ANALYSIS (Phase 3.10) ===
-    phase3_10_temperatures: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
+    phase3_10_temperatures: list[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
     
     # === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
     # Separate coefficient grids for correct vs incorrect steering
-    phase4_5_correct_coefficients: List[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0])
-    phase4_5_incorrect_coefficients: List[float] = field(default_factory=lambda: [100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
+    phase4_5_correct_coefficients: list[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0])
+    phase4_5_incorrect_coefficients: list[float] = field(default_factory=lambda: [100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
     
     phase4_5_search_tolerance: float = 2.0  # Stop binary search when range < tolerance
     phase4_5_meaningful_effect_threshold: float = 5.0  # Minimum % for meaningful effect
@@ -267,7 +267,7 @@ class Config:
     phase8_3_percentile: float = 70.0  # Percentile for threshold (90 = steer top 10%)
 
     # === WEIGHT ORTHOGONALIZATION (Phase 5.3, 5.9) ===
-    orthogonalization_target_weights: List[str] = field(
+    orthogonalization_target_weights: list[str] = field(
         default_factory=lambda: ['embed', 'attn_o', 'mlp_down']
     )
     phase5_9_significance_level: float = 0.05  # Alpha level for statistical tests
@@ -385,9 +385,9 @@ class Config:
                     value = int(value)
                 elif field.type == float:
                     value = float(value)
-                elif field.type == List[int]:
+                elif field.type == list[int]:
                     value = [int(x.strip()) for x in value.split(',')]
-                elif field.type == List[float]:
+                elif field.type == list[float]:
                     value = [float(x.strip()) for x in value.split(',')]
                 
                 setattr(self, field.name, value)
@@ -538,12 +538,12 @@ class Config:
         from common.phase_registry import get_phase_output_dir as registry_get_dir
         return registry_get_dir(phase)
     
-    def get_split_ratios(self) -> List[float]:
+    def get_split_ratios(self) -> list[float]:
         """Get fixed split ratios for Phase 0.1."""
         # 50% for SAE analysis, 10% for hyperparameter tuning, 40% for validation
         return [0.5, 0.1, 0.4]
     
-    def get_split_names(self) -> List[str]:
+    def get_split_names(self) -> list[str]:
         """Get split names for Phase 0.1."""
         return ["sae", "hyperparams", "validation"]
 

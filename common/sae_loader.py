@@ -8,7 +8,7 @@ Provides a unified interface for loading and using SAEs across different models.
 import torch
 import numpy as np
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 from abc import ABC, abstractmethod
 from huggingface_hub import hf_hub_download
 

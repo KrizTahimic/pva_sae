@@ -11,7 +11,10 @@ This module provides utilities for:
 import contextlib
 import signal
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from common.config import Config
 
 import numpy as np
 import pandas as pd
@@ -27,7 +30,7 @@ def split_by_correctness(
     df: pd.DataFrame,
     correctness_col: str = 'test_passed',
     verbose: bool = True
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Split dataset into correct and incorrect subsets.
 
@@ -57,7 +60,7 @@ def split_by_correctness(
 def discover_task_ids(
     directory: Path,
     pattern: str = "*_layer_*.safetensors"
-) -> List[str]:
+) -> list[str]:
     """
     Extract unique task IDs from activation files.
 
@@ -88,7 +91,7 @@ def discover_task_ids(
 def discover_layer_indices(
     directory: Path,
     pattern: str = "*_layer_*.safetensors"
-) -> List[int]:
+) -> list[int]:
     """
     Extract unique layer indices from activation files.
 
@@ -116,7 +119,7 @@ def discover_layer_indices(
 # Dataset Loading
 # ============================================================================
 
-def load_dataset_split(split_name: str, phase0_1_dir: Path, config) -> pd.DataFrame:
+def load_dataset_split(split_name: str, phase0_1_dir: Path, config: 'Config') -> pd.DataFrame:
     """
     Load dataset split for any supported dataset.
 

@@ -9,7 +9,7 @@ rigorous alternative to Phase 2.5's simple separation scores.
 import json
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Optional
 import torch
 import numpy as np
 from scipy import stats
@@ -24,7 +24,6 @@ from common.tensor_utils import load_activation
 
 # Module-level logger
 logger = get_logger("t_statistic_selector", phase="2.10")
-
 
 class TStatisticSelector:
     """T-Statistic based selector for PVA latent directions."""
@@ -68,7 +67,7 @@ class TStatisticSelector:
         self, 
         layer_idx: int, 
         category: str
-    ) -> Tuple[List[str], torch.Tensor]:
+    ) -> tuple[list[str], torch.Tensor]:
         """Load all activations for a specific layer and category."""
         task_ids = self.correct_task_ids if category == "correct" else self.incorrect_task_ids
         category_dir = self.correct_dir if category == "correct" else self.incorrect_dir
@@ -97,7 +96,7 @@ class TStatisticSelector:
         self,
         correct_features: torch.Tensor,
         incorrect_features: torch.Tensor
-    ) -> Dict[str, List[float]]:
+    ) -> dict[str, list[float]]:
         """
         Calculate t-statistics between correct and incorrect code activations.
         

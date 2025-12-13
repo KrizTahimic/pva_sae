@@ -10,7 +10,7 @@ import json
 import time
 import gc
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -46,7 +46,6 @@ from common.checkpoint_manager import CheckpointManager
 from common.memory_utils import check_memory_usage, cleanup_memory
 
 logger = get_logger("phase4_8.steering_effect_analyzer")
-
 
 class SteeringEffectAnalyzer:
     """Analyze steering effects on validation data for causal validation."""
@@ -247,7 +246,7 @@ class SteeringEffectAnalyzer:
                                     'generated_code', 'steered_generated_code'])
     
     def _save_steered_attention(self, task_id: str, steering_type: str,
-                                attention_patterns: Dict[int, torch.Tensor],
+                                attention_patterns: dict[int, torch.Tensor],
                                 tokenized_prompt: torch.Tensor) -> None:
         """Save attention patterns from steered generation."""
         # Create attention directory for this steering type
@@ -520,7 +519,7 @@ class SteeringEffectAnalyzer:
         
         return steered_df
         
-    def evaluate_steering_effects(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
+    def evaluate_steering_effects(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
         """Evaluate correct and incorrect steering effects, including preservation."""
         logger.info("Evaluating steering effects...")
         

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Tuple
+
 import argparse
 
 from sklearn.metrics import (
@@ -32,7 +32,6 @@ from common.tensor_utils import load_activation
 
 logger = get_logger("phase3_12.difficulty_evaluator")
 
-
 class Phase312Runner:
     """Standard runner for Phase 3.12: Difficulty-Based AUROC Analysis."""
 
@@ -50,8 +49,7 @@ class Phase312Runner:
         # main() creates its own Config internally, so just call it
         return main()
 
-
-def group_by_difficulty(validation_data: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+def group_by_difficulty(validation_data: pd.DataFrame) -> dict[str, pd.DataFrame]:
     """Group validation tasks by cyclomatic complexity into Easy/Medium/Hard.
     
     Args:
@@ -75,7 +73,6 @@ def group_by_difficulty(validation_data: pd.DataFrame) -> Dict[str, pd.DataFrame
     
     return difficulty_groups
 
-
 def load_group_activations(
     group_data: pd.DataFrame,
     layer_num: int,
@@ -85,7 +82,7 @@ def load_group_activations(
     device: torch.device,
     temp_data: pd.DataFrame,
     phase3_5_dir: Path
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Load activations for a specific difficulty group.
     
     Args:
@@ -158,9 +155,8 @@ def load_group_activations(
     
     return np.array(labels), np.array(activations)
 
-
 def calculate_difficulty_metrics(
-    difficulty_groups: Dict[str, pd.DataFrame],
+    difficulty_groups: dict[str, pd.DataFrame],
     best_features: Dict,
     global_threshold: float,
     feature_type: str,
@@ -169,7 +165,7 @@ def calculate_difficulty_metrics(
     device: torch.device,
     temp_data: pd.DataFrame,
     phase3_5_dir: Path
-) -> Dict[str, Dict]:
+) -> dict[str, Dict]:
     """Calculate AUROC and F1 for each difficulty group for a specific feature type.
     
     Args:
@@ -268,9 +264,8 @@ def calculate_difficulty_metrics(
     
     return results
 
-
 def plot_difficulty_distribution(
-    difficulty_groups: Dict[str, pd.DataFrame],
+    difficulty_groups: dict[str, pd.DataFrame],
     output_dir: Path
 ) -> None:
     """Visualize the distribution of tasks across difficulty levels."""
@@ -296,9 +291,8 @@ def plot_difficulty_distribution(
     plt.savefig(output_dir / 'difficulty_distribution.png', dpi=150, bbox_inches='tight')
     plt.close()
 
-
 def plot_roc_curves_by_difficulty(
-    difficulty_groups: Dict[str, pd.DataFrame],
+    difficulty_groups: dict[str, pd.DataFrame],
     feature_type: str,
     results: Dict,
     output_dir: Path,
@@ -341,7 +335,6 @@ def plot_roc_curves_by_difficulty(
     plt.savefig(output_dir / f'roc_curves_by_difficulty_{feature_type}.png', dpi=150, bbox_inches='tight')
     plt.close()
 
-
 def calculate_trend(values: list) -> str:
     """Calculate trend from a list of values, handling NaN."""
     valid_values = [v for v in values if not np.isnan(v)]
@@ -359,7 +352,6 @@ def calculate_trend(values: list) -> str:
     else:
         return 'stable'
 
-
 def find_max_excluding_nan(results: Dict, metric: str) -> str:
     """Find the key with maximum value for a metric, excluding NaN."""
     valid_items = [(k, v[metric]) for k, v in results.items() if not np.isnan(v[metric])]
@@ -368,7 +360,6 @@ def find_max_excluding_nan(results: Dict, metric: str) -> str:
         return 'undefined'
     
     return max(valid_items, key=lambda x: x[1])[0]
-
 
 def plot_auroc_trends(
     correct_results: Dict,
@@ -427,7 +418,6 @@ def plot_auroc_trends(
     plt.tight_layout()
     plt.savefig(output_dir / 'auroc_trends_by_difficulty.png', dpi=150, bbox_inches='tight')
     plt.close()
-
 
 def main():
     parser = argparse.ArgumentParser(description="Phase 3.12: Difficulty-Based AUROC Analysis")
@@ -806,7 +796,6 @@ def main():
         config_keys=['model_name', 'dataset_name']
     )
     logger.info(f"Saved phase_output.json manifest to {output_dir}")
-
 
 if __name__ == "__main__":
     main()

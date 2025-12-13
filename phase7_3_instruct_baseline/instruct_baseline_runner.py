@@ -13,7 +13,7 @@ import gc
 import json
 import time
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import Optional
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -34,11 +34,10 @@ from common.retry_utils import retry_with_timeout, create_exclusion_summary
 # Module-level logger
 logger = get_logger("instruct_baseline_runner", phase="7.3")
 
-
 class InstructBaselineRunner:
     """Instruction-tuned model baseline generation with best layer activation extraction."""
     
-    def _discover_best_layers(self) -> Dict[str, int]:
+    def _discover_best_layers(self) -> dict[str, int]:
         """
         Discover best layers from Phase 2.10 or Phase 2.5 output.
         
@@ -173,7 +172,7 @@ class InstructBaselineRunner:
 
         return data
     
-    def generate_with_activations(self, prompt: str, task_id: str) -> Tuple[str, bool]:
+    def generate_with_activations(self, prompt: str, task_id: str) -> tuple[str, bool]:
         """
         Generate code and extract activations from best layers only.
         
@@ -229,7 +228,7 @@ class InstructBaselineRunner:
             # Always remove hooks after use
             self.activation_extractor.remove_hooks()
     
-    def _save_task_activations(self, task_id: str, activations: Dict[int, torch.Tensor]) -> None:
+    def _save_task_activations(self, task_id: str, activations: dict[int, torch.Tensor]) -> None:
         """Save activations for all extracted layers for this task (preserves bfloat16)."""
         # Save each layer's activations separately
         for layer_num, layer_activations in activations.items():
@@ -362,7 +361,7 @@ class InstructBaselineRunner:
         
         return memory_percent
     
-    def run(self) -> Dict[str, any]:
+    def run(self) -> dict[str, any]:
         """Run validation split processing at temperature 0.0 with instruction-tuned model."""
         logger.info("Starting Phase 7.3: Instruction-Tuned Model Baseline Generation")
         logger.info(f"Using instruction-tuned model: {self.model_name}")
@@ -534,7 +533,7 @@ class InstructBaselineRunner:
         logger.info("Phase 7.3 completed successfully")
         return metadata
     
-    def _save_results(self, results: List[Dict]) -> None:
+    def _save_results(self, results: list[Dict]) -> None:
         """Save results to parquet file."""
         df = pd.DataFrame(results)
         
@@ -546,9 +545,9 @@ class InstructBaselineRunner:
     
     def _create_metadata(
         self,
-        all_results: List[Dict],
-        validation_task_ids: List[str],
-        excluded_tasks: List[Dict]
+        all_results: list[Dict],
+        validation_task_ids: list[str],
+        excluded_tasks: list[Dict]
     ) -> Dict:
         """Create metadata summary for instruction-tuned baseline."""
         correct_count = sum(1 for r in all_results if r['test_passed'])

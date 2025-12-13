@@ -6,7 +6,6 @@ with existing pipeline phases.
 """
 
 import re
-from typing import List
 from datasets import load_dataset
 import pandas as pd
 from pathlib import Path

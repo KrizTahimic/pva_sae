@@ -5,7 +5,6 @@ This module provides utilities for calculating standard classification metrics
 (AUROC, F1, precision, recall) used in evaluation phases.
 """
 
-from typing import Dict
 
 import numpy as np
 from sklearn.metrics import (
@@ -24,7 +23,7 @@ def calculate_classification_metrics(
     y_true: np.ndarray,
     scores: np.ndarray,
     threshold: float
-) -> Dict:
+) -> dict:
     """
     Calculate standard classification metrics.
 

@@ -26,7 +26,7 @@ Testing Strategy:
 import gc
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Optional
 from datetime import datetime
 
 import torch
@@ -51,7 +51,6 @@ from common.sae_loader import load_sae_for_config
 
 logger = get_logger(__name__)
 
-
 class SteeringState:
     """
     Shared state between L19 (activation capture) and L16 (steering) hooks.
@@ -72,7 +71,6 @@ class SteeringState:
         self.first_token_checked = False  # Has L19 activation been captured?
         self.incorrect_pred_activation = None  # Captured incorrect-predicting feature activation
         self.should_steer = False  # Should we apply steering?
-
 
 class SelectiveSteeringAnalyzer:
     """
@@ -290,7 +288,7 @@ class SelectiveSteeringAnalyzer:
         self,
         task_id: str,
         prompt: str,
-        test_cases: List[List],
+        test_cases: list[List],
         baseline_row: pd.Series
     ) -> Dict:
         """
@@ -451,7 +449,7 @@ class SelectiveSteeringAnalyzer:
         self,
         problems_df: pd.DataFrame,
         experiment_type: str
-    ) -> List[Dict]:
+    ) -> list[Dict]:
         """Apply selective steering to a set of problems.
 
         Args:
@@ -640,7 +638,7 @@ class SelectiveSteeringAnalyzer:
 
         return results
 
-    def _calculate_correction_metrics(self, correction_results: List[Dict]) -> Dict:
+    def _calculate_correction_metrics(self, correction_results: list[Dict]) -> Dict:
         """Calculate metrics for the correction experiment (initially incorrect problems)."""
         total = len(correction_results)
 
@@ -683,7 +681,7 @@ class SelectiveSteeringAnalyzer:
 
         return metrics
 
-    def _calculate_preservation_metrics(self, preservation_results: List[Dict]) -> Dict:
+    def _calculate_preservation_metrics(self, preservation_results: list[Dict]) -> Dict:
         """Calculate metrics for the preservation experiment (initially correct problems)."""
         total = len(preservation_results)
 
@@ -730,8 +728,8 @@ class SelectiveSteeringAnalyzer:
 
     def _calculate_combined_metrics(
         self,
-        correction_results: List[Dict],
-        preservation_results: List[Dict]
+        correction_results: list[Dict],
+        preservation_results: list[Dict]
     ) -> Dict:
         """Calculate combined metrics across both experiments."""
         total_problems = len(correction_results) + len(preservation_results)
@@ -759,8 +757,8 @@ class SelectiveSteeringAnalyzer:
 
     def _save_example_comparisons(
         self,
-        correction_results: List[Dict],
-        preservation_results: List[Dict]
+        correction_results: list[Dict],
+        preservation_results: list[Dict]
     ) -> None:
         """Save example code comparisons for corrected and preserved steered cases."""
         # Create examples directory
@@ -808,8 +806,8 @@ class SelectiveSteeringAnalyzer:
     def save_checkpoint(
         self,
         experiment_type: str,
-        results: List[Dict],
-        excluded_tasks: List[Dict],
+        results: list[Dict],
+        excluded_tasks: list[Dict],
         last_idx: int,
         total_tasks: int
     ) -> None:

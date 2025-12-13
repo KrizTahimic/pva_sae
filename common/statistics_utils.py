@@ -6,7 +6,6 @@ This module provides utilities for:
 - Confidence interval calculation
 """
 
-from typing import Dict, Tuple
 
 from scipy.stats import binomtest
 
@@ -21,7 +20,7 @@ def binomial_significance_test(
     expected_rate: float,
     alpha: float = 0.05,
     alternative: str = 'greater'
-) -> Dict:
+) -> dict:
     """
     Perform binomial test comparing observed vs expected rate.
 
@@ -105,7 +104,7 @@ def calculate_effect_size(
     return observed_rate - expected_rate
 
 
-def format_significance_result(result: Dict) -> str:
+def format_significance_result(result: dict) -> str:
     """
     Format binomial test result as human-readable string.
 

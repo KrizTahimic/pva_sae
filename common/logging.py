@@ -10,7 +10,7 @@ import logging.handlers
 import os
 import sys
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, Any
 import json
 
 from common.utils import format_duration
@@ -169,7 +169,7 @@ class LoggingManager:
         
         return logger
     
-    def log_experiment_info(self, experiment_config: Dict[str, Any]):
+    def log_experiment_info(self, experiment_config: dict[str, Any]):
         """
         Log experiment configuration and metadata
         
@@ -235,7 +235,7 @@ class LoggingManager:
             self.logger.info(f"Success rate: {success_rate:.1f}%")
         self.logger.info("*"*60)
     
-    def log_error_with_context(self, error: Exception, context: Dict[str, Any]):
+    def log_error_with_context(self, error: Exception, context: dict[str, Any]):
         """
         Log an error with additional context
         
@@ -255,7 +255,7 @@ class LoggingManager:
         self.logger.error("Traceback:")
         self.logger.error(traceback.format_exc())
     
-    def log_checkpoint(self, checkpoint_data: Dict[str, Any], checkpoint_file: str):
+    def log_checkpoint(self, checkpoint_data: dict[str, Any], checkpoint_file: str):
         """
         Log checkpoint save event
         

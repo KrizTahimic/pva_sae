@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Tuple, Optional
+from typing import Optional
 import os
 
 from sklearn.metrics import (
@@ -31,7 +31,6 @@ from common.tensor_utils import load_activation
 
 logger = get_logger("phase3_8.auroc_f1_evaluator")
 
-
 class Phase38Runner:
     """Standard runner for Phase 3.8: AUROC and F1 Evaluation."""
 
@@ -48,7 +47,6 @@ class Phase38Runner:
 
         # Run the main evaluation logic with our config
         return run_evaluation(self.config)
-
 
 def run_evaluation(config):
     """Core evaluation logic extracted from main()."""
@@ -295,14 +293,13 @@ def run_evaluation(config):
 
     return results
 
-
 def calculate_metrics(
     y_true: np.ndarray,
     scores: np.ndarray,
     threshold: float,
     feature_type: str,
     output_dir: Path
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Calculate metrics for either correct or incorrect predicting features.
     
     Args:
@@ -343,13 +340,12 @@ def calculate_metrics(
         'threshold': float(threshold)
     }
 
-
 def find_optimal_threshold(
     y_true: np.ndarray, 
     scores: np.ndarray, 
     feature_type: str, 
     output_dir: Path
-) -> Tuple[float, Dict[str, float]]:
+) -> tuple[float, dict[str, float]]:
     """Find optimal threshold for a specific feature type.
     
     Args:
@@ -385,7 +381,6 @@ def find_optimal_threshold(
     metrics['f1_curve'] = {'thresholds': thresholds.tolist(), 'f1_scores': f1_scores}
     
     return optimal_f1_threshold, metrics
-
 
 def plot_combined_f1_thresholds(
     correct_metrics: Dict,
@@ -435,7 +430,6 @@ def plot_combined_f1_thresholds(
 
     logger.info(f"Saved combined F1 threshold plot to {output_dir / 'f1_threshold_plot_combined.png'}")
 
-
 def plot_confusion_matrix(
     y_true: np.ndarray,
     y_pred: np.ndarray,
@@ -471,7 +465,6 @@ def plot_confusion_matrix(
     # Save plot
     plt.savefig(output_dir / f'confusion_matrix_{feature_type}.png', dpi=150, bbox_inches='tight')
     plt.close()
-
 
 def plot_comparative_metrics(
     results: Dict, 
@@ -555,7 +548,6 @@ def plot_comparative_metrics(
     plt.savefig(output_dir / 'comparative_metrics.png', dpi=150, bbox_inches='tight')
     plt.close()
 
-
 def plot_precision_recall_curves(
     output_dir: Path,
     y_true_val_correct: np.ndarray,
@@ -609,7 +601,6 @@ def plot_precision_recall_curves(
 
     logger.info(f"Saved precision-recall curves to {output_path}")
 
-
 def load_split_activations(
     split_name: str,
     layer_num: int,
@@ -618,7 +609,7 @@ def load_split_activations(
     phase3_5_dir: Path,
     phase3_6_dir: Path,
     config: Config
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Load activations for a specific feature from appropriate phase data.
 
     Args:
@@ -703,14 +694,12 @@ def load_split_activations(
 
     return np.array(labels), np.array(activations)
 
-
 def main():
     """Legacy entry point for running directly. Uses Phase38Runner."""
     from common.config import Config
     config = Config()
     runner = Phase38Runner(config)
     runner.run()
-
 
 if __name__ == "__main__":
     main()

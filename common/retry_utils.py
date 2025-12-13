@@ -7,7 +7,7 @@ Designed for use across all phases that involve model generation.
 
 import time
 from collections import Counter
-from typing import Callable, Any, Tuple, Optional
+from typing import Callable, Any, Optional
 import torch
 from common.logging import get_logger
 from common.config import Config
@@ -20,7 +20,7 @@ def retry_generation(
     task_id: str,
     config: Config,
     operation_name: str = "generation"
-) -> Tuple[bool, Optional[Any], Optional[str]]:
+) -> tuple[bool, Optional[Any], Optional[str]]:
     """
     Retry a generation function with exponential backoff.
     
@@ -84,7 +84,7 @@ def retry_with_timeout(
     config: Config,
     timeout_seconds: Optional[float] = None,
     operation_name: str = "generation"
-) -> Tuple[bool, Optional[Any], Optional[str]]:
+) -> tuple[bool, Optional[Any], Optional[str]]:
     """
     Retry a generation function with both exponential backoff and timeout.
     

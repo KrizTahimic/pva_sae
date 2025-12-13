@@ -11,7 +11,10 @@ This module provides functions for:
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from common.config import Config
 
 from .logging import get_logger
 
@@ -41,7 +44,7 @@ def get_phase_dir(phase: str) -> str:
     return registry_get_dir(phase)
 
 
-def get_phase_output_dir(phase: str, config) -> str:
+def get_phase_output_dir(phase: str, config: 'Config') -> str:
     """
     Generate model/dataset-aware output directory for a phase.
 
@@ -90,7 +93,7 @@ def get_phase_output_dir(phase: str, config) -> str:
     return base_dir
 
 
-def get_model_suffix(config) -> str:
+def get_model_suffix(config: 'Config') -> str:
     """
     Get a short suffix string for the current model.
 
@@ -108,7 +111,7 @@ def get_model_suffix(config) -> str:
     return ''
 
 
-def get_dataset_suffix(config) -> str:
+def get_dataset_suffix(config: 'Config') -> str:
     """
     Get a short suffix string for the current dataset.
 
@@ -332,7 +335,7 @@ def get_phase_output_file(phase: str, output_key: str = "primary", phase_dir: Op
     return phase_outputs['outputs'][output_key]
 
 
-def discover_steering_coefficients(config) -> dict[str, float]:
+def discover_steering_coefficients(config: 'Config') -> dict[str, float]:
     """
     Load refined steering coefficients from Phase 4.6 via manifest system.
 

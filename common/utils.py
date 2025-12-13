@@ -14,7 +14,7 @@ from shutil import move
 import numpy as np
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Optional, List, Generator, Any, Union
+from typing import Optional, Generator, Any, Union
 from pathlib import Path
 
 # Import phase-specific directory constants
@@ -186,9 +186,9 @@ def generate_dataset_filename(prefix: str = "dataset",
     return f"{filename}.{extension}"
 
 
-def find_latest_file(directory: str, 
-                    patterns: Union[str, List[str]], 
-                    exclude_keywords: Optional[List[str]] = None) -> Optional[str]:
+def find_latest_file(directory: str,
+                    patterns: Union[str, list[str]],
+                    exclude_keywords: Optional[list[str]] = None) -> Optional[str]:
     """
     Find the most recently modified file matching patterns in directory.
     

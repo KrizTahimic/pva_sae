@@ -10,7 +10,7 @@ import json
 import time
 import math
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -40,7 +40,6 @@ from common.dataset_utils import evaluate_code, extract_code
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_6.golden_section_refiner")
-
 
 class GoldenSectionCoefficientRefiner:
     """Refine steering coefficients using golden section search."""
@@ -129,8 +128,8 @@ class GoldenSectionCoefficientRefiner:
         self.memory_critical_threshold = 95  # Critical at 95% memory usage
         
     def save_checkpoint(self, steering_type: str, iteration: int, 
-                       search_history: List[Dict], cached_scores: Dict,
-                       current_bounds: Tuple[int, int], best_coefficient: int,
+                       search_history: list[Dict], cached_scores: Dict,
+                       current_bounds: tuple[int, int], best_coefficient: int,
                        best_score: float) -> None:
         """Save checkpoint for golden section search."""
         checkpoint_dir = self.output_dir / f"checkpoints_{steering_type}"
@@ -214,7 +213,7 @@ class GoldenSectionCoefficientRefiner:
             save_json(excluded_tasks, exclusion_file)
             logger.debug(f"Saved {len(excluded_tasks)} exclusions to checkpoint {checkpoint_num}")
     
-    def load_evaluation_checkpoints(self, checkpoint_dir: Path) -> Tuple[list, list, set]:
+    def load_evaluation_checkpoints(self, checkpoint_dir: Path) -> tuple[list, list, set]:
         """Load existing evaluation checkpoints if any."""
         if not checkpoint_dir.exists():
             return [], [], set()
@@ -413,7 +412,7 @@ class GoldenSectionCoefficientRefiner:
             logger.info(f"{steering_type.capitalize()} steering search bounds: "
                        f"[{lower}, {upper}] (Phase 4.5 optimal: {optimal_coeff})")
     
-    def _determine_search_bounds(self, optimal_coeff: float, steering_type: str) -> Tuple[float, float]:
+    def _determine_search_bounds(self, optimal_coeff: float, steering_type: str) -> tuple[float, float]:
         """Determine search bounds based on steering type using fixed extensions."""
         
         # Use different bounds based on steering type
@@ -438,7 +437,7 @@ class GoldenSectionCoefficientRefiner:
         """Round coefficient to nearest integer for discrete optimization."""
         return int(round(coeff))
     
-    def _get_integer_golden_points(self, a: float, b: float) -> Tuple[int, int]:
+    def _get_integer_golden_points(self, a: float, b: float) -> tuple[int, int]:
         """
         Calculate golden section points and round to integers.
         Handles edge cases where rounding produces duplicates.
@@ -746,7 +745,7 @@ class GoldenSectionCoefficientRefiner:
         
         return score
     
-    def golden_section_search(self, steering_type: str) -> Tuple[int, List[Dict]]:
+    def golden_section_search(self, steering_type: str) -> tuple[int, list[Dict]]:
         """
         Integer-aware golden section search for optimal coefficient.
         
@@ -1007,7 +1006,7 @@ class GoldenSectionCoefficientRefiner:
     
     def save_refinement_examples(self, coefficient: float, 
                                 steering_type: str,
-                                results: List[Dict]) -> None:
+                                results: list[Dict]) -> None:
         """Save example generations for manual inspection."""
         # Save in subdirectory for this specific coefficient
         coeff_dir = self.examples_dir / f"{steering_type}_golden_{coefficient:.2f}"

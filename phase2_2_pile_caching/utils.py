@@ -4,9 +4,10 @@ Utility functions for Phase 2.2 pile activation caching.
 
 from typing import Optional
 import torch
+from transformers import PreTrainedTokenizerBase
 
 
-def find_word_position(word: str, input_ids: torch.Tensor, tokenizer) -> Optional[int]:
+def find_word_position(word: str, input_ids: torch.Tensor, tokenizer: PreTrainedTokenizerBase) -> Optional[int]:
     """
     Find the position of a word in the tokenized sequence.
     

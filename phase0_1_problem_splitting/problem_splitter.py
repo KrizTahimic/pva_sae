@@ -16,7 +16,7 @@ from numpy.random import seed, shuffle
 import pandas as pd
 from json import dump as json_dump, load as json_load
 from pathlib import Path
-from typing import List, Tuple, Dict, Optional, Union
+from typing import Optional, Union
 from datetime import datetime
 
 from common.config import Config
@@ -40,7 +40,7 @@ class Phase01Runner:
         self.config = config
         self.logger = get_logger("phase0_1_runner", phase="0.1")
 
-    def run(self) -> Dict[str, List[int]]:
+    def run(self) -> dict[str, list[int]]:
         """
         Standard entry point for Phase 0.1.
 
@@ -120,7 +120,7 @@ class Phase01Runner:
 def split_problems(
     df: pd.DataFrame,
     config: Config
-) -> Dict[str, List[int]]:
+) -> dict[str, list[int]]:
     """
     Split MBPP problems using stratified randomized interleaving.
     
@@ -189,7 +189,7 @@ def create_complexity_strata(
     task_ids: ndarray,
     complexity_scores: ndarray,
     n_strata: int
-) -> List[ndarray]:
+) -> list[ndarray]:
     """
     Divide task_ids into complexity strata and shuffle within each.
     
@@ -241,9 +241,9 @@ def create_complexity_strata(
 
 
 def apply_stratified_interleaving(
-    strata: List[ndarray],
-    ratios: List[float]
-) -> List[List[int]]:
+    strata: list[ndarray],
+    ratios: list[float]
+) -> list[list[int]]:
     """
     Apply interleaved pattern across all strata simultaneously.
     
@@ -303,7 +303,7 @@ def apply_stratified_interleaving(
     return splits
 
 
-def create_interleaved_pattern(ratios: List[float]) -> List[int]:
+def create_interleaved_pattern(ratios: list[float]) -> list[int]:
     """
     Create minimal interleaved pattern from ratios.
     
@@ -341,7 +341,7 @@ def create_interleaved_pattern(ratios: List[float]) -> List[int]:
 
 
 def save_splits(
-    splits: Dict[str, List[int]],
+    splits: dict[str, list[int]],
     output_dir: str,
     df: pd.DataFrame,
     config: Config
@@ -437,7 +437,7 @@ def load_splits(
     split_dir: str,
     dataset_name: str = "mbpp",
     return_dataframes: bool = False
-) -> Dict[str, Union[List[int], pd.DataFrame]]:
+) -> Dict[str, Union[list[int], pd.DataFrame]]:
     """
     Load previously saved splits from parquet files.
 

@@ -10,7 +10,7 @@ import gc
 import json
 import time
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import Optional
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -32,11 +32,10 @@ from common.retry_utils import retry_with_timeout, create_exclusion_summary
 # Module-level logger
 logger = get_logger("hyperparameter_runner", phase="3.6")
 
-
 class HyperparameterDataRunner:
     """Hyperparameter split processing with best layer activation extraction."""
     
-    def _discover_best_features(self) -> Dict[str, int]:
+    def _discover_best_features(self) -> dict[str, int]:
         """
         Discover best features from Phase 2.10 (required).
 
@@ -154,7 +153,7 @@ class HyperparameterDataRunner:
         
         return data
     
-    def generate_with_activations(self, prompt: str, task_id: str) -> Tuple[str, bool]:
+    def generate_with_activations(self, prompt: str, task_id: str) -> tuple[str, bool]:
         """Generate code and extract activations from best layers only."""
         # Setup hooks for best layers
         self.activation_extractor.setup_hooks()
@@ -203,7 +202,7 @@ class HyperparameterDataRunner:
             # Always remove hooks after use
             self.activation_extractor.remove_hooks()
     
-    def _save_task_activations(self, task_id: str, activations: Dict[int, torch.Tensor]) -> None:
+    def _save_task_activations(self, task_id: str, activations: dict[int, torch.Tensor]) -> None:
         """Save activations for all extracted layers for this task (preserves bfloat16)."""
         # Save each layer's activations separately
         for layer_num, layer_activations in activations.items():
@@ -335,7 +334,7 @@ class HyperparameterDataRunner:
         
         return memory_percent
     
-    def run(self) -> Dict[str, any]:
+    def run(self) -> dict[str, any]:
         """Run hyperparameter split processing at temperature 0.0."""
         logger.info("Starting Phase 3.6: Hyperparameter Tuning Set Processing")
         logger.info(f"Extracting activations from layers: {self.extraction_layers}")
@@ -496,7 +495,7 @@ class HyperparameterDataRunner:
         logger.info("Phase 3.6 completed successfully")
         return metadata
     
-    def _save_results(self, results: List[Dict]) -> None:
+    def _save_results(self, results: list[Dict]) -> None:
         """Save results to parquet file."""
         df = pd.DataFrame(results)
         
@@ -508,9 +507,9 @@ class HyperparameterDataRunner:
     
     def _create_metadata(
         self,
-        all_results: List[Dict],
-        hyperparams_task_ids: List[str],
-        excluded_tasks: List[Dict]
+        all_results: list[Dict],
+        hyperparams_task_ids: list[str],
+        excluded_tasks: list[Dict]
     ) -> Dict:
         """Create metadata summary."""
         correct_count = sum(1 for r in all_results if r['test_passed'])

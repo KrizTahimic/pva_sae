@@ -8,7 +8,7 @@ These features serve as rigorous baseline controls for steering experiments.
 import json
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Tuple
+
 from datetime import datetime
 import gc
 import psutil
@@ -22,7 +22,6 @@ from common.sae_loader import load_sae_for_config
 from common.tensor_utils import to_numpy
 
 logger = get_logger("phase4_10.zero_discrimination_selector")
-
 
 class ZeroDiscriminationSelector:
     """Select SAE features with zero discrimination between correct/incorrect programs."""
@@ -49,7 +48,7 @@ class ZeroDiscriminationSelector:
         logger.info(f"ZeroDiscriminationSelector initialized")
         logger.info(f"Will select {self.n_features} features with separation < {self.separation_threshold}")
         
-    def load_phase1_activations(self) -> Tuple[Dict, Dict]:
+    def load_phase1_activations(self) -> tuple[Dict, Dict]:
         """Load Phase 1 activation data for all features."""
         logger.info("Loading Phase 1 activations...")
         
@@ -73,7 +72,7 @@ class ZeroDiscriminationSelector:
         
         return str(correct_dir), str(incorrect_dir), n_correct, n_incorrect
         
-    def calculate_feature_frequencies(self, layer: int) -> Dict[int, Dict[str, float]]:
+    def calculate_feature_frequencies(self, layer: int) -> dict[int, dict[str, float]]:
         """Calculate activation frequencies for all features in a layer."""
         logger.debug(f"Calculating frequencies for layer {layer}")
         

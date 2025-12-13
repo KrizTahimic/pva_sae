@@ -9,7 +9,7 @@ import gc
 import json
 import time
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import Optional
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -35,11 +35,10 @@ from common.retry_utils import retry_with_timeout, create_exclusion_summary
 # Module-level logger
 logger = get_logger("temperature_runner", phase="3.5")
 
-
 class TemperatureRobustnessRunner:
     """Temperature robustness testing with single-layer activation extraction."""
     
-    def _discover_best_features(self) -> Dict[str, int]:
+    def _discover_best_features(self) -> dict[str, int]:
         """
         Discover best features from Phase 2.10 (required).
 
@@ -176,7 +175,7 @@ class TemperatureRobustnessRunner:
         if not config.temperature_samples_per_temp or config.temperature_samples_per_temp < 1:
             raise ValueError("temperature_samples_per_temp must be >= 1")
     
-    def generate_temp0_with_activations(self, prompt: str) -> Tuple[str, Dict[int, torch.Tensor], Dict[int, torch.Tensor]]:
+    def generate_temp0_with_activations(self, prompt: str) -> tuple[str, dict[int, torch.Tensor], dict[int, torch.Tensor]]:
         """
         Generate at temperature 0, extracting both activations and attention patterns.
         
@@ -270,7 +269,7 @@ class TemperatureRobustnessRunner:
         
         return generated_text
     
-    def run(self) -> Dict[str, any]:
+    def run(self) -> dict[str, any]:
         """Run temperature robustness testing for validation split."""
         logger.info("Starting Phase 3.5: Temperature Robustness Testing")
         if self.extraction_layers:
@@ -426,7 +425,7 @@ class TemperatureRobustnessRunner:
         
         return memory_percent
     
-    def _process_all_tasks(self, validation_data: pd.DataFrame) -> Tuple[List[Dict], List[Dict]]:
+    def _process_all_tasks(self, validation_data: pd.DataFrame) -> tuple[list[Dict], list[Dict]]:
         """Process all validation tasks with retry logic.
         
         Returns:
@@ -651,7 +650,7 @@ class TemperatureRobustnessRunner:
             'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
         }
     
-    def _save_task_activations(self, task_id: str, activations: Dict[int, torch.Tensor]) -> None:
+    def _save_task_activations(self, task_id: str, activations: dict[int, torch.Tensor]) -> None:
         """Save activations for all layers for this task (preserves bfloat16)."""
         # Save each layer's activations separately
         for layer_num, layer_activations in activations.items():
@@ -661,7 +660,7 @@ class TemperatureRobustnessRunner:
             )
             save_activation(layer_activations, save_path)
     
-    def _save_task_attention(self, task_id: str, attention_patterns: Dict[int, torch.Tensor]) -> None:
+    def _save_task_attention(self, task_id: str, attention_patterns: dict[int, torch.Tensor]) -> None:
         """Save raw attention patterns with section boundaries."""
         attention_dir = self.output_dir / "activations" / "attention_patterns"
         attention_dir.mkdir(parents=True, exist_ok=True)
@@ -681,7 +680,7 @@ class TemperatureRobustnessRunner:
     
     def _save_temperature_results(
         self,
-        results: List[Dict],
+        results: list[Dict],
         temperature: float
     ) -> None:
         """Save results for a specific temperature."""
@@ -696,9 +695,9 @@ class TemperatureRobustnessRunner:
     
     def _create_metadata(
         self,
-        all_results: List[Dict],
-        validation_task_ids: List[str],
-        excluded_tasks: List[Dict]
+        all_results: list[Dict],
+        validation_task_ids: list[str],
+        excluded_tasks: list[Dict]
     ) -> Dict:
         """Create metadata summary."""
         n_attempted = len(validation_task_ids)

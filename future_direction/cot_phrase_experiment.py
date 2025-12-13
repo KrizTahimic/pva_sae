@@ -33,7 +33,7 @@ sys.path.insert(0, '..')
 import json
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 from datetime import datetime
 from tqdm import tqdm
 
@@ -107,7 +107,6 @@ def build_prompt_standard(row: Dict) -> str:
     """Standard prompt (no CoT) - baseline."""
     return row['prompt']
 
-
 def build_prompt_cot(row: Dict) -> str:
     """Build prompt for DeepSeek-R1-Distill from raw Llama Phase 1 data.
 
@@ -127,7 +126,6 @@ def build_prompt_cot(row: Dict) -> str:
         code_initiator="# Solution:"
     )
 
-
 def extract_think_block(output: str) -> str:
     """Extract content between <think> and </think> tags.
 
@@ -138,12 +136,11 @@ def extract_think_block(output: str) -> str:
     match = re.search(r'<think>(.*?)</think>', output, re.DOTALL)
     return match.group(1).strip() if match else output
 
-
 # ============================================================================
 # PHRASE ANALYSIS
 # ============================================================================
 
-def count_phrases(text: str, phrase_list: List[str]) -> Dict[str, int]:
+def count_phrases(text: str, phrase_list: list[str]) -> dict[str, int]:
     """Count occurrences of each phrase in text using word boundaries."""
     import re
     text_lower = text.lower()
@@ -155,7 +152,6 @@ def count_phrases(text: str, phrase_list: List[str]) -> Dict[str, int]:
         if matches:
             counts[phrase] = len(matches)
     return counts
-
 
 def analyze_cot_text(cot_text: str) -> Dict:
     """Analyze CoT text for phrase patterns."""
@@ -170,7 +166,6 @@ def analyze_cot_text(cot_text: str) -> Dict:
         'cot_length_chars': len(cot_text),
         'cot_length_words': len(cot_text.split()),
     }
-
 
 # ============================================================================
 # MAIN EXPERIMENT
@@ -253,7 +248,7 @@ class CoTPhraseExperiment:
         )
         return generated
 
-    def load_checkpoint(self) -> tuple[List[Dict], set]:
+    def load_checkpoint(self) -> tuple[list[Dict], set]:
         """Load checkpoint if exists."""
         if self.checkpoint_file.exists():
             with open(self.checkpoint_file, 'r') as f:
@@ -263,7 +258,7 @@ class CoTPhraseExperiment:
             return checkpoint['results'], processed_ids
         return [], set()
 
-    def save_checkpoint(self, results: List[Dict]):
+    def save_checkpoint(self, results: list[Dict]):
         """Save checkpoint."""
         with open(self.checkpoint_file, 'w') as f:
             json.dump({
@@ -341,7 +336,7 @@ class CoTPhraseExperiment:
 
         return results
 
-    def save_results(self, results: List[Dict]):
+    def save_results(self, results: list[Dict]):
         """Save final results."""
         with open(self.results_file, 'w') as f:
             json.dump({
@@ -366,7 +361,7 @@ class CoTPhraseExperiment:
             self.checkpoint_file.unlink()
             print("Checkpoint cleaned up")
 
-    def print_summary(self, results: List[Dict]):
+    def print_summary(self, results: list[Dict]):
         """Print summary statistics."""
         correct_results = [r for r in results if r['initially_correct']]
         incorrect_results = [r for r in results if not r['initially_correct']]
@@ -414,7 +409,6 @@ class CoTPhraseExperiment:
 
         print("="*60)
 
-
 def main():
     import argparse
 
@@ -425,7 +419,6 @@ def main():
 
     experiment = CoTPhraseExperiment()
     experiment.run(start_idx=args.start, end_idx=args.end)
-
 
 if __name__ == "__main__":
     main()

@@ -8,7 +8,7 @@ at random word positions, establishing a baseline for general language features.
 import torch
 import numpy as np
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import Optional
 import random
 from datasets import load_dataset
 
@@ -22,7 +22,6 @@ from .utils import find_word_position, validate_pile_sample
 
 # Module logger
 logger = get_logger("pile_caching", phase="2.2")
-
 
 def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
     """

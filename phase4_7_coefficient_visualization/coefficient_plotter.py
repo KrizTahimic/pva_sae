@@ -12,14 +12,12 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 from common.logging import get_logger
 from common.utils import ensure_directory_exists
 from common.viz_utils import handle_viz_only_mode
 
 logger = get_logger("phase4_7.coefficient_plotter")
-
 
 class CoefficientVisualizer:
     """Visualize coefficient optimization process."""
@@ -251,7 +249,6 @@ class CoefficientVisualizer:
         logger.info(f"Summary saved to {summary_path}")
         logger.info("All coefficient optimization plots generated successfully!")
 
-
 class Phase47Runner:
     """Standard runner for Phase 4.7: Coefficient Visualization."""
 
@@ -305,14 +302,12 @@ class Phase47Runner:
 
         self.logger.info("Phase 4.7 completed successfully")
 
-
 def main():
     """Legacy entry point."""
     from common.config import Config
     config = Config()
     runner = Phase47Runner(config)
     runner.run()
-
 
 if __name__ == "__main__":
     main()

@@ -10,7 +10,7 @@ import time
 import gc
 import psutil
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -36,7 +36,6 @@ from common.dataset_utils import evaluate_code, extract_code
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_12.zero_disc_steering_generator")
-
 
 class ZeroDiscSteeringGenerator:
     """Generate steering results using zero-discrimination features."""
@@ -136,7 +135,7 @@ class ZeroDiscSteeringGenerator:
         
         return selected_feature
         
-    def _save_checkpoint(self, results: List[Dict], steering_type: str, index: int) -> None:
+    def _save_checkpoint(self, results: list[Dict], steering_type: str, index: int) -> None:
         """Save checkpoint of current results."""
         checkpoint_file = self.checkpoint_dir / f'{steering_type}_checkpoint_{index}.json'
         checkpoint_data = {
@@ -148,7 +147,7 @@ class ZeroDiscSteeringGenerator:
         save_json(checkpoint_data, checkpoint_file)
         logger.debug(f"Saved checkpoint at index {index} to {checkpoint_file}")
         
-    def _load_checkpoint(self, steering_type: str) -> Tuple[List[Dict], int]:
+    def _load_checkpoint(self, steering_type: str) -> tuple[list[Dict], int]:
         """Load latest checkpoint if exists."""
         checkpoints = list(self.checkpoint_dir.glob(f'{steering_type}_checkpoint_*.json'))
         if not checkpoints:
@@ -188,7 +187,7 @@ class ZeroDiscSteeringGenerator:
             logger.debug(f"Memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
         
     def _apply_zero_disc_steering(self, problems: pd.DataFrame, feature: Dict, 
-                                  coefficient: float, steering_type: str) -> List[Dict]:
+                                  coefficient: float, steering_type: str) -> list[Dict]:
         """Apply zero-discrimination steering to problems."""
         excluded_tasks = []
         
@@ -450,8 +449,8 @@ class ZeroDiscSteeringGenerator:
 
         return results
         
-    def _save_examples(self, correction_examples: List[Dict], corruption_examples: List[Dict],
-                      preservation_examples: List[Dict]) -> None:
+    def _save_examples(self, correction_examples: list[Dict], corruption_examples: list[Dict],
+                      preservation_examples: list[Dict]) -> None:
         """Save example steered generations."""
         examples = {
             'correction_examples': correction_examples,

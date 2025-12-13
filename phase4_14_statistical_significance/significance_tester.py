@@ -7,7 +7,7 @@ steering, and targeted PVA steering to validate causal effects of PVA features.
 
 import json
 from pathlib import Path
-from typing import Dict, Optional, Tuple, List
+from typing import Optional
 from datetime import datetime
 from scipy.stats import binomtest
 import numpy as np
@@ -22,7 +22,6 @@ from common.config import Config
 from common.viz_utils import handle_viz_only_mode
 
 logger = get_logger("phase4_14.significance_tester")
-
 
 class SignificanceTester:
     """Test statistical significance using triangulation of three conditions."""
@@ -42,7 +41,7 @@ class SignificanceTester:
         logger.info(f"SignificanceTester initialized")
         logger.info(f"Significance level: {self.alpha}")
         
-    def load_all_results(self) -> Tuple[pd.DataFrame, Dict, Dict]:
+    def load_all_results(self) -> tuple[pd.DataFrame, Dict, Dict]:
         """Load baseline, targeted steering, and zero-discrimination results."""
         # Load Phase 3.5 baseline data (no steering)
         logger.info("Loading Phase 3.5 baseline data (no steering)...")
@@ -461,7 +460,6 @@ class SignificanceTester:
                           f"p={comparisons['targeted_vs_control']['p_value']:.2e})")
         else:
             findings.append("Targeted and control features preserve similarly")
-
 
         return " | ".join(findings)
 

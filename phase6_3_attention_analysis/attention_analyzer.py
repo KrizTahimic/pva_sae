@@ -8,7 +8,7 @@ Generates visualizations and statistical analyses to understand mechanistic chan
 
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Optional, Any
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -28,7 +28,6 @@ from common.viz_utils import handle_viz_only_mode
 from common.tensor_utils import load_attention, to_numpy
 
 logger = get_logger("phase6_3.attention_analyzer")
-
 
 class AttentionAnalyzer:
     """Analyze attention patterns from baseline (Phase 3.5) and steered (Phase 4.8) conditions."""
@@ -111,7 +110,7 @@ class AttentionAnalyzer:
         logger.info(f"Discovered Phase 3.5 dir: {self.phase3_5_dir}")
         logger.info(f"Discovered Phase 4.8 dir: {self.phase4_8_dir}")
         
-    def run(self) -> Dict[str, Any]:
+    def run(self) -> dict[str, Any]:
         """Main analysis pipeline."""
         # Handle --viz-only mode
         def viz_from_data(data):
@@ -177,7 +176,7 @@ class AttentionAnalyzer:
         logger.info("✅ Phase 6.3 completed successfully")
         return results
         
-    def load_attention_data(self) -> Dict[str, Dict]:
+    def load_attention_data(self) -> dict[str, Dict]:
         """Load attention patterns from Phase 3.5 and Phase 4.8."""
         attention_data = {}
         
@@ -309,7 +308,7 @@ class AttentionAnalyzer:
             }
         }
         
-    def compute_differences(self, attention_data: Dict, steering_type: str) -> Dict[str, np.ndarray]:
+    def compute_differences(self, attention_data: Dict, steering_type: str) -> dict[str, np.ndarray]:
         """
         Compare attention patterns between baseline and steered generations.
         
@@ -351,7 +350,7 @@ class AttentionAnalyzer:
         
         return differences
         
-    def compute_statistical_significance(self, attention_differences: Dict[str, Dict]) -> Dict:
+    def compute_statistical_significance(self, attention_differences: dict[str, Dict]) -> Dict:
         """
         Test if steering produces statistically significant attention changes.
         

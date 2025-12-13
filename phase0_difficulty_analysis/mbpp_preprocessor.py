@@ -6,7 +6,7 @@ with difficulty analysis before any LLM interaction.
 """
 
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 import pandas as pd
 
 from common.logging import get_logger
@@ -14,7 +14,6 @@ from .difficulty_analyzer import MBPPDifficultyAnalyzer
 from common.phase_discovery import get_phase_output_dir
 from common.config import Config
 from datasets import load_dataset
-
 
 class MBPPPreprocessor:
     """Main orchestrator for Phase 0 MBPP difficulty preprocessing"""
@@ -114,7 +113,7 @@ class MBPPPreprocessor:
         return enriched_df
     
     def _report_preprocessing_summary(self, 
-                                    distribution: Dict[str, Any],
+                                    distribution: dict[str, Any],
                                     enriched_filepath: Optional[str] = None) -> None:
         """
         Report summary of preprocessing results

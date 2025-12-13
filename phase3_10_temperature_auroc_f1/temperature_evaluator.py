@@ -8,7 +8,7 @@ in Python code generation using per-sample analysis.
 import os
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Optional, Any
 import numpy as np
 import pandas as pd
 import torch
@@ -24,7 +24,6 @@ from common.viz_utils import handle_viz_only_mode
 from common.utils import save_json, load_json
 from common.sae_loader import load_sae_for_config
 from common.tensor_utils import load_activation
-
 
 class TemperatureAUROCEvaluator:
     """Evaluates PVA feature performance across different temperatures using per-sample analysis."""
@@ -91,7 +90,7 @@ class TemperatureAUROCEvaluator:
             if not temp_file.exists():
                 raise FileNotFoundError(f"Temperature dataset not found: {temp_file}")
     
-    def load_best_features(self) -> Dict[str, Dict]:
+    def load_best_features(self) -> dict[str, Dict]:
         """Load best features and thresholds from Phase 3.8."""
         self.logger.info("Loading Phase 3.8 best features and thresholds")
         
@@ -138,10 +137,10 @@ class TemperatureAUROCEvaluator:
     def process_temperature_data(
         self, 
         temp_dataset: pd.DataFrame, 
-        best_features: Dict[str, Any], 
+        best_features: dict[str, Any], 
         sae: Any,
         temperature: float
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Process data for a single temperature using per-sample analysis."""
         sample_features = []
         sample_labels = []
@@ -198,7 +197,7 @@ class TemperatureAUROCEvaluator:
         
         return np.array(sample_features), np.array(sample_labels)
     
-    def evaluate_across_temperatures(self, best_features: Dict[str, Dict]) -> Dict:
+    def evaluate_across_temperatures(self, best_features: dict[str, Dict]) -> Dict:
         """Evaluate feature performance at each temperature."""
         results = {}
         
@@ -518,7 +517,7 @@ class TemperatureAUROCEvaluator:
         
         self.logger.info(f"Saved Precision-Recall curves plot to {output_path}")
     
-    def generate_summary(self, results: Dict, best_features: Dict[str, Dict]) -> str:
+    def generate_summary(self, results: Dict, best_features: dict[str, Dict]) -> str:
         """Generate human-readable summary of results."""
         lines = ["=" * 60]
         lines.append("PHASE 3.10: TEMPERATURE-BASED AUROC ANALYSIS")
@@ -620,7 +619,7 @@ class TemperatureAUROCEvaluator:
         
         return "\n".join(lines)
     
-    def save_results(self, results: Dict, best_features: Dict[str, Dict]) -> None:
+    def save_results(self, results: Dict, best_features: dict[str, Dict]) -> None:
         """Save all results to output directory."""
         # Save comprehensive JSON results
         output_data = {

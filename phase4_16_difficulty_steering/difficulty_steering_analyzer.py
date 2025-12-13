@@ -12,7 +12,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Tuple, Any
+from typing import Any
 from scipy.stats import chi2_contingency
 
 from common.logging import get_logger
@@ -23,7 +23,6 @@ from common.viz_utils import handle_viz_only_mode
 from phase3_12_difficulty_auroc_f1.difficulty_evaluator import group_by_difficulty
 
 logger = get_logger("phase4_16.difficulty_steering_analyzer")
-
 
 class Phase416Runner:
     """Standard runner for Phase 4.16: Difficulty-Stratified Steering Analysis."""
@@ -42,20 +41,17 @@ class Phase416Runner:
         # main() creates its own Config internally
         return main()
 
-
 def load_json(path: Path) -> Any:
     """Load JSON file."""
     with open(path, 'r') as f:
         return json.load(f)
-
 
 def save_json(data: Any, path: Path) -> None:
     """Save data to JSON file."""
     with open(path, 'w') as f:
         json.dump(data, f, indent=2)
 
-
-def load_steering_results(config: Config) -> Dict[str, List[Dict]]:
+def load_steering_results(config: Config) -> dict[str, list[Dict]]:
     """Load steering results from Phase 4.8.
 
     Returns:
@@ -93,7 +89,6 @@ def load_steering_results(config: Config) -> Dict[str, List[Dict]]:
 
     return results
 
-
 def load_validation_with_difficulty(config: Config) -> pd.DataFrame:
     """Load validation dataset with cyclomatic complexity."""
     phase0_1_dir = Path(get_phase_output_dir("0.1", config))
@@ -113,12 +108,11 @@ def load_validation_with_difficulty(config: Config) -> pd.DataFrame:
 
     return df
 
-
 def calculate_difficulty_metrics(
-    steering_results: List[Dict],
-    difficulty_groups: Dict[str, pd.DataFrame],
+    steering_results: list[Dict],
+    difficulty_groups: dict[str, pd.DataFrame],
     experiment_type: str
-) -> Dict[str, Dict]:
+) -> dict[str, Dict]:
     """Calculate steering success metrics per difficulty group.
 
     Args:
@@ -190,8 +184,7 @@ def calculate_difficulty_metrics(
 
     return metrics
 
-
-def run_chi_square_test(metrics: Dict[str, Dict]) -> Dict:
+def run_chi_square_test(metrics: dict[str, Dict]) -> Dict:
     """Run chi-square test for independence.
 
     Tests whether the distribution of success/failure differs
@@ -256,11 +249,10 @@ def run_chi_square_test(metrics: Dict[str, Dict]) -> Dict:
             'error': str(e)
         }
 
-
 def plot_steering_trends(
-    correction_metrics: Dict[str, Dict],
-    corruption_metrics: Dict[str, Dict],
-    preservation_metrics: Dict[str, Dict],
+    correction_metrics: dict[str, Dict],
+    corruption_metrics: dict[str, Dict],
+    preservation_metrics: dict[str, Dict],
     output_dir: Path
 ) -> None:
     """Plot steering success rate trends across difficulty levels."""
@@ -302,9 +294,8 @@ def plot_steering_trends(
     plt.close()
     logger.info(f"Saved trend plot: {output_dir / 'steering_by_difficulty_trends.png'}")
 
-
 def plot_difficulty_distribution(
-    difficulty_groups: Dict[str, pd.DataFrame],
+    difficulty_groups: dict[str, pd.DataFrame],
     output_dir: Path
 ) -> None:
     """Visualize the distribution of tasks across difficulty levels."""
@@ -331,12 +322,11 @@ def plot_difficulty_distribution(
     plt.close()
     logger.info(f"Saved distribution plot: {output_dir / 'difficulty_distribution.png'}")
 
-
 def generate_summary_text(
-    difficulty_groups: Dict[str, pd.DataFrame],
-    correction_metrics: Dict[str, Dict],
-    corruption_metrics: Dict[str, Dict],
-    preservation_metrics: Dict[str, Dict],
+    difficulty_groups: dict[str, pd.DataFrame],
+    correction_metrics: dict[str, Dict],
+    corruption_metrics: dict[str, Dict],
+    preservation_metrics: dict[str, Dict],
     correction_chi2: Dict,
     corruption_chi2: Dict,
     preservation_chi2: Dict
@@ -441,7 +431,6 @@ def generate_summary_text(
     lines.append("=" * 70)
 
     return "\n".join(lines)
-
 
 def main():
     """Main entry point for Phase 4.16."""
@@ -617,7 +606,6 @@ def main():
     logger.info(f"Saved phase_output.json manifest to {output_dir}")
 
     logger.info("✅ Phase 4.16 completed successfully")
-
 
 if __name__ == "__main__":
     main()

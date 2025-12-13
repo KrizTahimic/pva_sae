@@ -20,7 +20,7 @@ import time
 import signal
 import contextlib
 from pathlib import Path
-from typing import Dict, List
+
 from datetime import datetime
 
 import pandas as pd
@@ -120,11 +120,11 @@ MBPP_REQUIRED_IMPORTS = [
     "from string import ascii_lowercase",
     "from string import whitespace",
     "from sys import maxsize",
-    "from typing import Callable",
-    "from typing import List",
-    "from typing import Optional",
-    "from typing import Tuple",
-    "from typing import Union",
+    "from typing import Callable", 
+    "from typing import List", 
+    "from typing import Optional", 
+    "from typing import Tuple", 
+    "from typing import Union", 
 ]
 
 @contextlib.contextmanager
@@ -140,7 +140,6 @@ def timeout(seconds):
     finally:
         signal.alarm(0)
         signal.signal(signal.SIGALRM, old_handler)
-
 
 def evaluate_code_with_imports(code: str, test_list: list) -> bool:
     """
@@ -183,7 +182,6 @@ def evaluate_code_with_imports(code: str, test_list: list) -> bool:
 
     return True
 
-
 def extract_code(generated_text: str, prompt: str) -> str:
     """Extract generated code from model output."""
     if generated_text.startswith(prompt):
@@ -201,7 +199,6 @@ def extract_code(generated_text: str, prompt: str) -> str:
                 return code[:i].rstrip()
 
     return code.strip()
-
 
 # ============================================================================
 # MAIN TEST RUNNER
@@ -258,7 +255,7 @@ class ImportTestRunner:
             position=-1
         )
 
-    def _discover_best_features(self) -> Dict[str, int]:
+    def _discover_best_features(self) -> dict[str, int]:
         """Discover best features from Phase 2.10."""
         phase_2_10_dir = Path(getattr(self.config, 'phase2_10_output_dir', 'data/phase2_10'))
         top_features_file = phase_2_10_dir / "top_20_features.json"
@@ -492,7 +489,6 @@ class ImportTestRunner:
 
         return metadata
 
-
 def main():
     parser = argparse.ArgumentParser(
         description="Test MBPP pass@1 rate with import pre-loading"
@@ -523,7 +519,6 @@ def main():
     # Run test
     runner = ImportTestRunner(config, start_idx=args.start, end_idx=args.end)
     runner.run()
-
 
 if __name__ == "__main__":
     main()

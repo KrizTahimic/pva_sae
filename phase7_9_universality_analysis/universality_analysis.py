@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Tuple
+from typing import Any
 
 from common.config import Config
 from common.phase_discovery import get_phase_output_dir, write_phase_output
@@ -121,7 +121,7 @@ class UniversalityAnalyzer:
 
         logger.info("Data loaded successfully!")
         
-    def calculate_metrics(self) -> Dict[str, Any]:
+    def calculate_metrics(self) -> dict[str, Any]:
         """Calculate comprehensive comparison metrics."""
         metrics = {
             "timestamp": datetime.now().isoformat(),
@@ -173,7 +173,7 @@ class UniversalityAnalyzer:
         
         return metrics
     
-    def create_comprehensive_visualization(self, metrics: Dict[str, Any]):
+    def create_comprehensive_visualization(self, metrics: dict[str, Any]):
         """Create comprehensive multi-panel visualization."""
         fig = plt.figure(figsize=(20, 12))
         gs = fig.add_gridspec(3, 4, hspace=0.3, wspace=0.3)
@@ -343,7 +343,7 @@ class UniversalityAnalyzer:
         
         return fig
     
-    def generate_latex_tables(self, metrics: Dict[str, Any]) -> str:
+    def generate_latex_tables(self, metrics: dict[str, Any]) -> str:
         """Generate LaTeX tables for paper inclusion."""
         latex_content = []
         
@@ -401,7 +401,7 @@ class UniversalityAnalyzer:
         logger.info(f"LaTeX tables saved to {output_path}")
         return latex_text
     
-    def generate_markdown_report(self, metrics: Dict[str, Any]):
+    def generate_markdown_report(self, metrics: dict[str, Any]):
         """Generate comprehensive markdown report."""
         report = []
         
@@ -571,7 +571,6 @@ class UniversalityAnalyzer:
             output_dir=str(self.output_dir)
         )
 
-
 class Phase79Runner:
     """Standard runner for Phase 7.9: Universality Analysis."""
 
@@ -588,7 +587,6 @@ class Phase79Runner:
         analyzer.run()
 
         self.logger.info("Phase 7.9 completed successfully")
-
 
 if __name__ == "__main__":
     config = Config()

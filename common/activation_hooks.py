@@ -2,7 +2,7 @@
 
 import torch
 from pathlib import Path
-from typing import Dict, List, Callable, Optional, Tuple
+from typing import Callable, Optional
 from common.logging import get_logger
 from common.tensor_utils import save_attention
 
@@ -12,7 +12,7 @@ logger = get_logger("common.activation_hooks")
 class ActivationExtractor:
     """Simple activation extractor using PyTorch hooks."""
     
-    def __init__(self, model: torch.nn.Module, layers: List[int], position: int = -1):
+    def __init__(self, model: torch.nn.Module, layers: list[int], position: int = -1):
         """
         Initialize activation extractor.
         
@@ -76,7 +76,7 @@ class ActivationExtractor:
             
         return hook_fn
     
-    def extract(self, input_ids: torch.Tensor) -> Dict[int, torch.Tensor]:
+    def extract(self, input_ids: torch.Tensor) -> dict[int, torch.Tensor]:
         """
         Extract activations for given input.
         
@@ -116,7 +116,7 @@ class ActivationExtractor:
         self.remove_hooks()
         return False
     
-    def get_activations(self) -> Dict[int, torch.Tensor]:
+    def get_activations(self) -> dict[int, torch.Tensor]:
         """Get captured activations."""
         return self.activations.copy()
 
@@ -125,10 +125,10 @@ def extract_activations_simple(
     model: torch.nn.Module,
     tokenizer,
     text: str,
-    layers: List[int],
+    layers: list[int],
     position: int = -1,
     device: str = "cuda"
-) -> Dict[int, torch.Tensor]:
+) -> dict[int, torch.Tensor]:
     """
     Simple function to extract activations from text.
     
@@ -166,10 +166,10 @@ class AttentionExtractor:
     CRITICAL: Captures ONLY ONCE at the final prompt token, NOT during autoregressive generation.
     """
     
-    def __init__(self, model: torch.nn.Module, layers: List[int], position: int = -1):
+    def __init__(self, model: torch.nn.Module, layers: list[int], position: int = -1):
         """
         Initialize attention extractor for specified layers.
-        
+
         Args:
             model: The model to extract from
             layers: ONLY the best PVA layers from Phase 2.5 (not all layers!)
@@ -236,7 +236,7 @@ class AttentionExtractor:
                     
         return hook
     
-    def get_attention_patterns(self) -> Dict[int, torch.Tensor]:
+    def get_attention_patterns(self) -> dict[int, torch.Tensor]:
         """Return captured attention patterns and clear cache."""
         patterns = self.attention_patterns.copy()
         self.attention_patterns.clear()
@@ -319,7 +319,7 @@ def save_raw_attention_with_boundaries(
     return save_path.with_suffix(".safetensors")
 
 
-def calculate_section_boundaries(prompt_text: str, tokenizer, tokenized_prompt: torch.Tensor) -> Dict[str, int]:
+def calculate_section_boundaries(prompt_text: str, tokenizer, tokenized_prompt: torch.Tensor) -> dict[str, int]:
     """
     Calculate precise token boundaries for prompt sections.
     

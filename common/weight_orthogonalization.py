@@ -9,16 +9,16 @@ import torch
 from transformers import AutoModelForCausalLM
 from common.weight_utils import get_orthogonalized_matrix, get_weight_change_magnitude
 from common.logging import get_logger
-from typing import Dict, List, Optional
+from typing import Optional
 
 logger = get_logger("weight_orthogonalization")
 
 
 def orthogonalize_gemma_weights(
-    model: AutoModelForCausalLM, 
+    model: AutoModelForCausalLM,
     direction: torch.Tensor,
-    target_weights: Optional[List[str]] = None
-) -> Dict[str, float]:
+    target_weights: Optional[list[str]] = None
+) -> dict[str, float]:
     """
     Orthogonalize Gemma-2 model weights along PVA direction.
     
@@ -136,9 +136,9 @@ def orthogonalize_gemma_weights(
 def create_orthogonalized_model(
     model_name: str,
     direction: torch.Tensor,
-    target_weights: Optional[List[str]] = None,
+    target_weights: Optional[list[str]] = None,
     device: Optional[str] = None
-) -> tuple[AutoModelForCausalLM, Dict[str, float]]:
+) -> tuple[AutoModelForCausalLM, dict[str, float]]:
     """
     Create a fresh model with orthogonalized weights.
     

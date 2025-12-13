@@ -9,7 +9,7 @@ import gc
 import json
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Callable, Tuple
+from typing import Optional, Callable
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -39,7 +39,6 @@ from common.dataset_utils import evaluate_code, extract_code
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_5.steering_evaluator")
-
 
 class SteeringCoefficientSelector:
     """Select optimal steering coefficients through adaptive search."""
@@ -236,7 +235,7 @@ class SteeringCoefficientSelector:
     def evaluate_single_dataset(self, coefficient: float, 
                                problems_df: pd.DataFrame,
                                steering_type: str,
-                               show_progress: bool = True) -> List[Dict]:
+                               show_progress: bool = True) -> list[Dict]:
         """
         Evaluate a single coefficient on one dataset.
         
@@ -537,7 +536,7 @@ class SteeringCoefficientSelector:
             'results': results
         }
         
-    def calculate_generation_divergence(self, results: List[Dict]) -> Dict:
+    def calculate_generation_divergence(self, results: list[Dict]) -> Dict:
         """
         Measure how different steered generations are from baseline.
         
@@ -563,7 +562,7 @@ class SteeringCoefficientSelector:
             'mean_length_ratio': np.mean(length_ratios)
         }
         
-    def simple_grid_search(self, steering_type: str) -> Tuple[float, Dict]:
+    def simple_grid_search(self, steering_type: str) -> tuple[float, Dict]:
         """
         Simple grid search for optimal coefficient from 10 to 100 in increments of 10.
         

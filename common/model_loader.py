@@ -2,7 +2,7 @@
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from typing import Tuple, Optional, Union
+from typing import Optional, Union
 from common.logging import get_logger
 from common.utils import detect_device
 
@@ -14,7 +14,7 @@ def load_model_and_tokenizer(
     device: Optional[Union[str, torch.device]] = None,
     dtype: Optional[torch.dtype] = None,
     trust_remote_code: bool = True
-) -> Tuple[AutoModelForCausalLM, AutoTokenizer]:
+) -> tuple[AutoModelForCausalLM, AutoTokenizer]:
     """
     Load model and tokenizer from HuggingFace.
     

@@ -8,14 +8,13 @@ scores that can be used by subsequent phases.
 
 import pandas as pd
 from pandas import DataFrame, read_parquet
-from typing import Dict, List, Any, Optional
+from typing import Any, Optional
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
 from common.utils import get_timestamp, ensure_directory_exists
 from common.phase_discovery import get_phase_dir
 from common.logging import get_logger
-
 
 def get_cyclomatic_complexity(code: str) -> int:
     """
@@ -36,17 +35,15 @@ def get_cyclomatic_complexity(code: str) -> int:
     
     return complexity
 
-
 @dataclass
 class DifficultyMetrics:
     """Encapsulates difficulty analysis metrics for a single MBPP problem"""
     task_id: int
     cyclomatic_complexity: int
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         return asdict(self)
-
 
 class MBPPDifficultyAnalyzer:
     """Analyzes difficulty metrics for the entire MBPP dataset"""
@@ -119,7 +116,7 @@ class MBPPDifficultyAnalyzer:
         self.logger.info(f"Difficulty analysis completed: {len(enriched_df)} problems analyzed")
         return enriched_df
     
-    def _analyze_single_problem(self, record: Dict[str, Any]) -> DifficultyMetrics:
+    def _analyze_single_problem(self, record: dict[str, Any]) -> DifficultyMetrics:
         """
         Analyze difficulty metrics for a single MBPP problem
         
@@ -171,7 +168,7 @@ class MBPPDifficultyAnalyzer:
         return str(filepath)
     
     
-    def get_complexity_distribution(self, enriched_df: pd.DataFrame = None) -> Dict[str, Any]:
+    def get_complexity_distribution(self, enriched_df: pd.DataFrame = None) -> dict[str, Any]:
         """
         Get complexity distribution statistics for analyzed problems
         

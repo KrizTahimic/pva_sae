@@ -3,14 +3,13 @@
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import Set, List, Dict
 from datasets import load_dataset
 from common.logging import get_logger
 
 logger = get_logger("phase0_3.scanner")
 
 
-def scan_humaneval_imports() -> Dict:
+def scan_humaneval_imports() -> dict:
     """
     Scan all HumanEval prompts and extract required import statements.
 

@@ -8,7 +8,7 @@ orthogonalization (Phase 5.3) to validate causal effects of weight modifications
 
 import json
 from pathlib import Path
-from typing import Dict, Optional, Tuple, List
+from typing import Optional
 from datetime import datetime
 from scipy.stats import binomtest
 import numpy as np
@@ -23,7 +23,6 @@ from common.phase_discovery import discover_latest_phase_output, get_phase_outpu
 from common.config import Config
 
 logger = get_logger("phase5_9.orthogonalization_significance_tester")
-
 
 class OrthogonalizationSignificanceTester:
     """Test statistical significance using triangulation of three orthogonalization conditions."""
@@ -43,7 +42,7 @@ class OrthogonalizationSignificanceTester:
         logger.info(f"OrthogonalizationSignificanceTester initialized")
         logger.info(f"Significance level: {self.alpha}")
         
-    def load_all_results(self) -> Tuple[Dict, Dict, Dict]:
+    def load_all_results(self) -> tuple[Dict, Dict, Dict]:
         """Load baseline metrics, Phase 5.3 PVA results, and Phase 5.6 zero-disc results."""
         # Get baseline metrics from Phase 3.5 data
         logger.info("Loading Phase 3.5 baseline data (no orthogonalization)...")

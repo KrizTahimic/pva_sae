@@ -24,7 +24,7 @@ Data Sources:
 import gc
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Optional
 from datetime import datetime
 
 import torch
@@ -55,7 +55,6 @@ from common.sae_loader import load_sae_for_config
 
 logger = get_logger(__name__)
 
-
 class SteeringState:
     """
     Shared state between L19 (activation capture) and L16 (steering) hooks.
@@ -76,7 +75,6 @@ class SteeringState:
         self.first_token_checked = False  # Has L19 activation been captured?
         self.incorrect_pred_activation = None  # Captured incorrect-predicting feature activation
         self.should_steer = False  # Should we apply steering?
-
 
 class ThresholdOptimizer:
     """
@@ -308,7 +306,7 @@ class ThresholdOptimizer:
         threshold: float,
         dataset_type: str,
         last_index: int,
-        results: List[Dict],
+        results: list[Dict],
         total_problems: int
     ):
         """Save checkpoint for current grid search iteration."""
@@ -408,7 +406,7 @@ class ThresholdOptimizer:
         self,
         task_id: str,
         prompt: str,
-        test_cases: List[str],
+        test_cases: list[str],
         threshold: float,
         initial_correct: bool
     ) -> Dict:
@@ -588,7 +586,7 @@ class ThresholdOptimizer:
         percentile: int,
         dataset_type: str,
         start_idx: int = 0,
-        previous_results: List[Dict] = None
+        previous_results: list[Dict] = None
     ) -> Dict:
         """
         Run steering experiment with checkpoint support.
@@ -741,7 +739,7 @@ class ThresholdOptimizer:
 
         return metrics
 
-    def _calculate_metrics(self, results: List[Dict], dataset_type: str, total_problems: int) -> Dict:
+    def _calculate_metrics(self, results: list[Dict], dataset_type: str, total_problems: int) -> Dict:
         """Calculate metrics from experiment results."""
         # Filter out errors
         valid_results = [r for r in results if 'error' not in r]

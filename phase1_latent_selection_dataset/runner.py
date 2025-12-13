@@ -6,7 +6,7 @@ import time
 import torch
 import pandas as pd
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 import psutil  # For memory monitoring
 
 from common.config import Config
@@ -24,7 +24,6 @@ from common.dataset_utils import load_dataset_split, extract_code, evaluate_code
 
 # Use the project's phase-based logger
 logger = get_logger("phase1_latent_selection_dataset.runner", phase="1")
-
 
 class Phase1Runner:
     """Simple runner for Phase 1 dataset building with checkpointing support."""
@@ -74,7 +73,7 @@ class Phase1Runner:
         logger.info(f"Model loaded: {self.config.model_name}")
         logger.info(f"Extracting residual stream from layers: {self.config.activation_layers}")
         
-    def generate_and_extract(self, prompt: str, task_id: str = None) -> tuple[str, Dict[int, torch.Tensor]]:
+    def generate_and_extract(self, prompt: str, task_id: str = None) -> tuple[str, dict[int, torch.Tensor]]:
         """
         Generate code and extract activations in one pass.
         

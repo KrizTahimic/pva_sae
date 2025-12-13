@@ -5,7 +5,7 @@ Provides shared functionality for calculating correction/corruption rates,
 code similarity metrics, and creating steering hooks for SAE-based model interventions.
 """
 
-from typing import List, Dict, Callable, Union
+from typing import Callable, Union
 import pandas as pd
 import torch
 import tokenize
@@ -16,7 +16,7 @@ from common.logging import get_logger
 logger = get_logger("common.steering_metrics")
 
 
-def calculate_correction_rate(results: Union[List[Dict], pd.DataFrame]) -> float:
+def calculate_correction_rate(results: Union[list[dict], pd.DataFrame]) -> float:
     """
     Calculate percentage of incorrect→correct transitions.
     
@@ -80,7 +80,7 @@ def calculate_correction_rate(results: Union[List[Dict], pd.DataFrame]) -> float
     return correction_rate
 
 
-def calculate_corruption_rate(results: Union[List[Dict], pd.DataFrame]) -> float:
+def calculate_corruption_rate(results: Union[list[dict], pd.DataFrame]) -> float:
     """
     Calculate percentage of correct→incorrect transitions.
     
@@ -144,7 +144,7 @@ def calculate_corruption_rate(results: Union[List[Dict], pd.DataFrame]) -> float
     return corruption_rate
 
 
-def calculate_preservation_rate(results: Union[List[Dict], pd.DataFrame]) -> float:
+def calculate_preservation_rate(results: Union[list[dict], pd.DataFrame]) -> float:
     """
     Calculate percentage of correct problems that remain correct after steering.
     
@@ -176,7 +176,7 @@ def calculate_code_similarity(code1: str, code2: str) -> float:
     Returns:
         Similarity score from 0.0 (completely different) to 1.0 (identical)
     """
-    def get_tokens(code: str) -> List[str]:
+    def get_tokens(code: str) -> list[str]:
         """Extract meaningful tokens from Python code."""
         tokens = []
         try:

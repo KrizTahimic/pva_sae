@@ -15,10 +15,10 @@ import re
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-from typing import Set, List, Dict
+
 from collections import Counter
 
-def extract_imports_from_code(code: str) -> Set[str]:
+def extract_imports_from_code(code: str) -> set[str]:
     """
     Extract import statements from Python code.
 
@@ -45,7 +45,6 @@ def extract_imports_from_code(code: str) -> Set[str]:
 
     return imports
 
-
 def extract_base_library(import_statement: str) -> str:
     """
     Extract base library name from import statement.
@@ -71,7 +70,6 @@ def extract_base_library(import_statement: str) -> str:
             return match.group(1).split('.')[0]  # Take first part for nested imports
 
     return None
-
 
 def main():
     print("="*80)
@@ -217,7 +215,6 @@ def main():
     print("\n💡 Key Finding:")
     print(f"   Only {problems_with_imports}/{len(all_data)} ({problems_with_imports/len(all_data)*100:.1f}%) of MBPP problems require imports!")
     print(f"   {len(all_data) - problems_with_imports}/{len(all_data)} ({(len(all_data)-problems_with_imports)/len(all_data)*100:.1f}%) use pure Python with no imports.\n")
-
 
 if __name__ == "__main__":
     main()

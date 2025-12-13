@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Tuple, Optional
+from typing import Optional
 import argparse
 import os
 
@@ -32,7 +32,6 @@ from common.tensor_utils import load_activation
 
 logger = get_logger("phase7_12.instruct_auroc_f1_evaluator")
 
-
 class Phase712Runner:
     """Standard runner for Phase 7.12: Instruct Model AUROC/F1 Evaluation."""
 
@@ -50,14 +49,13 @@ class Phase712Runner:
         # main() creates its own Config internally
         return main()
 
-
 def calculate_metrics(
     y_true: np.ndarray,
     scores: np.ndarray,
     threshold: float,
     feature_type: str,
     output_dir: Path
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Calculate metrics for either correct or incorrect preferring features.
 
     Args:
@@ -98,13 +96,12 @@ def calculate_metrics(
         'threshold': float(threshold)
     }
 
-
 def find_optimal_threshold(
     y_true: np.ndarray,
     scores: np.ndarray,
     feature_type: str,
     output_dir: Path
-) -> Tuple[float, Dict[str, float]]:
+) -> tuple[float, dict[str, float]]:
     """Find optimal threshold for a specific feature type.
 
     Args:
@@ -153,7 +150,6 @@ def find_optimal_threshold(
 
     return optimal_f1_threshold, metrics
 
-
 def plot_confusion_matrix(
     y_true: np.ndarray,
     y_pred: np.ndarray,
@@ -189,7 +185,6 @@ def plot_confusion_matrix(
     # Save plot
     plt.savefig(output_dir / f'confusion_matrix_{feature_type}.png', dpi=150, bbox_inches='tight')
     plt.close()
-
 
 def plot_comparative_metrics(
     results: Dict,
@@ -273,7 +268,6 @@ def plot_comparative_metrics(
     plt.savefig(output_dir / 'comparative_metrics.png', dpi=150, bbox_inches='tight')
     plt.close()
 
-
 def load_instruct_activations(
     layer_num: int,
     feature_idx: int,
@@ -282,7 +276,7 @@ def load_instruct_activations(
     phase7_3_dir: Path,
     config: Config,
     dataset_name: str = "mbpp"
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Load activations for a specific feature from Phase 7.3 instruction-tuned model data.
 
     Note: Phase 7.3 only uses validation split, no hyperparameter split processing.
@@ -371,7 +365,6 @@ def load_instruct_activations(
         torch.cuda.empty_cache()
 
     return np.array(labels), np.array(activations)
-
 
 def main():
     parser = argparse.ArgumentParser(description="Phase 7.12: AUROC and F1 Evaluation for Instruction-Tuned Model")
@@ -611,7 +604,6 @@ def main():
         config=config,
         output_dir=str(output_dir)
     )
-
 
 if __name__ == "__main__":
     main()

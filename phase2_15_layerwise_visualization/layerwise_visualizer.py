@@ -24,7 +24,7 @@ Outputs: layerwise_separation_heatmap.png, layerwise_tstatistics_heatmap.png
 
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple
+
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -37,7 +37,6 @@ from common.config import Config
 from common.viz_utils import handle_viz_only_mode
 
 logger = get_logger("phase2_15.layerwise_visualizer")
-
 
 class LayerwiseVisualizer:
     """Visualize SAE feature statistics across model layers."""
@@ -130,7 +129,7 @@ class LayerwiseVisualizer:
         logger.info("✅ Phase 2.15 completed successfully")
         return results
 
-    def load_layer_data(self, phase_dir: Path, metric_key: str) -> Dict[int, Dict]:
+    def load_layer_data(self, phase_dir: Path, metric_key: str) -> dict[int, Dict]:
         """Load feature data from all layer files."""
         layer_data = {}
 
@@ -154,7 +153,7 @@ class LayerwiseVisualizer:
         logger.info(f"Loaded data for {len(layer_data)} layers")
         return layer_data
 
-    def build_heatmap_matrix(self, layer_data: Dict[int, Dict]) -> np.ndarray:
+    def build_heatmap_matrix(self, layer_data: dict[int, Dict]) -> np.ndarray:
         """Build matrix for heatmap: [2, n_layers] for correct/incorrect."""
         n_layers = 25  # Layers 1-25
         matrix = np.zeros((2, n_layers))

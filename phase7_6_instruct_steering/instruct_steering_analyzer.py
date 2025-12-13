@@ -11,7 +11,7 @@ import time
 import gc
 import psutil
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -43,7 +43,6 @@ from common.dataset_utils import evaluate_code, extract_code
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase7_6.instruct_steering_analyzer")
-
 
 class InstructSteeringAnalyzer:
     """Analyze steering effects on instruction-tuned model validation data."""
@@ -175,8 +174,8 @@ class InstructSteeringAnalyzer:
 
         logger.info("Dependencies loaded successfully")
         
-    def save_checkpoint(self, steering_type: str, results: List[Dict], 
-                       excluded_tasks: List[Dict], last_idx: int, 
+    def save_checkpoint(self, steering_type: str, results: list[Dict], 
+                       excluded_tasks: list[Dict], last_idx: int, 
                        total_tasks: int) -> None:
         """Save checkpoint for current steering experiment."""
         checkpoint_data = {
@@ -450,7 +449,7 @@ class InstructSteeringAnalyzer:
         
         return steered_df
         
-    def evaluate_steering_effects(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
+    def evaluate_steering_effects(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
         """Evaluate correct and incorrect steering effects on instruction-tuned model."""
         logger.info("Evaluating steering effects on instruction-tuned model...")
         
