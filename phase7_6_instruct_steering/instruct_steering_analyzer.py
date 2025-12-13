@@ -91,30 +91,30 @@ class InstructSteeringAnalyzer:
         if not phase2_5_output:
             raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
         
-        # Load top features
-        features_file = Path(phase2_5_output).parent / "top_20_features.json"
-        if not features_file.exists():
-            raise FileNotFoundError(f"Top features file not found: {features_file}")
-        
-        self.top_features = load_json(features_file)
-        
-        # Extract best correct and incorrect features
-        if 'correct' not in self.top_features or 'incorrect' not in self.top_features:
-            raise ValueError("Expected 'correct' and 'incorrect' keys in top_20_features.json")
-        
-        if len(self.top_features['correct']) == 0 or len(self.top_features['incorrect']) == 0:
-            raise ValueError("No features found in correct or incorrect arrays")
-        
-        # Get the best (first) feature from each category
-        self.best_correct_feature = self.top_features['correct'][0]
-        self.best_incorrect_feature = self.top_features['incorrect'][0]
-        
-        logger.info(f"Best correct feature: Layer {self.best_correct_feature['layer']}, "
-                   f"Index {self.best_correct_feature['feature_idx']}, "
-                   f"Score {self.best_correct_feature['separation_score']:.4f}")
-        logger.info(f"Best incorrect feature: Layer {self.best_incorrect_feature['layer']}, "
-                   f"Index {self.best_incorrect_feature['feature_idx']}, "
-                   f"Score {self.best_incorrect_feature['separation_score']:.4f}")
+        # Load top latents
+        latents_file = Path(phase2_5_output).parent / "top_20_latents.json"
+        if not latents_file.exists():
+            raise FileNotFoundError(f"Top latents file not found: {latents_file}")
+
+        self.top_latents = load_json(latents_file)
+
+        # Extract best correct and incorrect latents
+        if 'correct' not in self.top_latents or 'incorrect' not in self.top_latents:
+            raise ValueError("Expected 'correct' and 'incorrect' keys in top_20_latents.json")
+
+        if len(self.top_latents['correct']) == 0 or len(self.top_latents['incorrect']) == 0:
+            raise ValueError("No latents found in correct or incorrect arrays")
+
+        # Get the best (first) latent from each category
+        self.best_correct_latent = self.top_latents['correct'][0]
+        self.best_incorrect_latent = self.top_latents['incorrect'][0]
+
+        logger.info(f"Best correct latent: Layer {self.best_correct_latent['layer']}, "
+                   f"Index {self.best_correct_latent['latent_idx']}, "
+                   f"Score {self.best_correct_latent['separation_score']:.4f}")
+        logger.info(f"Best incorrect latent: Layer {self.best_incorrect_latent['layer']}, "
+                   f"Index {self.best_incorrect_latent['latent_idx']}, "
+                   f"Score {self.best_incorrect_latent['separation_score']:.4f}")
         
         # Load Phase 7.3 baseline data (instruction-tuned baseline)
         logger.info("Loading baseline data from Phase 7.3...")
@@ -141,27 +141,27 @@ class InstructSteeringAnalyzer:
         logger.info("Loading SAE models...")
         self.correct_sae = load_sae_for_config(
             self.config,
-            self.best_correct_feature['layer'], 
+            self.best_correct_latent['layer'], 
             self.device
         )
         self.incorrect_sae = load_sae_for_config(
             self.config,
-            self.best_incorrect_feature['layer'], 
+            self.best_incorrect_latent['layer'], 
             self.device
         )
         
         # Extract decoder directions
-        self.correct_decoder_direction = self.correct_sae.W_dec[
-            self.best_correct_feature['feature_idx']
+        self.correct_latent_direction = self.correct_sae.W_dec[
+            self.best_correct_latent['latent_idx']
         ].detach()
-        self.incorrect_decoder_direction = self.incorrect_sae.W_dec[
-            self.best_incorrect_feature['feature_idx']
+        self.incorrect_latent_direction = self.incorrect_sae.W_dec[
+            self.best_incorrect_latent['latent_idx']
         ].detach()
         
         # Ensure decoder directions are in the same dtype as the model
         model_dtype = next(self.model.parameters()).dtype
-        self.correct_decoder_direction = self.correct_decoder_direction.to(dtype=model_dtype)
-        self.incorrect_decoder_direction = self.incorrect_decoder_direction.to(dtype=model_dtype)
+        self.correct_latent_direction = self.correct_latent_direction.to(dtype=model_dtype)
+        self.incorrect_latent_direction = self.incorrect_latent_direction.to(dtype=model_dtype)
         
         logger.info(f"Decoder directions converted to model dtype: {model_dtype}")
 
@@ -280,15 +280,15 @@ class InstructSteeringAnalyzer:
         
         # Select decoder direction and target layer based on steering type
         if steering_type == 'correct':
-            decoder_direction = self.correct_decoder_direction
-            target_layer = self.best_correct_feature['layer']
+            latent_direction = self.correct_latent_direction
+            target_layer = self.best_correct_latent['layer']
         elif steering_type == 'preservation':
             # Use same correct feature for preservation
-            decoder_direction = self.correct_decoder_direction
-            target_layer = self.best_correct_feature['layer']
+            latent_direction = self.correct_latent_direction
+            target_layer = self.best_correct_latent['layer']
         elif steering_type == 'incorrect':
-            decoder_direction = self.incorrect_decoder_direction
-            target_layer = self.best_incorrect_feature['layer']
+            latent_direction = self.incorrect_latent_direction
+            target_layer = self.best_incorrect_latent['layer']
         else:
             raise ValueError(f"Invalid steering_type: {steering_type}. Must be 'correct', 'preservation', or 'incorrect'")
         
@@ -314,7 +314,7 @@ class InstructSteeringAnalyzer:
                                               start=start_idx):
             
             # Setup hook for this specific task
-            hook_fn = create_steering_hook(decoder_direction, coefficient)
+            hook_fn = create_steering_hook(latent_direction, coefficient)
             target_module = self.model.model.layers[target_layer]
             hook_handle = target_module.register_forward_pre_hook(hook_fn)
             
@@ -864,16 +864,16 @@ class InstructSteeringAnalyzer:
                     metrics['preservation_rate'] > 50
                 )
             },
-            'features_used': {
+            'latents_used': {
                 'correct': {
-                    'layer': self.best_correct_feature['layer'],
-                    'feature_idx': self.best_correct_feature['feature_idx'],
-                    'separation_score': self.best_correct_feature['separation_score']
+                    'layer': self.best_correct_latent['layer'],
+                    'latent_idx': self.best_correct_latent['latent_idx'],
+                    'separation_score': self.best_correct_latent['separation_score']
                 },
                 'incorrect': {
-                    'layer': self.best_incorrect_feature['layer'],
-                    'feature_idx': self.best_incorrect_feature['feature_idx'],
-                    'separation_score': self.best_incorrect_feature['separation_score']
+                    'layer': self.best_incorrect_latent['layer'],
+                    'latent_idx': self.best_incorrect_latent['latent_idx'],
+                    'separation_score': self.best_incorrect_latent['separation_score']
                 }
             }
         }

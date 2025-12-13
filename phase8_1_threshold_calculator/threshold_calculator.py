@@ -77,13 +77,13 @@ class ThresholdCalculator:
 
         phase3_8_results = load_json(Path(phase3_8_output).parent / "evaluation_results.json")
 
-        # Extract incorrect-predicting feature info
-        incorrect_pred_info = phase3_8_results['incorrect_predicting_feature']
-        self.feature_layer = incorrect_pred_info['feature']['layer']  # 19
-        self.feature_idx = incorrect_pred_info['feature']['idx']  # 5441
+        # Extract incorrect-predicting latent info
+        incorrect_pred_info = phase3_8_results['incorrect_predicting_latent']
+        self.latent_layer = incorrect_pred_info['latent']['layer']  # 19
+        self.latent_idx = incorrect_pred_info['latent']['idx']  # 5441
         self.phase3_8_threshold = incorrect_pred_info['threshold_optimization']['optimal_threshold']  # 15.5086
 
-        logger.info(f"Incorrect-predicting feature: Layer {self.feature_layer}, Feature {self.feature_idx}")
+        logger.info(f"Incorrect-predicting latent: Layer {self.latent_layer}, Latent {self.latent_idx}")
         logger.info(f"Phase 3.8 optimal threshold (reference): {self.phase3_8_threshold:.4f}")
 
         # === LOAD PHASE 3.6 DATASET ===
@@ -119,9 +119,9 @@ class ThresholdCalculator:
         logger.info(f"Activation directory: {self.activation_dir}")
 
         # === LOAD SAE FOR DECOMPOSITION ===
-        logger.info(f"Loading SAE for Layer {self.feature_layer}...")
-        self.sae = load_sae_for_config(self.config, self.feature_layer, self.device)
-        logger.info(f"✓ SAE loaded for Layer {self.feature_layer}")
+        logger.info(f"Loading SAE for Layer {self.latent_layer}...")
+        self.sae = load_sae_for_config(self.config, self.latent_layer, self.device)
+        logger.info(f"✓ SAE loaded for Layer {self.latent_layer}")
 
         logger.info("Dependencies loaded successfully")
 
@@ -137,7 +137,7 @@ class ThresholdCalculator:
         logger.info("="*60)
 
         # === EXTRACT ACTIVATIONS FROM SAFETENSORS FILES ===
-        logger.info(f"Extracting L{self.feature_layer}-{self.feature_idx} activations from safetensors files...")
+        logger.info(f"Extracting L{self.latent_layer}-{self.latent_idx} activations from safetensors files...")
 
         activations = []
         missing_files = []
@@ -146,7 +146,7 @@ class ThresholdCalculator:
             task_id = row['task_id']
 
             # Construct activation filename
-            activation_file = self.activation_dir / f"{task_id}_layer_{self.feature_layer}.safetensors"
+            activation_file = self.activation_dir / f"{task_id}_layer_{self.latent_layer}.safetensors"
 
             if not activation_file.exists():
                 missing_files.append(task_id)
@@ -162,11 +162,11 @@ class ThresholdCalculator:
                     raw_tensor = raw_tensor.to(dtype=self.sae.W_enc.dtype)
 
                     # Encode through SAE to get feature activations
-                    sae_features = self.sae.encode(raw_tensor)  # Shape: (1, 16384)
+                    latent_activations = self.sae.encode(raw_tensor)  # Shape: (1, 16384)
 
                     # Extract specific feature
-                    feature_activation = sae_features[0, self.feature_idx].item()
-                    activations.append(float(feature_activation))
+                    latent_activation = latent_activations[0, self.latent_idx].item()
+                    activations.append(float(latent_activation))
 
             except Exception as e:
                 logger.warning(f"Task {task_id}: Error processing activation: {e}")
@@ -232,9 +232,9 @@ class ThresholdCalculator:
             'timestamp': datetime.now().isoformat(),
             'source_phase': '3.6',
             'source_dataset': 'hyperparams',
-            'feature_info': {
-                'layer': self.feature_layer,
-                'feature_idx': self.feature_idx,
+            'latent_info': {
+                'layer': self.latent_layer,
+                'latent_idx': self.latent_idx,
                 'description': 'Incorrect-predicting feature from Phase 3.8'
             },
             'activation_statistics': statistics,
@@ -275,7 +275,7 @@ class ThresholdCalculator:
             "="*60,
             "",
             f"Source: Phase 3.6 (hyperparameter dataset, {summary['activation_statistics']['n_samples']} samples)",
-            f"Feature: Layer {summary['feature_info']['layer']}, Feature {summary['feature_info']['feature_idx']}",
+            f"Feature: Layer {summary['latent_info']['layer']}, Feature {summary['latent_info']['feature_idx']}",
             "",
             "PERCENTILE THRESHOLDS",
             "-"*60,

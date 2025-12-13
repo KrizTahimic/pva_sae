@@ -91,32 +91,32 @@ class TemperatureAUROCEvaluator:
             if not temp_file.exists():
                 raise FileNotFoundError(f"Temperature dataset not found: {temp_file}")
     
-    def load_best_features(self) -> dict[str, Dict]:
-        """Load best features and thresholds from Phase 3.8."""
-        self.logger.info("Loading Phase 3.8 best features and thresholds")
+    def load_best_latents(self) -> dict[str, Dict]:
+        """Load best latents and thresholds from Phase 3.8."""
+        self.logger.info("Loading Phase 3.8 best latents and thresholds")
         
         results = load_json(self.phase3_8_results_path)
         
-        # Extract best features for correct and incorrect
-        best_features = {
+        # Extract best latents for correct and incorrect
+        best_latents = {
             'correct': {
-                'layer': results['correct_predicting_feature']['feature']['layer'],
-                'feature_idx': results['correct_predicting_feature']['feature']['idx'],
-                'threshold': results['correct_predicting_feature']['threshold_optimization']['optimal_threshold']
+                'layer': results['correct_predicting_latent']['latent']['layer'],
+                'latent_idx': results['correct_predicting_latent']['latent']['idx'],
+                'threshold': results['correct_predicting_latent']['threshold_optimization']['optimal_threshold']
             },
             'incorrect': {
-                'layer': results['incorrect_predicting_feature']['feature']['layer'],
-                'feature_idx': results['incorrect_predicting_feature']['feature']['idx'],
-                'threshold': results['incorrect_predicting_feature']['threshold_optimization']['optimal_threshold']
+                'layer': results['incorrect_predicting_latent']['latent']['layer'],
+                'latent_idx': results['incorrect_predicting_latent']['latent']['idx'],
+                'threshold': results['incorrect_predicting_latent']['threshold_optimization']['optimal_threshold']
             }
         }
+
+        self.logger.info(f"Best correct latent: Layer {best_latents['correct']['layer']}, "
+                        f"Index {best_latents['correct']['latent_idx']}")
+        self.logger.info(f"Best incorrect latent: Layer {best_latents['incorrect']['layer']}, "
+                        f"Index {best_latents['incorrect']['latent_idx']}")
         
-        self.logger.info(f"Best correct feature: Layer {best_features['correct']['layer']}, "
-                        f"Index {best_features['correct']['feature_idx']}")
-        self.logger.info(f"Best incorrect feature: Layer {best_features['incorrect']['layer']}, "
-                        f"Index {best_features['incorrect']['feature_idx']}")
-        
-        return best_features
+        return best_latents
     
     def load_temperature_dataset(self, temperature: float) -> pd.DataFrame:
         """Load dataset for a specific temperature."""
@@ -136,14 +136,14 @@ class TemperatureAUROCEvaluator:
         return df
     
     def process_temperature_data(
-        self, 
-        temp_dataset: pd.DataFrame, 
-        best_features: dict[str, Any], 
+        self,
+        temp_dataset: pd.DataFrame,
+        best_latents: dict[str, Any],
         sae: Any,
         temperature: float
     ) -> tuple[np.ndarray, np.ndarray]:
         """Process data for a single temperature using per-sample analysis."""
-        sample_features = []
+        sample_latent_values = []
         sample_labels = []
         
         # Cache for activation values to avoid redundant loading
@@ -159,7 +159,7 @@ class TemperatureAUROCEvaluator:
             else:
                 # Load pre-saved activation from Phase 3.5 (preserves bfloat16)
                 activation_path = (self.phase3_5_dir / "activations" / "task_activations" /
-                                 f"{task_id}_layer_{best_features['layer']}.safetensors")
+                                 f"{task_id}_layer_{best_latents['layer']}.safetensors")
 
                 # Fail fast if activation file missing
                 if not activation_path.exists():
@@ -180,32 +180,32 @@ class TemperatureAUROCEvaluator:
                         # Ensure [1, d_model] shape for SAE encoding
                         if raw_tensor.ndim == 1:
                             raw_tensor = rearrange(raw_tensor, 'd -> 1 d')
-                        sae_features = sae.encode(raw_tensor)
-                        feature_value = sae_features[0, best_features['feature_idx']].item()
+                        latent_activations = sae.encode(raw_tensor)
+                        latent_value = latent_activations[0, best_latents['latent_idx']].item()
                     
-                    # Cache the feature value for this task
-                    activation_cache[task_id] = feature_value
-                    
+                    # Cache the latent value for this task
+                    activation_cache[task_id] = latent_value
+
                 except Exception as e:
                     self.logger.error(f"Error processing {task_id}: {str(e)}")
                     raise
-            
+
             # Each sample has its own label
             label = int(row['test_passed'])
-            
-            sample_features.append(feature_value)
+
+            sample_latent_values.append(latent_value)
             sample_labels.append(label)
         
-        return np.array(sample_features), np.array(sample_labels)
+        return np.array(sample_latent_values), np.array(sample_labels)
     
-    def evaluate_across_temperatures(self, best_features: dict[str, Dict]) -> Dict:
+    def evaluate_across_temperatures(self, best_latents: dict[str, Dict]) -> Dict:
         """Evaluate feature performance at each temperature."""
         results = {}
         
         # Load SAEs once for reuse
         self.logger.info("Loading SAEs for feature encoding")
-        sae_correct = load_sae_for_config(self.config, best_features['correct']['layer'], self.device)
-        sae_incorrect = load_sae_for_config(self.config, best_features['incorrect']['layer'], self.device)
+        sae_correct = load_sae_for_config(self.config, best_latents['correct']['layer'], self.device)
+        sae_incorrect = load_sae_for_config(self.config, best_latents['incorrect']['layer'], self.device)
         
         for temp in self.temperatures:
             self.logger.info(f"\nProcessing temperature {temp}")
@@ -222,7 +222,7 @@ class TemperatureAUROCEvaluator:
                 
                 features, labels = self.process_temperature_data(
                     temp_data, 
-                    best_features[feature_type],
+                    best_latents[feature_type],
                     sae,
                     temp
                 )
@@ -253,7 +253,7 @@ class TemperatureAUROCEvaluator:
                     recall = np.array([0, 1])
                 else:
                     auroc = roc_auc_score(labels, features)
-                    threshold = best_features[feature_type]['threshold']
+                    threshold = best_latents[feature_type]['threshold']
                     predictions = (features > threshold).astype(int)
                     f1 = f1_score(labels, predictions)
                     # Calculate ROC curve
@@ -518,19 +518,19 @@ class TemperatureAUROCEvaluator:
         
         self.logger.info(f"Saved Precision-Recall curves plot to {output_path}")
     
-    def generate_summary(self, results: Dict, best_features: dict[str, Dict]) -> str:
+    def generate_summary(self, results: Dict, best_latents: dict[str, Dict]) -> str:
         """Generate human-readable summary of results."""
         lines = ["=" * 60]
         lines.append("PHASE 3.10: TEMPERATURE-BASED AUROC ANALYSIS")
         lines.append("=" * 60)
         lines.append("")
         
-        # Feature information
-        lines.append("BEST FEATURES ANALYZED:")
-        lines.append(f"  Correct-preferring: Layer {best_features['correct']['layer']}, "
-                    f"Feature {best_features['correct']['feature_idx']}")
-        lines.append(f"  Incorrect-preferring: Layer {best_features['incorrect']['layer']}, "
-                    f"Feature {best_features['incorrect']['feature_idx']}")
+        # Latent information
+        lines.append("BEST LATENTS ANALYZED:")
+        lines.append(f"  Correct-preferring: Layer {best_latents['correct']['layer']}, "
+                    f"Latent {best_latents['correct']['latent_idx']}")
+        lines.append(f"  Incorrect-preferring: Layer {best_latents['incorrect']['layer']}, "
+                    f"Latent {best_latents['incorrect']['latent_idx']}")
         lines.append("")
         
         # Methodology information
@@ -620,7 +620,7 @@ class TemperatureAUROCEvaluator:
         
         return "\n".join(lines)
     
-    def save_results(self, results: Dict, best_features: dict[str, Dict]) -> None:
+    def save_results(self, results: Dict, best_latents: dict[str, Dict]) -> None:
         """Save all results to output directory."""
         # Save comprehensive JSON results
         output_data = {
@@ -628,7 +628,7 @@ class TemperatureAUROCEvaluator:
             'phase': '3.10',
             'description': 'Temperature-Based AUROC Analysis',
             'temperatures_analyzed': sorted(results.keys()),
-            'best_features': best_features,
+            'best_latents': best_latents,
             'results_by_temperature': results,
             'methodology': {
                 'analysis_method': 'per_sample',
@@ -641,7 +641,7 @@ class TemperatureAUROCEvaluator:
         self.logger.info(f"Saved results to {json_path}")
         
         # Save human-readable summary
-        summary = self.generate_summary(results, best_features)
+        summary = self.generate_summary(results, best_latents)
         summary_path = self.output_dir / 'temperature_summary.txt'
         with open(summary_path, 'w') as f:
             f.write(summary)
@@ -685,10 +685,10 @@ class TemperatureAUROCEvaluator:
         self.logger.info("Using per-sample analysis (no aggregation)")
 
         # Load best features from Phase 3.8
-        best_features = self.load_best_features()
+        best_latents = self.load_best_latents()
         
         # Evaluate across all temperatures
-        results = self.evaluate_across_temperatures(best_features)
+        results = self.evaluate_across_temperatures(best_latents)
         
         # Generate visualizations
         self.plot_temperature_trends(results)
@@ -696,7 +696,7 @@ class TemperatureAUROCEvaluator:
         self.plot_precision_recall_curves(results)
         
         # Save all results
-        self.save_results(results, best_features)
+        self.save_results(results, best_latents)
         
         self.logger.info("Phase 3.10 completed successfully")
         

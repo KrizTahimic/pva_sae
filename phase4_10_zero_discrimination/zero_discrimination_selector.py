@@ -147,29 +147,29 @@ class ZeroDiscriminationSelector:
         
     def load_discriminative_features(self) -> set:
         """Load Phase 2.5 top discriminative features to exclude."""
-        logger.info("Loading Phase 2.5 discriminative features to exclude...")
-        
+        logger.info("Loading Phase 2.5 discriminative latents to exclude...")
+
         phase2_5_output = discover_latest_phase_output("2.5", phase_dir=self.phase2_5_dir)
         if not phase2_5_output:
-            logger.warning("Phase 2.5 output not found - no features to exclude")
+            logger.warning("Phase 2.5 output not found - no latents to exclude")
             return set()
-        
-        top_features_file = Path(phase2_5_output).parent / "top_20_features.json"
-        if not top_features_file.exists():
-            logger.warning("Top features file not found - no features to exclude")
+
+        top_latents_file = Path(phase2_5_output).parent / "top_20_latents.json"
+        if not top_latents_file.exists():
+            logger.warning("Top latents file not found - no latents to exclude")
             return set()
-        
-        top_features = load_json(top_features_file)
+
+        top_latents = load_json(top_latents_file)
         excluded = set()
-        
-        # Extract feature identifiers
+
+        # Extract latent identifiers
         for category in ['correct', 'incorrect']:
-            if category in top_features:
-                for feature in top_features[category]:
-                    layer = feature.get('layer')
-                    feature_idx = feature.get('feature_idx')
-                    if layer and feature_idx is not None:
-                        excluded.add(f"L{layer}F{feature_idx}")
+            if category in top_latents:
+                for latent in top_latents[category]:
+                    layer = latent.get('layer')
+                    latent_idx = latent.get('latent_idx')
+                    if layer and latent_idx is not None:
+                        excluded.add(f"L{layer}F{latent_idx}")
         
         logger.info(f"Excluding {len(excluded)} discriminative features from Phase 2.5")
         return excluded
@@ -206,19 +206,19 @@ class ZeroDiscriminationSelector:
             feature_freqs = self.calculate_feature_frequencies(layer)
             
             # Filter candidates
-            for feature_idx, stats in feature_freqs.items():
-                feature_id = f"L{layer}F{feature_idx}"
-                
+            for latent_idx, stats in feature_freqs.items():
+                latent_id = f"L{layer}F{latent_idx}"
+
                 # Skip if in excluded list
-                if feature_id in excluded_features:
+                if latent_id in excluded_features:
                     continue
-                
+
                 # Check zero-discrimination criteria
                 if stats['separation_score'] < self.separation_threshold:
                     all_candidates.append({
                         'layer': layer,
-                        'feature_idx': feature_idx,
-                        'feature_id': feature_id,
+                        'latent_idx': latent_idx,
+                        'latent_id': latent_id,
                         'separation_score': stats['separation_score'],
                         'freq_correct': stats['freq_correct'],
                         'freq_incorrect': stats['freq_incorrect']
@@ -229,24 +229,24 @@ class ZeroDiscriminationSelector:
         # Sort by separation score (ascending - most zero first)
         all_candidates.sort(key=lambda x: x['separation_score'])
         
-        # Select top N features
-        selected_features = all_candidates[:self.n_features]
-        
-        logger.info(f"Selected {len(selected_features)} zero-discrimination features from {len(all_candidates)} candidates")
-        
-        # Load decoder directions for selected features
-        logger.info("Loading decoder directions for selected features...")
-        for feature in selected_features:
-            layer = feature['layer']
-            feature_idx = feature['feature_idx']
-            
+        # Select top N latents
+        selected_latents = all_candidates[:self.n_features]
+
+        logger.info(f"Selected {len(selected_latents)} zero-discrimination latents from {len(all_candidates)} candidates")
+
+        # Load latent directions for selected latents
+        logger.info("Loading latent directions for selected latents...")
+        for latent in selected_latents:
+            layer = latent['layer']
+            latent_idx = latent['latent_idx']
+
             try:
                 sae = load_sae_for_config(self.config, layer, "cpu")  # Use CPU for Phase 4.10
-                decoder_weight = to_numpy(sae.W_dec[feature_idx])
-                feature['decoder_direction'] = decoder_weight.tolist()
+                decoder_weight = to_numpy(sae.W_dec[latent_idx])
+                latent['latent_direction'] = decoder_weight.tolist()
             except Exception as e:
-                logger.warning(f"Failed to load decoder for L{layer}F{feature_idx}: {e}")
-                feature['decoder_direction'] = None
+                logger.warning(f"Failed to load decoder for L{layer}F{latent_idx}: {e}")
+                latent['latent_direction'] = None
         
         # Prepare results
         results = {
@@ -257,12 +257,12 @@ class ZeroDiscriminationSelector:
                 'separation_threshold': self.separation_threshold,
                 'min_activation_freq': self.min_activation_freq,
                 'n_features_requested': self.n_features,
-                'n_features_selected': len(selected_features),
+                'n_features_selected': len(selected_latents),
                 'n_candidates_evaluated': len(all_candidates),
                 'n_discriminative_excluded': len(excluded_features),
                 'timestamp': datetime.now().isoformat()
             },
-            'features': selected_features,
+            'features': selected_latents,
             'excluded_top_features': list(excluded_features)
         }
         
@@ -275,14 +275,14 @@ class ZeroDiscriminationSelector:
         summary = {
             'metadata': results['metadata'],
             'features_summary': [
-                {k: v for k, v in f.items() if k != 'decoder_direction'}
-                for f in selected_features
+                {k: v for k, v in f.items() if k != 'latent_direction'}
+                for f in selected_latents
             ],
             'layer_distribution': {}
         }
         
         # Calculate layer distribution
-        for feature in selected_features:
+        for feature in selected_latents:
             layer = str(feature['layer'])
             summary['layer_distribution'][layer] = summary['layer_distribution'].get(layer, 0) + 1
         
@@ -311,13 +311,13 @@ class ZeroDiscriminationSelector:
         # Log feature summary
         logger.info("\nSelected Zero-Discrimination Features:")
         logger.info("-" * 40)
-        for i, feature in enumerate(selected_features[:5], 1):
+        for i, feature in enumerate(selected_latents[:5], 1):
             logger.info(f"{i}. Layer {feature['layer']}, Feature {feature['feature_idx']}")
             logger.info(f"   Separation: {feature['separation_score']:.6f}")
             logger.info(f"   Freq correct: {feature['freq_correct']:.4f}")
             logger.info(f"   Freq incorrect: {feature['freq_incorrect']:.4f}")
         
-        if len(selected_features) > 5:
-            logger.info(f"   ... and {len(selected_features) - 5} more features")
+        if len(selected_latents) > 5:
+            logger.info(f"   ... and {len(selected_latents) - 5} more features")
         
         return results

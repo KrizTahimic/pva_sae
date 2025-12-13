@@ -76,35 +76,35 @@ def group_by_difficulty(validation_data: pd.DataFrame) -> dict[str, pd.DataFrame
 def load_group_activations(
     group_data: pd.DataFrame,
     layer_num: int,
-    feature_idx: int,
-    feature_type: str,
+    latent_idx: int,
+    latent_type: str,
     sae: torch.nn.Module,
     device: torch.device,
     temp_data: pd.DataFrame,
     phase3_5_dir: Path
 ) -> tuple[np.ndarray, np.ndarray]:
     """Load activations for a specific difficulty group.
-    
+
     Args:
         group_data: DataFrame with tasks for this difficulty group
         layer_num: Layer number for SAE
-        feature_idx: Feature index to extract
-        feature_type: 'correct' or 'incorrect'
+        latent_idx: Latent index to extract
+        latent_type: 'correct' or 'incorrect'
         sae: Pre-loaded SAE model
         device: Device for computation
         temp_data: Pre-loaded temperature 0.0 dataset
         phase3_5_dir: Directory containing Phase 3.5 outputs
-        
+
     Returns:
         Tuple of (labels, activations)
     """
     activations = []
     labels = []
     missing_tasks = []
-    
+
     for _, row in group_data.iterrows():
         task_id = row['task_id']
-        
+
         # Load raw activations from Phase 3.5 (preserves bfloat16)
         act_file = phase3_5_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.safetensors'
 
@@ -117,13 +117,13 @@ def load_group_activations(
 
         # Ensure dtype matches SAE parameters for matrix multiplication
         raw_activation = raw_activation.to(sae.W_enc.dtype)
-        
+
         with torch.no_grad():
-            sae_features = sae.encode(raw_activation)
-        
-        # Extract specific feature value
-        feature_activation = sae_features[0, feature_idx].item()
-        activations.append(feature_activation)
+            latent_activations = sae.encode(raw_activation)
+
+        # Extract specific latent value
+        latent_activation = latent_activations[0, latent_idx].item()
+        activations.append(latent_activation)
         
         # Get test result and create label
         task_results = temp_data[temp_data['task_id'] == task_id]['test_passed'].values
@@ -133,7 +133,7 @@ def load_group_activations(
         test_passed = task_results[0]  # Use first sample at temperature 0.0
         
         # Create label based on feature type
-        if feature_type == 'correct':
+        if latent_type == 'correct':
             label = 1 if test_passed else 0  # Flipped for correct-predicting
         else:
             label = 0 if test_passed else 1  # Standard for incorrect-predicting
@@ -147,19 +147,19 @@ def load_group_activations(
     n_positive = sum(labels)
     n_negative = len(labels) - n_positive
     if n_positive == 0 or n_negative == 0:
-        logger.warning(f"WARNING: {feature_type}-predicting feature has imbalanced classes - "
+        logger.warning(f"WARNING: {latent_type}-predicting feature has imbalanced classes - "
                       f"positive: {n_positive}, negative: {n_negative}")
     elif n_positive < 5 or n_negative < 5:
-        logger.warning(f"WARNING: {feature_type}-predicting feature has very few samples in one class - "
+        logger.warning(f"WARNING: {latent_type}-predicting feature has very few samples in one class - "
                       f"positive: {n_positive}, negative: {n_negative}")
     
     return np.array(labels), np.array(activations)
 
 def calculate_difficulty_metrics(
     difficulty_groups: dict[str, pd.DataFrame],
-    best_features: Dict,
+    best_latents: Dict,
     global_threshold: float,
-    feature_type: str,
+    latent_type: str,
     output_dir: Path,
     sae: torch.nn.Module,
     device: torch.device,
@@ -170,9 +170,9 @@ def calculate_difficulty_metrics(
     
     Args:
         difficulty_groups: Dict of difficulty groups
-        best_features: Best feature information
+        best_latents: Best feature information
         global_threshold: F1-optimal threshold from Phase 3.8
-        feature_type: 'correct' or 'incorrect'
+        latent_type: 'correct' or 'incorrect'
         output_dir: Output directory for plots
         sae: Pre-loaded SAE model
         device: Device for computation
@@ -185,19 +185,19 @@ def calculate_difficulty_metrics(
     results = {}
     
     for group_name, group_data in difficulty_groups.items():
-        logger.info(f"\nEvaluating {feature_type}-predicting feature on {group_name} group:")
+        logger.info(f"\nEvaluating {latent_type}-predicting feature on {group_name} group:")
         
         # Get feature info
-        if feature_type == 'correct':
-            layer = best_features['correct']
-            feature_idx = best_features['correct_feature_idx']
+        if latent_type == 'correct':
+            layer = best_latents['correct']
+            latent_idx = best_latents['correct_latent_idx']
         else:
-            layer = best_features['incorrect']
-            feature_idx = best_features['incorrect_feature_idx']
+            layer = best_latents['incorrect']
+            latent_idx = best_latents['incorrect_latent_idx']
         
         # Load activations for this group
         y_true, scores = load_group_activations(
-            group_data, layer, feature_idx, feature_type,
+            group_data, layer, latent_idx, latent_type,
             sae, device, temp_data, phase3_5_dir
         )
         
@@ -219,10 +219,10 @@ def calculate_difficulty_metrics(
         plt.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Random Classifier')
         plt.xlabel('False Positive Rate')
         plt.ylabel('True Positive Rate')
-        plt.title(f'ROC Curve - {feature_type.capitalize()}-Predicting Feature ({group_name.capitalize()} Group)')
+        plt.title(f'ROC Curve - {latent_type.capitalize()}-Predicting Feature ({group_name.capitalize()} Group)')
         plt.legend()
         plt.grid(True, alpha=0.3)
-        plt.savefig(output_dir / f'roc_curve_{feature_type}_{group_name}.png', dpi=150, bbox_inches='tight')
+        plt.savefig(output_dir / f'roc_curve_{latent_type}_{group_name}.png', dpi=150, bbox_inches='tight')
         plt.close()
         
         # Plot confusion matrix for this group
@@ -230,7 +230,7 @@ def calculate_difficulty_metrics(
         plt.figure(figsize=(8, 6))
         
         # Adjust labels based on feature type
-        if feature_type == 'correct':
+        if latent_type == 'correct':
             labels = ['Incorrect', 'Correct']
         else:
             labels = ['Correct', 'Incorrect']
@@ -238,10 +238,10 @@ def calculate_difficulty_metrics(
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                     xticklabels=labels, yticklabels=labels,
                     cbar_kws={'label': 'Count'})
-        plt.title(f'Confusion Matrix - {feature_type.capitalize()}-Predicting Feature ({group_name.capitalize()} Group)')
+        plt.title(f'Confusion Matrix - {latent_type.capitalize()}-Predicting Feature ({group_name.capitalize()} Group)')
         plt.ylabel('True Label')
         plt.xlabel('Predicted Label')
-        plt.savefig(output_dir / f'confusion_matrix_{feature_type}_{group_name}.png', dpi=150, bbox_inches='tight')
+        plt.savefig(output_dir / f'confusion_matrix_{latent_type}_{group_name}.png', dpi=150, bbox_inches='tight')
         plt.close()
         
         results[group_name] = {
@@ -293,10 +293,10 @@ def plot_difficulty_distribution(
 
 def plot_roc_curves_by_difficulty(
     difficulty_groups: dict[str, pd.DataFrame],
-    feature_type: str,
+    latent_type: str,
     results: Dict,
     output_dir: Path,
-    best_features: Dict,
+    best_latents: Dict,
     sae: torch.nn.Module,
     device: torch.device,
     temp_data: pd.DataFrame,
@@ -306,16 +306,16 @@ def plot_roc_curves_by_difficulty(
     plt.figure(figsize=(10, 8))
     
     colors = ['green', 'orange', 'red']
-    layer = best_features[feature_type]
-    feature_idx = best_features[f'{feature_type}_feature_idx']
+    layer = best_latents[latent_type]
+    latent_idx = best_latents[f'{latent_type}_latent_idx']
     
     for i, (group_name, group_result) in enumerate(results.items()):
         # Re-calculate ROC curve points for plotting
         y_true, scores = load_group_activations(
             difficulty_groups[group_name], 
             layer,
-            feature_idx, 
-            feature_type,
+            latent_idx, 
+            latent_type,
             sae, device, temp_data, phase3_5_dir
         )
         
@@ -328,11 +328,11 @@ def plot_roc_curves_by_difficulty(
     plt.plot([0, 1], [0, 1], 'k--', linewidth=1, alpha=0.5, label='Random Classifier')
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title(f'ROC Curves by Difficulty - {feature_type.capitalize()}-Predicting Feature')
+    plt.title(f'ROC Curves by Difficulty - {latent_type.capitalize()}-Predicting Feature')
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(output_dir / f'roc_curves_by_difficulty_{feature_type}.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / f'roc_curves_by_difficulty_{latent_type}.png', dpi=150, bbox_inches='tight')
     plt.close()
 
 def calculate_trend(values: list) -> str:
@@ -521,26 +521,26 @@ def main():
     logger.info("PHASE 3.12: DIFFICULTY-BASED AUROC ANALYSIS")
     logger.info("="*60)
     
-    # Load Phase 3.8 results to get best features and thresholds
+    # Load Phase 3.8 results to get best latents and thresholds
     logger.info("\nLoading Phase 3.8 results...")
     phase3_8_results = load_json(phase3_8_dir / 'evaluation_results.json')
-    best_features = {
-        'correct': phase3_8_results['correct_predicting_feature']['feature']['layer'],
-        'correct_feature_idx': phase3_8_results['correct_predicting_feature']['feature']['idx'],
-        'incorrect': phase3_8_results['incorrect_predicting_feature']['feature']['layer'],
-        'incorrect_feature_idx': phase3_8_results['incorrect_predicting_feature']['feature']['idx']
+    best_latents = {
+        'correct': phase3_8_results['correct_predicting_latent']['latent']['layer'],
+        'correct_latent_idx': phase3_8_results['correct_predicting_latent']['latent']['idx'],
+        'incorrect': phase3_8_results['incorrect_predicting_latent']['latent']['layer'],
+        'incorrect_latent_idx': phase3_8_results['incorrect_predicting_latent']['latent']['idx']
     }
 
     # Extract global F1-optimal thresholds from Phase 3.8
     global_thresholds = {
-        'correct': phase3_8_results['correct_predicting_feature']['threshold_optimization']['optimal_threshold'],
-        'incorrect': phase3_8_results['incorrect_predicting_feature']['threshold_optimization']['optimal_threshold']
+        'correct': phase3_8_results['correct_predicting_latent']['threshold_optimization']['optimal_threshold'],
+        'incorrect': phase3_8_results['incorrect_predicting_latent']['threshold_optimization']['optimal_threshold']
     }
-    
-    logger.info(f"Best correct-predicting feature: idx {best_features['correct_feature_idx']} "
-               f"at layer {best_features['correct']} (threshold: {global_thresholds['correct']:.4f})")
-    logger.info(f"Best incorrect-predicting feature: idx {best_features['incorrect_feature_idx']} "
-               f"at layer {best_features['incorrect']} (threshold: {global_thresholds['incorrect']:.4f})")
+
+    logger.info(f"Best correct-predicting latent: idx {best_latents['correct_latent_idx']} "
+               f"at layer {best_latents['correct']} (threshold: {global_thresholds['correct']:.4f})")
+    logger.info(f"Best incorrect-predicting latent: idx {best_latents['incorrect_latent_idx']} "
+               f"at layer {best_latents['incorrect']} (threshold: {global_thresholds['incorrect']:.4f})")
     
     # Load temperature 0.0 dataset which includes cyclomatic complexity
     logger.info("\nLoading validation dataset from Phase 3.5...")
@@ -569,13 +569,13 @@ def main():
     logger.info("="*60)
 
     # Load SAE for correct-predicting feature
-    correct_layer = best_features['correct']
+    correct_layer = best_latents['correct']
     sae_correct = load_sae_for_config(config, correct_layer, device)
     logger.info(f"Loaded SAE for layer {correct_layer} on {device}")
     
     correct_results = calculate_difficulty_metrics(
         difficulty_groups, 
-        best_features, 
+        best_latents, 
         global_thresholds['correct'],
         'correct', 
         output_dir,
@@ -598,13 +598,13 @@ def main():
     logger.info("="*60)
 
     # Load SAE for incorrect-predicting feature
-    incorrect_layer = best_features['incorrect']
+    incorrect_layer = best_latents['incorrect']
     sae_incorrect = load_sae_for_config(config, incorrect_layer, device)
     logger.info(f"Loaded SAE for layer {incorrect_layer} on {device}")
     
     incorrect_results = calculate_difficulty_metrics(
         difficulty_groups, 
-        best_features, 
+        best_latents, 
         global_thresholds['incorrect'],
         'incorrect', 
         output_dir,
@@ -666,16 +666,16 @@ def main():
     
     # Generate additional comparative visualizations
     # Note: We need to reload SAEs since they were deleted after individual analyses
-    sae_correct = load_sae_for_config(config, best_features['correct'], device)
+    sae_correct = load_sae_for_config(config, best_latents['correct'], device)
     plot_roc_curves_by_difficulty(difficulty_groups, 'correct', correct_results, output_dir, 
-                                   best_features, sae_correct, device, temp_data, phase3_5_dir)
+                                   best_latents, sae_correct, device, temp_data, phase3_5_dir)
     del sae_correct
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     
-    sae_incorrect = load_sae_for_config(config, best_features['incorrect'], device)
+    sae_incorrect = load_sae_for_config(config, best_latents['incorrect'], device)
     plot_roc_curves_by_difficulty(difficulty_groups, 'incorrect', incorrect_results, output_dir,
-                                   best_features, sae_incorrect, device, temp_data, phase3_5_dir)
+                                   best_latents, sae_incorrect, device, temp_data, phase3_5_dir)
     del sae_incorrect
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -695,11 +695,11 @@ def main():
             }
             for group_name, group_data in difficulty_groups.items()
         },
-        'best_features': {
-            'correct': int(best_features['correct']),
-            'correct_feature_idx': int(best_features['correct_feature_idx']),
-            'incorrect': int(best_features['incorrect']),
-            'incorrect_feature_idx': int(best_features['incorrect_feature_idx'])
+        'best_latents': {
+            'correct': int(best_latents['correct']),
+            'correct_latent_idx': int(best_latents['correct_latent_idx']),
+            'incorrect': int(best_latents['incorrect']),
+            'incorrect_latent_idx': int(best_latents['incorrect_latent_idx'])
         },
         'global_thresholds': {
             'correct': float(global_thresholds['correct']),
@@ -708,8 +708,8 @@ def main():
         'correct_predicting_results': correct_results,
         'incorrect_predicting_results': incorrect_results,
         'insights': {
-            'correct_feature_trend': calculate_trend(correct_aurocs),
-            'incorrect_feature_trend': calculate_trend(incorrect_aurocs),
+            'correct_latent_trend': calculate_trend(correct_aurocs),
+            'incorrect_latent_trend': calculate_trend(incorrect_aurocs),
             'most_effective_difficulty': {
                 'correct': find_max_excluding_nan(correct_results, 'auroc'),
                 'incorrect': find_max_excluding_nan(incorrect_results, 'auroc')
@@ -734,8 +734,8 @@ def main():
         f"Difficulty Groups: Easy ({len(difficulty_groups['easy'])}), "
         f"Medium ({len(difficulty_groups['medium'])}), "
         f"Hard ({len(difficulty_groups['hard'])})",
-        f"\nCorrect-Predicting Feature (Layer {best_features['correct']}, "
-        f"Feature {best_features['correct_feature_idx']}):"
+        f"\nCorrect-Predicting Latent (Layer {best_latents['correct']}, "
+        f"Latent {best_latents['correct_latent_idx']}):"
     ]
 
     for difficulty, result in correct_results.items():
@@ -745,8 +745,8 @@ def main():
         )
 
     summary_lines.append(
-        f"\nIncorrect-Predicting Feature (Layer {best_features['incorrect']}, "
-        f"Feature {best_features['incorrect_feature_idx']}):"
+        f"\nIncorrect-Predicting Latent (Layer {best_latents['incorrect']}, "
+        f"Latent {best_latents['incorrect_latent_idx']}):"
     )
     
     for difficulty, result in incorrect_results.items():
@@ -757,8 +757,8 @@ def main():
     
     summary_lines.extend([
         "\nInsights:",
-        f"  Correct-predicting feature trend: {results['insights']['correct_feature_trend']}",
-        f"  Incorrect-predicting feature trend: {results['insights']['incorrect_feature_trend']}",
+        f"  Correct-predicting latent trend: {results['insights']['correct_latent_trend']}",
+        f"  Incorrect-predicting latent trend: {results['insights']['incorrect_latent_trend']}",
         f"  Most effective difficulty (AUROC):",
         f"    Correct-predicting: {results['insights']['most_effective_difficulty']['correct']}",
         f"    Incorrect-predicting: {results['insights']['most_effective_difficulty']['incorrect']}",

@@ -129,8 +129,8 @@ class ZeroDiscSteeringGenerator:
         # Simply use the first feature (already sorted by separation score in Phase 4.10)
         selected_feature = features[0]
         
-        logger.info(f"Selected zero-disc feature for both experiments:")
-        logger.info(f"  Feature: L{selected_feature['layer']}F{selected_feature['feature_idx']} "
+        logger.info(f"Selected zero-disc latent for both experiments:")
+        logger.info(f"  Latent: L{selected_feature['layer']}F{selected_feature['latent_idx']} "
                    f"(separation={selected_feature['separation_score']:.6f})")
         logger.info(f"  Will use positive coefficient ({self.correct_coefficient}) for correction")
         logger.info(f"  Will use negative coefficient ({self.incorrect_coefficient}) for corruption")
@@ -198,18 +198,18 @@ class ZeroDiscSteeringGenerator:
         if self.resume_from_checkpoint:
             results, start_index = self._load_checkpoint(steering_type)
         
-        # Load SAE for the feature's layer
+        # Load SAE for the latent's layer
         layer = feature['layer']
-        feature_idx = feature['feature_idx']
-        
+        latent_idx = feature['latent_idx']
+
         logger.info(f"Loading SAE for layer {layer}...")
         sae = load_sae_for_config(self.config, layer, self.device)
-        
-        # Get decoder direction for steering
-        if feature.get('decoder_direction'):
-            decoder_direction = torch.tensor(feature['decoder_direction'], device=self.device)
+
+        # Get latent direction for steering
+        if feature.get('latent_direction'):
+            latent_direction = torch.tensor(feature['latent_direction'], device=self.device)
         else:
-            decoder_direction = sae.W_dec[feature_idx].detach()
+            latent_direction = sae.W_dec[latent_idx].detach()
         
         total_problems = len(problems)
         if start_index > 0:
@@ -222,7 +222,7 @@ class ZeroDiscSteeringGenerator:
                                            desc=f"{steering_type} steering"),
                                        start=start_index):
             # Create steering hook
-            hook_fn = create_steering_hook(decoder_direction, coefficient)
+            hook_fn = create_steering_hook(latent_direction, coefficient)
             target_module = self.model.model.layers[layer]
             hook_handle = target_module.register_forward_pre_hook(hook_fn)
             
@@ -282,8 +282,8 @@ class ZeroDiscSteeringGenerator:
                         'baseline_code': row['generated_code'],
                         'steered_code': generation_result['generated_code'],
                         'steering_type': steering_type,
-                        'feature_layer': layer,
-                        'feature_idx': feature_idx,
+                        'latent_layer': layer,
+                        'latent_idx': latent_idx,
                         'coefficient': coefficient
                     }
                     results.append(result)
@@ -385,7 +385,7 @@ class ZeroDiscSteeringGenerator:
                     'correct': self.correct_coefficient,
                     'incorrect': self.incorrect_coefficient
                 },
-                'zero_disc_feature_used': f"L{zero_disc_feature['layer']}F{zero_disc_feature['feature_idx']}",
+                'zero_disc_latent_used': f"L{zero_disc_feature['layer']}F{zero_disc_feature['latent_idx']}",
                 'n_problems_tested': {
                     'correction': len(correction_results),
                     'corruption': len(corruption_results),

@@ -137,26 +137,26 @@ class ThresholdOptimizer:
         logger.info(f"Incorrect-predicting feature: Layer {self.incorrect_pred_layer}, "
                    f"Feature {self.incorrect_pred_feature}")
 
-        # === LOAD PHASE 2.5 TOP FEATURES (for correct-steering direction) ===
-        logger.info("Loading steering features from Phase 2.5...")
+        # === LOAD PHASE 2.5 TOP LATENTS (for correct-steering direction) ===
+        logger.info("Loading steering latents from Phase 2.5...")
         phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
         if not phase2_5_output:
             raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
 
-        top_features_file = Path(phase2_5_output).parent / "top_20_features.json"
-        if not top_features_file.exists():
-            raise FileNotFoundError(f"Top features file not found: {top_features_file}")
+        top_latents_file = Path(phase2_5_output).parent / "top_20_latents.json"
+        if not top_latents_file.exists():
+            raise FileNotFoundError(f"Top latents file not found: {top_latents_file}")
 
-        top_features = load_json(top_features_file)
+        top_latents = load_json(top_latents_file)
 
-        # Get best correct-steering feature
-        self.best_correct_feature = top_features['correct'][0]
-        self.correct_steer_layer = self.best_correct_feature['layer']  # 16
-        self.correct_steer_feature = self.best_correct_feature['feature_idx']  # 11225
+        # Get best correct-steering latent
+        self.best_correct_latent = top_latents['correct'][0]
+        self.correct_steer_layer = self.best_correct_latent['layer']  # 16
+        self.correct_steer_latent = self.best_correct_latent['latent_idx']  # 11225
 
-        logger.info(f"Correct-steering feature: Layer {self.correct_steer_layer}, "
-                   f"Feature {self.correct_steer_feature}, "
-                   f"Score {self.best_correct_feature['separation_score']:.4f}")
+        logger.info(f"Correct-steering latent: Layer {self.correct_steer_layer}, "
+                   f"Latent {self.correct_steer_latent}, "
+                   f"Score {self.best_correct_latent['separation_score']:.4f}")
 
         # === LOAD SAEs ===
         logger.info("Loading SAE models...")
@@ -169,13 +169,13 @@ class ThresholdOptimizer:
         self.sae_l16 = load_sae_for_config(self.config, self.correct_steer_layer, self.device)
         logger.info(f"Loaded SAE for Layer {self.correct_steer_layer} (steering)")
 
-        # Extract decoder direction for steering
-        self.correct_decoder_direction = self.sae_l16.W_dec[self.correct_steer_feature].detach()
+        # Extract latent direction for steering
+        self.correct_latent_direction = self.sae_l16.W_dec[self.correct_steer_latent].detach()
 
-        # Ensure decoder direction is in the same dtype as the model
+        # Ensure latent direction is in the same dtype as the model
         model_dtype = next(self.model.parameters()).dtype
-        self.correct_decoder_direction = self.correct_decoder_direction.to(dtype=model_dtype)
-        logger.info(f"Decoder direction converted to model dtype: {model_dtype}")
+        self.correct_latent_direction = self.correct_latent_direction.to(dtype=model_dtype)
+        logger.info(f"Latent direction converted to model dtype: {model_dtype}")
 
         # === LOAD PHASE 4.8 OPTIMAL COEFFICIENT ===
         self.steering_coefficient = self.config.phase4_8_correct_coefficient
@@ -477,9 +477,9 @@ class ThresholdOptimizer:
 
             # Apply steering: add decoder direction scaled by coefficient
             # Ensure dtype and device consistency with residual tensor
-            decoder_direction = self.correct_decoder_direction.to(residual.dtype)
+            latent_direction = self.correct_latent_direction.to(residual.dtype)
             # Shape: [d_model] -> [1, 1, d_model] for residual stream broadcasting
-            steering = rearrange(decoder_direction, 'd -> 1 1 d') * self.steering_coefficient
+            steering = rearrange(latent_direction, 'd -> 1 1 d') * self.steering_coefficient
             residual = residual + steering.to(residual.device, residual.dtype)
 
             # Return modified input tuple for pre-hook
@@ -988,7 +988,7 @@ class ThresholdOptimizer:
             },
             'feature_info': {
                 'layer': self.incorrect_pred_layer,
-                'feature_idx': self.incorrect_pred_feature,
+                'latent_idx': self.incorrect_pred_latent,
                 'description': 'Incorrect-predicting feature'
             },
             'steering_info': {

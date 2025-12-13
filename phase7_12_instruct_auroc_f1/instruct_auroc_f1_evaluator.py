@@ -270,7 +270,7 @@ def plot_comparative_metrics(
 
 def load_instruct_activations(
     layer_num: int,
-    feature_idx: int,
+    latent_idx: int,
     feature_type: str,
     phase0_1_dir: Path,
     phase7_3_dir: Path,
@@ -283,7 +283,7 @@ def load_instruct_activations(
 
     Args:
         layer_num: Layer number for the feature
-        feature_idx: Index of the specific feature
+        latent_idx: Index of the specific feature
         feature_type: 'correct' or 'incorrect'
         phase0_1_dir: Directory containing Phase 0.1 outputs
         phase7_3_dir: Directory containing Phase 7.3 outputs (instruct model validation data)
@@ -334,11 +334,11 @@ def load_instruct_activations(
         # Encode through SAE to get features
         # Shape: (1, 16384) - SAE feature activations
         with torch.no_grad():
-            sae_features = sae.encode(raw_activation)
+            latent_activations = sae.encode(raw_activation)
 
         # Extract specific feature value
-        feature_activation = sae_features[0, feature_idx].item()
-        activations.append(feature_activation)
+        latent_activation = latent_activations[0, feature_idx].item()
+        activations.append(latent_activation)
 
         # Use the result at temperature 0.0
         test_passed = task_results[0]
@@ -442,31 +442,31 @@ def main():
         raise FileNotFoundError("No Phase 2.10 output found. Please run Phase 2.10 first.")
     phase2_10_dir = Path(phase2_10_dir).parent
 
-    # Load best features from Phase 2.10
-    top_features_file = phase2_10_dir / 'top_20_features.json'
-    if not top_features_file.exists():
-        raise FileNotFoundError(f"top_20_features.json not found in {phase2_10_dir}. Please run Phase 2.10 first.")
+    # Load best latents from Phase 2.10
+    top_latents_file = phase2_10_dir / 'top_20_latents.json'
+    if not top_latents_file.exists():
+        raise FileNotFoundError(f"top_20_latents.json not found in {phase2_10_dir}. Please run Phase 2.10 first.")
 
-    top_features = load_json(top_features_file)
+    top_latents = load_json(top_latents_file)
 
     # Validate structure
-    if 'correct' not in top_features or 'incorrect' not in top_features:
-        raise ValueError("Missing 'correct' or 'incorrect' in top_20_features.json")
+    if 'correct' not in top_latents or 'incorrect' not in top_latents:
+        raise ValueError("Missing 'correct' or 'incorrect' in top_20_latents.json")
 
-    if not top_features['correct'] or not top_features['incorrect']:
-        raise ValueError("Empty feature list in top_20_features.json")
+    if not top_latents['correct'] or not top_latents['incorrect']:
+        raise ValueError("Empty latent list in top_20_latents.json")
 
-    # Get the best (index 0) features
-    best_correct = top_features['correct'][0]
-    best_incorrect = top_features['incorrect'][0]
+    # Get the best (index 0) latents
+    best_correct = top_latents['correct'][0]
+    best_incorrect = top_latents['incorrect'][0]
 
     correct_layer = best_correct['layer']
-    correct_feature_idx = best_correct['feature_idx']
+    correct_latent_idx = best_correct['latent_idx']
     incorrect_layer = best_incorrect['layer']
-    incorrect_feature_idx = best_incorrect['feature_idx']
+    incorrect_latent_idx = best_incorrect['latent_idx']
 
-    logger.info(f"Best correct-preferring feature: idx {correct_feature_idx} at layer {correct_layer}")
-    logger.info(f"Best incorrect-preferring feature: idx {incorrect_feature_idx} at layer {incorrect_layer}")
+    logger.info(f"Best correct-preferring latent: idx {correct_latent_idx} at layer {correct_layer}")
+    logger.info(f"Best incorrect-preferring latent: idx {incorrect_latent_idx} at layer {incorrect_layer}")
 
     # Phase 2: Evaluate Correct-Preferring Feature on Instruction-Tuned Model
     logger.info("\n" + "="*60)
@@ -475,7 +475,7 @@ def main():
 
     # Load validation data for correct feature from instruction-tuned model
     y_true_correct, scores_correct = load_instruct_activations(
-        correct_layer, correct_feature_idx, 'correct',
+        correct_layer, correct_latent_idx, 'correct',
         phase0_1_dir, phase7_3_dir, config, config.dataset_name
     )
 
@@ -500,7 +500,7 @@ def main():
 
     # Load validation data for incorrect feature from instruction-tuned model
     y_true_incorrect, scores_incorrect = load_instruct_activations(
-        incorrect_layer, incorrect_feature_idx, 'incorrect',
+        incorrect_layer, incorrect_latent_idx, 'incorrect',
         phase0_1_dir, phase7_3_dir, config, config.dataset_name
     )
 
@@ -528,7 +528,7 @@ def main():
         'model_type': 'instruction-tuned (gemma-2-2b-it)',
         'correct_preferring_feature': {
             'feature': {
-                'idx': int(correct_feature_idx),
+                'idx': int(correct_latent_idx),
                 'layer': int(correct_layer)
             },
             'validation_metrics': {
@@ -540,7 +540,7 @@ def main():
         },
         'incorrect_preferring_feature': {
             'feature': {
-                'idx': int(incorrect_feature_idx),
+                'idx': int(incorrect_latent_idx),
                 'layer': int(incorrect_layer)
             },
             'validation_metrics': {
@@ -569,13 +569,13 @@ def main():
         "PHASE 7.12 FINAL RESULTS SUMMARY",
         "INSTRUCTION-TUNED MODEL (gemma-2-2b-it)",
         "=" * 60,
-        f"\nCorrect-Preferring Feature (Layer {correct_layer}, Feature {correct_feature_idx}):",
+        f"\nCorrect-Preferring Feature (Layer {correct_layer}, Feature {correct_latent_idx}):",
         f"  Optimal Threshold: {optimal_threshold_correct:.4f}",
         f"  AUROC: {metrics_correct['auroc']:.4f}",
         f"  F1: {metrics_correct['f1']:.4f}",
         f"  Precision: {metrics_correct['precision']:.4f}",
         f"  Recall: {metrics_correct['recall']:.4f}",
-        f"\nIncorrect-Preferring Feature (Layer {incorrect_layer}, Feature {incorrect_feature_idx}):",
+        f"\nIncorrect-Preferring Feature (Layer {incorrect_layer}, Feature {incorrect_latent_idx}):",
         f"  Optimal Threshold: {optimal_threshold_incorrect:.4f}",
         f"  AUROC: {metrics_incorrect['auroc']:.4f}",
         f"  F1: {metrics_incorrect['f1']:.4f}",

@@ -66,20 +66,20 @@ class AttentionAnalyzer:
         
         phase2_5_dir = Path(phase2_5_output).parent
         
-        # Load best features
-        best_features_path = phase2_5_dir / "top_20_features.json"
-        if not best_features_path.exists():
-            raise FileNotFoundError(f"Best features not found at {best_features_path}")
-        
-        best_features = load_json(best_features_path)
-        self.best_correct_feature = best_features['correct'][0]  # First element has highest score
-        self.best_incorrect_feature = best_features['incorrect'][0]  # First element has highest score
-        
+        # Load best latents
+        best_latents_path = phase2_5_dir / "top_20_latents.json"
+        if not best_latents_path.exists():
+            raise FileNotFoundError(f"Best latents not found at {best_latents_path}")
+
+        best_latents = load_json(best_latents_path)
+        self.best_correct_latent = best_latents['correct'][0]  # First element has highest score
+        self.best_incorrect_latent = best_latents['incorrect'][0]  # First element has highest score
+
         # Extract layer indices
-        self.best_correct_layer = self.best_correct_feature['layer']
-        self.best_incorrect_layer = self.best_incorrect_feature['layer']
-        
-        logger.info(f"Loaded best features - Correct: Layer {self.best_correct_layer}, Incorrect: Layer {self.best_incorrect_layer}")
+        self.best_correct_layer = self.best_correct_latent['layer']
+        self.best_incorrect_layer = self.best_incorrect_latent['layer']
+
+        logger.info(f"Loaded best latents - Correct: Layer {self.best_correct_layer}, Incorrect: Layer {self.best_incorrect_layer}")
         
     def _discover_phase_directories(self) -> None:
         """Discover Phase 3.5 and Phase 4.8 output directories."""

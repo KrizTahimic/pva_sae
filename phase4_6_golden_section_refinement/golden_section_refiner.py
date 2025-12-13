@@ -291,21 +291,21 @@ class GoldenSectionCoefficientRefiner:
         if not phase2_5_output:
             raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
         
-        # Load top features
-        features_file = Path(phase2_5_output).parent / "top_20_features.json"
-        if not features_file.exists():
-            raise FileNotFoundError(f"Top features file not found: {features_file}")
-        
-        self.top_features = load_json(features_file)
-        
-        # Extract best correct and incorrect features
-        self.best_correct_feature = self.top_features['correct'][0]
-        self.best_incorrect_feature = self.top_features['incorrect'][0]
-        
-        logger.info(f"Best correct feature: Layer {self.best_correct_feature['layer']}, "
-                   f"Index {self.best_correct_feature['feature_idx']}")
-        logger.info(f"Best incorrect feature: Layer {self.best_incorrect_feature['layer']}, "
-                   f"Index {self.best_incorrect_feature['feature_idx']}")
+        # Load top latents
+        latents_file = Path(phase2_5_output).parent / "top_20_latents.json"
+        if not latents_file.exists():
+            raise FileNotFoundError(f"Top latents file not found: {latents_file}")
+
+        self.top_latents = load_json(latents_file)
+
+        # Extract best correct and incorrect latents
+        self.best_correct_latent = self.top_latents['correct'][0]
+        self.best_incorrect_latent = self.top_latents['incorrect'][0]
+
+        logger.info(f"Best correct latent: Layer {self.best_correct_latent['layer']}, "
+                   f"Index {self.best_correct_latent['latent_idx']}")
+        logger.info(f"Best incorrect latent: Layer {self.best_incorrect_latent['layer']}, "
+                   f"Index {self.best_incorrect_latent['latent_idx']}")
         
         # Load Phase 3.6 baseline data
         logger.info("Loading baseline data from Phase 3.6...")
@@ -338,25 +338,25 @@ class GoldenSectionCoefficientRefiner:
         logger.info(f"Split baseline: {len(self.initially_correct_data)} initially correct, "
                    f"{len(self.initially_incorrect_data)} initially incorrect problems")
         
-        # Load SAEs for both features
+        # Load SAEs for both latents
         logger.info("Loading SAE models...")
         self.correct_sae = load_sae_for_config(
             self.config,
-            self.best_correct_feature['layer'], 
+            self.best_correct_latent['layer'],
             self.device
         )
         self.incorrect_sae = load_sae_for_config(
             self.config,
-            self.best_incorrect_feature['layer'], 
+            self.best_incorrect_latent['layer'],
             self.device
         )
-        
-        # Extract decoder directions
-        self.correct_decoder_direction = self.correct_sae.W_dec[
-            self.best_correct_feature['feature_idx']
+
+        # Extract latent directions
+        self.correct_latent_direction = self.correct_sae.W_dec[
+            self.best_correct_latent['latent_idx']
         ].detach()
-        self.incorrect_decoder_direction = self.incorrect_sae.W_dec[
-            self.best_incorrect_feature['feature_idx']
+        self.incorrect_latent_direction = self.incorrect_sae.W_dec[
+            self.best_incorrect_latent['latent_idx']
         ].detach()
         
     def _load_phase4_5_results(self) -> None:
@@ -518,11 +518,11 @@ class GoldenSectionCoefficientRefiner:
         
         # Select decoder direction and target layer
         if steering_type == 'correct':
-            decoder_direction = self.correct_decoder_direction
-            target_layer = self.best_correct_feature['layer']
+            latent_direction = self.correct_latent_direction
+            target_layer = self.best_correct_latent['layer']
         else:
-            decoder_direction = self.incorrect_decoder_direction
-            target_layer = self.best_incorrect_feature['layer']
+            latent_direction = self.incorrect_latent_direction
+            target_layer = self.best_incorrect_latent['layer']
         
         results = []  # Current batch of results
         excluded_tasks = []  # Current batch of exclusions
@@ -560,7 +560,7 @@ class GoldenSectionCoefficientRefiner:
                 self.clear_gpu_memory()
                 
             # Setup hook for this specific task
-            hook_fn = create_steering_hook(decoder_direction, coefficient)
+            hook_fn = create_steering_hook(latent_direction, coefficient)
             target_module = self.model.model.layers[target_layer]
             hook_handle = target_module.register_forward_pre_hook(hook_fn)
             
@@ -1072,9 +1072,9 @@ class GoldenSectionCoefficientRefiner:
                 # Extract the coefficient info for the summary
                 result = refinement_results[f'{steering_type}_steering']
                 if steering_type == 'correct':
-                    feature = self.best_correct_feature
+                    feature = self.best_correct_latent
                 else:
-                    feature = self.best_incorrect_feature
+                    feature = self.best_incorrect_latent
                 
                 phase4_5_optimal = self.search_bounds[steering_type]['optimal_from_phase4_5']
                 refined_coefficients[steering_type] = {
@@ -1082,7 +1082,7 @@ class GoldenSectionCoefficientRefiner:
                     'phase4_5_coefficient': phase4_5_optimal,
                     'improvement': result['optimal_coefficient'] - phase4_5_optimal,
                     'layer': feature['layer'],
-                    'feature_index': feature['feature_idx'],
+                    'latent_index': feature['latent_idx'],
                     'best_score': result.get('best_score', 0),
                     'search_iterations': len(result.get('search_history', [])),
                     'search_bounds': self.search_bounds[steering_type],
@@ -1107,10 +1107,10 @@ class GoldenSectionCoefficientRefiner:
             # Get full evaluation results for the optimal coefficient
             if steering_type == 'correct':
                 eval_data = self.initially_incorrect_data
-                feature = self.best_correct_feature
+                feature = self.best_correct_latent
             else:
                 eval_data = self.initially_correct_data
-                feature = self.best_incorrect_feature
+                feature = self.best_incorrect_latent
             
             # Get final score and full results
             final_evaluation = self.evaluate_coefficient(
@@ -1140,9 +1140,9 @@ class GoldenSectionCoefficientRefiner:
             
             # Get feature info for metadata
             if steering_type == 'correct':
-                feature = self.best_correct_feature
+                feature = self.best_correct_latent
             else:
-                feature = self.best_incorrect_feature
+                feature = self.best_incorrect_latent
             
             # Use the score from the refinement results
             final_score = refinement_results[f'{steering_type}_steering']['best_score']
@@ -1154,7 +1154,7 @@ class GoldenSectionCoefficientRefiner:
                 'phase4_5_coefficient': phase4_5_optimal,
                 'improvement': optimal_coeff - phase4_5_optimal,
                 'layer': feature['layer'],
-                'feature_index': feature['feature_idx'],
+                'latent_index': feature['latent_idx'],
                 'best_score': final_score,
                 'search_iterations': len(search_history),
                 'search_bounds': self.search_bounds[steering_type],

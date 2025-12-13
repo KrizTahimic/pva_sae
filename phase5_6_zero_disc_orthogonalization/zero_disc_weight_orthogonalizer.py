@@ -94,8 +94,8 @@ class ZeroDiscWeightOrthogonalizer:
         # Select the best zero-disc feature (lowest separation score)
         self.best_zero_disc = min(self.zero_disc_features, key=lambda x: x['separation_score'])
         
-        logger.info(f"Selected zero-disc feature: Layer {self.best_zero_disc['layer']}, "
-                   f"Index {self.best_zero_disc['feature_idx']}, "
+        logger.info(f"Selected zero-disc latent: Layer {self.best_zero_disc['layer']}, "
+                   f"Index {self.best_zero_disc['latent_idx']}, "
                    f"Separation {self.best_zero_disc['separation_score']:.6f}")
         
         # Load Phase 3.5 baseline data
@@ -119,21 +119,21 @@ class ZeroDiscWeightOrthogonalizer:
             self.baseline_data = self.baseline_data.iloc[start_idx:end_idx].copy()
             logger.info(f"Filtered to {len(self.baseline_data)} problems")
         
-        # Load SAE for the zero-disc feature
-        logger.info("Loading SAE model for zero-disc feature...")
+        # Load SAE for the zero-disc latent
+        logger.info("Loading SAE model for zero-disc latent...")
         # Use CPU first then move to device
         self.sae = load_sae_for_config(
             self.config,
-            self.best_zero_disc['layer'], 
+            self.best_zero_disc['layer'],
             "cpu"
         )
-        
-        # Extract decoder direction and move to device
-        self.zero_disc_direction = self.sae.W_dec[self.best_zero_disc['feature_idx']].detach()
+
+        # Extract latent direction and move to device
+        self.zero_disc_latent_direction = self.sae.W_dec[self.best_zero_disc['latent_idx']].detach()
         if self.device.type == "mps":
-            self.zero_disc_direction = self.zero_disc_direction.to("mps")
+            self.zero_disc_latent_direction = self.zero_disc_latent_direction.to("mps")
         else:
-            self.zero_disc_direction = self.zero_disc_direction.to(self.device)
+            self.zero_disc_latent_direction = self.zero_disc_latent_direction.to(self.device)
         
         logger.info("Zero-disc SAE decoder direction extracted successfully")
         
@@ -207,17 +207,17 @@ class ZeroDiscWeightOrthogonalizer:
         model.eval()
         
         # Apply orthogonalization
-        logger.info("Orthogonalizing weights to remove zero-disc feature...")
-        logger.info(f"Feature: Layer {self.best_zero_disc['layer']}, "
-                   f"Index {self.best_zero_disc['feature_idx']}")
+        logger.info("Orthogonalizing weights to remove zero-disc latent...")
+        logger.info(f"Latent: Layer {self.best_zero_disc['layer']}, "
+                   f"Index {self.best_zero_disc['latent_idx']}")
         
         # Ensure direction is on correct device
-        if model.device.type != self.zero_disc_direction.device.type:
-            self.zero_disc_direction = self.zero_disc_direction.to(model.device)
+        if model.device.type != self.zero_disc_latent_direction.device.type:
+            self.zero_disc_latent_direction = self.zero_disc_latent_direction.to(model.device)
         
         weight_changes = orthogonalize_gemma_weights(
             model, 
-            self.zero_disc_direction,
+            self.zero_disc_latent_direction,
             target_weights=self.config.orthogonalization_target_weights
         )
         
@@ -402,9 +402,9 @@ class ZeroDiscWeightOrthogonalizer:
         n_corrupted = n_correct - n_preserved
         
         results = {
-            'feature': {
+            'latent': {
                 'layer': self.best_zero_disc['layer'],
-                'feature_idx': self.best_zero_disc['feature_idx'],
+                'latent_idx': self.best_zero_disc['latent_idx'],
                 'separation_score': self.best_zero_disc['separation_score'],
                 'freq_correct': self.best_zero_disc.get('freq_correct', 0),
                 'freq_incorrect': self.best_zero_disc.get('freq_incorrect', 0)
@@ -483,9 +483,9 @@ class ZeroDiscWeightOrthogonalizer:
         ax.legend()
         
         # Add feature info as text
-        feature_text = (f"Feature: Layer {self.results['feature']['layer']}, "
-                       f"Index {self.results['feature']['feature_idx']}\n"
-                       f"Separation Score: {self.results['feature']['separation_score']:.6f}")
+        feature_text = (f"Feature: Layer {self.results['latent']['layer']}, "
+                       f"Index {self.results['latent']['latent_idx']}\n"
+                       f"Separation Score: {self.results['latent']['separation_score']:.6f}")
         ax.text(0.02, 0.98, feature_text, transform=ax.transAxes,
                fontsize=10, verticalalignment='top',
                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
@@ -586,7 +586,7 @@ class ZeroDiscWeightOrthogonalizer:
         
         # Save weight changes separately
         weight_changes = {
-            'zero_disc_feature': self.results['feature'],
+            'zero_disc_feature': self.results['latent'],
             'weight_changes': self.results['weight_changes']
         }
         save_json(weight_changes, self.output_dir / "weight_changes.json")
@@ -600,8 +600,8 @@ class ZeroDiscWeightOrthogonalizer:
                 'preservation_rate': f"{self.results['metrics']['preservation_rate']:.1f}%",
                 'corruption_rate': f"{self.results['metrics']['corruption_rate']:.1f}%",
                 'avg_similarity': f"{self.results['metrics']['avg_similarity_score']:.3f}",
-                'feature_used': f"L{self.results['feature']['layer']}F{self.results['feature']['feature_idx']}",
-                'separation_score': self.results['feature']['separation_score']
+                'latent_used': f"L{self.results['latent']['layer']}F{self.results['latent']['latent_idx']}",
+                'separation_score': self.results['latent']['separation_score']
             },
             'interpretation': 'Zero-disc features show minimal effects as expected for control baseline',
             'output_files': [
@@ -618,8 +618,8 @@ class ZeroDiscWeightOrthogonalizer:
         logger.info("\n" + "="*60)
         logger.info("PHASE 5.6 SUMMARY")
         logger.info("="*60)
-        logger.info(f"Zero-disc feature: L{self.results['feature']['layer']}F{self.results['feature']['feature_idx']}")
-        logger.info(f"Separation score: {self.results['feature']['separation_score']:.6f}")
+        logger.info(f"Zero-disc feature: L{self.results['latent']['layer']}F{self.results['latent']['latent_idx']}")
+        logger.info(f"Separation score: {self.results['latent']['separation_score']:.6f}")
         logger.info(f"Correction rate: {self.results['metrics']['correction_rate']:.1f}%")
         logger.info(f"Preservation rate: {self.results['metrics']['preservation_rate']:.1f}%")
         logger.info(f"Corruption rate: {self.results['metrics']['corruption_rate']:.1f}%")

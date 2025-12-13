@@ -46,57 +46,57 @@ class InstructBaselineRunner:
         """
         # Try Phase 2.10 first (t-statistic selection)
         phase_2_10_dir = Path(get_phase_output_dir("2.10", self.config))
-        top_features_file = phase_2_10_dir / "top_20_features.json"
+        top_latents_file = phase_2_10_dir / "top_20_latents.json"
         phase_source = "2.10"
-        
-        if not top_features_file.exists():
+
+        if not top_latents_file.exists():
             # Try auto-discovery for Phase 2.10
             latest_output = discover_latest_phase_output("2.10")
             if latest_output:
                 # Extract directory from the discovered file
                 output_dir = Path(latest_output).parent
-                top_features_file = output_dir / "top_20_features.json"
-        
+                top_latents_file = output_dir / "top_20_latents.json"
+
         # Fall back to Phase 2.5 if Phase 2.10 not found
-        if not top_features_file.exists():
+        if not top_latents_file.exists():
             phase_2_5_dir = Path(get_phase_output_dir("2.5", self.config))
-            top_features_file = phase_2_5_dir / "top_20_features.json"
+            top_latents_file = phase_2_5_dir / "top_20_latents.json"
             phase_source = "2.5"
-            
-            if not top_features_file.exists():
+
+            if not top_latents_file.exists():
                 # Try auto-discovery for Phase 2.5
                 latest_output = discover_latest_phase_output("2.5")
                 if latest_output:
                     # Extract directory from the discovered file
                     output_dir = Path(latest_output).parent
-                    top_features_file = output_dir / "top_20_features.json"
-        
-        if not top_features_file.exists():
+                    top_latents_file = output_dir / "top_20_latents.json"
+
+        if not top_latents_file.exists():
             raise FileNotFoundError(
-                f"top_20_features.json not found. "
+                f"top_20_latents.json not found. "
                 "Please run Phase 2.10 or Phase 2.5 first."
             )
-        
-        logger.info(f"Using features from Phase {phase_source}: {top_features_file}")
-        
-        # Read top features
-        with open(top_features_file, 'r') as f:
-            top_features = json.load(f)
-        
+
+        logger.info(f"Using latents from Phase {phase_source}: {top_latents_file}")
+
+        # Read top latents
+        with open(top_latents_file, 'r') as f:
+            top_latents = json.load(f)
+
         # Extract best layers (first entry in each list)
         best_layers = {}
-        
-        if top_features.get('correct') and len(top_features['correct']) > 0:
-            best_layers['correct'] = top_features['correct'][0]['layer']
-            best_layers['correct_feature_idx'] = top_features['correct'][0]['feature_idx']
+
+        if top_latents.get('correct') and len(top_latents['correct']) > 0:
+            best_layers['correct'] = top_latents['correct'][0]['layer']
+            best_layers['correct_latent_idx'] = top_latents['correct'][0]['latent_idx']
         else:
-            raise ValueError("No correct features found in top_20_features.json")
-        
-        if top_features.get('incorrect') and len(top_features['incorrect']) > 0:
-            best_layers['incorrect'] = top_features['incorrect'][0]['layer']
-            best_layers['incorrect_feature_idx'] = top_features['incorrect'][0]['feature_idx']
+            raise ValueError("No correct latents found in top_20_latents.json")
+
+        if top_latents.get('incorrect') and len(top_latents['incorrect']) > 0:
+            best_layers['incorrect'] = top_latents['incorrect'][0]['layer']
+            best_layers['incorrect_latent_idx'] = top_latents['incorrect'][0]['latent_idx']
         else:
-            raise ValueError("No incorrect features found in top_20_features.json")
+            raise ValueError("No incorrect latents found in top_20_latents.json")
         
         logger.info(f"Discovered best layers - Correct: layer {best_layers['correct']}, Incorrect: layer {best_layers['incorrect']}")
         
@@ -562,8 +562,8 @@ class InstructBaselineRunner:
             "best_layers": {
                 "correct": self.best_layers['correct'],
                 "incorrect": self.best_layers['incorrect'],
-                "correct_feature_idx": self.best_layers['correct_feature_idx'],
-                "incorrect_feature_idx": self.best_layers['incorrect_feature_idx']
+                "correct_latent_idx": self.best_layers['correct_latent_idx'],
+                "incorrect_latent_idx": self.best_layers['incorrect_latent_idx']
             },
             "extraction_layers": self.extraction_layers,
             "temperature": 0.0,
