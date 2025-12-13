@@ -230,42 +230,23 @@ Polish the code after the structure is stable.
 
 Convert verbose loops to Pythonic one-liners. **High-impact examples:**
 
-- [ ] **sae_analyzer.py:299-308** - Dict counting loop → `Counter()`
-  ```python
-  # BEFORE: 8 lines with manual dict tracking
-  correct_layer_counts = {}
-  for feat in top_correct:
-      layer = feat['layer']
-      correct_layer_counts[layer] = correct_layer_counts.get(layer, 0) + 1
+- [x] **sae_analyzer.py** - Dict counting loop → `Counter()`
+  - Converted manual dict.get() + 1 to `dict(Counter(feat['layer'] for feat in top_correct))`
 
-  # AFTER: 2 lines with Counter
-  from collections import Counter
-  correct_layer_counts = Counter(feat['layer'] for feat in top_correct)
-  ```
+- [x] **sae_analyzer.py** - List of dicts loop → list comprehension
+  - Converted loop with append to list comprehension for features_correct/features_incorrect
 
-- [ ] **sae_analyzer.py:221-238** - List of dicts loop → list comprehension
-  ```python
-  # BEFORE: Loop with append
-  features_correct = []
-  for i in range(num_features):
-      features_correct.append({'feature_idx': i, 'separation_score': scores['s_correct'][i].item(), ...})
+- [x] **sae_analyzer.py** - Nested loop with copy → dict unpacking
+  - Converted feature.copy() + assignment to `{**feature, 'layer': layer_idx}`
 
-  # AFTER: List comprehension
-  features_correct = [{'feature_idx': i, 'separation_score': scores['s_correct'][i].item(), ...} for i in range(num_features)]
-  ```
+- [x] **t_statistic_selector.py** - Same 3 patterns as sae_analyzer.py (identical code)
+  - Counter, list comprehension, dict unpacking
 
-- [ ] **sae_analyzer.py:275-284** - Nested loop with copy → dict unpacking
-  ```python
-  # BEFORE: 8 lines with .copy() and assignment
-  for layer_idx, layer_results in all_results.items():
-      for feature in layer_results['features']['correct']:
-          feature_with_layer = feature.copy()
-          feature_with_layer['layer'] = layer_idx
-          all_features_correct.append(feature_with_layer)
+- [x] **retry_utils.py** - Error counting loop → Counter with helper function
+  - Converted manual error type extraction + counting to Counter
 
-  # AFTER: Nested comprehension with dict unpacking
-  all_features_correct = [{**feature, 'layer': layer_idx} for layer_idx, layer_results in all_results.items() for feature in layer_results['features']['correct']]
-  ```
+- [x] **attention_analyzer.py** - Means/stds loop → list comprehension
+  - Converted conditional append loop to ternary list comprehension
 
 - [ ] **steering_coefficient_selector.py:562-569** - Conditional append → ternary comprehension
   ```python

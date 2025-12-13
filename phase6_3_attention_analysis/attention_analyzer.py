@@ -873,16 +873,14 @@ class AttentionAnalyzer:
                     head_differences[head_idx].append(diff)
             
             # Calculate means and standard deviations
-            means = []
-            stds = []
-            
-            for head_idx in range(self.n_heads):
-                if head_differences[head_idx]:
-                    means.append(np.mean(head_differences[head_idx]))
-                    stds.append(np.std(head_differences[head_idx]))
-                else:
-                    means.append(0)
-                    stds.append(0)
+            means = [
+                np.mean(head_differences[i]) if head_differences[i] else 0
+                for i in range(self.n_heads)
+            ]
+            stds = [
+                np.std(head_differences[i]) if head_differences[i] else 0
+                for i in range(self.n_heads)
+            ]
             
             # Store data for this section
             all_section_data[section] = {'means': means, 'stds': stds}

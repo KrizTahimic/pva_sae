@@ -7,6 +7,7 @@ rigorous alternative to Phase 2.5's simple separation scores.
 """
 
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import torch
@@ -222,21 +223,14 @@ class TStatisticSelector:
         
         # Store ALL features for global selection
         num_features = len(t_stats['t_stats_correct'])
-        features_correct = []
-        features_incorrect = []
-        
-        for i in range(num_features):
-            # For correct-preferring features
-            features_correct.append({
-                'feature_idx': i,
-                't_statistic': t_stats['t_stats_correct'][i]
-            })
-            
-            # For incorrect-preferring features
-            features_incorrect.append({
-                'feature_idx': i,
-                't_statistic': t_stats['t_stats_incorrect'][i]
-            })
+        features_correct = [
+            {'feature_idx': i, 't_statistic': t_stats['t_stats_correct'][i]}
+            for i in range(num_features)
+        ]
+        features_incorrect = [
+            {'feature_idx': i, 't_statistic': t_stats['t_stats_incorrect'][i]}
+            for i in range(num_features)
+        ]
         
         # Prepare results
         results = {
@@ -269,20 +263,17 @@ class TStatisticSelector:
         """Select top k features globally across all layers using t-statistics."""
         logger.info(f"Selecting top {k} features globally across all layers")
         
-        # Collect all features from all layers
-        all_features_correct = []
-        all_features_incorrect = []
-        
-        for layer_idx, layer_results in all_results.items():
-            for feature in layer_results['features']['correct']:
-                feature_with_layer = feature.copy()
-                feature_with_layer['layer'] = layer_idx
-                all_features_correct.append(feature_with_layer)
-                
-            for feature in layer_results['features']['incorrect']:
-                feature_with_layer = feature.copy()
-                feature_with_layer['layer'] = layer_idx
-                all_features_incorrect.append(feature_with_layer)
+        # Collect all features from all layers with dict unpacking
+        all_features_correct = [
+            {**feature, 'layer': layer_idx}
+            for layer_idx, layer_results in all_results.items()
+            for feature in layer_results['features']['correct']
+        ]
+        all_features_incorrect = [
+            {**feature, 'layer': layer_idx}
+            for layer_idx, layer_results in all_results.items()
+            for feature in layer_results['features']['incorrect']
+        ]
         
         # Sort globally by t-statistic (higher is better)
         # Use layer and feature_idx as secondary keys for deterministic ordering
@@ -298,16 +289,8 @@ class TStatisticSelector:
         )[:k]
         
         # Log distribution of top features across layers
-        correct_layer_counts = {}
-        incorrect_layer_counts = {}
-        
-        for feat in top_correct:
-            layer = feat['layer']
-            correct_layer_counts[layer] = correct_layer_counts.get(layer, 0) + 1
-            
-        for feat in top_incorrect:
-            layer = feat['layer']
-            incorrect_layer_counts[layer] = incorrect_layer_counts.get(layer, 0) + 1
+        correct_layer_counts = dict(Counter(feat['layer'] for feat in top_correct))
+        incorrect_layer_counts = dict(Counter(feat['layer'] for feat in top_incorrect))
             
         logger.info(f"Top {k} correct features by layer: {correct_layer_counts}")
         logger.info(f"Top {k} incorrect features by layer: {incorrect_layer_counts}")

@@ -6,6 +6,7 @@ Designed for use across all phases that involve model generation.
 """
 
 import time
+from collections import Counter
 from typing import Callable, Any, Tuple, Optional
 import torch
 from common.logging import get_logger
@@ -145,16 +146,13 @@ def create_exclusion_summary(excluded_tasks: list, total_attempted: int) -> dict
     exclusion_rate = (n_excluded / total_attempted * 100) if total_attempted > 0 else 0
     
     # Group errors by type for summary
-    error_counts = {}
-    for task in excluded_tasks:
-        error = task.get('error', 'Unknown error')
-        # Extract error type from error message
-        if ':' in error:
-            error_type = error.split(':')[0].strip()
-        else:
-            error_type = error
-        
-        error_counts[error_type] = error_counts.get(error_type, 0) + 1
+    def extract_error_type(error: str) -> str:
+        return error.split(':')[0].strip() if ':' in error else error
+
+    error_counts = dict(Counter(
+        extract_error_type(task.get('error', 'Unknown error'))
+        for task in excluded_tasks
+    ))
     
     summary = {
         'total_tasks_attempted': total_attempted,
