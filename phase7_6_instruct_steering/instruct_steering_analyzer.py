@@ -30,7 +30,7 @@ from common.phase_discovery import (
     write_phase_output,
     get_dataset_range
 )
-from common.config import Config
+from common.config import Config, MEMORY_HIGH_PERCENT, MEMORY_WARNING_PERCENT
 from common.steering_metrics import (
     create_steering_hook,
     calculate_correction_rate,
@@ -246,13 +246,13 @@ class InstructSteeringAnalyzer:
         memory_percent = memory.percent
         memory_gb = memory.used / (1024**3)
         
-        if memory_percent > 90:
+        if memory_percent > MEMORY_HIGH_PERCENT:
             logger.critical(f"CRITICAL: Memory usage at {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
             # Force garbage collection
             gc.collect()
             if self.device.type == "cuda":
                 torch.cuda.empty_cache()
-        elif memory_percent > 80:
+        elif memory_percent > (MEMORY_WARNING_PERCENT - 5):  # ~80%
             logger.warning(f"High memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
         else:
             logger.debug(f"Memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")

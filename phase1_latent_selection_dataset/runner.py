@@ -9,7 +9,10 @@ from pathlib import Path
 from typing import Optional
 import psutil  # For memory monitoring
 
-from common.config import Config
+from common.config import (
+    Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_WARNING_PERCENT,
+    MEMORY_CRITICAL_PERCENT, GENERATION_TIME_WARNING_SECONDS, CODE_LENGTH_WARNING_CHARS
+)
 from common.logging import get_logger, tqdm_with_logging
 from common.prompt_utils import PromptBuilder
 from common.utils import detect_device, get_timestamp
@@ -36,8 +39,8 @@ class Phase1Runner:
         self.activation_extractor = None
         
         # Checkpoint settings
-        self.checkpoint_frequency = 50  # Save every 50 tasks
-        self.memory_warning_threshold = 85  # Warn if RAM usage > 85%
+        self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
+        self.memory_warning_threshold = MEMORY_WARNING_PERCENT
         
     def setup(self):
         """Load model and setup activation hooks."""
@@ -172,14 +175,14 @@ class Phase1Runner:
                 generation_time = time.time() - start_time
                 
                 # Warn if generation took too long (likely incorrect/verbose code)
-                if generation_time > 60:  # More than 1 minute
+                if generation_time > GENERATION_TIME_WARNING_SECONDS:
                     logger.warning(f"Task {task_id}: Generation took {generation_time:.1f}s - likely verbose/incorrect output")
                 
                 # Extract code from generated text
                 generated_code = extract_code(generated_text, prompt)
                 
                 # Log if code is unusually long
-                if len(generated_code) > 3000:  # Arbitrary threshold for "too long"
+                if len(generated_code) > CODE_LENGTH_WARNING_CHARS:
                     logger.warning(f"Task {task_id}: Generated {len(generated_code)} chars of code - likely incorrect")
                 
                 # Evaluate code
@@ -387,7 +390,7 @@ class Phase1Runner:
             
             # Check memory before processing
             memory_percent = self.check_memory_usage()
-            if memory_percent > 95:
+            if memory_percent > MEMORY_CRITICAL_PERCENT:
                 logger.error(f"Critical memory usage: {memory_percent:.1f}%. Saving checkpoint and exiting.")
                 self.save_checkpoint(results, excluded_tasks, checkpoint_counter + 1, output_dir)
                 raise MemoryError(f"RAM usage critical: {memory_percent:.1f}%")

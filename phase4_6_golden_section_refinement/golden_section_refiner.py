@@ -25,7 +25,9 @@ from common.phase_discovery import (
     get_phase_output_dir,
     get_dataset_range
 )
-from common.config import Config
+from common.config import (
+    Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_WARNING_PERCENT, MEMORY_HIGH_PERCENT
+)
 from common.steering_metrics import (
     create_steering_hook,
     calculate_correction_rate,
@@ -53,10 +55,10 @@ class GoldenSectionCoefficientRefiner:
         self.phi = (1 + math.sqrt(5)) / 2  # Golden ratio ≈ 1.618034
         self.resphi = 2 - self.phi         # ≈ 0.381966
         
-        # Memory monitoring thresholds
-        self.memory_warning_threshold = 80   # Warn at 80% RAM usage
-        self.memory_critical_threshold = 90  # Critical at 90% RAM usage
-        self.evaluation_checkpoint_frequency = 20  # Save every 20 tasks during evaluation
+        # Memory monitoring thresholds - lower than defaults for more aggressive cleanup during refinement
+        self.memory_warning_threshold = 80  # Lower than MEMORY_WARNING_PERCENT (85)
+        self.memory_critical_threshold = MEMORY_HIGH_PERCENT  # 90%
+        self.evaluation_checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
         
         # Phase output directories
         self.output_dir = Path(get_phase_output_dir("4.6", config))

@@ -10,6 +10,7 @@ from typing import Optional
 import psutil
 import torch
 
+from common.config import MEMORY_WARNING_PERCENT, MEMORY_CRITICAL_PERCENT
 from common.logging import get_logger
 
 logger = get_logger(__name__)
@@ -25,8 +26,8 @@ def get_memory_percent() -> float:
 
 
 def check_memory_usage(
-    warning_threshold: float = 85.0,
-    critical_threshold: float = 95.0
+    warning_threshold: float = MEMORY_WARNING_PERCENT,
+    critical_threshold: float = MEMORY_CRITICAL_PERCENT
 ) -> float:
     """Check RAM usage and log warnings if high.
 

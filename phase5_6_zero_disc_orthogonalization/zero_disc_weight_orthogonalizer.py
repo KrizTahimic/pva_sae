@@ -26,7 +26,7 @@ from common.phase_discovery import (
     get_phase_output_dir,
     get_dataset_range
 )
-from common.config import Config
+from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_CRITICAL_PERCENT
 from common.steering_metrics import (
     calculate_correction_rate,
     calculate_corruption_rate,
@@ -152,9 +152,9 @@ class ZeroDiscWeightOrthogonalizer:
             self._checkpoint_managers[key] = CheckpointManager(
                 checkpoint_dir=self.checkpoint_dir,
                 experiment_name=key,
-                frequency=50,
+                frequency=CHECKPOINT_FREQUENCY_DEFAULT,
                 keep_last=3,
-                memory_threshold=95.0
+                memory_threshold=float(MEMORY_CRITICAL_PERCENT)
             )
         return self._checkpoint_managers[key]
 

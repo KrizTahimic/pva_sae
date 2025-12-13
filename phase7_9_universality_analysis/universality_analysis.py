@@ -13,7 +13,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any
 
-from common.config import Config
+from common.config import Config, PLOT_DPI
 from common.phase_discovery import get_phase_output_dir, write_phase_output
 from common.logging import get_logger
 from common.viz_utils import handle_viz_only_mode
@@ -338,7 +338,7 @@ class UniversalityAnalyzer:
         
         # Save figure
         output_path = self.output_dir / "universality_comparison.png"
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.savefig(output_path, dpi=PLOT_DPI, bbox_inches='tight')
         logger.info(f"Visualization saved to {output_path}")
         
         return fig

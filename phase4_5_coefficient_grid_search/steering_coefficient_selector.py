@@ -24,7 +24,9 @@ from common.phase_discovery import (
     get_phase_output_dir,
     get_dataset_range
 )
-from common.config import Config
+from common.config import (
+    Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_WARNING_PERCENT, MEMORY_CRITICAL_PERCENT
+)
 from common.steering_metrics import (
     create_steering_hook,
     calculate_correction_rate,
@@ -49,8 +51,8 @@ class SteeringCoefficientSelector:
         self.device = detect_device()
         
         # Checkpoint settings
-        self.checkpoint_frequency = 50  # Save every 50 problems
-        self.memory_warning_threshold = 85  # Warn if RAM usage > 85%
+        self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
+        self.memory_warning_threshold = MEMORY_WARNING_PERCENT
         
         # Phase output directories
         self.output_dir = Path(get_phase_output_dir("4.5", config))
@@ -398,7 +400,7 @@ class SteeringCoefficientSelector:
             
             # Check memory before continuing
             memory_percent = self.check_memory_usage()
-            if memory_percent > 95:
+            if memory_percent > MEMORY_CRITICAL_PERCENT:
                 logger.error(f"Critical memory usage: {memory_percent:.1f}%. Saving checkpoint and exiting.")
                 self.save_checkpoint(results, excluded_tasks, checkpoint_counter + 1, checkpoint_dir)
                 raise MemoryError(f"RAM usage critical: {memory_percent:.1f}%")

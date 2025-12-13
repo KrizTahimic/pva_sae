@@ -26,7 +26,9 @@ from common.utils import save_json, load_json
 from common.tensor_utils import save_activation
 from common.dataset_utils import evaluate_code, extract_code
 from common.prompt_utils import PromptBuilder
-from common.config import Config
+from common.config import (
+    Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_WARNING_PERCENT, MEMORY_CRITICAL_PERCENT
+)
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir, get_dataset_range
@@ -99,8 +101,8 @@ class TemperatureRobustnessRunner:
         self.device = detect_device()
         
         # Checkpoint settings
-        self.checkpoint_frequency = 10  # Save every 10 tasks (each task generates ~10 samples)
-        self.memory_warning_threshold = 85  # Warn if RAM usage > 85%
+        self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
+        self.memory_warning_threshold = MEMORY_WARNING_PERCENT
         
         # Load model and tokenizer
         logger.info(f"Loading model {config.model_name} on device: {self.device}")
@@ -557,7 +559,7 @@ class TemperatureRobustnessRunner:
             
             # Check memory before continuing
             memory_percent = self.check_memory_usage()
-            if memory_percent > 95:
+            if memory_percent > MEMORY_CRITICAL_PERCENT:
                 logger.error(f"Critical memory usage: {memory_percent:.1f}%. Saving checkpoint and exiting.")
                 self.save_checkpoint(results, excluded_tasks, checkpoint_counter + 1, output_dir)
                 raise MemoryError(f"RAM usage critical: {memory_percent:.1f}%")

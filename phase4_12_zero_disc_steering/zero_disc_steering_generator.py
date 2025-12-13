@@ -23,7 +23,9 @@ from common.phase_discovery import (
     get_phase_output_dir,
     get_dataset_range
 )
-from common.config import Config
+from common.config import (
+    Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_HIGH_PERCENT, MEMORY_WARNING_PERCENT
+)
 from common.steering_metrics import (
     create_steering_hook,
     calculate_correction_rate,
@@ -57,7 +59,7 @@ class ZeroDiscSteeringGenerator:
         ensure_directory_exists(self.checkpoint_dir)
         
         # Checkpointing configuration
-        self.checkpoint_frequency = 50  # Save every 50 problems
+        self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
         self.resume_from_checkpoint = True
         
         # Steering coefficients from Phase 4.8 config
@@ -172,7 +174,7 @@ class ZeroDiscSteeringGenerator:
         memory_percent = memory.percent
         memory_gb = memory.used / (1024**3)
         
-        if memory_percent > 90:
+        if memory_percent > MEMORY_HIGH_PERCENT:
             logger.critical(f"CRITICAL: Memory usage at {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
             # Force garbage collection
             gc.collect()
@@ -181,7 +183,7 @@ class ZeroDiscSteeringGenerator:
             elif self.device.type == "mps":
                 # MPS doesn't have empty_cache, but we can sync to free memory
                 torch.mps.synchronize()
-        elif memory_percent > 80:
+        elif memory_percent > (MEMORY_WARNING_PERCENT - 5):  # ~80%
             logger.warning(f"High memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
         else:
             logger.debug(f"Memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")

@@ -15,6 +15,26 @@ DEFAULT_MODEL_NAME = "google/gemma-2-2b"
 DEFAULT_LOG_DIR = "data/logs"
 MAX_NEW_TOKENS = 800 # Reduced from 2000 to prevent excessively long generations
 
+# === Checkpoint Settings ===
+CHECKPOINT_FREQUENCY_DEFAULT = 10  # Records between checkpoints
+
+# === Memory Management ===
+MEMORY_WARNING_PERCENT = 85  # Log warning above this
+MEMORY_HIGH_PERCENT = 90  # More aggressive cleanup
+MEMORY_CRITICAL_PERCENT = 95  # Force cleanup/skip
+
+# === Generation Monitoring ===
+GENERATION_TIME_WARNING_SECONDS = 60
+CODE_LENGTH_WARNING_CHARS = 3000
+
+# === Effect Rate Validation ===
+MIN_CORRECTION_EFFECT_PERCENT = 10
+MIN_PRESERVATION_EFFECT_PERCENT = 50
+STEERING_EFFECT_THRESHOLD_PERCENT = 90
+
+# === Visualization ===
+PLOT_DPI = 300
+
 # GemmaScope sparsity levels for each layer (16k width)
 GEMMA_2B_SPARSITY = {
     0: 105,

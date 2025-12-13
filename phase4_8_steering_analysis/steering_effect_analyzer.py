@@ -27,7 +27,10 @@ from common.phase_discovery import (
     get_dataset_range
 )
 from common.viz_utils import handle_viz_only_mode
-from common.config import Config
+from common.config import (
+    Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_CRITICAL_PERCENT,
+    MIN_CORRECTION_EFFECT_PERCENT, MIN_PRESERVATION_EFFECT_PERCENT, PLOT_DPI
+)
 from common.steering_metrics import (
     create_steering_hook,
     calculate_correction_rate,
@@ -186,9 +189,9 @@ class SteeringEffectAnalyzer:
             self._checkpoint_managers[steering_type] = CheckpointManager(
                 checkpoint_dir=self.checkpoint_dir,
                 experiment_name=steering_type,
-                frequency=50,
+                frequency=CHECKPOINT_FREQUENCY_DEFAULT,
                 keep_last=3,
-                memory_threshold=95.0
+                memory_threshold=float(MEMORY_CRITICAL_PERCENT)
             )
         return self._checkpoint_managers[steering_type]
 
@@ -743,7 +746,7 @@ class SteeringEffectAnalyzer:
 
         # Save plot
         output_file = self.output_dir / "steering_effect_analysis.png"
-        plt.savefig(output_file, dpi=300, bbox_inches='tight')
+        plt.savefig(output_file, dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
 
         logger.info(f"Saved visualization to {output_file}")
@@ -830,13 +833,13 @@ class SteeringEffectAnalyzer:
                 'corruption_rate': metrics['corruption_rate'],
                 'preservation_rate': metrics['preservation_rate'],
                 'success_criteria_met': {
-                    'correction_rate_above_10%': metrics['correction_rate'] > 10,
-                    'corruption_rate_above_10%': metrics['corruption_rate'] > 10,
-                    'preservation_rate_above_50%': metrics['preservation_rate'] > 50,
+                    'correction_rate_above_10%': metrics['correction_rate'] > MIN_CORRECTION_EFFECT_PERCENT,
+                    'corruption_rate_above_10%': metrics['corruption_rate'] > MIN_CORRECTION_EFFECT_PERCENT,
+                    'preservation_rate_above_50%': metrics['preservation_rate'] > MIN_PRESERVATION_EFFECT_PERCENT,
                     'all_criteria_met': (
-                        metrics['correction_rate'] > 10 and
-                        metrics['corruption_rate'] > 10 and
-                        metrics['preservation_rate'] > 50
+                        metrics['correction_rate'] > MIN_CORRECTION_EFFECT_PERCENT and
+                        metrics['corruption_rate'] > MIN_CORRECTION_EFFECT_PERCENT and
+                        metrics['preservation_rate'] > MIN_PRESERVATION_EFFECT_PERCENT
                     )
                 }
             },
@@ -950,15 +953,15 @@ class SteeringEffectAnalyzer:
                    f"({exclusion_summary['corruption_experiment']['excluded']} excluded)")
         logger.info(f"Preservation experiment: {exclusion_summary['preservation_experiment']['included']}/{exclusion_summary['preservation_experiment']['attempted']} "
                    f"({exclusion_summary['preservation_experiment']['excluded']} excluded)")
-        logger.info(f"Correction Rate: {correction_rate:.1f}% {'✓' if correction_rate > 10 else '✗'}")
-        logger.info(f"Corruption Rate: {corruption_rate:.1f}% {'✓' if corruption_rate > 10 else '✗'}")
-        logger.info(f"Preservation Rate: {preservation_rate:.1f}% {'✓' if preservation_rate > 50 else '✗'}")
+        logger.info(f"Correction Rate: {correction_rate:.1f}% {'✓' if correction_rate > MIN_CORRECTION_EFFECT_PERCENT else '✗'}")
+        logger.info(f"Corruption Rate: {corruption_rate:.1f}% {'✓' if corruption_rate > MIN_CORRECTION_EFFECT_PERCENT else '✗'}")
+        logger.info(f"Preservation Rate: {preservation_rate:.1f}% {'✓' if preservation_rate > MIN_PRESERVATION_EFFECT_PERCENT else '✗'}")
         logger.info("\nNote: Statistical significance testing is performed in Phase 4.14 via triangulation")
 
         all_criteria_met = (
-            correction_rate > 10 and
-            corruption_rate > 10 and
-            preservation_rate > 50
+            correction_rate > MIN_CORRECTION_EFFECT_PERCENT and
+            corruption_rate > MIN_CORRECTION_EFFECT_PERCENT and
+            preservation_rate > MIN_PRESERVATION_EFFECT_PERCENT
         )
 
         logger.info(f"\nBasic success criteria met: {'✓ YES' if all_criteria_met else '✗ NO'}")

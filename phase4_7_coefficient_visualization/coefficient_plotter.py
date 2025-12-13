@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 
+from common.config import PLOT_DPI
 from common.logging import get_logger
 from common.utils import ensure_directory_exists
 from common.viz_utils import handle_viz_only_mode
@@ -135,7 +136,7 @@ class CoefficientVisualizer:
 
         # Save
         output_path = self.output_dir / "correct_coefficient_search.png"
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.savefig(output_path, dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
         logger.info(f"Saved correct coefficient plot to {output_path}")
 
@@ -204,7 +205,7 @@ class CoefficientVisualizer:
 
         # Save
         output_path = self.output_dir / "incorrect_coefficient_search.png"
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.savefig(output_path, dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
         logger.info(f"Saved incorrect coefficient plot to {output_path}")
 

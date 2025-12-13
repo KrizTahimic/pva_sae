@@ -27,7 +27,7 @@ from common.tensor_utils import save_activation
 from common.dataset_utils import evaluate_code, extract_code
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir, write_phase_output, get_dataset_range
 from common.prompt_utils import PromptBuilder
-from common.config import Config
+from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_WARNING_PERCENT
 from common.logging import get_logger, tqdm_with_logging
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
@@ -108,8 +108,8 @@ class InstructBaselineRunner:
         self.device = detect_device()
         
         # Checkpoint settings
-        self.checkpoint_frequency = 50  # Save every 50 tasks
-        self.memory_warning_threshold = 85  # Warn if RAM usage > 85%
+        self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
+        self.memory_warning_threshold = MEMORY_WARNING_PERCENT
         
         # CRITICAL: Use instruction-tuned model
         self.model_name = "google/gemma-2-2b-it"
