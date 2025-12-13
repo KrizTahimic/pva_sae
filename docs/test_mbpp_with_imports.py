@@ -275,8 +275,8 @@ class ImportTestRunner:
         return {
             'correct': best_correct['layer'],
             'incorrect': best_incorrect['layer'],
-            'correct_feature_idx': best_correct['feature_idx'],
-            'incorrect_feature_idx': best_incorrect['feature_idx']
+            'correct_latent_idx': best_correct['latent_idx'],
+            'incorrect_latent_idx': best_incorrect['latent_idx']
         }
 
     def generate_temp0_with_activations(self, prompt: str):

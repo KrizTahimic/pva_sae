@@ -275,7 +275,7 @@ class ThresholdCalculator:
             "="*60,
             "",
             f"Source: Phase 3.6 (hyperparameter dataset, {summary['activation_statistics']['n_samples']} samples)",
-            f"Feature: Layer {summary['latent_info']['layer']}, Feature {summary['latent_info']['feature_idx']}",
+            f"Latent: Layer {summary['latent_info']['layer']}, Latent {summary['latent_info']['latent_idx']}",
             "",
             "PERCENTILE THRESHOLDS",
             "-"*60,

@@ -320,7 +320,7 @@ Use `einops.rearrange` and `einops.reduce` for self-documenting tensor operation
 
 ### 4.3 Variable Naming Consistency
 
-- [ ] rename the latents, directions, features etc. Use one name. Find other variables that have called different names.
+- [ ] rename the latents, directions, features etc. Use one name or use them correctly not interchangebly. Find other variables that have called different names.
 
 
 #### Single-Letter Variables (outside comprehensions)
@@ -535,8 +535,8 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 ## Step 6: Multi-GPU Parallel Execution (After Experiments Work)
 - [ ] Test all phase one by one first if it is all running.
     - [ ] Exmaine each of the output file.
-    - [ ] Code review manually. With CC help ofcourse but read all code manually. Make sure I understand and it is correct.
-    - [ ] Understand the methods especially the linear algebra. Visualize etc. 
+    - [ ] Code review manually. With CC help ofcourse but read all code manually. Make sure I understand and it is correct. 
+    - [ ] Understand the methods especially the linear algebra. Visualize etc. Enter learning mode. Learn to code. Get used to it.
 - [ ] Consider batching or not since one problem already do 50% GPU usage?
 - [ ] and running all four gpu at once. f
 - [x] **Gemma-2-9B Support Added:**

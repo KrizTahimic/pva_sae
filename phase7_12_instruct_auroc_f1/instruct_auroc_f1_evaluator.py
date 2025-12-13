@@ -336,8 +336,8 @@ def load_instruct_activations(
         with torch.no_grad():
             latent_activations = sae.encode(raw_activation)
 
-        # Extract specific feature value
-        latent_activation = latent_activations[0, feature_idx].item()
+        # Extract specific latent value
+        latent_activation = latent_activations[0, latent_idx].item()
         activations.append(latent_activation)
 
         # Use the result at temperature 0.0

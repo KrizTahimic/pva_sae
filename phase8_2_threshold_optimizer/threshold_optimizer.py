@@ -132,10 +132,10 @@ class ThresholdOptimizer:
         # Extract incorrect-predicting feature info
         incorrect_pred_info = phase3_8_results['incorrect_predicting_feature']
         self.incorrect_pred_layer = incorrect_pred_info['feature']['layer']  # 19
-        self.incorrect_pred_feature = incorrect_pred_info['feature']['idx']  # 5441
+        self.incorrect_pred_latent = incorrect_pred_info['feature']['idx']  # 5441
 
         logger.info(f"Incorrect-predicting feature: Layer {self.incorrect_pred_layer}, "
-                   f"Feature {self.incorrect_pred_feature}")
+                   f"Feature {self.incorrect_pred_latent}")
 
         # === LOAD PHASE 2.5 TOP LATENTS (for correct-steering direction) ===
         logger.info("Loading steering latents from Phase 2.5...")
@@ -451,8 +451,8 @@ class ThresholdOptimizer:
             # Decompose via SAE - convert to float32 for SAE encoder
             with torch.no_grad():
                 activation_float = raw_activation.to(dtype=torch.float32, device=self.device)
-                sae_features = self.sae_l19.encode(activation_float)  # (batch, 2304) -> (batch, 16384)
-                incorrect_pred_activation = sae_features[0, self.incorrect_pred_feature].item()
+                latent_activations = self.sae_l19.encode(activation_float)  # (batch, 2304) -> (batch, 16384)
+                incorrect_pred_activation = latent_activations[0, self.incorrect_pred_latent].item()
 
             # Store activation value
             steering_state.incorrect_pred_activation = float(incorrect_pred_activation)
@@ -666,7 +666,7 @@ class ThresholdOptimizer:
                     outcome = "✓ PRESERVED" if result['preserved'] else "✗ CORRUPTED"
 
                 logger.info(f"  [{idx+1}/{total_problems}] {task_id}: {outcome} {steer_status} "
-                          f"(L{self.incorrect_pred_layer}-F{self.incorrect_pred_feature}: {result['incorrect_pred_activation']:.2f}, threshold: {threshold:.2f})")
+                          f"(L{self.incorrect_pred_layer}-F{self.incorrect_pred_latent}: {result['incorrect_pred_activation']:.2f}, threshold: {threshold:.2f})")
 
             except Exception as e:
                 logger.error(f"  [{idx+1}/{total_problems}] {task_id}: ERROR - {e}")
@@ -713,13 +713,13 @@ class ThresholdOptimizer:
                     n_corrected = sum(1 for r in results if r.get('corrected', False))
                     logger.info(f"\n  📊 Progress: {idx+1}/{total_problems} problems")
                     logger.info(f"     Steered: {n_steered}, Corrected: {n_corrected}, Errors: {n_errors}")
-                    logger.info(f"     Avg L{self.incorrect_pred_layer}-F{self.incorrect_pred_feature} activation: {avg_activation:.2f}\n")
+                    logger.info(f"     Avg L{self.incorrect_pred_layer}-F{self.incorrect_pred_latent} activation: {avg_activation:.2f}\n")
                 else:  # preservation
                     n_preserved = sum(1 for r in results if r.get('preserved', False))
                     n_corrupted = sum(1 for r in results if r.get('corrupted', False))
                     logger.info(f"\n  📊 Progress: {idx+1}/{total_problems} problems")
                     logger.info(f"     Steered: {n_steered}, Preserved: {n_preserved}, Corrupted: {n_corrupted}, Errors: {n_errors}")
-                    logger.info(f"     Avg L{self.incorrect_pred_layer}-F{self.incorrect_pred_feature} activation: {avg_activation:.2f}\n")
+                    logger.info(f"     Avg L{self.incorrect_pred_layer}-F{self.incorrect_pred_latent} activation: {avg_activation:.2f}\n")
 
                 # Memory cleanup
                 gc.collect()
@@ -1023,7 +1023,7 @@ class ThresholdOptimizer:
             "="*80,
             "",
             f"Dataset: Phase 3.6 (hyperparams, {len(self.incorrect_problems)} incorrect, {len(self.correct_problems)} correct)",
-            f"Feature: Layer {self.incorrect_pred_layer}, Feature {self.incorrect_pred_feature} (incorrect-predicting)",
+            f"Feature: Layer {self.incorrect_pred_layer}, Feature {self.incorrect_pred_latent} (incorrect-predicting)",
             f"Steering: Layer {self.correct_steer_layer}, Coefficient {self.steering_coefficient}",
             "",
             "THRESHOLD COMPARISON (sorted by net benefit)",

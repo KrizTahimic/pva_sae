@@ -79,7 +79,7 @@ class ZeroDiscriminationSelector:
         correct_dir, incorrect_dir, n_correct, n_incorrect = self.load_phase1_activations()
         
         # Initialize frequency counters
-        feature_freqs = {}
+        latent_freqs = {}
         
         # Load SAE for this layer
         try:
@@ -126,14 +126,14 @@ class ZeroDiscriminationSelector:
                 logger.debug(f"Error processing {file}: {e}")
                 continue
         
-        # Calculate frequencies for each feature
-        for feature_idx in range(self.features_per_layer):
-            freq_correct = correct_activations[:, feature_idx].mean()
-            freq_incorrect = incorrect_activations[:, feature_idx].mean()
-            
-            # Only store if feature activates sufficiently
+        # Calculate frequencies for each latent
+        for latent_idx in range(self.features_per_layer):
+            freq_correct = correct_activations[:, latent_idx].mean()
+            freq_incorrect = incorrect_activations[:, latent_idx].mean()
+
+            # Only store if latent activates sufficiently
             if (freq_correct + freq_incorrect) >= self.min_activation_freq:
-                feature_freqs[feature_idx] = {
+                latent_freqs[latent_idx] = {
                     'freq_correct': float(freq_correct),
                     'freq_incorrect': float(freq_incorrect),
                     'separation_score': abs(freq_correct - freq_incorrect)
@@ -143,7 +143,7 @@ class ZeroDiscriminationSelector:
         del correct_activations, incorrect_activations, sae
         gc.collect()
         
-        return feature_freqs
+        return latent_freqs
         
     def load_discriminative_features(self) -> set:
         """Load Phase 2.5 top discriminative features to exclude."""
@@ -203,10 +203,10 @@ class ZeroDiscriminationSelector:
             self.check_memory_usage()
             
             # Calculate frequencies for this layer
-            feature_freqs = self.calculate_feature_frequencies(layer)
+            latent_freqs = self.calculate_feature_frequencies(layer)
             
             # Filter candidates
-            for latent_idx, stats in feature_freqs.items():
+            for latent_idx, stats in latent_freqs.items():
                 latent_id = f"L{layer}F{latent_idx}"
 
                 # Skip if in excluded list
@@ -312,7 +312,7 @@ class ZeroDiscriminationSelector:
         logger.info("\nSelected Zero-Discrimination Features:")
         logger.info("-" * 40)
         for i, feature in enumerate(selected_latents[:5], 1):
-            logger.info(f"{i}. Layer {feature['layer']}, Feature {feature['feature_idx']}")
+            logger.info(f"{i}. Layer {feature['layer']}, Latent {feature['latent_idx']}")
             logger.info(f"   Separation: {feature['separation_score']:.6f}")
             logger.info(f"   Freq correct: {feature['freq_correct']:.4f}")
             logger.info(f"   Freq incorrect: {feature['freq_incorrect']:.4f}")

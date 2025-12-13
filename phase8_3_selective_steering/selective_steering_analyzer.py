@@ -127,13 +127,13 @@ class SelectiveSteeringAnalyzer:
         # Extract incorrect-predicting feature info
         incorrect_pred_info = phase3_8_results['incorrect_predicting_feature']
         self.incorrect_pred_layer = incorrect_pred_info['feature']['layer']  # 19
-        self.incorrect_pred_feature = incorrect_pred_info['feature']['idx']  # 5441
+        self.incorrect_pred_latent = incorrect_pred_info['feature']['idx']  # 5441
 
         # Use Phase 3.8 threshold as baseline
         phase3_8_threshold = incorrect_pred_info['threshold_optimization']['optimal_threshold']  # 15.5086
 
         logger.info(f"Incorrect-predicting feature: Layer {self.incorrect_pred_layer}, "
-                   f"Feature {self.incorrect_pred_feature}")
+                   f"Feature {self.incorrect_pred_latent}")
         logger.info(f"Phase 3.8 optimal threshold: {phase3_8_threshold:.4f}")
 
         # === LOAD PHASE 2.5 TOP FEATURES (for correct-steering direction) ===
@@ -344,17 +344,17 @@ class SelectiveSteeringAnalyzer:
                 # Extract activation at last position (first new token)
                 activation = residual[0, -1, :]  # Shape: (2304,)
 
-                # Encode through SAE to get feature activation
+                # Encode through SAE to get latent activation
                 with torch.no_grad():
                     activation_float = activation.to(dtype=torch.float32, device=self.device)
-                    sae_features = self.sae_l19.encode(activation_float.unsqueeze(0))
-                    state.incorrect_pred_activation = sae_features[0, self.incorrect_pred_feature].item()
+                    latent_activations = self.sae_l19.encode(activation_float.unsqueeze(0))
+                    state.incorrect_pred_activation = latent_activations[0, self.incorrect_pred_latent].item()
 
                 # Check threshold
                 state.should_steer = state.incorrect_pred_activation > self.threshold
                 state.first_token_checked = True
 
-                logger.debug(f"Task {task_id}: L{self.incorrect_pred_layer}-{self.incorrect_pred_feature} = {state.incorrect_pred_activation:.4f}, "
+                logger.debug(f"Task {task_id}: L{self.incorrect_pred_layer}-{self.incorrect_pred_latent} = {state.incorrect_pred_activation:.4f}, "
                            f"threshold = {self.threshold:.4f}, should_steer = {state.should_steer}")
 
             return input
@@ -499,7 +499,7 @@ class SelectiveSteeringAnalyzer:
             logger.info(f"Processing {total_problems} initially correct problems")
             logger.info(f"Goal: Measure selective preservation rate")
 
-        logger.info(f"Threshold: {self.threshold:.4f} (Layer {self.incorrect_pred_layer}, Feature {self.incorrect_pred_feature})")
+        logger.info(f"Threshold: {self.threshold:.4f} (Layer {self.incorrect_pred_layer}, Feature {self.incorrect_pred_latent})")
         logger.info(f"Steering: Layer {self.correct_steer_layer}, Feature {self.correct_steer_feature}, Coefficient {self.correct_coefficient}")
         logger.info(f"{'='*60}\n")
 
@@ -535,7 +535,7 @@ class SelectiveSteeringAnalyzer:
                 status_emoji = "✓" if result['final_passed'] else "✗"
                 steer_status = "STEERED" if result['steered'] else "BASELINE"
                 logger.info(f"  [{enum_idx+1}/{total_problems}] Task {task_id}: {status_emoji} {steer_status} "
-                           f"(L{self.incorrect_pred_layer}-{self.incorrect_pred_feature}: {result['incorrect_pred_activation']:.2f}, threshold: {self.threshold:.2f})")
+                           f"(L{self.incorrect_pred_layer}-{self.incorrect_pred_latent}: {result['incorrect_pred_activation']:.2f}, threshold: {self.threshold:.2f})")
 
             except Exception as e:
                 logger.error(f"  [{enum_idx+1}/{total_problems}] Task {task_id}: ERROR - {e}")
@@ -571,13 +571,13 @@ class SelectiveSteeringAnalyzer:
                     n_corrected = sum(1 for r in results if not r['initial_passed'] and r['final_passed'])
                     logger.info(f"\n  📊 Progress: {enum_idx+1}/{total_problems} tasks")
                     logger.info(f"     Steered: {n_steered}, Corrected: {n_corrected}, Errors: {n_errors}")
-                    logger.info(f"     Avg L{self.incorrect_pred_layer}-{self.incorrect_pred_feature} activation: {avg_activation:.2f}\n")
+                    logger.info(f"     Avg L{self.incorrect_pred_layer}-{self.incorrect_pred_latent} activation: {avg_activation:.2f}\n")
                 else:  # preservation
                     n_preserved = sum(1 for r in results if r['initial_passed'] and r['final_passed'])
                     n_corrupted = sum(1 for r in results if r['initial_passed'] and not r['final_passed'])
                     logger.info(f"\n  📊 Progress: {enum_idx+1}/{total_problems} tasks")
                     logger.info(f"     Steered: {n_steered}, Preserved: {n_preserved}, Corrupted: {n_corrupted}, Errors: {n_errors}")
-                    logger.info(f"     Avg L{self.incorrect_pred_layer}-{self.incorrect_pred_feature} activation: {avg_activation:.2f}\n")
+                    logger.info(f"     Avg L{self.incorrect_pred_layer}-{self.incorrect_pred_latent} activation: {avg_activation:.2f}\n")
 
             # Milestone markers every 50 tasks
             if (enum_idx + 1) % 50 == 0:
@@ -934,7 +934,7 @@ class SelectiveSteeringAnalyzer:
             'timestamp': datetime.now().isoformat(),
             'threshold_info': {
                 'layer': self.incorrect_pred_layer,
-                'feature': self.incorrect_pred_feature,
+                'feature': self.incorrect_pred_latent,
                 'threshold': self.threshold
             },
             'steering_info': {
