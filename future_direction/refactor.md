@@ -274,56 +274,46 @@ Convert verbose loops to Pythonic one-liners. **High-impact examples:**
 ### 4.2 Modern Python Practices
 
 #### Type Hints (~50 files need updates)
-- [ ] Replace old-style imports: `from typing import Dict, List, Tuple` → use `dict`, `list`, `tuple` (Python 3.9+)
-- [ ] Fix partial type hints (some params typed, others not)
-- [ ] Keep `Optional`, `Union`, `Callable` from typing (still needed)
+- [x] Replace old-style imports: `from typing import Dict, List, Tuple` → use `dict`, `list`, `tuple` (Python 3.9+)
+- [x] Fix partial type hints (some params typed, others not)
+- [x] Keep `Optional`, `Union`, `Callable` from typing (still needed)
 
-#### Magic Numbers → Named Constants (~20-30 instances)
-- [ ] **phase1_simplified/runner.py:169** - `if generation_time > 60` → `GENERATION_TIME_WARNING_THRESHOLD = 60`
-- [ ] **phase1_simplified/runner.py:176** - `if len(generated_code) > 3000` → `CODE_LENGTH_WARNING_THRESHOLD = 3000`
-- [ ] **phase1_simplified/runner.py:40** - `self.memory_warning_threshold = 85` → `MEMORY_WARNING_PERCENT = 85`
-- [ ] **phase1_simplified/runner.py:39** - `self.checkpoint_frequency = 50` → `CHECKPOINT_FREQUENCY = 50`
-- [ ] **config.py:174** - `sae_latent_threshold: float = 0.02` → add docstring explaining why 0.02
+#### Magic Numbers → Named Constants ✓ COMPLETED
 
-#### einops for Tensor Operations (4-5 instances)
+Added to **common/config.py** (after line 17):
+- [x] `CHECKPOINT_FREQUENCY_DEFAULT = 10`
+- [x] `MEMORY_WARNING_PERCENT = 85`, `MEMORY_HIGH_PERCENT = 90`, `MEMORY_CRITICAL_PERCENT = 95`
+- [x] `GENERATION_TIME_WARNING_SECONDS = 60`, `CODE_LENGTH_WARNING_CHARS = 3000`
+- [x] `MIN_CORRECTION_EFFECT_PERCENT = 10`, `MIN_PRESERVATION_EFFECT_PERCENT = 50`
+- [x] `STEERING_EFFECT_THRESHOLD_PERCENT = 90`
+- [x] `PLOT_DPI = 300`
 
-Use `einops.rearrange` for complex reshapes - makes tensor shapes self-documenting.
+Updated 15 files to use these constants.
 
-- [ ] **steering_metrics.py:241** - Double unsqueeze → einops rearrange
-  ```python
-  # BEFORE: Shape transformation not obvious
-  steering = sae_decoder_direction.unsqueeze(0).unsqueeze(0) * coefficient
-  # [d_model] → [1, 1, d_model] - have to trace through mentally
+#### einops for Tensor Operations ✓ COMPLETED
 
-  # AFTER: Self-documenting shape
-  from einops import rearrange
-  steering = rearrange(sae_decoder_direction, 'd -> 1 1 d') * coefficient
-  # Shape transformation is explicit in the string
-  ```
+Use `einops.rearrange` and `einops.reduce` for self-documenting tensor operations.
 
-- [ ] **threshold_optimizer.py:490** - Same pattern
-  ```python
-  steering = rearrange(decoder_direction, 'd -> 1 1 d') * self.steering_coefficient
-  ```
+**Steering hooks - `rearrange('d -> 1 1 d')`:**
+- [x] **steering_metrics.py:242** - Double unsqueeze → rearrange
+- [x] **threshold_optimizer.py:482** - Same pattern
+- [x] **selective_steering_analyzer.py:379** - Same pattern
 
-- [ ] **selective_steering_analyzer.py:394** - Same pattern
-  ```python
-  steering = rearrange(decoder_direction, 'd -> 1 1 d') * self.config.phase4_8_correct_coefficient
-  ```
+**Reduction operations - `reduce('n f -> f', 'mean')`:**
+- [x] **sae_analyzer.py:102-112** - Per-feature statistics (4 mean operations)
+- [x] **pile_frequency_computer.py:95** - Per-feature activation frequency
 
-- [ ] Keep existing `einops.einsum` in **weight_utils.py:40** - already good
+**SAE encoding shape prep - `rearrange('d -> 1 d')`:**
+- [x] **temperature_evaluator.py:182** - Ensure [1, d_model] for SAE
+- [x] **dataset_utils.py:363** - Same pattern
+
+**Already good (no change needed):**
+- [x] **weight_utils.py:40** - Already uses `einops.einsum`
 
 **When NOT to use einops** (keep simple):
 - Simple matmul: `x @ self.W_enc` - `@` operator is clearer
 - Basic squeeze: `activation.squeeze(0)` - obvious enough
 - Transpose for loading: `weights['encoder.weight'].T` - standard pattern
-
-**Add shape comments** where einops isn't used:
-```python
-# Shape: [batch, seq_len, d_model]
-residual = input[0]
-```
-
 ---
 
 ### 4.3 Variable Naming Consistency
@@ -543,6 +533,7 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 ## Step 6: Multi-GPU Parallel Execution (After Experiments Work)
 - [ ] Test all phase one by one first if it is all running.
     - [ ] Exmaine each of the output file.
+    - [ ] Code review manually. With CC help ofcourse but read all code manually. Make sure I understand and it is correct.
 - [ ] Consider batching or not since one problem already do 50% GPU usage?
 - [ ] and running all four gpu at once. f
 - [x] **Gemma-2-9B Support Added:**
