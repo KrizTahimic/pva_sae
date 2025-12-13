@@ -36,9 +36,9 @@ class BaseSAE(ABC, torch.nn.Module):
         """Decode sparse features back to activations."""
         pass
 
-    def get_decoder_weight(self, feature_idx: int) -> torch.Tensor:
-        """Get the decoder weight vector for a specific feature (for steering)."""
-        return self.W_dec[feature_idx, :]
+    def get_decoder_weight(self, latent_idx: int) -> torch.Tensor:
+        """Get the decoder weight vector for a specific latent (for steering)."""
+        return self.W_dec[latent_idx, :]
 
 
 class JumpReLUSAE(BaseSAE):

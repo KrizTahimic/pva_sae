@@ -68,7 +68,7 @@ def apply_pile_filter(
 
     Args:
         top_features: Dict with 'correct' and 'incorrect' lists of features.
-                      Each feature must have 'layer' and 'feature_idx' keys.
+                      Each feature must have 'layer' and 'latent_idx' keys.
         pile_frequencies: Dict mapping layer_idx to frequency tensors
         threshold: Maximum pile activation frequency (features above this are filtered)
         max_features: Maximum number of features to keep per category (default: 20)
@@ -82,7 +82,7 @@ def apply_pile_filter(
     for category in ['correct', 'incorrect']:
         for feature in top_features[category]:
             layer = feature['layer']
-            feat_idx = feature['feature_idx']
+            feat_idx = feature['latent_idx']
 
             # Check pile frequency if available
             if layer in pile_frequencies and pile_frequencies[layer] is not None:

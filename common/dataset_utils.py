@@ -313,39 +313,39 @@ def evaluate_code(code: str, test_list: list[str]) -> bool:
 def load_and_encode_activation(
     task_id: str,
     layer: int,
-    feature_idx: int,
+    latent_idx: int,
     sae,
     device: torch.device,
     activation_dir: Path
 ) -> Optional[float]:
     """
-    Load activation from safetensors and encode through SAE to get feature value.
+    Load activation from safetensors and encode through SAE to get latent activation.
 
     This is the common pattern used across evaluation phases:
     1. Load raw activation from safetensors file
     2. Convert to correct dtype
     3. Encode through SAE
-    4. Extract specific feature activation
+    4. Extract specific latent activation
 
     Args:
         task_id: Task identifier (used in filename)
         layer: Layer number
-        feature_idx: SAE feature index to extract
+        latent_idx: SAE latent index to extract
         sae: SAE model with encode() method
         device: Target device for tensors
         activation_dir: Directory containing activation files
 
     Returns:
-        Feature activation value as float, or None if file doesn't exist
+        Latent activation value as float, or None if file doesn't exist
 
     Example:
         >>> value = load_and_encode_activation(
-        ...     task_id="42", layer=16, feature_idx=1234,
+        ...     task_id="42", layer=16, latent_idx=1234,
         ...     sae=my_sae, device=torch.device("cuda"),
         ...     activation_dir=Path("data/phase1_0/activations/task_activations")
         ... )
         >>> if value is not None:
-        ...     print(f"Feature activation: {value:.4f}")
+        ...     print(f"Latent activation: {value:.4f}")
     """
     filepath = activation_dir / f"{task_id}_layer_{layer}.safetensors"
 
@@ -362,11 +362,11 @@ def load_and_encode_activation(
     if raw_activation.ndim == 1:
         raw_activation = rearrange(raw_activation, 'd -> 1 d')
 
-    # Encode and extract feature
+    # Encode and extract latent activation
     with torch.no_grad():
-        sae_features = sae.encode(raw_activation)
+        latent_activations = sae.encode(raw_activation)
 
-    return sae_features[0, feature_idx].item()
+    return latent_activations[0, latent_idx].item()
 
 
 def load_raw_activation(

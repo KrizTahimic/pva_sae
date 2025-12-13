@@ -39,7 +39,7 @@ from common.viz_utils import handle_viz_only_mode
 logger = get_logger("phase2_15.layerwise_visualizer")
 
 class LayerwiseVisualizer:
-    """Visualize SAE feature statistics across model layers."""
+    """Visualize SAE latent statistics across model layers."""
 
     def __init__(self, config: Config):
         """Initialize with configuration and discover dependencies."""
@@ -75,7 +75,7 @@ class LayerwiseVisualizer:
         self.phase2_10_dir = Path(phase2_10_output).parent
         logger.info(f"Discovered Phase 2.10 dir: {self.phase2_10_dir}")
 
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Main analysis pipeline."""
         # Handle --viz-only mode
         def viz_from_data(data):
@@ -129,13 +129,13 @@ class LayerwiseVisualizer:
         logger.info("✅ Phase 2.15 completed successfully")
         return results
 
-    def load_layer_data(self, phase_dir: Path, metric_key: str) -> dict[int, Dict]:
-        """Load feature data from all layer files."""
+    def load_layer_data(self, phase_dir: Path, metric_key: str) -> dict[int, dict]:
+        """Load latent data from all layer files."""
         layer_data = {}
 
         # Layers 1-25 (26 total for Gemma-2-2b)
         for layer_idx in range(1, 26):
-            filepath = phase_dir / f"layer_{layer_idx}_features.json"
+            filepath = phase_dir / f"layer_{layer_idx}_latents.json"
 
             if not filepath.exists():
                 logger.warning(f"Layer {layer_idx} file not found: {filepath}")
@@ -144,16 +144,16 @@ class LayerwiseVisualizer:
             with open(filepath, 'r') as f:
                 data = json.load(f)
 
-            # Extract features for correct and incorrect
+            # Extract latents for correct and incorrect
             layer_data[layer_idx] = {
-                'correct': data['features'].get('correct', []),
-                'incorrect': data['features'].get('incorrect', [])
+                'correct': data['latents'].get('correct', []),
+                'incorrect': data['latents'].get('incorrect', [])
             }
 
         logger.info(f"Loaded data for {len(layer_data)} layers")
         return layer_data
 
-    def build_heatmap_matrix(self, layer_data: dict[int, Dict]) -> np.ndarray:
+    def build_heatmap_matrix(self, layer_data: dict[int, dict]) -> np.ndarray:
         """Build matrix for heatmap: [2, n_layers] for correct/incorrect."""
         n_layers = 25  # Layers 1-25
         matrix = np.zeros((2, n_layers))
@@ -162,37 +162,37 @@ class LayerwiseVisualizer:
             if layer_idx not in layer_data:
                 continue
 
-            # Get maximum metric for correct-preferring features
-            correct_features = layer_data[layer_idx]['correct']
-            if correct_features:
+            # Get maximum metric for correct-preferring latents
+            correct_latents = layer_data[layer_idx]['correct']
+            if correct_latents:
                 # Find the metric key (either 'separation_score' or 't_statistic')
                 metric_key = None
                 for key in ['separation_score', 't_statistic']:
-                    if key in correct_features[0]:
+                    if key in correct_latents[0]:
                         metric_key = key
                         break
 
                 if metric_key:
                     correct_max = max(
-                        f.get(metric_key, 0) for f in correct_features
-                        if isinstance(f.get(metric_key), (int, float))
+                        lat.get(metric_key, 0) for lat in correct_latents
+                        if isinstance(lat.get(metric_key), (int, float))
                     )
                     matrix[0, layer_idx - 1] = correct_max
 
-            # Get maximum metric for incorrect-preferring features
-            incorrect_features = layer_data[layer_idx]['incorrect']
-            if incorrect_features:
+            # Get maximum metric for incorrect-preferring latents
+            incorrect_latents = layer_data[layer_idx]['incorrect']
+            if incorrect_latents:
                 # Find the metric key
                 metric_key = None
                 for key in ['separation_score', 't_statistic']:
-                    if key in incorrect_features[0]:
+                    if key in incorrect_latents[0]:
                         metric_key = key
                         break
 
                 if metric_key:
                     incorrect_max = max(
-                        f.get(metric_key, 0) for f in incorrect_features
-                        if isinstance(f.get(metric_key), (int, float))
+                        lat.get(metric_key, 0) for lat in incorrect_latents
+                        if isinstance(lat.get(metric_key), (int, float))
                     )
                     matrix[1, layer_idx - 1] = abs(incorrect_max)  # Use absolute value
 
@@ -284,7 +284,7 @@ class LayerwiseVisualizer:
 
         logger.info(f"Saved t-statistics heatmap to {self.visualizations_dir}")
 
-    def summarize_matrix(self, matrix: np.ndarray) -> Dict:
+    def summarize_matrix(self, matrix: np.ndarray) -> dict:
         """Create summary statistics for a metric matrix."""
         return {
             'max_correct': float(np.max(matrix[0, :])),
@@ -295,7 +295,7 @@ class LayerwiseVisualizer:
             'layer_with_max_incorrect': int(np.argmax(matrix[1, :]) + 1)
         }
 
-    def save_results(self, results: Dict) -> None:
+    def save_results(self, results: dict) -> None:
         """Save analysis results to JSON."""
         output_file = self.output_dir / 'layerwise_analysis_results.json'
         with open(output_file, 'w') as f:

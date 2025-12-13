@@ -94,33 +94,33 @@ class TStatisticSelector:
     
     def compute_t_statistics(
         self,
-        correct_features: torch.Tensor,
-        incorrect_features: torch.Tensor
+        correct_latent_activations: torch.Tensor,
+        incorrect_latent_activations: torch.Tensor
     ) -> dict[str, list[float]]:
         """
         Calculate t-statistics between correct and incorrect code activations.
-        
+
         Uses Welch's t-test which:
         - Handles unequal variances between groups
         - Provides effect size normalized by pooled variance
         - Returns positive values when first group > second group
-        
+
         Args:
-            correct_features: Tensor of shape (n_correct_samples, n_features)
-            incorrect_features: Tensor of shape (n_incorrect_samples, n_features)
-            
+            correct_latent_activations: Tensor of shape (n_correct_samples, n_latents)
+            incorrect_latent_activations: Tensor of shape (n_incorrect_samples, n_latents)
+
         Returns:
-            Dict with 't_stats_correct' (correct > incorrect) and 
+            Dict with 't_stats_correct' (correct > incorrect) and
             't_stats_incorrect' (incorrect > correct) lists
         """
         t_stats_correct = []  # Correct > Incorrect direction
         t_stats_incorrect = []  # Incorrect > Correct direction
-        
-        n_features = correct_features.shape[1]
-        
-        for i in range(n_features):
-            correct_acts = correct_features[:, i].cpu().numpy()
-            incorrect_acts = incorrect_features[:, i].cpu().numpy()
+
+        n_latents = correct_latent_activations.shape[1]
+
+        for i in range(n_latents):
+            correct_acts = correct_latent_activations[:, i].cpu().numpy()
+            incorrect_acts = incorrect_latent_activations[:, i].cpu().numpy()
             
             # Check if both groups have all zero activations
             if (correct_acts == 0).all() and (incorrect_acts == 0).all():
@@ -155,7 +155,7 @@ class TStatisticSelector:
                 t_stats_incorrect.append(float(t_stat_incorrect))
                 
             except Exception as e:
-                logger.warning(f"T-test failed for feature {i}: {e}")
+                logger.warning(f"T-test failed for latent {i}: {e}")
                 t_stats_correct.append(0.0)
                 t_stats_incorrect.append(0.0)
         
@@ -164,7 +164,7 @@ class TStatisticSelector:
             't_stats_incorrect': t_stats_incorrect
         }
     
-    def analyze_layer(self, layer_idx: int) -> Dict:
+    def analyze_layer(self, layer_idx: int) -> dict:
         """Analyze a single layer for PVA directions using t-statistics."""
         logger.info(f"Analyzing layer {layer_idx}")
         
@@ -197,19 +197,19 @@ class TStatisticSelector:
         
         # Encode activations through SAE
         with torch.no_grad():
-            correct_features = sae.encode(correct_activations)
-            incorrect_features = sae.encode(incorrect_activations)
-        
-        # DEBUG: Check SAE feature statistics
-        logger.info(f"Layer {layer_idx} SAE features:")
-        logger.info(f"  Correct features: mean={correct_features.mean():.6f}, std={correct_features.std():.6f}")
-        logger.info(f"  Incorrect features: mean={incorrect_features.mean():.6f}, std={incorrect_features.std():.6f}")
-        logger.info(f"  Active correct features: {(correct_features > 0).sum()}/{correct_features.numel()}")
-        logger.info(f"  Active incorrect features: {(incorrect_features > 0).sum()}/{incorrect_features.numel()}")
-        
+            correct_latent_activations = sae.encode(correct_activations)
+            incorrect_latent_activations = sae.encode(incorrect_activations)
+
+        # DEBUG: Check SAE latent statistics
+        logger.info(f"Layer {layer_idx} SAE latents:")
+        logger.info(f"  Correct latents: mean={correct_latent_activations.mean():.6f}, std={correct_latent_activations.std():.6f}")
+        logger.info(f"  Incorrect latents: mean={incorrect_latent_activations.mean():.6f}, std={incorrect_latent_activations.std():.6f}")
+        logger.info(f"  Active correct latents: {(correct_latent_activations > 0).sum()}/{correct_latent_activations.numel()}")
+        logger.info(f"  Active incorrect latents: {(incorrect_latent_activations > 0).sum()}/{incorrect_latent_activations.numel()}")
+
         # Compute t-statistics
-        t_stats = self.compute_t_statistics(correct_features, incorrect_features)
-        
+        t_stats = self.compute_t_statistics(correct_latent_activations, incorrect_latent_activations)
+
         # DEBUG: Check t-statistic results
         max_correct_t = max(t_stats['t_stats_correct']) if t_stats['t_stats_correct'] else 0
         max_incorrect_t = max(t_stats['t_stats_incorrect']) if t_stats['t_stats_incorrect'] else 0
@@ -220,80 +220,80 @@ class TStatisticSelector:
         logger.info(f"  Max incorrect t-stat: {max_incorrect_t:.6f}")
         logger.info(f"  Non-zero correct t-stats: {non_zero_correct}/{len(t_stats['t_stats_correct'])}")
         logger.info(f"  Non-zero incorrect t-stats: {non_zero_incorrect}/{len(t_stats['t_stats_incorrect'])}")
-        
-        # Store ALL features for global selection
-        num_features = len(t_stats['t_stats_correct'])
-        features_correct = [
-            {'feature_idx': i, 't_statistic': t_stats['t_stats_correct'][i]}
-            for i in range(num_features)
+
+        # Store ALL latents for global selection
+        num_latents = len(t_stats['t_stats_correct'])
+        latents_correct = [
+            {'latent_idx': i, 't_statistic': t_stats['t_stats_correct'][i]}
+            for i in range(num_latents)
         ]
-        features_incorrect = [
-            {'feature_idx': i, 't_statistic': t_stats['t_stats_incorrect'][i]}
-            for i in range(num_features)
+        latents_incorrect = [
+            {'latent_idx': i, 't_statistic': t_stats['t_stats_incorrect'][i]}
+            for i in range(num_latents)
         ]
-        
+
         # Prepare results
         results = {
             'layer': layer_idx,
             'n_correct': len(correct_activations),
             'n_incorrect': len(incorrect_activations),
-            'features': {
-                'correct': features_correct,
-                'incorrect': features_incorrect
+            'latents': {
+                'correct': latents_correct,
+                'incorrect': latents_incorrect
             }
         }
-        
+
         # Log summary statistics
         max_correct_t = max(t_stats['t_stats_correct'])
         max_incorrect_t = max(t_stats['t_stats_incorrect'])
         logger.info(
-            f"Layer {layer_idx}: Processed {num_features} features. "
+            f"Layer {layer_idx}: Processed {num_latents} latents. "
             f"Max correct t-stat={max_correct_t:.3f}, "
             f"Max incorrect t-stat={max_incorrect_t:.3f}"
         )
-        
+
         # Clean up to free memory
         del sae, correct_activations, incorrect_activations
-        del correct_features, incorrect_features
+        del correct_latent_activations, incorrect_latent_activations
         torch.cuda.empty_cache()
         
         return results
     
-    def select_top_k_features_globally(self, all_results: Dict, k: int = 20) -> Dict:
-        """Select top k features globally across all layers using t-statistics."""
-        logger.info(f"Selecting top {k} features globally across all layers")
-        
-        # Collect all features from all layers with dict unpacking
-        all_features_correct = [
-            {**feature, 'layer': layer_idx}
+    def select_top_k_latents_globally(self, all_results: dict, k: int = 20) -> dict:
+        """Select top k latents globally across all layers using t-statistics."""
+        logger.info(f"Selecting top {k} latents globally across all layers")
+
+        # Collect all latents from all layers with dict unpacking
+        all_latents_correct = [
+            {**latent, 'layer': layer_idx}
             for layer_idx, layer_results in all_results.items()
-            for feature in layer_results['features']['correct']
+            for latent in layer_results['latents']['correct']
         ]
-        all_features_incorrect = [
-            {**feature, 'layer': layer_idx}
+        all_latents_incorrect = [
+            {**latent, 'layer': layer_idx}
             for layer_idx, layer_results in all_results.items()
-            for feature in layer_results['features']['incorrect']
+            for latent in layer_results['latents']['incorrect']
         ]
-        
+
         # Sort globally by t-statistic (higher is better)
-        # Use layer and feature_idx as secondary keys for deterministic ordering
+        # Use layer and latent_idx as secondary keys for deterministic ordering
         # Note: We don't bias toward any particular layer - just use natural ordering
         top_correct = sorted(
-            all_features_correct, 
-            key=lambda x: (-x['t_statistic'], x['layer'], x['feature_idx'])
+            all_latents_correct,
+            key=lambda x: (-x['t_statistic'], x['layer'], x['latent_idx'])
         )[:k]
-        
+
         top_incorrect = sorted(
-            all_features_incorrect, 
-            key=lambda x: (-x['t_statistic'], x['layer'], x['feature_idx'])
+            all_latents_incorrect,
+            key=lambda x: (-x['t_statistic'], x['layer'], x['latent_idx'])
         )[:k]
-        
-        # Log distribution of top features across layers
-        correct_layer_counts = dict(Counter(feat['layer'] for feat in top_correct))
-        incorrect_layer_counts = dict(Counter(feat['layer'] for feat in top_incorrect))
-            
-        logger.info(f"Top {k} correct features by layer: {correct_layer_counts}")
-        logger.info(f"Top {k} incorrect features by layer: {incorrect_layer_counts}")
+
+        # Log distribution of top latents across layers
+        correct_layer_counts = dict(Counter(lat['layer'] for lat in top_correct))
+        incorrect_layer_counts = dict(Counter(lat['layer'] for lat in top_incorrect))
+
+        logger.info(f"Top {k} correct latents by layer: {correct_layer_counts}")
+        logger.info(f"Top {k} incorrect latents by layer: {incorrect_layer_counts}")
         
         return {
             'correct': top_correct,
@@ -321,23 +321,23 @@ class TStatisticSelector:
                 logger.error(f"Failed to analyze layer {layer_idx}: {e}")
                 continue
 
-        # Select top features globally (before filtering)
-        top_features_unfiltered = self.select_top_k_features_globally(all_results, k=100)
+        # Select top latents globally (before filtering)
+        top_latents_unfiltered = self.select_top_k_latents_globally(all_results, k=100)
 
         # Apply pile filtering if enabled (load precomputed frequencies from Phase 2.3)
         if self.config.pile_filter_enabled:
             pile_frequencies = load_pile_frequencies(self.config)
-            top_features = apply_pile_filter(
-                top_features_unfiltered,
+            top_latents = apply_pile_filter(
+                top_latents_unfiltered,
                 pile_frequencies,
                 self.config.pile_threshold
             )
         else:
             # If no pile filtering, just take top 20
-            top_features = {
-                'correct': top_features_unfiltered['correct'][:20],
-                'incorrect': top_features_unfiltered['incorrect'][:20],
-                'layer_distribution': top_features_unfiltered.get('layer_distribution', {})
+            top_latents = {
+                'correct': top_latents_unfiltered['correct'][:20],
+                'incorrect': top_latents_unfiltered['incorrect'][:20],
+                'layer_distribution': top_latents_unfiltered.get('layer_distribution', {})
             }
 
         # Prepare final results
@@ -346,7 +346,7 @@ class TStatisticSelector:
             'model_name': self.config.model_name,
             'activation_layers': self.config.activation_layers,
             'layer_results': all_results,
-            'top_20_features': top_features,
+            'top_20_latents': top_latents,
             'pile_filter_enabled': self.config.pile_filter_enabled,
             'pile_threshold': self.config.pile_threshold if self.config.pile_filter_enabled else None,
             'selection_method': 't_statistic'
@@ -355,38 +355,38 @@ class TStatisticSelector:
         # Save results
         self._save_results(results)
 
-        logger.info("Phase 2.10 completed. Top features selected using t-statistics.")
+        logger.info("Phase 2.10 completed. Top latents selected using t-statistics.")
         return results
     
-    def _save_results(self, results: Dict) -> None:
+    def _save_results(self, results: dict) -> None:
         """Save analysis results to file."""
         output_dir = Path(get_phase_output_dir("2.10", self.config))
         output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Save per-layer features (complete rankings)
+
+        # Save per-layer latents (complete rankings)
         for layer_idx, layer_data in results['layer_results'].items():
-            layer_file = output_dir / f"layer_{layer_idx}_features.json"
+            layer_file = output_dir / f"layer_{layer_idx}_latents.json"
             with open(layer_file, 'w') as f:
                 json.dump({
                     'layer': layer_idx,
                     'n_correct': layer_data['n_correct'],
                     'n_incorrect': layer_data['n_incorrect'],
-                    'features': layer_data['features']
+                    'latents': layer_data['latents']
                 }, f, indent=2)
-            logger.info(f"Saved layer {layer_idx} features to {layer_file}")
-        
-        # Save top 20 features
-        top_features_file = output_dir / "top_20_features.json"
-        with open(top_features_file, 'w') as f:
-            json.dump(results['top_20_features'], f, indent=2)
-        logger.info(f"Saved top 20 features to {top_features_file}")
-        
+            logger.info(f"Saved layer {layer_idx} latents to {layer_file}")
+
+        # Save top 20 latents
+        top_latents_file = output_dir / "top_20_latents.json"
+        with open(top_latents_file, 'w') as f:
+            json.dump(results['top_20_latents'], f, indent=2)
+        logger.info(f"Saved top 20 latents to {top_latents_file}")
+
         # Save summary results (without layer_results to avoid huge file)
         summary_results = {
             'creation_timestamp': results['creation_timestamp'],
             'model_name': results['model_name'],
             'activation_layers': results['activation_layers'],
-            'top_20_features': results['top_20_features'],
+            'top_20_latents': results['top_20_latents'],
             'selection_method': results['selection_method']
         }
         
@@ -403,7 +403,7 @@ class TStatisticSelector:
             phase="2.10",
             outputs={
                 "primary": "sae_analysis_results.json",
-                "features": "top_20_features.json",
+                "latents": "top_20_latents.json",
             },
             config=self.config,
             output_dir=str(output_dir),

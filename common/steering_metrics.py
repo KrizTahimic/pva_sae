@@ -219,29 +219,29 @@ def calculate_code_similarity(code1: str, code2: str) -> float:
     return similarity
 
 
-def create_steering_hook(sae_decoder_direction: torch.Tensor, 
+def create_steering_hook(latent_direction: torch.Tensor,
                         coefficient: float) -> Callable:
     """
-    Create a hook that adds SAE decoder direction to residual stream.
-    
+    Create a hook that adds SAE latent direction to residual stream.
+
     This hook modifies the model's internal representations by adding
-    a scaled SAE feature direction to steer the model's behavior.
-    
+    a scaled SAE latent direction to steer the model's behavior.
+
     Args:
-        sae_decoder_direction: Decoder vector from SAE [d_model]
+        latent_direction: Decoder weight vector for a latent [d_model]
         coefficient: Scalar multiplier for steering strength
-    
+
     Returns:
         Hook function for forward_pre_hook registration
     """
     def hook_fn(module, input):
         # input[0] is residual stream: [batch_size, seq_len, d_model]
         residual = input[0]
-        
+
         # Shape: [d_model] -> [1, 1, d_model] for broadcasting with [batch, seq, d_model]
-        steering = rearrange(sae_decoder_direction, 'd -> 1 1 d') * coefficient
+        steering = rearrange(latent_direction, 'd -> 1 1 d') * coefficient
         residual = residual + steering.to(residual.device, residual.dtype)
-        
+
         return (residual,) + input[1:]
-    
+
     return hook_fn

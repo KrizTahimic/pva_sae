@@ -95,21 +95,21 @@ class SimplifiedSAEAnalyzer:
     
     def compute_separation_scores(
         self,
-        correct_features: torch.Tensor,
-        incorrect_features: torch.Tensor
+        correct_latent_activations: torch.Tensor,
+        incorrect_latent_activations: torch.Tensor
     ) -> dict[str, torch.Tensor]:
         """Compute separation scores for PVA identification."""
-        # Average over samples (n) to get per-feature (f) statistics
-        f_correct = reduce((correct_features > 0).float(), 'n f -> f', 'mean')
-        f_incorrect = reduce((incorrect_features > 0).float(), 'n f -> f', 'mean')
+        # Average over samples (n) to get per-latent (f) statistics
+        f_correct = reduce((correct_latent_activations > 0).float(), 'n f -> f', 'mean')
+        f_incorrect = reduce((incorrect_latent_activations > 0).float(), 'n f -> f', 'mean')
 
         # Calculate separation scores
         s_correct = f_correct - f_incorrect
         s_incorrect = f_incorrect - f_correct
 
-        # Calculate mean activations per feature
-        mean_correct = reduce(correct_features, 'n f -> f', 'mean')
-        mean_incorrect = reduce(incorrect_features, 'n f -> f', 'mean')
+        # Calculate mean activations per latent
+        mean_correct = reduce(correct_latent_activations, 'n f -> f', 'mean')
+        mean_incorrect = reduce(incorrect_latent_activations, 'n f -> f', 'mean')
         
         return {
             'f_correct': f_correct,
@@ -146,33 +146,33 @@ class SimplifiedSAEAnalyzer:
         
         # Encode activations through SAE
         with torch.no_grad():
-            correct_features = sae.encode(correct_activations)
-            incorrect_features = sae.encode(incorrect_activations)
-        
+            correct_latent_activations = sae.encode(correct_activations)
+            incorrect_latent_activations = sae.encode(incorrect_activations)
+
         # Compute separation scores
-        scores = self.compute_separation_scores(correct_features, incorrect_features)
-        
-        # Store ALL features for global selection
-        num_features = scores['s_correct'].shape[0]
-        features_correct = [
+        scores = self.compute_separation_scores(correct_latent_activations, incorrect_latent_activations)
+
+        # Store ALL latents for global selection
+        num_latents = scores['s_correct'].shape[0]
+        latents_correct = [
             {
-                'feature_idx': i,
+                'latent_idx': i,
                 'separation_score': scores['s_correct'][i].item(),
                 'f_correct': scores['f_correct'][i].item(),
                 'f_incorrect': scores['f_incorrect'][i].item(),
                 'mean_activation': scores['mean_correct'][i].item()
             }
-            for i in range(num_features)
+            for i in range(num_latents)
         ]
-        features_incorrect = [
+        latents_incorrect = [
             {
-                'feature_idx': i,
+                'latent_idx': i,
                 'separation_score': scores['s_incorrect'][i].item(),
                 'f_correct': scores['f_correct'][i].item(),
                 'f_incorrect': scores['f_incorrect'][i].item(),
                 'mean_activation': scores['mean_incorrect'][i].item()
             }
-            for i in range(num_features)
+            for i in range(num_latents)
         ]
         
         # Prepare results
@@ -180,62 +180,62 @@ class SimplifiedSAEAnalyzer:
             'layer': layer_idx,
             'n_correct': len(correct_activations),
             'n_incorrect': len(incorrect_activations),
-            'features': {
-                'correct': features_correct,
-                'incorrect': features_incorrect
+            'latents': {
+                'correct': latents_correct,
+                'incorrect': latents_incorrect
             }
         }
-        
+
         # Log summary statistics
         max_correct_score = scores['s_correct'].max().item()
         max_incorrect_score = scores['s_incorrect'].max().item()
         logger.info(
-            f"Layer {layer_idx}: Processed {num_features} features. "
+            f"Layer {layer_idx}: Processed {num_latents} latents. "
             f"Max correct score={max_correct_score:.3f}, "
             f"Max incorrect score={max_incorrect_score:.3f}"
         )
-        
+
         # Clean up to free memory
         del sae, correct_activations, incorrect_activations
-        del correct_features, incorrect_features
+        del correct_latent_activations, incorrect_latent_activations
         torch.cuda.empty_cache()
         
         return results
     
-    def select_top_k_features_globally(self, all_results: Dict, k: int = 20) -> Dict:
-        """Select top k features globally across all layers."""
-        logger.info(f"Selecting top {k} features globally across all layers")
-        
-        # Collect all features from all layers with dict unpacking
-        all_features_correct = [
-            {**feature, 'layer': layer_idx}
+    def select_top_k_latents_globally(self, all_results: dict, k: int = 20) -> dict:
+        """Select top k latents globally across all layers."""
+        logger.info(f"Selecting top {k} latents globally across all layers")
+
+        # Collect all latents from all layers with dict unpacking
+        all_latents_correct = [
+            {**latent, 'layer': layer_idx}
             for layer_idx, layer_results in all_results.items()
-            for feature in layer_results['features']['correct']
+            for latent in layer_results['latents']['correct']
         ]
-        all_features_incorrect = [
-            {**feature, 'layer': layer_idx}
+        all_latents_incorrect = [
+            {**latent, 'layer': layer_idx}
             for layer_idx, layer_results in all_results.items()
-            for feature in layer_results['features']['incorrect']
+            for latent in layer_results['latents']['incorrect']
         ]
-        
+
         # Sort globally by separation score and take top k
-        # Use layer and feature_idx as secondary keys for deterministic ordering
+        # Use layer and latent_idx as secondary keys for deterministic ordering
         top_correct = sorted(
-            all_features_correct, 
-            key=lambda x: (-x['separation_score'], x['layer'], x['feature_idx'])
+            all_latents_correct,
+            key=lambda x: (-x['separation_score'], x['layer'], x['latent_idx'])
         )[:k]
-        
+
         top_incorrect = sorted(
-            all_features_incorrect, 
-            key=lambda x: (-x['separation_score'], x['layer'], x['feature_idx'])
+            all_latents_incorrect,
+            key=lambda x: (-x['separation_score'], x['layer'], x['latent_idx'])
         )[:k]
-        
-        # Log distribution of top features across layers
-        correct_layer_counts = dict(Counter(feat['layer'] for feat in top_correct))
-        incorrect_layer_counts = dict(Counter(feat['layer'] for feat in top_incorrect))
-            
-        logger.info(f"Top {k} correct features by layer: {correct_layer_counts}")
-        logger.info(f"Top {k} incorrect features by layer: {incorrect_layer_counts}")
+
+        # Log distribution of top latents across layers
+        correct_layer_counts = dict(Counter(lat['layer'] for lat in top_correct))
+        incorrect_layer_counts = dict(Counter(lat['layer'] for lat in top_incorrect))
+
+        logger.info(f"Top {k} correct latents by layer: {correct_layer_counts}")
+        logger.info(f"Top {k} incorrect latents by layer: {incorrect_layer_counts}")
         
         return {
             'correct': top_correct,
@@ -263,23 +263,23 @@ class SimplifiedSAEAnalyzer:
                 logger.error(f"Failed to analyze layer {layer_idx}: {e}")
                 continue
 
-        # Select top features globally (before filtering)
-        top_features_unfiltered = self.select_top_k_features_globally(all_results, k=100)
+        # Select top latents globally (before filtering)
+        top_latents_unfiltered = self.select_top_k_latents_globally(all_results, k=100)
 
         # Apply pile filtering if enabled (load precomputed frequencies from Phase 2.3)
         if self.config.pile_filter_enabled:
             pile_frequencies = load_pile_frequencies(self.config)
-            top_features = apply_pile_filter(
-                top_features_unfiltered,
+            top_latents = apply_pile_filter(
+                top_latents_unfiltered,
                 pile_frequencies,
                 self.config.pile_threshold
             )
         else:
             # If no pile filtering, just take top 20
-            top_features = {
-                'correct': top_features_unfiltered['correct'][:20],
-                'incorrect': top_features_unfiltered['incorrect'][:20],
-                'layer_distribution': top_features_unfiltered.get('layer_distribution', {})
+            top_latents = {
+                'correct': top_latents_unfiltered['correct'][:20],
+                'incorrect': top_latents_unfiltered['incorrect'][:20],
+                'layer_distribution': top_latents_unfiltered.get('layer_distribution', {})
             }
 
         # Prepare final results
@@ -288,7 +288,7 @@ class SimplifiedSAEAnalyzer:
             'model_name': self.config.model_name,
             'activation_layers': self.config.activation_layers,
             'layer_results': all_results,
-            'top_20_features': top_features,
+            'top_20_latents': top_latents,
             'pile_filter_enabled': self.config.pile_filter_enabled,
             'pile_threshold': self.config.pile_threshold if self.config.pile_filter_enabled else None
         }
@@ -296,40 +296,40 @@ class SimplifiedSAEAnalyzer:
         # Save results
         self._save_results(results)
 
-        logger.info("Phase 2.5 completed. Top features selected with pile filtering.")
+        logger.info("Phase 2.5 completed. Top latents selected with pile filtering.")
         return results
     
-    def _save_results(self, results: Dict) -> None:
+    def _save_results(self, results: dict) -> None:
         """Save analysis results to file."""
         output_dir = Path(get_phase_output_dir("2.5", self.config))
         output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Save per-layer features (complete rankings)
+
+        # Save per-layer latents (complete rankings)
         for layer_idx, layer_data in results['layer_results'].items():
-            layer_file = output_dir / f"layer_{layer_idx}_features.json"
+            layer_file = output_dir / f"layer_{layer_idx}_latents.json"
             with open(layer_file, 'w') as f:
                 json.dump({
                     'layer': layer_idx,
                     'n_correct': layer_data['n_correct'],
                     'n_incorrect': layer_data['n_incorrect'],
-                    'features': layer_data['features']
+                    'latents': layer_data['latents']
                 }, f, indent=2)
-            logger.info(f"Saved layer {layer_idx} features to {layer_file}")
-        
-        # Save top 20 features
-        top_features_file = output_dir / "top_20_features.json"
-        with open(top_features_file, 'w') as f:
-            json.dump(results['top_20_features'], f, indent=2)
-        logger.info(f"Saved top 20 features to {top_features_file}")
-        
+            logger.info(f"Saved layer {layer_idx} latents to {layer_file}")
+
+        # Save top 20 latents
+        top_latents_file = output_dir / "top_20_latents.json"
+        with open(top_latents_file, 'w') as f:
+            json.dump(results['top_20_latents'], f, indent=2)
+        logger.info(f"Saved top 20 latents to {top_latents_file}")
+
         # Save summary results (without layer_results to avoid huge file)
         summary_results = {
             'creation_timestamp': results['creation_timestamp'],
             'model_name': results['model_name'],
             'activation_layers': results['activation_layers'],
-            'top_20_features': results['top_20_features']
+            'top_20_latents': results['top_20_latents']
         }
-        
+
         output_file = output_dir / "sae_analysis_results.json"
         with open(output_file, 'w') as f:
             json.dump(summary_results, f, indent=2)
@@ -342,7 +342,7 @@ class SimplifiedSAEAnalyzer:
             phase="2.5",
             outputs={
                 "primary": "sae_analysis_results.json",
-                "features": "top_20_features.json",
+                "latents": "top_20_latents.json",
             },
             config=self.config,
             output_dir=str(output_dir),
