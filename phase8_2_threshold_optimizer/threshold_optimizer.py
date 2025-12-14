@@ -155,16 +155,16 @@ class ThresholdOptimizer:
         # === LOAD SAEs ===
         logger.info("Loading SAE models...")
 
-        # SAE for incorrect-predicting threshold check (Layer 19)
-        self.sae_l19 = load_sae_for_config(self.config, self.incorrect_pred_layer, self.device)
+        # SAE for incorrect-predicting threshold check
+        self.predicting_sae = load_sae_for_config(self.config, self.incorrect_pred_layer, self.device)
         logger.info(f"Loaded SAE for Layer {self.incorrect_pred_layer} (threshold checking)")
 
-        # SAE for correct-steering (Layer 16)
-        self.sae_l16 = load_sae_for_config(self.config, self.correct_steer_layer, self.device)
+        # SAE for correct-steering
+        self.steering_sae = load_sae_for_config(self.config, self.correct_steer_layer, self.device)
         logger.info(f"Loaded SAE for Layer {self.correct_steer_layer} (steering)")
 
         # Extract latent direction for steering
-        self.correct_latent_direction = self.sae_l16.W_dec[self.correct_steer_latent].detach()
+        self.correct_latent_direction = self.steering_sae.W_dec[self.correct_steer_latent].detach()
 
         # Ensure latent direction is in the same dtype as the model
         model_dtype = next(self.model.parameters()).dtype
@@ -447,8 +447,8 @@ class ThresholdOptimizer:
 
             # Decompose via SAE - match SAE dtype (bfloat16)
             with torch.no_grad():
-                activation_bf16 = raw_activation.to(dtype=self.sae_l19.W_enc.dtype, device=self.device)
-                latent_activations = self.sae_l19.encode(activation_bf16)  # (batch, 2304) -> (batch, 16384)
+                activation_bf16 = raw_activation.to(dtype=self.predicting_sae.W_enc.dtype, device=self.device)
+                latent_activations = self.predicting_sae.encode(activation_bf16)  # (batch, 2304) -> (batch, 16384)
                 incorrect_pred_activation = latent_activations[0, self.incorrect_pred_latent].item()
 
             # Store activation value

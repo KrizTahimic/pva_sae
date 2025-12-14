@@ -404,8 +404,9 @@ Terms removed:
   - Splitting would scatter related logic without improving readability
   - Decision: Function length isn't the only measure - cohesion matters more
 
-- [ ] Fix:        344 +                      activation_bf16 = activation.to(dtype=self.sae_l19.W_enc.dtype, device=self.device)
+- [x] Fix:        344 +                      activation_bf16 = activation.to(dtype=self.sae_l19.W_enc.dtype, device=self.device)
     - l_19 rename. Find other instances.
+    - **DONE**: Renamed `sae_l19` → `predicting_sae`, `sae_l16` → `steering_sae` in phase8_2 and phase8_3
 
 
 #### Add Early Returns (reduce nesting)
