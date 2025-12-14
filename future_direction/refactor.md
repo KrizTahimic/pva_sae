@@ -555,7 +555,11 @@ Nice-to-haves once the foundation is solid.
     - README.md: 362 → 188 lines (48% reduction)
     - Critical checklist at top with backward compatibility rule
     - Removed redundant sections, code style, screen examples
-- [ ] Improve notebooks. Remove unnecessary cells. Also do list comprehensions. Also make sure it works again after the new refactored code.
+- [x] Improve notebooks. Remove unnecessary cells. Also do list comprehensions. Also make sure it works again after the new refactored code.
+    - Deleted 2 broken notebooks: `notebooks/dataset_building_debug.ipynb`, `notebooks/sae_analysis.ipynb`
+    - Cleaned 7 file_check notebooks: removed verbose `"=" * 80` separators, emoji decorations
+    - Kept all pandas unlimited display settings (`max_rows`, `max_columns`, `max_colwidth`, `width` = None)
+    - List comprehension check: most for-loops in notebooks are OUTPUT cells (generated code), not actionable
 - [ ] Fix the figure generation code. Currently it looks soooo messy.
     - [ ] Understand matplotlib and pandas logic or how it works. So I can help instruct my preference and good practice.
 - [ ] Rename to sae-code-correctness ( the folder, github repo, huggingface etc.) Is this possible?
