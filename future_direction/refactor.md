@@ -456,25 +456,24 @@ Created `common/steering_setup.py` to consolidate duplicated loading code across
 
 ---
 
-### 4.6 Remaining Patterns to Abstract (Future Work)
+### 4.6 Common Module Abstractions ✅ COMPLETED
 
-These findings inform what else could go in `common/`:
+All patterns identified during refactoring have been abstracted into `common/`:
 
-| Pattern | Files Affected | Suggested Abstraction | Status |
-|---------|---------------|----------------------|--------|
-| Checkpoint/resume logic | 14+ files | `CheckpointManager` class | Future |
-| Start/end index filtering | 13 files | `filter_by_range()` util | ✅ DONE |
-| Memory management | 30+ files | `MemoryManager` class | Future |
-| Dataset-aware path construction | 20+ files | `get_dataset_aware_output_dir()` | Future |
-| SAE loading duplication | 8 files | Remove duplicate, use `common.sae_loader` | Future |
+| Pattern | Abstraction | Location | Status |
+|---------|-------------|----------|--------|
+| Checkpoint/resume logic | `CheckpointManager` class | `common/checkpoint_manager.py` | ✅ DONE |
+| Start/end index filtering | `filter_by_range()` util | `common/phase_discovery.py` | ✅ DONE |
+| Memory management | Utility functions | `common/memory_utils.py` | ✅ DONE |
+| Dataset-aware path construction | `get_phase_output_dir()` | `common/phase_discovery.py` | ✅ DONE |
+| SAE loading | `load_sae_for_config()` | `common/sae_loader.py` | ✅ DONE |
 
-**✅ COMPLETED: Start/end index filtering**
-
-Added `filter_by_range(data, config, description)` to `common/phase_discovery.py`:
-- Polymorphic function that auto-detects DataFrame vs list/tuple
-- Refactored 12 files to use single-line calls
-- Fixed Phase 1 anomaly (was using inclusive-end semantics)
-- Reduced ~60 lines of duplicated code
+**Implementation notes:**
+- `CheckpointManager`: Task ID-based tracking, version control, auto-cleanup
+- `filter_by_range()`: Polymorphic (DataFrame/list), fixed Phase 1 inclusive-end anomaly
+- Memory utils: Functions (`check_memory_usage()`, `get_memory_percent()`) rather than class
+- `get_phase_output_dir()`: Handles model/dataset suffixes (_llama, _humaneval, etc.)
+- `load_sae_for_config()`: Universal loader for GemmaScope (JumpReLU) and LlamaScope (TopK)
 
 ---
 
