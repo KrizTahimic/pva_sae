@@ -550,7 +550,11 @@ Nice-to-haves once the foundation is solid.
     - Updated `phase2_15_layerwise_visualization/layerwise_visualizer.py`: `preferring` → `predicting` in labels
     - Updated `phase4_6_golden_section_refinement/golden_section_refiner.py`: `latent_index` → `latent_idx` in dict keys
 - [x] Read the new code. Use explore agents to find if there is still outdated docstrings/comments. If so, let's update them.
-- [ ] Refactor README.md and CLAUDE.md.
+- [x] Refactor README.md and CLAUDE.md.
+    - CLAUDE.md: 995 → 312 lines (69% reduction)
+    - README.md: 362 → 188 lines (48% reduction)
+    - Critical checklist at top with backward compatibility rule
+    - Removed redundant sections, code style, screen examples
 - [ ] Improve notebooks. Remove unnecessary cells. Also do list comprehensions. Also make sure it works again after the new refactored code.
 - [ ] Fix the figure generation code. Currently it looks soooo messy.
     - [ ] Understand matplotlib and pandas logic or how it works. So I can help instruct my preference and good practice.

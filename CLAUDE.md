@@ -1,989 +1,115 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
-## 🚨 CRITICAL: Always Ask Permission Before Editing Code
+## 🚨 CRITICAL CHECKLIST - Read Before Every Task
 
-**NEVER edit, write, or modify any code files without explicit user permission, especially during planning phases.**
+**YOU MUST follow these rules. Violations waste hours of GPU time.**
 
-When in planning mode:
-- ✅ DO: Read files, search code, analyze architecture, create documentation/notes
-- ✅ DO: Propose changes, explain what needs to be done, create step-by-step plans
-- ❌ DON'T: Edit code files, create new code files, run tests, make commits
-- ❌ DON'T: Assume you should implement just because planning is complete
+1. **NO backward compatibility** - Make clean breaks. Delete old code. Update all call sites.
+   ```python
+   # ❌ WRONG                          # ✅ CORRECT
+   if manifest.exists():               if not manifest.exists():
+       return load_new(manifest)           raise FileNotFoundError("Run phase X first")
+   return legacy_fallback(path)        return load_new(manifest)
+   ```
 
-**Always ask the user explicitly**: "Should I proceed with implementation?" or "Ready to start coding?"
+2. **Read before editing** - Never propose changes to code you haven't read first.
 
----
+3. **Ask before implementing** - Get explicit user approval before writing code.
 
-## 🚨 CRITICAL: No Backward Compatibility Code
+4. **Activate conda first**:
+   ```bash
+   source ~/miniconda3/etc/profile.d/conda.sh && conda activate pva_sae
+   ```
 
-**NEVER add backward compatibility, legacy fallbacks, or migration code. Make clean breaks.**
-
-This is research code with one user. Backward compatibility adds complexity without benefit.
-
-### What This Means
-
-| ❌ DON'T | ✅ DO |
-|----------|-------|
-| Add "legacy" or "fallback" code paths | Make the change directly |
-| Keep old function signatures "for compatibility" | Update all call sites |
-| Add deprecation warnings | Remove old code entirely |
-| Support both old and new formats | Convert to new format only |
-| Add `if old_format: ... else new_format:` | Use new format everywhere |
-
-### Examples
-
-```python
-# ❌ WRONG - Legacy fallback
-def load_data(path):
-    if manifest.exists():
-        return load_from_manifest(manifest)
-    # Legacy fallback for old format
-    return legacy_load(path)
-
-# ✅ CORRECT - Clean break
-def load_data(path):
-    if not manifest.exists():
-        raise FileNotFoundError(f"No manifest found. Run phase X first.")
-    return load_from_manifest(manifest)
-```
-
-```python
-# ❌ WRONG - Supporting old parameter names
-def process(data, new_param=None, old_param=None):  # old_param for backward compat
-    param = new_param or old_param
-    ...
-
-# ✅ CORRECT - Just use the new name
-def process(data, param):
-    ...
-```
-
-**When tempted to add backward compatibility, STOP and ask:**
-1. Can I just update all call sites instead?
-2. Is this "compatibility" actually needed, or am I being overly cautious?
-3. Would deleting the old code and starting fresh be simpler?
-
-The answer is almost always: **just make the clean change**.
+5. **Use screen for long tasks** - Provide screen instructions for user to run manually. Do NOT execute screen commands via Claude Code.
 
 ---
 
-## ⚠️ CRITICAL: Environment Setup
+## Project Context
 
-**ALWAYS activate the conda environment before running ANY commands:**
+### What This Project Does
 
-```bash
-source ~/miniconda3/etc/profile.d/conda.sh && conda activate pva_sae
-```
-
-Without this, all Python commands will fail with `ModuleNotFoundError`. All commands in this document assume you're in the activated `pva_sae` environment.
-
-### Example Working Command
-
-```bash
-source ~/miniconda3/etc/profile.d/conda.sh && conda activate pva_sae && python3 run.py phase 8.3 --start 0 --end 4
-```
-
-## ⚠️ CRITICAL: Running Long Processes (Screen)
-
-**This project runs on a remote GCP instance via SSH. If you disconnect, processes will stop unless you use `screen`.**
-
-**🚨 IMPORTANT FOR CLAUDE CODE: Do NOT execute screen commands directly. Only provide instructions/recommendations for the user to run screen sessions manually in their terminal. Running screen via Claude Code makes it difficult for users to monitor and follow long-running tasks.**
-
-### Essential Screen Commands
-
-```bash
-# Start a new screen session (do this BEFORE running any phase)
-screen -S pva_phase
-
-# Now activate conda and run your phase
-source ~/miniconda3/etc/profile.d/conda.sh && conda activate pva_sae
-python3 run.py phase 8.3 --start 0 --end 4
-
-# Detach from screen (keeps process running, safe to close laptop)
-# Press: Ctrl+A, then press D
-
-# List all screen sessions
-screen -ls
-
-# Reattach to your session later
-screen -r pva_phase8
-
-# If only one session exists, just use:
-screen -r
-
-# Kill a screen session (from outside screen)
-screen -X -S pva_phase quit
-
-# Kill current session (from inside screen)
-exit
-```
-
-### Best Practices
-
-1. **Always use screen for long-running phases** - Most phases take 30 minutes to several hours
-2. **Name your sessions** - Use descriptive names: `screen -S phase1_generation`
-3. **One phase per session** - Don't run multiple phases in the same screen session
-4. **Check before starting** - Use `screen -ls` to see if you already have a session running
-5. **Checkpoint awareness** - Phases auto-checkpoint every 50 records, so you can safely kill and restart if needed
-6. **User executes screen manually** - Claude Code should ONLY provide screen instructions, never execute screen commands directly
-
-### Common Workflow
-
-```bash
-# Start your work session
-screen -S phase8_selective_steering
-source ~/miniconda3/etc/profile.d/conda.sh && conda activate pva_sae
-python3 run.py phase 8.3
-# Ctrl+A, D to detach
-# Close laptop, go home
-
-# Later, check progress
-screen -r phase8_selective_steering
-# View output, check if complete
-# Ctrl+A, D to detach again if still running
-```
-
-## Project Overview
-
-PVA-SAE (Python Value Attribution using Sparse Autoencoders) is a research project investigating how language models internally represent program correctness. The project uses Google's Gemma 2 models (2B/9B parameters), GemmaScope SAEs, and the MBPP/HumanEval datasets to:
-
-1. Generate code solutions and classify them as correct/incorrect
-2. Identify latent directions (SAE features) that encode correctness
-3. Validate findings through statistical analysis (AUROC, F1 scores)
-4. Perform causal interventions via model steering
-
-## Architecture Decisions: Why This Codebase Is Structured This Way
-
-### Inspiration vs. Implementation
-
-This project is inspired by [sae_entities](../sae_entities/) (Ferrando et al., 2024 - "Do I Know This Entity?"), which uses ~11K lines of code in a notebook-style codebase. Our implementation is ~30K lines across 94 files. This is intentional, not over-engineering.
-
-**Reference:** `../sae_entities/` - Compare their approach for context.
-
-### Resource-Constrained Design
-
-The key difference: **they have abundant compute, we don't.**
-
-| Constraint | sae_entities (Research Lab) | pva_sae (Thesis Project) |
-|------------|----------------------------|--------------------------|
-| If run fails | Re-run, no big deal | Lost hours of GPU time |
-| Activation computation | Recompute if needed | Must cache - too expensive |
-| Checkpointing | Nice to have | **Essential** - SSH disconnects, timeouts |
-| Code reuse | Generate fresh each time | Must reuse - generation takes hours |
+SAE-based analysis of code correctness representations in LLMs. Uses Gemma 2 models, GemmaScope SAEs, and MBPP/HumanEval datasets to:
+- Generate code solutions and classify as correct/incorrect
+- Identify SAE latent directions encoding correctness
+- Validate via AUROC/F1 and causal steering interventions
 
 ### Why 30+ Phases?
 
-Each phase is a **checkpoint boundary**. If Phase 4.5 fails after 3 hours, you don't lose Phases 1-4. Benefits:
+**Resource-constrained thesis project** - we don't have abundant compute.
 
-1. **Granular reruns** - Fix a bug in Phase 4.8, rerun only that phase
-2. **Checkpointing every 50 records** - Resume interrupted runs automatically
-3. **Activation caching** (Phase 2.2) - Compute Pile activations once, reuse forever
-4. **Auto-discovery** - Phases find outputs from previous phases automatically
+| If run fails... | Research Lab | This Project |
+|-----------------|--------------|--------------|
+| | Re-run, no problem | Lost hours of GPU time |
 
-### Infrastructure That Exists Because of Constraints
+Each phase is a **checkpoint boundary**. If Phase 4.5 fails, you don't lose Phases 1-4.
 
-| Infrastructure | Why It Exists |
-|---------------|---------------|
-| `--start N --end M` flags | Test on subset before committing to 6-hour run |
-| Checkpoint files | Resume after SSH disconnect or timeout |
-| `common/utils.py` auto-discovery | Don't manually track paths across 30+ phases |
-| Config dataclass | Switch model/dataset without editing 30 files |
-| Phase-specific output dirs | Don't overwrite Gemma results when running LLAMA |
-
-### What This Means for Development
-
-- **Don't consolidate phases** unless you have unlimited compute to re-run everything
-- **Keep checkpointing** - it saves hours of GPU time
-- **Preserve activation caching** - Phase 2.2 outputs are expensive to regenerate
-- **When adding features** (LLAMA, HumanEval, CoT), add new phases rather than modifying existing ones
+Key infrastructure:
+- `--start N --end M` flags: Test on subset before committing to 6-hour run
+- Checkpoints every 50 records: Resume after SSH disconnect
+- Auto-discovery: Phases find outputs from previous phases automatically
 
 ---
 
-## Core Architecture
+## Running Phases
 
-### PCDGE Pattern
-
-The fundamental pattern used throughout all phases:
-
-- **Prompt**: Build prompt from MBPP problem (`common/prompt_utils.py`)
-- **Capture**: Extract activations via PyTorch hooks during generation
-- **Decompose**: Apply SAE decomposition using GemmaScope's JumpReLU SAE
-- **Generate**: LLM generates Python code solution
-- **Evaluate**: Execute tests to classify as correct (pass@1) or incorrect
-
-This pattern is implemented across phases but with different goals (baseline generation, temperature robustness, steering analysis, etc.).
-
-### Phase-Based Execution
-
-The project is organized into sequential phases, each with:
-- Dedicated directory: `phase{N}_{description}/`
-- Output directory: `data/phase{N}/`
-- Auto-discovery: Later phases automatically find outputs from earlier phases
-- Main entry: `python3 run.py phase {N}`
-
-Phase categories:
-- **Phases 0-0.1**: Data preparation (difficulty analysis, problem splitting)
-- **Phases 1-2.10**: Feature discovery (dataset generation, SAE analysis, feature selection)
-- **Phases 3.5-3.12**: Statistical validation (temperature robustness, AUROC/F1 evaluation)
-- **Phases 4.5-4.14**: Causal validation (steering coefficient selection, effect analysis, significance testing)
-- **Phases 5.3-5.9**: Weight orthogonalization (permanent model modifications)
-- **Phase 6.3**: Attention pattern analysis
-- **Phases 7.3-7.12**: Model comparison (instruction-tuned vs base model)
-- **Phase 8.3**: Selective steering
-
-## Command Usage
-
-### Basic Structure
+### Basic Command
 
 ```bash
-python3 run.py phase {PHASE_NUMBER} [OPTIONS]
+python3 run.py phase {N} [OPTIONS]
 ```
 
-### Common Commands
+### Common Phases
+
+| Category | Phases | Purpose |
+|----------|--------|---------|
+| Data prep | 0, 0.1 | Difficulty analysis, problem splitting |
+| Feature discovery | 1, 2.2, 2.5, 2.10 | Dataset generation, SAE analysis |
+| Validation | 3.5, 3.8 | Temperature robustness, AUROC/F1 |
+| Steering | 4.5, 4.8, 4.14 | Coefficient selection, effect analysis |
+| Model comparison | 7.3, 7.12 | Instruction-tuned evaluation |
+| Selective | 8.3 | Threshold-based steering |
+
+### Key Options
 
 ```bash
-# Data preparation
-python3 run.py phase 0           # Difficulty analysis (974 MBPP problems)
-python3 run.py phase 0.1         # Split into SAE/hyperparams/validation sets
-
-# Feature discovery
-python3 run.py phase 1           # Generate dataset with activations (single GPU)
-python3 run.py phase 2.2         # Cache Pile activations (baseline)
-python3 run.py phase 2.5         # SAE analysis with pile filtering
-
-# Statistical validation
-python3 run.py phase 3.5         # Temperature robustness testing
-python3 run.py phase 3.8         # AUROC and F1 evaluation
-
-# Causal validation
-python3 run.py phase 4.5         # Steering coefficient selection
-python3 run.py phase 4.8         # Steering effect analysis
-python3 run.py phase 4.14        # Statistical significance testing
-
-# Model comparison
-python3 run.py phase 7.3         # Instruction-tuned baseline
-python3 run.py phase 7.12        # Instruction-tuned evaluation
+--start N --end M    # Process subset (for testing)
+--viz-only           # Regenerate plots without recomputing (seconds vs hours)
+--correction-only    # Only correction experiments (phases 4.5, 4.6, 4.8)
 ```
 
-### Important Options
+### Checkpointing
 
-```bash
-# Dataset range (for testing or processing subsets)
---start N --end M                # Process indices N to M
+All generation phases checkpoint every 50 records. If interrupted, re-run the same command - it auto-resumes.
 
-# Visualization regeneration (skip computation)
---viz-only                       # Regenerate plots from saved data (seconds vs hours)
+---
 
-# Experiment modes (phases 4.5, 4.6, 4.8)
---correction-only                # Only correction experiments
---corruption-only                # Only corruption experiments
---preservation-only              # Only preservation (phase 4.8)
+## Configuration
 
-# Model selection
---model google/gemma-2-2b        # Base model (default)
---model google/gemma-2-2b-it     # Instruction-tuned model
-```
+### Switching Models/Datasets
 
-### Visualization Regeneration (--viz-only)
-
-Many phases produce visualizations (plots, charts). To iterate on visualizations without rerunning expensive computations:
-
-```bash
-# Full run (hours) - generates data + visualizations
-python3 run.py phase 4.8
-
-# Regenerate visualizations only (seconds) - uses saved JSON
-python3 run.py phase 4.8 --viz-only
-```
-
-Supported phases: 2.15, 3.8, 3.10, 3.11, 3.12, 4.7, 4.8, 4.14, 4.16, 5.3, 5.6, 5.9, 6.3, 7.6, 7.9, 7.12
-
-**Requirement**: The phase must have been run normally at least once to generate the data JSON file.
-
-## Configuration System
-
-### Centralized Config
-
-All configuration is in `common/config.py` using a dataclass with namespaced fields:
-- `model_*`: Model settings
-- `dataset_*`: Dataset settings
-- `activation_*`: Activation extraction
-- `sae_*`: SAE analysis settings
-- `phase{N}_*`: Phase-specific output directories
-
-### Config Precedence
-
-CLI args > environment variables > config file > defaults
-
-### Key Settings
-
-```python
-# Model
-DEFAULT_MODEL_NAME = "google/gemma-2-2b"
-MAX_NEW_TOKENS = 800
-
-# Activations
-activation_layers = list(range(1, 26, 1))  # All 25 layers
-activation_position = -1  # Last token
-activation_hook_type = "resid_post"
-
-# SAE (GemmaScope)
-sae_repo_id = "google/gemma-scope-2b-pt-res"
-sae_width = "16k"
-sae_latent_threshold = 0.02
-
-# Pile filtering
-pile_filter_enabled = True  # Filter out general language features
-pile_threshold = 0.02
-pile_samples = 10000
-```
-
-### Switching Datasets and Models (Pure Manual Config)
-
-**IMPORTANT**: To switch between datasets (MBPP/HumanEval) or models (Gemma/LLAMA), simply edit `common/config.py` directly. No CLI arguments needed.
-
-#### How to Switch Datasets
-
-Edit the `dataset_name` field in `common/config.py`:
+Edit `common/config.py` directly. No CLI arguments needed.
 
 ```python
 # common/config.py
-@dataclass
-class Config:
-    # === DATASET SETTINGS ===
-    # Options: "mbpp" (Muennighoff/mbpp) or "humaneval"
-    dataset_name: str = "humaneval"  # ← Change this to switch datasets
+dataset_name: str = "humaneval"  # Options: "mbpp", "humaneval"
+model_name: str = "google/gemma-2-2b"  # See supported models below
 ```
 
-#### How to Switch Models
-
-Edit the `model_name` field in `common/config.py`:
-
-```python
-# common/config.py
-@dataclass
-class Config:
-    # === MODEL SETTINGS ===
-    model_name: str = "google/gemma-2-2b"  # ← Change this to switch models
-    # Options:
-    #   - "google/gemma-2-2b" (default)
-    #   - "google/gemma-2-2b-it" (instruction-tuned)
-    #   - "google/gemma-2-9b" (9B parameter model)
-    #   - "google/gemma-2-9b-it" (9B instruction-tuned)
-    #   - "meta-llama/Llama-3.1-8B" (LLAMA)
-```
-
-#### Example Workflows
-
-**Experiment 1: Gemma + HumanEval** (6-8 phases)
-```python
-# Edit config.py once:
-dataset_name: str = "humaneval"
-model_name: str = "google/gemma-2-2b"
-```
-
-Then run phases without extra arguments:
-```bash
-python3 run.py phase 3.5
-python3 run.py phase 3.8
-python3 run.py phase 4.8
-python3 run.py phase 5.3
-python3 run.py phase 6.3
-python3 run.py phase 8.3
-```
-
-**Experiment 2: LLAMA + MBPP** (10+ phases)
-```python
-# Edit config.py once:
-dataset_name: str = "mbpp"
-model_name: str = "meta-llama/Llama-3.1-8B"
-```
-
-Then run:
-```bash
-python3 run.py phase 1
-python3 run.py phase 2.2
-python3 run.py phase 2.5
-# ... etc
-```
-
-**Why This Approach?**
-- ✅ **Simpler commands** - No need to type `--dataset humaneval --model llama` for every phase
-- ✅ **Less error-prone** - No risk of forgetting CLI flags mid-experiment
-- ✅ **Clear current state** - Just check config.py to see what experiment is running
-- ✅ **Sequential workflow** - Perfect for running one experiment at a time (6-10 phases)
-
-## Key Files and Their Roles
-
-### Entry Points
-
-- `run.py`: Main CLI entry point for all phases
-- `common/config.py`: Centralized configuration
-- `common/phase_discovery.py`: Phase auto-discovery, output directory resolution
-- `common/utils.py`: Memory utilities, device detection, JSON/parquet helpers
-
-### Shared Utilities
-
-- `common/prompt_utils.py`: MBPP/HumanEval prompt building
-- `common/gpu_utils.py`: GPU memory management, cleanup
-- `common/logging.py`: Phase-aware logging
-- `common/steering_metrics.py`: Correction/corruption rate calculation
-- `common/weight_utils.py`: Weight orthogonalization utilities
-
-### Critical Phase Implementations
-
-- `phase1_latent_selection_dataset/runner.py`: PCDGE implementation for dataset generation
-- `phase2_5_separation_score_analysis/sae_analyzer.py`: SAE latent analysis with separation scores
-- `phase2_10_t_statistic_latent_selector/t_statistic_selector.py`: Welch's t-test latent selection
-- `phase3_8/auroc_f1_evaluator.py`: AUROC/F1 metric calculation
-- `phase4_8_steering_analysis/steering_effect_analyzer.py`: Steering intervention analysis
-
-## Data Directory Structure
-
-```
-data/
-├── phase0/           # Difficulty mappings (cyclomatic complexity)
-├── phase0_1/         # Split datasets (sae_mbpp.parquet, hyperparams_mbpp.parquet, validation_mbpp.parquet)
-├── phase1_0/         # Generated code + activations
-├── phase2_2/         # Pile activation baseline
-├── phase2_5/         # SAE analysis results (top_20_latents.json per layer)
-├── phase3_5/         # Temperature robustness data
-├── phase3_8/         # AUROC/F1 evaluation metrics
-├── phase4_8/         # Steering effect analysis
-└── phase7_12/        # Instruction-tuned model comparisons
-```
-
-## Important Architectural Details
-
-### Activation Extraction
-
-Activations are captured at the **last prompt token** (position -1) from the **residual stream** (`resid_post`) using PyTorch forward hooks before code generation begins. This is the point where the model has processed the entire problem specification but hasn't started generating the solution.
-
-### SAE Feature Analysis
-
-GemmaScope SAEs use JumpReLU activation (not standard ReLU). Features are evaluated using:
-- **Separation Score**: `mean(correct_activations) - mean(incorrect_activations)`
-- **T-Statistic**: Welch's t-test (unequal variance) for statistical significance
-- **Pile Filtering**: Features activating >2% on general text (Pile-10k) are excluded
-
-### Steering Mechanism
-
-Model steering adds a direction to activations via forward hooks:
-```python
-steered_activation = original_activation + coefficient * sae_decoder_direction
-```
-
-Coefficient selection uses adaptive coarse-to-fine search (Phase 4.5) then golden section refinement (Phase 4.6).
-
-### Statistical Controls
-
-The project uses rigorous controls:
-- **Random features** (Phase 4.10, 4.12): Features with zero separation score
-- **Binomial tests** (Phases 4.14, 5.9): Validate steering effects vs. chance
-- **Temperature variation** (Phases 3.5, 3.10): Robustness across [0.0, 0.3, 0.6, 0.9, 1.2]
-- **Difficulty stratification** (Phase 3.12): Performance across complexity levels
-
-## Common Development Workflows
-
-### Running a Complete Pipeline
-
-```bash
-# 1. Prepare data
-python3 run.py phase 0      # ~5 min
-python3 run.py phase 0.1    # ~1 min
-
-# 2. Generate baseline dataset (single GPU, or split across GPUs)
-python3 run.py phase 1      # ~2-6 hours for 487 problems
-
-# 3. Analyze features
-python3 run.py phase 2.2    # Cache pile activations
-python3 run.py phase 2.5    # SAE analysis
-
-# 4. Validate
-python3 run.py phase 3.5    # Temperature robustness
-python3 run.py phase 3.8    # AUROC/F1
-
-# 5. Causal intervention
-python3 run.py phase 4.5    # Find coefficients
-python3 run.py phase 4.8    # Test steering effects
-```
-
-### Resuming from Checkpoints
-
-All generation phases (1, 3.5, 4.8, etc.) create checkpoints every 50 records. If interrupted, simply re-run the same command - it will auto-resume from the latest checkpoint.
-
-### Testing on Small Samples
-
-Use `--start` and `--end` to test on a subset:
-```bash
-python3 run.py phase 1 --start 0 --end 10  # Test first 10 problems
-```
-
-### Debugging Configuration
-
-View the final configuration without running:
-```bash
-python3 run.py phase 3.8 --show-config
-```
-
-### GPU Management
-
-```bash
-# Test GPU detection
-python3 run.py test-gpu
-
-# Clean GPU memory
-python3 run.py cleanup-gpu
-
-# System status
-python3 run.py status
-```
-
-## Model/Dataset-Aware Paths
-
-The codebase automatically handles model/dataset-specific output directories.
-
-### How It Works
-
-Output directories automatically include suffixes based on config:
-```
-Gemma-2B + MBPP     → data/phase1_0/           (default, no suffix)
-Gemma-9B + MBPP     → data/phase1_0_gemma9b/
-LLAMA + MBPP        → data/phase1_0_llama/
-Gemma-2B + HumanEval → data/phase1_0_humaneval/
-```
-
-### Correct Usage Pattern
-
-**For output directories:**
-```python
-from common.phase_discovery import get_phase_output_dir
-output_dir = Path(get_phase_output_dir("2.2", config))
-```
-
-**For input discovery (finding previous phase outputs):**
-```python
-from common.phase_discovery import discover_latest_phase_output
-phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
-```
-
-### Rules to Follow
-
-1. **ALWAYS** use `get_phase_output_dir(phase, config)` from `common/phase_discovery.py`
-2. **ALWAYS** use `discover_latest_phase_output(phase, config=self.config)` for input discovery
-3. **NEVER** use hardcoded paths like `f"data/phase3_5_{self.config.dataset_name}"`
-
----
-
-## Important Notes
-
-### Hardware Requirements
-
-- GPU: 24GB+ VRAM (for 2B parameter model + SAE)
-- CPU RAM: 100GB+ (for activation processing)
-- Disk: ~50GB (model weights + datasets)
-- Supports: CUDA (NVIDIA), MPS (Apple Silicon), CPU
-
-### Auto-Discovery System
-
-Later phases automatically find outputs from earlier phases by searching for the most recent timestamped file in the expected directory.
-
-### Reproducibility
-
-- All random seeds are fixed (default: 42)
-- Checkpointing enables resuming interrupted runs
-- Problem splits are stratified by difficulty for balanced evaluation
-- Temperature=0.0 for deterministic baseline generation
-
-### GemmaScope Integration
-
-GemmaScope SAEs are loaded from HuggingFace:
-- Repo: `google/gemma-scope-2b-pt-res`
-- Width: 16k features
-- Each layer has different average sparsity (see `common/config.py::GEMMA_2B_SPARSITY`)
-- Layers 0-25 available for Gemma-2B
-
-### Tensor Storage Format (safetensors)
-
-**All activations and tensor data use `.safetensors` format.** Do NOT use legacy `.npz` format.
-
-```python
-# Saving activations
-from common.tensor_utils import save_tensor, load_tensor
-
-save_tensor(activation, Path("activation.safetensors"))
-activation = load_tensor(Path("activation.safetensors"), device="cpu")
-```
-
-**Why safetensors?**
-- Faster loading than numpy (memory-mapped)
-- Safe from pickle exploits
-- Preserves dtype (bfloat16 support)
-- Standard format for ML tensors
-
-**Exception**: GemmaScope SAE parameters use `.npz` (external Google format, can't change).
-
-## When Making Changes
-
-### Adding a New Phase
-
-1. Create `phase{N}_{name}/` directory
-2. Add output directory to `common/config.py`
-3. Implement runner class following existing patterns
-4. Add phase handler to `run.py::main()`
-5. Update auto-discovery logic if needed
-
-### Modifying SAE Analysis
-
-Key file: `phase2_5_separation_score_analysis/sae_analyzer.py`
-- Separation score calculation: Line ~200
-- Latent filtering logic: Line ~150
-- Top-k selection: Line ~250
-
-### Changing Steering Behavior
-
-Key files:
-- Coefficient selection: `phase4_5_model_steering/steering_coefficient_selector.py`
-- Hook implementation: Look for `create_steering_hook` functions
-- Metrics: `common/steering_metrics.py`
-
-### GPU Memory Issues
-
-If encountering OOM errors:
-1. Reduce batch sizes in config
-2. Enable `activation_cleanup_after_batch = True`
-3. Use `activation_clear_cache_between_layers = True`
-4. Run phases sequentially instead of in parallel
-5. Use `python3 run.py cleanup-gpu --aggressive`
-
----
-
-## SAE Terminology Standard
-
-Use consistent terminology when working with Sparse Autoencoders (SAEs):
-
-| Term | Description | Type |
-|------|-------------|------|
-| `latent_idx` | Integer index into SAE's latent space | `int` |
-| `latent_direction` | Decoder weight vector for a latent (`W_dec[latent_idx]`) | `torch.Tensor [d_model]` |
-| `latent_activation` | Scalar activation value for one latent | `float` |
-| `latent_activations` | Full encoded output from SAE | `torch.Tensor [batch, n_latents]` |
-
-**Correctness classification terminology**: Use "predicting" (correct-predicting, incorrect-predicting), not "detecting" or "preferring".
-
-**File naming**: Use `top_20_latents.json` (not `top_20_features.json`).
-
-**DO NOT USE these deprecated terms:**
-| Deprecated | Correct | Reason |
-|------------|---------|--------|
-| `feature` | `latent` | SAE outputs are latent space representations |
-| `feature_type` | `latent_type` | Parameter naming consistency |
-| `preferring` | `predicting` | We predict correctness, not prefer it |
-| `latent_index` | `latent_idx` | Use abbreviated form for consistency |
-| `top_20_features.json` | `top_20_latents.json` | File naming consistency |
-
----
-
-## Latent Source Architecture
-
-The codebase uses TWO distinct latent selection methods for different purposes:
-
-| Source | Selection Metric | Function | Used By |
-|--------|------------------|----------|---------|
-| **Phase 2.10** | t-statistic | `load_predicting_latents()` | Phases 3.x (AUROC/F1) |
-| **Phase 2.5** | separation score | `load_steering_latents()` | Phases 4.x, 5.x, 6.x, 7.x |
-
-### Why Two Sources?
-
-From the thesis methodology:
-- **Predicting directions** require sensitivity to confidence gradients (t-statistic) - used for statistical validation
-- **Steering directions** require categorical exclusivity for clean intervention (separation score) - used for causal validation
-
-### Usage Rules
-
-1. **Statistical validation (AUROC/F1)** → Use `load_predicting_latents()` (Phase 2.10)
-2. **Causal validation (steering/orthogonalization)** → Use `load_steering_latents()` (Phase 2.5)
-3. **Selective steering (Phase 8)** → Uses BOTH:
-   - Predicting latent info from Phase 3.8 (which used Phase 2.10) to decide WHEN to intervene
-   - Steering latent from Phase 2.5 via `load_steering_latents()` to perform the intervention
-
-### Phase → Source Mapping
-
-| Phase | Purpose | Source |
-|-------|---------|--------|
-| 3.5, 3.8, 3.10, 3.11, 3.12 | AUROC/F1 validation | Phase 2.10 (predicting) |
-| 4.5, 4.6, 4.7, 4.8, 4.10, 4.12, 4.14, 4.16 | Steering | Phase 2.5 (steering) |
-| 5.3, 5.6, 5.9 | Weight orthogonalization | Phase 2.5 (steering) |
-| 6.3 | Attention analysis | Phase 2.5 (steering) |
-| 7.6, 7.9 | Instruct steering | Phase 2.5 (steering) |
-| 7.12 | Instruct AUROC/F1 | Phase 2.10 (predicting) |
-| 8.1, 8.2, 8.3 | Selective steering | Both (3.8→2.10 for prediction, 2.5 for steering) |
-
----
-
-## Test Outcome Terminology Standard
-
-Use consistent terminology for test/correctness results:
-
-| Term | Description | When Used |
-|------|-------------|-----------|
-| `baseline_passed` | Boolean: did baseline (unmodified) test pass? | Initial state, from Phase 1 generation |
-| `steered_correct` | Boolean: is steered output correct? | After steering intervention |
-| `orthogonalized_correct` | Boolean: is orthogonalized output correct? | After weight orthogonalization |
-
-**Metric calculation patterns:**
-```python
-# Correction: incorrect → correct
-correction = (baseline_passed == False) & steered_correct
-
-# Corruption: correct → incorrect
-corruption = baseline_passed & (steered_correct == False)
-
-# Preservation: correct → correct
-preservation = baseline_passed & steered_correct
-```
-
-**DO NOT USE:**
-- `test_passed` (use `baseline_passed`)
-- `steered_passed` (use `steered_correct`)
-- `orthogonalized_passed` (use `orthogonalized_correct`)
-- `initial_passed`/`final_passed` (use explicit intervention names)
-- `initial_correct`/`final_correct` (use explicit intervention names)
-- `is_correct` (use `baseline_passed`)
-
----
-
-## Visualization Color Scheme
-
-Use consistent colors with semantic alignment across all visualization phases.
-
-**Color constants are defined in `common/config.py`:**
-
-| Concept | Color | Constant | Semantic |
-|---------|-------|----------|----------|
-| **Correction** | Green | `COLOR_CORRECTION` | Good outcome (incorrect→correct) |
-| **Correct-predicting** | Green | `COLOR_CORRECT_PREDICTING` | Positive SAE feature |
-| **Corruption** | Red | `COLOR_CORRUPTION` | Bad outcome (correct→incorrect) |
-| **Incorrect-predicting** | Red | `COLOR_INCORRECT_PREDICTING` | Negative SAE feature |
-| **Preservation** | Gold | `COLOR_PRESERVATION` | Maintained (correct→correct) |
-
-**Color variants (for accents and comparison plots):**
-
-| Variant | Constant | Use Case |
-|---------|----------|----------|
-| `'darkgreen'` | `COLOR_CORRECT_DARK` | Accent markers, optimal points |
-| `'darkred'` | `COLOR_INCORRECT_DARK` | Accent markers |
-| `'goldenrod'` | `COLOR_PRESERVATION_DARK` | Text annotations |
-| `'khaki'` | `COLOR_PRESERVATION_LIGHT` | Lighter shade in comparisons |
-
-**Matplotlib shorthand:**
-- `'g-o'` = green line with circle markers (correct-predicting)
-- `'r-s'` = red line with square markers (incorrect-predicting)
-
-**Example usage:**
-```python
-from common.config import COLOR_CORRECTION, COLOR_PRESERVATION
-
-ax.bar(['Correction'], [rate], color=COLOR_CORRECTION)
-ax.bar(['Preservation'], [rate], color=COLOR_PRESERVATION)
-```
-
----
-
-## Code Style Conventions
-
-Follow these conventions when writing or modifying code in this project.
-
-### Tensor Operations (einops)
-
-Use `einops.rearrange` for complex reshapes - makes tensor shapes self-documenting:
-
-```python
-# ✅ GOOD - Shape transformation is explicit
-from einops import rearrange
-steering = rearrange(latent_direction, 'd -> 1 1 d') * coefficient
-
-# ❌ AVOID - Shape not obvious without tracing
-steering = latent_direction.unsqueeze(0).unsqueeze(0) * coefficient
-```
-
-**When NOT to use einops** (keep simple):
-- Simple matmul: `x @ self.W_enc` - `@` operator is clearer
-- Basic squeeze: `activation.squeeze(0)` - obvious enough
-- Transpose for loading: `weights['encoder.weight'].T` - standard pattern
-
-Add shape comments where einops isn't used:
-```python
-# Shape: [batch, seq_len, d_model]
-residual = input[0]
-```
-
-### List Comprehensions (Pythonic Style)
-
-Prefer comprehensions over verbose loops:
-
-```python
-# ✅ GOOD - List comprehension
-features = [{'idx': i, 'score': scores[i].item()} for i in range(n)]
-
-# ❌ AVOID - Verbose loop
-features = []
-for i in range(n):
-    features.append({'idx': i, 'score': scores[i].item()})
-
-# ✅ GOOD - Dict unpacking for adding keys
-all_features = [{**feat, 'layer': layer_idx} for feat in features]
-
-# ❌ AVOID - Copy and modify
-for feat in features:
-    new_feat = feat.copy()
-    new_feat['layer'] = layer_idx
-    all_features.append(new_feat)
-
-# ✅ GOOD - Counter for counting
-from collections import Counter
-layer_counts = Counter(feat['layer'] for feat in features)
-
-# ❌ AVOID - Manual dict tracking
-layer_counts = {}
-for feat in features:
-    layer = feat['layer']
-    layer_counts[layer] = layer_counts.get(layer, 0) + 1
-```
-
-### Type Hints (Python 3.9+)
-
-Use modern type hint syntax:
-
-```python
-# ✅ GOOD - Built-in generics (Python 3.9+)
-def process(items: list[dict[str, Any]], config: Config) -> tuple[list, int]:
-
-# ❌ AVOID - Old typing imports
-from typing import List, Dict, Tuple
-def process(items: List[Dict[str, Any]], config: Config) -> Tuple[List, int]:
-```
-
-Keep `Optional`, `Union`, `Callable` from typing module (still needed).
-
-### Variable Naming
-
-```python
-# ✅ GOOD - Descriptive names
-lower_bound = bounds['lower']
-upper_bound = bounds['upper']
-temperature_indices = np.arange(len(temperatures))
-
-# ❌ AVOID - Single letters outside comprehensions
-a = bounds['lower']
-b = bounds['upper']
-x = np.arange(len(temperatures))
-```
-
-**Terminology for correctness states:**
-- `test_passed` = original test result (from Phase 1)
-- `baseline_passed` = generation without any intervention
-- `steered_passed` = generation with steering hook
-- `orthogonalized_passed` = generation with weight orthogonalization
-
-### Function Structure
-
-- Use **early returns** to reduce nesting
-- Split functions >50 lines into smaller helpers
-- Follow **single responsibility principle**
-
-```python
-# ✅ GOOD - Early returns, flat structure
-def calculate_rate(results):
-    if isinstance(results, pd.DataFrame):
-        return _rate_from_dataframe(results)
-    if isinstance(results, list):
-        return _rate_from_list(results)
-    raise TypeError(f"Expected list or DataFrame, got {type(results)}")
-
-# ❌ AVOID - Deep nesting
-def calculate_rate(results):
-    if isinstance(results, pd.DataFrame):
-        if not results.empty:
-            if 'column' in results.columns:
-                # ... deeply nested logic
-```
-
----
-
-## Multi-Model/Dataset Strategy
-
-This project supports multiple models (Gemma, LLAMA) and datasets (MBPP, HumanEval).
-
-### Feature Discovery (Answer A)
-
-- **LLAMA gets its own features** - Run full Phase 1 → Phase 2.5 pipeline with LLAMA
-- Output: `data/phase2_5_llama/` with LLAMA-specific features
-- Rationale: Different model architectures may encode correctness differently
-
-### HumanEval Scope (Answer B)
-
-- **Validation-only** - Use Gemma+MBPP features, test on HumanEval
-- Skip: Phase 1 generation for HumanEval (no new features needed)
-- Run: Phase 3.8 (AUROC/F1), Phase 4.8 (Steering) with HumanEval test set
-- Rationale: Validates generalization without expensive feature discovery
-
-### HumanEval Prompt Format (Design Decision)
-
-HumanEval is converted to MBPP-style prompts for **experimental consistency**:
-
-| Aspect | MBPP | HumanEval (our format) |
-|--------|------|------------------------|
-| Description | Natural language | Extracted from docstring |
-| Test cases | Actual test assertions | Actual test assertions |
-| Imports | N/A | Prepended when present |
-
-**Why show actual test assertions (not docstring examples)?**
-- MBPP shows actual test cases → HumanEval should too for consistency
-- We're testing SAE feature generalization, not benchmarking HumanEval
-- Varying only the problems (not prompt style) isolates the variable being tested
-- Document as: "HumanEval problems with MBPP-style prompting"
-
-**Note:** This differs from standard HumanEval evaluation which only shows docstring examples (>>> format). Our approach prioritizes experimental consistency over benchmark authenticity.
-
-### How to Switch Experiments
-
-Edit `common/config.py` to change model/dataset:
-
-```python
-# Gemma-2B + MBPP (default)
-model_name: str = "google/gemma-2-2b"
-dataset_name: str = "mbpp"
-
-# Gemma-9B + MBPP
-model_name: str = "google/gemma-2-9b"
-dataset_name: str = "mbpp"
-
-# LLAMA + MBPP (new features)
-model_name: str = "meta-llama/Llama-3.1-8B"
-dataset_name: str = "mbpp"
-
-# Gemma + HumanEval (validation only)
-model_name: str = "google/gemma-2-2b"
-dataset_name: str = "humaneval"
-```
-
-### Dataset Configuration
-
-Dataset-specific settings are in `common/dataset_config.py`:
-
-```python
-DATASET_CONFIGS = {
-    "mbpp": DatasetConfig(name="mbpp", n_problems=974, ...),
-    "humaneval": DatasetConfig(name="humaneval", n_problems=164, ...),
-}
-```
+### Supported Models
+
+| Model | SAE |
+|-------|-----|
+| `google/gemma-2-2b` | GemmaScope 16k |
+| `google/gemma-2-2b-it` | GemmaScope 16k |
+| `google/gemma-2-9b` | GemmaScope 16k |
+| `meta-llama/Llama-3.1-8B` | LlamaScope 8x |
 
 ### Output Directory Conventions
 
-Output directories automatically include model/dataset suffixes:
+Directories auto-include model/dataset suffixes:
 
 | Config | Output Directory |
 |--------|------------------|
@@ -991,4 +117,215 @@ Output directories automatically include model/dataset suffixes:
 | Gemma-9B + MBPP | `data/phase1_0_gemma9b/` |
 | LLAMA + MBPP | `data/phase1_0_llama/` |
 | Gemma + HumanEval | `data/phase1_0_humaneval/` |
-| LLAMA + HumanEval | `data/phase1_0_llama_humaneval/` |
+
+### Path Discovery
+
+```python
+from common.phase_discovery import get_phase_output_dir, discover_latest_phase_output
+
+output_dir = Path(get_phase_output_dir("2.2", config))  # For writing
+input_path = discover_latest_phase_output("3.5", config=self.config)  # For reading
+```
+
+**NEVER** use hardcoded paths like `f"data/phase3_5_{config.dataset_name}"`.
+
+---
+
+## Architecture
+
+### PCDGE Pattern
+
+The fundamental pattern across all phases:
+- **P**rompt: Build from MBPP/HumanEval problem
+- **C**apture: Extract activations via PyTorch hooks
+- **D**ecompose: Apply SAE (GemmaScope JumpReLU)
+- **G**enerate: LLM produces code solution
+- **E**valuate: Execute tests to classify correct/incorrect
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `run.py` | Main CLI entry point |
+| `common/config.py` | Centralized configuration |
+| `common/phase_discovery.py` | Auto-discovery, output paths |
+| `common/sae_loader.py` | GemmaScope SAE loading |
+| `phase2_5_separation_score_analysis/sae_analyzer.py` | Separation score analysis |
+| `phase4_8_steering_analysis/steering_effect_analyzer.py` | Steering interventions |
+
+### Latent Source Architecture
+
+**TWO distinct latent selection methods** for different purposes:
+
+| Source | Metric | Function | Used By |
+|--------|--------|----------|---------|
+| Phase 2.10 | t-statistic | `load_predicting_latents()` | Phases 3.x (AUROC/F1) |
+| Phase 2.5 | separation score | `load_steering_latents()` | Phases 4.x, 5.x, 6.x, 7.x |
+
+**Why two sources?**
+- **Predicting** (t-statistic): Sensitivity to confidence gradients - for statistical validation
+- **Steering** (separation score): Categorical exclusivity - for causal intervention
+
+### Activation Extraction
+
+Activations captured at **last prompt token** (position -1) from **residual stream** (`resid_post`) before generation begins.
+
+### Steering Mechanism
+
+```python
+steered_activation = original_activation + coefficient * sae_decoder_direction
+```
+
+Coefficient selection: coarse-to-fine search (Phase 4.5) → golden section refinement (Phase 4.6).
+
+---
+
+## Standards
+
+### SAE Terminology
+
+| Term | Description | Type |
+|------|-------------|------|
+| `latent_idx` | Integer index into SAE latent space | `int` |
+| `latent_direction` | Decoder weight vector (`W_dec[latent_idx]`) | `Tensor [d_model]` |
+| `latent_activation` | Scalar activation value | `float` |
+| `latent_activations` | Full encoded output | `Tensor [batch, n_latents]` |
+
+**Use "predicting"** (correct-predicting, incorrect-predicting), not "preferring" or "detecting".
+
+**DO NOT USE**: `feature` (use `latent`), `feature_type` (use `latent_type`), `latent_index` (use `latent_idx`)
+
+### Test Outcome Terminology
+
+| Term | Description |
+|------|-------------|
+| `baseline_passed` | Did unmodified generation pass tests? |
+| `steered_correct` | Is steered output correct? |
+| `orthogonalized_correct` | Is orthogonalized output correct? |
+
+```python
+correction = (baseline_passed == False) & steered_correct      # incorrect → correct
+corruption = baseline_passed & (steered_correct == False)      # correct → incorrect
+preservation = baseline_passed & steered_correct               # correct → correct
+```
+
+### Color Scheme
+
+Constants defined in `common/config.py`:
+
+| Concept | Color | Constant |
+|---------|-------|----------|
+| Correction / Correct-predicting | Green | `COLOR_CORRECTION` |
+| Corruption / Incorrect-predicting | Red | `COLOR_CORRUPTION` |
+| Preservation | Gold | `COLOR_PRESERVATION` |
+
+### Tensor Patterns
+
+Use `einops.rearrange` for complex reshapes:
+
+```python
+# ✅ GOOD - Shape explicit
+from einops import rearrange
+steering = rearrange(latent_direction, 'd -> 1 1 d') * coefficient
+
+# ❌ AVOID - Shape not obvious
+steering = latent_direction.unsqueeze(0).unsqueeze(0) * coefficient
+```
+
+Keep simple operations simple: `x @ self.W_enc`, `activation.squeeze(0)`
+
+### File Formats
+
+**Use `.safetensors`** for all activations and tensors. Do NOT use `.npz` (except GemmaScope SAE params - external format).
+
+```python
+from common.tensor_utils import save_tensor, load_tensor
+save_tensor(activation, Path("activation.safetensors"))
+```
+
+---
+
+## Data Paths
+
+### Directory Structure
+
+```
+data/
+├── phase0/       # Difficulty mappings
+├── phase0_1/     # Split datasets (sae_mbpp.parquet, validation_mbpp.parquet)
+├── phase1_0/     # Generated code + activations
+├── phase2_2/     # Pile activation baseline
+├── phase2_5/     # SAE analysis (top_20_latents.json)
+├── phase3_8/     # AUROC/F1 evaluation
+├── phase4_8/     # Steering effect analysis
+└── phase7_12/    # Instruction-tuned comparisons
+```
+
+### Auto-Discovery
+
+Later phases find outputs from earlier phases by searching for timestamped files in expected directories. Use `discover_latest_phase_output()`.
+
+---
+
+## Reference
+
+### Hardware Requirements
+
+- GPU: 24GB+ VRAM (for 2B model + SAE)
+- CPU RAM: 100GB+ (activation processing)
+- Disk: ~50GB (model weights + datasets)
+
+### Adding a New Phase
+
+1. Create `phase{N}_{name}/` directory
+2. Add output directory to `common/config.py`
+3. Implement runner class following existing patterns
+4. Add phase handler to `run.py::main()`
+
+### GemmaScope Integration
+
+- Repo: `google/gemma-scope-2b-pt-res`
+- Width: 16k latents
+- Activation: JumpReLU (not standard ReLU)
+- Layers 0-25 available for Gemma-2B
+
+### Multi-Model Strategy
+
+- **LLAMA**: Gets its own features - run full Phase 1 → 2.5 pipeline
+- **HumanEval**: Validation-only - use Gemma+MBPP features, test on HumanEval
+
+### HumanEval Prompt Format
+
+Converted to MBPP-style prompts for experimental consistency (actual test assertions shown, not docstring examples). Differs from standard HumanEval evaluation.
+
+### Reproducibility
+
+- Random seeds fixed (default: 42)
+- Temperature=0.0 for deterministic baseline
+- Problem splits stratified by difficulty
+
+### GPU Memory Issues
+
+If OOM:
+1. Reduce batch sizes in config
+2. `--start 0 --end 10` to test subset first
+3. `python3 run.py cleanup-gpu --aggressive`
+
+### Maintaining This File
+
+When adding to CLAUDE.md:
+1. **Keep it under 400 lines** - Current: ~320 lines. Remove something if adding significantly.
+2. **No generic style guides** - Use linters for that. Only project-specific patterns.
+3. **Tables over prose** - Easier to scan.
+4. **One example max** - Per concept. Not multiple variations.
+5. **Reference, don't embed** - Point to `common/config.py` instead of duplicating its contents.
+
+**Structure** (8 sections, maintain this order):
+1. CRITICAL CHECKLIST - Rules that prevent wasted GPU hours
+2. Project Context - What/why/how
+3. Running Phases - Commands and options
+4. Configuration - How to switch models/datasets
+5. Architecture - PCDGE, key files, latent sources
+6. Standards - Terminology, colors, patterns
+7. Data Paths - Directory structure, auto-discovery
+8. Reference - Hardware, adding phases, maintenance
