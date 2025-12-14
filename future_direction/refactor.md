@@ -560,11 +560,12 @@ Nice-to-haves once the foundation is solid.
     - Cleaned 7 file_check notebooks: removed verbose `"=" * 80` separators, emoji decorations
     - Kept all pandas unlimited display settings (`max_rows`, `max_columns`, `max_colwidth`, `width` = None)
     - List comprehension check: most for-loops in notebooks are OUTPUT cells (generated code), not actionable
-- [ ] Fix the figure generation code. Currently it looks soooo messy.
-    - [ ] Understand matplotlib and pandas logic or how it works. So I can help instruct my preference and good practice.
 - [x] Rename to sae-code-correctness (the folder, github repo, huggingface etc.)
     - Renamed codebase references from `pva_sae` to `sae_code_correctness`
     - External services (GitHub, HuggingFace, conda) to be renamed manually after commit
+- [ ] Rename the dataset split. 
+- [ ] Fix the figure generation code. Currently it looks soooo messy.
+    - [ ] Understand matplotlib and pandas logic or how it works. So I can help instruct my preference and good practice.
 
 
 ### 5.1 ICML Visualizations (moved from ICML tasks)
@@ -681,10 +682,11 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 - [ ] Consider condensing the code more like some can be just a variation of one code like steering etc. But take this with high risk and put little importance. Leaning to not do this. or maybe atleast have steering function that will always be called. Ask CC if my current architecture/codebase design make sense or if could be better.
 - [ ] Test all phase one by one first if it is all running.
     - [ ] Exmaine each of the output file.
-    - [ ] Code review manually. With CC help ofcourse but read all code manually. Make sure I understand and it is correct. 
+    - [ ] Code review manually. With CC help ofcourse but read all code manually. Make sure I understand and it is correct. Make it a rule for me to actually read the code before testing.
     - [ ] Understand the methods especially the linear algebra. Visualize etc. Enter learning mode. Learn to code. Get used to it.
 - [ ] Consider batching or not since one problem already do 50% GPU usage?
-- [ ] and running all four gpu at once. f
+- [ ] and running all four gpu at once. 
+- [ ] Consider learning and implementing other optimization.
 - [x] **Gemma-2-9B Support Added:**
     - Added `GEMMA_9B_SPARSITY` dict (42 layers) to `common/config.py`
     - Added `google/gemma-2-9b` and `google/gemma-2-9b-it` to `MODEL_CONFIGS`
