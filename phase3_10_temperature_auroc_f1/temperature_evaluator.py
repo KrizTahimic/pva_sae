@@ -216,7 +216,7 @@ class TemperatureAUROCEvaluator:
             
             # Process for both feature types
             for feature_type in ['correct', 'incorrect']:
-                self.logger.info(f"Evaluating {feature_type}-preferring feature")
+                self.logger.info(f"Evaluating {feature_type}-predicting feature")
                 
                 sae = sae_correct if feature_type == 'correct' else sae_incorrect
                 
@@ -232,8 +232,8 @@ class TemperatureAUROCEvaluator:
                 n_incorrect = len(labels) - n_correct  # baseline_passed = 0
                 
                 # For AUROC: we want high feature values to predict class 1
-                # Correct-preferring: high activation = correct code (already label=1)
-                # Incorrect-preferring: high activation = incorrect code (need to flip)
+                # Correct-predicting: high activation = correct code (already label=1)
+                # Incorrect-predicting: high activation = incorrect code (need to flip)
                 if feature_type == 'incorrect':
                     labels = 1 - labels  # Flip so high activation → 1 (incorrect)
                 
@@ -267,8 +267,8 @@ class TemperatureAUROCEvaluator:
                     'n_samples': len(features),  # Changed from n_tasks to n_samples
                     'n_correct': n_correct,  # Original correct samples
                     'n_incorrect': n_incorrect,  # Original incorrect samples
-                    'n_positive': n_positive,  # For AUROC (after flip if correct-preferring)
-                    'n_negative': n_negative,  # For AUROC (after flip if correct-preferring)
+                    'n_positive': n_positive,  # For AUROC (after flip if correct-predicting)
+                    'n_negative': n_negative,  # For AUROC (after flip if correct-predicting)
                     'feature_values': features.tolist(),
                     'labels': labels.tolist(),
                     'fpr': fpr.tolist(),  # Store for ROC curve plotting
@@ -348,7 +348,7 @@ class TemperatureAUROCEvaluator:
         ax4.set_xticklabels(temperatures)
         ax4.set_xlabel('Temperature')
         ax4.set_ylabel('Feature Value')
-        ax4.set_title('Feature Value Distribution (Correct-preferring)')
+        ax4.set_title('Feature Value Distribution (Correct-predicting)')
         ax4.grid(True, alpha=0.3)
         
         plt.tight_layout()
@@ -368,7 +368,7 @@ class TemperatureAUROCEvaluator:
         # Create color map for temperatures (blue to red gradient)
         colors = cm.coolwarm(np.linspace(0.2, 0.8, len(temperatures)))
         
-        # Plot for correct-preferring feature
+        # Plot for correct-predicting feature
         for i, temp in enumerate(temperatures):
             fpr = np.array(results[temp]['correct']['fpr'])
             tpr = np.array(results[temp]['correct']['tpr'])
@@ -382,13 +382,13 @@ class TemperatureAUROCEvaluator:
         ax1.plot([0, 1], [0, 1], 'k--', alpha=0.5, linewidth=1, label='Random (AUC=0.5)')
         ax1.set_xlabel('False Positive Rate')
         ax1.set_ylabel('True Positive Rate')
-        ax1.set_title('ROC Curves - Correct-Preferring Feature')
+        ax1.set_title('ROC Curves - Correct-Predicting Latent')
         ax1.legend(loc='lower right', fontsize=9)
         ax1.grid(True, alpha=0.3)
         ax1.set_xlim([-0.01, 1.01])
         ax1.set_ylim([-0.01, 1.01])
         
-        # Plot for incorrect-preferring feature
+        # Plot for incorrect-predicting feature
         for i, temp in enumerate(temperatures):
             fpr = np.array(results[temp]['incorrect']['fpr'])
             tpr = np.array(results[temp]['incorrect']['tpr'])
@@ -402,7 +402,7 @@ class TemperatureAUROCEvaluator:
         ax2.plot([0, 1], [0, 1], 'k--', alpha=0.5, linewidth=1, label='Random (AUC=0.5)')
         ax2.set_xlabel('False Positive Rate')
         ax2.set_ylabel('True Positive Rate')
-        ax2.set_title('ROC Curves - Incorrect-Preferring Feature')
+        ax2.set_title('ROC Curves - Incorrect-Predicting Latent')
         ax2.legend(loc='lower right', fontsize=9)
         ax2.grid(True, alpha=0.3)
         ax2.set_xlim([-0.01, 1.01])
@@ -438,7 +438,7 @@ class TemperatureAUROCEvaluator:
         # Create color map for temperatures (blue to red gradient)
         colors = cm.coolwarm(np.linspace(0.2, 0.8, len(temperatures)))
         
-        # Plot for correct-preferring feature
+        # Plot for correct-predicting feature
         for i, temp in enumerate(temperatures):
             precision = np.array(results[temp]['correct']['precision'])
             recall = np.array(results[temp]['correct']['recall'])
@@ -463,13 +463,13 @@ class TemperatureAUROCEvaluator:
         
         ax1.set_xlabel('Recall')
         ax1.set_ylabel('Precision')
-        ax1.set_title('Precision-Recall Curves - Correct-Preferring Feature')
+        ax1.set_title('Precision-Recall Curves - Correct-Predicting Latent')
         ax1.legend(loc='lower left', fontsize=9)
         ax1.grid(True, alpha=0.3)
         ax1.set_xlim([-0.01, 1.01])
         ax1.set_ylim([-0.01, 1.01])
         
-        # Plot for incorrect-preferring feature
+        # Plot for incorrect-predicting feature
         for i, temp in enumerate(temperatures):
             precision = np.array(results[temp]['incorrect']['precision'])
             recall = np.array(results[temp]['incorrect']['recall'])
@@ -494,7 +494,7 @@ class TemperatureAUROCEvaluator:
         
         ax2.set_xlabel('Recall')
         ax2.set_ylabel('Precision')
-        ax2.set_title('Precision-Recall Curves - Incorrect-Preferring Feature')
+        ax2.set_title('Precision-Recall Curves - Incorrect-Predicting Latent')
         ax2.legend(loc='lower left', fontsize=9)
         ax2.grid(True, alpha=0.3)
         ax2.set_xlim([-0.01, 1.01])
@@ -527,9 +527,9 @@ class TemperatureAUROCEvaluator:
         
         # Latent information
         lines.append("BEST LATENTS ANALYZED:")
-        lines.append(f"  Correct-preferring: Layer {best_latents['correct']['layer']}, "
+        lines.append(f"  Correct-predicting: Layer {best_latents['correct']['layer']}, "
                     f"Latent {best_latents['correct']['latent_idx']}")
-        lines.append(f"  Incorrect-preferring: Layer {best_latents['incorrect']['layer']}, "
+        lines.append(f"  Incorrect-predicting: Layer {best_latents['incorrect']['layer']}, "
                     f"Latent {best_latents['incorrect']['latent_idx']}")
         lines.append("")
         
@@ -555,9 +555,9 @@ class TemperatureAUROCEvaluator:
             incorrect_auroc = results[temp]['incorrect']['auroc']
             
             lines.append(f"Temperature {temp}:")
-            lines.append(f"  Correct-preferring:   AUROC={correct_auroc:.3f}, "
+            lines.append(f"  Correct-predicting:   AUROC={correct_auroc:.3f}, "
                         f"F1={results[temp]['correct']['f1']:.3f}")
-            lines.append(f"  Incorrect-preferring: AUROC={incorrect_auroc:.3f}, "
+            lines.append(f"  Incorrect-predicting: AUROC={incorrect_auroc:.3f}, "
                         f"F1={results[temp]['incorrect']['f1']:.3f}")
             lines.append(f"  Sample distribution: {results[temp]['correct']['n_correct']} correct (test passed), "
                         f"{results[temp]['correct']['n_incorrect']} incorrect (test failed)")
@@ -574,14 +574,14 @@ class TemperatureAUROCEvaluator:
         lines.append(f"(Threshold: AUROC < {auroc_threshold})")
         
         if correct_critical_temp is not None:
-            lines.append(f"  Correct-preferring feature degrades at temperature {correct_critical_temp}")
+            lines.append(f"  Correct-predicting feature degrades at temperature {correct_critical_temp}")
         else:
-            lines.append(f"  Correct-preferring feature maintains AUROC > {auroc_threshold} across all temperatures")
+            lines.append(f"  Correct-predicting feature maintains AUROC > {auroc_threshold} across all temperatures")
         
         if incorrect_critical_temp is not None:
-            lines.append(f"  Incorrect-preferring feature degrades at temperature {incorrect_critical_temp}")
+            lines.append(f"  Incorrect-predicting feature degrades at temperature {incorrect_critical_temp}")
         else:
-            lines.append(f"  Incorrect-preferring feature maintains AUROC > {auroc_threshold} across all temperatures")
+            lines.append(f"  Incorrect-predicting feature maintains AUROC > {auroc_threshold} across all temperatures")
         
         lines.append("")
         
@@ -598,8 +598,8 @@ class TemperatureAUROCEvaluator:
         incorrect_degradation = ((results[min_temp]['incorrect']['auroc'] - results[max_temp]['incorrect']['auroc']) / 
                                results[min_temp]['incorrect']['auroc'] * 100)
         
-        lines.append(f"  Correct-preferring:   {correct_degradation:.1f}% degradation from temp {min_temp} to {max_temp}")
-        lines.append(f"  Incorrect-preferring: {incorrect_degradation:.1f}% degradation from temp {min_temp} to {max_temp}")
+        lines.append(f"  Correct-predicting:   {correct_degradation:.1f}% degradation from temp {min_temp} to {max_temp}")
+        lines.append(f"  Incorrect-predicting: {incorrect_degradation:.1f}% degradation from temp {min_temp} to {max_temp}")
         
         lines.append("")
         lines.append("RECOMMENDATIONS:")

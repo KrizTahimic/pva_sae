@@ -540,7 +540,15 @@ Nice-to-haves once the foundation is solid.
         - Preservation rate: blue/orange/purple → gold (6 files: 4.8, 4.14, 4.16, 5.6, 7.6, 7.9)
         - Correction rate: blue → green (4.16)
     - Semantic color mapping: green=good (correction, correct-predicting), red=bad (corruption, incorrect-predicting), gold=maintained (preservation)
-- [ ] Is there other standardization we could do similar to colors, variable namings, output directory namings,
+- [x] **Terminology standardization complete** (feature→latent, preferring→predicting, feature_type→latent_type, latent_index→latent_idx)
+    - Added terminology standards to `CLAUDE.md` SAE Terminology Standard section
+    - Updated `common/phase_registry.py`: `top_20_features.json` → `top_20_latents.json` in patterns
+    - Updated `docs/test_mbpp_with_imports.py`: renamed function and file reference
+    - Updated `phase3_8_auroc_f1_evaluation/auroc_f1_evaluator.py`: `feature_type` → `latent_type` (3 functions)
+    - Updated `phase7_12_instruct_auroc_f1/instruct_auroc_f1_evaluator.py`: `feature_type` → `latent_type`, `preferring` → `predicting`, `correct_preferring_feature` → `correct_predicting_latent`
+    - Updated `phase3_10_temperature_auroc_f1/temperature_evaluator.py`: `preferring` → `predicting` in comments and titles
+    - Updated `phase2_15_layerwise_visualization/layerwise_visualizer.py`: `preferring` → `predicting` in labels
+    - Updated `phase4_6_golden_section_refinement/golden_section_refiner.py`: `latent_index` → `latent_idx` in dict keys
 - [ ] Read the new code. Use explore agents to find if there is still outdated docstrings/comments. If so, let's update them.
 - [ ] Improve notebooks. Remove unnecessary cells. Also do list comprehensions. Also make sure it works again after the new refactored code.
 - [ ] Fix the figure generation code. Currently it looks soooo messy.

@@ -162,7 +162,7 @@ class LayerwiseVisualizer:
             if layer_idx not in layer_data:
                 continue
 
-            # Get maximum metric for correct-preferring latents
+            # Get maximum metric for correct-predicting latents
             correct_latents = layer_data[layer_idx]['correct']
             if correct_latents:
                 # Find the metric key (either 'separation_score' or 't_statistic')
@@ -179,7 +179,7 @@ class LayerwiseVisualizer:
                     )
                     matrix[0, layer_idx - 1] = correct_max
 
-            # Get maximum metric for incorrect-preferring latents
+            # Get maximum metric for incorrect-predicting latents
             incorrect_latents = layer_data[layer_idx]['incorrect']
             if incorrect_latents:
                 # Find the metric key
@@ -220,7 +220,7 @@ class LayerwiseVisualizer:
                     fontsize=14, fontweight='bold', pad=15)
 
         # Y-axis labels
-        ax.set_yticklabels(['Correct-preferring', 'Incorrect-preferring'], rotation=0)
+        ax.set_yticklabels(['Correct-predicting', 'Incorrect-predicting'], rotation=0)
 
         # X-axis labels (every 5 layers)
         xticks = list(range(0, 25, 5)) + [24]

@@ -295,40 +295,40 @@ def calculate_metrics(
     y_true: np.ndarray,
     scores: np.ndarray,
     threshold: float,
-    feature_type: str,
+    latent_type: str,
     output_dir: Path
 ) -> dict[str, float]:
-    """Calculate metrics for either correct or incorrect predicting features.
-    
+    """Calculate metrics for either correct or incorrect predicting latents.
+
     Args:
         y_true: Ground truth labels
-        scores: Feature activation scores
+        scores: Latent activation scores
         threshold: Binary classification threshold
-        feature_type: 'correct' or 'incorrect'
+        latent_type: 'correct' or 'incorrect'
         output_dir: Directory to save plots
-        
+
     Returns:
         Dictionary of metrics including AUROC, F1, precision, recall
     """
     # Calculate AUROC - threshold independent
     auroc = roc_auc_score(y_true, scores)
-    
+
     # Apply threshold for binary predictions
     y_pred = (scores > threshold).astype(int)
-    
+
     # Calculate threshold-dependent metrics
     precision = precision_score(y_true, y_pred, zero_division=0)
     recall = recall_score(y_true, y_pred, zero_division=0)
     f1 = f1_score(y_true, y_pred, zero_division=0)
-    
-    logger.info(f"\nMetrics for {feature_type}-predicting feature:")
+
+    logger.info(f"\nMetrics for {latent_type}-predicting latent:")
     logger.info(f"Precision: {precision:.4f}")
     logger.info(f"Recall: {recall:.4f}")
     logger.info(f"F1 Score: {f1:.4f}")
     logger.info(f"AUROC: {auroc:.4f}")
-    
+
     # Plot confusion matrix
-    plot_confusion_matrix(y_true, y_pred, feature_type, output_dir)
+    plot_confusion_matrix(y_true, y_pred, latent_type, output_dir)
     
     return {
         'auroc': float(auroc),
@@ -339,19 +339,19 @@ def calculate_metrics(
     }
 
 def find_optimal_threshold(
-    y_true: np.ndarray, 
-    scores: np.ndarray, 
-    feature_type: str, 
+    y_true: np.ndarray,
+    scores: np.ndarray,
+    latent_type: str,
     output_dir: Path
 ) -> tuple[float, dict[str, float]]:
-    """Find optimal threshold for a specific feature type.
-    
+    """Find optimal threshold for a specific latent type.
+
     Args:
         y_true: Ground truth labels
-        scores: Feature activation scores
-        feature_type: 'correct' or 'incorrect'
+        scores: Latent activation scores
+        latent_type: 'correct' or 'incorrect'
         output_dir: Directory to save plots
-        
+
     Returns:
         Tuple of (optimal_threshold, metrics_dict)
     """
@@ -361,18 +361,18 @@ def find_optimal_threshold(
         f1_score(y_true, (scores >= threshold).astype(int), zero_division=0)
         for threshold in thresholds
     ]
-    
+
     # Find threshold that maximizes F1 score
     optimal_idx = np.argmax(f1_scores)
     optimal_f1_threshold = thresholds[optimal_idx]
     max_f1_score = f1_scores[optimal_idx]
-    
+
     # Store threshold data for later combined plotting
-    # Individual plots will be created after both features are processed
+    # Individual plots will be created after both latents are processed
 
     # Evaluate at optimal threshold
-    logger.info(f'\nF1 optimal for {feature_type}-predicting feature:')
-    metrics = calculate_metrics(y_true, scores, optimal_f1_threshold, feature_type, output_dir)
+    logger.info(f'\nF1 optimal for {latent_type}-predicting latent:')
+    metrics = calculate_metrics(y_true, scores, optimal_f1_threshold, latent_type, output_dir)
 
     # Return threshold data for combined plotting
     metrics['threshold_range'] = (float(scores.min()), float(scores.max()))
@@ -431,37 +431,37 @@ def plot_combined_f1_thresholds(
 def plot_confusion_matrix(
     y_true: np.ndarray,
     y_pred: np.ndarray,
-    feature_type: str,
+    latent_type: str,
     output_dir: Path
 ) -> None:
-    """Plot confusion matrix with appropriate labels for feature type.
-    
+    """Plot confusion matrix with appropriate labels for latent type.
+
     Args:
         y_true: Ground truth labels
         y_pred: Predicted labels
-        feature_type: 'correct' or 'incorrect'
+        latent_type: 'correct' or 'incorrect'
         output_dir: Directory to save plot
     """
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(8, 6))
-    
+
     # Adjust labels based on what we're predicting
-    if feature_type == 'correct':
+    if latent_type == 'correct':
         # Predicting correctness
         labels = ['Incorrect', 'Correct']
     else:
         # Predicting incorrectness
         labels = ['Correct', 'Incorrect']
-    
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
                 xticklabels=labels, yticklabels=labels,
                 cbar_kws={'label': 'Count'})
-    plt.title(f'Confusion Matrix - {feature_type.capitalize()}-Predicting Feature')
+    plt.title(f'Confusion Matrix - {latent_type.capitalize()}-Predicting Latent')
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
-    
+
     # Save plot
-    plt.savefig(output_dir / f'confusion_matrix_{feature_type}.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / f'confusion_matrix_{latent_type}.png', dpi=150, bbox_inches='tight')
     plt.close()
 
 def plot_comparative_metrics(

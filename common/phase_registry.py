@@ -119,7 +119,7 @@ PHASES: dict[str, PhaseInfo] = {
         runner="SimplifiedSAEAnalyzer",
         runner_type="class",
         category="feature_discovery",
-        patterns=["sae_analysis_results.json", "top_20_features.json"],
+        patterns=["sae_analysis_results.json", "top_20_latents.json"],
     ),
     "2.10": PhaseInfo(
         id="2.10",
@@ -129,7 +129,7 @@ PHASES: dict[str, PhaseInfo] = {
         runner="TStatisticSelector",
         runner_type="class",
         category="feature_discovery",
-        patterns=["sae_analysis_results.json", "top_20_features.json"],
+        patterns=["sae_analysis_results.json", "top_20_latents.json"],
     ),
     "2.15": PhaseInfo(
         id="2.15",

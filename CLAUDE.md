@@ -671,9 +671,18 @@ Use consistent terminology when working with Sparse Autoencoders (SAEs):
 | `latent_activation` | Scalar activation value for one latent | `float` |
 | `latent_activations` | Full encoded output from SAE | `torch.Tensor [batch, n_latents]` |
 
-**Correctness classification terminology**: Use "predicting" (correct-predicting, incorrect-predicting), not "detecting".
+**Correctness classification terminology**: Use "predicting" (correct-predicting, incorrect-predicting), not "detecting" or "preferring".
 
 **File naming**: Use `top_20_latents.json` (not `top_20_features.json`).
+
+**DO NOT USE these deprecated terms:**
+| Deprecated | Correct | Reason |
+|------------|---------|--------|
+| `feature` | `latent` | SAE outputs are latent space representations |
+| `feature_type` | `latent_type` | Parameter naming consistency |
+| `preferring` | `predicting` | We predict correctness, not prefer it |
+| `latent_index` | `latent_idx` | Use abbreviated form for consistency |
+| `top_20_features.json` | `top_20_latents.json` | File naming consistency |
 
 ---
 

@@ -238,7 +238,7 @@ class ImportTestRunner:
         logger.info(f"Initialized random seeds (seed={config.evaluation_random_seed}) for deterministic generation")
 
         # Setup activation extraction (reuse Phase 3.5 logic)
-        self.best_layers = self._discover_best_features()
+        self.best_layers = self._discover_best_latents()
         unique_layers = list(set([self.best_layers['correct'], self.best_layers['incorrect']]))
         self.extraction_layers = unique_layers
 
@@ -255,22 +255,22 @@ class ImportTestRunner:
             position=-1
         )
 
-    def _discover_best_features(self) -> dict[str, int]:
-        """Discover best features from Phase 2.10."""
+    def _discover_best_latents(self) -> dict[str, int]:
+        """Discover best latents from Phase 2.10."""
         phase_2_10_dir = Path(getattr(self.config, 'phase2_10_output_dir', 'data/phase2_10'))
-        top_features_file = phase_2_10_dir / "top_20_features.json"
+        top_latents_file = phase_2_10_dir / "top_20_latents.json"
 
-        if not top_features_file.exists():
+        if not top_latents_file.exists():
             raise FileNotFoundError(
-                f"top_20_features.json not found in Phase 2.10. "
+                f"top_20_latents.json not found in Phase 2.10. "
                 "Please run Phase 2.10 first."
             )
 
-        with open(top_features_file, 'r') as f:
-            top_features = json.load(f)
+        with open(top_latents_file, 'r') as f:
+            top_latents = json.load(f)
 
-        best_correct = top_features['correct'][0]
-        best_incorrect = top_features['incorrect'][0]
+        best_correct = top_latents['correct'][0]
+        best_incorrect = top_latents['incorrect'][0]
 
         return {
             'correct': best_correct['layer'],

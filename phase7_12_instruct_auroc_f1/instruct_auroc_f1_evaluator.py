@@ -1,6 +1,6 @@
 """Phase 7.12: AUROC and F1 Evaluation for Instruction-Tuned Model.
 
-This script evaluates bidirectional SAE features (correct-preferring and incorrect-preferring)
+This script evaluates bidirectional SAE latents (correct-predicting and incorrect-predicting)
 using AUROC and F1 metrics on the validation split from Phase 7.3 instruction-tuned model data.
 """
 
@@ -53,16 +53,16 @@ def calculate_metrics(
     y_true: np.ndarray,
     scores: np.ndarray,
     threshold: float,
-    feature_type: str,
+    latent_type: str,
     output_dir: Path
 ) -> dict[str, float]:
-    """Calculate metrics for either correct or incorrect preferring features.
+    """Calculate metrics for either correct or incorrect predicting latents.
 
     Args:
         y_true: Ground truth labels
-        scores: Feature activation scores
+        scores: Latent activation scores
         threshold: Binary classification threshold
-        feature_type: 'correct' or 'incorrect'
+        latent_type: 'correct' or 'incorrect'
         output_dir: Directory to save plots
 
     Returns:
@@ -79,14 +79,14 @@ def calculate_metrics(
     recall = recall_score(y_true, y_pred, zero_division=0)
     f1 = f1_score(y_true, y_pred, zero_division=0)
 
-    logger.info(f"\nMetrics for {feature_type}-preferring feature:")
+    logger.info(f"\nMetrics for {latent_type}-predicting latent:")
     logger.info(f"Precision: {precision:.4f}")
     logger.info(f"Recall: {recall:.4f}")
     logger.info(f"F1 Score: {f1:.4f}")
     logger.info(f"AUROC: {auroc:.4f}")
 
     # Plot confusion matrix
-    plot_confusion_matrix(y_true, y_pred, feature_type, output_dir)
+    plot_confusion_matrix(y_true, y_pred, latent_type, output_dir)
 
     return {
         'auroc': float(auroc),
@@ -99,15 +99,15 @@ def calculate_metrics(
 def find_optimal_threshold(
     y_true: np.ndarray,
     scores: np.ndarray,
-    feature_type: str,
+    latent_type: str,
     output_dir: Path
 ) -> tuple[float, dict[str, float]]:
-    """Find optimal threshold for a specific feature type.
+    """Find optimal threshold for a specific latent type.
 
     Args:
         y_true: Ground truth labels
-        scores: Feature activation scores
-        feature_type: 'correct' or 'incorrect'
+        scores: Latent activation scores
+        latent_type: 'correct' or 'incorrect'
         output_dir: Directory to save plots
 
     Returns:
@@ -132,7 +132,7 @@ def find_optimal_threshold(
     plt.plot(thresholds, f1_scores, linewidth=2)
     plt.xlabel('Threshold')
     plt.ylabel('F1 Score')
-    plt.title(f'F1 Scores vs Thresholds - {feature_type.capitalize()}-Preferring Feature (Instruct Model)')
+    plt.title(f'F1 Scores vs Thresholds - {latent_type.capitalize()}-Predicting Latent (Instruct Model)')
     plt.grid(True, alpha=0.3)
     plt.axvline(x=optimal_f1_threshold, color='r', linestyle='--',
                label=f'Optimal F1 Threshold: {optimal_f1_threshold:.3f}')
@@ -141,34 +141,34 @@ def find_optimal_threshold(
     plt.legend()
 
     # Save plot
-    plt.savefig(output_dir / f'f1_threshold_plot_{feature_type}.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / f'f1_threshold_plot_{latent_type}.png', dpi=150, bbox_inches='tight')
     plt.close()
 
     # Evaluate at optimal threshold
-    logger.info(f'\nF1 optimal for {feature_type}-preferring feature:')
-    metrics = calculate_metrics(y_true, scores, optimal_f1_threshold, feature_type, output_dir)
+    logger.info(f'\nF1 optimal for {latent_type}-predicting latent:')
+    metrics = calculate_metrics(y_true, scores, optimal_f1_threshold, latent_type, output_dir)
 
     return optimal_f1_threshold, metrics
 
 def plot_confusion_matrix(
     y_true: np.ndarray,
     y_pred: np.ndarray,
-    feature_type: str,
+    latent_type: str,
     output_dir: Path
 ) -> None:
-    """Plot confusion matrix with appropriate labels for feature type.
+    """Plot confusion matrix with appropriate labels for latent type.
 
     Args:
         y_true: Ground truth labels
         y_pred: Predicted labels
-        feature_type: 'correct' or 'incorrect'
+        latent_type: 'correct' or 'incorrect'
         output_dir: Directory to save plot
     """
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(8, 6))
 
     # Adjust labels based on what we're predicting
-    if feature_type == 'correct':
+    if latent_type == 'correct':
         # Predicting correctness
         labels = ['Incorrect', 'Correct']
     else:
@@ -178,12 +178,12 @@ def plot_confusion_matrix(
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
                 xticklabels=labels, yticklabels=labels,
                 cbar_kws={'label': 'Count'})
-    plt.title(f'Confusion Matrix - {feature_type.capitalize()}-Preferring Feature (Instruct Model)')
+    plt.title(f'Confusion Matrix - {latent_type.capitalize()}-Predicting Latent (Instruct Model)')
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
 
     # Save plot
-    plt.savefig(output_dir / f'confusion_matrix_{feature_type}.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / f'confusion_matrix_{latent_type}.png', dpi=150, bbox_inches='tight')
     plt.close()
 
 def plot_comparative_metrics(
@@ -194,26 +194,26 @@ def plot_comparative_metrics(
     y_true_val_incorrect: Optional[np.ndarray] = None,
     scores_val_incorrect: Optional[np.ndarray] = None
 ) -> None:
-    """Create side-by-side comparison of both feature performances.
+    """Create side-by-side comparison of both latent performances.
 
     Args:
-        results: Dictionary containing metrics for both features
+        results: Dictionary containing metrics for both latents
         output_dir: Directory to save plot
-        y_true_val_correct: True labels for correct feature validation
-        scores_val_correct: Scores for correct feature validation
-        y_true_val_incorrect: True labels for incorrect feature validation
-        scores_val_incorrect: Scores for incorrect feature validation
+        y_true_val_correct: True labels for correct latent validation
+        scores_val_correct: Scores for correct latent validation
+        y_true_val_incorrect: True labels for incorrect latent validation
+        scores_val_incorrect: Scores for incorrect latent validation
     """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
     # Extract metrics
     metrics = ['AUROC', 'F1', 'Precision', 'Recall']
     correct_vals = [
-        results['correct_preferring_feature']['validation_metrics']['metrics'][m.lower()]
+        results['correct_predicting_latent']['validation_metrics']['metrics'][m.lower()]
         for m in metrics
     ]
     incorrect_vals = [
-        results['incorrect_preferring_feature']['validation_metrics']['metrics'][m.lower()]
+        results['incorrect_predicting_latent']['validation_metrics']['metrics'][m.lower()]
         for m in metrics
     ]
 
@@ -221,8 +221,8 @@ def plot_comparative_metrics(
     bar_positions = np.arange(len(metrics))
     width = 0.35
 
-    bars1 = ax1.bar(bar_positions - width/2, correct_vals, width, label='Correct-Preferring', color='#2ecc71')
-    bars2 = ax1.bar(bar_positions + width/2, incorrect_vals, width, label='Incorrect-Preferring', color='#e74c3c')
+    bars1 = ax1.bar(bar_positions - width/2, correct_vals, width, label='Correct-Predicting', color='#2ecc71')
+    bars2 = ax1.bar(bar_positions + width/2, incorrect_vals, width, label='Incorrect-Predicting', color='#e74c3c')
 
     # Add value labels on bars
     for bars in [bars1, bars2]:
@@ -233,7 +233,7 @@ def plot_comparative_metrics(
 
     ax1.set_xlabel('Metrics')
     ax1.set_ylabel('Score')
-    ax1.set_title('Feature Performance Comparison (Instruct Model)')
+    ax1.set_title('Latent Performance Comparison (Instruct Model)')
     ax1.set_xticks(bar_positions)
     ax1.set_xticklabels(metrics)
     ax1.legend()
@@ -246,19 +246,19 @@ def plot_comparative_metrics(
     ax2.set_title('ROC Curves (Instruct Model)')
     ax2.plot([0, 1], [0, 1], 'k--', alpha=0.5, label='Random (AUC = 0.5)')
 
-    # Plot ROC curve for correct-preferring feature if data provided
+    # Plot ROC curve for correct-predicting feature if data provided
     if y_true_val_correct is not None and scores_val_correct is not None:
         fpr_correct, tpr_correct, _ = roc_curve(y_true_val_correct, scores_val_correct)
-        auc_correct = results['correct_preferring_feature']['validation_metrics']['metrics']['auroc']
+        auc_correct = results['correct_predicting_latent']['validation_metrics']['metrics']['auroc']
         ax2.plot(fpr_correct, tpr_correct, color='#2ecc71', linewidth=2,
-                label=f'Correct-Preferring (AUC = {auc_correct:.3f})')
+                label=f'Correct-Predicting (AUC = {auc_correct:.3f})')
 
-    # Plot ROC curve for incorrect-preferring feature if data provided
+    # Plot ROC curve for incorrect-predicting feature if data provided
     if y_true_val_incorrect is not None and scores_val_incorrect is not None:
         fpr_incorrect, tpr_incorrect, _ = roc_curve(y_true_val_incorrect, scores_val_incorrect)
-        auc_incorrect = results['incorrect_preferring_feature']['validation_metrics']['metrics']['auroc']
+        auc_incorrect = results['incorrect_predicting_latent']['validation_metrics']['metrics']['auroc']
         ax2.plot(fpr_incorrect, tpr_incorrect, color='#e74c3c', linewidth=2,
-                label=f'Incorrect-Preferring (AUC = {auc_incorrect:.3f})')
+                label=f'Incorrect-Predicting (AUC = {auc_incorrect:.3f})')
 
     ax2.legend(loc='lower right')
     ax2.grid(alpha=0.3)
@@ -271,20 +271,20 @@ def plot_comparative_metrics(
 def load_instruct_activations(
     layer_num: int,
     latent_idx: int,
-    feature_type: str,
+    latent_type: str,
     phase0_1_dir: Path,
     phase7_3_dir: Path,
     config: Config,
     dataset_name: str = "mbpp"
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Load activations for a specific feature from Phase 7.3 instruction-tuned model data.
+    """Load activations for a specific latent from Phase 7.3 instruction-tuned model data.
 
     Note: Phase 7.3 only uses validation split, no hyperparameter split processing.
 
     Args:
-        layer_num: Layer number for the feature
-        latent_idx: Index of the specific feature
-        feature_type: 'correct' or 'incorrect'
+        layer_num: Layer number for the latent
+        latent_idx: Index of the specific latent
+        latent_type: 'correct' or 'incorrect'
         phase0_1_dir: Directory containing Phase 0.1 outputs
         phase7_3_dir: Directory containing Phase 7.3 outputs (instruct model validation data)
 
@@ -344,7 +344,7 @@ def load_instruct_activations(
         baseline_passed = task_results[0]
 
         # Create label based on what we're predicting
-        if feature_type == 'correct':
+        if latent_type == 'correct':
             # Predicting correctness: 1=correct, 0=incorrect
             label = 1 if baseline_passed else 0
         else:
@@ -465,21 +465,21 @@ def main():
     incorrect_layer = best_incorrect['layer']
     incorrect_latent_idx = best_incorrect['latent_idx']
 
-    logger.info(f"Best correct-preferring latent: idx {correct_latent_idx} at layer {correct_layer}")
-    logger.info(f"Best incorrect-preferring latent: idx {incorrect_latent_idx} at layer {incorrect_layer}")
+    logger.info(f"Best correct-predicting latent: idx {correct_latent_idx} at layer {correct_layer}")
+    logger.info(f"Best incorrect-predicting latent: idx {incorrect_latent_idx} at layer {incorrect_layer}")
 
-    # Phase 2: Evaluate Correct-Preferring Feature on Instruction-Tuned Model
+    # Phase 2: Evaluate Correct-Predicting Latent on Instruction-Tuned Model
     logger.info("\n" + "="*60)
-    logger.info("EVALUATING CORRECT-PREFERRING FEATURE (INSTRUCT MODEL)")
+    logger.info("EVALUATING CORRECT-PREDICTING LATENT (INSTRUCT MODEL)")
     logger.info("="*60)
 
-    # Load validation data for correct feature from instruction-tuned model
+    # Load validation data for correct latent from instruction-tuned model
     y_true_correct, scores_correct = load_instruct_activations(
         correct_layer, correct_latent_idx, 'correct',
         phase0_1_dir, phase7_3_dir, config, config.dataset_name
     )
 
-    logger.info(f"\nCorrect-preferring feature (instruction-tuned model):")
+    logger.info(f"\nCorrect-predicting feature (instruction-tuned model):")
     logger.info(f"Total samples: {len(y_true_correct)}")
     logger.info(f"Positive class (correct code): {sum(y_true_correct == 1)}")
     logger.info(f"Negative class (incorrect code): {sum(y_true_correct == 0)}")
@@ -493,18 +493,18 @@ def main():
         output_dir
     )
 
-    # Phase 3: Evaluate Incorrect-Preferring Feature on Instruction-Tuned Model
+    # Phase 3: Evaluate Incorrect-Predicting Latent on Instruction-Tuned Model
     logger.info("\n" + "="*60)
-    logger.info("EVALUATING INCORRECT-PREFERRING FEATURE (INSTRUCT MODEL)")
+    logger.info("EVALUATING INCORRECT-PREDICTING LATENT (INSTRUCT MODEL)")
     logger.info("="*60)
 
-    # Load validation data for incorrect feature from instruction-tuned model
+    # Load validation data for incorrect latent from instruction-tuned model
     y_true_incorrect, scores_incorrect = load_instruct_activations(
         incorrect_layer, incorrect_latent_idx, 'incorrect',
         phase0_1_dir, phase7_3_dir, config, config.dataset_name
     )
 
-    logger.info(f"\nIncorrect-preferring feature (instruction-tuned model):")
+    logger.info(f"\nIncorrect-predicting feature (instruction-tuned model):")
     logger.info(f"Total samples: {len(y_true_incorrect)}")
     logger.info(f"Positive class (incorrect code): {sum(y_true_incorrect == 1)}")
     logger.info(f"Negative class (correct code): {sum(y_true_incorrect == 0)}")
@@ -522,12 +522,12 @@ def main():
     logger.info("SAVING RESULTS")
     logger.info("="*60)
 
-    # Compile results for both features
+    # Compile results for both latents
     results = {
         'phase': '7.12',
         'model_type': 'instruction-tuned (gemma-2-2b-it)',
-        'correct_preferring_feature': {
-            'feature': {
+        'correct_predicting_latent': {
+            'latent': {
                 'idx': int(correct_latent_idx),
                 'layer': int(correct_layer)
             },
@@ -538,8 +538,8 @@ def main():
                 'metrics': metrics_correct
             }
         },
-        'incorrect_preferring_feature': {
-            'feature': {
+        'incorrect_predicting_latent': {
+            'latent': {
                 'idx': int(incorrect_latent_idx),
                 'layer': int(incorrect_layer)
             },
@@ -569,13 +569,13 @@ def main():
         "PHASE 7.12 FINAL RESULTS SUMMARY",
         "INSTRUCTION-TUNED MODEL (gemma-2-2b-it)",
         "=" * 60,
-        f"\nCorrect-Preferring Feature (Layer {correct_layer}, Feature {correct_latent_idx}):",
+        f"\nCorrect-Predicting Latent (Layer {correct_layer}, Latent {correct_latent_idx}):",
         f"  Optimal Threshold: {optimal_threshold_correct:.4f}",
         f"  AUROC: {metrics_correct['auroc']:.4f}",
         f"  F1: {metrics_correct['f1']:.4f}",
         f"  Precision: {metrics_correct['precision']:.4f}",
         f"  Recall: {metrics_correct['recall']:.4f}",
-        f"\nIncorrect-Preferring Feature (Layer {incorrect_layer}, Feature {incorrect_latent_idx}):",
+        f"\nIncorrect-Predicting Latent (Layer {incorrect_layer}, Latent {incorrect_latent_idx}):",
         f"  Optimal Threshold: {optimal_threshold_incorrect:.4f}",
         f"  AUROC: {metrics_incorrect['auroc']:.4f}",
         f"  F1: {metrics_incorrect['f1']:.4f}",
