@@ -485,6 +485,16 @@ Nice-to-haves once the foundation is solid.
     - **Fixed:** Phase 4.10 had swapped default values (bug)
     - **Fixed:** Phase 3.8 manual path construction replaced with `discover_latest_phase_output(config=)`
     - **Created:** `docs/icml_notes.md` for ICML paper insights
+- [x] **Delete unused config fields and methods** (18 items total)
+    - **Deleted 15 unused fields:**
+      - 8 SAE fields (replaced by MODEL_CONFIGS): `sae_repo_id`, `sae_width`, `sae_sparsity`, `sae_hook_component`, `sae_checkpoint_dir`, `sae_save_after_each_layer`, `sae_cleanup_after_layer`, `sae_use_memory_mapping`
+      - 2 autosave fields (never implemented): `autosave_frequency`, `autosave_keep_last`
+      - 2 memory fields (not used for control): `max_memory_usage_gb`, `max_gpu_memory_usage_gb`
+      - 3 other unused: `progress_log_frequency`, `dataset_split`, `dataset_dir`
+    - **Deleted 3 unused methods:** `get_phase_output_dir()`, `is_llama_model()`, `is_gemma_model()` (code uses `phase_discovery.py` or inline checks instead)
+    - **Updated Phase 2.5 validation:** Now checks `model_name in MODEL_CONFIGS` instead of `sae_repo_id`
+    - **Removed CLI mapping:** `'sae_model': 'sae_repo_id'` and `'dataset_dir': 'dataset_dir'`
+    - **Impact:** ~40 lines removed, config only contains fields that are actually used
 - [ ] Rename to sae-code-correctness ( the folder, github repo, huggingface etc.) Is this possible?
     - Also in the comments and variable names do not use pva_sae anymore
 - [ ] Update the docstrings/commetns.

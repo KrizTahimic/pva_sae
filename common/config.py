@@ -178,8 +178,6 @@ class Config:
     # === DATASET SETTINGS ===
     # Options: "mbpp" (Muennighoff/mbpp) or "humaneval"
     dataset_name: str = "mbpp"
-    dataset_split: str = "test"
-    dataset_dir: str = "data/phase1_0"
     dataset_start_idx: int = 0
     dataset_end_idx: Optional[int] = None
     
@@ -197,21 +195,16 @@ class Config:
     # === ROBUSTNESS SETTINGS ===
     checkpoint_frequency: int = 50
     checkpoint_dir: str = "checkpoints"
-    autosave_frequency: int = 100
-    autosave_keep_last: int = 3
     max_retries: int = 3
     retry_backoff: float = 1.0
     continue_on_error: bool = True
     timeout_per_record: float = 300.0
-    
+
     # === MEMORY SETTINGS ===
     memory_cleanup_frequency: int = 100
     gc_collect_frequency: int = 50
-    max_memory_usage_gb: float = 100.0
-    max_gpu_memory_usage_gb: float = 30.0
-    
+
     # === PROGRESS SETTINGS ===
-    progress_log_frequency: int = 10
     show_progress_bar: bool = True
     enable_timing_stats: bool = True
 
@@ -219,14 +212,7 @@ class Config:
     viz_only: bool = False  # If True, regenerate visualizations without recomputing
 
     # === SAE SETTINGS (Phase 2) ===
-    sae_repo_id: str = "google/gemma-scope-2b-pt-res"
-    sae_width: str = "16k"
-    sae_sparsity: str = "71"
-    sae_hook_component: str = "resid_post"
-    sae_checkpoint_dir: str = "data/phase2/sae_checkpoints"
-    sae_save_after_each_layer: bool = True
-    sae_cleanup_after_layer: bool = True
-    sae_use_memory_mapping: bool = False
+    # Note: Model-specific SAE settings (repo, width, sparsity) are in MODEL_CONFIGS
     sae_latent_threshold: float = 0.02
     sae_dtype: str = "bfloat16"  # SAE weight dtype: "bfloat16" (faster) or "float32" (original)
     
@@ -339,14 +325,12 @@ class Config:
             # Dataset args
             'start': 'dataset_start_idx',
             'end': 'dataset_end_idx',
-            'dataset_dir': 'dataset_dir',
 
             # Robustness args
             'checkpoint_frequency': 'checkpoint_frequency',
             'checkpoint_dir': 'checkpoint_dir',
             
             # SAE args
-            'sae_model': 'sae_repo_id',
             'latent_threshold': 'sae_latent_threshold',
             # 'pile_filter': 'pile_filter_enabled',  # Removed - handled specially below
             'pile_threshold': 'pile_threshold',
@@ -516,10 +500,10 @@ class Config:
                 raise ValueError("activation_layers required for Phase 2.2")
         
         elif phase == "2.5":
-            # Phase 2.5 requires SAE configuration
-            if not self.sae_repo_id:
-                raise ValueError("sae_repo_id required for Phase 2.5")
-            
+            # Phase 2.5 requires model to be in MODEL_CONFIGS (for SAE configuration)
+            if self.model_name not in MODEL_CONFIGS:
+                raise ValueError(f"Unknown model: {self.model_name}. Supported: {list(MODEL_CONFIGS.keys())}")
+
             if not self.activation_layers:
                 raise ValueError("activation_layers required for Phase 2.5")
         
@@ -557,15 +541,7 @@ class Config:
             # Phase 4.6 requires Phase 4.5 results for search bounds
             if self.phase4_6_tolerance <= 0:
                 raise ValueError("phase4_6_tolerance must be > 0")
-    
-    def get_phase_output_dir(self, phase: str) -> str:
-        """Get output directory for specific phase.
 
-        Uses the phase registry as the single source of truth.
-        """
-        from common.phase_registry import get_phase_output_dir as registry_get_dir
-        return registry_get_dir(phase)
-    
     def get_split_ratios(self) -> list[float]:
         """Get fixed split ratios for Phase 0.1."""
         # 50% for SAE analysis, 10% for hyperparameter tuning, 40% for validation
@@ -584,12 +560,4 @@ class Config:
             n_layers, sae_repo, sae_format, etc.
         """
         return MODEL_CONFIGS.get(self.model_name, MODEL_CONFIGS['google/gemma-2-2b'])
-
-    def is_llama_model(self) -> bool:
-        """Check if current model is a LLAMA variant."""
-        return 'llama' in self.model_name.lower()
-
-    def is_gemma_model(self) -> bool:
-        """Check if current model is a Gemma variant."""
-        return 'gemma' in self.model_name.lower()
 
