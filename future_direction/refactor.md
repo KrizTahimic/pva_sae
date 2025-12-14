@@ -460,46 +460,35 @@ Created `common/steering_setup.py` to consolidate duplicated loading code across
 
 These findings inform what else could go in `common/`:
 
-| Pattern | Files Affected | Suggested Abstraction |
-|---------|---------------|----------------------|
-| Checkpoint/resume logic | 14+ files | `CheckpointManager` class |
-| Start/end index filtering | 19+ files | `apply_index_range_filter()` util |
-| Memory management | 30+ files | `MemoryManager` class |
-| Dataset-aware path construction | 20+ files | `get_dataset_aware_output_dir()` |
-| SAE loading duplication | 8 files | Remove duplicate, use `common.sae_loader` |
+| Pattern | Files Affected | Suggested Abstraction | Status |
+|---------|---------------|----------------------|--------|
+| Checkpoint/resume logic | 14+ files | `CheckpointManager` class | Future |
+| Start/end index filtering | 13 files | `filter_by_range()` util | ✅ DONE |
+| Memory management | 30+ files | `MemoryManager` class | Future |
+| Dataset-aware path construction | 20+ files | `get_dataset_aware_output_dir()` | Future |
+| SAE loading duplication | 8 files | Remove duplicate, use `common.sae_loader` | Future |
 
-**Quick win for Step 3:**
-```python
-# common/utils.py - add this function
-def apply_index_range_filter(df: pd.DataFrame, config: Config) -> pd.DataFrame:
-    """Apply --start/--end filtering. Used by 19+ phases."""
-    start_idx = getattr(config, 'dataset_start_idx', None) or 0
-    end_idx = getattr(config, 'dataset_end_idx', None)
+**✅ COMPLETED: Start/end index filtering**
 
-    if end_idx is None:
-        end_idx = len(df)
-    else:
-        end_idx = min(end_idx + 1, len(df))  # inclusive
-
-    if start_idx > 0 or end_idx < len(df):
-        logger.info(f"Filtering: rows {start_idx}-{end_idx-1}")
-        return df.iloc[start_idx:end_idx].copy()
-    return df
-```
+Added `filter_by_range(data, config, description)` to `common/phase_discovery.py`:
+- Polymorphic function that auto-detects DataFrame vs list/tuple
+- Refactored 12 files to use single-line calls
+- Fixed Phase 1 anomaly (was using inclusive-end semantics)
+- Reduced ~60 lines of duplicated code
 
 ---
 
 ## Step 5: Polish & Extras (After Core Refactoring)
 
 Nice-to-haves once the foundation is solid.
-- [ ] Is there bad in my current approach in one source of truth 
+- [ ] Is there bad in my current approach in one source of truth. Context: config.py
+- [ ] Rename to code-correctness-sae( the folder, github repo, huggingface etc.)Also in the comments and variable names.
 - [ ] Update the docstrings/commetns.
 - [ ] Improve notebooks. Remove unnecessary cells. Also do list comprehensions.
     - [ ] Understand matplotlib and pandas logic or how it works.
 - [ ] Fix the figure generation code. Currently it looks soooo messy.
     - [ ] Make all figures correction green, corruption red, and pick a color for preservation.
-- [ ] Add here the ICML LaTeX.
-- [ ] Rename to code-correctness-sae( the folder, github repo, huggingface etc.)Also in the comments and variable names.
+
 
 ### 5.1 ICML Visualizations (moved from ICML tasks)
 
@@ -663,3 +652,7 @@ GPU=1 ts python3 run.py phase 1 --model llama --dataset mbpp
 - Verified: All phases work with `--model` and `--dataset` flags
 
 - [ ] Test run all 10 records.
+
+
+FINAL
+- [ ] Add here the ICML LaTeX.

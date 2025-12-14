@@ -25,7 +25,7 @@ from common.activation_hooks import ActivationExtractor
 from common.utils import save_json, load_json, detect_device, ensure_directory_exists
 from common.tensor_utils import save_activation
 from common.dataset_utils import evaluate_code, extract_code
-from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir, write_phase_output, get_dataset_range
+from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir, write_phase_output, filter_by_range
 from common.prompt_utils import PromptBuilder
 from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_WARNING_PERCENT
 from common.logging import get_logger, tqdm_with_logging
@@ -372,10 +372,7 @@ class InstructBaselineRunner:
         logger.info(f"Loaded {len(validation_data)} validation problems")
 
         # Apply --start and --end arguments if provided
-        start_idx, end_idx = get_dataset_range(self.config, len(validation_data))
-        if start_idx > 0 or end_idx < len(validation_data):
-            logger.info(f"Processing validation dataset rows {start_idx}-{end_idx-1} (inclusive)")
-            validation_data = validation_data.iloc[start_idx:end_idx].copy()
+        validation_data = filter_by_range(validation_data, self.config, "validation dataset")
         
         # Setup output directories
         self.output_dir = self._setup_output_directories()
@@ -480,8 +477,7 @@ class InstructBaselineRunner:
         
         # Get original task IDs for metadata
         original_validation_data = self._load_validation_data()
-        start_idx, end_idx = get_dataset_range(self.config, len(original_validation_data))
-        original_validation_data = original_validation_data.iloc[start_idx:end_idx]
+        original_validation_data = filter_by_range(original_validation_data, self.config, "original validation data")
         
         # Create and save metadata (with exclusion info)
         metadata = self._create_metadata(all_results, original_validation_data['task_id'].tolist(), all_excluded)

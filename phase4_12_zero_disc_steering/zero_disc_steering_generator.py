@@ -21,7 +21,7 @@ from common.utils import ensure_directory_exists, detect_device, load_json, save
 from common.phase_discovery import (
     discover_latest_phase_output,
     get_phase_output_dir,
-    get_dataset_range
+    filter_by_range
 )
 from common.config import (
     Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_HIGH_PERCENT, MEMORY_WARNING_PERCENT
@@ -112,11 +112,7 @@ class ZeroDiscSteeringGenerator:
         logger.info(f"Loaded {len(self.validation_data)} validation problems")
 
         # Apply --start and --end arguments if provided
-        start_idx, end_idx = get_dataset_range(self.config, len(self.validation_data))
-        if start_idx > 0 or end_idx < len(self.validation_data):
-            logger.info(f"Processing validation dataset rows {start_idx}-{end_idx-1} (inclusive)")
-            self.validation_data = self.validation_data.iloc[start_idx:end_idx].copy()
-            logger.info(f"Filtered to {len(self.validation_data)} problems")
+        self.validation_data = filter_by_range(self.validation_data, self.config, "validation dataset")
         
         # Split by initial correctness
         self.incorrect_problems = self.validation_data[self.validation_data['baseline_passed'] == False].copy()

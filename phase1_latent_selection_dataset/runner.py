@@ -16,7 +16,7 @@ from common.config import (
 from common.logging import get_logger, tqdm_with_logging
 from common.prompt_utils import PromptBuilder
 from common.utils import detect_device, get_timestamp
-from common.phase_discovery import get_phase_output_dir
+from common.phase_discovery import get_phase_output_dir, filter_by_range
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common.gpu_utils import setup_cuda_environment, cleanup_gpu_memory
 from common.model_loader import load_model_and_tokenizer
@@ -330,17 +330,10 @@ class Phase1Runner:
         # Load split data using generic loader
         df = load_dataset_split(split_name, Path(phase0_1_dir), self.config)
         
-        # Apply start/end indices from config (matching original behavior)
+        # Apply start/end indices from config
         total_tasks = len(df)
-        start_idx = self.config.dataset_start_idx
-        end_idx = self.config.dataset_end_idx if self.config.dataset_end_idx is not None else total_tasks - 1
-        
-        # Ensure indices are within bounds
-        end_idx = min(end_idx, total_tasks - 1)
-        
-        # Slice the dataframe
-        df = df.iloc[start_idx:end_idx + 1]
-        logger.info(f"Processing tasks {start_idx} to {end_idx} ({len(df)} out of {total_tasks} tasks in {split_name} split)")
+        df = filter_by_range(df, self.config, f"{split_name} split tasks")
+        logger.info(f"Processing {len(df)} out of {total_tasks} tasks in {split_name} split")
         
         # Create output directories
         # Use model/dataset-aware output directory
@@ -480,7 +473,7 @@ class Phase1Runner:
         # Merge with original data (only successful tasks)
         # Need to reload full dataset to get all original data including checkpointed tasks
         full_df = load_dataset_split(split_name, Path(phase0_1_dir), self.config)
-        full_df = full_df.iloc[start_idx:end_idx + 1]  # Apply original range
+        full_df = filter_by_range(full_df, self.config, "original data")
         
         successful_task_ids = set(results_df['task_id'])
         successful_original_data = full_df[full_df['task_id'].isin(successful_task_ids)].copy()

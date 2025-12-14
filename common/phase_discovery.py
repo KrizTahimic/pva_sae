@@ -191,6 +191,43 @@ def get_dataset_range(config, total_length: int) -> tuple[int, int]:
     return start_idx, end_idx
 
 
+def filter_by_range(
+    data,
+    config,
+    description: str = "dataset"
+):
+    """
+    Apply --start/--end filtering to data (DataFrame or sequence).
+
+    Auto-detects data type and applies appropriate filtering.
+
+    Args:
+        data: DataFrame, list, or tuple to filter
+        config: Config with optional dataset_start_idx and dataset_end_idx
+        description: Name for logging (e.g., "validation dataset")
+
+    Returns:
+        Filtered data (same type as input)
+
+    Example:
+        data = filter_by_range(df, self.config, "validation dataset")
+        texts = filter_by_range(texts, config, "pile samples")
+    """
+    import pandas as pd
+
+    start_idx, end_idx = get_dataset_range(config, len(data))
+
+    if start_idx > 0 or end_idx < len(data):
+        logger.info(f"Filtering {description}: rows {start_idx}-{end_idx-1} (inclusive)")
+
+        if isinstance(data, pd.DataFrame):
+            return data.iloc[start_idx:end_idx].copy()
+        else:
+            return data[start_idx:end_idx]
+
+    return data
+
+
 # ============================================================================
 # Phase Output Manifest (phase_output.json)
 # ============================================================================

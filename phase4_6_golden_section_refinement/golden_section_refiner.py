@@ -23,7 +23,7 @@ from common.utils import ensure_directory_exists, detect_device
 from common.phase_discovery import (
     discover_latest_phase_output,
     get_phase_output_dir,
-    get_dataset_range
+    filter_by_range
 )
 from common.config import (
     Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_WARNING_PERCENT, MEMORY_HIGH_PERCENT
@@ -308,13 +308,7 @@ class GoldenSectionCoefficientRefiner:
         logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.6 baseline")
 
         # Apply --start and --end arguments if provided for testing
-        start_idx, end_idx = get_dataset_range(self.config, len(self.baseline_data))
-
-        # Apply range filtering for testing
-        if start_idx > 0 or end_idx < len(self.baseline_data):
-            logger.info(f"Limiting dataset for testing: rows {start_idx}-{end_idx-1}")
-            self.baseline_data = self.baseline_data.iloc[start_idx:end_idx].copy()
-            logger.info(f"Reduced to {len(self.baseline_data)} problems for testing")
+        self.baseline_data = filter_by_range(self.baseline_data, self.config, "baseline data")
         
         # Split baseline data by initial correctness
         self.initially_correct_data = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()

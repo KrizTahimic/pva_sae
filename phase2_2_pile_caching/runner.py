@@ -14,7 +14,7 @@ from datasets import load_dataset
 
 from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
-from common.phase_discovery import get_phase_output_dir, get_dataset_range
+from common.phase_discovery import get_phase_output_dir, filter_by_range, get_dataset_range
 from common.model_loader import load_model_and_tokenizer
 from common.tensor_utils import save_activation
 from .pile_activation_hook import PileActivationHook
@@ -65,18 +65,20 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
             substrings.append(None)  # Handle empty texts
     
     # Handle start/end indices for multi-GPU processing
-    start_idx, end_idx = get_dataset_range(config, len(texts))
-    
-    logger.info(f"Processing pile samples {start_idx} to {end_idx-1} one at a time...")
-    
+    # Get start_idx for filename tracking before filtering
+    start_idx, _ = get_dataset_range(config, len(texts))
+    texts = filter_by_range(texts, config, "pile samples")
+    substrings = substrings[start_idx:start_idx + len(texts)]
+
     # Process each text individually
     processed_count = 0
     skipped_count = 0
-    
-    # Progress bar for current GPU's work
-    for idx in tqdm_with_logging(range(start_idx, end_idx), logger, desc="Processing pile samples"):
-        text = texts[idx]
-        random_word = substrings[idx]
+
+    # Progress bar - use enumerate with start offset for correct filenames
+    for local_idx, (text, random_word) in tqdm_with_logging(
+        enumerate(zip(texts, substrings)), logger, desc="Processing pile samples", total=len(texts)
+    ):
+        idx = start_idx + local_idx  # Original index for filename
         
         if random_word is None:
             skipped_count += 1

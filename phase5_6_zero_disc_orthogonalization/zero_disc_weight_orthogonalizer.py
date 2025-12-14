@@ -24,7 +24,7 @@ from common.utils import ensure_directory_exists, detect_device
 from common.phase_discovery import (
     discover_latest_phase_output,
     get_phase_output_dir,
-    get_dataset_range
+    filter_by_range
 )
 from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_CRITICAL_PERCENT
 from common.steering_metrics import (
@@ -113,11 +113,7 @@ class ZeroDiscWeightOrthogonalizer:
         logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.5 baseline")
 
         # Apply --start and --end arguments if provided
-        start_idx, end_idx = get_dataset_range(self.config, len(self.baseline_data))
-        if start_idx > 0 or end_idx < len(self.baseline_data):
-            logger.info(f"Processing validation dataset rows {start_idx}-{end_idx-1} (inclusive)")
-            self.baseline_data = self.baseline_data.iloc[start_idx:end_idx].copy()
-            logger.info(f"Filtered to {len(self.baseline_data)} problems")
+        self.baseline_data = filter_by_range(self.baseline_data, self.config, "baseline data")
         
         # Load SAE for the zero-disc latent
         logger.info("Loading SAE model for zero-disc latent...")

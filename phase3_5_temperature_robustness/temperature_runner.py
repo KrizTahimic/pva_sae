@@ -31,7 +31,7 @@ from common.config import (
 )
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device
-from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir, get_dataset_range
+from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir, filter_by_range
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 
 # Module-level logger
@@ -284,12 +284,7 @@ class TemperatureRobustnessRunner:
         logger.info(f"Loaded {len(validation_data)} validation problems")
         
         # Apply --start and --end arguments if provided
-        task_start, task_end = get_dataset_range(self.config, len(validation_data))
-        
-        # Apply range filtering if needed
-        if task_start > 0 or task_end < len(validation_data):
-            logger.info(f"Processing validation dataset rows {task_start}-{task_end-1} (inclusive)")
-            validation_data = validation_data.iloc[task_start:task_end].copy()
+        validation_data = filter_by_range(validation_data, self.config, "validation dataset")
         
         # Setup output directories
         self.output_dir = self._setup_output_directories()

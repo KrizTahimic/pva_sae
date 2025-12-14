@@ -46,7 +46,7 @@ from common.phase_discovery import (
     discover_latest_phase_output,
     get_phase_output_dir,
     write_phase_output,
-    get_dataset_range
+    filter_by_range
 )
 from common.dataset_utils import extract_code, evaluate_code
 from common.model_loader import load_model_and_tokenizer
@@ -249,13 +249,7 @@ class ThresholdOptimizer:
         logger.info(f"Created baseline lookup for {len(self.baseline_lookup)} problems")
 
         # Apply --start and --end arguments if provided
-        start_idx, end_idx = get_dataset_range(self.config, len(self.dataset))
-
-        # Apply range filtering
-        if start_idx > 0 or end_idx < len(self.dataset):
-            logger.info(f"Processing hyperparameter dataset rows {start_idx}-{end_idx-1} (inclusive)")
-            self.dataset = self.dataset.iloc[start_idx:end_idx].copy()
-            logger.info(f"Filtered to {len(self.dataset)} problems")
+        self.dataset = filter_by_range(self.dataset, self.config, "hyperparameter dataset")
 
         # === SPLIT BY CORRECTNESS ===
         self._split_baseline_by_correctness()

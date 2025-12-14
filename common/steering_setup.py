@@ -15,7 +15,7 @@ import torch.nn as nn
 import pandas as pd
 
 from common.config import Config
-from common.phase_discovery import discover_latest_phase_output, get_dataset_range
+from common.phase_discovery import discover_latest_phase_output, filter_by_range
 from common.sae_loader import load_sae_for_config
 from common.utils import load_json
 from common.logging import get_logger
@@ -231,11 +231,7 @@ def load_baseline_data(
     logger.info(f"Loaded {len(baseline_data)} problems from Phase {phase} baseline")
 
     # Apply --start and --end arguments if provided
-    start_idx, end_idx = get_dataset_range(config, len(baseline_data))
-    if start_idx > 0 or end_idx < len(baseline_data):
-        logger.info(f"Processing dataset rows {start_idx}-{end_idx-1} (inclusive)")
-        baseline_data = baseline_data.iloc[start_idx:end_idx].copy()
-        logger.info(f"Filtered to {len(baseline_data)} problems")
+    baseline_data = filter_by_range(baseline_data, config, "dataset")
 
     return baseline_data, phase_dir
 

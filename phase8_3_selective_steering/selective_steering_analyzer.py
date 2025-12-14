@@ -42,7 +42,7 @@ from common.phase_discovery import (
     discover_latest_phase_output,
     get_phase_output_dir,
     write_phase_output,
-    get_dataset_range
+    filter_by_range
 )
 from common.dataset_utils import extract_code, evaluate_code
 from common.model_loader import load_model_and_tokenizer
@@ -212,13 +212,7 @@ class SelectiveSteeringAnalyzer:
                        f"with {len(first_test_list)} test cases")
 
         # Apply --start and --end arguments if provided
-        start_idx, end_idx = get_dataset_range(self.config, len(self.baseline_data))
-
-        # Apply range filtering
-        if start_idx > 0 or end_idx < len(self.baseline_data):
-            logger.info(f"Processing validation dataset rows {start_idx}-{end_idx-1} (inclusive)")
-            self.baseline_data = self.baseline_data.iloc[start_idx:end_idx].copy()
-            logger.info(f"Filtered to {len(self.baseline_data)} problems")
+        self.baseline_data = filter_by_range(self.baseline_data, self.config, "baseline data")
 
         # === LOAD PERCENTILE THRESHOLD FROM PHASE 8.1 ===
         if self.config.phase8_3_use_percentile_threshold:
