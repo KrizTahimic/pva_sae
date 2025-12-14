@@ -278,7 +278,7 @@ class Config:
 
     # === SELECTIVE STEERING BASED ON THRESHOLD (Phase 8.3) ===
     phase8_3_use_percentile_threshold: bool = True  # Use percentile-based threshold
-    phase8_3_percentile: float = 70.0  # Percentile for threshold (90 = steer top 10%)
+    phase8_3_percentile: Optional[float] = None  # None = auto-discover from Phase 8.2
 
     # === WEIGHT ORTHOGONALIZATION (Phase 5.3, 5.9) ===
     orthogonalization_target_weights: list[str] = field(

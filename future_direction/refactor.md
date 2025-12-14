@@ -525,15 +525,20 @@ Nice-to-haves once the foundation is solid.
     - Deleted `validate()` method (~90 lines) - phase runners already validate their own requirements
     - Removed `config.validate()` call from run.py
     - **Design improvement:** Config.py no longer knows about phases (Single Responsibility)
-- [ ]     phase8_3_percentile: float = 70.0  # Percentile for threshold (90 = steer top 10%) Make this autodiscovered also and not hardcoded.
+- [x] **Auto-discover `phase8_3_percentile` from Phase 8.2** (was hardcoded 70.0)
+    - Changed `phase8_3_percentile: float = 70.0` to `Optional[float] = None`
+    - Added `discover_optimal_percentile()` function to phase_discovery.py
+    - Phase 8.3 now auto-discovers optimal percentile from Phase 8.2
+    - Config override still works: setting explicit value bypasses auto-discovery
+    - **Behavior:** If Phase 8.2 not run and no override set, raises FileNotFoundError with clear message
 
-- [ ] Rename to sae-code-correctness ( the folder, github repo, huggingface etc.) Is this possible?
-    - Also in the comments and variable names do not use pva_sae anymore
+- [ ] Make all figures correction green, corruption red, and pick a color for preservation.
 - [ ] Update the docstrings/commetns.
 - [ ] Improve notebooks. Remove unnecessary cells. Also do list comprehensions. Also make sure it works again after the new refactored code.
 - [ ] Fix the figure generation code. Currently it looks soooo messy.
     - [ ] Understand matplotlib and pandas logic or how it works. So I can help instruct my preference and good practice.
-- [ ] Make all figures correction green, corruption red, and pick a color for preservation.
+- [ ] Rename to sae-code-correctness ( the folder, github repo, huggingface etc.) Is this possible?
+    - Also in the comments and variable names do not use pva_sae anymore
 
 
 ### 5.1 ICML Visualizations (moved from ICML tasks)
@@ -598,6 +603,9 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
     - **Prerequisites:** Step 2 multi-model support, Step 3 model-agnostic abstractions
     - **SAE Verified**: `fnlp/Llama-Scope` 32K (8x expansion) matches Neuronpedia's `llamascope-res-32k`
     - Addresses "single model, single benchmark" criticism
+    - Will this also work for LLAMA? orthogonalization_target_weights: list[str] = field(
+        default_factory=lambda: ['embed', 'attn_o', 'mlp_down']
+    )
 
 - [ ] **Feature threshold sensitivity analysis** (Reviewer RXZd)
     - [x] **Infrastructure ready**: Phase 2.3 extracts pile frequency computation, enabling easy threshold testing
@@ -611,6 +619,9 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
         - 5-10 filtered → filter is doing meaningful work, emphasize its importance
         - 10+ filtered → may indicate selection method issues, investigate further
     - **Note**: Current 2% threshold is copied from Ferrando et al. 2024 (entities paper). No first-principles justification yet. Results will inform whether to keep, adjust, or provide post-hoc justification.
+- [ ] In AUROC and F1? How did the inspiration do it? How did they make the thresholds to test? Copy them or improve.
+- [ ] In steering if performance is not changing stop the search already and use the lower steering coefficient. In golden section search.
+    - Consider applying the same in phase 3.8 also in threshold.
 
 - [x] **Visualizations** → **Moved to Step 5.1**
     - Top-10 features table
@@ -641,7 +652,7 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 
 ## Step 6: Multi-GPU Parallel Execution (After Experiments Work)
 - [ ] **Consider adding `--model` CLI argument** for quick model switching during testing (Step 6). Also `--dataset`
-- [ ] Consider condensing the code more like some can be just a variation of one code like steering etc. But take this with high risk and put little importance. Leaning to not do this.
+- [ ] Consider condensing the code more like some can be just a variation of one code like steering etc. But take this with high risk and put little importance. Leaning to not do this. or maybe atleast have steering function that will always be called. Ask CC if my current architecture/codebase design make sense or if could be better.
 - [ ] Test all phase one by one first if it is all running.
     - [ ] Exmaine each of the output file.
     - [ ] Code review manually. With CC help ofcourse but read all code manually. Make sure I understand and it is correct. 

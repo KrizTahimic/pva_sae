@@ -393,3 +393,29 @@ def discover_steering_coefficients(config: 'Config') -> dict[str, float]:
         "correct": data["correct"]["refined_coefficient"],
         "incorrect": data["incorrect"]["refined_coefficient"],
     }
+
+
+def discover_optimal_percentile(config: 'Config') -> dict:
+    """
+    Load optimal percentile from Phase 8.2 via manifest system.
+
+    Phase 8.2 runs a grid search across percentiles to find the one with
+    the best net benefit (correction_rate - corruption_rate).
+
+    Args:
+        config: Config object for model/dataset-aware directory lookup
+
+    Returns:
+        dict with keys: 'percentile' (int), 'threshold' (float)
+
+    Raises:
+        FileNotFoundError: If Phase 8.2 hasn't been run (no phase_output.json)
+    """
+    from common.utils import load_json
+
+    optimal_file = get_phase_output_file("8.2", "primary", config=config)
+    data = load_json(optimal_file)
+    return {
+        "percentile": data["optimal_percentile"],
+        "threshold": data["optimal_threshold"],
+    }

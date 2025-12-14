@@ -214,18 +214,34 @@ class SelectiveSteeringAnalyzer:
         # Apply --start and --end arguments if provided
         self.baseline_data = filter_by_range(self.baseline_data, self.config, "baseline data")
 
-        # === LOAD PERCENTILE THRESHOLD FROM PHASE 8.1 ===
+        # === LOAD PERCENTILE THRESHOLD ===
         if self.config.phase8_3_use_percentile_threshold:
-            logger.info(f"Loading {self.config.phase8_3_percentile}th percentile threshold from Phase 8.1...")
+            # Step 1: Determine percentile (auto-discover from Phase 8.2 or use config override)
+            if self.config.phase8_3_percentile is None:
+                # Auto-discover optimal percentile from Phase 8.2
+                logger.info("Auto-discovering optimal percentile from Phase 8.2...")
+                try:
+                    from common.phase_discovery import discover_optimal_percentile
+                    optimal = discover_optimal_percentile(self.config)
+                    percentile = optimal["percentile"]
+                    logger.info(f"✓ Phase 8.2 optimal percentile: {percentile}")
+                except FileNotFoundError:
+                    logger.error(
+                        "Phase 8.2 not found. Run 'python3 run.py phase 8.2' first, "
+                        "or set phase8_3_percentile in config to override."
+                    )
+                    raise
+            else:
+                percentile = int(self.config.phase8_3_percentile)
+                logger.info(f"Using config override: phase8_3_percentile = {percentile}")
 
-            # Try to load Phase 8.1 results
+            # Step 2: Load threshold from Phase 8.1 using the determined percentile
+            logger.info(f"Loading p{percentile} threshold from Phase 8.1...")
             phase8_1_output = discover_latest_phase_output("8.1")
 
             if phase8_1_output:
                 phase8_1_results = load_json(Path(phase8_1_output).parent / "percentile_thresholds.json")
-
-                # Get the requested percentile
-                percentile_key = f'p{int(self.config.phase8_3_percentile)}'
+                percentile_key = f'p{percentile}'
 
                 if percentile_key in phase8_1_results['percentile_thresholds']:
                     threshold_info = phase8_1_results['percentile_thresholds'][percentile_key]
@@ -236,12 +252,9 @@ class SelectiveSteeringAnalyzer:
                     logger.info(f"  Will steer approximately {threshold_info['steer_percentage']:.0f}% of cases")
                     logger.info(f"  Phase 3.8 classification threshold was: {phase3_8_threshold:.4f}")
                 else:
-                    logger.warning(f"Percentile {percentile_key} not found in Phase 8.1 results, falling back to Phase 3.8 threshold")
-                    self.threshold = phase3_8_threshold
+                    raise ValueError(f"Percentile {percentile_key} not found in Phase 8.1 results")
             else:
-                logger.warning(f"Phase 8.1 results not found. Run 'python3 run.py phase 8.1' first.")
-                logger.warning(f"Falling back to Phase 3.8 threshold: {phase3_8_threshold:.4f}")
-                self.threshold = phase3_8_threshold
+                raise FileNotFoundError("Phase 8.1 results not found. Run 'python3 run.py phase 8.1' first.")
         else:
             self.threshold = phase3_8_threshold
             logger.info(f"Using Phase 3.8 classification threshold: {self.threshold:.4f}")
