@@ -443,13 +443,13 @@ class AttentionAnalyzer:
         
         conditions = ['Baseline', 'Correct\nSteering', 'Incorrect\nSteering']
         condition_keys = ['baseline', 'correct', 'incorrect']
-        x = np.arange(len(conditions))
-        
+        bar_positions = np.arange(len(conditions))
+
         # Get heights for each section
         problem_heights = []
         test_heights = []
         solution_heights = []
-        
+
         for key in condition_keys:
             if key in distributions:
                 problem_heights.append(distributions[key]['problem'])
@@ -459,17 +459,17 @@ class AttentionAnalyzer:
                 problem_heights.append(0)
                 test_heights.append(0)
                 solution_heights.append(0)
-        
+
         # Stack the bars
-        ax.bar(x, problem_heights, label='Problem Description', color='#8dd3c7')
-        ax.bar(x, test_heights, bottom=problem_heights, label='Test Cases', color='#ff8c00')
-        ax.bar(x, solution_heights, 
+        ax.bar(bar_positions, problem_heights, label='Problem Description', color='#8dd3c7')
+        ax.bar(bar_positions, test_heights, bottom=problem_heights, label='Test Cases', color='#ff8c00')
+        ax.bar(bar_positions, solution_heights,
                bottom=np.array(problem_heights) + np.array(test_heights),
                label='Solution Marker', color='#bebada')
         
         ax.set_ylabel('Attention Distribution (%)')
         ax.set_title('Attention Focus Across Prompt Sections')
-        ax.set_xticks(x)
+        ax.set_xticks(bar_positions)
         ax.set_xticklabels(conditions)
         ax.legend()
         ax.set_ylim(0, 100)
@@ -517,8 +517,8 @@ class AttentionAnalyzer:
         incorrect_deltas = self._calculate_average_deltas(differences_incorrect)
         
         sections = ['Problem\nDesc.', 'Test\nCases', 'Solution\nMarker']
-        x = np.arange(len(sections))
-        
+        bar_positions = np.arange(len(sections))
+
         # Calculate common y-axis limits for both plots
         all_values = []
         all_values.extend(correct_deltas['means'])
@@ -528,31 +528,31 @@ class AttentionAnalyzer:
         all_values.extend([m - s for m, s in zip(correct_deltas['means'], correct_deltas['stds'])])
         all_values.extend([m + s for m, s in zip(incorrect_deltas['means'], incorrect_deltas['stds'])])
         all_values.extend([m - s for m, s in zip(incorrect_deltas['means'], incorrect_deltas['stds'])])
-        
+
         # Set symmetric limits around zero with some padding
         y_max = max(abs(min(all_values)), abs(max(all_values))) * 1.1
         y_limits = (-y_max, y_max)
-        
+
         # Plot correct steering effects
         colors = ['blue' if d > 0 else 'red' for d in correct_deltas['means']]
-        bars1 = ax1.bar(x, correct_deltas['means'], yerr=correct_deltas['stds'],
+        bars1 = ax1.bar(bar_positions, correct_deltas['means'], yerr=correct_deltas['stds'],
                         capsize=5, color=colors, alpha=0.6)
         ax1.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
         ax1.set_ylabel('Attention Change (%)')
         ax1.set_title('Correct Steering Effect')
-        ax1.set_xticks(x)
+        ax1.set_xticks(bar_positions)
         ax1.set_xticklabels(sections)
         ax1.set_ylim(y_limits)  # Apply common y-axis limits
         ax1.grid(axis='y', alpha=0.3)
-        
+
         # Plot incorrect steering effects
         colors = ['blue' if d > 0 else 'red' for d in incorrect_deltas['means']]
-        bars2 = ax2.bar(x, incorrect_deltas['means'], yerr=incorrect_deltas['stds'],
+        bars2 = ax2.bar(bar_positions, incorrect_deltas['means'], yerr=incorrect_deltas['stds'],
                         capsize=5, color=colors, alpha=0.6)
         ax2.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
         ax2.set_ylabel('Attention Change (%)')
         ax2.set_title('Incorrect Steering Effect')
-        ax2.set_xticks(x)
+        ax2.set_xticks(bar_positions)
         ax2.set_xticklabels(sections)
         ax2.set_ylim(y_limits)  # Apply common y-axis limits
         ax2.grid(axis='y', alpha=0.3)
@@ -659,11 +659,11 @@ class AttentionAnalyzer:
             
             # Add trend line
             if len(baseline_scores) > 1:
-                z = np.polyfit(baseline_scores, steered_scores, 1)
-                p = np.poly1d(z)
+                poly_coefficients = np.polyfit(baseline_scores, steered_scores, 1)
+                trend_line = np.poly1d(poly_coefficients)
                 x_trend = np.linspace(min(baseline_scores), max(baseline_scores), 100)
-                ax.plot(x_trend, p(x_trend), 'r-', alpha=0.5, linewidth=2, 
-                       label=f'Trend: y={z[0]:.2f}x+{z[1]:.2f}')
+                ax.plot(x_trend, trend_line(x_trend), 'r-', alpha=0.5, linewidth=2,
+                       label=f'Trend: y={poly_coefficients[0]:.2f}x+{poly_coefficients[1]:.2f}')
             
             # Formatting
             ax.set_xlabel('Baseline Attention (%)')
@@ -812,10 +812,10 @@ class AttentionAnalyzer:
                 
                 # Add trend line (optional - using numpy polyfit)
                 if len(baseline_plot) > 1:
-                    z = np.polyfit(baseline_plot, steered_plot, 1)
-                    p = np.poly1d(z)
+                    poly_coefficients = np.polyfit(baseline_plot, steered_plot, 1)
+                    trend_line = np.poly1d(poly_coefficients)
                     x_trend = np.linspace(min(baseline_plot), max(baseline_plot), 100)
-                    ax.plot(x_trend, p(x_trend), color=colors[head_idx], alpha=0.5, linewidth=2)
+                    ax.plot(x_trend, trend_line(x_trend), color=colors[head_idx], alpha=0.5, linewidth=2)
             
             # Formatting
             ax.set_xlabel('Baseline Attention', fontsize=9)

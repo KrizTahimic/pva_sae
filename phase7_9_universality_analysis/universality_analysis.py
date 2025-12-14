@@ -283,14 +283,14 @@ class UniversalityAnalyzer:
         instruct_coeffs = [metrics["steering_effectiveness"]["instruction_tuned"]["coefficients"]["correct_coefficient"],
                           metrics["steering_effectiveness"]["instruction_tuned"]["coefficients"]["incorrect_coefficient"]]
         
-        x = np.arange(2)
+        bar_positions = np.arange(2)
         width = 0.35
-        ax6.bar(x - width/2, base_coeffs, width, label='Base', color='#3498db', alpha=0.8)
-        ax6.bar(x + width/2, instruct_coeffs, width, label='Instruct', color='#e74c3c', alpha=0.8)
+        ax6.bar(bar_positions - width/2, base_coeffs, width, label='Base', color='#3498db', alpha=0.8)
+        ax6.bar(bar_positions + width/2, instruct_coeffs, width, label='Instruct', color='#e74c3c', alpha=0.8)
         ax6.set_xlabel('Feature Type', fontsize=11)
         ax6.set_ylabel('Steering Coefficient', fontsize=11)
         ax6.set_title('Steering Coefficients Used', fontsize=12, fontweight='bold')
-        ax6.set_xticks(x)
+        ax6.set_xticks(bar_positions)
         ax6.set_xticklabels(['Correct', 'Incorrect'], fontsize=10)
         ax6.legend(fontsize=9)
         

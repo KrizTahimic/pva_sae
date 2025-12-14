@@ -294,8 +294,8 @@ def load_sae(
     if model_config['sae_format'] == 'npz':
         return load_gemma_scope_sae(layer_idx, device, config, model_name=model_name)
     elif model_config['sae_format'] == 'safetensors':
-        k = model_config.get('sae_topk', 64)
-        return load_llama_scope_sae(layer_idx, device, config, k=k)
+        sae_topk = model_config.get('sae_topk', 64)
+        return load_llama_scope_sae(layer_idx, device, config, k=sae_topk)
     else:
         raise ValueError(f"Unknown SAE format: {model_config['sae_format']}")
 

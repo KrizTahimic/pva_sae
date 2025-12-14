@@ -102,15 +102,15 @@ class TemperatureTrendsVisualizer:
         n_correct = [int(temp_results[str(t)]['correct']['n_correct']) for t in temperatures]
         n_incorrect = [int(temp_results[str(t)]['correct']['n_incorrect']) for t in temperatures]
 
-        x = np.arange(len(temperatures))
+        bar_positions = np.arange(len(temperatures))
         width = 0.35
 
-        ax3.bar(x - width/2, n_correct, width, label='Correct (test passed)', alpha=0.7, color='green')
-        ax3.bar(x + width/2, n_incorrect, width, label='Incorrect (test failed)', alpha=0.7, color='red')
+        ax3.bar(bar_positions - width/2, n_correct, width, label='Correct (test passed)', alpha=0.7, color='green')
+        ax3.bar(bar_positions + width/2, n_incorrect, width, label='Incorrect (test failed)', alpha=0.7, color='red')
         ax3.set_xlabel('Temperature')
         ax3.set_ylabel('Number of Samples')
         ax3.set_title('Original Sample Distribution')
-        ax3.set_xticks(x)
+        ax3.set_xticks(bar_positions)
         ax3.set_xticklabels(temperatures)
         ax3.legend()
         ax3.grid(True, alpha=0.3)

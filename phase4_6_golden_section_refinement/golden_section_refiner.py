@@ -767,10 +767,10 @@ class GoldenSectionCoefficientRefiner:
             return None, []
         
         bounds = self.search_bounds[steering_type]
-        a = bounds['lower']
-        b = bounds['upper']
-        
-        logger.info(f"Initial bounds: [{a}, {b}]")
+        lower_bound = bounds['lower']
+        upper_bound = bounds['upper']
+
+        logger.info(f"Initial bounds: [{lower_bound}, {upper_bound}]")
         logger.info(f"Golden ratio: {self.phi:.6f}")
         logger.info("Using integer-only coefficients for discrete optimization")
         
@@ -804,8 +804,8 @@ class GoldenSectionCoefficientRefiner:
         else:
             # No checkpoint, start from beginning
             # Convert to integer bounds
-            a_int = self._round_to_integer(a)
-            b_int = self._round_to_integer(b)
+            a_int = self._round_to_integer(lower_bound)
+            b_int = self._round_to_integer(upper_bound)
             search_history = []
             iteration = 0
         

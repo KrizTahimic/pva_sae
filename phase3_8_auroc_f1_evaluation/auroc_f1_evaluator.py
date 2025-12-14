@@ -498,23 +498,23 @@ def plot_comparative_metrics(
     ]
 
     # Plot bars
-    x = np.arange(len(metrics))
+    bar_positions = np.arange(len(metrics))
     width = 0.35
 
-    bars1 = ax1.bar(x - width/2, correct_vals, width, label='Correct-predicting', color='blue')
-    bars2 = ax1.bar(x + width/2, incorrect_vals, width, label='Incorrect-predicting', color='red')
-    
+    bars1 = ax1.bar(bar_positions - width/2, correct_vals, width, label='Correct-predicting', color='blue')
+    bars2 = ax1.bar(bar_positions + width/2, incorrect_vals, width, label='Incorrect-predicting', color='red')
+
     # Add value labels on bars
     for bars in [bars1, bars2]:
         for bar in bars:
             height = bar.get_height()
             ax1.text(bar.get_x() + bar.get_width()/2., height,
                     f'{height:.3f}', ha='center', va='bottom', fontsize=10)
-    
+
     ax1.set_xlabel('Metrics')
     ax1.set_ylabel('Score')
     ax1.set_title('Feature Performance Comparison')
-    ax1.set_xticks(x)
+    ax1.set_xticks(bar_positions)
     ax1.set_xticklabels(metrics)
     ax1.legend()
     ax1.set_ylim([0, 1.1])

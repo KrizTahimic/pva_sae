@@ -615,10 +615,10 @@ class WeightOrthogonalizer:
             self.incorrect_results['metrics']['correction_rate'],
             self.incorrect_results['metrics']['preservation_rate']
         ]
-        
-        x = np.arange(len(categories))
+
+        bar_positions = np.arange(len(categories))
         width = 0.35
-        
+
         bars1 = ax1.bar(categories, ortho_values, width, color='steelblue')
         
         ax1.set_ylabel('Percentage (%)')
