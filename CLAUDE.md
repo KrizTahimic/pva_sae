@@ -273,9 +273,6 @@ python3 run.py phase 7.12        # Instruction-tuned evaluation
 # Dataset range (for testing or processing subsets)
 --start N --end M                # Process indices N to M
 
-# Input override (skip auto-discovery)
---input PATH                     # Use specific input file
-
 # Visualization regeneration (skip computation)
 --viz-only                       # Regenerate plots from saved data (seconds vs hours)
 
@@ -591,7 +588,7 @@ phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
 
 ### Auto-Discovery System
 
-Later phases automatically find outputs from earlier phases by searching for the most recent timestamped file in the expected directory. This can be overridden with `--input` if needed.
+Later phases automatically find outputs from earlier phases by searching for the most recent timestamped file in the expected directory.
 
 ### Reproducibility
 

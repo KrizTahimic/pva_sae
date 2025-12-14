@@ -52,33 +52,28 @@ class Phase01Runner:
         self.logger.info("Split ratios: 50% SAE, 10% hyperparameters, 40% validation")
         self.logger.info("\n" + self.config.dump(phase="0.1"))
 
-        # Auto-discover or use provided input
-        if hasattr(self.config, '_input_file') and self.config._input_file:
-            mapping_path = self.config._input_file
-            self.logger.info(f"Using provided input: {mapping_path}")
+        # Dataset-specific source discovery
+        if self.config.dataset_name == "humaneval":
+            # HumanEval: Load from Phase 0.2 conversion output
+            humaneval_path = Path("data/phase0_2_humaneval/humaneval.parquet")
+            if not humaneval_path.exists():
+                self.logger.error(
+                    f"HumanEval data not found at {humaneval_path}! "
+                    "Please run Phase 0.2 first: python3 run.py phase 0.2"
+                )
+                sys.exit(1)
+            mapping_path = str(humaneval_path)
+            self.logger.info(f"Found HumanEval data: {mapping_path}")
         else:
-            # Dataset-specific source discovery
-            if self.config.dataset_name == "humaneval":
-                # HumanEval: Load from Phase 0.2 conversion output
-                humaneval_path = Path("data/phase0_2_humaneval/humaneval.parquet")
-                if not humaneval_path.exists():
-                    self.logger.error(
-                        f"HumanEval data not found at {humaneval_path}! "
-                        "Please run Phase 0.2 first: python3 run.py phase 0.2"
-                    )
-                    sys.exit(1)
-                mapping_path = str(humaneval_path)
-                self.logger.info(f"Found HumanEval data: {mapping_path}")
-            else:
-                # MBPP: Load from Phase 0 difficulty mapping
-                self.logger.info("Auto-discovering difficulty mapping from Phase 0...")
-                mapping_path = discover_latest_phase_output("0", phase_dir=get_phase_output_dir("0", self.config))
+            # MBPP: Load from Phase 0 difficulty mapping
+            self.logger.info("Auto-discovering difficulty mapping from Phase 0...")
+            mapping_path = discover_latest_phase_output("0", phase_dir=get_phase_output_dir("0", self.config))
 
-                if not mapping_path:
-                    self.logger.error("No Phase 0 difficulty mapping found! Please run Phase 0 first.")
-                    sys.exit(1)
+            if not mapping_path:
+                self.logger.error("No Phase 0 difficulty mapping found! Please run Phase 0 first.")
+                sys.exit(1)
 
-                self.logger.info(f"Found difficulty mapping: {mapping_path}")
+            self.logger.info(f"Found difficulty mapping: {mapping_path}")
 
         # Load and validate difficulty mapping
         df = self._load_and_validate(mapping_path)

@@ -67,16 +67,6 @@ def setup_argument_parser():
         help='Show the final configuration and exit'
     )
     
-    # Universal input argument for all phases
-    phase_parser.add_argument(
-        '--input',
-        type=str,
-        help='Input file from previous phase (overrides auto-discovery). '
-             'Phase 1: difficulty mapping (.parquet), '
-             'Phase 2.5: dataset (.parquet), '
-             'Phase 3: SAE results (.json)'
-    )
-
     # Common dataset range arguments for Phase 1 and Phase 3.5
     phase_parser.add_argument(
         '--start',
@@ -175,10 +165,6 @@ def main():
         # Create unified config from args
         # args.phase is now a string, so no conversion needed
         config = Config.from_args(args, phase=args.phase)
-        
-        # Store input file path if provided
-        if args.input:
-            config._input_file = args.input
 
         # Handle experiment mode arguments using phase registry
         from common.phase_registry import get_phase

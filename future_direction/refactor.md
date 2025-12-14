@@ -505,6 +505,18 @@ Nice-to-haves once the foundation is solid.
     - **Removed dead special handling:** `no_pile_filter` (no `--no-pile-filter` arg in parser)
     - **Kept 4 working mappings:** `start`, `end`, `verbose`, `viz_only`
     - **Impact:** arg_mapping shrunk from 16 to 4 entries, ~15 lines removed
+- [x] **Remove legacy `--input` CLI support** (special_args handling)
+    - **Removed from config.py:** `special_args` block that stored `_input`, `_test_temps`, `_test_samples_per_temp`
+    - **Removed from run.py:** `--input` argument definition and `_input_file` setting
+    - **Removed from problem_splitter.py:** `_input_file` fallback (now uses auto-discovery only)
+    - **Updated CLAUDE.md:** Removed `--input` from documented options
+    - **Impact:** ~20 lines removed across 4 files, auto-discovery is now the only method
+- [x] **Remove unused `_load_from_env()` method**
+    - Removed `_load_from_env()` method and its call from config.py
+    - Feature was never used (no `PVA_SAE_*` environment variables anywhere)
+    - **Impact:** ~25 lines removed
+- [ ]     phase8_3_percentile: float = 70.0  # Percentile for threshold (90 = steer top 10%) Make this autodiscovered also and not hardcoded.
+
 - [ ] Rename to sae-code-correctness ( the folder, github repo, huggingface etc.) Is this possible?
     - Also in the comments and variable names do not use pva_sae anymore
 - [ ] Update the docstrings/commetns.
@@ -618,7 +630,7 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 ---
 
 ## Step 6: Multi-GPU Parallel Execution (After Experiments Work)
-- [ ] **Consider adding `--model` CLI argument** for quick model switching during testing (Step 6)
+- [ ] **Consider adding `--model` CLI argument** for quick model switching during testing (Step 6). Also `--dataset`
 - [ ] Consider condensing the code more like some can be just a variation of one code like steering etc. But take this with high risk and put little importance. Leaning to not do this.
 - [ ] Test all phase one by one first if it is all running.
     - [ ] Exmaine each of the output file.

@@ -330,51 +330,8 @@ class Config:
                 value = getattr(args, arg_name)
                 if value is not None:
                     setattr(config, config_field, value)
-        
-        # Store special CLI args that aren't in Config fields
-        # These are accessed via getattr(config, '_argname', default)
-        special_args = ['input', 'test_temps', 'test_samples_per_temp']
-        for arg_name in special_args:
-            if hasattr(args, arg_name):
-                value = getattr(args, arg_name)
-                if value is not None:
-                    setattr(config, f'_{arg_name}', value)
-        
-        # Store the original input file path if provided
-        if hasattr(args, 'input') and args.input:
-            config._input_file = args.input
-        
-        # Load environment variable overrides
-        config._load_from_env()
-        
+
         return config
-    
-    def _load_from_env(self) -> None:
-        """Load configuration overrides from environment variables."""
-        # Environment variables follow pattern: PVA_SAE_<FIELD_NAME>
-        # e.g., PVA_SAE_MODEL_NAME, PVA_SAE_CHECKPOINT_FREQUENCY
-        
-        for field in fields(self):
-            env_key = f"PVA_SAE_{field.name.upper()}"
-            if env_key in os.environ:
-                value = os.environ[env_key]
-                
-                # Handle type conversion
-                if field.type == bool:
-                    value = value.lower() in ('true', '1', 'yes')
-                elif field.type == int:
-                    value = int(value)
-                elif field.type == float:
-                    value = float(value)
-                elif field.type == list[int]:
-                    value = [int(x.strip()) for x in value.split(',')]
-                elif field.type == list[float]:
-                    value = [float(x.strip()) for x in value.split(',')]
-                
-                setattr(self, field.name, value)
-    
-    # File-based configuration removed for simplicity (KISS principle)
-    # Use CLI arguments or environment variables instead
     
     def dump(self, phase: Optional[str] = None) -> str:
         """
