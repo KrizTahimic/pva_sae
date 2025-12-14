@@ -76,8 +76,14 @@ class SteeringCoefficientSelector:
         logger.info("SteeringCoefficientSelector initialized successfully")
         
     def _load_dependencies(self) -> None:
-        """Load features from Phase 2.5 and baseline data from Phase 3.6."""
-        # Load Phase 2.5 latents
+        """Load all dependencies from previous phases."""
+        self._load_pva_latents()
+        self._load_baseline_data()
+        self._load_sae_models()
+        logger.info("Dependencies loaded successfully")
+
+    def _load_pva_latents(self) -> None:
+        """Load PVA latents from Phase 2.5."""
         logger.info("Loading PVA latents from Phase 2.5...")
         self.phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
         if not self.phase2_5_output:
@@ -108,8 +114,9 @@ class SteeringCoefficientSelector:
         logger.info(f"Best incorrect latent: Layer {self.best_incorrect_latent['layer']}, "
                    f"Index {self.best_incorrect_latent['latent_idx']}, "
                    f"Score {self.best_incorrect_latent['separation_score']:.4f}")
-        
-        # Load Phase 3.6 baseline data
+
+    def _load_baseline_data(self) -> None:
+        """Load baseline data from Phase 3.6 and split by correctness."""
         logger.info("Loading baseline data from Phase 3.6...")
         self.phase3_6_output = discover_latest_phase_output("3.6", config=self.config)
         if not self.phase3_6_output:
@@ -119,7 +126,7 @@ class SteeringCoefficientSelector:
         baseline_file = Path(self.phase3_6_output).parent / "dataset_hyperparams_temp_0_0.parquet"
         if not baseline_file.exists():
             raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
-        
+
         self.baseline_data = pd.read_parquet(baseline_file)
         logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.6 baseline")
 
@@ -131,21 +138,21 @@ class SteeringCoefficientSelector:
             logger.info(f"Limiting dataset for testing: rows {start_idx}-{end_idx-1} (inclusive)")
             self.baseline_data = self.baseline_data.iloc[start_idx:end_idx].copy()
             logger.info(f"Reduced to {len(self.baseline_data)} problems for testing")
-        
-        # Split baseline data by initial correctness for proper experimental design
-        # Use ALL problems in the (potentially limited) dataset
+
+        # Split baseline data by initial correctness
         self.initially_correct_data = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
         self.initially_incorrect_data = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
-        
+
         logger.info(f"Split baseline: {len(self.initially_correct_data)} initially correct, "
                    f"{len(self.initially_incorrect_data)} initially incorrect problems")
-        
+
         if start_idx > 0 or end_idx < len(pd.read_parquet(baseline_file)):
             logger.info("Using LIMITED dataset for testing - results may not be representative")
         else:
             logger.info("Using ALL problems for evaluation (no sampling)")
-        
-        # Load SAEs for both latents
+
+    def _load_sae_models(self) -> None:
+        """Load SAE models and extract latent directions."""
         logger.info("Loading SAE models...")
         logger.info(f"Loading SAE for correct latent (layer {self.best_correct_latent['layer']})...")
         self.correct_sae = load_sae_for_config(
@@ -175,8 +182,6 @@ class SteeringCoefficientSelector:
         model_dtype = next(self.model.parameters()).dtype
         self.correct_latent_direction = self.correct_latent_direction.to(dtype=model_dtype)
         self.incorrect_latent_direction = self.incorrect_latent_direction.to(dtype=model_dtype)
-
-        logger.info("Dependencies loaded successfully")
     
     def save_checkpoint(self, results: list, excluded_tasks: list, 
                        checkpoint_num: int, checkpoint_dir: Path) -> None:

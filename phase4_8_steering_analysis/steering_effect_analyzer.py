@@ -91,12 +91,22 @@ class SteeringEffectAnalyzer:
         logger.info("SteeringEffectAnalyzer initialized successfully")
         
     def _load_dependencies(self) -> None:
-        """Load latents from Phase 2.5 and baseline data from Phase 3.5."""
-        # Load Phase 2.5 latents (model-specific, use config-aware discovery)
+        """Load all dependencies from previous phases."""
+        self._load_pva_latents()
+        self._load_baseline_data()
+        self._load_sae_models()
+        self._load_steering_coefficients()
+        logger.info("Dependencies loaded successfully")
+
+    def _load_pva_latents(self) -> None:
+        """Load PVA latents from Phase 2.5."""
         logger.info("Loading PVA latents from Phase 2.5...")
         phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
         if not phase2_5_output:
             raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
+
+        # Store phase dir for manifest references
+        self.phase2_5_dir = str(Path(phase2_5_output).parent)
         logger.info(f"Using Phase 2.5 output: {phase2_5_output}")
 
         # Load top latents
@@ -124,18 +134,22 @@ class SteeringEffectAnalyzer:
                    f"Index {self.best_incorrect_latent['latent_idx']}, "
                    f"Score {self.best_incorrect_latent['separation_score']:.4f}")
 
-        # Load Phase 3.5 baseline data
+    def _load_baseline_data(self) -> None:
+        """Load baseline data from Phase 3.5."""
         logger.info("Loading baseline data from Phase 3.5...")
         phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
         if not phase3_5_output:
             raise FileNotFoundError("Phase 3.5 output not found. Please run Phase 3.5 first.")
-        logger.info(f"Using Phase 3.5 output: {Path(phase3_5_output).parent}")
-        
+
+        # Store phase dir for manifest references
+        self.phase3_5_dir = str(Path(phase3_5_output).parent)
+        logger.info(f"Using Phase 3.5 output: {self.phase3_5_dir}")
+
         # Load validation dataset at temperature 0.0
         baseline_file = Path(phase3_5_output).parent / "dataset_temp_0_0.parquet"
         if not baseline_file.exists():
             raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
-        
+
         self.baseline_data = pd.read_parquet(baseline_file)
         logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.5 baseline")
 
@@ -145,8 +159,9 @@ class SteeringEffectAnalyzer:
             logger.info(f"Processing validation dataset rows {start_idx}-{end_idx-1} (inclusive)")
             self.baseline_data = self.baseline_data.iloc[start_idx:end_idx].copy()
             logger.info(f"Filtered to {len(self.baseline_data)} problems")
-        
-        # Load SAEs for both latents
+
+    def _load_sae_models(self) -> None:
+        """Load SAE models and extract latent directions."""
         logger.info("Loading SAE models...")
         self.correct_sae = load_sae_for_config(
             self.config,
@@ -174,14 +189,13 @@ class SteeringEffectAnalyzer:
 
         logger.info(f"Latent directions converted to model dtype: {model_dtype}")
 
-        # Load steering coefficients from Phase 4.6 (via manifest system)
+    def _load_steering_coefficients(self) -> None:
+        """Load steering coefficients from Phase 4.6."""
         from common.phase_discovery import discover_steering_coefficients
         coefficients = discover_steering_coefficients(self.config)
         self.correct_coefficient = coefficients["correct"]
         self.incorrect_coefficient = coefficients["incorrect"]
         logger.info(f"Loaded coefficients from Phase 4.6: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
-
-        logger.info("Dependencies loaded successfully")
         
     def _get_checkpoint_manager(self, steering_type: str) -> CheckpointManager:
         """Get or create checkpoint manager for a steering type."""
@@ -269,225 +283,95 @@ class SteeringEffectAnalyzer:
         
         logger.debug(f"Saved {steering_type} steering attention for task {task_id} in {len(attention_patterns)} layers")
         
-    def _apply_steering(self, problems_df: pd.DataFrame, 
-                       steering_type: str, 
-                       coefficient: float) -> pd.DataFrame:
-        """Apply steering to problems and evaluate results. Returns DataFrame with steering results."""
-        logger.info(f"Applying {steering_type} steering with coefficient {coefficient} to {len(problems_df)} problems")
-        
-        # Select latent direction and target layer based on steering type
+    def _get_steering_params(self, steering_type: str) -> tuple[torch.Tensor, int]:
+        """Get latent direction and target layer for steering type.
+
+        Returns:
+            Tuple of (latent_direction, target_layer)
+        """
         if steering_type == 'correct':
-            latent_direction = self.correct_latent_direction
-            target_layer = self.best_correct_latent['layer']
+            return self.correct_latent_direction, self.best_correct_latent['layer']
         elif steering_type == 'preservation':
             # Use same correct latent for preservation
-            latent_direction = self.correct_latent_direction
-            target_layer = self.best_correct_latent['layer']
+            return self.correct_latent_direction, self.best_correct_latent['layer']
         elif steering_type == 'incorrect':
-            latent_direction = self.incorrect_latent_direction
-            target_layer = self.best_incorrect_latent['layer']
+            return self.incorrect_latent_direction, self.best_incorrect_latent['layer']
         else:
             raise ValueError(f"Invalid steering_type: {steering_type}. Must be 'correct', 'preservation', or 'incorrect'")
-        
-        # Create AttentionExtractor for ONLY the layer being steered
-        # This avoids hook conflicts between steering and attention capture
-        attention_extractor = AttentionExtractor(
-            self.model,
-            layers=[target_layer],  # Only capture attention from the steered layer
-            position=-1  # Last prompt token
-        )
-        logger.info(f"Created AttentionExtractor for {steering_type} steering on layer {target_layer}")
-        
-        # Store original problems_df for final merge (before any filtering)
-        original_problems_df = problems_df.copy()
 
-        # Get checkpoint manager for this steering type
-        checkpoint_mgr = self._get_checkpoint_manager(steering_type)
+    def _generate_steered_output(self, row: pd.Series,
+                                 attention_extractor: AttentionExtractor) -> dict:
+        """Generate steered code for a single task.
 
-        # Check for existing checkpoint
-        checkpoint = checkpoint_mgr.load()
-        if checkpoint:
-            # Reconstruct results and excluded_tasks from checkpoint
-            # Note: CheckpointManager stores results in checkpoint data
-            results = checkpoint.results
-            excluded_tasks = [{'task_id': tid, 'error': 'previous_exclusion'}
-                             for tid in checkpoint.excluded_task_ids]
-            processed_task_ids = checkpoint.processed_task_ids
-            excluded_task_ids = checkpoint.excluded_task_ids
+        Args:
+            row: DataFrame row containing task data
+            attention_extractor: AttentionExtractor instance for capturing attention patterns
 
-            # Filter out already processed and excluded tasks
-            problems_to_process = problems_df[
-                ~problems_df['task_id'].astype(str).isin(processed_task_ids) &
-                ~problems_df['task_id'].astype(str).isin(excluded_task_ids)
-            ].copy()
+        Returns:
+            Dictionary with generated_code, steered_correct, test_cases, prompt,
+            attention_patterns, and tokenized_prompt
+        """
+        test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+        prompt = row['prompt']
 
-            logger.info(f"Resuming from checkpoint: {len(processed_task_ids)} already processed, "
-                       f"{len(excluded_task_ids)} excluded, {len(problems_to_process)} remaining")
-        else:
-            results = []
-            excluded_tasks = []
-            processed_task_ids = set()
-            excluded_task_ids = set()
-            problems_to_process = problems_df.copy()
+        # Tokenize and generate
+        inputs = self.tokenizer(
+            prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=self.config.activation_max_length
+        ).to(self.device)
 
-        # Process remaining tasks (no index tracking needed)
-        total_remaining = len(problems_to_process)
-        if total_remaining == 0:
-            logger.info(f"No tasks to process for {steering_type} steering (all completed from checkpoint)")
-            # Reconstruct full results dataframe from checkpoint
-            results_df = pd.DataFrame(results)
+        tokenized_prompt = inputs['input_ids']
 
-            # Merge with ORIGINAL unfiltered problems_df to get complete dataset
-            steered_df = original_problems_df.merge(
-                results_df[['task_id', 'steered_code', 'steered_correct', 'flipped']],
-                on='task_id',
-                how='left'
+        with torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                max_new_tokens=self.config.model_max_new_tokens,
+                temperature=0.0,
+                do_sample=False,
+                pad_token_id=self.tokenizer.pad_token_id,
+                eos_token_id=self.tokenizer.eos_token_id,
+                output_attentions=True,
+                return_dict_in_generate=True
             )
 
-            # Rename steered_code to steered_generated_code for consistency
-            steered_df.rename(columns={'steered_code': 'steered_generated_code'}, inplace=True)
+        # Extract and evaluate generated code
+        generated_text = self.tokenizer.decode(
+            outputs.sequences[0][inputs['input_ids'].shape[1]:],
+            skip_special_tokens=True
+        )
+        generated_code = extract_code(generated_text, prompt)
+        attention_patterns = attention_extractor.get_attention_patterns()
+        steered_correct = evaluate_code(generated_code, test_cases)
 
-            # Clean up AttentionExtractor hooks
-            attention_extractor.remove_hooks()
+        return {
+            'generated_code': generated_code,
+            'steered_correct': steered_correct,
+            'test_cases': test_cases,
+            'prompt': prompt,
+            'attention_patterns': attention_patterns,
+            'tokenized_prompt': tokenized_prompt
+        }
 
-            logger.info(f"Returning {len(steered_df)} completed results from checkpoint")
-            return steered_df
+    def _finalize_steering_results(self, results: list, excluded_tasks: list,
+                                   original_df: pd.DataFrame,
+                                   steering_type: str) -> pd.DataFrame:
+        """Finalize steering results by merging with original DataFrame.
 
-        for enum_idx, (_, row) in enumerate(tqdm_with_logging(problems_to_process.iterrows(),
-                                                   logger, total=total_remaining,
-                                                   desc=f"{steering_type.capitalize()} steering")):
-            
-            # Setup hook for this specific task
-            hook_fn = create_steering_hook(latent_direction, coefficient)
-            target_module = self.model.model.layers[target_layer]
-            hook_handle = target_module.register_forward_pre_hook(hook_fn)
-            
-            # Setup attention extraction
-            attention_extractor.setup_hooks()
-            
-            try:
-                # Define generation function for retry logic
-                def generate_steered_code():
-                    # Build prompt from row data
-                    test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-                    prompt = row['prompt']  # Prompt already built in Phase 3.5
-                    
-                    # Generate with steering and attention capture
-                    inputs = self.tokenizer(
-                        prompt,
-                        return_tensors="pt",
-                        truncation=True,
-                        max_length=self.config.activation_max_length
-                    ).to(self.device)
-                    
-                    # Store tokenized prompt for boundary calculation
-                    tokenized_prompt = inputs['input_ids']
-                    
-                    with torch.no_grad():
-                        outputs = self.model.generate(
-                            **inputs,
-                            max_new_tokens=self.config.model_max_new_tokens,
-                            temperature=0.0,  # Deterministic generation
-                            do_sample=False,
-                            pad_token_id=self.tokenizer.pad_token_id,
-                            eos_token_id=self.tokenizer.eos_token_id,
-                            output_attentions=True,  # Enable attention weight retention
-                            return_dict_in_generate=True  # Return structured output
-                        )
-                    
-                    # Extract generated code
-                    # Using outputs.sequences[0] since return_dict_in_generate is True
-                    generated_text = self.tokenizer.decode(
-                        outputs.sequences[0][inputs['input_ids'].shape[1]:], 
-                        skip_special_tokens=True
-                    )
-                    generated_code = extract_code(generated_text, prompt)
-                    
-                    # Get captured attention patterns
-                    attention_patterns = attention_extractor.get_attention_patterns()
-                    
-                    # Evaluate code
-                    steered_correct = evaluate_code(generated_code, test_cases)
+        Args:
+            results: List of result dictionaries
+            excluded_tasks: List of excluded task dictionaries
+            original_df: Original problems DataFrame
+            steering_type: Type of steering ('correct', 'incorrect', 'preservation')
 
-                    return {
-                        'generated_code': generated_code,
-                        'steered_correct': steered_correct,
-                        'test_cases': test_cases,
-                        'prompt': prompt,
-                        'attention_patterns': attention_patterns,
-                        'tokenized_prompt': tokenized_prompt
-                    }
-                
-                # Attempt generation with retry logic using timeout
-                success, generation_result, error_msg = retry_with_timeout(
-                    generate_steered_code,
-                    row['task_id'],
-                    self.config,
-                    operation_name=f"{steering_type} steering"
-                )
-                
-                if success:
-                    # Save attention patterns if captured
-                    if generation_result.get('attention_patterns'):
-                        self._save_steered_attention(
-                            row['task_id'], 
-                            steering_type,
-                            generation_result['attention_patterns'],
-                            generation_result['tokenized_prompt']
-                        )
-                    
-                    # Check if result flipped from baseline
-                    baseline_passed = row['baseline_passed']
-                    steered_correct = generation_result['steered_correct']
-                    flipped = baseline_passed != steered_correct
-
-                    result = {
-                        'task_id': row['task_id'],
-                        'baseline_passed': baseline_passed,  # unsteered version
-                        'steered_correct': steered_correct,
-                        'flipped': flipped,
-                        'baseline_code': row['generated_code'],
-                        'steered_code': generation_result['generated_code'],
-                        'steering_type': steering_type,
-                        'coefficient': coefficient
-                    }
-
-                    results.append(result)
-                    processed_task_ids.add(str(row['task_id']))
-                else:
-                    # Task failed after all retries - exclude from dataset
-                    excluded_tasks.append({
-                        'task_id': row['task_id'],
-                        'error': error_msg
-                    })
-                    excluded_task_ids.add(str(row['task_id']))
-                    logger.warning(f"Excluding task {row['task_id']} from {steering_type} steering results")
-                
-            finally:
-                # Always remove hooks after each task to ensure isolation
-                hook_handle.remove()
-                attention_extractor.remove_hooks()
-                
-                # Clear GPU cache after each task
-                if self.device.type == "cuda":
-                    torch.cuda.empty_cache()
-                elif self.device.type == "mps":
-                    # MPS doesn't have empty_cache, but we can sync to free memory
-                    torch.mps.synchronize()
-            
-            # Memory monitoring every 10 tasks
-            if (enum_idx + 1) % 10 == 0:
-                memory_percent = check_memory_usage()
-                gc.collect()
-
-            # Autosave using CheckpointManager (handles frequency and memory-aware saving)
-            if checkpoint_mgr.should_save(len(results), check_memory_usage()):
-                checkpoint_mgr.save(results, processed_task_ids, excluded_task_ids)
-
-        # Log results summary including exclusions
+        Returns:
+            DataFrame with steering results merged with original data
+        """
+        # Log results summary
         n_flipped = sum(r['flipped'] for r in results)
         n_successful = len(results)
-        n_attempted = len(original_problems_df)  # Use original dataset size
+        n_attempted = len(original_df)
         n_excluded = len(excluded_tasks)
 
         logger.info(f"Completed {steering_type} steering: {n_flipped} flipped out of {n_successful} successful "
@@ -503,24 +387,132 @@ class SteeringEffectAnalyzer:
             save_json(excluded_tasks, excluded_file)
             logger.info(f"Saved excluded tasks to {excluded_file}")
 
-        # Convert results to DataFrame
+        # Convert results to DataFrame and merge with original
         results_df = pd.DataFrame(results)
-
-        # Merge results with ORIGINAL problems_df on task_id to ensure proper alignment
-        steered_df = original_problems_df.merge(
+        steered_df = original_df.merge(
             results_df[['task_id', 'steered_code', 'steered_correct', 'flipped']],
             on='task_id',
             how='left'
         )
-        
-        # Rename steered_code to steered_generated_code for consistency
         steered_df.rename(columns={'steered_code': 'steered_generated_code'}, inplace=True)
-        
-        # Clean up AttentionExtractor hooks
-        attention_extractor.remove_hooks()
-        # No need for del - Python's garbage collector handles it when out of scope
-        
+
         return steered_df
+
+    def _apply_steering(self, problems_df: pd.DataFrame,
+                       steering_type: str,
+                       coefficient: float) -> pd.DataFrame:
+        """Apply steering to problems and evaluate results.
+
+        Orchestrates the steering process: loads checkpoint state, processes tasks
+        with steering hooks, and finalizes results.
+        """
+        logger.info(f"Applying {steering_type} steering with coefficient {coefficient} to {len(problems_df)} problems")
+
+        # Get steering parameters
+        latent_direction, target_layer = self._get_steering_params(steering_type)
+
+        # Create AttentionExtractor for the steered layer
+        attention_extractor = AttentionExtractor(
+            self.model,
+            layers=[target_layer],
+            position=-1
+        )
+        logger.info(f"Created AttentionExtractor for {steering_type} steering on layer {target_layer}")
+
+        original_problems_df = problems_df.copy()
+        checkpoint_mgr = self._get_checkpoint_manager(steering_type)
+
+        # Load checkpoint state
+        checkpoint = checkpoint_mgr.load()
+        if checkpoint:
+            results = checkpoint.results
+            excluded_tasks = [{'task_id': tid, 'error': 'previous_exclusion'}
+                             for tid in checkpoint.excluded_task_ids]
+            processed_task_ids = checkpoint.processed_task_ids
+            excluded_task_ids = checkpoint.excluded_task_ids
+            problems_to_process = problems_df[
+                ~problems_df['task_id'].astype(str).isin(processed_task_ids) &
+                ~problems_df['task_id'].astype(str).isin(excluded_task_ids)
+            ].copy()
+            logger.info(f"Resuming from checkpoint: {len(processed_task_ids)} already processed, "
+                       f"{len(excluded_task_ids)} excluded, {len(problems_to_process)} remaining")
+        else:
+            results, excluded_tasks = [], []
+            processed_task_ids, excluded_task_ids = set(), set()
+            problems_to_process = problems_df.copy()
+
+        # Early exit if all tasks completed from checkpoint
+        if len(problems_to_process) == 0:
+            logger.info(f"No tasks to process for {steering_type} steering (all completed from checkpoint)")
+            attention_extractor.remove_hooks()
+            return self._finalize_steering_results(results, excluded_tasks, original_problems_df, steering_type)
+
+        # Process each task with steering hooks
+        for enum_idx, (_, row) in enumerate(tqdm_with_logging(problems_to_process.iterrows(),
+                                                   logger, total=len(problems_to_process),
+                                                   desc=f"{steering_type.capitalize()} steering")):
+
+            hook_fn = create_steering_hook(latent_direction, coefficient)
+            target_module = self.model.model.layers[target_layer]
+            hook_handle = target_module.register_forward_pre_hook(hook_fn)
+            attention_extractor.setup_hooks()
+
+            try:
+                # Create closure for retry logic
+                def generate_steered_code(task_row=row):
+                    return self._generate_steered_output(task_row, attention_extractor)
+
+                success, generation_result, error_msg = retry_with_timeout(
+                    generate_steered_code,
+                    row['task_id'],
+                    self.config,
+                    operation_name=f"{steering_type} steering"
+                )
+
+                if success:
+                    if generation_result.get('attention_patterns'):
+                        self._save_steered_attention(
+                            row['task_id'], steering_type,
+                            generation_result['attention_patterns'],
+                            generation_result['tokenized_prompt']
+                        )
+
+                    baseline_passed = row['baseline_passed']
+                    steered_correct = generation_result['steered_correct']
+                    results.append({
+                        'task_id': row['task_id'],
+                        'baseline_passed': baseline_passed,
+                        'steered_correct': steered_correct,
+                        'flipped': baseline_passed != steered_correct,
+                        'baseline_code': row['generated_code'],
+                        'steered_code': generation_result['generated_code'],
+                        'steering_type': steering_type,
+                        'coefficient': coefficient
+                    })
+                    processed_task_ids.add(str(row['task_id']))
+                else:
+                    excluded_tasks.append({'task_id': row['task_id'], 'error': error_msg})
+                    excluded_task_ids.add(str(row['task_id']))
+                    logger.warning(f"Excluding task {row['task_id']} from {steering_type} steering results")
+
+            finally:
+                hook_handle.remove()
+                attention_extractor.remove_hooks()
+                if self.device.type == "cuda":
+                    torch.cuda.empty_cache()
+                elif self.device.type == "mps":
+                    torch.mps.synchronize()
+
+            # Memory monitoring and checkpointing
+            if (enum_idx + 1) % 10 == 0:
+                check_memory_usage()
+                gc.collect()
+
+            if checkpoint_mgr.should_save(len(results), check_memory_usage()):
+                checkpoint_mgr.save(results, processed_task_ids, excluded_task_ids)
+
+        attention_extractor.remove_hooks()
+        return self._finalize_steering_results(results, excluded_tasks, original_problems_df, steering_type)
         
     def evaluate_steering_effects(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
         """Evaluate correct and incorrect steering effects, including preservation."""

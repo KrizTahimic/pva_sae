@@ -379,21 +379,30 @@ Terms removed:
 
 ---
 
-### 4.4 Function Structure (Karpathy Style)
+### 4.4 Function Structure (Karpathy Style) ✅ COMPLETED
 
 #### Long Functions to Split (>50 lines, violate single responsibility)
-- [ ] **steering_effect_analyzer.py:95-189** `_load_dependencies()` (95 lines) → split into:
-  - `_load_phase_features()`
-  - `_load_baseline_data()`
-  - `_load_sae_models()`
+- [x] **steering_effect_analyzer.py** `_load_dependencies()` (92 lines) → split into:
+  - `_load_pva_latents()` - Load Phase 2.5 latents
+  - `_load_baseline_data()` - Load Phase 3.5 baseline
+  - `_load_sae_models()` - Load SAEs and extract directions
+  - `_load_steering_coefficients()` - Load Phase 4.6 coefficients
 
-- [ ] **steering_coefficient_selector.py:76-150** `_load_dependencies()` (75 lines) → similar split
+- [x] **steering_effect_analyzer.py** `_apply_steering()` (252 lines) → split into:
+  - `_get_steering_params()` - Get latent direction and target layer
+  - `_generate_steered_output()` - Core generation logic (was nested function)
+  - `_finalize_steering_results()` - Aggregate results and merge DataFrames
+  - `_apply_steering()` - Now just orchestration (~115 lines)
 
-- [ ] **helpers.py:85-147** `extract_code()` (63 lines) → split into:
-  - `_extract_code_exact_match()`
-  - `_extract_code_by_marker()`
-  - `_extract_code_by_last_assert()`
-  - `_extract_code_fallback()`
+- [x] **steering_coefficient_selector.py** `_load_dependencies()` (102 lines) → split into:
+  - `_load_pva_latents()` - Load Phase 2.5 latents
+  - `_load_baseline_data()` - Load Phase 3.6 baseline and split by correctness
+  - `_load_sae_models()` - Load SAEs and extract directions
+
+- [x] **dataset_utils.py** `extract_code()` (65 lines) → **SKIPPED** (intentionally)
+  - Analysis: This is a sequential fallback pipeline, not multiple responsibilities
+  - Splitting would scatter related logic without improving readability
+  - Decision: Function length isn't the only measure - cohesion matters more
 
 #### Add Early Returns (reduce nesting)
 - [ ] **steering_metrics.py:19-80** `calculate_correction_rate()` - deeply nested if/elif
