@@ -11,7 +11,7 @@ Hypothesis:
 - Initially correct → <think> should contain more confident phrases
 
 Usage:
-    source ~/miniconda3/etc/profile.d/conda.sh && conda activate sae_code_correctness
+    source ~/miniconda3/etc/profile.d/conda.sh && conda activate sae_cc
 
     # Test on subset first
     python cot_phrase_experiment.py --end 30

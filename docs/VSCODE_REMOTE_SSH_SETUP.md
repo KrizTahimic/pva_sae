@@ -23,7 +23,7 @@ This guide provides detailed step-by-step instructions for setting up Visual Stu
 - ✅ VM is running and accessible
 - ✅ SSH access enabled (port 22)
 - ✅ Repository already cloned at a known path
-- ✅ Conda environment (`sae_code_correctness`) already set up
+- ✅ Conda environment (`sae_cc`) already set up
 - ✅ All dependencies installed
 
 ---
@@ -186,7 +186,7 @@ When successfully connected, you should see:
 2. A file browser for the **remote VM** will appear
 3. Navigate to where you cloned the repository, typically:
    ```
-   /home/your_username/sae_code_correctness
+   /home/your_username/sae_cc
    ```
    Or wherever you ran `git clone`
 4. Click **"OK"** or **"Open"**
@@ -246,22 +246,22 @@ Install these on the remote if you use them:
 3. Choose **"Enter interpreter path..."**
 4. Enter the full path to your conda environment's Python:
    ```
-   ~/miniconda3/envs/sae_code_correctness/bin/python
+   ~/miniconda3/envs/sae_cc/bin/python
    ```
    Or the full absolute path:
    ```
-   /home/your_username/miniconda3/envs/sae_code_correctness/bin/python
+   /home/your_username/miniconda3/envs/sae_cc/bin/python
    ```
 
 **Alternatively, let VS Code discover it:**
 1. Select `Python: Select Interpreter`
 2. VS Code might auto-discover conda environments
-3. Look for: `Python 3.x.x ('sae_code_correctness': conda)`
+3. Look for: `Python 3.x.x ('sae_cc': conda)`
 
 ### 7.2 Verify Interpreter ✅
 
 Open a Python file (e.g., `run.py`) and check:
-- **Bottom-right corner**: Should show `3.x.x ('sae_code_correctness': conda)` or similar
+- **Bottom-right corner**: Should show `3.x.x ('sae_cc': conda)` or similar
 - Click on it to change if incorrect
 
 ### 7.3 Test Interpreter ✅
@@ -269,7 +269,7 @@ Open a Python file (e.g., `run.py`) and check:
 Open integrated terminal and verify:
 ```bash
 which python
-# Should show: /home/username/miniconda3/envs/sae_code_correctness/bin/python
+# Should show: /home/username/miniconda3/envs/sae_cc/bin/python
 
 python --version
 # Should show Python 3.x.x
@@ -298,9 +298,9 @@ nano ~/.zshrc
 Add these lines at the end:
 
 ```bash
-# Auto-activate sae_code_correctness conda environment
+# Auto-activate sae_cc conda environment
 source ~/miniconda3/etc/profile.d/conda.sh
-conda activate sae_code_correctness
+conda activate sae_cc
 ```
 
 Save and exit, then reload:
@@ -317,14 +317,14 @@ source ~/.bashrc  # or ~/.zshrc
 ### 8.2 Verify Terminal ✅
 
 1. Open a new integrated terminal in VS Code (`Ctrl+` backtick or Terminal → New Terminal)
-2. You should see `(sae_code_correctness)` prefix in the prompt
+2. You should see `(sae_cc)` prefix in the prompt
 3. Run:
    ```bash
    which python
    # Should show conda env path
 
    conda info --envs
-   # Should show * next to sae_code_correctness
+   # Should show * next to sae_cc
    ```
 
 ---
@@ -367,7 +367,7 @@ All should succeed without errors.
 Test the full pipeline with a small subset:
 
 ```bash
-source ~/miniconda3/etc/profile.d/conda.sh && conda activate sae_code_correctness && python3 run.py phase 0 --start 0 --end 5
+source ~/miniconda3/etc/profile.d/conda.sh && conda activate sae_cc && python3 run.py phase 0 --start 0 --end 5
 ```
 
 This should:
@@ -488,7 +488,7 @@ Solutions:
 
 Solutions:
 1. Verify conda environment exists: `conda info --envs` in terminal
-2. Use absolute path: `/home/username/miniconda3/envs/sae_code_correctness/bin/python`
+2. Use absolute path: `/home/username/miniconda3/envs/sae_cc/bin/python`
 3. Refresh interpreter list: `Cmd+Shift+P` → "Python: Select Interpreter"
 
 ### Terminal Issues
@@ -534,7 +534,7 @@ Solutions:
 
 ```bash
 # Activate conda environment
-source ~/miniconda3/etc/profile.d/conda.sh && conda activate sae_code_correctness
+source ~/miniconda3/etc/profile.d/conda.sh && conda activate sae_cc
 
 # Test GPU
 nvidia-smi
@@ -566,7 +566,7 @@ Add to `.vscode/settings.json` in your project:
 
 ```json
 {
-  "python.defaultInterpreterPath": "~/miniconda3/envs/sae_code_correctness/bin/python",
+  "python.defaultInterpreterPath": "~/miniconda3/envs/sae_cc/bin/python",
   "python.terminal.activateEnvironment": true,
   "files.watcherExclude": {
     "**/data/**": true,

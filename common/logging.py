@@ -119,7 +119,7 @@ class LoggingManager:
         
         # Use a single root logger for all modules in same phase
         # This ensures all logs go to the same file
-        root_logger_name = "sae_code_correctness"
+        root_logger_name = "sae_cc"
         
         # Get or create the root logger for this phase
         if not hasattr(self, '_root_logger'):
