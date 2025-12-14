@@ -379,7 +379,7 @@ class ImportTestRunner:
                 generated_code = extract_code(generated_text, prompt)
 
                 # Evaluate with imports pre-loaded
-                test_passed = evaluate_code_with_imports(generated_code, row['test_list'])
+                baseline_passed = evaluate_code_with_imports(generated_code, row['test_list'])
 
                 # Save activations
                 for layer_num, layer_activations in task_activations.items():
@@ -393,7 +393,7 @@ class ImportTestRunner:
                     'temperature': 0.0,
                     'prompt': prompt,
                     'generated_code': generated_code,
-                    'test_passed': test_passed,
+                    'baseline_passed': baseline_passed,
                     'error_message': None,
                     'generation_time': generation_time,
                     'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
@@ -401,7 +401,7 @@ class ImportTestRunner:
                     'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
                 })
 
-                if test_passed:
+                if baseline_passed:
                     logger.debug(f"✓ Task {row['task_id']} passed")
                 else:
                     logger.debug(f"✗ Task {row['task_id']} failed")
@@ -413,7 +413,7 @@ class ImportTestRunner:
                     'temperature': 0.0,
                     'prompt': prompt,
                     'generated_code': "",
-                    'test_passed': False,
+                    'baseline_passed': False,
                     'error_message': str(e),
                     'generation_time': 0.0,
                     'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
@@ -427,7 +427,7 @@ class ImportTestRunner:
         df.to_parquet(output_file, index=False)
 
         # Calculate statistics
-        n_passed = sum(1 for r in results if r['test_passed'])
+        n_passed = sum(1 for r in results if r['baseline_passed'])
         n_total = len(results)
         pass_rate = (n_passed / n_total * 100) if n_total > 0 else 0.0
 

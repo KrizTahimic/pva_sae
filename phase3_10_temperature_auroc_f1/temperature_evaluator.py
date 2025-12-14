@@ -228,8 +228,8 @@ class TemperatureAUROCEvaluator:
                 )
                 
                 # Count original distribution (before any flipping)
-                n_correct = sum(labels)  # test_passed = 1
-                n_incorrect = len(labels) - n_correct  # test_passed = 0
+                n_correct = sum(labels)  # baseline_passed = 1
+                n_incorrect = len(labels) - n_correct  # baseline_passed = 0
                 
                 # For AUROC: we want high feature values to predict class 1
                 # Correct-preferring: high activation = correct code (already label=1)

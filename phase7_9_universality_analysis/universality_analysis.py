@@ -127,20 +127,20 @@ class UniversalityAnalyzer:
             "timestamp": datetime.now().isoformat(),
             "baseline_performance": {
                 "base_model": {
-                    "pass_rate": float(self.base_temp0["test_passed"].mean()),
-                    "correct_count": int(self.base_temp0["test_passed"].sum()),
-                    "incorrect_count": int((~self.base_temp0["test_passed"]).sum()),
+                    "pass_rate": float(self.base_temp0["baseline_passed"].mean()),
+                    "correct_count": int(self.base_temp0["baseline_passed"].sum()),
+                    "incorrect_count": int((~self.base_temp0["baseline_passed"]).sum()),
                     "total_samples": len(self.base_temp0)
                 },
                 "instruction_tuned": {
-                    "pass_rate": float(self.instruct_baseline["test_passed"].mean()),
-                    "correct_count": int(self.instruct_baseline["test_passed"].sum()),
-                    "incorrect_count": int((~self.instruct_baseline["test_passed"]).sum()),
+                    "pass_rate": float(self.instruct_baseline["baseline_passed"].mean()),
+                    "correct_count": int(self.instruct_baseline["baseline_passed"].sum()),
+                    "incorrect_count": int((~self.instruct_baseline["baseline_passed"]).sum()),
                     "total_samples": len(self.instruct_baseline)
                 },
                 "improvement": {
-                    "absolute": float(self.instruct_baseline["test_passed"].mean() - self.base_temp0["test_passed"].mean()),
-                    "relative": float((self.instruct_baseline["test_passed"].mean() - self.base_temp0["test_passed"].mean()) / self.base_temp0["test_passed"].mean() * 100)
+                    "absolute": float(self.instruct_baseline["baseline_passed"].mean() - self.base_temp0["baseline_passed"].mean()),
+                    "relative": float((self.instruct_baseline["baseline_passed"].mean() - self.base_temp0["baseline_passed"].mean()) / self.base_temp0["baseline_passed"].mean() * 100)
                 }
             },
             "steering_effectiveness": {

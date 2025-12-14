@@ -208,16 +208,16 @@ def analyze_dataset(df: pd.DataFrame, dataset_name: str) -> dict:
         print(f"  {lib:15s}: {count:4d} codes ({count/len(df)*100:.1f}%)")
 
     # Pass rate by library usage
-    if 'test_passed' in df.columns:
+    if 'baseline_passed' in df.columns:
         with_libs = df[df['uses_any_library']]
         without_libs = df[~df['uses_any_library']]
 
-        pass_rate_with = with_libs['test_passed'].mean() * 100 if len(with_libs) > 0 else 0
-        pass_rate_without = without_libs['test_passed'].mean() * 100 if len(without_libs) > 0 else 0
+        pass_rate_with = with_libs['baseline_passed'].mean() * 100 if len(with_libs) > 0 else 0
+        pass_rate_without = without_libs['baseline_passed'].mean() * 100 if len(without_libs) > 0 else 0
 
-        passed_with_libs = int(with_libs['test_passed'].sum())
+        passed_with_libs = int(with_libs['baseline_passed'].sum())
         total_with_libs = len(with_libs)
-        passed_without_libs = int(without_libs['test_passed'].sum())
+        passed_without_libs = int(without_libs['baseline_passed'].sum())
         total_without_libs = len(without_libs)
 
         print(f"\n📈 Pass Rates:")
@@ -301,7 +301,7 @@ def save_code_samples(df: pd.DataFrame, output_dir: Path, dataset_name: str):
     for idx, row in with_libs.iterrows():
         samples_with.append({
             'task_id': str(row['task_id']),
-            'test_passed': bool(row['test_passed']) if 'test_passed' in row else None,
+            'baseline_passed': bool(row['baseline_passed']) if 'baseline_passed' in row else None,
             'libraries_used': row['library_usage'],
             'code': row['generated_code'][:500]  # Truncate for readability
         })
@@ -312,7 +312,7 @@ def save_code_samples(df: pd.DataFrame, output_dir: Path, dataset_name: str):
     for idx, row in without_libs.iterrows():
         samples_without.append({
             'task_id': str(row['task_id']),
-            'test_passed': bool(row['test_passed']) if 'test_passed' in row else None,
+            'baseline_passed': bool(row['baseline_passed']) if 'baseline_passed' in row else None,
             'code': row['generated_code'][:500]
         })
 

@@ -351,17 +351,23 @@ Use `einops.rearrange` and `einops.reduce` for self-documenting tensor operation
 
 #### Inconsistent Terminology
 
-**NOTE (from Step 3 refactor):** Result dict naming convention was considered but deferred here.
-Two options exist - consult user before deciding:
-- Option A (current): Keep `*_passed` suffix (`test_passed`, `baseline_passed`, `steered_passed`, `orthogonalized_passed`)
-- Option B: Use `*_correct` suffix (`initial_correct`, `final_correct`) with semantic focus on outcome not method
+**COMPLETED (Commit 3):** Test outcome terminology has been standardized across the codebase.
 
-- [ ] Standardize: `test_passed` vs `baseline_passed` vs `steered_passed` vs `orthogonalized_passed`
-  - Document the naming convention in CLAUDE.md or a style guide
-  - `test_passed` = original test result
-  - `baseline_passed` = generation without steering
-  - `steered_passed` = generation with steering
-  - `orthogonalized_passed` = generation with weight orthogonalization
+Convention adopted:
+- `baseline_passed` = Boolean: did baseline (unmodified) test pass? (Initial state, from Phase 1 generation)
+- `steered_correct` = Boolean: is steered output correct? (After steering intervention)
+- `orthogonalized_correct` = Boolean: is orthogonalized output correct? (After weight orthogonalization)
+
+Terms removed:
+- `test_passed` → `baseline_passed`
+- `steered_passed` → `steered_correct`
+- `orthogonalized_passed` → `orthogonalized_correct`
+- `initial_passed`/`final_passed` → use explicit intervention names
+- `is_correct` → `baseline_passed`
+
+**Documentation:** Updated "Test Outcome Terminology Standard" section in CLAUDE.md
+
+**Verification:** grep confirms 0 remaining occurrences of old terminology in Python files
 
 ---
 

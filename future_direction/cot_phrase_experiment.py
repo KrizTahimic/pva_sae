@@ -212,7 +212,7 @@ class CoTPhraseExperiment:
         print(f"Loaded {len(df)} samples from Llama Phase 1")
 
         # Add initially_correct label
-        df['initially_correct'] = df['test_passed']
+        df['initially_correct'] = df['baseline_passed']
 
         n_correct = df['initially_correct'].sum()
         n_incorrect = len(df) - n_correct
@@ -310,7 +310,7 @@ class CoTPhraseExperiment:
                 result = {
                     'task_id': row_dict['task_id'],
                     'initially_correct': bool(row_dict['initially_correct']),
-                    'original_test_passed': bool(row_dict['test_passed']),
+                    'baseline_passed': bool(row_dict['baseline_passed']),
                     'prompt': cot_prompt,
                     'full_output': full_output,
                     'think_content': think_content,
