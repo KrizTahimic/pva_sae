@@ -206,34 +206,37 @@ class AttentionExtractor:
     def _attention_hook(self, layer_idx: int):
         """Hook function to capture attention patterns ONCE."""
         def hook(module, input, output):
-            # CRITICAL: Only capture on first forward pass (prompt processing)
-            # Skip all subsequent forward passes during autoregressive generation
-            if layer_idx not in self.captured:
-                try:
-                    # For Gemma-2, attention output includes attention weights when output_attentions=True
-                    # Output is typically a tuple: (attention_output, attention_weights, ...)
-                    if isinstance(output, tuple) and len(output) >= 2:
-                        attn_weights = output[1]  # Attention weights are second element
-                        
-                        if attn_weights is not None:
-                            # attn_weights shape: (batch, num_heads, seq_len, seq_len)
-                            # Extract attention FROM the last token position TO all positions
-                            # We take [:, :, self.position, :] to get attention from last token
-                            attn_from_last = attn_weights[:, :, self.position, :].detach().cpu()
-                            
-                            # Store with shape (num_heads, seq_len)
-                            self.attention_patterns[layer_idx] = attn_from_last.squeeze(0)  # Remove batch dim
-                            self.captured.add(layer_idx)
-                            
-                            logger.debug(f"Layer {layer_idx}: Captured attention pattern with shape {attn_from_last.shape}")
-                        else:
-                            logger.warning(f"Layer {layer_idx}: Attention weights were None")
-                    else:
-                        logger.warning(f"Layer {layer_idx}: Unexpected output format from attention layer")
-                        
-                except Exception as e:
-                    logger.error(f"Failed to capture attention for layer {layer_idx}: {e}")
-                    
+            # Guard: Already captured (skip subsequent forward passes during autoregressive generation)
+            if layer_idx in self.captured:
+                return
+
+            try:
+                # Guard: Wrong output format
+                if not (isinstance(output, tuple) and len(output) >= 2):
+                    logger.warning(f"Layer {layer_idx}: Unexpected output format from attention layer")
+                    return
+
+                attn_weights = output[1]  # Attention weights are second element
+
+                # Guard: No weights
+                if attn_weights is None:
+                    logger.warning(f"Layer {layer_idx}: Attention weights were None")
+                    return
+
+                # Happy path - capture attention pattern
+                # attn_weights shape: (batch, num_heads, seq_len, seq_len)
+                # Extract attention FROM the last token position TO all positions
+                attn_from_last = attn_weights[:, :, self.position, :].detach().cpu()
+
+                # Store with shape (num_heads, seq_len)
+                self.attention_patterns[layer_idx] = attn_from_last.squeeze(0)  # Remove batch dim
+                self.captured.add(layer_idx)
+
+                logger.debug(f"Layer {layer_idx}: Captured attention pattern with shape {attn_from_last.shape}")
+
+            except Exception as e:
+                logger.error(f"Failed to capture attention for layer {layer_idx}: {e}")
+
         return hook
     
     def get_attention_patterns(self) -> dict[int, torch.Tensor]:

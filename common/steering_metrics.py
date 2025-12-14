@@ -5,7 +5,7 @@ Provides shared functionality for calculating correction/corruption rates,
 code similarity metrics, and creating steering hooks for SAE-based model interventions.
 """
 
-from typing import Callable, Union
+from typing import Callable, Optional, Union
 import pandas as pd
 import torch
 import tokenize
@@ -15,6 +15,31 @@ from einops import rearrange
 from common.logging import get_logger
 
 logger = get_logger("common.steering_metrics")
+
+
+def _detect_modified_column(data: Union[list[dict], pd.DataFrame]) -> Optional[str]:
+    """
+    Detect whether data uses 'steered_correct' or 'orthogonalized_correct'.
+
+    Args:
+        data: Either a list of dicts or DataFrame with steering results
+
+    Returns:
+        Column/key name if found, None otherwise
+    """
+    if isinstance(data, pd.DataFrame):
+        if 'steered_correct' in data.columns:
+            return 'steered_correct'
+        if 'orthogonalized_correct' in data.columns:
+            return 'orthogonalized_correct'
+        return None
+
+    # List case - check first element
+    if 'steered_correct' in data[0]:
+        return 'steered_correct'
+    if 'orthogonalized_correct' in data[0]:
+        return 'orthogonalized_correct'
+    return None
 
 
 def calculate_correction_rate(results: Union[list[dict], pd.DataFrame]) -> float:
@@ -31,46 +56,29 @@ def calculate_correction_rate(results: Union[list[dict], pd.DataFrame]) -> float
     Returns:
         Correction rate as percentage (0-100)
     """
+    # Early return: empty data
+    if isinstance(results, pd.DataFrame) and results.empty:
+        return 0.0
+    if isinstance(results, list) and not results:
+        return 0.0
+
+    # Detect column/key name
+    modified_col = _detect_modified_column(results)
+    if modified_col is None:
+        logger.warning("Results missing 'steered_correct' or 'orthogonalized_correct'")
+        return 0.0
+
+    # Compute based on type - flat structure
     if isinstance(results, pd.DataFrame):
-        if results.empty:
-            return 0.0
-
-        # DataFrame path - check for either column name
-        if 'steered_correct' in results.columns:
-            modified_col = 'steered_correct'
-        elif 'orthogonalized_correct' in results.columns:
-            modified_col = 'orthogonalized_correct'
-        else:
-            logger.warning("DataFrame missing 'steered_correct' or 'orthogonalized_correct' column")
-            return 0.0
-
-        # Count incorrect→correct transitions
         corrected = len(results[(results['baseline_passed'] == False) & results[modified_col]])
         total_incorrect = len(results[results['baseline_passed'] == False])
-
     elif isinstance(results, list):
-        if not results:
-            return 0.0
-
-        # List of dicts path - check which key is present
-        if results and len(results) > 0:
-            # Check first item to determine key name
-            if 'steered_correct' in results[0]:
-                modified_key = 'steered_correct'
-            elif 'orthogonalized_correct' in results[0]:
-                modified_key = 'orthogonalized_correct'
-            else:
-                logger.warning("Results missing 'steered_correct' or 'orthogonalized_correct' key")
-                return 0.0
-
-            corrected = sum(1 for r in results if not r.get('baseline_passed', False) and r[modified_key])
-            total_incorrect = sum(1 for r in results if not r.get('baseline_passed', False))
-        else:
-            return 0.0
-
+        corrected = sum(1 for r in results if not r.get('baseline_passed', False) and r[modified_col])
+        total_incorrect = sum(1 for r in results if not r.get('baseline_passed', False))
     else:
         raise TypeError(f"Expected list or DataFrame, got {type(results)}")
 
+    # Early return: no incorrect samples
     if total_incorrect == 0:
         logger.warning("No initially incorrect problems found for correction rate calculation")
         return 0.0
@@ -95,46 +103,29 @@ def calculate_corruption_rate(results: Union[list[dict], pd.DataFrame]) -> float
     Returns:
         Corruption rate as percentage (0-100)
     """
+    # Early return: empty data
+    if isinstance(results, pd.DataFrame) and results.empty:
+        return 0.0
+    if isinstance(results, list) and not results:
+        return 0.0
+
+    # Detect column/key name
+    modified_col = _detect_modified_column(results)
+    if modified_col is None:
+        logger.warning("Results missing 'steered_correct' or 'orthogonalized_correct'")
+        return 0.0
+
+    # Compute based on type - flat structure
     if isinstance(results, pd.DataFrame):
-        if results.empty:
-            return 0.0
-
-        # DataFrame path - check for either column name
-        if 'steered_correct' in results.columns:
-            modified_col = 'steered_correct'
-        elif 'orthogonalized_correct' in results.columns:
-            modified_col = 'orthogonalized_correct'
-        else:
-            logger.warning("DataFrame missing 'steered_correct' or 'orthogonalized_correct' column")
-            return 0.0
-
-        # Count correct→incorrect transitions
         corrupted = len(results[results['baseline_passed'] & (results[modified_col] == False)])
         total_correct = len(results[results['baseline_passed']])
-
     elif isinstance(results, list):
-        if not results:
-            return 0.0
-
-        # List of dicts path - check which key is present
-        if results and len(results) > 0:
-            # Check first item to determine key name
-            if 'steered_correct' in results[0]:
-                modified_key = 'steered_correct'
-            elif 'orthogonalized_correct' in results[0]:
-                modified_key = 'orthogonalized_correct'
-            else:
-                logger.warning("Results missing 'steered_correct' or 'orthogonalized_correct' key")
-                return 0.0
-
-            corrupted = sum(1 for r in results if r.get('baseline_passed', True) and not r[modified_key])
-            total_correct = sum(1 for r in results if r.get('baseline_passed', True))
-        else:
-            return 0.0
-
+        corrupted = sum(1 for r in results if r.get('baseline_passed', True) and not r[modified_col])
+        total_correct = sum(1 for r in results if r.get('baseline_passed', True))
     else:
         raise TypeError(f"Expected list or DataFrame, got {type(results)}")
 
+    # Early return: no correct samples
     if total_correct == 0:
         logger.warning("No initially correct problems found for corruption rate calculation")
         return 0.0

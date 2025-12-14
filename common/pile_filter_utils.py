@@ -81,28 +81,30 @@ def apply_pile_filter(
 
     for category in ['correct', 'incorrect']:
         for feature in top_features[category]:
+            # Guard: Already have enough features
+            if len(filtered[category]) >= max_features:
+                break
+
             layer = feature['layer']
             feat_idx = feature['latent_idx']
 
-            # Check pile frequency if available
-            if layer in pile_frequencies and pile_frequencies[layer] is not None:
-                pile_freq = pile_frequencies[layer][feat_idx].item()
-
-                # Keep feature if it's below threshold (specific to code, not general)
-                if pile_freq < threshold:
-                    filtered[category].append(feature)
-                else:
-                    logger.debug(
-                        f"Filtered out {category} feature {feat_idx} from layer {layer}: "
-                        f"pile frequency {pile_freq:.3f} >= {threshold}"
-                    )
-            else:
-                # If no pile data available, keep the feature
+            # Guard: No pile data - keep feature
+            if layer not in pile_frequencies or pile_frequencies[layer] is None:
                 filtered[category].append(feature)
+                continue
 
-            # Stop if we have enough features
-            if len(filtered[category]) >= max_features:
-                break
+            pile_freq = pile_frequencies[layer][feat_idx].item()
+
+            # Guard: Above threshold - filter out
+            if pile_freq >= threshold:
+                logger.debug(
+                    f"Filtered out {category} feature {feat_idx} from layer {layer}: "
+                    f"pile frequency {pile_freq:.3f} >= {threshold}"
+                )
+                continue
+
+            # Happy path: keep feature (below threshold, specific to code)
+            filtered[category].append(feature)
 
     logger.info(
         f"Pile filtering complete: {len(filtered['correct'])} correct, "

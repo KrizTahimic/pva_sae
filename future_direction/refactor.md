@@ -410,24 +410,21 @@ Terms removed:
 
 
 #### Add Early Returns (reduce nesting)
-- [ ] **steering_metrics.py:19-80** `calculate_correction_rate()` - deeply nested if/elif
-  ```python
-  # BEFORE: 3-4 levels of nesting
-  if isinstance(results, pd.DataFrame):
-      if results.empty:
-          return 0.0
-      if 'steered_passed' in results.columns:
-          ...
+- [x] **steering_metrics.py:19-80** `calculate_correction_rate()` - deeply nested if/elif
+  - **DONE**: Added `_detect_modified_column()` helper, early returns, max 2 levels nesting
+  - Also refactored `calculate_corruption_rate()` with same pattern
 
-  # AFTER: Early returns, flat structure
-  if isinstance(results, pd.DataFrame):
-      return _correction_rate_from_dataframe(results)
-  if isinstance(results, list):
-      return _correction_rate_from_list(results)
-  raise TypeError(...)
-  ```
+- [x] **dataset_utils.py:163-225** `extract_code()` - 4 levels deep (was helpers.py)
+  - **DONE**: Split into `_extract_raw_code()` + `_trim_to_function()` helpers
 
-- [ ] **helpers.py:85-147** `extract_code()` - 4 levels deep, use guard clauses
+- [x] **activation_hooks.py:206-237** `_attention_hook()` - 4 levels deep
+  - **DONE**: Guard clauses with early returns
+
+- [x] **pile_filter_utils.py:82-105** `apply_pile_filter()` - 3 levels with if/else
+  - **DONE**: Guard clauses with `continue`
+
+- [x] **logging.py:396-416** `tqdm_with_logging()` - 3 levels in generator
+  - **DONE**: Extracted `_log_milestone()` helper, guard with `continue`
 
 #### Complex One-Liners to Split
 - [ ] **instruct_steering_analyzer.py:633-635** - 200+ char logger.info line → split into multiple lines

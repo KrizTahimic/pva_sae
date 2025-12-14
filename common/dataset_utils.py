@@ -160,6 +160,62 @@ def load_dataset_split(split_name: str, phase0_1_dir: Path, config: 'Config') ->
 # Code Extraction and Evaluation
 # ============================================================================
 
+def _extract_raw_code(generated_text: str, prompt: str) -> str:
+    """
+    Try multiple extraction methods, return first success.
+
+    Args:
+        generated_text: Generated text (may or may not include prompt)
+        prompt: Original prompt to remove if present
+
+    Returns:
+        Extracted raw code (may include extra content after function)
+    """
+    # Method 1: Exact prompt match (works for Gemma)
+    if generated_text.startswith(prompt):
+        return generated_text[len(prompt):].strip()
+
+    # Method 2: Solution marker (our code_initiator)
+    solution_marker = "# Solution:"
+    marker_idx = generated_text.find(solution_marker)
+    if marker_idx != -1:
+        return generated_text[marker_idx + len(solution_marker):].strip()
+
+    # Method 3: After last assert (handles whitespace differences)
+    last_assert_idx = generated_text.rfind("assert ")
+    if last_assert_idx != -1:
+        newline_after = generated_text.find('\n', last_assert_idx)
+        if newline_after != -1:
+            return generated_text[newline_after:].strip()
+
+    # Fallback: entire text
+    return generated_text.strip()
+
+
+def _trim_to_function(code: str) -> str:
+    """
+    Extract just the function definition from code.
+
+    Args:
+        code: Code that may contain extra content after the function
+
+    Returns:
+        Just the function definition
+    """
+    def_index = code.find('def ')
+    if def_index == -1:
+        return code.strip()
+
+    code = code[def_index:]
+
+    # Find end of function: newline followed by non-whitespace
+    for i in range(4, len(code) - 1):  # Skip past "def "
+        if code[i] == '\n' and code[i + 1] not in ' \t\n':
+            return code[:i].rstrip()
+
+    return code.strip()
+
+
 def extract_code(generated_text: str, prompt: str) -> str:
     """
     Extract generated code from model output.
@@ -171,58 +227,8 @@ def extract_code(generated_text: str, prompt: str) -> str:
     Returns:
         Extracted code
     """
-    code = None
-
-    # Method 1: Try exact prompt match (works for Gemma)
-    if generated_text.startswith(prompt):
-        code = generated_text[len(prompt):].strip()
-
-    # Method 2: Look for "# Solution:" marker (our code_initiator)
-    # This handles cases where tokenization changes whitespace slightly
-    if code is None:
-        solution_marker = "# Solution:"
-        marker_idx = generated_text.find(solution_marker)
-        if marker_idx != -1:
-            code = generated_text[marker_idx + len(solution_marker):].strip()
-
-    # Method 3: Try to find prompt substring (handles whitespace differences)
-    # Look for last occurrence of test assertions pattern before code
-    if code is None:
-        # Find the last assert statement that's part of test_list
-        last_assert_idx = generated_text.rfind("assert ")
-        if last_assert_idx != -1:
-            # Find the end of that line
-            newline_after_assert = generated_text.find('\n', last_assert_idx)
-            if newline_after_assert != -1:
-                code = generated_text[newline_after_assert:].strip()
-
-    # Method 4: Fallback - use entire text
-    if code is None:
-        code = generated_text.strip()
-
-    # Now find and extract the function definition
-    def_index = code.find('def ')
-    if def_index == -1:
-        # No function definition found, return as is
-        return code.strip()
-
-    # Start from the def
-    code = code[def_index:]
-
-    # Look for pattern: \n followed by non-space/non-tab after the def
-    # This indicates end of function (test cases, main function, etc.)
-    search_start = 4  # Skip past "def "
-
-    for i in range(search_start, len(code) - 1):
-        if code[i] == '\n' and i + 1 < len(code):
-            next_char = code[i + 1]
-            if next_char not in ' \t\n':
-                # Found newline followed by non-whitespace
-                # This is where function ends
-                return code[:i].rstrip()
-
-    # No such pattern found, return entire code
-    return code.strip()
+    raw_code = _extract_raw_code(generated_text, prompt)
+    return _trim_to_function(raw_code)
 
 
 @contextlib.contextmanager

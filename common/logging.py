@@ -334,6 +334,24 @@ def get_logger(module_name: str, phase: Optional[str] = None, gpu_id: Optional[i
     return manager.setup_logging(module_name)
 
 
+def _log_milestone(
+    milestone: int,
+    items_done: int,
+    total: int,
+    elapsed: float,
+    desc: str,
+    logger: logging.Logger
+) -> None:
+    """Log progress at a milestone percentage."""
+    if milestone < 100:
+        items_remaining = total - items_done
+        time_per_item = elapsed / items_done if items_done > 0 else 0
+        eta_str = format_duration(time_per_item * items_remaining)
+        logger.info(f"Progress: {milestone}% ({items_done}/{total}) - ETA: {eta_str}")
+    else:
+        logger.info(f"Completed: {desc} - {total}/{total} in {format_duration(elapsed)}")
+
+
 def tqdm_with_logging(
     iterable,
     logger: logging.Logger,
@@ -393,27 +411,18 @@ def tqdm_with_logging(
         yield item
 
         # Check milestones after yielding (so we count completed items)
-        if total and total > 0:
-            progress_pct = ((i + 1) / total) * 100
+        if not (total and total > 0):
+            continue
 
-            for milestone in milestones:
-                if milestone not in logged_milestones and progress_pct >= milestone:
-                    elapsed = time.time() - start_time
+        progress_pct = ((i + 1) / total) * 100
 
-                    if milestone < 100:
-                        # Estimate remaining time
-                        items_done = i + 1
-                        items_remaining = total - items_done
-                        time_per_item = elapsed / items_done if items_done > 0 else 0
-                        eta_seconds = time_per_item * items_remaining
-                        eta_str = format_duration(eta_seconds)
-                        logger.info(f"Progress: {milestone}% ({items_done}/{total}) - ETA: {eta_str}")
-                    else:
-                        # 100% milestone - log completion
-                        duration_str = format_duration(elapsed)
-                        logger.info(f"Completed: {desc} - {total}/{total} in {duration_str}")
+        for milestone in milestones:
+            if milestone in logged_milestones or progress_pct < milestone:
+                continue
 
-                    logged_milestones.add(milestone)
+            elapsed = time.time() - start_time
+            _log_milestone(milestone, i + 1, total, elapsed, desc, logger)
+            logged_milestones.add(milestone)
 
     # If we never hit 100% milestone (e.g., total was wrong), log completion anyway
     if 100 not in logged_milestones:
