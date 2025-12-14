@@ -2,7 +2,7 @@
 Pile Frequency Computer for Phase 2.3.
 
 Loads raw pile activations from Phase 2.2, encodes them through the SAE,
-and computes per-feature activation frequencies for pile filtering.
+and computes per-latent activation frequencies for pile filtering.
 """
 
 from pathlib import Path
@@ -21,7 +21,7 @@ logger = get_logger("phase2_3", phase="2.3")
 
 
 class PileFrequencyComputer:
-    """Computes SAE feature activation frequencies on pile dataset."""
+    """Computes SAE latent activation frequencies on pile dataset."""
 
     def __init__(self, config: Config, device: str = "cuda"):
         """
@@ -68,13 +68,13 @@ class PileFrequencyComputer:
 
     def compute_frequencies_for_layer(self, layer_idx: int) -> torch.Tensor | None:
         """
-        Compute SAE feature activation frequencies for a single layer.
+        Compute SAE latent activation frequencies for a single layer.
 
         Args:
             layer_idx: Layer index to process
 
         Returns:
-            Frequency tensor (shape: [num_features]), or None if no pile data
+            Frequency tensor (shape: [num_latents]), or None if no pile data
         """
         # Load raw pile activations
         pile_activations = self._load_pile_activations_for_layer(layer_idx)
@@ -91,7 +91,7 @@ class PileFrequencyComputer:
         # Encode pile activations through SAE and compute frequencies
         with torch.no_grad():
             pile_features = sae.encode(pile_activations)
-            # Average over samples to get per-feature activation frequency
+            # Average over samples to get per-latent activation frequency
             frequencies = reduce((pile_features > 0).float(), 'n f -> f', 'mean')
 
         # Clean up

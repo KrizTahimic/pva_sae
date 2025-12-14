@@ -69,16 +69,16 @@ class SteeringState:
             prompt_length: Length of the prompt (to detect first new token)
         """
         self.prompt_length = prompt_length
-        self.first_token_checked = False  # Has L19 activation been captured?
-        self.incorrect_pred_activation = None  # Captured incorrect-predicting feature activation
+        self.first_token_checked = False  # Has predicting activation been captured?
+        self.incorrect_pred_activation = None  # Captured incorrect-predicting latent activation
         self.should_steer = False  # Should we apply steering?
 
 class SelectiveSteeringAnalyzer:
     """
     Selective Steering Analyzer for Phase 8.3.
 
-    Applies steering only when incorrect-predicting feature (L19-5441)
-    exceeds optimal threshold (15.5086), following Phase 4.8 split testing pattern.
+    Applies steering only when incorrect-predicting latent
+    exceeds optimal threshold, following Phase 4.8 split testing pattern.
     """
 
     def __init__(self, config: Config):

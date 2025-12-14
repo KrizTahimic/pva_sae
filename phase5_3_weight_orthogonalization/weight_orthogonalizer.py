@@ -162,14 +162,14 @@ class WeightOrthogonalizer:
     
     def apply_incorrect_orthogonalization(self) -> dict:
         """
-        Apply orthogonalization using incorrect feature direction.
+        Apply orthogonalization using incorrect latent direction.
 
         Expected effects:
         - Correction: Initially incorrect problems may become correct
         - Preservation: Initially correct problems should remain correct
         """
         logger.info("\n" + "="*60)
-        logger.info("Applying INCORRECT feature orthogonalization")
+        logger.info("Applying INCORRECT latent orthogonalization")
         logger.info("="*60)
 
         # Use self.model (loaded in __init__) for this experiment
@@ -392,14 +392,14 @@ class WeightOrthogonalizer:
     
     def apply_correct_orthogonalization(self) -> dict:
         """
-        Apply orthogonalization using correct feature direction.
-        
+        Apply orthogonalization using correct latent direction.
+
         Expected effects:
         - Corruption: Initially correct problems may become incorrect
         - No improvement: Initially incorrect problems remain incorrect
         """
         logger.info("\n" + "="*60)
-        logger.info("Applying CORRECT feature orthogonalization")
+        logger.info("Applying CORRECT latent orthogonalization")
         logger.info("="*60)
         
         # Load fresh model

@@ -1,6 +1,6 @@
-"""Phase 3.12: Difficulty-Based AUROC Analysis for PVA-SAE Features.
+"""Phase 3.12: Difficulty-Based AUROC Analysis for PVA-SAE Latents.
 
-This script evaluates bidirectional SAE features across different problem
+This script evaluates bidirectional SAE latents across different problem
 difficulty levels (Easy/Medium/Hard) using cyclomatic complexity stratification.
 """
 

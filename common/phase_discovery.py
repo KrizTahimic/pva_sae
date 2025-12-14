@@ -257,7 +257,7 @@ def write_phase_output(
     Example:
         write_phase_output(
             phase="2.5",
-            outputs={"primary": "sae_analysis_results.json", "latents": "top_20_latents.json"},
+            outputs={"primary": "top_20_latents.json"},
             config=self.config,
             dependencies={"1": "data/phase1_0/dataset_sae.parquet"}
         )

@@ -91,7 +91,7 @@ class ZeroDiscWeightOrthogonalizer:
         if len(self.zero_disc_features) == 0:
             raise ValueError("No zero-discrimination features found")
         
-        # Select the best zero-disc feature (lowest separation score)
+        # Select the best zero-disc latent (lowest separation score)
         self.best_zero_disc = min(self.zero_disc_features, key=lambda x: x['separation_score'])
         
         logger.info(f"Selected zero-disc latent: Layer {self.best_zero_disc['layer']}, "
@@ -183,14 +183,14 @@ class ZeroDiscWeightOrthogonalizer:
     
     def apply_zero_disc_orthogonalization(self) -> dict:
         """
-        Apply orthogonalization using zero-discrimination feature.
-        
+        Apply orthogonalization using zero-discrimination latent.
+
         Expected effects (control baseline):
-        - Minimal correction: Zero-disc features should not help incorrect problems
-        - Minimal corruption: Zero-disc features should not harm correct problems
+        - Minimal correction: Zero-disc latents should not help incorrect problems
+        - Minimal corruption: Zero-disc latents should not harm correct problems
         """
         logger.info("\n" + "="*60)
-        logger.info("Applying ZERO-DISCRIMINATION feature orthogonalization")
+        logger.info("Applying ZERO-DISCRIMINATION latent orthogonalization")
         logger.info("="*60)
         
         # Load fresh model

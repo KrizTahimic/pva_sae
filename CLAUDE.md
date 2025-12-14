@@ -434,9 +434,9 @@ python3 run.py phase 2.5
 
 ### Critical Phase Implementations
 
-- `phase1_simplified/runner.py`: PCDGE implementation for dataset generation
-- `phase2_5_simplified/sae_analyzer.py`: SAE feature analysis with separation scores
-- `phase2_10_t_statistic_latent_selector/t_statistic_selector.py`: Welch's t-test feature selection
+- `phase1_latent_selection_dataset/runner.py`: PCDGE implementation for dataset generation
+- `phase2_5_separation_score_analysis/sae_analyzer.py`: SAE latent analysis with separation scores
+- `phase2_10_t_statistic_latent_selector/t_statistic_selector.py`: Welch's t-test latent selection
 - `phase3_8/auroc_f1_evaluator.py`: AUROC/F1 metric calculation
 - `phase4_8_steering_analysis/steering_effect_analyzer.py`: Steering intervention analysis
 
@@ -448,7 +448,7 @@ data/
 ├── phase0_1/         # Split datasets (sae_mbpp.parquet, hyperparams_mbpp.parquet, validation_mbpp.parquet)
 ├── phase1_0/         # Generated code + activations
 ├── phase2_2/         # Pile activation baseline
-├── phase2_5/         # SAE analysis results (top_20_features.json per layer)
+├── phase2_5/         # SAE analysis results (top_20_latents.json per layer)
 ├── phase3_5/         # Temperature robustness data
 ├── phase3_8/         # AUROC/F1 evaluation metrics
 ├── phase4_8/         # Steering effect analysis
@@ -637,9 +637,9 @@ activation = load_tensor(Path("activation.safetensors"), device="cpu")
 
 ### Modifying SAE Analysis
 
-Key file: `phase2_5_simplified/sae_analyzer.py`
+Key file: `phase2_5_separation_score_analysis/sae_analyzer.py`
 - Separation score calculation: Line ~200
-- Feature filtering logic: Line ~150
+- Latent filtering logic: Line ~150
 - Top-k selection: Line ~250
 
 ### Changing Steering Behavior

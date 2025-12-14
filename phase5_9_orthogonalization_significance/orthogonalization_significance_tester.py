@@ -334,7 +334,7 @@ class OrthogonalizationSignificanceTester:
 
         if comparisons['baseline_vs_pva']['significant']:
             effect = comparisons['baseline_vs_pva']['effect_size']
-            findings.append(f"Incorrect-preferring features significantly corrupt ({effect:.1%} corruption, "
+            findings.append(f"Incorrect-predicting latents significantly corrupt ({effect:.1%} corruption, "
                           f"p={comparisons['baseline_vs_pva']['p_value']:.2e})")
         else:
             findings.append("PVA orthogonalization does not significantly corrupt")

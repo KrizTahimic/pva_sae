@@ -1,9 +1,9 @@
 """
-Simplified SAE analyzer for Phase 2.5.
+SAE analyzer for Phase 2.5 using separation scores.
 
 Loads saved activations from Phase 1 and analyzes them using GemmaScope SAEs
 to identify PVA latent directions. Applies pile filtering to remove general
-language features.
+language latents.
 """
 
 import json
@@ -27,7 +27,7 @@ from common.tensor_utils import load_activation
 logger = get_logger("sae_analyzer", phase="2.5")
 
 class SimplifiedSAEAnalyzer:
-    """Simplified SAE analyzer without complex abstractions."""
+    """SAE analyzer using separation scores for latent selection."""
     
     def __init__(self, config: Config):
         """Initialize analyzer with configuration."""
@@ -322,27 +322,13 @@ class SimplifiedSAEAnalyzer:
             json.dump(results['top_20_latents'], f, indent=2)
         logger.info(f"Saved top 20 latents to {top_latents_file}")
 
-        # Save summary results (without layer_results to avoid huge file)
-        summary_results = {
-            'creation_timestamp': results['creation_timestamp'],
-            'model_name': results['model_name'],
-            'activation_layers': results['activation_layers'],
-            'top_20_latents': results['top_20_latents']
-        }
-
-        output_file = output_dir / "sae_analysis_results.json"
-        with open(output_file, 'w') as f:
-            json.dump(summary_results, f, indent=2)
-
-        logger.info(f"Saved summary results to {output_file}")
 
         # Write phase_output.json manifest
         from common.phase_discovery import write_phase_output
         write_phase_output(
             phase="2.5",
             outputs={
-                "primary": "sae_analysis_results.json",
-                "latents": "top_20_latents.json",
+                "primary": "top_20_latents.json",
             },
             config=self.config,
             output_dir=str(output_dir),

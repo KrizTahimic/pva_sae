@@ -128,10 +128,10 @@ pva_sae/
 ├── phase0_1_problem_splitting/     # Problem splitting into train/val/test
 ├── phase0_2_humaneval_preprocessing/ # HumanEval to MBPP format conversion
 ├── phase0_3_humaneval_imports/     # HumanEval import scanning
-├── phase1_simplified/              # Dataset generation
-├── phase2_2_pile_caching/          # Pile activation baseline
-├── phase2_5_simplified/            # SAE feature analysis
-├── phase2_10_t_statistic_latent_selector/ # T-statistic feature selection
+├── phase1_latent_selection_dataset/  # Dataset generation
+├── phase2_2_pile_caching/            # Pile activation baseline
+├── phase2_5_separation_score_analysis/ # SAE latent analysis
+├── phase2_10_t_statistic_latent_selector/ # T-statistic latent selection
 ├── phase2_15_layerwise_visualization/ # Layer-wise analysis visualization
 ├── phase3_5_temperature_robustness/# Temperature robustness testing
 ├── phase3_6/                       # Hyperparameter tuning set processing

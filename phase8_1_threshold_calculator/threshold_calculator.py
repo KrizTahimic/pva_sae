@@ -40,9 +40,9 @@ class ThresholdCalculator:
     Calculates percentile-based thresholds from Phase 3.6 hyperparameter dataset.
 
     Workflow:
-    1. Load Phase 3.8 results to get incorrect-predicting feature info
+    1. Load Phase 3.8 results to get incorrect-predicting latent info
     2. Load Phase 3.6 dataset (hyperparams set with activations)
-    3. Extract L19-5441 activations
+    3. Extract predicting latent activations
     4. Calculate multiple percentile thresholds
     5. Save results with metadata
     """
@@ -66,11 +66,11 @@ class ThresholdCalculator:
         logger.info("Initialization complete")
 
     def _load_dependencies(self):
-        """Load Phase 3.8 feature info and Phase 3.6 activation data."""
+        """Load Phase 3.8 latent info and Phase 3.6 activation data."""
         logger.info("Loading dependencies...")
 
-        # === LOAD PHASE 3.8 FEATURE INFO ===
-        logger.info("Loading incorrect-predicting feature info from Phase 3.8...")
+        # === LOAD PHASE 3.8 LATENT INFO ===
+        logger.info("Loading incorrect-predicting latent info from Phase 3.8...")
         phase3_8_output = discover_latest_phase_output("3.8")
         if not phase3_8_output:
             raise FileNotFoundError("Phase 3.8 output not found. Run Phase 3.8 first.")

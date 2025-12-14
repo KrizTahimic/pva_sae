@@ -58,11 +58,11 @@ logger = get_logger(__name__)
 
 class SteeringState:
     """
-    Shared state between L19 (activation capture) and L16 (steering) hooks.
+    Shared state between predicting_sae (activation capture) and steering_sae (steering) hooks.
 
     Used to enable real-time threshold checking during generation:
-    - L19 hook captures activation on first new token and sets should_steer flag
-    - L16 hook applies steering only if should_steer is True
+    - predicting_sae hook captures activation on first new token and sets should_steer flag
+    - steering_sae hook applies steering only if should_steer is True
     """
 
     def __init__(self, prompt_length: int):
@@ -73,8 +73,8 @@ class SteeringState:
             prompt_length: Length of the prompt (to detect first new token)
         """
         self.prompt_length = prompt_length
-        self.first_token_checked = False  # Has L19 activation been captured?
-        self.incorrect_pred_activation = None  # Captured incorrect-predicting feature activation
+        self.first_token_checked = False  # Has predicting activation been captured?
+        self.incorrect_pred_activation = None  # Captured incorrect-predicting latent activation
         self.should_steer = False  # Should we apply steering?
 
 class ThresholdOptimizer:

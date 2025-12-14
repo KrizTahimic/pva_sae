@@ -10,9 +10,6 @@ Range selection (for testing or subsetting):
     python3 run.py phase 1 --start 0 --end 10                   # Process first 10 problems
     python3 run.py phase 3.5 --start 0 --end 5                  # Validate first 5 problems
 
-Manual input override:
-    python3 run.py phase 2.5 --input data/phase1_0/dataset.parquet
-
 Model/dataset configuration is controlled via config.py (not CLI args).
 """
 
@@ -107,15 +104,6 @@ def setup_argument_parser():
     )
 
     return parser
-
-
-def validate_phase_arguments(args):
-    """Validate phase-specific argument requirements"""
-    # Phase 1 model is now optional - defaults to config.py setting
-
-    # Validate input file if provided
-    if args.input and not Path(args.input).exists():
-        raise ValueError(f"Input file not found: {args.input}")
 
 
 def main():

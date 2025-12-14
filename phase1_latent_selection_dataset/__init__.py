@@ -1,1 +1,1 @@
-"""Simplified Phase 1 implementation for PVA-SAE."""
+"""Phase 1: Latent Selection Dataset generation for PVA-SAE."""

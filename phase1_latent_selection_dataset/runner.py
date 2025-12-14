@@ -1,4 +1,4 @@
-"""Simplified Phase 1 runner for dataset building."""
+"""Phase 1 runner for latent selection dataset building."""
 
 import gc
 import sys

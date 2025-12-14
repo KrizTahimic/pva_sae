@@ -359,7 +359,7 @@ class ZeroDiscSteeringGenerator:
         logger.info("\n" + "="*40)
         logger.info("Running PRESERVATION experiments")
         logger.info(f"Problems: {len(self.correct_problems)} initially correct")
-        logger.info(f"Coefficient: {self.correct_coefficient} (using correct-preferring coefficient)")
+        logger.info(f"Coefficient: {self.correct_coefficient} (using correct-predicting coefficient)")
         logger.info("="*40)
 
         preservation_results = self._apply_zero_disc_steering(

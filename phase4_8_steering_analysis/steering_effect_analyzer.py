@@ -3,7 +3,7 @@ Steering effect analyzer for Phase 4.8.
 
 Analyzes the causal effects of model steering on validation data, measuring
 correction rates (incorrect→correct) and corruption rates (correct→incorrect).
-Validates that SAE features capture program validity awareness.
+Validates that SAE latents capture program validity awareness.
 """
 
 import json

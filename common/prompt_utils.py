@@ -1,7 +1,7 @@
 """
-Simplified prompt utilities for consistent prompt generation across all phases.
+Prompt utilities for consistent prompt generation across all phases.
 
-This module provides basic prompt building for code generation.
+This module provides prompt building for MBPP and HumanEval code generation.
 Following YAGNI principle: only temperature variation needed for robustness.
 """
 
@@ -9,7 +9,7 @@ from typing import Optional
 
 
 class PromptBuilder:
-    """Simplified prompt builder focused on standard prompt generation."""
+    """Prompt builder for standard code generation prompts."""
     TEMPLATE = """{problem_description}
 
 {test_cases}

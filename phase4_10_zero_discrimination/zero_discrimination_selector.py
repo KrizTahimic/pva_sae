@@ -1,8 +1,8 @@
 """
-Zero-Discrimination Feature Selector for Phase 4.10.
+Zero-Discrimination Latent Selector for Phase 4.10.
 
-Identifies SAE features with zero separation scores between correct/incorrect programs.
-These features serve as rigorous baseline controls for steering experiments.
+Identifies SAE latents with zero separation scores between correct/incorrect programs.
+These latents serve as rigorous baseline controls for steering experiments.
 """
 
 import json
@@ -24,7 +24,7 @@ from common.tensor_utils import to_numpy
 logger = get_logger("phase4_10.zero_discrimination_selector")
 
 class ZeroDiscriminationSelector:
-    """Select SAE features with zero discrimination between correct/incorrect programs."""
+    """Select SAE latents with zero discrimination between correct/incorrect programs."""
     
     def __init__(self, config: Config):
         """Initialize with configuration."""

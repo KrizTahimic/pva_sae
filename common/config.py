@@ -96,7 +96,7 @@ MODEL_CONFIGS = {
         'hidden_size': 2048,
         'n_layers': 26,
         'sae_repo': 'google/gemma-scope-2b-pt-res',
-        'sae_width': 16384,  # 16k features
+        'sae_width': 16384,  # 16k latents
         'sae_format': 'npz',
         'sae_activation': 'jumprelu',
         'default_layers': list(range(0, 26)),
@@ -119,7 +119,7 @@ MODEL_CONFIGS = {
         'hidden_size': 3584,
         'n_layers': 42,
         'sae_repo': 'google/gemma-scope-9b-pt-res',
-        'sae_width': 16384,  # 16k features
+        'sae_width': 16384,  # 16k latents
         'sae_format': 'npz',
         'sae_activation': 'jumprelu',
         'default_layers': list(range(0, 42)),

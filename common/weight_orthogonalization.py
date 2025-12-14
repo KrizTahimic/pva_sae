@@ -28,7 +28,7 @@ def orthogonalize_gemma_weights(
     
     Args:
         model: HuggingFace Gemma model to modify
-        direction: PVA feature decoder direction [d_model]
+        direction: PVA latent decoder direction [d_model]
         target_weights: List of weight types to orthogonalize
                        Options: 'embed', 'attn_o', 'mlp_down'
                        (default: ['embed', 'attn_o', 'mlp_down'])

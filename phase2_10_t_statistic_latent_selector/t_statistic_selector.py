@@ -381,20 +381,6 @@ class TStatisticSelector:
             json.dump(results['top_20_latents'], f, indent=2)
         logger.info(f"Saved top 20 latents to {top_latents_file}")
 
-        # Save summary results (without layer_results to avoid huge file)
-        summary_results = {
-            'creation_timestamp': results['creation_timestamp'],
-            'model_name': results['model_name'],
-            'activation_layers': results['activation_layers'],
-            'top_20_latents': results['top_20_latents'],
-            'selection_method': results['selection_method']
-        }
-        
-        output_file = output_dir / "sae_analysis_results.json"
-        with open(output_file, 'w') as f:
-            json.dump(summary_results, f, indent=2)
-
-        logger.info(f"Saved summary results to {output_file}")
 
         # Write phase_output.json manifest
         from common.phase_discovery import write_phase_output
@@ -402,8 +388,7 @@ class TStatisticSelector:
         write_phase_output(
             phase="2.10",
             outputs={
-                "primary": "sae_analysis_results.json",
-                "latents": "top_20_latents.json",
+                "primary": "top_20_latents.json",
             },
             config=self.config,
             output_dir=str(output_dir),

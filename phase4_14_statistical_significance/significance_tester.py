@@ -428,10 +428,10 @@ class SignificanceTester:
         
         if comparisons['baseline_vs_targeted']['significant']:
             effect = comparisons['baseline_vs_targeted']['effect_size']
-            findings.append(f"Incorrect-preferring features significantly corrupt ({effect:.1%} corruption, "
+            findings.append(f"Incorrect-predicting latents significantly corrupt ({effect:.1%} corruption, "
                           f"p={comparisons['baseline_vs_targeted']['p_value']:.2e})")
         else:
-            findings.append("Incorrect-preferring features do not significantly corrupt")
+            findings.append("Incorrect-predicting latents do not significantly corrupt")
         
         if comparisons['targeted_vs_control']['significant']:
             effect = comparisons['targeted_vs_control']['effect_size']
