@@ -21,7 +21,7 @@ def run_phase_2_3(config: Config) -> dict:
         config: Configuration object
 
     Returns:
-        Dict with computation results
+        dict with computation results
     """
     device = get_device()
     logger.info(f"Using device: {device}")

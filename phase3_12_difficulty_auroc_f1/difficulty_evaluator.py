@@ -157,7 +157,7 @@ def load_group_activations(
 
 def calculate_difficulty_metrics(
     difficulty_groups: dict[str, pd.DataFrame],
-    best_latents: Dict,
+    best_latents: dict,
     global_threshold: float,
     latent_type: str,
     output_dir: Path,
@@ -165,11 +165,11 @@ def calculate_difficulty_metrics(
     device: torch.device,
     temp_data: pd.DataFrame,
     phase3_5_dir: Path
-) -> dict[str, Dict]:
+) -> dict[str, dict]:
     """Calculate AUROC and F1 for each difficulty group for a specific feature type.
     
     Args:
-        difficulty_groups: Dict of difficulty groups
+        difficulty_groups: dict of difficulty groups
         best_latents: Best feature information
         global_threshold: F1-optimal threshold from Phase 3.8
         latent_type: 'correct' or 'incorrect'
@@ -294,9 +294,9 @@ def plot_difficulty_distribution(
 def plot_roc_curves_by_difficulty(
     difficulty_groups: dict[str, pd.DataFrame],
     latent_type: str,
-    results: Dict,
+    results: dict,
     output_dir: Path,
-    best_latents: Dict,
+    best_latents: dict,
     sae: torch.nn.Module,
     device: torch.device,
     temp_data: pd.DataFrame,
@@ -352,7 +352,7 @@ def calculate_trend(values: list) -> str:
     else:
         return 'stable'
 
-def find_max_excluding_nan(results: Dict, metric: str) -> str:
+def find_max_excluding_nan(results: dict, metric: str) -> str:
     """Find the key with maximum value for a metric, excluding NaN."""
     valid_items = [(k, v[metric]) for k, v in results.items() if not np.isnan(v[metric])]
     
@@ -362,8 +362,8 @@ def find_max_excluding_nan(results: Dict, metric: str) -> str:
     return max(valid_items, key=lambda x: x[1])[0]
 
 def plot_auroc_trends(
-    correct_results: Dict,
-    incorrect_results: Dict,
+    correct_results: dict,
+    incorrect_results: dict,
     output_dir: Path
 ) -> None:
     """Plot AUROC trends across difficulty levels for both feature types."""
@@ -523,18 +523,18 @@ def main():
     
     # Load Phase 3.8 results to get best latents and thresholds
     logger.info("\nLoading Phase 3.8 results...")
-    phase3_8_results = load_json(phase3_8_dir / 'evaluation_results.json')
+    phase3_8_results = load_json(phase3_8_dir / 'auroc_f1_results.json')
     best_latents = {
-        'correct': phase3_8_results['correct_predicting_latent']['latent']['layer'],
-        'correct_latent_idx': phase3_8_results['correct_predicting_latent']['latent']['idx'],
-        'incorrect': phase3_8_results['incorrect_predicting_latent']['latent']['layer'],
-        'incorrect_latent_idx': phase3_8_results['incorrect_predicting_latent']['latent']['idx']
+        'correct': phase3_8_results['correct_predicting_latent']['layer'],
+        'correct_latent_idx': phase3_8_results['correct_predicting_latent']['latent_idx'],
+        'incorrect': phase3_8_results['incorrect_predicting_latent']['layer'],
+        'incorrect_latent_idx': phase3_8_results['incorrect_predicting_latent']['latent_idx']
     }
 
     # Extract global F1-optimal thresholds from Phase 3.8
     global_thresholds = {
-        'correct': phase3_8_results['correct_predicting_latent']['threshold_optimization']['optimal_threshold'],
-        'incorrect': phase3_8_results['incorrect_predicting_latent']['threshold_optimization']['optimal_threshold']
+        'correct': phase3_8_results['correct_predicting_latent']['hyperparameter_split']['threshold'],
+        'incorrect': phase3_8_results['incorrect_predicting_latent']['hyperparameter_split']['threshold']
     }
 
     logger.info(f"Best correct-predicting latent: idx {best_latents['correct_latent_idx']} "

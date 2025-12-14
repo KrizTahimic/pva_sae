@@ -119,6 +119,15 @@ class UniversalityAnalyzer:
         with open(self.phase7_6_dir / "cross_model_comparison.json", 'r') as f:
             self.cross_model = json.load(f)
 
+        # Validate cross-model comparison has required data
+        if not self.cross_model.get("comparison_available", False):
+            reason = self.cross_model.get("reason", "Unknown reason")
+            raise ValueError(
+                f"Phase 7.6 cross-model comparison not available: {reason}\n"
+                f"Phase 7.9 universality analysis requires both base (Phase 4.8) and "
+                f"instruction-tuned (Phase 7.6) model results."
+            )
+
         logger.info("Data loaded successfully!")
         
     def calculate_metrics(self) -> dict[str, Any]:

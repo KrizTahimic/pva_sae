@@ -38,7 +38,7 @@ def binomial_significance_test(
             - 'two-sided': observed != expected
 
     Returns:
-        Dict containing:
+        dict containing:
             - n_successes: Input count
             - n_trials: Input count
             - observed_rate: Actual success rate

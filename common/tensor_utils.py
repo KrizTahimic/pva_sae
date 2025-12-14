@@ -43,7 +43,7 @@ def save_activations(activations: dict[int, torch.Tensor], path: Path | str) -> 
     """Save multi-layer activations preserving dtype.
 
     Args:
-        activations: Dict mapping layer index to activation tensor
+        activations: dict mapping layer index to activation tensor
         path: Output path (will use .safetensors extension)
     """
     path = Path(path)
@@ -59,7 +59,7 @@ def load_activations(path: Path | str, device: torch.device | str = "cpu") -> di
         device: Target device for tensors
 
     Returns:
-        Dict mapping layer index to activation tensor
+        dict mapping layer index to activation tensor
     """
     path = Path(path)
     data = load_file(str(path))
@@ -107,7 +107,7 @@ def load_attention(path: Path | str, device: torch.device | str = "cpu") -> dict
         device: Target device for attention tensor
 
     Returns:
-        Dict with 'attention' tensor and metadata fields
+        dict with 'attention' tensor and metadata fields
     """
     import json
 

@@ -19,7 +19,7 @@ def run_phase_8_1(config: Config):
         config: Global configuration object
 
     Returns:
-        Dict containing threshold calculation results
+        dict containing threshold calculation results
     """
     logger.info("Starting Phase 8.1: Percentile Threshold Calculator")
 

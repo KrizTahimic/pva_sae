@@ -437,7 +437,7 @@ def load_splits(
     split_dir: str,
     dataset_name: str = "mbpp",
     return_dataframes: bool = False
-) -> Dict[str, Union[list[int], pd.DataFrame]]:
+) -> dict[str, Union[list[int], pd.DataFrame]]:
     """
     Load previously saved splits from parquet files.
 

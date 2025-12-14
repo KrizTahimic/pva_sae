@@ -62,7 +62,7 @@ def scan_humaneval_imports() -> dict:
     return result
 
 
-def save_imports(imports_data: Dict, output_dir: Path) -> Path:
+def save_imports(imports_data: dict, output_dir: Path) -> Path:
     """
     Save scanned imports to JSON file.
 

@@ -23,7 +23,7 @@ def run_phase_8_2(config: Config):
         config: Global configuration object
 
     Returns:
-        Dict containing optimization results with optimal threshold and comparison data
+        dict containing optimization results with optimal threshold and comparison data
     """
     logger.info("Starting Phase 8.2: Percentile Threshold Optimizer")
 

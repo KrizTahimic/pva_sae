@@ -93,11 +93,11 @@ class SteeringEffectAnalyzer:
     def _load_dependencies(self) -> None:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
-            load_pva_latents, load_sae_and_directions, load_baseline_data
+            load_steering_latents, load_sae_and_directions, load_baseline_data
         )
 
-        # Load PVA latents from Phase 2.5
-        latents = load_pva_latents(self.config)
+        # Load steering latents from Phase 2.5 (separation score selection)
+        latents = load_steering_latents(self.config)
         self.top_latents = latents.top_latents
         self.best_correct_latent = latents.best_correct_latent
         self.best_incorrect_latent = latents.best_incorrect_latent
@@ -598,7 +598,7 @@ class SteeringEffectAnalyzer:
         
         return correction_results, corruption_results, preservation_results, exclusion_summary
         
-    def create_visualizations(self, metrics: Dict) -> None:
+    def create_visualizations(self, metrics: dict) -> None:
         """Create visualization plots for steering effects."""
         plt.style.use('seaborn-v0_8')
         fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
@@ -738,7 +738,7 @@ class SteeringEffectAnalyzer:
             save_json(preserved_examples, self.examples_dir / "preserved_examples.json")
             logger.info(f"Saved {len(preserved_examples)} preserved examples")
         
-    def save_results(self, metrics: Dict, duration: float) -> None:
+    def save_results(self, metrics: dict, duration: float) -> None:
         """Save all results and create phase summary."""
         # Save detailed results
         save_json(metrics, self.output_dir / "steering_effect_analysis.json")
@@ -773,12 +773,12 @@ class SteeringEffectAnalyzer:
                 'correct': {
                     'layer': self.best_correct_latent['layer'],
                     'latent_idx': self.best_correct_latent['latent_idx'],
-                    'separation_score': self.best_correct_latent['separation_score']
+                    'score': self.best_correct_latent.get('separation_score', self.best_correct_latent.get('t_statistic'))
                 },
                 'incorrect': {
                     'layer': self.best_incorrect_latent['layer'],
                     'latent_idx': self.best_incorrect_latent['latent_idx'],
-                    'separation_score': self.best_incorrect_latent['separation_score']
+                    'score': self.best_incorrect_latent.get('separation_score', self.best_incorrect_latent.get('t_statistic'))
                 }
             }
         }
@@ -809,7 +809,7 @@ class SteeringEffectAnalyzer:
         )
         logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
         
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Run full steering effect analysis pipeline."""
         # Handle --viz-only mode
         if handle_viz_only_mode(self, "steering_effect_analysis.json", self.create_visualizations):

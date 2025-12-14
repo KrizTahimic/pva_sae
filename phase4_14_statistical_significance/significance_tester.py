@@ -41,7 +41,7 @@ class SignificanceTester:
         logger.info(f"SignificanceTester initialized")
         logger.info(f"Significance level: {self.alpha}")
         
-    def load_all_results(self) -> tuple[pd.DataFrame, Dict, Dict]:
+    def load_all_results(self) -> tuple[pd.DataFrame, dict, dict]:
         """Load baseline, targeted steering, and zero-discrimination results."""
         # Load Phase 3.5 baseline data (no steering)
         logger.info("Loading Phase 3.5 baseline data (no steering)...")
@@ -84,7 +84,7 @@ class SignificanceTester:
         
         return baseline_data, targeted_results, zero_disc_results
         
-    def extract_baseline_metrics(self, baseline_data: pd.DataFrame) -> Dict:
+    def extract_baseline_metrics(self, baseline_data: pd.DataFrame) -> dict:
         """Extract correction and corruption rates from baseline data."""
         # Split by correctness
         baseline_correct = baseline_data[baseline_data['baseline_passed'] == True]
@@ -99,7 +99,7 @@ class SignificanceTester:
         }
         
     def perform_binomial_test(self, n_successes: int, n_trials: int, 
-                            baseline_rate: float, alternative: str = 'greater') -> Dict:
+                            baseline_rate: float, alternative: str = 'greater') -> dict:
         """Perform binomial test comparing observed vs expected rate."""
         if n_trials == 0:
             logger.warning("No trials available for binomial test")
@@ -133,7 +133,7 @@ class SignificanceTester:
         }
         
     def perform_preservation_triangulation(self, baseline_data: pd.DataFrame,
-                                         targeted: Dict, zero_disc: Dict) -> Dict:
+                                         targeted: dict, zero_disc: dict) -> dict:
         """Perform triangulation for preservation experiments (correct→correct)."""
         # Get baseline correct problems - baseline has no steering, so preservation rate is 100%
         baseline_correct = baseline_data[baseline_data['baseline_passed'] == True]
@@ -202,7 +202,7 @@ class SignificanceTester:
         }
 
     def perform_correction_triangulation(self, baseline_data: pd.DataFrame,
-                                       targeted: Dict, zero_disc: Dict) -> Dict:
+                                       targeted: dict, zero_disc: dict) -> dict:
         """Perform triangulation for correction experiments (incorrect→correct)."""
         # Get baseline incorrect problems
         baseline_incorrect = baseline_data[baseline_data['baseline_passed'] == False]
@@ -271,7 +271,7 @@ class SignificanceTester:
         }
         
     def perform_corruption_triangulation(self, baseline_data: pd.DataFrame, 
-                                       targeted: Dict, zero_disc: Dict) -> Dict:
+                                       targeted: dict, zero_disc: dict) -> dict:
         """Perform triangulation for corruption experiments (correct→incorrect)."""
         # Get baseline correct problems
         baseline_correct = baseline_data[baseline_data['baseline_passed'] == True]
@@ -340,8 +340,8 @@ class SignificanceTester:
             'comparisons': comparisons
         }
         
-    def interpret_triangulation(self, correction_tri: Dict, corruption_tri: Dict,
-                               preservation_tri: Dict) -> Dict:
+    def interpret_triangulation(self, correction_tri: dict, corruption_tri: dict,
+                               preservation_tri: dict) -> dict:
         """Generate comprehensive interpretation of triangulation results."""
         correction_comps = correction_tri['comparisons']
         corruption_comps = corruption_tri['comparisons']
@@ -401,7 +401,7 @@ class SignificanceTester:
             }
         }
         
-    def _interpret_correction_triangulation(self, comparisons: Dict) -> str:
+    def _interpret_correction_triangulation(self, comparisons: dict) -> str:
         """Generate detailed interpretation for correction triangulation."""
         findings = []
         
@@ -422,7 +422,7 @@ class SignificanceTester:
         
         return " | ".join(findings)
         
-    def _interpret_corruption_triangulation(self, comparisons: Dict) -> str:
+    def _interpret_corruption_triangulation(self, comparisons: dict) -> str:
         """Generate detailed interpretation for corruption triangulation."""
         findings = []
         
@@ -443,7 +443,7 @@ class SignificanceTester:
         
         return " | ".join(findings)
 
-    def _interpret_preservation_triangulation(self, comparisons: Dict) -> str:
+    def _interpret_preservation_triangulation(self, comparisons: dict) -> str:
         """Generate detailed interpretation for preservation triangulation."""
         findings = []
 
@@ -463,7 +463,7 @@ class SignificanceTester:
 
         return " | ".join(findings)
 
-    def create_visualization(self, correction_tri: Dict, corruption_tri: Dict, preservation_tri: Dict) -> None:
+    def create_visualization(self, correction_tri: dict, corruption_tri: dict, preservation_tri: dict) -> None:
         """Create bar plots comparing all three conditions."""
         fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
 
@@ -533,7 +533,7 @@ class SignificanceTester:
         
         logger.info(f"Saved visualization to: {output_file}")
         
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Run triangulation statistical significance testing."""
         # Handle --viz-only mode
         if handle_viz_only_mode(
@@ -696,7 +696,7 @@ class SignificanceTester:
 
         return results
         
-    def _save_summary_report(self, results: Dict) -> None:
+    def _save_summary_report(self, results: dict) -> None:
         """Save human-readable summary report."""
         report_lines = [
             "PHASE 4.14: STATISTICAL TRIANGULATION ANALYSIS",

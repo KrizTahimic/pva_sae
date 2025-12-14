@@ -64,7 +64,7 @@ class TemperatureAUROCEvaluator:
         else:
             phase3_8_dir = phase3_8_path
             
-        self.phase3_8_results_path = phase3_8_dir / "evaluation_results.json"
+        self.phase3_8_results_path = phase3_8_dir / "auroc_f1_results.json"
         if not self.phase3_8_results_path.exists():
             raise FileNotFoundError(f"Phase 3.8 results not found at {self.phase3_8_results_path}")
         
@@ -91,7 +91,7 @@ class TemperatureAUROCEvaluator:
             if not temp_file.exists():
                 raise FileNotFoundError(f"Temperature dataset not found: {temp_file}")
     
-    def load_best_latents(self) -> dict[str, Dict]:
+    def load_best_latents(self) -> dict[str, dict]:
         """Load best latents and thresholds from Phase 3.8."""
         self.logger.info("Loading Phase 3.8 best latents and thresholds")
         
@@ -198,7 +198,7 @@ class TemperatureAUROCEvaluator:
         
         return np.array(sample_latent_values), np.array(sample_labels)
     
-    def evaluate_across_temperatures(self, best_latents: dict[str, Dict]) -> Dict:
+    def evaluate_across_temperatures(self, best_latents: dict[str, dict]) -> dict:
         """Evaluate feature performance at each temperature."""
         results = {}
         
@@ -286,7 +286,7 @@ class TemperatureAUROCEvaluator:
         
         return results
     
-    def plot_temperature_trends(self, results: Dict) -> None:
+    def plot_temperature_trends(self, results: dict) -> None:
         """Create temperature vs metric plots with enhanced visualizations."""
         temperatures = sorted(results.keys())
         
@@ -358,7 +358,7 @@ class TemperatureAUROCEvaluator:
         
         self.logger.info(f"Saved temperature trends plot to {output_path}")
     
-    def plot_roc_curves(self, results: Dict) -> None:
+    def plot_roc_curves(self, results: dict) -> None:
         """Plot ROC curves for all temperatures."""
         temperatures = sorted(results.keys())
         
@@ -426,7 +426,7 @@ class TemperatureAUROCEvaluator:
         
         self.logger.info(f"Saved ROC curves plot to {output_path}")
     
-    def plot_precision_recall_curves(self, results: Dict) -> None:
+    def plot_precision_recall_curves(self, results: dict) -> None:
         """Plot Precision-Recall curves for all temperatures."""
         from sklearn.metrics import average_precision_score
         
@@ -518,7 +518,7 @@ class TemperatureAUROCEvaluator:
         
         self.logger.info(f"Saved Precision-Recall curves plot to {output_path}")
     
-    def generate_summary(self, results: Dict, best_latents: dict[str, Dict]) -> str:
+    def generate_summary(self, results: dict, best_latents: dict[str, dict]) -> str:
         """Generate human-readable summary of results."""
         lines = ["=" * 60]
         lines.append("PHASE 3.10: TEMPERATURE-BASED AUROC ANALYSIS")
@@ -620,7 +620,7 @@ class TemperatureAUROCEvaluator:
         
         return "\n".join(lines)
     
-    def save_results(self, results: Dict, best_latents: dict[str, Dict]) -> None:
+    def save_results(self, results: dict, best_latents: dict[str, dict]) -> None:
         """Save all results to output directory."""
         # Save comprehensive JSON results
         output_data = {
@@ -667,7 +667,7 @@ class TemperatureAUROCEvaluator:
         )
         self.logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
     
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Run the complete temperature-based AUROC analysis."""
         # Handle --viz-only mode
         def viz_from_data(data):

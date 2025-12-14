@@ -53,18 +53,28 @@ class WeightOrthogonalizer:
         """Initialize with configuration, load dependencies."""
         self.config = config
         self.device = detect_device()
-        
+
         # Phase output directories with dataset suffix
         self.output_dir = Path(get_phase_output_dir('5.3', config))
         ensure_directory_exists(self.output_dir)
         logger.info(f"Output directory: {self.output_dir}")
-        
+
         self.examples_dir = self.output_dir / "examples"
         ensure_directory_exists(self.examples_dir)
-        
-        # Load dependencies
+
+        # Load model first (needed for SAE direction dtype matching)
+        # This model will be used for the first orthogonalization experiment
+        logger.info(f"Loading model: {config.model_name}")
+        self.model, self.tokenizer = load_model_and_tokenizer(
+            config.model_name,
+            device=self.device,
+            trust_remote_code=config.model_trust_remote_code
+        )
+        self.model.eval()
+
+        # Load dependencies (uses self.model for SAE dtype matching)
         self._load_dependencies()
-        
+
         # Split baseline data by correctness
         self._split_baseline_by_correctness()
 
@@ -77,21 +87,22 @@ class WeightOrthogonalizer:
     def _load_dependencies(self) -> None:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
-            load_pva_latents, load_sae_and_directions, load_baseline_data
+            load_steering_latents, load_sae_and_directions, load_baseline_data
         )
 
-        # Load PVA latents from Phase 2.5
-        latents = load_pva_latents(self.config)
+        # Load steering latents from Phase 2.5 (separation score selection)
+        latents = load_steering_latents(self.config)
         self.top_latents = latents.top_latents
         self.best_correct_latent = latents.best_correct_latent
         self.best_incorrect_latent = latents.best_incorrect_latent
+        self.phase2_5_dir = latents.phase_dir
 
         # Load baseline data from Phase 3.5
-        self.baseline_data, _ = load_baseline_data(
+        self.baseline_data, self.phase3_5_dir = load_baseline_data(
             self.config, "3.5", "dataset_temp_0_0.parquet"
         )
 
-        # Load SAE models and extract latent directions
+        # Load SAE models and extract latent directions (uses self.model for dtype)
         sae = load_sae_and_directions(
             self.config, self.device, self.model,
             self.best_correct_latent, self.best_incorrect_latent
@@ -149,10 +160,10 @@ class WeightOrthogonalizer:
         )
         return generated_text
     
-    def apply_incorrect_orthogonalization(self) -> Dict:
+    def apply_incorrect_orthogonalization(self) -> dict:
         """
         Apply orthogonalization using incorrect feature direction.
-        
+
         Expected effects:
         - Correction: Initially incorrect problems may become correct
         - Preservation: Initially correct problems should remain correct
@@ -160,15 +171,10 @@ class WeightOrthogonalizer:
         logger.info("\n" + "="*60)
         logger.info("Applying INCORRECT feature orthogonalization")
         logger.info("="*60)
-        
-        # Load fresh model
-        logger.info("Loading fresh model for incorrect orthogonalization...")
-        model, tokenizer = load_model_and_tokenizer(
-            self.config.model_name,
-            device=self.device,
-            trust_remote_code=self.config.model_trust_remote_code
-        )
-        model.eval()
+
+        # Use self.model (loaded in __init__) for this experiment
+        model = self.model
+        tokenizer = self.tokenizer
         
         # Apply orthogonalization
         logger.info("Orthogonalizing weights to remove incorrect latent...")
@@ -377,14 +383,14 @@ class WeightOrthogonalizer:
         logger.info(f"  Preservation rate: {preservation_rate:.1f}% ({n_preserved}/{n_correct})")
         logger.info(f"  Correction p-value: {correction_pvalue:.4f} {'(significant)' if correction_pvalue < 0.05 else '(not significant)'}")
         logger.info(f"  Preservation p-value: {preservation_pvalue:.4f} {'(significant)' if preservation_pvalue < 0.05 else '(not significant)'}")
-        
-        # Clean up
-        del model
+
+        # Note: model is self.model, will be cleaned up after all experiments
+        # (second experiment loads a fresh model anyway)
         torch.cuda.empty_cache()
-        
+
         return results
     
-    def apply_correct_orthogonalization(self) -> Dict:
+    def apply_correct_orthogonalization(self) -> dict:
         """
         Apply orthogonalization using correct feature direction.
         
@@ -656,7 +662,7 @@ class WeightOrthogonalizer:
         
         logger.info(f"Saved examples to {self.examples_dir}")
     
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Main execution pipeline."""
         # Handle --viz-only mode
         def viz_from_data(data):
@@ -702,12 +708,12 @@ class WeightOrthogonalizer:
                 'correct': {
                     'layer': self.best_correct_latent['layer'],
                     'latent_idx': self.best_correct_latent['latent_idx'],
-                    'separation_score': self.best_correct_latent['separation_score']
+                    'score': self.best_correct_latent.get('separation_score', self.best_correct_latent.get('t_statistic'))
                 },
                 'incorrect': {
                     'layer': self.best_incorrect_latent['layer'],
                     'latent_idx': self.best_incorrect_latent['latent_idx'],
-                    'separation_score': self.best_incorrect_latent['separation_score']
+                    'score': self.best_incorrect_latent.get('separation_score', self.best_incorrect_latent.get('t_statistic'))
                 }
             },
             'incorrect_orthogonalization': self.incorrect_results,

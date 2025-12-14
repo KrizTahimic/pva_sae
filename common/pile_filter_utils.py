@@ -27,7 +27,7 @@ def load_pile_frequencies(config: Config, device: str = "cpu") -> dict[int, torc
         device: Device to load tensors to
 
     Returns:
-        Dict mapping layer_idx to frequency tensors (shape: [num_features])
+        dict mapping layer_idx to frequency tensors (shape: [num_features])
 
     Raises:
         FileNotFoundError: If Phase 2.3 output directory doesn't exist
@@ -67,9 +67,9 @@ def apply_pile_filter(
     keeping only features specific to code correctness.
 
     Args:
-        top_features: Dict with 'correct' and 'incorrect' lists of features.
+        top_features: dict with 'correct' and 'incorrect' lists of features.
                       Each feature must have 'layer' and 'latent_idx' keys.
-        pile_frequencies: Dict mapping layer_idx to frequency tensors
+        pile_frequencies: dict mapping layer_idx to frequency tensors
         threshold: Maximum pile activation frequency (features above this are filtered)
         max_features: Maximum number of features to keep per category (default: 20)
 

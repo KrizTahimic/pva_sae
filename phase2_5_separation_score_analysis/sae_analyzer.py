@@ -120,7 +120,7 @@ class SimplifiedSAEAnalyzer:
             'mean_incorrect': mean_incorrect
         }
     
-    def analyze_layer(self, layer_idx: int) -> Dict:
+    def analyze_layer(self, layer_idx: int) -> dict:
         """Analyze a single layer for PVA directions."""
         logger.info(f"Analyzing layer {layer_idx}")
         

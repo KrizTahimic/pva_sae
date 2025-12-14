@@ -86,11 +86,11 @@ class InstructSteeringAnalyzer:
     def _load_dependencies(self) -> None:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
-            load_pva_latents, load_sae_and_directions, load_baseline_data
+            load_steering_latents, load_sae_and_directions, load_baseline_data
         )
 
-        # Load PVA latents from Phase 2.5
-        latents = load_pva_latents(self.config)
+        # Load steering latents from Phase 2.5 (separation score selection)
+        latents = load_steering_latents(self.config)
         self.top_latents = latents.top_latents
         self.best_correct_latent = latents.best_correct_latent
         self.best_incorrect_latent = latents.best_incorrect_latent
@@ -119,8 +119,8 @@ class InstructSteeringAnalyzer:
 
         logger.info("Dependencies loaded successfully")
         
-    def save_checkpoint(self, steering_type: str, results: list[Dict], 
-                       excluded_tasks: list[Dict], last_idx: int, 
+    def save_checkpoint(self, steering_type: str, results: list[dict], 
+                       excluded_tasks: list[dict], last_idx: int, 
                        total_tasks: int) -> None:
         """Save checkpoint for current steering experiment."""
         checkpoint_data = {
@@ -144,7 +144,7 @@ class InstructSteeringAnalyzer:
         # Clean up old checkpoints (keep only last 3)
         self.cleanup_old_checkpoints(steering_type)
     
-    def load_checkpoint(self, steering_type: str) -> Optional[Dict]:
+    def load_checkpoint(self, steering_type: str) -> Optional[dict]:
         """Load most recent checkpoint for steering type if available."""
         checkpoint_pattern = f"checkpoint_{steering_type}_*.json"
         checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
@@ -505,7 +505,7 @@ class InstructSteeringAnalyzer:
         
     def run_statistical_tests(self, correction_results: pd.DataFrame, 
                             corruption_results: pd.DataFrame,
-                            preservation_results: pd.DataFrame) -> Dict:
+                            preservation_results: pd.DataFrame) -> dict:
         """Run binomial tests for statistical significance."""
         logger.info("Running statistical tests on instruction-tuned model results...")
         
@@ -575,7 +575,7 @@ class InstructSteeringAnalyzer:
         
         return results
 
-    def load_base_model_results(self) -> Optional[Dict]:
+    def load_base_model_results(self) -> Optional[dict]:
         """Load Phase 4.8 base model results for comparison."""
         try:
             phase4_8_output = discover_latest_phase_output("4.8")
@@ -595,7 +595,7 @@ class InstructSteeringAnalyzer:
             logger.warning(f"Failed to load base model results: {e}")
             return None
 
-    def create_cross_model_comparison(self, instruct_metrics: Dict, base_results: Optional[Dict]) -> Dict:
+    def create_cross_model_comparison(self, instruct_metrics: dict, base_results: Optional[dict]) -> dict:
         """Create comparison between instruction-tuned and base model results."""
         if base_results is None:
             return {'comparison_available': False, 'reason': 'Base model results not available'}
@@ -639,7 +639,7 @@ class InstructSteeringAnalyzer:
         
         return comparison
         
-    def create_visualizations(self, metrics: Dict) -> None:
+    def create_visualizations(self, metrics: dict) -> None:
         """Create visualization plots for steering effects with cross-model comparison."""
         plt.style.use('seaborn-v0_8')
         
@@ -777,7 +777,7 @@ class InstructSteeringAnalyzer:
             save_json(corrupted_examples, self.examples_dir / "corrupted_examples.json")
             logger.info(f"Saved {len(corrupted_examples)} corrupted examples")
     
-    def save_results(self, metrics: Dict, duration: float) -> None:
+    def save_results(self, metrics: dict, duration: float) -> None:
         """Save all results and create phase summary."""
         # Save detailed results
         save_json(metrics, self.output_dir / "steering_effect_analysis.json")
@@ -813,12 +813,12 @@ class InstructSteeringAnalyzer:
                 'correct': {
                     'layer': self.best_correct_latent['layer'],
                     'latent_idx': self.best_correct_latent['latent_idx'],
-                    'separation_score': self.best_correct_latent['separation_score']
+                    'score': self.best_correct_latent.get('separation_score', self.best_correct_latent.get('t_statistic'))
                 },
                 'incorrect': {
                     'layer': self.best_incorrect_latent['layer'],
                     'latent_idx': self.best_incorrect_latent['latent_idx'],
-                    'separation_score': self.best_incorrect_latent['separation_score']
+                    'score': self.best_incorrect_latent.get('separation_score', self.best_incorrect_latent.get('t_statistic'))
                 }
             }
         }
@@ -827,7 +827,7 @@ class InstructSteeringAnalyzer:
         
         logger.info(f"Saved results to {self.output_dir}")
         
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Run full instruction-tuned model steering effect analysis pipeline."""
         # Handle --viz-only mode
         if handle_viz_only_mode(self, "steering_effect_analysis.json", self.create_visualizations):

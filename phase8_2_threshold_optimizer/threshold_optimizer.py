@@ -127,36 +127,30 @@ class ThresholdOptimizer:
         if not phase3_8_output:
             raise FileNotFoundError("Phase 3.8 output not found. Run Phase 3.8 first.")
 
-        phase3_8_results = load_json(Path(phase3_8_output).parent / "evaluation_results.json")
+        phase3_8_results = load_json(Path(phase3_8_output).parent / "auroc_f1_results.json")
 
-        # Extract incorrect-predicting feature info
-        incorrect_pred_info = phase3_8_results['incorrect_predicting_feature']
-        self.incorrect_pred_layer = incorrect_pred_info['feature']['layer']  # 19
-        self.incorrect_pred_latent = incorrect_pred_info['feature']['idx']  # 5441
+        # Extract incorrect-predicting latent info
+        incorrect_pred_info = phase3_8_results['incorrect_predicting_latent']
+        self.incorrect_pred_layer = incorrect_pred_info['layer']
+        self.incorrect_pred_latent = incorrect_pred_info['latent_idx']
 
-        logger.info(f"Incorrect-predicting feature: Layer {self.incorrect_pred_layer}, "
-                   f"Feature {self.incorrect_pred_latent}")
+        logger.info(f"Incorrect-predicting latent: Layer {self.incorrect_pred_layer}, "
+                   f"Latent {self.incorrect_pred_latent}")
 
-        # === LOAD PHASE 2.5 TOP LATENTS (for correct-steering direction) ===
-        logger.info("Loading steering latents from Phase 2.5...")
-        phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
-        if not phase2_5_output:
-            raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
-
-        top_latents_file = Path(phase2_5_output).parent / "top_20_latents.json"
-        if not top_latents_file.exists():
-            raise FileNotFoundError(f"Top latents file not found: {top_latents_file}")
-
-        top_latents = load_json(top_latents_file)
+        # === LOAD STEERING LATENTS (for correct-steering direction) ===
+        from common.steering_setup import load_steering_latents
+        pva_latents = load_steering_latents(self.config)
+        top_latents = pva_latents.top_latents
 
         # Get best correct-steering latent
         self.best_correct_latent = top_latents['correct'][0]
-        self.correct_steer_layer = self.best_correct_latent['layer']  # 16
-        self.correct_steer_latent = self.best_correct_latent['latent_idx']  # 11225
+        self.correct_steer_layer = self.best_correct_latent['layer']
+        self.correct_steer_latent = self.best_correct_latent['latent_idx']
 
+        correct_score = self.best_correct_latent.get('separation_score', self.best_correct_latent.get('t_statistic', 0))
         logger.info(f"Correct-steering latent: Layer {self.correct_steer_layer}, "
                    f"Latent {self.correct_steer_latent}, "
-                   f"Score {self.best_correct_latent['separation_score']:.4f}")
+                   f"Score {correct_score:.4f}")
 
         # === LOAD SAEs ===
         logger.info("Loading SAE models...")
@@ -177,9 +171,13 @@ class ThresholdOptimizer:
         self.correct_latent_direction = self.correct_latent_direction.to(dtype=model_dtype)
         logger.info(f"Latent direction converted to model dtype: {model_dtype}")
 
-        # === LOAD PHASE 4.8 OPTIMAL COEFFICIENT ===
-        self.steering_coefficient = self.config.phase4_8_correct_coefficient
-        logger.info(f"Using Phase 4.8 optimal coefficient: {self.steering_coefficient}")
+        # === LOAD PHASE 4.6 REFINED COEFFICIENT ===
+        phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
+        if not phase4_6_output:
+            raise FileNotFoundError("Phase 4.6 output not found. Run Phase 4.6 first.")
+        refined_coefficients = load_json(Path(phase4_6_output).parent / "refined_coefficients.json")
+        self.steering_coefficient = refined_coefficients['correct']['refined_coefficient']
+        logger.info(f"Using Phase 4.6 refined coefficient: {self.steering_coefficient}")
 
         # === LOAD PHASE 0.1 PROBLEM SPECIFICATIONS ===
         logger.info("Loading MBPP problem specifications from Phase 0.1...")
@@ -306,7 +304,7 @@ class ThresholdOptimizer:
         threshold: float,
         dataset_type: str,
         last_index: int,
-        results: list[Dict],
+        results: list[dict],
         total_problems: int
     ):
         """Save checkpoint for current grid search iteration."""
@@ -349,7 +347,7 @@ class ThresholdOptimizer:
         save_json(checkpoint_data, checkpoint_file)
         logger.debug(f"✓ Checkpoint saved: {checkpoint_file.name}")
 
-    def _load_checkpoint(self, percentile: int, dataset_type: str) -> Optional[Dict]:
+    def _load_checkpoint(self, percentile: int, dataset_type: str) -> Optional[dict]:
         """Load most recent checkpoint for percentile + dataset type."""
         checkpoint_dir = self._get_checkpoint_dir(percentile, dataset_type)
 
@@ -409,7 +407,7 @@ class ThresholdOptimizer:
         test_cases: list[str],
         threshold: float,
         baseline_passed: bool
-    ) -> Dict:
+    ) -> dict:
         """
         Generate code with conditional steering based on feature activation.
 
@@ -421,7 +419,7 @@ class ThresholdOptimizer:
             baseline_passed: Whether problem passed baseline test (from Phase 3.6)
 
         Returns:
-            Dict with generation results and steering info
+            dict with generation results and steering info
         """
         # Tokenize prompt
         inputs = self.tokenizer(
@@ -447,10 +445,10 @@ class ThresholdOptimizer:
             residual = input[0]  # (batch, seq_len, hidden_dim)
             raw_activation = residual[:, -1, :]  # (batch, 2304)
 
-            # Decompose via SAE - convert to float32 for SAE encoder
+            # Decompose via SAE - match SAE dtype (bfloat16)
             with torch.no_grad():
-                activation_float = raw_activation.to(dtype=torch.float32, device=self.device)
-                latent_activations = self.sae_l19.encode(activation_float)  # (batch, 2304) -> (batch, 16384)
+                activation_bf16 = raw_activation.to(dtype=self.sae_l19.W_enc.dtype, device=self.device)
+                latent_activations = self.sae_l19.encode(activation_bf16)  # (batch, 2304) -> (batch, 16384)
                 incorrect_pred_activation = latent_activations[0, self.incorrect_pred_latent].item()
 
             # Store activation value
@@ -587,8 +585,8 @@ class ThresholdOptimizer:
         percentile: int,
         dataset_type: str,
         start_idx: int = 0,
-        previous_results: list[Dict] = None
-    ) -> Dict:
+        previous_results: list[dict] = None
+    ) -> dict:
         """
         Run steering experiment with checkpoint support.
 
@@ -600,7 +598,7 @@ class ThresholdOptimizer:
             previous_results: Previous results from checkpoint
 
         Returns:
-            Dict with metrics
+            dict with metrics
         """
         # Select dataset
         if dataset_type == 'correction':
@@ -740,7 +738,7 @@ class ThresholdOptimizer:
 
         return metrics
 
-    def _calculate_metrics(self, results: list[Dict], dataset_type: str, total_problems: int) -> Dict:
+    def _calculate_metrics(self, results: list[dict], dataset_type: str, total_problems: int) -> dict:
         """Calculate metrics from experiment results."""
         # Filter out errors
         valid_results = [r for r in results if 'error' not in r]
@@ -788,7 +786,7 @@ class ThresholdOptimizer:
                 'steering_rate': steering_rate
             }
 
-    def optimize_threshold(self) -> Dict:
+    def optimize_threshold(self) -> dict:
         """
         Main optimization loop with resume support.
 
@@ -796,7 +794,7 @@ class ThresholdOptimizer:
         and selects the optimal threshold based on net benefit.
 
         Returns:
-            Dict with optimal threshold and full comparison data
+            dict with optimal threshold and full comparison data
         """
         logger.info("="*60)
         logger.info("STARTING GRID SEARCH OPTIMIZATION")
@@ -924,7 +922,7 @@ class ThresholdOptimizer:
             'results': results
         }
 
-    def _load_percentile_results(self, percentile: int, threshold: float) -> Dict:
+    def _load_percentile_results(self, percentile: int, threshold: float) -> dict:
         """Load results for a completed percentile from checkpoints."""
         # Load correction checkpoint
         correction_checkpoint = self._load_checkpoint(percentile, 'correction')
@@ -957,7 +955,7 @@ class ThresholdOptimizer:
             'net_benefit': net_benefit
         }
 
-    def save_results(self, optimization_results: Dict):
+    def save_results(self, optimization_results: dict):
         """Save optimization results to output files."""
         logger.info("\nSaving results...")
 
@@ -1089,7 +1087,7 @@ class ThresholdOptimizer:
 
         logger.info(f"\nResults saved to: {self.output_dir}")
 
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Main execution: Grid search and result saving."""
         logger.info("="*60)
         logger.info("Starting Phase 8.2: Percentile Threshold Optimizer")

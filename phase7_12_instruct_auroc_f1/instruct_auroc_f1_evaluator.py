@@ -187,7 +187,7 @@ def plot_confusion_matrix(
     plt.close()
 
 def plot_comparative_metrics(
-    results: Dict,
+    results: dict,
     output_dir: Path,
     y_true_val_correct: Optional[np.ndarray] = None,
     scores_val_correct: Optional[np.ndarray] = None,

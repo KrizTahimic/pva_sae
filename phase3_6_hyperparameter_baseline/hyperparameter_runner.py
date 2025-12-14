@@ -42,7 +42,7 @@ class HyperparameterDataRunner:
         Discover best latents from Phase 2.10 (required).
 
         Returns:
-            Dict with 'correct' and 'incorrect' latent info (layer and latent_idx)
+            dict with 'correct' and 'incorrect' latent info (layer and latent_idx)
         """
         # Use Phase 2.10 (t-statistic selection) - no fallback
         phase_2_10_dir = Path(get_phase_output_dir("2.10", self.config))
@@ -227,11 +227,11 @@ class HyperparameterDataRunner:
         
         return output_dir
     
-    def _process_single_task(self, row: pd.Series) -> Optional[Dict]:
+    def _process_single_task(self, row: pd.Series) -> Optional[dict]:
         """Process a single hyperparameter task at temperature 0.0 with retry logic.
         
         Returns:
-            Dict with results if successful, None if task failed after all retries
+            dict with results if successful, None if task failed after all retries
         """
         # Build prompt
         test_cases_str = "\n".join([
@@ -497,7 +497,7 @@ class HyperparameterDataRunner:
         logger.info("Phase 3.6 completed successfully")
         return metadata
     
-    def _save_results(self, results: list[Dict]) -> None:
+    def _save_results(self, results: list[dict]) -> None:
         """Save results to parquet file."""
         df = pd.DataFrame(results)
         
@@ -509,10 +509,10 @@ class HyperparameterDataRunner:
     
     def _create_metadata(
         self,
-        all_results: list[Dict],
+        all_results: list[dict],
         hyperparams_task_ids: list[str],
-        excluded_tasks: list[Dict]
-    ) -> Dict:
+        excluded_tasks: list[dict]
+    ) -> dict:
         """Create metadata summary."""
         correct_count = sum(1 for r in all_results if r['baseline_passed'])
         n_attempted = len(hyperparams_task_ids)
@@ -546,7 +546,7 @@ class HyperparameterDataRunner:
         
         return metadata
     
-    def _save_metadata(self, metadata: Dict) -> None:
+    def _save_metadata(self, metadata: dict) -> None:
         """Save metadata to file."""
         output_file = self.output_dir / "metadata.json"
         save_json(metadata, output_file)

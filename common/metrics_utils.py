@@ -33,7 +33,7 @@ def calculate_classification_metrics(
         threshold: Decision threshold for converting scores to predictions
 
     Returns:
-        Dict containing:
+        dict containing:
             - auroc: Area under ROC curve (threshold-independent)
             - f1: F1 score at threshold
             - precision: Precision at threshold

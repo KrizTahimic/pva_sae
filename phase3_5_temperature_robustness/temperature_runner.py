@@ -45,7 +45,7 @@ class TemperatureRobustnessRunner:
         Discover best latents from Phase 2.10 (required).
 
         Returns:
-            Dict with 'correct' and 'incorrect' latent info (layer and latent_idx)
+            dict with 'correct' and 'incorrect' latent info (layer and latent_idx)
         """
         # Use Phase 2.10 (t-statistic selection) - no fallback
         phase_2_10_dir = Path(get_phase_output_dir("2.10", self.config))
@@ -427,7 +427,7 @@ class TemperatureRobustnessRunner:
         
         return memory_percent
     
-    def _process_all_tasks(self, validation_data: pd.DataFrame) -> tuple[list[Dict], list[Dict]]:
+    def _process_all_tasks(self, validation_data: pd.DataFrame) -> tuple[list[dict], list[dict]]:
         """Process all validation tasks with retry logic.
         
         Returns:
@@ -618,7 +618,7 @@ class TemperatureRobustnessRunner:
         prompt: str,
         temperature: float,
         sample_idx: int
-    ) -> Dict:
+    ) -> dict:
         """Generate solution for a single task/temperature/sample combination."""
         start_time = time.time()
         
@@ -682,7 +682,7 @@ class TemperatureRobustnessRunner:
     
     def _save_temperature_results(
         self,
-        results: list[Dict],
+        results: list[dict],
         temperature: float
     ) -> None:
         """Save results for a specific temperature."""
@@ -697,10 +697,10 @@ class TemperatureRobustnessRunner:
     
     def _create_metadata(
         self,
-        all_results: list[Dict],
+        all_results: list[dict],
         validation_task_ids: list[str],
-        excluded_tasks: list[Dict]
-    ) -> Dict:
+        excluded_tasks: list[dict]
+    ) -> dict:
         """Create metadata summary."""
         n_attempted = len(validation_task_ids)
         n_excluded = len(excluded_tasks)
@@ -740,7 +740,7 @@ class TemperatureRobustnessRunner:
         
         return metadata
     
-    def _save_metadata(self, metadata: Dict) -> None:
+    def _save_metadata(self, metadata: dict) -> None:
         """Save metadata to file."""
         output_file = self.output_dir / "metadata.json"
         with open(output_file, 'w') as f:

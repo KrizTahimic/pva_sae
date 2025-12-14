@@ -680,6 +680,43 @@ Use consistent terminology when working with Sparse Autoencoders (SAEs):
 
 ---
 
+## Latent Source Architecture
+
+The codebase uses TWO distinct latent selection methods for different purposes:
+
+| Source | Selection Metric | Function | Used By |
+|--------|------------------|----------|---------|
+| **Phase 2.10** | t-statistic | `load_predicting_latents()` | Phases 3.x (AUROC/F1) |
+| **Phase 2.5** | separation score | `load_steering_latents()` | Phases 4.x, 5.x, 6.x, 7.x |
+
+### Why Two Sources?
+
+From the thesis methodology:
+- **Predicting directions** require sensitivity to confidence gradients (t-statistic) - used for statistical validation
+- **Steering directions** require categorical exclusivity for clean intervention (separation score) - used for causal validation
+
+### Usage Rules
+
+1. **Statistical validation (AUROC/F1)** → Use `load_predicting_latents()` (Phase 2.10)
+2. **Causal validation (steering/orthogonalization)** → Use `load_steering_latents()` (Phase 2.5)
+3. **Selective steering (Phase 8)** → Uses BOTH:
+   - Predicting latent info from Phase 3.8 (which used Phase 2.10) to decide WHEN to intervene
+   - Steering latent from Phase 2.5 via `load_steering_latents()` to perform the intervention
+
+### Phase → Source Mapping
+
+| Phase | Purpose | Source |
+|-------|---------|--------|
+| 3.5, 3.8, 3.10, 3.11, 3.12 | AUROC/F1 validation | Phase 2.10 (predicting) |
+| 4.5, 4.6, 4.7, 4.8, 4.10, 4.12, 4.14, 4.16 | Steering | Phase 2.5 (steering) |
+| 5.3, 5.6, 5.9 | Weight orthogonalization | Phase 2.5 (steering) |
+| 6.3 | Attention analysis | Phase 2.5 (steering) |
+| 7.6, 7.9 | Instruct steering | Phase 2.5 (steering) |
+| 7.12 | Instruct AUROC/F1 | Phase 2.10 (predicting) |
+| 8.1, 8.2, 8.3 | Selective steering | Both (3.8→2.10 for prediction, 2.5 for steering) |
+
+---
+
 ## Test Outcome Terminology Standard
 
 Use consistent terminology for test/correctness results:

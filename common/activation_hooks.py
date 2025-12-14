@@ -332,7 +332,7 @@ def calculate_section_boundaries(prompt_text: str, tokenizer, tokenized_prompt: 
         tokenized_prompt: Original tokenized prompt
     
     Returns:
-        Dict with 'problem_end', 'test_end' token indices
+        dict with 'problem_end', 'test_end' token indices
     """
     boundaries = {}
     

@@ -103,11 +103,11 @@ CONFIDENT_PHRASES = [
 # PROMPT BUILDERS
 # ============================================================================
 
-def build_prompt_standard(row: Dict) -> str:
+def build_prompt_standard(row: dict) -> str:
     """Standard prompt (no CoT) - baseline."""
     return row['prompt']
 
-def build_prompt_cot(row: Dict) -> str:
+def build_prompt_cot(row: dict) -> str:
     """Build prompt for DeepSeek-R1-Distill from raw Llama Phase 1 data.
 
     DeepSeek-R1 models naturally produce <think>...</think> reasoning blocks,
@@ -153,7 +153,7 @@ def count_phrases(text: str, phrase_list: list[str]) -> dict[str, int]:
             counts[phrase] = len(matches)
     return counts
 
-def analyze_cot_text(cot_text: str) -> Dict:
+def analyze_cot_text(cot_text: str) -> dict:
     """Analyze CoT text for phrase patterns."""
     uncertain_counts = count_phrases(cot_text, UNCERTAIN_PHRASES)
     confident_counts = count_phrases(cot_text, CONFIDENT_PHRASES)
@@ -248,7 +248,7 @@ class CoTPhraseExperiment:
         )
         return generated
 
-    def load_checkpoint(self) -> tuple[list[Dict], set]:
+    def load_checkpoint(self) -> tuple[list[dict], set]:
         """Load checkpoint if exists."""
         if self.checkpoint_file.exists():
             with open(self.checkpoint_file, 'r') as f:
@@ -258,7 +258,7 @@ class CoTPhraseExperiment:
             return checkpoint['results'], processed_ids
         return [], set()
 
-    def save_checkpoint(self, results: list[Dict]):
+    def save_checkpoint(self, results: list[dict]):
         """Save checkpoint."""
         with open(self.checkpoint_file, 'w') as f:
             json.dump({
@@ -336,7 +336,7 @@ class CoTPhraseExperiment:
 
         return results
 
-    def save_results(self, results: list[Dict]):
+    def save_results(self, results: list[dict]):
         """Save final results."""
         with open(self.results_file, 'w') as f:
             json.dump({
@@ -361,7 +361,7 @@ class CoTPhraseExperiment:
             self.checkpoint_file.unlink()
             print("Checkpoint cleaned up")
 
-    def print_summary(self, results: list[Dict]):
+    def print_summary(self, results: list[dict]):
         """Print summary statistics."""
         correct_results = [r for r in results if r['initially_correct']]
         incorrect_results = [r for r in results if not r['initially_correct']]

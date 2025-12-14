@@ -105,7 +105,7 @@ class PileFrequencyComputer:
         Run pile frequency computation for all layers.
 
         Returns:
-            Dict with metadata about the computation
+            dict with metadata about the computation
         """
         logger.info("Starting Phase 2.3: Pile SAE Frequency Computation")
 

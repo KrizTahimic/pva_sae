@@ -42,7 +42,7 @@ class InstructBaselineRunner:
         Discover best layers from Phase 2.10 or Phase 2.5 output.
         
         Returns:
-            Dict with 'correct' and 'incorrect' best layers
+            dict with 'correct' and 'incorrect' best layers
         """
         # Try Phase 2.10 first (t-statistic selection)
         phase_2_10_dir = Path(get_phase_output_dir("2.10", self.config))
@@ -252,11 +252,11 @@ class InstructBaselineRunner:
         
         return output_dir
     
-    def _process_single_task(self, row: pd.Series) -> Optional[Dict]:
+    def _process_single_task(self, row: pd.Series) -> Optional[dict]:
         """Process a single validation task at temperature 0.0 with retry logic.
         
         Returns:
-            Dict with results if successful, None if task failed after all retries
+            dict with results if successful, None if task failed after all retries
         """
         # Build prompt
         test_cases_str = "\n".join([
@@ -533,7 +533,7 @@ class InstructBaselineRunner:
         logger.info("Phase 7.3 completed successfully")
         return metadata
     
-    def _save_results(self, results: list[Dict]) -> None:
+    def _save_results(self, results: list[dict]) -> None:
         """Save results to parquet file."""
         df = pd.DataFrame(results)
         
@@ -545,10 +545,10 @@ class InstructBaselineRunner:
     
     def _create_metadata(
         self,
-        all_results: list[Dict],
+        all_results: list[dict],
         validation_task_ids: list[str],
-        excluded_tasks: list[Dict]
-    ) -> Dict:
+        excluded_tasks: list[dict]
+    ) -> dict:
         """Create metadata summary for instruction-tuned baseline."""
         correct_count = sum(1 for r in all_results if r['baseline_passed'])
         n_attempted = len(validation_task_ids)
@@ -584,7 +584,7 @@ class InstructBaselineRunner:
         
         return metadata
     
-    def _save_metadata(self, metadata: Dict) -> None:
+    def _save_metadata(self, metadata: dict) -> None:
         """Save metadata to file."""
         output_file = self.output_dir / "metadata.json"
         save_json(metadata, output_file)

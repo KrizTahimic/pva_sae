@@ -55,12 +55,12 @@ class TemperatureTrendsVisualizer:
 
         self.logger.info(f"Found Phase 3.10 results: {self.phase3_10_results_path}")
 
-    def load_phase3_10_results(self) -> Dict:
+    def load_phase3_10_results(self) -> dict:
         """Load results from Phase 3.10."""
         self.logger.info("Loading Phase 3.10 temperature analysis results")
         return load_json(self.phase3_10_results_path)
 
-    def plot_temperature_trends(self, results: Dict) -> None:
+    def plot_temperature_trends(self, results: dict) -> None:
         """Create temperature vs metric plots with updated legend labels (predicting instead of preferring)."""
         # Extract the temperature results from the nested structure
         temp_results = results['results_by_temperature']
@@ -135,7 +135,7 @@ class TemperatureTrendsVisualizer:
 
         self.logger.info(f"Saved updated temperature trends plot to {output_path}")
 
-    def generate_summary(self, results: Dict) -> str:
+    def generate_summary(self, results: dict) -> str:
         """Generate a brief summary of what was updated."""
         lines = ["=" * 60]
         lines.append("PHASE 3.11: TEMPERATURE TRENDS VISUALIZATION UPDATE")

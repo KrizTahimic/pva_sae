@@ -104,6 +104,6 @@ def get_special_phases() -> dict[str, str]:
     Get list of phases that require special handling.
 
     Returns:
-        Dict mapping phase_id to reason for special handling
+        dict mapping phase_id to reason for special handling
     """
     return SPECIAL_PHASES.copy()

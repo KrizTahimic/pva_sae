@@ -301,7 +301,7 @@ def save_activations(activations: dict[int, torch.Tensor], filepath: Path) -> No
     """Save activations to safetensors file (preserves bfloat16).
 
     Args:
-        activations: Dict mapping layer index to activation tensor
+        activations: dict mapping layer index to activation tensor
         filepath: Output path (should use .safetensors extension)
     """
     from common.logging import get_logger
@@ -331,7 +331,7 @@ def load_activations(filepath: Path, device: torch.device | str = "cpu") -> dict
         device: Target device for tensors
 
     Returns:
-        Dict mapping layer index to activation tensor
+        dict mapping layer index to activation tensor
     """
     from common.tensor_utils import load_activations as _load_activations
     return _load_activations(filepath, device)

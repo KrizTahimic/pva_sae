@@ -48,7 +48,7 @@ class ZeroDiscriminationSelector:
         logger.info(f"ZeroDiscriminationSelector initialized")
         logger.info(f"Will select {self.n_features} features with separation < {self.separation_threshold}")
         
-    def load_phase1_activations(self) -> tuple[Dict, Dict]:
+    def load_phase1_activations(self) -> tuple[dict, dict]:
         """Load Phase 1 activation data for all features."""
         logger.info("Loading Phase 1 activations...")
         
@@ -186,7 +186,7 @@ class ZeroDiscriminationSelector:
         else:
             logger.debug(f"Memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB)")
             
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Run zero-discrimination feature selection."""
         logger.info("="*60)
         logger.info("Starting Zero-Discrimination Feature Selection")

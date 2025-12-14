@@ -122,40 +122,34 @@ class SelectiveSteeringAnalyzer:
         if not phase3_8_output:
             raise FileNotFoundError("Phase 3.8 output not found. Please run Phase 3.8 first.")
 
-        phase3_8_results = load_json(Path(phase3_8_output).parent / "evaluation_results.json")
+        phase3_8_results = load_json(Path(phase3_8_output).parent / "auroc_f1_results.json")
 
-        # Extract incorrect-predicting feature info
-        incorrect_pred_info = phase3_8_results['incorrect_predicting_feature']
-        self.incorrect_pred_layer = incorrect_pred_info['feature']['layer']  # 19
-        self.incorrect_pred_latent = incorrect_pred_info['feature']['idx']  # 5441
+        # Extract incorrect-predicting latent info
+        incorrect_pred_info = phase3_8_results['incorrect_predicting_latent']
+        self.incorrect_pred_layer = incorrect_pred_info['layer']
+        self.incorrect_pred_latent = incorrect_pred_info['latent_idx']
 
-        # Use Phase 3.8 threshold as baseline
-        phase3_8_threshold = incorrect_pred_info['threshold_optimization']['optimal_threshold']  # 15.5086
+        # Use Phase 3.8 threshold from hyperparameter split
+        phase3_8_threshold = incorrect_pred_info['hyperparameter_split']['threshold']
 
-        logger.info(f"Incorrect-predicting feature: Layer {self.incorrect_pred_layer}, "
-                   f"Feature {self.incorrect_pred_latent}")
+        logger.info(f"Incorrect-predicting latent: Layer {self.incorrect_pred_layer}, "
+                   f"Latent {self.incorrect_pred_latent}")
         logger.info(f"Phase 3.8 optimal threshold: {phase3_8_threshold:.4f}")
 
-        # === LOAD PHASE 2.5 TOP FEATURES (for correct-steering direction) ===
-        logger.info("Loading steering latents from Phase 2.5...")
-        phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
-        if not phase2_5_output:
-            raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
-
-        top_latents_file = Path(phase2_5_output).parent / "top_20_latents.json"
-        if not top_latents_file.exists():
-            raise FileNotFoundError(f"Top latents file not found: {top_latents_file}")
-
-        top_latents = load_json(top_latents_file)
+        # === LOAD STEERING LATENTS (for correct-steering direction) ===
+        from common.steering_setup import load_steering_latents
+        pva_latents = load_steering_latents(self.config)
+        top_latents = pva_latents.top_latents
 
         # Get best correct-steering latent
         self.best_correct_latent = top_latents['correct'][0]
-        self.correct_steer_layer = self.best_correct_latent['layer']  # 16
-        self.correct_steer_latent = self.best_correct_latent['latent_idx']  # 11225
+        self.correct_steer_layer = self.best_correct_latent['layer']
+        self.correct_steer_latent = self.best_correct_latent['latent_idx']
 
+        correct_score = self.best_correct_latent.get('separation_score', self.best_correct_latent.get('t_statistic', 0))
         logger.info(f"Correct-steering latent: Layer {self.correct_steer_layer}, "
                    f"Latent {self.correct_steer_latent}, "
-                   f"Score {self.best_correct_latent['separation_score']:.4f}")
+                   f"Score {correct_score:.4f}")
 
         # === LOAD SAEs ===
         logger.info("Loading SAE models...")
@@ -289,9 +283,9 @@ class SelectiveSteeringAnalyzer:
         self,
         task_id: str,
         prompt: str,
-        test_cases: list[List],
+        test_cases: list[list],
         baseline_row: pd.Series
-    ) -> Dict:
+    ) -> dict:
         """
         Generate code with real-time selective steering based on threshold.
 
@@ -309,7 +303,7 @@ class SelectiveSteeringAnalyzer:
             baseline_row: Row from Phase 3.5 baseline with pre-generated code
 
         Returns:
-            Dict with result information (steered, incorrect_pred_activation, steered_correct, etc.)
+            dict with result information (steered, incorrect_pred_activation, steered_correct, etc.)
         """
         # === STEP 1: Tokenize prompt ===
         input_ids = self.tokenizer.encode(prompt, return_tensors="pt").to(self.device)
@@ -346,8 +340,9 @@ class SelectiveSteeringAnalyzer:
 
                 # Encode through SAE to get latent activation
                 with torch.no_grad():
-                    activation_float = activation.to(dtype=torch.float32, device=self.device)
-                    latent_activations = self.sae_l19.encode(activation_float.unsqueeze(0))
+                    # Match SAE dtype (bfloat16)
+                    activation_bf16 = activation.to(dtype=self.sae_l19.W_enc.dtype, device=self.device)
+                    latent_activations = self.sae_l19.encode(activation_bf16.unsqueeze(0))
                     state.incorrect_pred_activation = latent_activations[0, self.incorrect_pred_latent].item()
 
                 # Check threshold
@@ -451,7 +446,7 @@ class SelectiveSteeringAnalyzer:
         self,
         problems_df: pd.DataFrame,
         experiment_type: str
-    ) -> list[Dict]:
+    ) -> list[dict]:
         """Apply selective steering to a set of problems.
 
         Args:
@@ -500,7 +495,7 @@ class SelectiveSteeringAnalyzer:
             logger.info(f"Goal: Measure selective preservation rate")
 
         logger.info(f"Threshold: {self.threshold:.4f} (Layer {self.incorrect_pred_layer}, Feature {self.incorrect_pred_latent})")
-        logger.info(f"Steering: Layer {self.correct_steer_layer}, Feature {self.correct_steer_feature}, Coefficient {self.correct_coefficient}")
+        logger.info(f"Steering: Layer {self.correct_steer_layer}, Latent {self.correct_steer_latent}, Coefficient {self.correct_coefficient}")
         logger.info(f"{'='*60}\n")
 
         # Process with tqdm progress bar
@@ -640,7 +635,7 @@ class SelectiveSteeringAnalyzer:
 
         return results
 
-    def _calculate_correction_metrics(self, correction_results: list[Dict]) -> Dict:
+    def _calculate_correction_metrics(self, correction_results: list[dict]) -> dict:
         """Calculate metrics for the correction experiment (initially incorrect problems)."""
         total = len(correction_results)
 
@@ -683,7 +678,7 @@ class SelectiveSteeringAnalyzer:
 
         return metrics
 
-    def _calculate_preservation_metrics(self, preservation_results: list[Dict]) -> Dict:
+    def _calculate_preservation_metrics(self, preservation_results: list[dict]) -> dict:
         """Calculate metrics for the preservation experiment (initially correct problems)."""
         total = len(preservation_results)
 
@@ -730,9 +725,9 @@ class SelectiveSteeringAnalyzer:
 
     def _calculate_combined_metrics(
         self,
-        correction_results: list[Dict],
-        preservation_results: list[Dict]
-    ) -> Dict:
+        correction_results: list[dict],
+        preservation_results: list[dict]
+    ) -> dict:
         """Calculate combined metrics across both experiments."""
         total_problems = len(correction_results) + len(preservation_results)
 
@@ -759,8 +754,8 @@ class SelectiveSteeringAnalyzer:
 
     def _save_example_comparisons(
         self,
-        correction_results: list[Dict],
-        preservation_results: list[Dict]
+        correction_results: list[dict],
+        preservation_results: list[dict]
     ) -> None:
         """Save example code comparisons for corrected and preserved steered cases."""
         # Create examples directory
@@ -808,8 +803,8 @@ class SelectiveSteeringAnalyzer:
     def save_checkpoint(
         self,
         experiment_type: str,
-        results: list[Dict],
-        excluded_tasks: list[Dict],
+        results: list[dict],
+        excluded_tasks: list[dict],
         last_idx: int,
         total_tasks: int
     ) -> None:
@@ -835,7 +830,7 @@ class SelectiveSteeringAnalyzer:
         # Clean up old checkpoints (keep only last 3)
         self.cleanup_old_checkpoints(experiment_type)
 
-    def load_checkpoint(self, experiment_type: str) -> Optional[Dict]:
+    def load_checkpoint(self, experiment_type: str) -> Optional[dict]:
         """Load most recent checkpoint for experiment type if available."""
         checkpoint_pattern = f"checkpoint_{experiment_type}_*.json"
         checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
@@ -876,11 +871,11 @@ class SelectiveSteeringAnalyzer:
         if checkpoint_files:
             logger.info(f"Cleaned up {len(checkpoint_files)} checkpoint files")
 
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Main execution: Run TWO separate experiments following Phase 4.8 pattern.
 
         Returns:
-            Dict containing metrics from both experiments
+            dict containing metrics from both experiments
         """
         logger.info("="*60)
         logger.info("Starting Phase 8.3: Selective Steering Analysis")
@@ -939,7 +934,7 @@ class SelectiveSteeringAnalyzer:
             },
             'steering_info': {
                 'layer': self.correct_steer_layer,
-                'feature': self.correct_steer_feature,
+                'latent': self.correct_steer_latent,
                 'coefficient': self.correct_coefficient
             },
             'correction_experiment': correction_metrics,

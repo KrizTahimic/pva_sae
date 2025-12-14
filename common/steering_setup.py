@@ -25,11 +25,12 @@ logger = get_logger("steering_setup")
 
 @dataclass
 class PVALatents:
-    """Container for PVA latent data from Phase 2.5."""
+    """Container for PVA latent data from Phase 2.5 or 2.10."""
     top_latents: dict
     best_correct_latent: dict
     best_incorrect_latent: dict
     phase_dir: str
+    source_phase: str  # "2.5" or "2.10"
 
 
 @dataclass
@@ -41,29 +42,40 @@ class SAEDirections:
     incorrect_direction: torch.Tensor
 
 
-def load_pva_latents(config: Config) -> PVALatents:
-    """Load PVA latents from Phase 2.5.
+def _load_latents_from_phase(config: Config, phase: str, purpose: str) -> PVALatents:
+    """Internal helper to load latents from a specific phase.
+
+    Args:
+        config: Configuration object
+        phase: Phase number ("2.5" or "2.10")
+        purpose: Description for error messages ("predicting" or "steering")
 
     Returns:
-        PVALatents dataclass with top_latents, best latents, and phase dir
+        PVALatents dataclass
 
     Raises:
-        FileNotFoundError: If Phase 2.5 output not found
+        FileNotFoundError: If phase output not found
         ValueError: If latents file has invalid structure
     """
-    logger.info("Loading PVA latents from Phase 2.5...")
-    phase2_5_output = discover_latest_phase_output("2.5", config=config)
-    if not phase2_5_output:
-        raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
+    phase_output = discover_latest_phase_output(phase, config=config)
+    if not phase_output:
+        raise FileNotFoundError(
+            f"Phase {phase} output not found. Run Phase {phase} first.\n"
+            f"Phase {phase} is required for {purpose} latents."
+        )
 
-    phase_dir = str(Path(phase2_5_output).parent)
-    logger.info(f"Using Phase 2.5 output: {phase2_5_output}")
+    latents_file = Path(phase_output).parent / "top_20_latents.json"
+    if not latents_file.exists():
+        raise FileNotFoundError(
+            f"Latents file not found: {latents_file}\n"
+            f"Run Phase {phase} to generate top_20_latents.json"
+        )
+
+    phase_dir = str(Path(phase_output).parent)
+    logger.info(f"Loading {purpose} latents from Phase {phase}...")
+    logger.info(f"Using Phase {phase} output: {phase_dir}")
 
     # Load top latents
-    latents_file = Path(phase2_5_output).parent / "top_20_latents.json"
-    if not latents_file.exists():
-        raise FileNotFoundError(f"Top latents file not found: {latents_file}")
-
     top_latents = load_json(latents_file)
 
     # Validate structure
@@ -77,19 +89,61 @@ def load_pva_latents(config: Config) -> PVALatents:
     best_correct = top_latents['correct'][0]
     best_incorrect = top_latents['incorrect'][0]
 
+    # Handle different score field names between phases
+    score_field = 't_statistic' if phase == "2.10" else 'separation_score'
+    correct_score = best_correct.get(score_field, best_correct.get('t_statistic', best_correct.get('separation_score', 0)))
+    incorrect_score = best_incorrect.get(score_field, best_incorrect.get('t_statistic', best_incorrect.get('separation_score', 0)))
+
     logger.info(f"Best correct latent: Layer {best_correct['layer']}, "
                f"Index {best_correct['latent_idx']}, "
-               f"Score {best_correct['separation_score']:.4f}")
+               f"{score_field}={correct_score:.4f}")
     logger.info(f"Best incorrect latent: Layer {best_incorrect['layer']}, "
                f"Index {best_incorrect['latent_idx']}, "
-               f"Score {best_incorrect['separation_score']:.4f}")
+               f"{score_field}={incorrect_score:.4f}")
 
     return PVALatents(
         top_latents=top_latents,
         best_correct_latent=best_correct,
         best_incorrect_latent=best_incorrect,
-        phase_dir=phase_dir
+        phase_dir=phase_dir,
+        source_phase=phase
     )
+
+
+def load_predicting_latents(config: Config) -> PVALatents:
+    """Load PREDICTING latents from Phase 2.10 (t-statistic selection).
+
+    Predicting latents are selected by t-statistic which captures sensitivity
+    to confidence gradients - appropriate for statistical validation (AUROC/F1).
+
+    Used by: Phase 3.x (AUROC/F1 validation), Phase 8.x (prediction component)
+
+    Returns:
+        PVALatents dataclass with top_latents from Phase 2.10
+
+    Raises:
+        FileNotFoundError: If Phase 2.10 output not found
+        ValueError: If latents file has invalid structure
+    """
+    return _load_latents_from_phase(config, "2.10", "predicting")
+
+
+def load_steering_latents(config: Config) -> PVALatents:
+    """Load STEERING latents from Phase 2.5 (separation score selection).
+
+    Steering latents are selected by separation score which captures categorical
+    exclusivity - appropriate for causal validation (steering, orthogonalization).
+
+    Used by: Phases 4.x, 5.x, 6.x, 7.x (steering & orthogonalization)
+
+    Returns:
+        PVALatents dataclass with top_latents from Phase 2.5
+
+    Raises:
+        FileNotFoundError: If Phase 2.5 output not found
+        ValueError: If latents file has invalid structure
+    """
+    return _load_latents_from_phase(config, "2.5", "steering")
 
 
 def load_sae_and_directions(
@@ -105,8 +159,8 @@ def load_sae_and_directions(
         config: Configuration object
         device: Target device for SAE models
         model: The language model (for dtype matching)
-        best_correct_latent: Dict with 'layer' and 'latent_idx' for correct latent
-        best_incorrect_latent: Dict with 'layer' and 'latent_idx' for incorrect latent
+        best_correct_latent: dict with 'layer' and 'latent_idx' for correct latent
+        best_incorrect_latent: dict with 'layer' and 'latent_idx' for incorrect latent
 
     Returns:
         SAEDirections dataclass with SAEs and direction tensors

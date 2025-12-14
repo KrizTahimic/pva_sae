@@ -144,12 +144,12 @@ class Phase1Runner:
         
         return generated_text, activations
         
-    def process_task(self, task: Dict) -> Optional[Dict]:
+    def process_task(self, task: dict) -> Optional[dict]:
         """
         Process a single task: generate, evaluate, extract activations.
         
         Returns:
-            Dict with results if successful, None if task failed after all retries
+            dict with results if successful, None if task failed after all retries
         """
         task_id = task['task_id']
         logger.debug(f"Processing task {task_id}")

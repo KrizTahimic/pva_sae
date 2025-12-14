@@ -383,8 +383,8 @@ def find_optimal_threshold(
     return optimal_f1_threshold, metrics
 
 def plot_combined_f1_thresholds(
-    correct_metrics: Dict,
-    incorrect_metrics: Dict,
+    correct_metrics: dict,
+    incorrect_metrics: dict,
     output_dir: Path
 ) -> None:
     """Create combined F1 threshold plot for both features (Phase 3.11 style).
@@ -467,7 +467,7 @@ def plot_confusion_matrix(
     plt.close()
 
 def plot_comparative_metrics(
-    results: Dict, 
+    results: dict, 
     output_dir: Path,
     y_true_val_correct: Optional[np.ndarray] = None,
     scores_val_correct: Optional[np.ndarray] = None,

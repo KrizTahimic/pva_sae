@@ -51,7 +51,7 @@ def save_json(data: Any, path: Path) -> None:
     with open(path, 'w') as f:
         json.dump(data, f, indent=2)
 
-def load_steering_results(config: Config) -> dict[str, list[Dict]]:
+def load_steering_results(config: Config) -> dict[str, list[dict]]:
     """Load steering results from Phase 4.8.
 
     Returns:
@@ -109,15 +109,15 @@ def load_validation_with_difficulty(config: Config) -> pd.DataFrame:
     return df
 
 def calculate_difficulty_metrics(
-    steering_results: list[Dict],
+    steering_results: list[dict],
     difficulty_groups: dict[str, pd.DataFrame],
     experiment_type: str
-) -> dict[str, Dict]:
+) -> dict[str, dict]:
     """Calculate steering success metrics per difficulty group.
 
     Args:
         steering_results: List of steering result dictionaries
-        difficulty_groups: Dict with 'easy', 'medium', 'hard' DataFrames
+        difficulty_groups: dict with 'easy', 'medium', 'hard' DataFrames
         experiment_type: 'correction', 'corruption', or 'preservation'
 
     Returns:
@@ -184,7 +184,7 @@ def calculate_difficulty_metrics(
 
     return metrics
 
-def run_chi_square_test(metrics: dict[str, Dict]) -> Dict:
+def run_chi_square_test(metrics: dict[str, dict]) -> dict:
     """Run chi-square test for independence.
 
     Tests whether the distribution of success/failure differs
@@ -250,9 +250,9 @@ def run_chi_square_test(metrics: dict[str, Dict]) -> Dict:
         }
 
 def plot_steering_trends(
-    correction_metrics: dict[str, Dict],
-    corruption_metrics: dict[str, Dict],
-    preservation_metrics: dict[str, Dict],
+    correction_metrics: dict[str, dict],
+    corruption_metrics: dict[str, dict],
+    preservation_metrics: dict[str, dict],
     output_dir: Path
 ) -> None:
     """Plot steering success rate trends across difficulty levels."""
@@ -324,12 +324,12 @@ def plot_difficulty_distribution(
 
 def generate_summary_text(
     difficulty_groups: dict[str, pd.DataFrame],
-    correction_metrics: dict[str, Dict],
-    corruption_metrics: dict[str, Dict],
-    preservation_metrics: dict[str, Dict],
-    correction_chi2: Dict,
-    corruption_chi2: Dict,
-    preservation_chi2: Dict
+    correction_metrics: dict[str, dict],
+    corruption_metrics: dict[str, dict],
+    preservation_metrics: dict[str, dict],
+    correction_chi2: dict,
+    corruption_chi2: dict,
+    preservation_chi2: dict
 ) -> str:
     """Generate human-readable summary."""
     lines = [
@@ -590,6 +590,7 @@ def main():
     # Write phase_output.json manifest
     from common.phase_discovery import write_phase_output
 
+    phase4_8_dir = Path(get_phase_output_dir("4.8", config))
     write_phase_output(
         phase="4.16",
         outputs={

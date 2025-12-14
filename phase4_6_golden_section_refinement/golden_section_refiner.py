@@ -38,6 +38,7 @@ from common.steering_metrics import (
 from common.retry_utils import retry_generation, retry_with_timeout, create_exclusion_summary
 from common.model_loader import load_model_and_tokenizer
 from common.utils import load_json, save_json
+from common.steering_setup import load_steering_latents
 from common.dataset_utils import evaluate_code, extract_code
 from common.sae_loader import load_sae_for_config
 
@@ -84,7 +85,7 @@ class GoldenSectionCoefficientRefiner:
         
         logger.info("GoldenSectionCoefficientRefiner initialized successfully")
     
-    def save_intermediate_results(self, steering_type: str, result: Dict) -> None:
+    def save_intermediate_results(self, steering_type: str, result: dict) -> None:
         """Save results after each steering type completes."""
         intermediate_file = self.output_dir / "intermediate_results.json"
         
@@ -102,7 +103,7 @@ class GoldenSectionCoefficientRefiner:
         save_json(existing_results, intermediate_file)
         logger.info(f"Saved intermediate results for {steering_type} steering to {intermediate_file}")
     
-    def load_existing_results(self) -> Dict:
+    def load_existing_results(self) -> dict:
         """Load any previously completed steering results."""
         intermediate_file = self.output_dir / "intermediate_results.json"
         
@@ -130,7 +131,7 @@ class GoldenSectionCoefficientRefiner:
         self.memory_critical_threshold = 95  # Critical at 95% memory usage
         
     def save_checkpoint(self, steering_type: str, iteration: int, 
-                       search_history: list[Dict], cached_scores: Dict,
+                       search_history: list[dict], cached_scores: dict,
                        current_bounds: tuple[int, int], best_coefficient: int,
                        best_score: float) -> None:
         """Save checkpoint for golden section search."""
@@ -152,7 +153,7 @@ class GoldenSectionCoefficientRefiner:
         save_json(checkpoint_data, checkpoint_file)
         logger.info(f"Saved checkpoint for {steering_type} steering, iteration {iteration}")
     
-    def load_checkpoints(self, steering_type: str) -> Optional[Dict]:
+    def load_checkpoints(self, steering_type: str) -> Optional[dict]:
         """Load latest checkpoint for a steering type."""
         checkpoint_dir = self.output_dir / f"checkpoints_{steering_type}"
         if not checkpoint_dir.exists():
@@ -285,27 +286,11 @@ class GoldenSectionCoefficientRefiner:
         
     def _load_dependencies(self) -> None:
         """Load features from Phase 2.5 and baseline data from Phase 3.6."""
-        # Load Phase 2.5 features
-        logger.info("Loading PVA features from Phase 2.5...")
-        phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
-        if not phase2_5_output:
-            raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
-        
-        # Load top latents
-        latents_file = Path(phase2_5_output).parent / "top_20_latents.json"
-        if not latents_file.exists():
-            raise FileNotFoundError(f"Top latents file not found: {latents_file}")
-
-        self.top_latents = load_json(latents_file)
-
-        # Extract best correct and incorrect latents
-        self.best_correct_latent = self.top_latents['correct'][0]
-        self.best_incorrect_latent = self.top_latents['incorrect'][0]
-
-        logger.info(f"Best correct latent: Layer {self.best_correct_latent['layer']}, "
-                   f"Index {self.best_correct_latent['latent_idx']}")
-        logger.info(f"Best incorrect latent: Layer {self.best_incorrect_latent['layer']}, "
-                   f"Index {self.best_incorrect_latent['latent_idx']}")
+        # Load steering latents from Phase 2.5 (separation score selection)
+        pva_latents = load_steering_latents(self.config)
+        self.top_latents = pva_latents.top_latents
+        self.best_correct_latent = pva_latents.best_correct_latent
+        self.best_incorrect_latent = pva_latents.best_incorrect_latent
         
         # Load Phase 3.6 baseline data
         logger.info("Loading baseline data from Phase 3.6...")
@@ -488,7 +473,7 @@ class GoldenSectionCoefficientRefiner:
                             problems_df: pd.DataFrame,
                             steering_type: str,
                             show_progress: bool = False,
-                            return_full_results: bool = False) -> Union[float, Dict]:
+                            return_full_results: bool = False) -> Union[float, dict]:
         """
         Evaluate a single coefficient and return the score or full results.
         
@@ -747,7 +732,7 @@ class GoldenSectionCoefficientRefiner:
         
         return score
     
-    def golden_section_search(self, steering_type: str) -> tuple[int, list[Dict]]:
+    def golden_section_search(self, steering_type: str) -> tuple[int, list[dict]]:
         """
         Integer-aware golden section search for optimal coefficient.
         
@@ -1008,7 +993,7 @@ class GoldenSectionCoefficientRefiner:
     
     def save_refinement_examples(self, coefficient: float, 
                                 steering_type: str,
-                                results: list[Dict]) -> None:
+                                results: list[dict]) -> None:
         """Save example generations for manual inspection."""
         # Save in subdirectory for this specific coefficient
         coeff_dir = self.examples_dir / f"{steering_type}_golden_{coefficient:.2f}"
@@ -1041,7 +1026,7 @@ class GoldenSectionCoefficientRefiner:
         }
         save_json(summary, coeff_dir / "summary.json")
     
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Run golden section search refinement for both steering types."""
         start_time = time.time()
         logger.info("Starting Phase 4.6: Golden Section Search Coefficient Refinement")

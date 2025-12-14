@@ -42,7 +42,7 @@ class OrthogonalizationSignificanceTester:
         logger.info(f"OrthogonalizationSignificanceTester initialized")
         logger.info(f"Significance level: {self.alpha}")
         
-    def load_all_results(self) -> tuple[Dict, Dict, Dict]:
+    def load_all_results(self) -> tuple[dict, dict, dict]:
         """Load baseline metrics, Phase 5.3 PVA results, and Phase 5.6 zero-disc results."""
         # Get baseline metrics from Phase 3.5 data
         logger.info("Loading Phase 3.5 baseline data (no orthogonalization)...")
@@ -86,7 +86,7 @@ class OrthogonalizationSignificanceTester:
         
         return baseline_metrics, pva_results, zero_disc_results
         
-    def extract_baseline_metrics(self, baseline_data: pd.DataFrame) -> Dict:
+    def extract_baseline_metrics(self, baseline_data: pd.DataFrame) -> dict:
         """Extract correction and corruption metrics from baseline data."""
         # Split by correctness
         baseline_correct = baseline_data[baseline_data['baseline_passed'] == True]
@@ -101,7 +101,7 @@ class OrthogonalizationSignificanceTester:
         }
         
     def perform_binomial_test(self, n_successes: int, n_trials: int, 
-                            baseline_rate: float, alternative: str = 'greater') -> Dict:
+                            baseline_rate: float, alternative: str = 'greater') -> dict:
         """Perform binomial test comparing observed vs expected rate."""
         if n_trials == 0:
             logger.warning("No trials available for binomial test")
@@ -134,8 +134,8 @@ class OrthogonalizationSignificanceTester:
             'effect_size': observed_rate - baseline_rate
         }
         
-    def perform_correction_triangulation(self, baseline_metrics: Dict, 
-                                       pva_results: Dict, zero_disc_results: Dict) -> Dict:
+    def perform_correction_triangulation(self, baseline_metrics: dict, 
+                                       pva_results: dict, zero_disc_results: dict) -> dict:
         """Perform triangulation for correction experiments (incorrect→correct)."""
         # Baseline has no orthogonalization, so correction rate is 0
         baseline_n_incorrect = baseline_metrics['n_incorrect']
@@ -192,8 +192,8 @@ class OrthogonalizationSignificanceTester:
             'comparisons': comparisons
         }
         
-    def perform_corruption_triangulation(self, baseline_metrics: Dict, 
-                                       pva_results: Dict, zero_disc_results: Dict) -> Dict:
+    def perform_corruption_triangulation(self, baseline_metrics: dict, 
+                                       pva_results: dict, zero_disc_results: dict) -> dict:
         """Perform triangulation for corruption experiments (correct→incorrect)."""
         # Baseline has no orthogonalization, so corruption rate is 0
         baseline_n_correct = baseline_metrics['n_correct']
@@ -258,7 +258,7 @@ class OrthogonalizationSignificanceTester:
             'comparisons': comparisons
         }
         
-    def interpret_triangulation(self, correction_tri: Dict, corruption_tri: Dict) -> Dict:
+    def interpret_triangulation(self, correction_tri: dict, corruption_tri: dict) -> dict:
         """Generate comprehensive interpretation of triangulation results."""
         correction_comps = correction_tri['comparisons']
         corruption_comps = corruption_tri['comparisons']
@@ -308,7 +308,7 @@ class OrthogonalizationSignificanceTester:
             }
         }
         
-    def _interpret_correction_triangulation(self, comparisons: Dict) -> str:
+    def _interpret_correction_triangulation(self, comparisons: dict) -> str:
         """Generate detailed interpretation for correction triangulation."""
         findings = []
 
@@ -328,7 +328,7 @@ class OrthogonalizationSignificanceTester:
 
         return " | ".join(findings)
         
-    def _interpret_corruption_triangulation(self, comparisons: Dict) -> str:
+    def _interpret_corruption_triangulation(self, comparisons: dict) -> str:
         """Generate detailed interpretation for corruption triangulation."""
         findings = []
 
@@ -351,7 +351,7 @@ class OrthogonalizationSignificanceTester:
 
         return " | ".join(findings)
         
-    def create_visualization(self, correction_tri: Dict, corruption_tri: Dict) -> None:
+    def create_visualization(self, correction_tri: dict, corruption_tri: dict) -> None:
         """Create separate bar plots for incorrect and correct orthogonalization experiments."""
 
         # Incorrect orthogonalization plot (correction experiments)
@@ -413,7 +413,7 @@ class OrthogonalizationSignificanceTester:
         logger.info(f"Saved incorrect orthogonalization visualization to: {output_file1}")
         logger.info(f"Saved correct orthogonalization visualization to: {output_file2}")
         
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Run triangulation statistical significance testing for weight orthogonalization."""
         # Handle --viz-only mode
         if handle_viz_only_mode(
@@ -569,7 +569,7 @@ class OrthogonalizationSignificanceTester:
 
         return results
         
-    def _save_summary_report(self, results: Dict) -> None:
+    def _save_summary_report(self, results: dict) -> None:
         """Save human-readable summary report."""
         report_lines = [
             "PHASE 5.9: WEIGHT ORTHOGONALIZATION TRIANGULATION ANALYSIS",

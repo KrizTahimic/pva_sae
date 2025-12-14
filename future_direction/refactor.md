@@ -404,6 +404,10 @@ Terms removed:
   - Splitting would scatter related logic without improving readability
   - Decision: Function length isn't the only measure - cohesion matters more
 
+- [ ] Fix:        344 +                      activation_bf16 = activation.to(dtype=self.sae_l19.W_enc.dtype, device=self.device)
+    - l_19 rename. Find other instances.
+
+
 #### Add Early Returns (reduce nesting)
 - [ ] **steering_metrics.py:19-80** `calculate_correction_rate()` - deeply nested if/elif
   ```python
@@ -492,7 +496,7 @@ Nice-to-haves once the foundation is solid.
 - [ ] Fix the figure generation code. Currently it looks soooo messy.
     - [ ] Make all figures correction green, corruption red, and pick a color for preservation.
 - [ ] Add here the ICML LaTeX.
-- [ ] Rename to code-correctness-sae( the folder, github repo, huggingface etc.)
+- [ ] Rename to code-correctness-sae( the folder, github repo, huggingface etc.)Also in the comments and variable names.
 
 ### 5.1 ICML Visualizations (moved from ICML tasks)
 
@@ -598,6 +602,7 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 ---
 
 ## Step 6: Multi-GPU Parallel Execution (After Experiments Work)
+- [ ] Consider condensing the code more like some can be just a variation of one code like steering etc. But take this with high risk and put little importance. Leaning to not do this.
 - [ ] Test all phase one by one first if it is all running.
     - [ ] Exmaine each of the output file.
     - [ ] Code review manually. With CC help ofcourse but read all code manually. Make sure I understand and it is correct. 

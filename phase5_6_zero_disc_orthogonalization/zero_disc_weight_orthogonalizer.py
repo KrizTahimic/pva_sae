@@ -185,7 +185,7 @@ class ZeroDiscWeightOrthogonalizer:
         )
         return generated_text
     
-    def apply_zero_disc_orthogonalization(self) -> Dict:
+    def apply_zero_disc_orthogonalization(self) -> dict:
         """
         Apply orthogonalization using zero-discrimination feature.
         
@@ -538,7 +538,7 @@ class ZeroDiscWeightOrthogonalizer:
         
         logger.info(f"Saved examples to {self.examples_dir}")
     
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Main execution pipeline."""
         # Handle --viz-only mode
         def viz_from_data(data):

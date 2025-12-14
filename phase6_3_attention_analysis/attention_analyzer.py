@@ -58,22 +58,12 @@ class AttentionAnalyzer:
         logger.info("AttentionAnalyzer initialized successfully")
         
     def _load_pva_features(self) -> None:
-        """Load best PVA features from Phase 2.5."""
-        # Discover Phase 2.5 output
-        phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
-        if not phase2_5_output:
-            raise FileNotFoundError("Phase 2.5 output not found. Please run Phase 2.5 first.")
-        
-        phase2_5_dir = Path(phase2_5_output).parent
-        
-        # Load best latents
-        best_latents_path = phase2_5_dir / "top_20_latents.json"
-        if not best_latents_path.exists():
-            raise FileNotFoundError(f"Best latents not found at {best_latents_path}")
+        """Load steering latents from Phase 2.5 (separation score selection)."""
+        from common.steering_setup import load_steering_latents
+        pva_latents = load_steering_latents(self.config)
 
-        best_latents = load_json(best_latents_path)
-        self.best_correct_latent = best_latents['correct'][0]  # First element has highest score
-        self.best_incorrect_latent = best_latents['incorrect'][0]  # First element has highest score
+        self.best_correct_latent = pva_latents.top_latents['correct'][0]
+        self.best_incorrect_latent = pva_latents.top_latents['incorrect'][0]
 
         # Extract layer indices
         self.best_correct_layer = self.best_correct_latent['layer']
@@ -176,7 +166,7 @@ class AttentionAnalyzer:
         logger.info("✅ Phase 6.3 completed successfully")
         return results
         
-    def load_attention_data(self) -> dict[str, Dict]:
+    def load_attention_data(self) -> dict[str, dict]:
         """Load attention patterns from Phase 3.5 and Phase 4.8."""
         attention_data = {}
         
@@ -229,7 +219,7 @@ class AttentionAnalyzer:
         logger.info(f"Loaded attention data for {len(attention_data)} tasks")
         return attention_data
         
-    def _load_task_attention(self, attention_dir: Path, task_id: str, condition: str) -> Optional[Dict]:
+    def _load_task_attention(self, attention_dir: Path, task_id: str, condition: str) -> Optional[dict]:
         """Load attention patterns for a specific task."""
         # Try different file naming patterns (.safetensors format)
         patterns = [
@@ -255,16 +245,16 @@ class AttentionAnalyzer:
 
         return None
         
-    def aggregate_to_3_bins(self, attention_tensor: np.ndarray, boundaries: Dict) -> Dict:
+    def aggregate_to_3_bins(self, attention_tensor: np.ndarray, boundaries: dict) -> dict:
         """
         Aggregate raw attention into 3 bins based on section boundaries.
         
         Args:
             attention_tensor: [n_heads, sequence_length] - raw attention
-            boundaries: Dict with 'problem_end', 'test_end' indices
+            boundaries: dict with 'problem_end', 'test_end' indices
         
         Returns:
-            Dict with aggregated attention per section
+            dict with aggregated attention per section
         """
         # Handle missing boundaries
         if not boundaries or 'problem_end' not in boundaries:
@@ -308,16 +298,16 @@ class AttentionAnalyzer:
             }
         }
         
-    def compute_differences(self, attention_data: Dict, steering_type: str) -> dict[str, np.ndarray]:
+    def compute_differences(self, attention_data: dict, steering_type: str) -> dict[str, np.ndarray]:
         """
         Compare attention patterns between baseline and steered generations.
         
         Args:
-            attention_data: Dict with baseline and steered attention
+            attention_data: dict with baseline and steered attention
             steering_type: 'correct' or 'incorrect'
         
         Returns:
-            Dict mapping task_id to attention differences
+            dict mapping task_id to attention differences
         """
         differences = {}
         
@@ -350,7 +340,7 @@ class AttentionAnalyzer:
         
         return differences
         
-    def compute_statistical_significance(self, attention_differences: dict[str, Dict]) -> Dict:
+    def compute_statistical_significance(self, attention_differences: dict[str, dict]) -> dict:
         """
         Test if steering produces statistically significant attention changes.
         
@@ -396,9 +386,9 @@ class AttentionAnalyzer:
         
         return results
         
-    def create_all_visualizations(self, attention_data: Dict, 
-                                 differences_correct: Dict, 
-                                 differences_incorrect: Dict) -> None:
+    def create_all_visualizations(self, attention_data: dict, 
+                                 differences_correct: dict, 
+                                 differences_incorrect: dict) -> None:
         """Create all 8 main visualizations."""
         
         # 1. Attention distribution stacked bar chart
@@ -434,7 +424,7 @@ class AttentionAnalyzer:
         
         logger.info(f"Created all visualizations in {self.visualizations_dir}")
         
-    def create_attention_distribution_chart(self, attention_data: Dict) -> None:
+    def create_attention_distribution_chart(self, attention_data: dict) -> None:
         """Create stacked bar chart showing attention distribution across 3 sections."""
         # Aggregate distributions across all tasks
         distributions = self._aggregate_distributions(attention_data)
@@ -478,7 +468,7 @@ class AttentionAnalyzer:
         plt.savefig(self.visualizations_dir / 'attention_distribution.png', dpi=150)
         plt.close()
         
-    def create_head_attention_heatmap(self, attention_data: Dict) -> None:
+    def create_head_attention_heatmap(self, attention_data: dict) -> None:
         """Heatmap showing each head's attention to each section."""
         # Create matrix [n_heads, 9] for 3 sections × 3 conditions
         attention_matrix = self._build_head_attention_matrix(attention_data)
@@ -508,7 +498,7 @@ class AttentionAnalyzer:
         plt.savefig(self.visualizations_dir / 'head_attention_heatmap.png', dpi=150)
         plt.close()
         
-    def create_attention_delta_plots(self, differences_correct: Dict, differences_incorrect: Dict) -> None:
+    def create_attention_delta_plots(self, differences_correct: dict, differences_incorrect: dict) -> None:
         """Show how steering changes attention to each section."""
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
         
@@ -562,7 +552,7 @@ class AttentionAnalyzer:
         plt.savefig(self.visualizations_dir / 'attention_delta_plots.png', dpi=150)
         plt.close()
         
-    def create_significance_table(self, differences_correct: Dict, differences_incorrect: Dict) -> None:
+    def create_significance_table(self, differences_correct: dict, differences_incorrect: dict) -> None:
         """Table showing statistical significance of attention changes."""
         # Compute statistics
         stats_correct = self.compute_statistical_significance(differences_correct)
@@ -615,7 +605,7 @@ class AttentionAnalyzer:
         plt.savefig(self.visualizations_dir / 'significance_table.png', dpi=150, bbox_inches='tight')
         plt.close()
         
-    def create_attention_transformation_scatter(self, attention_data: Dict, steering_type: str) -> None:
+    def create_attention_transformation_scatter(self, attention_data: dict, steering_type: str) -> None:
         """Scatter plot comparing baseline vs steered attention scores."""
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
         sections = ['problem', 'tests', 'solution_marker']
@@ -677,7 +667,7 @@ class AttentionAnalyzer:
         plt.savefig(self.visualizations_dir / f'transformation_scatter_{steering_type}.png', dpi=150)
         plt.close()
         
-    def create_head_specific_transformation_plot(self, attention_data: Dict, steering_type: str) -> None:
+    def create_head_specific_transformation_plot(self, attention_data: dict, steering_type: str) -> None:
         """Detailed scatter plot showing each head's transformation separately."""
         fig, axes = plt.subplots(2, 4, figsize=(16, 8))
         axes = axes.flatten()
@@ -744,7 +734,7 @@ class AttentionAnalyzer:
         plt.savefig(self.visualizations_dir / f'head_specific_transformations_{steering_type}.png', dpi=150)
         plt.close()
         
-    def create_test_last_token_transformation_plot(self, attention_data: Dict, steering_type: str) -> None:
+    def create_test_last_token_transformation_plot(self, attention_data: dict, steering_type: str) -> None:
         """Scatter plot showing attention to last token of test cases for each head."""
         fig, axes = plt.subplots(2, 4, figsize=(16, 8))
         axes = axes.flatten()
@@ -833,7 +823,7 @@ class AttentionAnalyzer:
         plt.savefig(self.visualizations_dir / f'test_last_token_transformation_{steering_type}.png', dpi=150)
         plt.close()
         
-    def create_head_attention_change_bars(self, attention_data: Dict, steering_type: str) -> None:
+    def create_head_attention_change_bars(self, attention_data: dict, steering_type: str) -> None:
         """Bar charts showing attention score differences for each head."""
         fig, axes = plt.subplots(3, 1, figsize=(14, 12))
         sections = ['problem', 'tests', 'solution_marker']
@@ -937,7 +927,7 @@ class AttentionAnalyzer:
         plt.savefig(self.visualizations_dir / f'head_attention_changes_{steering_type}.png', dpi=150)
         plt.close()
         
-    def create_comparative_head_changes(self, attention_data: Dict) -> None:
+    def create_comparative_head_changes(self, attention_data: dict) -> None:
         """Side-by-side comparison of head-specific changes for correct vs incorrect steering."""
         fig, axes = plt.subplots(3, 2, figsize=(16, 12))
         sections = ['problem', 'tests', 'solution_marker']
@@ -1008,7 +998,7 @@ class AttentionAnalyzer:
         plt.savefig(self.visualizations_dir / 'comparative_head_changes.png', dpi=150)
         plt.close()
         
-    def save_analysis_results(self, results: Dict) -> None:
+    def save_analysis_results(self, results: dict) -> None:
         """Save analysis results to JSON files."""
         # Main results file
         save_json(results, self.output_dir / 'attention_analysis_results.json')
@@ -1030,7 +1020,7 @@ class AttentionAnalyzer:
         
         logger.info(f"Saved results to {self.output_dir}")
         
-    def _aggregate_distributions(self, attention_data: Dict) -> Dict:
+    def _aggregate_distributions(self, attention_data: dict) -> dict:
         """Aggregate attention distributions across all tasks."""
         distributions = {}
         
@@ -1064,7 +1054,7 @@ class AttentionAnalyzer:
         
         return distributions
         
-    def _build_head_attention_matrix(self, attention_data: Dict) -> np.ndarray:
+    def _build_head_attention_matrix(self, attention_data: dict) -> np.ndarray:
         """Build matrix for head attention heatmap."""
         # Initialize matrix [n_heads, 9] for 3 sections × 3 conditions
         matrix = np.zeros((self.n_heads, 9))
@@ -1097,7 +1087,7 @@ class AttentionAnalyzer:
         
         return matrix
         
-    def _calculate_average_deltas(self, differences: Dict) -> Dict:
+    def _calculate_average_deltas(self, differences: dict) -> dict:
         """Calculate average attention changes across tasks."""
         all_problem = []
         all_tests = []
@@ -1114,7 +1104,7 @@ class AttentionAnalyzer:
             'stds': [np.std(all_problem), np.std(all_tests), np.std(all_solution)]
         }
         
-    def _extract_key_findings(self, statistical_results: Dict) -> Dict:
+    def _extract_key_findings(self, statistical_results: dict) -> dict:
         """Extract key findings from statistical results."""
         findings = {}
         

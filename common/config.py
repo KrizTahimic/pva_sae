@@ -244,8 +244,8 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    # temperature_variation_temps: list[float] = field(default_factory=lambda: [0.0])
-    temperature_variation_temps: list[float] = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
+    temperature_variation_temps: list[float] = field(default_factory=lambda: [0.0])
+    # temperature_variation_temps: list[float] = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
 
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
 
@@ -258,8 +258,13 @@ class Config:
     
     # === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
     # Separate coefficient grids for correct vs incorrect steering
-    phase4_5_correct_coefficients: list[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0])
-    phase4_5_incorrect_coefficients: list[float] = field(default_factory=lambda: [100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
+    # Quick test: single coefficient (same value for fast testing)
+    phase4_5_correct_coefficients: list[float] = field(default_factory=lambda: [30.0])
+    phase4_5_incorrect_coefficients: list[float] = field(default_factory=lambda: [30.0])
+    # Full grid search (uncomment for thorough testing):
+    # phase4_5_correct_coefficients: list[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0])
+    # phase4_5_incorrect_coefficients: list[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
+
     
     phase4_5_search_tolerance: float = 2.0  # Stop binary search when range < tolerance
     phase4_5_meaningful_effect_threshold: float = 5.0  # Minimum % for meaningful effect
@@ -267,7 +272,10 @@ class Config:
     phase4_5_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption'
 
     # === GOLDEN SECTION SEARCH COEFFICIENT REFINEMENT (Phase 4.6) ===
-    phase4_6_tolerance: float = 1.0  # Stop when range < tolerance (no max_iterations - runs to convergence)
+    # Quick test: high tolerance for fast convergence
+    phase4_6_tolerance: float = 10.0  # Stop when range < tolerance (no max_iterations - runs to convergence)
+    # Full refinement (uncomment for thorough testing):
+    # phase4_6_tolerance: float = 1.0
     phase4_6_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption'
 
     # === STEERING EFFECT ANALYSIS (Phase 4.8) ===

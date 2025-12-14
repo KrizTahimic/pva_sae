@@ -62,9 +62,11 @@ class ZeroDiscSteeringGenerator:
         self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
         self.resume_from_checkpoint = True
         
-        # Steering coefficients from Phase 4.8 config
-        self.correct_coefficient = self.config.phase4_8_correct_coefficient
-        self.incorrect_coefficient = self.config.phase4_8_incorrect_coefficient
+        # Load steering coefficients from Phase 4.6
+        from common.phase_discovery import discover_steering_coefficients
+        coefficients = discover_steering_coefficients(self.config)
+        self.correct_coefficient = coefficients["correct"]
+        self.incorrect_coefficient = coefficients["incorrect"]
         
         # Initialize model and tokenizer
         logger.info(f"Loading model: {config.model_name}")
@@ -122,7 +124,7 @@ class ZeroDiscSteeringGenerator:
         
         logger.info(f"Split: {len(self.correct_problems)} correct, {len(self.incorrect_problems)} incorrect")
         
-    def _select_best_zero_disc_features(self) -> Dict:
+    def _select_best_zero_disc_features(self) -> dict:
         """Select best zero-discrimination feature for both correction and corruption experiments."""
         features = self.zero_disc_features['features']
 
@@ -137,7 +139,7 @@ class ZeroDiscSteeringGenerator:
         
         return selected_feature
         
-    def _save_checkpoint(self, results: list[Dict], steering_type: str, index: int) -> None:
+    def _save_checkpoint(self, results: list[dict], steering_type: str, index: int) -> None:
         """Save checkpoint of current results."""
         checkpoint_file = self.checkpoint_dir / f'{steering_type}_checkpoint_{index}.json'
         checkpoint_data = {
@@ -149,7 +151,7 @@ class ZeroDiscSteeringGenerator:
         save_json(checkpoint_data, checkpoint_file)
         logger.debug(f"Saved checkpoint at index {index} to {checkpoint_file}")
         
-    def _load_checkpoint(self, steering_type: str) -> tuple[list[Dict], int]:
+    def _load_checkpoint(self, steering_type: str) -> tuple[list[dict], int]:
         """Load latest checkpoint if exists."""
         checkpoints = list(self.checkpoint_dir.glob(f'{steering_type}_checkpoint_*.json'))
         if not checkpoints:
@@ -188,8 +190,8 @@ class ZeroDiscSteeringGenerator:
         else:
             logger.debug(f"Memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
         
-    def _apply_zero_disc_steering(self, problems: pd.DataFrame, feature: Dict, 
-                                  coefficient: float, steering_type: str) -> list[Dict]:
+    def _apply_zero_disc_steering(self, problems: pd.DataFrame, feature: dict, 
+                                  coefficient: float, steering_type: str) -> list[dict]:
         """Apply zero-discrimination steering to problems."""
         excluded_tasks = []
         
@@ -320,7 +322,7 @@ class ZeroDiscSteeringGenerator:
         
         return results
         
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Run zero-discrimination steering generation."""
         logger.info("="*60)
         logger.info("Starting Zero-Discrimination Steering Generation")
@@ -451,8 +453,8 @@ class ZeroDiscSteeringGenerator:
 
         return results
         
-    def _save_examples(self, correction_examples: list[Dict], corruption_examples: list[Dict],
-                      preservation_examples: list[Dict]) -> None:
+    def _save_examples(self, correction_examples: list[dict], corruption_examples: list[dict],
+                      preservation_examples: list[dict]) -> None:
         """Save example steered generations."""
         examples = {
             'correction_examples': correction_examples,

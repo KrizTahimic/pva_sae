@@ -78,12 +78,12 @@ class SteeringCoefficientSelector:
     def _load_dependencies(self) -> None:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
-            load_pva_latents, load_sae_and_directions,
+            load_steering_latents, load_sae_and_directions,
             load_baseline_data, split_by_correctness
         )
 
-        # Load PVA latents from Phase 2.5
-        latents = load_pva_latents(self.config)
+        # Load steering latents from Phase 2.5 (separation score selection)
+        latents = load_steering_latents(self.config)
         self.top_latents = latents.top_latents
         self.best_correct_latent = latents.best_correct_latent
         self.best_incorrect_latent = latents.best_incorrect_latent
@@ -169,7 +169,7 @@ class SteeringCoefficientSelector:
     def evaluate_single_dataset(self, coefficient: float, 
                                problems_df: pd.DataFrame,
                                steering_type: str,
-                               show_progress: bool = True) -> list[Dict]:
+                               show_progress: bool = True) -> list[dict]:
         """
         Evaluate a single coefficient on one dataset.
         
@@ -387,7 +387,7 @@ class SteeringCoefficientSelector:
         return all_results
     
     def evaluate_coefficient_correction_only(self, coefficient: float, 
-                                            show_progress: bool = True) -> Dict:
+                                            show_progress: bool = True) -> dict:
         """
         Evaluate correct steering ONLY for correction rate on initially incorrect problems.
         Simplified version that doesn't measure preservation.
@@ -424,7 +424,7 @@ class SteeringCoefficientSelector:
         }
     
     def evaluate_coefficient_incorrect_steering(self, coefficient: float,
-                                               show_progress: bool = True) -> Dict:
+                                               show_progress: bool = True) -> dict:
         """
         Evaluate incorrect steering on initially correct problems.
         
@@ -470,12 +470,12 @@ class SteeringCoefficientSelector:
             'results': results
         }
         
-    def calculate_generation_divergence(self, results: list[Dict]) -> Dict:
+    def calculate_generation_divergence(self, results: list[dict]) -> dict:
         """
         Measure how different steered generations are from baseline.
         
         Returns:
-            Dict with mean similarity metrics
+            dict with mean similarity metrics
         """
         if not results:
             return {
@@ -496,7 +496,7 @@ class SteeringCoefficientSelector:
             'mean_length_ratio': np.mean(length_ratios)
         }
         
-    def simple_grid_search(self, steering_type: str) -> tuple[float, Dict]:
+    def simple_grid_search(self, steering_type: str) -> tuple[float, dict]:
         """
         Simple grid search for optimal coefficient from 10 to 100 in increments of 10.
         
@@ -584,7 +584,7 @@ class SteeringCoefficientSelector:
         
     def save_coefficient_examples(self, coefficient: float, 
                                 steering_type: str,
-                                results: Dict) -> None:
+                                results: dict) -> None:
         """Save example generations for manual inspection."""
         coeff_dir = self.examples_dir / f"{steering_type}_coeff_{coefficient}"
         ensure_directory_exists(coeff_dir)
@@ -614,7 +614,7 @@ class SteeringCoefficientSelector:
         if all_results:
             save_json(all_results, coeff_dir / "all_results.json")
         
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Run simple grid search and save results."""
         start_time = time.time()
         logger.info("Starting Phase 4.5: Simple Grid Search Coefficient Selection")

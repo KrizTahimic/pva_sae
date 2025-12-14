@@ -75,13 +75,13 @@ class ThresholdCalculator:
         if not phase3_8_output:
             raise FileNotFoundError("Phase 3.8 output not found. Run Phase 3.8 first.")
 
-        phase3_8_results = load_json(Path(phase3_8_output).parent / "evaluation_results.json")
+        phase3_8_results = load_json(Path(phase3_8_output).parent / "auroc_f1_results.json")
 
         # Extract incorrect-predicting latent info
         incorrect_pred_info = phase3_8_results['incorrect_predicting_latent']
-        self.latent_layer = incorrect_pred_info['latent']['layer']  # 19
-        self.latent_idx = incorrect_pred_info['latent']['idx']  # 5441
-        self.phase3_8_threshold = incorrect_pred_info['threshold_optimization']['optimal_threshold']  # 15.5086
+        self.latent_layer = incorrect_pred_info['layer']
+        self.latent_idx = incorrect_pred_info['latent_idx']
+        self.phase3_8_threshold = incorrect_pred_info['hyperparameter_split']['threshold']
 
         logger.info(f"Incorrect-predicting latent: Layer {self.latent_layer}, Latent {self.latent_idx}")
         logger.info(f"Phase 3.8 optimal threshold (reference): {self.phase3_8_threshold:.4f}")
@@ -125,12 +125,12 @@ class ThresholdCalculator:
 
         logger.info("Dependencies loaded successfully")
 
-    def calculate_thresholds(self) -> Dict:
+    def calculate_thresholds(self) -> dict:
         """
         Calculate percentile-based thresholds from Phase 3.6 activations.
 
         Returns:
-            Dict containing thresholds, statistics, and metadata
+            dict containing thresholds, statistics, and metadata
         """
         logger.info("="*60)
         logger.info("Calculating Percentile Thresholds")
@@ -259,7 +259,7 @@ class ThresholdCalculator:
 
         return summary
 
-    def save_results(self, summary: Dict) -> None:
+    def save_results(self, summary: dict) -> None:
         """Save threshold calculation results."""
         logger.info("Saving results...")
 
@@ -313,7 +313,7 @@ class ThresholdCalculator:
 
         logger.info(f"\nResults saved to: {self.output_dir}")
 
-    def run(self) -> Dict:
+    def run(self) -> dict:
         """Main execution: Calculate and save thresholds."""
         logger.info("="*60)
         logger.info("Starting Phase 8.1: Percentile Threshold Calculator")

@@ -23,15 +23,17 @@ logger = get_logger("phase4_7.coefficient_plotter")
 class CoefficientVisualizer:
     """Visualize coefficient optimization process."""
 
-    def __init__(self, data_dir: Path, output_dir: Path):
+    def __init__(self, phase4_5_dir: Path, phase4_6_dir: Path, output_dir: Path):
         """
         Initialize visualizer.
 
         Args:
-            data_dir: Root data directory containing phase4_5 and phase4_6 results
+            phase4_5_dir: Phase 4.5 output directory
+            phase4_6_dir: Phase 4.6 output directory
             output_dir: Directory to save visualization outputs
         """
-        self.data_dir = data_dir
+        self.phase4_5_dir = phase4_5_dir
+        self.phase4_6_dir = phase4_6_dir
         self.output_dir = output_dir
         ensure_directory_exists(self.output_dir)
 
@@ -39,14 +41,14 @@ class CoefficientVisualizer:
         self.phase4_5_data = self._load_phase4_5_data()
         self.phase4_6_data = self._load_phase4_6_data()
 
-    def _load_phase4_5_data(self) -> Dict:
+    def _load_phase4_5_data(self) -> dict:
         """Load coefficient analysis from Phase 4.5."""
-        path = self.data_dir / "phase4_5" / "coefficient_analysis.json"
+        path = self.phase4_5_dir / "coefficient_analysis.json"
         with open(path) as f:
             data = json.load(f)
 
         # Also load coefficient_analysis_100.json if it exists (separate run)
-        path_100 = self.data_dir / "phase4_5" / "coefficient_analysis_100.json"
+        path_100 = self.phase4_5_dir / "coefficient_analysis_100.json"
         if path_100.exists():
             with open(path_100) as f:
                 data_100 = json.load(f)
@@ -58,15 +60,19 @@ class CoefficientVisualizer:
 
         return data
 
-    def _load_phase4_6_data(self) -> Dict:
+    def _load_phase4_6_data(self) -> dict:
         """Load golden section search history from Phase 4.6."""
         # Load both correct and incorrect steering refinement data
-        incorrect_path = self.data_dir / "phase4_6" / "golden_section_history.json"
+        incorrect_path = self.phase4_6_dir / "golden_section_history.json"
         with open(incorrect_path) as f:
             data = json.load(f)
 
-        # Load correct steering refinement data
-        correct_path = self.data_dir / "phase4_6_correct_only" / "checkpoints_correct" / "checkpoint_iter_5.json"
+        # Load correct steering refinement data (check multiple possible locations)
+        # Phase 4.6 correct-only runs may be in a separate directory
+        correct_path = self.phase4_6_dir / "checkpoints_correct" / "checkpoint_iter_5.json"
+        if not correct_path.exists():
+            # Try parent directory with suffix
+            correct_path = self.phase4_6_dir.parent / "phase4_6_correct_only" / "checkpoints_correct" / "checkpoint_iter_5.json"
         if correct_path.exists():
             with open(correct_path) as f:
                 correct_data = json.load(f)
@@ -147,7 +153,7 @@ class CoefficientVisualizer:
         Simplified to avoid messy grid search data from multiple runs.
         """
         # Phase 4.5: Use authoritative selected coefficient (skip messy grid search data)
-        selected_coeffs_path = self.data_dir / "phase4_5" / "selected_coefficients.json"
+        selected_coeffs_path = self.phase4_5_dir / "selected_coefficients.json"
         with open(selected_coeffs_path) as f:
             selected_data = json.load(f)
             phase4_5_optimal = selected_data['incorrect']['coefficient']
@@ -259,14 +265,25 @@ class Phase47Runner:
 
     def run(self):
         """Run Phase 4.7: Coefficient Optimization Visualization."""
-        # Setup paths using config
-        from common.phase_discovery import get_phase_output_dir
-        data_dir = Path(self.config.data_dir)
+        # Setup paths using phase discovery
+        from common.phase_discovery import get_phase_output_dir, discover_latest_phase_output
+
+        # Discover Phase 4.5 and 4.6 directories
+        phase4_5_output = discover_latest_phase_output("4.5", config=self.config)
+        if not phase4_5_output:
+            raise FileNotFoundError("Phase 4.5 output not found. Run Phase 4.5 first.")
+
+        phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
+        if not phase4_6_output:
+            raise FileNotFoundError("Phase 4.6 output not found. Run Phase 4.6 first.")
+
+        self.phase4_5_dir = Path(phase4_5_output).parent
+        self.phase4_6_dir = Path(phase4_6_output).parent
         self.output_dir = Path(get_phase_output_dir("4.7", self.config))
 
         # Handle --viz-only mode
         def viz_from_data(data):
-            visualizer = CoefficientVisualizer(data_dir, self.output_dir)
+            visualizer = CoefficientVisualizer(self.phase4_5_dir, self.phase4_6_dir, self.output_dir)
             visualizer.generate_all_plots()
 
         if handle_viz_only_mode(self, "phase_4_7_summary.json", viz_from_data):
@@ -275,10 +292,8 @@ class Phase47Runner:
         self.logger.info("Starting Phase 4.7: Coefficient Visualization")
         self.logger.info("\n" + self.config.dump(phase="4.7"))
 
-        output_dir = self.output_dir
-
         # Create visualizer and generate plots
-        visualizer = CoefficientVisualizer(data_dir, output_dir)
+        visualizer = CoefficientVisualizer(self.phase4_5_dir, self.phase4_6_dir, self.output_dir)
         visualizer.generate_all_plots()
 
         # Write phase_output.json manifest
@@ -292,14 +307,14 @@ class Phase47Runner:
                 "incorrect_plot": "incorrect_coefficient_search.png",
             },
             config=self.config,
-            output_dir=str(output_dir),
+            output_dir=str(self.output_dir),
             dependencies={
-                "4.5": str(data_dir / "phase4_5"),
-                "4.6": str(data_dir / "phase4_6"),
+                "4.5": str(self.phase4_5_dir),
+                "4.6": str(self.phase4_6_dir),
             },
             config_keys=['model_name', 'dataset_name']
         )
-        self.logger.info(f"Saved phase_output.json manifest to {output_dir}")
+        self.logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
 
         self.logger.info("Phase 4.7 completed successfully")
 

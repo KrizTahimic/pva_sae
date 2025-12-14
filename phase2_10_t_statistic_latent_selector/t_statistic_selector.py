@@ -110,7 +110,7 @@ class TStatisticSelector:
             incorrect_latent_activations: Tensor of shape (n_incorrect_samples, n_latents)
 
         Returns:
-            Dict with 't_stats_correct' (correct > incorrect) and
+            dict with 't_stats_correct' (correct > incorrect) and
             't_stats_incorrect' (incorrect > correct) lists
         """
         t_stats_correct = []  # Correct > Incorrect direction
@@ -119,8 +119,8 @@ class TStatisticSelector:
         n_latents = correct_latent_activations.shape[1]
 
         for i in range(n_latents):
-            correct_acts = correct_latent_activations[:, i].cpu().numpy()
-            incorrect_acts = incorrect_latent_activations[:, i].cpu().numpy()
+            correct_acts = correct_latent_activations[:, i].cpu().float().numpy()
+            incorrect_acts = incorrect_latent_activations[:, i].cpu().float().numpy()
             
             # Check if both groups have all zero activations
             if (correct_acts == 0).all() and (incorrect_acts == 0).all():

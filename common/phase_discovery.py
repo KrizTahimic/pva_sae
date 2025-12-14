@@ -208,7 +208,7 @@ def write_phase_output(
 
     Args:
         phase: Phase ID (e.g., "2.5")
-        outputs: Dict mapping semantic names to filenames. Must include "primary".
+        outputs: dict mapping semantic names to filenames. Must include "primary".
         config: Config object (extracts relevant fields)
         output_dir: Optional override for output directory
         dependencies: Optional dict of phase_id -> file path used as input
@@ -262,12 +262,12 @@ def discover_phase_outputs(phase: str, phase_dir: Optional[str] = None, config=N
         config: Optional config for model/dataset-aware directory lookup
 
     Returns:
-        Dict with keys:
+        dict with keys:
             - 'dir': Directory path
             - 'primary': Path to primary output file
-            - 'outputs': Dict of semantic_name -> Path
+            - 'outputs': dict of semantic_name -> Path
             - 'config': Config used to produce outputs
-            - 'dependencies': Dict of phase_id -> file path
+            - 'dependencies': dict of phase_id -> file path
 
     Raises:
         FileNotFoundError: If phase_output.json doesn't exist
@@ -343,7 +343,7 @@ def discover_steering_coefficients(config: 'Config') -> dict[str, float]:
         config: Config object for model/dataset-aware directory lookup
 
     Returns:
-        Dict with 'correct' and 'incorrect' coefficient values
+        dict with 'correct' and 'incorrect' coefficient values
 
     Raises:
         FileNotFoundError: If Phase 4.6 hasn't been run (no phase_output.json)
