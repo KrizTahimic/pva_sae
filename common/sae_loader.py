@@ -273,15 +273,9 @@ def load_sae(
         BaseSAE instance (either JumpReLUSAE or TopKSAE)
     """
     # Get model config
-    model_config = MODEL_CONFIGS.get(model_name)
-    if model_config is None:
-        # Try to infer from model name
-        if 'gemma' in model_name.lower():
-            model_config = MODEL_CONFIGS['google/gemma-2-2b']
-        elif 'llama' in model_name.lower():
-            model_config = MODEL_CONFIGS['meta-llama/Llama-3.1-8B']
-        else:
-            raise ValueError(f"Unknown model: {model_name}. Supported: {list(MODEL_CONFIGS.keys())}")
+    if model_name not in MODEL_CONFIGS:
+        raise ValueError(f"Unknown model: {model_name}. Supported: {list(MODEL_CONFIGS.keys())}")
+    model_config = MODEL_CONFIGS[model_name]
 
     # Validate layer index
     if layer_idx >= model_config['n_layers']:

@@ -515,6 +515,16 @@ Nice-to-haves once the foundation is solid.
     - Removed `_load_from_env()` method and its call from config.py
     - Feature was never used (no `PVA_SAE_*` environment variables anywhere)
     - **Impact:** ~25 lines removed
+- [x] **Fix MODEL_CONFIGS silent fallback bug**
+    - **Removed dead `get_model_config()` method** - never called anywhere
+    - **Fixed `__post_init__()`** - now raises ValueError for unknown models instead of silently using Gemma-2B
+    - **Fixed `sae_loader.py`** - removed if/else inference chain, now requires exact model name
+    - **Impact:** Invalid model names now fail fast with clear error message
+- [x] **Remove centralized `validate(phase)` method** (poor design)
+    - Moved essential check (`dataset_end_idx >= start`) to `__post_init__`
+    - Deleted `validate()` method (~90 lines) - phase runners already validate their own requirements
+    - Removed `config.validate()` call from run.py
+    - **Design improvement:** Config.py no longer knows about phases (Single Responsibility)
 - [ ]     phase8_3_percentile: float = 70.0  # Percentile for threshold (90 = steer top 10%) Make this autodiscovered also and not hardcoded.
 
 - [ ] Rename to sae-code-correctness ( the folder, github repo, huggingface etc.) Is this possible?

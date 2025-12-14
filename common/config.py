@@ -294,12 +294,20 @@ class Config:
     verbose: bool = False
 
     def __post_init__(self):
-        """Set dynamic defaults based on model_name."""
+        """Set dynamic defaults and validate basic constraints."""
+        # Validate model is supported
+        if self.model_name not in MODEL_CONFIGS:
+            raise ValueError(f"Unknown model: {self.model_name}. Supported: {list(MODEL_CONFIGS.keys())}")
+
         # Dynamically set activation_layers from MODEL_CONFIGS if not explicitly provided
         if self.activation_layers is None:
-            model_config = MODEL_CONFIGS.get(self.model_name, MODEL_CONFIGS['google/gemma-2-2b'])
+            model_config = MODEL_CONFIGS[self.model_name]
             # Use layers 1 to n_layers-1 (skip layer 0)
             self.activation_layers = list(range(1, model_config['n_layers']))
+
+        # Validate dataset range
+        if self.dataset_end_idx is not None and self.dataset_end_idx < self.dataset_start_idx:
+            raise ValueError("dataset_end_idx must be >= dataset_start_idx")
 
     @classmethod
     def from_args(cls, args, phase: Optional[str] = None) -> 'Config':
@@ -375,98 +383,6 @@ class Config:
         
         lines.append("\n" + "=" * 60)
         return "\n".join(lines)
-    
-    def validate(self, phase: str) -> None:
-        """
-        Validate configuration for specific phase.
-        
-        Args:
-            phase: Phase to validate for ("0", "0.1", "1", "2.2", "2.5", "3", "3.5", "3.6", "3.8")
-            
-        Raises:
-            ValueError: If configuration is invalid for the phase
-        """
-        # Common validations
-        if self.dataset_start_idx < 0:
-            raise ValueError("dataset_start_idx must be >= 0")
-        
-        if self.dataset_end_idx is not None and self.dataset_end_idx < self.dataset_start_idx:
-            raise ValueError("dataset_end_idx must be >= dataset_start_idx")
-        
-        # Phase-specific validations
-        if phase == "0":
-            # Phase 0 just needs output directory (validated via registry)
-            pass
-        
-        elif phase == "1":
-            # Phase 1 requires model
-            if not self.model_name:
-                raise ValueError("model_name required for Phase 1")
-            
-            if self.model_max_new_tokens <= 0:
-                raise ValueError("model_max_new_tokens must be > 0")
-        
-        elif phase == "0.1":
-            # Phase 0.1 requires split configuration
-            if self.split_n_strata <= 0:
-                raise ValueError("split_n_strata must be > 0")
-            
-            if not 0 < self.split_ratio_tolerance < 1:
-                raise ValueError("split_ratio_tolerance must be between 0 and 1")
-        
-        elif phase == "2.2":
-            # Phase 2.2 requires model and pile samples
-            if not self.model_name:
-                raise ValueError("model_name required for Phase 2.2")
-            
-            if self.pile_samples <= 0:
-                raise ValueError("pile_samples must be > 0")
-            
-            if not self.activation_layers:
-                raise ValueError("activation_layers required for Phase 2.2")
-        
-        elif phase == "2.5":
-            # Phase 2.5 requires model to be in MODEL_CONFIGS (for SAE configuration)
-            if self.model_name not in MODEL_CONFIGS:
-                raise ValueError(f"Unknown model: {self.model_name}. Supported: {list(MODEL_CONFIGS.keys())}")
-
-            if not self.activation_layers:
-                raise ValueError("activation_layers required for Phase 2.5")
-        
-        elif phase == "3":
-            # Phase 3 validation not yet implemented
-            pass
-        
-        elif phase == "3.5":
-            # Phase 3.5 requires temperature variation settings
-            if not self.temperature_variation_temps:
-                raise ValueError("At least one temperature must be specified")
-            
-            if any(t < 0 or t > 2.0 for t in self.temperature_variation_temps):
-                raise ValueError("Temperatures must be between 0.0 and 2.0")
-            
-            if self.temperature_samples_per_temp <= 0:
-                raise ValueError("temperature_samples_per_temp must be positive")
-        
-        elif phase == "3.6":
-            # Phase 3.6 requires Phase 3.5 and Phase 0.1 to be completed
-            # No specific config validation needed - uses standard settings
-            pass
-        
-        elif phase == "3.8":
-            # Phase 3.8 requires completed Phase 3.5 and Phase 0.1
-            # No specific config validation needed - uses standard settings
-            pass
-        
-        elif phase == "3.10":
-            # Phase 3.10 requires Phase 3.8 (best features) and 3.5 (temperature data)
-            # No specific config validation needed - uses standard settings
-            pass
-        
-        elif phase == "4.6":
-            # Phase 4.6 requires Phase 4.5 results for search bounds
-            if self.phase4_6_tolerance <= 0:
-                raise ValueError("phase4_6_tolerance must be > 0")
 
     def get_split_ratios(self) -> list[float]:
         """Get fixed split ratios for Phase 0.1."""
@@ -477,13 +393,4 @@ class Config:
         """Get split names for Phase 0.1."""
         return ["sae", "hyperparams", "validation"]
 
-    def get_model_config(self) -> dict:
-        """
-        Get model-specific configuration for the current model.
-
-        Returns:
-            Dictionary containing model-specific settings like hidden_size,
-            n_layers, sae_repo, sae_format, etc.
-        """
-        return MODEL_CONFIGS.get(self.model_name, MODEL_CONFIGS['google/gemma-2-2b'])
 

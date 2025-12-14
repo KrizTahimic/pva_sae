@@ -178,13 +178,6 @@ def main():
                     break
             setattr(config, config_attr, mode)
 
-        # Validate config for the phase
-        try:
-            config.validate(args.phase)
-        except ValueError as e:
-            logger.error(f"Configuration validation failed: {e}")
-            sys.exit(1)
-
         # Show config and exit if requested
         if args.show_config:
             print("\n" + config.dump(phase=args.phase))
