@@ -315,39 +315,12 @@ class Config:
         """
         config = cls()
         
-        # Define CLI arg to config field mapping
+        # CLI arg to config field mapping
+        # Only includes args that actually exist in run.py parser
         arg_mapping = {
-            # Model args
-            'model': 'model_name',
-            'temperature': 'model_temperature',
-            'max_new_tokens': 'model_max_new_tokens',
-            
-            # Dataset args
             'start': 'dataset_start_idx',
             'end': 'dataset_end_idx',
-
-            # Robustness args
-            'checkpoint_frequency': 'checkpoint_frequency',
-            'checkpoint_dir': 'checkpoint_dir',
-            
-            # SAE args
-            'latent_threshold': 'sae_latent_threshold',
-            # 'pile_filter': 'pile_filter_enabled',  # Removed - handled specially below
-            'pile_threshold': 'pile_threshold',
-            'pile_samples': 'pile_samples',
-            
-            # Split args
-            'random_seed': 'split_random_seed',
-            'n_strata': 'split_n_strata',
-            
-            # Validation args
-            'temperatures': 'validation_temperatures',
-            'steering_coeffs': 'validation_steering_coeffs',
-            
-            # General
             'verbose': 'verbose',
-
-            # Visualization
             'viz_only': 'viz_only',
         }
         
@@ -357,10 +330,6 @@ class Config:
                 value = getattr(args, arg_name)
                 if value is not None:
                     setattr(config, config_field, value)
-        
-        # Handle --no-pile-filter flag
-        if hasattr(args, 'no_pile_filter') and args.no_pile_filter:
-            config.pile_filter_enabled = False
         
         # Store special CLI args that aren't in Config fields
         # These are accessed via getattr(config, '_argname', default)

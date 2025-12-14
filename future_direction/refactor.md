@@ -495,6 +495,16 @@ Nice-to-haves once the foundation is solid.
     - **Updated Phase 2.5 validation:** Now checks `model_name in MODEL_CONFIGS` instead of `sae_repo_id`
     - **Removed CLI mapping:** `'sae_model': 'sae_repo_id'` and `'dataset_dir': 'dataset_dir'`
     - **Impact:** ~40 lines removed, config only contains fields that are actually used
+- [x] **Remove dead CLI arg_mapping entries** (12 entries + no_pile_filter handling)
+    - **Removed 12 mappings** that referred to CLI arguments that don't exist in `run.py` parser:
+      - `model`, `temperature`, `max_new_tokens` (model settings - use config.py instead)
+      - `checkpoint_frequency`, `checkpoint_dir` (robustness - use config.py)
+      - `latent_threshold`, `pile_threshold`, `pile_samples` (SAE - use config.py)
+      - `random_seed`, `n_strata` (split - use config.py)
+      - `temperatures`, `steering_coeffs` (fields don't even exist)
+    - **Removed dead special handling:** `no_pile_filter` (no `--no-pile-filter` arg in parser)
+    - **Kept 4 working mappings:** `start`, `end`, `verbose`, `viz_only`
+    - **Impact:** arg_mapping shrunk from 16 to 4 entries, ~15 lines removed
 - [ ] Rename to sae-code-correctness ( the folder, github repo, huggingface etc.) Is this possible?
     - Also in the comments and variable names do not use pva_sae anymore
 - [ ] Update the docstrings/commetns.
@@ -608,6 +618,7 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 ---
 
 ## Step 6: Multi-GPU Parallel Execution (After Experiments Work)
+- [ ] **Consider adding `--model` CLI argument** for quick model switching during testing (Step 6)
 - [ ] Consider condensing the code more like some can be just a variation of one code like steering etc. But take this with high risk and put little importance. Leaning to not do this.
 - [ ] Test all phase one by one first if it is all running.
     - [ ] Exmaine each of the output file.
