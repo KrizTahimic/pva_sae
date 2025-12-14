@@ -427,7 +427,12 @@ Terms removed:
   - **DONE**: Extracted `_log_milestone()` helper, guard with `continue`
 
 #### Complex One-Liners to Split
-- [ ] **instruct_steering_analyzer.py:633-635** - 200+ char logger.info line → split into multiple lines
+- [x] **instruct_steering_analyzer.py:572-574** - 200+ char logger.info lines
+  - **DONE**: Extracted `_format_effect_log()` helper function
+- [x] **difficulty_steering_analyzer.py:357,364,371** - 300+ char f-string lines
+  - **DONE**: Extracted `_format_counts_row()` helper function
+- [x] **universality_analysis.py** - Hardcoded interpretation text (752+ chars)
+  - **DONE**: Removed hardcoded interpretations entirely (code should output raw metrics only)
 
 ---
 

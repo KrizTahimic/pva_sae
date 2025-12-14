@@ -24,6 +24,19 @@ from phase3_12_difficulty_auroc_f1.difficulty_evaluator import group_by_difficul
 
 logger = get_logger("phase4_16.difficulty_steering_analyzer")
 
+
+def _format_counts_row(
+    metrics: dict,
+    difficulties: tuple[str, str, str] = ('easy', 'medium', 'hard')
+) -> str:
+    """Format (success/total) counts for each difficulty level."""
+    counts = [
+        f"({metrics[d]['n_success']}/{metrics[d]['n_total']})"
+        for d in difficulties
+    ]
+    return "                    " + "       ".join(counts)
+
+
 class Phase416Runner:
     """Standard runner for Phase 4.16: Difficulty-Stratified Steering Analysis."""
 
@@ -353,22 +366,34 @@ def generate_summary_text(
     ]
 
     # Format rates as table
-    corr_line = f"  Correction:       {correction_metrics['easy']['rate']:5.1f}%      {correction_metrics['medium']['rate']:5.1f}%      {correction_metrics['hard']['rate']:5.1f}%"
-    corr_counts = f"                    ({correction_metrics['easy']['n_success']}/{correction_metrics['easy']['n_total']})       ({correction_metrics['medium']['n_success']}/{correction_metrics['medium']['n_total']})       ({correction_metrics['hard']['n_success']}/{correction_metrics['hard']['n_total']})"
+    corr_line = (
+        f"  Correction:       {correction_metrics['easy']['rate']:5.1f}%      "
+        f"{correction_metrics['medium']['rate']:5.1f}%      "
+        f"{correction_metrics['hard']['rate']:5.1f}%"
+    )
+    corr_counts = _format_counts_row(correction_metrics)
 
     lines.append(corr_line)
     lines.append(corr_counts)
     lines.append("")
 
-    corrup_line = f"  Corruption:       {corruption_metrics['easy']['rate']:5.1f}%      {corruption_metrics['medium']['rate']:5.1f}%      {corruption_metrics['hard']['rate']:5.1f}%"
-    corrup_counts = f"                    ({corruption_metrics['easy']['n_success']}/{corruption_metrics['easy']['n_total']})       ({corruption_metrics['medium']['n_success']}/{corruption_metrics['medium']['n_total']})       ({corruption_metrics['hard']['n_success']}/{corruption_metrics['hard']['n_total']})"
+    corrup_line = (
+        f"  Corruption:       {corruption_metrics['easy']['rate']:5.1f}%      "
+        f"{corruption_metrics['medium']['rate']:5.1f}%      "
+        f"{corruption_metrics['hard']['rate']:5.1f}%"
+    )
+    corrup_counts = _format_counts_row(corruption_metrics)
 
     lines.append(corrup_line)
     lines.append(corrup_counts)
     lines.append("")
 
-    pres_line = f"  Preservation:     {preservation_metrics['easy']['rate']:5.1f}%      {preservation_metrics['medium']['rate']:5.1f}%      {preservation_metrics['hard']['rate']:5.1f}%"
-    pres_counts = f"                    ({preservation_metrics['easy']['n_success']}/{preservation_metrics['easy']['n_total']})       ({preservation_metrics['medium']['n_success']}/{preservation_metrics['medium']['n_total']})       ({preservation_metrics['hard']['n_success']}/{preservation_metrics['hard']['n_total']})"
+    pres_line = (
+        f"  Preservation:     {preservation_metrics['easy']['rate']:5.1f}%      "
+        f"{preservation_metrics['medium']['rate']:5.1f}%      "
+        f"{preservation_metrics['hard']['rate']:5.1f}%"
+    )
+    pres_counts = _format_counts_row(preservation_metrics)
 
     lines.append(pres_line)
     lines.append(pres_counts)

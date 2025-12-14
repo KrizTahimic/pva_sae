@@ -419,7 +419,11 @@ class UniversalityAnalyzer:
         report.append("\n---\n")
         
         report.append("## Executive Summary\n")
-        report.append(f"This analysis examines whether Program Validity Awareness (PVA) features discovered in the base Gemma-2B model transfer to the instruction-tuned Gemma-2B-IT variant. The results indicate **{metrics['universality_verdict']['overall_assessment']} transferability** of PVA features across model architectures.\n")
+        report.append(
+            "This analysis examines whether Program Validity Awareness (PVA) features "
+            "discovered in the base Gemma-2B model transfer to the instruction-tuned "
+            "Gemma-2B-IT variant.\n"
+        )
         
         report.append("## 1. Baseline Performance Comparison\n")
         report.append("### Temperature 0.0 (Deterministic Generation)\n")
@@ -433,8 +437,6 @@ class UniversalityAnalyzer:
         report.append(f"| **Gemma-2B (Base)** | {base['pass_rate']*100:.2f}% | {base['correct_count']} | {base['incorrect_count']} | {base['total_samples']} |")
         report.append(f"| **Gemma-2B-IT** | {inst['pass_rate']*100:.2f}% | {inst['correct_count']} | {inst['incorrect_count']} | {inst['total_samples']} |")
         report.append(f"| **Improvement** | +{imp['absolute']*100:.2f}% | +{inst['correct_count']-base['correct_count']} | -{base['incorrect_count']-inst['incorrect_count']} | - |")
-        
-        report.append(f"\n**Key Finding:** The instruction-tuned model shows a {imp['relative']:.1f}% relative improvement in baseline performance.\n")
         
         report.append("## 2. Steering Effectiveness Analysis\n")
         report.append("### 2.1 Base Model (Phase 4.8)\n")
@@ -483,38 +485,20 @@ class UniversalityAnalyzer:
         verdict = metrics["universality_verdict"]
         report.append(f"### Overall Verdict: **{verdict['overall_assessment']}**\n")
         
-        report.append("| Criterion | Result | Interpretation |")
-        report.append("|-----------|--------|----------------|")
-        report.append(f"| Features Transfer | {'✓' if verdict['features_transfer'] else '✗'} | {'PVA features transfer across architectures' if verdict['features_transfer'] else 'PVA features do not transfer well'} |")
-        report.append(f"| Correction Effective | {'✓' if verdict['correction_effective'] else '✗'} | {'Steering can correct errors' if verdict['correction_effective'] else 'Steering ineffective for correction'} |")
-        report.append(f"| Corruption Effective | {'✓' if verdict['corruption_effective'] else '✗'} | {'Steering can induce errors' if verdict['corruption_effective'] else 'Steering ineffective for corruption'} |")
-        report.append(f"| Preservation Maintained | {'✓' if verdict['preservation_maintained'] else '✗'} | {'Model can resist incorrect steering' if verdict['preservation_maintained'] else 'Model cannot resist steering'} |")
+        report.append("| Criterion | Result |")
+        report.append("|-----------|--------|")
+        report.append(f"| Features Transfer | {'✓' if verdict['features_transfer'] else '✗'} |")
+        report.append(f"| Correction Effective | {'✓' if verdict['correction_effective'] else '✗'} |")
+        report.append(f"| Corruption Effective | {'✓' if verdict['corruption_effective'] else '✗'} |")
+        report.append(f"| Preservation Maintained | {'✓' if verdict['preservation_maintained'] else '✗'} |")
         
-        report.append("\n## 5. Key Findings and Implications\n")
-        
-        report.append("### Key Findings:\n")
-        report.append("1. **Baseline Performance:** Instruction-tuning improves baseline pass rate by 8.51 percentage points (28.5% relative improvement)")
-        report.append("2. **Correction Capability:** Slightly reduced in instruction-tuned model (2.93% vs 4.04%)")
-        report.append("3. **Corruption Susceptibility:** Significantly increased in instruction-tuned model (82.55% vs 64.66%)")
-        report.append("4. **Preservation Ability:** Dramatically improved in instruction-tuned model (91.28% vs 0%)")
-        report.append("5. **Feature Transfer:** Limited - PVA features discovered in base model do not transfer effectively")
-        
-        report.append("\n### Research Implications:\n")
-        report.append("- **Model-Specific Features:** PVA features appear to be architecture-dependent")
-        report.append("- **Instruction-Tuning Impact:** Changes internal representations significantly")
-        report.append("- **Steering Asymmetry:** Instruction-tuned models more resistant to correction but more vulnerable to corruption")
-        report.append("- **Future Work:** Need separate feature discovery for each model variant")
-        
-        report.append("\n## 6. Experimental Details\n")
+        report.append("\n## 5. Experimental Details\n")
         report.append("- **Base Model:** google/gemma-2-2b")
         report.append("- **Instruction-Tuned Model:** google/gemma-2-2b-it")
         report.append("- **Dataset:** MBPP validation split (388 problems)")
         report.append("- **Temperature:** 0.0 (deterministic generation)")
         report.append("- **Phases Analyzed:** 3.5, 4.8, 7.3, 7.6")
-        
-        report.append("\n## 7. Conclusion\n")
-        report.append("The analysis reveals that PVA features discovered through SAE analysis in the base Gemma-2B model exhibit **limited transferability** to the instruction-tuned Gemma-2B-IT variant. While both correction and corruption steering show statistically significant effects in both models, the patterns differ substantially. The instruction-tuned model shows improved resistance to incorrect steering (preservation) but increased vulnerability to corruption, suggesting fundamental differences in how program validity is represented internally. These findings indicate that interpretability insights may be model-specific and that instruction-tuning significantly alters the internal feature landscape relevant to code generation tasks.")
-        
+
         report.append("\n---\n")
         report.append("*This report was automatically generated by universality_analysis.py*")
         

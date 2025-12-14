@@ -44,6 +44,23 @@ from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase7_6.instruct_steering_analyzer")
 
+
+def _format_effect_log(
+    effect_type: str,
+    successes: int,
+    trials: int,
+    rate: float,
+    pvalue: float,
+    is_significant: bool
+) -> str:
+    """Format effect statistics for logging."""
+    significance = "(significant)" if is_significant else "(not significant)"
+    return (
+        f"Instruction-tuned model - {effect_type} effect: {successes}/{trials} = "
+        f"{rate:.1f}%, p={pvalue:.4f} {significance}"
+    )
+
+
 class InstructSteeringAnalyzer:
     """Analyze steering effects on instruction-tuned model validation data."""
     
@@ -569,9 +586,18 @@ class InstructSteeringAnalyzer:
             }
         }
         
-        logger.info(f"Instruction-tuned model - Correction effect: {correction_successes}/{correction_trials} = {results['correction']['rate']:.1f}%, p={correction_pvalue:.4f} {'(significant)' if correction_significant else '(not significant)'}")
-        logger.info(f"Instruction-tuned model - Corruption effect: {corruption_successes}/{corruption_trials} = {results['corruption']['rate']:.1f}%, p={corruption_pvalue:.4f} {'(significant)' if corruption_significant else '(not significant)'}")
-        logger.info(f"Instruction-tuned model - Preservation effect: {preservation_successes}/{preservation_trials} = {results['preservation']['rate']:.1f}%, p={preservation_pvalue:.4f} {'(significant)' if preservation_significant else '(not significant)'}")
+        logger.info(_format_effect_log(
+            "Correction", correction_successes, correction_trials,
+            results['correction']['rate'], correction_pvalue, correction_significant
+        ))
+        logger.info(_format_effect_log(
+            "Corruption", corruption_successes, corruption_trials,
+            results['corruption']['rate'], corruption_pvalue, corruption_significant
+        ))
+        logger.info(_format_effect_log(
+            "Preservation", preservation_successes, preservation_trials,
+            results['preservation']['rate'], preservation_pvalue, preservation_significant
+        ))
         
         return results
 
