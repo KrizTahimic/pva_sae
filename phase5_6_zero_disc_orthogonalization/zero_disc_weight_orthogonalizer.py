@@ -460,7 +460,7 @@ class ZeroDiscWeightOrthogonalizer:
         ]
         
         # Create bars
-        bars = ax.bar(categories, values, color=['green', 'blue', 'red'], alpha=0.7)
+        bars = ax.bar(categories, values, color=['green', 'gold', 'red'], alpha=0.7)
         
         # Add value labels on bars
         for bar, value in zip(bars, values):

@@ -76,7 +76,7 @@ class TemperatureTrendsVisualizer:
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
 
         # AUROC plot - Updated labels
-        ax1.plot(temperatures, correct_aurocs, 'b-o', label='Correct-predicting', markersize=8)
+        ax1.plot(temperatures, correct_aurocs, 'g-o', label='Correct-predicting', markersize=8)
         ax1.plot(temperatures, incorrect_aurocs, 'r-s', label='Incorrect-predicting', markersize=8)
         ax1.set_xlabel('Temperature')
         ax1.set_ylabel('AUROC')
@@ -87,7 +87,7 @@ class TemperatureTrendsVisualizer:
         ax1.set_xticks(temperatures)
 
         # F1 plot - Updated labels
-        ax2.plot(temperatures, correct_f1s, 'b-o', label='Correct-predicting', markersize=8)
+        ax2.plot(temperatures, correct_f1s, 'g-o', label='Correct-predicting', markersize=8)
         ax2.plot(temperatures, incorrect_f1s, 'r-s', label='Incorrect-predicting', markersize=8)
         ax2.set_xlabel('Temperature')
         ax2.set_ylabel('F1 Score')

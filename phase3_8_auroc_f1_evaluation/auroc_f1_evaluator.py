@@ -401,7 +401,7 @@ def plot_combined_f1_thresholds(
     incorrect_f1s = np.array(incorrect_metrics['f1_curve']['f1_scores'])
 
     # Plot both curves
-    plt.plot(correct_thresholds, correct_f1s, 'b-', linewidth=2, label='Correct-predicting')
+    plt.plot(correct_thresholds, correct_f1s, 'g-', linewidth=2, label='Correct-predicting')
     plt.plot(incorrect_thresholds, incorrect_f1s, 'r-', linewidth=2, label='Incorrect-predicting')
 
     # Mark optimal points
@@ -410,7 +410,7 @@ def plot_combined_f1_thresholds(
     incorrect_optimal_threshold = incorrect_metrics['threshold']
     incorrect_optimal_f1 = incorrect_metrics['f1']
 
-    plt.plot(correct_optimal_threshold, correct_optimal_f1, 'bo', markersize=10,
+    plt.plot(correct_optimal_threshold, correct_optimal_f1, 'go', markersize=10,
              label=f'Correct optimal: {correct_optimal_f1:.3f}')
     plt.plot(incorrect_optimal_threshold, incorrect_optimal_f1, 'rs', markersize=10,
              label=f'Incorrect optimal: {incorrect_optimal_f1:.3f}')
@@ -499,7 +499,7 @@ def plot_comparative_metrics(
     bar_positions = np.arange(len(metrics))
     width = 0.35
 
-    bars1 = ax1.bar(bar_positions - width/2, correct_vals, width, label='Correct-predicting', color='blue')
+    bars1 = ax1.bar(bar_positions - width/2, correct_vals, width, label='Correct-predicting', color='green')
     bars2 = ax1.bar(bar_positions + width/2, incorrect_vals, width, label='Incorrect-predicting', color='red')
 
     # Add value labels on bars
@@ -528,7 +528,7 @@ def plot_comparative_metrics(
     if y_true_val_correct is not None and scores_val_correct is not None:
         fpr_correct, tpr_correct, _ = roc_curve(y_true_val_correct, scores_val_correct)
         auc_correct = results['correct_predicting_latent']['validation_metrics']['metrics']['auroc']
-        ax2.plot(fpr_correct, tpr_correct, color='blue', linewidth=2,
+        ax2.plot(fpr_correct, tpr_correct, color='green', linewidth=2,
                 label=f'Correct-predicting (AUC = {auc_correct:.3f})')
 
     # Plot ROC curve for incorrect-predicting latent if data provided
@@ -571,7 +571,7 @@ def plot_precision_recall_curves(
         y_true_val_correct, scores_val_correct
     )
     ap_correct = auc(recall_correct, precision_correct)
-    plt.plot(recall_correct, precision_correct, 'b-', linewidth=2,
+    plt.plot(recall_correct, precision_correct, 'g-', linewidth=2,
             label=f'Correct-predicting (AP = {ap_correct:.3f})')
 
     # Compute and plot PR curve for incorrect-predicting feature

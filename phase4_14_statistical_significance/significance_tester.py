@@ -511,7 +511,7 @@ class SignificanceTester:
             preservation_tri['rates']['targeted'] * 100
         ]
 
-        bars3 = ax3.bar(preservation_conditions, preservation_rates, color=['gray', 'orange', 'blue'])
+        bars3 = ax3.bar(preservation_conditions, preservation_rates, color=['gray', 'orange', 'gold'])
         ax3.set_ylabel('Preservation Rate (%)', fontsize=12)
         ax3.set_title('Preservation Experiments (Correct→Correct)', fontsize=14)
         ax3.set_ylim(0, 105)

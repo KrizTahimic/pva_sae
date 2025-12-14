@@ -532,13 +532,22 @@ Nice-to-haves once the foundation is solid.
     - Config override still works: setting explicit value bypasses auto-discovery
     - **Behavior:** If Phase 8.2 not run and no override set, raises FileNotFoundError with clear message
 
-- [ ] Make all figures correction green, corruption red, and pick a color for preservation.
-- [ ] Update the docstrings/commetns.
+- [x] **Visualization color scheme standardized** (correction=green, corruption=red, preservation=gold)
+    - Added color constants to `common/config.py`: `COLOR_CORRECTION`, `COLOR_CORRUPTION`, `COLOR_PRESERVATION`, etc.
+    - Added "Visualization Color Scheme" documentation section to `CLAUDE.md`
+    - Updated 11 visualization files:
+        - Correct-predicting latent: blue → green (5 files: 3.8, 3.10, 3.11, 3.12, 4.7)
+        - Preservation rate: blue/orange/purple → gold (6 files: 4.8, 4.14, 4.16, 5.6, 7.6, 7.9)
+        - Correction rate: blue → green (4.16)
+    - Semantic color mapping: green=good (correction, correct-predicting), red=bad (corruption, incorrect-predicting), gold=maintained (preservation)
+- [ ] Is there other standardization we could do similar to colors, variable namings, output directory namings,
+- [ ] Read the new code. Use explore agents to find if there is still outdated docstrings/comments. If so, let's update them.
 - [ ] Improve notebooks. Remove unnecessary cells. Also do list comprehensions. Also make sure it works again after the new refactored code.
 - [ ] Fix the figure generation code. Currently it looks soooo messy.
     - [ ] Understand matplotlib and pandas logic or how it works. So I can help instruct my preference and good practice.
 - [ ] Rename to sae-code-correctness ( the folder, github repo, huggingface etc.) Is this possible?
     - Also in the comments and variable names do not use pva_sae anymore
+- [ ] Refactor README.md and CLAUDE.md.
 
 
 ### 5.1 ICML Visualizations (moved from ICML tasks)
@@ -714,3 +723,4 @@ GPU=1 ts python3 run.py phase 1 --model llama --dataset mbpp
 
 FINAL
 - [ ] Add here the ICML LaTeX.
+- [ ] Improve the aesthetic of my visualization.

@@ -746,6 +746,43 @@ preservation = baseline_passed & steered_correct
 
 ---
 
+## Visualization Color Scheme
+
+Use consistent colors with semantic alignment across all visualization phases.
+
+**Color constants are defined in `common/config.py`:**
+
+| Concept | Color | Constant | Semantic |
+|---------|-------|----------|----------|
+| **Correction** | Green | `COLOR_CORRECTION` | Good outcome (incorrect→correct) |
+| **Correct-predicting** | Green | `COLOR_CORRECT_PREDICTING` | Positive SAE feature |
+| **Corruption** | Red | `COLOR_CORRUPTION` | Bad outcome (correct→incorrect) |
+| **Incorrect-predicting** | Red | `COLOR_INCORRECT_PREDICTING` | Negative SAE feature |
+| **Preservation** | Gold | `COLOR_PRESERVATION` | Maintained (correct→correct) |
+
+**Color variants (for accents and comparison plots):**
+
+| Variant | Constant | Use Case |
+|---------|----------|----------|
+| `'darkgreen'` | `COLOR_CORRECT_DARK` | Accent markers, optimal points |
+| `'darkred'` | `COLOR_INCORRECT_DARK` | Accent markers |
+| `'goldenrod'` | `COLOR_PRESERVATION_DARK` | Text annotations |
+| `'khaki'` | `COLOR_PRESERVATION_LIGHT` | Lighter shade in comparisons |
+
+**Matplotlib shorthand:**
+- `'g-o'` = green line with circle markers (correct-predicting)
+- `'r-s'` = red line with square markers (incorrect-predicting)
+
+**Example usage:**
+```python
+from common.config import COLOR_CORRECTION, COLOR_PRESERVATION
+
+ax.bar(['Correction'], [rate], color=COLOR_CORRECTION)
+ax.bar(['Preservation'], [rate], color=COLOR_PRESERVATION)
+```
+
+---
+
 ## Code Style Conventions
 
 Follow these conventions when writing or modifying code in this project.

@@ -386,7 +386,7 @@ def plot_auroc_trends(
     # Plot valid points
     if valid_correct_aurocs:
         plt.plot(valid_correct_diff, valid_correct_aurocs, marker='o', linewidth=2, markersize=8,
-                 label='Correct-predicting', color='blue')
+                 label='Correct-predicting', color='green')
     if valid_incorrect_aurocs:
         plt.plot(valid_incorrect_diff, valid_incorrect_aurocs, marker='s', linewidth=2, markersize=8,
                  label='Incorrect-predicting', color='red')
@@ -411,7 +411,7 @@ def plot_auroc_trends(
     # Add value labels for valid points
     for i, (c_auroc, i_auroc) in enumerate(zip(correct_aurocs, incorrect_aurocs)):
         if not np.isnan(c_auroc):
-            plt.text(i, c_auroc + 0.02, f'{c_auroc:.3f}', ha='center', va='bottom', color='blue')
+            plt.text(i, c_auroc + 0.02, f'{c_auroc:.3f}', ha='center', va='bottom', color='green')
         if not np.isnan(i_auroc):
             plt.text(i, i_auroc - 0.05, f'{i_auroc:.3f}', ha='center', va='top', color='red')
     
@@ -485,7 +485,7 @@ def main():
         incorrect_f1s = [incorrect_results[d]['f1'] for d in difficulties]
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-        ax1.plot(difficulties, correct_aurocs, 'b-o', label='Correct-predicting', markersize=8)
+        ax1.plot(difficulties, correct_aurocs, 'g-o', label='Correct-predicting', markersize=8)
         ax1.plot(difficulties, incorrect_aurocs, 'r-s', label='Incorrect-predicting', markersize=8)
         ax1.set_xlabel('Difficulty Level')
         ax1.set_ylabel('AUROC')
@@ -495,7 +495,7 @@ def main():
         ax1.set_ylim(0, 1.05)
         ax1.set_xticks(range(len(difficulties)))
         ax1.set_xticklabels([d.capitalize() for d in difficulties])
-        ax2.plot(difficulties, correct_f1s, 'b-o', label='Correct-predicting', markersize=8)
+        ax2.plot(difficulties, correct_f1s, 'g-o', label='Correct-predicting', markersize=8)
         ax2.plot(difficulties, incorrect_f1s, 'r-s', label='Incorrect-predicting', markersize=8)
         ax2.set_xlabel('Difficulty Level')
         ax2.set_ylabel('F1 Score')
@@ -637,7 +637,7 @@ def main():
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
     # AUROC plot - combined lines
-    ax1.plot(difficulties, correct_aurocs, 'b-o', label='Correct-predicting', markersize=8)
+    ax1.plot(difficulties, correct_aurocs, 'g-o', label='Correct-predicting', markersize=8)
     ax1.plot(difficulties, incorrect_aurocs, 'r-s', label='Incorrect-predicting', markersize=8)
     ax1.set_xlabel('Difficulty Level')
     ax1.set_ylabel('AUROC')
@@ -649,7 +649,7 @@ def main():
     ax1.set_xticklabels([d.capitalize() for d in difficulties])
 
     # F1 plot - combined lines
-    ax2.plot(difficulties, correct_f1s, 'b-o', label='Correct-predicting', markersize=8)
+    ax2.plot(difficulties, correct_f1s, 'g-o', label='Correct-predicting', markersize=8)
     ax2.plot(difficulties, incorrect_f1s, 'r-s', label='Incorrect-predicting', markersize=8)
     ax2.set_xlabel('Difficulty Level')
     ax2.set_ylabel('F1 Score')

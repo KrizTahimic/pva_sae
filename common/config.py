@@ -35,6 +35,20 @@ STEERING_EFFECT_THRESHOLD_PERCENT = 90
 # === Visualization ===
 PLOT_DPI = 300
 
+# === Visualization Colors ===
+# Semantic color scheme for consistent visualizations across all phases
+COLOR_CORRECTION = 'green'          # Good outcome: incorrect → correct
+COLOR_CORRECT_PREDICTING = 'green'  # Positive SAE feature
+COLOR_CORRUPTION = 'red'            # Bad outcome: correct → incorrect
+COLOR_INCORRECT_PREDICTING = 'red'  # Negative SAE feature
+COLOR_PRESERVATION = 'gold'         # Maintained: correct → correct
+
+# Color variants for accents and comparison plots
+COLOR_CORRECT_DARK = 'darkgreen'
+COLOR_INCORRECT_DARK = 'darkred'
+COLOR_PRESERVATION_DARK = 'goldenrod'
+COLOR_PRESERVATION_LIGHT = 'khaki'
+
 # GemmaScope sparsity levels for each layer (16k width)
 GEMMA_2B_SPARSITY = {
     0: 105,

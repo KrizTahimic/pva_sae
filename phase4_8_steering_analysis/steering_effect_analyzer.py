@@ -638,7 +638,7 @@ class SteeringEffectAnalyzer:
         # Plot preservation rate
         preservation_rate = metrics['preservation_rate']
 
-        ax3.bar(['Preservation Rate'], [preservation_rate], color='blue', alpha=0.7)
+        ax3.bar(['Preservation Rate'], [preservation_rate], color='gold', alpha=0.7)
         ax3.set_ylabel('Percentage (%)')
         ax3.set_title('Preservation Rate\n(Correct→Correct)')
         ax3.set_ylim(0, 100)

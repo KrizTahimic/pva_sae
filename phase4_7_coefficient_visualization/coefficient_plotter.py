@@ -121,16 +121,16 @@ class CoefficientVisualizer:
 
         # Create plot
         plt.figure(figsize=(7, 5))
-        plt.plot(all_coeffs_sorted, all_rates_sorted, 'o-', color='blue', linewidth=2,
+        plt.plot(all_coeffs_sorted, all_rates_sorted, 'o-', color='green', linewidth=2,
                  markersize=6, label='Coefficient search', alpha=0.7)
 
         # Highlight grid search optimal
-        plt.plot(grid_optimal, grid_optimal_rate, 's', color='darkblue', markersize=10,
+        plt.plot(grid_optimal, grid_optimal_rate, 's', color='darkgreen', markersize=10,
                  label=f'Grid max: α={int(grid_optimal)}', zorder=10)
 
         # Highlight golden section optimal (if different)
         if golden_optimal != grid_optimal:
-            plt.plot(golden_optimal, golden_optimal_rate, '*', color='darkblue', markersize=15,
+            plt.plot(golden_optimal, golden_optimal_rate, '*', color='darkgreen', markersize=15,
                      label=f'Golden max: α={int(golden_optimal)}', zorder=11)
 
         plt.xlabel('Steering Coefficient (α)', fontsize=12)

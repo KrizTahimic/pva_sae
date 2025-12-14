@@ -693,7 +693,7 @@ class InstructSteeringAnalyzer:
             ax2.set_ylim(0, 100)
             ax2.text(0, corruption_rate + 2, f'{corruption_rate:.1f}%', ha='center', va='bottom', fontweight='bold')
             
-            ax3.bar(['Preservation Rate'], [preservation_rate], color='blue', alpha=0.7)
+            ax3.bar(['Preservation Rate'], [preservation_rate], color='gold', alpha=0.7)
             ax3.set_ylabel('Percentage (%)')
             ax3.set_title('Instruct Model - Preservation Rate')
             ax3.set_ylim(0, 100)
@@ -717,7 +717,7 @@ class InstructSteeringAnalyzer:
             for i, v in enumerate(corruption_values):
                 ax5.text(i, v + 1, f'{v:.1f}%', ha='center', va='bottom', fontweight='bold')
             
-            ax6.bar(models, preservation_values, color=['lightsteelblue', 'blue'], alpha=0.7)
+            ax6.bar(models, preservation_values, color=['khaki', 'gold'], alpha=0.7)
             ax6.set_ylabel('Preservation Rate (%)')
             ax6.set_title('Cross-Model Comparison - Preservation')
             for i, v in enumerate(preservation_values):
@@ -745,7 +745,7 @@ class InstructSteeringAnalyzer:
             ax2.set_ylim(0, 100)
             ax2.text(0, corruption_rate + 2, f'{corruption_rate:.1f}%', ha='center', va='bottom', fontweight='bold')
             
-            ax3.bar(['Preservation Rate'], [preservation_rate], color='blue', alpha=0.7)
+            ax3.bar(['Preservation Rate'], [preservation_rate], color='gold', alpha=0.7)
             ax3.set_ylabel('Percentage (%)')
             ax3.set_title('Preservation Rate (Correct→Correct)')
             ax3.set_ylim(0, 100)

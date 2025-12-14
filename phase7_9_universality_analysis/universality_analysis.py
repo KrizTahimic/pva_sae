@@ -243,7 +243,7 @@ class UniversalityAnalyzer:
         ax4 = fig.add_subplot(gs[1, 0])
         preservation_rates = [metrics["steering_effectiveness"]["base_model"]["preservation_rate"],
                              metrics["steering_effectiveness"]["instruction_tuned"]["preservation_rate"]]
-        bars = ax4.bar(['Base', 'Instruct'], preservation_rates, color=['#9b59b6', '#8e44ad'], alpha=0.8, edgecolor='black')
+        bars = ax4.bar(['Base', 'Instruct'], preservation_rates, color=['khaki', 'gold'], alpha=0.8, edgecolor='black')
         ax4.set_ylabel('Preservation Rate (%)', fontsize=11, fontweight='bold')
         ax4.set_title('Preservation During Incorrect Steering', fontsize=12, fontweight='bold')
         ax4.set_ylim(0, 100)

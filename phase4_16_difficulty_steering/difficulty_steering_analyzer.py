@@ -281,18 +281,18 @@ def plot_steering_trends(
     preservation_rates = [preservation_metrics[d]['rate'] for d in difficulties]
 
     # Plot lines
-    plt.plot(x_pos, correction_rates, 'b-o', linewidth=2, markersize=10,
+    plt.plot(x_pos, correction_rates, 'g-o', linewidth=2, markersize=10,
              label='Correction Rate')
     plt.plot(x_pos, corruption_rates, 'r-s', linewidth=2, markersize=10,
              label='Corruption Rate')
-    plt.plot(x_pos, preservation_rates, color='orange', marker='^', linestyle='-', linewidth=2, markersize=10,
+    plt.plot(x_pos, preservation_rates, color='gold', marker='^', linestyle='-', linewidth=2, markersize=10,
              label='Preservation Rate')
 
     # Add value labels
     for i, (c, cr, p) in enumerate(zip(correction_rates, corruption_rates, preservation_rates)):
-        plt.text(i, c + 2, f'{c:.1f}%', ha='center', va='bottom', color='blue', fontweight='bold')
+        plt.text(i, c + 2, f'{c:.1f}%', ha='center', va='bottom', color='green', fontweight='bold')
         plt.text(i, cr + 2, f'{cr:.1f}%', ha='center', va='bottom', color='red', fontweight='bold')
-        plt.text(i, p - 4, f'{p:.1f}%', ha='center', va='top', color='orange', fontweight='bold')
+        plt.text(i, p - 4, f'{p:.1f}%', ha='center', va='top', color='goldenrod', fontweight='bold')
 
     plt.xlabel('Difficulty Level (Cyclomatic Complexity)', fontsize=12)
     plt.ylabel('Success Rate (%)', fontsize=12)
