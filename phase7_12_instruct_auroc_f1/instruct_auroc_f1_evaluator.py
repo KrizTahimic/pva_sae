@@ -320,7 +320,7 @@ def load_instruct_activations(
             continue
 
         # Get test result from temperature 0.0 dataset
-        task_results = temp_data[temp_data['task_id'] == task_id]['test_passed'].values
+        task_results = temp_data[temp_data['task_id'] == task_id]['baseline_passed'].values
         if len(task_results) == 0:
             logger.warning(f"No test results found for task {task_id}")
             continue
@@ -341,15 +341,15 @@ def load_instruct_activations(
         activations.append(latent_activation)
 
         # Use the result at temperature 0.0
-        test_passed = task_results[0]
+        baseline_passed = task_results[0]
 
         # Create label based on what we're predicting
         if feature_type == 'correct':
             # Predicting correctness: 1=correct, 0=incorrect
-            label = 1 if test_passed else 0
+            label = 1 if baseline_passed else 0
         else:
             # Predicting incorrectness: 1=incorrect, 0=correct
-            label = 1 if not test_passed else 0
+            label = 1 if not baseline_passed else 0
 
         labels.append(label)
 

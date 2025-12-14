@@ -127,7 +127,7 @@ class TemperatureAUROCEvaluator:
         df = pd.read_parquet(temp_file)
         
         # Verify expected columns
-        required_cols = ['task_id', 'test_passed']
+        required_cols = ['task_id', 'baseline_passed']
         missing_cols = set(required_cols) - set(df.columns)
         if missing_cols:
             raise ValueError(f"Missing required columns: {missing_cols}")
@@ -191,7 +191,7 @@ class TemperatureAUROCEvaluator:
                     raise
 
             # Each sample has its own label
-            label = int(row['test_passed'])
+            label = int(row['baseline_passed'])
 
             sample_latent_values.append(latent_value)
             sample_labels.append(label)

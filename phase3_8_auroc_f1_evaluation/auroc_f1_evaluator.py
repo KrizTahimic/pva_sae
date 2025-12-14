@@ -647,7 +647,7 @@ def load_split_activations(
     # Iterate directly over temp_data (no Phase 0.1 needed)
     for _, row in temp_data.iterrows():
         task_id = row['task_id']
-        test_passed = row['test_passed']
+        baseline_passed = row['baseline_passed']
 
         # Load raw activations from appropriate phase (preserves bfloat16)
         act_file = activation_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.safetensors'
@@ -674,10 +674,10 @@ def load_split_activations(
         # Create label based on what we're predicting
         if latent_type == 'correct':
             # Predicting correctness: 1=correct, 0=incorrect
-            label = 1 if test_passed else 0
+            label = 1 if baseline_passed else 0
         else:
             # Predicting incorrectness: 1=incorrect, 0=correct
-            label = 1 if not test_passed else 0
+            label = 1 if not baseline_passed else 0
 
         labels.append(label)
 

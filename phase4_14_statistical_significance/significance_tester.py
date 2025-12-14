@@ -87,8 +87,8 @@ class SignificanceTester:
     def extract_baseline_metrics(self, baseline_data: pd.DataFrame) -> Dict:
         """Extract correction and corruption rates from baseline data."""
         # Split by correctness
-        baseline_correct = baseline_data[baseline_data['test_passed'] == True]
-        baseline_incorrect = baseline_data[baseline_data['test_passed'] == False]
+        baseline_correct = baseline_data[baseline_data['baseline_passed'] == True]
+        baseline_incorrect = baseline_data[baseline_data['baseline_passed'] == False]
         
         return {
             'n_correct': len(baseline_correct),
@@ -136,7 +136,7 @@ class SignificanceTester:
                                          targeted: Dict, zero_disc: Dict) -> Dict:
         """Perform triangulation for preservation experiments (correct→correct)."""
         # Get baseline correct problems - baseline has no steering, so preservation rate is 100%
-        baseline_correct = baseline_data[baseline_data['test_passed'] == True]
+        baseline_correct = baseline_data[baseline_data['baseline_passed'] == True]
         baseline_n_correct = len(baseline_correct)
         # Since baseline has no steering, preservation rate is 100% (all correct stay correct)
         baseline_preservation_rate = 1.0
@@ -147,7 +147,7 @@ class SignificanceTester:
         if targeted_preservation_list:
             # Count actual preservations (correct -> correct continuations)
             targeted_n_preserved = sum(1 for r in targeted_preservation_list
-                                      if r.get('steered_passed') and r.get('test_passed'))
+                                      if r.get('steered_correct') and r.get('baseline_passed'))
             targeted_n_total = len(targeted_preservation_list)
         else:
             # Fallback for empty results
@@ -159,7 +159,7 @@ class SignificanceTester:
         # Extract zero-disc preservation results
         zero_disc_preservation = zero_disc.get('preservation_results', {})
         zero_disc_n_preserved = sum(1 for r in zero_disc_preservation.values()
-                                   if r['steered_correct'] and r['initial_correct'])
+                                   if r['steered_correct'] and r['baseline_passed'])
         zero_disc_n_total = len(zero_disc_preservation)
         zero_disc_preservation_rate = zero_disc_n_preserved / zero_disc_n_total if zero_disc_n_total > 0 else 0.0
 
@@ -205,7 +205,7 @@ class SignificanceTester:
                                        targeted: Dict, zero_disc: Dict) -> Dict:
         """Perform triangulation for correction experiments (incorrect→correct)."""
         # Get baseline incorrect problems
-        baseline_incorrect = baseline_data[baseline_data['test_passed'] == False]
+        baseline_incorrect = baseline_data[baseline_data['baseline_passed'] == False]
         baseline_n_incorrect = len(baseline_incorrect)
         # Since baseline has no steering, correction rate is 0
         baseline_correction_rate = 0.0
@@ -215,8 +215,8 @@ class SignificanceTester:
         targeted_correction_list = targeted.get('detailed_results', {}).get('correction', [])
         if targeted_correction_list:
             # Count actual corrections (incorrect -> correct transitions)
-            targeted_n_corrected = sum(1 for r in targeted_correction_list 
-                                      if r.get('steered_passed') and not r.get('test_passed'))
+            targeted_n_corrected = sum(1 for r in targeted_correction_list
+                                      if r.get('steered_correct') and not r.get('baseline_passed'))
             targeted_n_total = len(targeted_correction_list)
         else:
             # Fallback for empty results
@@ -227,8 +227,8 @@ class SignificanceTester:
         
         # Extract zero-disc correction results
         zero_disc_correction = zero_disc.get('correction_results', {})
-        zero_disc_n_corrected = sum(1 for r in zero_disc_correction.values() 
-                                   if r['steered_correct'] and not r['initial_correct'])
+        zero_disc_n_corrected = sum(1 for r in zero_disc_correction.values()
+                                   if r['steered_correct'] and not r['baseline_passed'])
         zero_disc_n_total = len(zero_disc_correction)
         zero_disc_correction_rate = zero_disc_n_corrected / zero_disc_n_total if zero_disc_n_total > 0 else 0.0
         
@@ -274,7 +274,7 @@ class SignificanceTester:
                                        targeted: Dict, zero_disc: Dict) -> Dict:
         """Perform triangulation for corruption experiments (correct→incorrect)."""
         # Get baseline correct problems
-        baseline_correct = baseline_data[baseline_data['test_passed'] == True]
+        baseline_correct = baseline_data[baseline_data['baseline_passed'] == True]
         baseline_n_correct = len(baseline_correct)
         # Since baseline has no steering, corruption rate is 0
         baseline_corruption_rate = 0.0
@@ -284,8 +284,8 @@ class SignificanceTester:
         targeted_corruption_list = targeted.get('detailed_results', {}).get('corruption', [])
         if targeted_corruption_list:
             # Count actual corruptions (correct -> incorrect transitions)
-            targeted_n_corrupted = sum(1 for r in targeted_corruption_list 
-                                      if not r.get('steered_passed') and r.get('test_passed'))
+            targeted_n_corrupted = sum(1 for r in targeted_corruption_list
+                                      if not r.get('steered_correct') and r.get('baseline_passed'))
             targeted_n_total = len(targeted_corruption_list)
         else:
             # Fallback for empty results
@@ -296,8 +296,8 @@ class SignificanceTester:
         
         # Extract zero-disc corruption results
         zero_disc_corruption = zero_disc.get('corruption_results', {})
-        zero_disc_n_corrupted = sum(1 for r in zero_disc_corruption.values() 
-                                   if not r['steered_correct'] and r['initial_correct'])
+        zero_disc_n_corrupted = sum(1 for r in zero_disc_corruption.values()
+                                   if not r['steered_correct'] and r['baseline_passed'])
         zero_disc_n_total = len(zero_disc_corruption)
         zero_disc_corruption_rate = zero_disc_n_corrupted / zero_disc_n_total if zero_disc_n_total > 0 else 0.0
         

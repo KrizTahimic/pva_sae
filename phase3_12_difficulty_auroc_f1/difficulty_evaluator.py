@@ -126,17 +126,17 @@ def load_group_activations(
         activations.append(latent_activation)
         
         # Get test result and create label
-        task_results = temp_data[temp_data['task_id'] == task_id]['test_passed'].values
+        task_results = temp_data[temp_data['task_id'] == task_id]['baseline_passed'].values
         if len(task_results) == 0:
             continue
-            
-        test_passed = task_results[0]  # Use first sample at temperature 0.0
-        
+
+        baseline_passed = task_results[0]  # Use first sample at temperature 0.0
+
         # Create label based on feature type
         if latent_type == 'correct':
-            label = 1 if test_passed else 0  # Flipped for correct-predicting
+            label = 1 if baseline_passed else 0  # Flipped for correct-predicting
         else:
-            label = 0 if test_passed else 1  # Standard for incorrect-predicting
+            label = 0 if baseline_passed else 1  # Standard for incorrect-predicting
         
         labels.append(label)
     
