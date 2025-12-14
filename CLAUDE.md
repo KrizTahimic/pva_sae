@@ -20,7 +20,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 4. **Activate conda first**:
    ```bash
-   source ~/miniconda3/etc/profile.d/conda.sh && conda activate pva_sae
+   source ~/miniconda3/etc/profile.d/conda.sh && conda activate sae_code_correctness
    ```
 
 5. **Use screen for long tasks** - Provide screen instructions for user to run manually. Do NOT execute screen commands via Claude Code.

@@ -1,6 +1,6 @@
 # VS Code Remote-SSH Setup Guide for Google Cloud VM
 
-This guide provides detailed step-by-step instructions for setting up Visual Studio Code Remote-SSH to develop and run your PVA-SAE project on a Google Cloud VM.
+This guide provides detailed step-by-step instructions for setting up Visual Studio Code Remote-SSH to develop and run your SAE-Code-Correctness project on a Google Cloud VM.
 
 ## Why Use VS Code Remote-SSH?
 
@@ -23,7 +23,7 @@ This guide provides detailed step-by-step instructions for setting up Visual Stu
 - ✅ VM is running and accessible
 - ✅ SSH access enabled (port 22)
 - ✅ Repository already cloned at a known path
-- ✅ Conda environment (`pva_sae`) already set up
+- ✅ Conda environment (`sae_code_correctness`) already set up
 - ✅ All dependencies installed
 
 ---
@@ -78,7 +78,7 @@ notepad ~/.ssh/config
 Your configuration has been added:
 
 ```ssh-config
-Host pva-sae-vm
+Host sae-cc-vm
     HostName 34.80.95.244
     User kriz_tahimic
     IdentityFile ~/.ssh/id_ed25519
@@ -88,7 +88,7 @@ Host pva-sae-vm
 ```
 
 **Explanation:**
-- `Host pva-sae-vm`: Nickname for your VM (you can choose any name)
+- `Host sae-cc-vm`: Nickname for your VM (you can choose any name)
 - `HostName`: The VM's external IP address
 - `User`: Your SSH username on the VM
 - `IdentityFile`: Path to your SSH private key
@@ -107,7 +107,7 @@ chmod 600 ~/.ssh/id_ed25519
 SSH connection verified successfully! ✅
 
 ```bash
-ssh pva-sae-vm
+ssh sae-cc-vm
 ```
 
 Connection test output:
@@ -150,12 +150,12 @@ Extension installed successfully! You should now see:
 1. Press `Cmd+Shift+P` (macOS) or `Ctrl+Shift+P` (Windows/Linux)
 2. Type: `Remote-SSH: Connect to Host...`
 3. Select it and press Enter
-4. Choose `pva-sae-vm` (the host you configured in Step 2)
+4. Choose `sae-cc-vm` (the host you configured in Step 2)
 
 **Method 2: Using Remote Icon**
 1. Click the green `><` icon in the bottom-left corner
 2. Select **"Connect to Host..."**
-3. Choose `pva-sae-vm`
+3. Choose `sae-cc-vm`
 
 ### 4.2 First-Time Connection ✅
 
@@ -172,7 +172,7 @@ You may also be prompted:
 ### 4.3 Verify Connection ✅
 
 When successfully connected, you should see:
-- **Bottom-left corner**: `SSH: pva-sae-vm` (in green)
+- **Bottom-left corner**: `SSH: sae-cc-vm` (in green)
 - **Window title**: Shows the hostname
 - **Output panel**: "Running ssh connection command..." followed by success
 
@@ -186,7 +186,7 @@ When successfully connected, you should see:
 2. A file browser for the **remote VM** will appear
 3. Navigate to where you cloned the repository, typically:
    ```
-   /home/your_username/pva_sae
+   /home/your_username/sae_code_correctness
    ```
    Or wherever you ran `git clone`
 4. Click **"OK"** or **"Open"**
@@ -201,7 +201,7 @@ VS Code will ask: **"Do you trust the authors of the files in this folder?"**
 You should now see:
 - The project file tree in the Explorer sidebar
 - Files like `CLAUDE.md`, `run.py`, `common/`, `phase*/` directories
-- The status bar shows: `SSH: pva-sae-vm`
+- The status bar shows: `SSH: sae-cc-vm`
 
 ---
 
@@ -214,13 +214,13 @@ You should now see:
 1. Go to Extensions (`Cmd+Shift+X` / `Ctrl+Shift+X`)
 2. Search for: **"Python"**
 3. Find "Python" by Microsoft
-4. Click **"Install in SSH: pva-sae-vm"** (not "Install" - that's for local)
+4. Click **"Install in SSH: sae-cc-vm"** (not "Install" - that's for local)
 
 ### 6.2 Install Pylance (Usually Auto-Installed) ✅
 
 Pylance typically installs with the Python extension, but verify:
 1. Search for: **"Pylance"**
-2. Ensure it shows "Installed in SSH: pva-sae-vm"
+2. Ensure it shows "Installed in SSH: sae-cc-vm"
 
 ### 6.3 Other Recommended Extensions (Optional) ✅
 
@@ -246,22 +246,22 @@ Install these on the remote if you use them:
 3. Choose **"Enter interpreter path..."**
 4. Enter the full path to your conda environment's Python:
    ```
-   ~/miniconda3/envs/pva_sae/bin/python
+   ~/miniconda3/envs/sae_code_correctness/bin/python
    ```
    Or the full absolute path:
    ```
-   /home/your_username/miniconda3/envs/pva_sae/bin/python
+   /home/your_username/miniconda3/envs/sae_code_correctness/bin/python
    ```
 
 **Alternatively, let VS Code discover it:**
 1. Select `Python: Select Interpreter`
 2. VS Code might auto-discover conda environments
-3. Look for: `Python 3.x.x ('pva_sae': conda)`
+3. Look for: `Python 3.x.x ('sae_code_correctness': conda)`
 
 ### 7.2 Verify Interpreter ✅
 
 Open a Python file (e.g., `run.py`) and check:
-- **Bottom-right corner**: Should show `3.x.x ('pva_sae': conda)` or similar
+- **Bottom-right corner**: Should show `3.x.x ('sae_code_correctness': conda)` or similar
 - Click on it to change if incorrect
 
 ### 7.3 Test Interpreter ✅
@@ -269,7 +269,7 @@ Open a Python file (e.g., `run.py`) and check:
 Open integrated terminal and verify:
 ```bash
 which python
-# Should show: /home/username/miniconda3/envs/pva_sae/bin/python
+# Should show: /home/username/miniconda3/envs/sae_code_correctness/bin/python
 
 python --version
 # Should show Python 3.x.x
@@ -298,9 +298,9 @@ nano ~/.zshrc
 Add these lines at the end:
 
 ```bash
-# Auto-activate pva_sae conda environment
+# Auto-activate sae_code_correctness conda environment
 source ~/miniconda3/etc/profile.d/conda.sh
-conda activate pva_sae
+conda activate sae_code_correctness
 ```
 
 Save and exit, then reload:
@@ -317,14 +317,14 @@ source ~/.bashrc  # or ~/.zshrc
 ### 8.2 Verify Terminal ✅
 
 1. Open a new integrated terminal in VS Code (`Ctrl+` backtick or Terminal → New Terminal)
-2. You should see `(pva_sae)` prefix in the prompt
+2. You should see `(sae_code_correctness)` prefix in the prompt
 3. Run:
    ```bash
    which python
    # Should show conda env path
 
    conda info --envs
-   # Should show * next to pva_sae
+   # Should show * next to sae_code_correctness
    ```
 
 ---
@@ -367,7 +367,7 @@ All should succeed without errors.
 Test the full pipeline with a small subset:
 
 ```bash
-source ~/miniconda3/etc/profile.d/conda.sh && conda activate pva_sae && python3 run.py phase 0 --start 0 --end 5
+source ~/miniconda3/etc/profile.d/conda.sh && conda activate sae_code_correctness && python3 run.py phase 0 --start 0 --end 5
 ```
 
 This should:
@@ -408,7 +408,7 @@ This should:
 - Or use `Cmd+Shift+P` → "Remote-SSH: Connect to Host..."
 
 **Disconnecting:**
-- Click the green `SSH: pva-sae-vm` → "Close Remote Connection"
+- Click the green `SSH: sae-cc-vm` → "Close Remote Connection"
 - Or just close VS Code
 
 **Multiple Sessions:**
@@ -450,11 +450,11 @@ VS Code automatically forwards ports when you run services:
 
 ### Connection Issues
 
-**Problem: "Could not establish connection to pva-sae-vm"**
+**Problem: "Could not establish connection to sae-cc-vm"**
 
 Solutions:
 1. Verify VM is running in Google Cloud Console
-2. Test SSH from terminal: `ssh pva-sae-vm`
+2. Test SSH from terminal: `ssh sae-cc-vm`
 3. Check `~/.ssh/config` for typos
 4. Verify firewall rules allow SSH (port 22)
 5. Check VS Code output panel (Remote-SSH) for detailed errors
@@ -465,7 +465,7 @@ Solutions:
 1. Verify SSH key path in `~/.ssh/config`
 2. Ensure private key has correct permissions: `chmod 600 ~/.ssh/google_compute_engine`
 3. Check that public key is in VM's `~/.ssh/authorized_keys`
-4. Test with verbose SSH: `ssh -v pva-sae-vm`
+4. Test with verbose SSH: `ssh -v sae-cc-vm`
 
 **Problem: "Connection timeout"**
 
@@ -488,7 +488,7 @@ Solutions:
 
 Solutions:
 1. Verify conda environment exists: `conda info --envs` in terminal
-2. Use absolute path: `/home/username/miniconda3/envs/pva_sae/bin/python`
+2. Use absolute path: `/home/username/miniconda3/envs/sae_code_correctness/bin/python`
 3. Refresh interpreter list: `Cmd+Shift+P` → "Python: Select Interpreter"
 
 ### Terminal Issues
@@ -534,7 +534,7 @@ Solutions:
 
 ```bash
 # Activate conda environment
-source ~/miniconda3/etc/profile.d/conda.sh && conda activate pva_sae
+source ~/miniconda3/etc/profile.d/conda.sh && conda activate sae_code_correctness
 
 # Test GPU
 nvidia-smi
@@ -566,7 +566,7 @@ Add to `.vscode/settings.json` in your project:
 
 ```json
 {
-  "python.defaultInterpreterPath": "~/miniconda3/envs/pva_sae/bin/python",
+  "python.defaultInterpreterPath": "~/miniconda3/envs/sae_code_correctness/bin/python",
   "python.terminal.activateEnvironment": true,
   "files.watcherExclude": {
     "**/data/**": true,

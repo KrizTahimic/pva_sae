@@ -1,5 +1,5 @@
 """
-Phase discovery utilities for the PVA-SAE project.
+Phase discovery utilities for the SAE-Code-Correctness project.
 
 This module provides functions for:
 - Getting phase directories (with model/dataset suffixes)

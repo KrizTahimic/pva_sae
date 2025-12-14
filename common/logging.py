@@ -1,5 +1,5 @@
 """
-Logging utilities for the PVA-SAE project.
+Logging utilities for the SAE-Code-Correctness project.
 
 This module provides centralized logging configuration with phase-based
 file organization and structured logging for better experiment tracking.
@@ -119,7 +119,7 @@ class LoggingManager:
         
         # Use a single root logger for all modules in same phase
         # This ensures all logs go to the same file
-        root_logger_name = "pva_sae"
+        root_logger_name = "sae_code_correctness"
         
         # Get or create the root logger for this phase
         if not hasattr(self, '_root_logger'):

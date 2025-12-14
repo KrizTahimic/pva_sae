@@ -1,4 +1,4 @@
-"""Phase 3.8: AUROC and F1 Evaluation for PVA-SAE Latents.
+"""Phase 3.8: AUROC and F1 Evaluation for SAE-Code-Correctness Latents.
 
 This script evaluates bidirectional SAE latents (correct-predicting and incorrect-predicting)
 using AUROC and F1 metrics on the validation split from Phase 3.5 data.
@@ -41,7 +41,7 @@ class Phase38Runner:
 
     def run(self):
         """Run Phase 3.8 AUROC and F1 evaluation."""
-        self.logger.info("Starting Phase 3.8: AUROC and F1 Evaluation for PVA-SAE")
+        self.logger.info("Starting Phase 3.8: AUROC and F1 Evaluation")
         self.logger.info("This phase evaluates bidirectional SAE latents using AUROC and F1 metrics")
         self.logger.info("\n" + self.config.dump(phase="3.8"))
 

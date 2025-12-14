@@ -162,8 +162,8 @@ Examples:
     )
     parser.add_argument(
         "--repo-id",
-        default="kriztahimic/pva-sae-data",
-        help="HuggingFace dataset repository ID (default: kriztahimic/pva-sae-data)",
+        default="kriztahimic/sae-code-correctness-data",
+        help="HuggingFace dataset repository ID (default: kriztahimic/sae-code-correctness-data)",
     )
     parser.add_argument(
         "--data-dir",

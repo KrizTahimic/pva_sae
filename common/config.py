@@ -1,5 +1,5 @@
 """
-Configuration system for the PVA-SAE project.
+Configuration system for the SAE-Code-Correctness project.
 
 This module provides a single, flat configuration structure with namespaced settings
 for all project phases. Follows KISS principle with clear precedence:
@@ -168,7 +168,7 @@ MODEL_CONFIGS = {
 @dataclass
 class Config:
     """
-    Unified configuration for all PVA-SAE phases.
+    Unified configuration for all SAE-Code-Correctness phases.
     
     Settings are namespaced by prefix:
     - model_*: Model configuration

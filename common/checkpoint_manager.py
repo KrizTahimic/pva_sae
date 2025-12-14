@@ -1,7 +1,7 @@
 """Unified checkpoint management for all phases.
 
 This module provides a standardized way to save, load, and manage checkpoints
-across all phases of the PVA-SAE project. It uses task ID tracking (not index)
+across all phases of the SAE-Code-Correctness project. It uses task ID tracking (not index)
 for robustness against --start/--end argument variations.
 """
 

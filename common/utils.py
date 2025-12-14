@@ -1,5 +1,5 @@
 """
-Common utilities for the PVA-SAE project.
+Common utilities for the SAE-Code-Correctness project.
 
 This module contains shared utility functions used across different phases
 of the project, including device detection, file cleanup, and other

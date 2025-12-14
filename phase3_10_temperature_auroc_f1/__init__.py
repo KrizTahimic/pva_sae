@@ -1,1 +1,1 @@
-"""Phase 3.10: Temperature-Based AUROC Analysis for PVA-SAE."""
+"""Phase 3.10: Temperature-Based AUROC Analysis for SAE-Code-Correctness."""

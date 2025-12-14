@@ -5,8 +5,8 @@ __pycache__/
 *.so
 
 # Data directories and files
-# All experiment data is hosted on HuggingFace: https://huggingface.co/datasets/kriztahimic/pva-sae-data
-# Download with: huggingface-cli download kriztahimic/pva-sae-data --local-dir ./data --repo-type dataset
+# All experiment data is hosted on HuggingFace: https://huggingface.co/datasets/kriztahimic/sae-code-correctness-data
+# Download with: huggingface-cli download kriztahimic/sae-code-correctness-data --local-dir ./data --repo-type dataset
 data/logs/*
 data/datasets/*
 !data/logs/.gitkeep

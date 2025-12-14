@@ -1,6 +1,6 @@
-"""Phase 3.12: Difficulty-Based AUROC Analysis for PVA-SAE.
+"""Phase 3.12: Difficulty-Based AUROC Analysis for SAE-Code-Correctness.
 
-This module analyzes how PVA feature effectiveness varies across problem 
+This module analyzes how latent feature effectiveness varies across problem 
 difficulty levels using cyclomatic complexity stratification.
 """
 

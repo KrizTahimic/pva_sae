@@ -1,4 +1,4 @@
-"""Phase 3.12: Difficulty-Based AUROC Analysis for PVA-SAE Latents.
+"""Phase 3.12: Difficulty-Based AUROC Analysis for SAE-Code-Correctness Latents.
 
 This script evaluates bidirectional SAE latents across different problem
 difficulty levels (Easy/Medium/Hard) using cyclomatic complexity stratification.
@@ -42,7 +42,7 @@ class Phase312Runner:
 
     def run(self):
         """Run Phase 3.12 difficulty-based AUROC analysis."""
-        self.logger.info("Starting Phase 3.12: Difficulty-Based AUROC Analysis for PVA-SAE")
+        self.logger.info("Starting Phase 3.12: Difficulty-Based AUROC Analysis")
         self.logger.info("This phase evaluates PVA features across different problem difficulty levels")
         self.logger.info("\n" + self.config.dump(phase="3.12"))
 

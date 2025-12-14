@@ -1,7 +1,7 @@
 """
-Temperature-Based AUROC Analysis for PVA-SAE (Phase 3.10).
+Temperature-Based AUROC Analysis for SAE-Code-Correctness (Phase 3.10).
 
-Analyzes how PVA feature effectiveness varies across different temperature settings
+Analyzes how latent feature effectiveness varies across different temperature settings
 in Python code generation using per-sample analysis.
 """
 

@@ -1,5 +1,5 @@
 """
-Common utilities and shared components for the PVA-SAE project.
+Common utilities and shared components for the SAE-Code-Correctness project.
 
 This package provides shared functionality used across all phases of the project,
 including device detection, configuration management, logging, and model handling.

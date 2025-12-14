@@ -100,7 +100,7 @@ These decisions affect how you approach everything else.
 
 - [x] Why is the inspiration code so few? While mine is so long? → **Compute constraints justify the extra infrastructure**
 
-    sae_entities (~11K lines) vs pva_sae (~30K lines) difference comes from:
+    sae_entities (~11K lines) vs sae_code_correctness (~30K lines) difference comes from:
     - Checkpointing every 50 records
     - `--start`/`--end` flags for testing
     - Auto-discovery between phases
@@ -152,7 +152,7 @@ Fix the plumbing before building on top.
 - [x] Adapting new consistency or standard for visualization. Like make separate the visualization from the main phase? or put it in notebook? For context I hate that we need to rerun the whole long phases just to change the visualization/table/figure. Help me think of a solution. Or should we do this in step 3 instead?
 - [x] Make my data be in HuggingFace not in folders! IMPORTANT. Major improvement.
     - Created `scripts/upload_to_hf.py` for one-time uploads
-    - Data at: https://huggingface.co/datasets/kriztahimic/pva-sae-data
+    - Data at: https://huggingface.co/datasets/kriztahimic/sae-code-correctness-data
     - Added `/hf-upload` slash command
     - Local workflow unchanged (fast), HF for backup/sharing
 - [ ] ~~Should we consider designing here to run tests in parallel at for each model?~~ → **Deferred to Step 6**
@@ -513,7 +513,7 @@ Nice-to-haves once the foundation is solid.
     - **Impact:** ~20 lines removed across 4 files, auto-discovery is now the only method
 - [x] **Remove unused `_load_from_env()` method**
     - Removed `_load_from_env()` method and its call from config.py
-    - Feature was never used (no `PVA_SAE_*` environment variables anywhere)
+    - Feature was never used (no `SAE_CODE_*` environment variables anywhere)
     - **Impact:** ~25 lines removed
 - [x] **Fix MODEL_CONFIGS silent fallback bug**
     - **Removed dead `get_model_config()` method** - never called anywhere
@@ -562,8 +562,9 @@ Nice-to-haves once the foundation is solid.
     - List comprehension check: most for-loops in notebooks are OUTPUT cells (generated code), not actionable
 - [ ] Fix the figure generation code. Currently it looks soooo messy.
     - [ ] Understand matplotlib and pandas logic or how it works. So I can help instruct my preference and good practice.
-- [ ] Rename to sae-code-correctness ( the folder, github repo, huggingface etc.) Is this possible?
-    - Also in the comments and variable names do not use pva_sae anymore
+- [x] Rename to sae-code-correctness (the folder, github repo, huggingface etc.)
+    - Renamed codebase references from `pva_sae` to `sae_code_correctness`
+    - External services (GitHub, HuggingFace, conda) to be renamed manually after commit
 
 
 ### 5.1 ICML Visualizations (moved from ICML tasks)

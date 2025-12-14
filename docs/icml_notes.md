@@ -31,7 +31,7 @@ Documentation of methodological improvements and insights for writing the ICML p
 
 ## Key Differences from Inspiration Paper
 
-| Aspect | sae_entities | pva_sae | Notes |
+| Aspect | sae_entities | sae_code_correctness | Notes |
 |--------|-------------|---------|-------|
 | Control feature filtering | `> 0.0` hard threshold | `< 0.01` + activation freq | More robust |
 | Pile filtering | >2% threshold | >2% threshold | Same |

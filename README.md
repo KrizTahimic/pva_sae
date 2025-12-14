@@ -1,4 +1,4 @@
-# PVA-SAE: Python Value Attribution using Sparse Autoencoders
+# SAE-Code-Correctness: Sparse Autoencoder Analysis of Code Correctness
 
 This repository contains the implementation for investigating program validity awareness in language models using Sparse Autoencoders (SAEs).
 
@@ -15,22 +15,22 @@ This research analyzes how language models internally represent the concept of c
 
 ```bash
 git clone [repository-url]
-cd pva_sae
+cd sae-code-correctness
 pip install -r requirements.txt
 pip install accelerate  # For CUDA support
 ```
 
 ## Data
 
-Experiment data is hosted on HuggingFace: [kriztahimic/pva-sae-data](https://huggingface.co/datasets/kriztahimic/pva-sae-data)
+Experiment data is hosted on HuggingFace: [kriztahimic/sae-code-correctness-data](https://huggingface.co/datasets/kriztahimic/sae-code-correctness-data)
 
 ```bash
 # Download all data (~1.7 GB)
 pip install huggingface_hub
-huggingface-cli download kriztahimic/pva-sae-data --local-dir ./data --repo-type dataset
+huggingface-cli download kriztahimic/sae-code-correctness-data --local-dir ./data --repo-type dataset
 
 # Or download specific phase only
-huggingface-cli download kriztahimic/pva-sae-data \
+huggingface-cli download kriztahimic/sae-code-correctness-data \
     --local-dir ./data --include "phase4_8/*" --repo-type dataset
 ```
 
@@ -59,7 +59,7 @@ model_name: str = "google/gemma-2-2b"
 ## Project Structure
 
 ```
-pva_sae/
+sae-code-correctness/
 ├── common/                           # Shared utilities
 ├── phase0_difficulty_analysis/       # MBPP complexity preprocessing
 ├── phase0_1_problem_splitting/       # Problem splitting
@@ -144,7 +144,7 @@ data/
 └── phase7_12/    # Instruction-tuned comparisons
 ```
 
-All data available on [HuggingFace](https://huggingface.co/datasets/kriztahimic/pva-sae-data).
+All data available on [HuggingFace](https://huggingface.co/datasets/kriztahimic/sae-code-correctness-data).
 
 ## Key Findings
 

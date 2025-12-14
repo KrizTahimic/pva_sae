@@ -1,7 +1,7 @@
 """Memory monitoring and cleanup utilities.
 
 This module provides standardized memory management functions used across
-all phases of the PVA-SAE project.
+all phases of the SAE-Code-Correctness project.
 """
 
 import gc

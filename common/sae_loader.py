@@ -1,5 +1,5 @@
 """
-Universal SAE Loader for PVA-SAE project.
+Universal SAE Loader for SAE-Code-Correctness project.
 
 Supports both GemmaScope (NPZ, JumpReLU) and LlamaScope (SafeTensors, TopK) SAEs.
 Provides a unified interface for loading and using SAEs across different models.

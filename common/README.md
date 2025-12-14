@@ -1,6 +1,6 @@
 # Common Utilities
 
-This directory contains shared utilities used across all phases of the PVA-SAE project.
+This directory contains shared utilities used across all phases of the SAE-Code-Correctness project.
 
 ## Module Overview
 
