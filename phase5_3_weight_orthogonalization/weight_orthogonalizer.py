@@ -75,85 +75,38 @@ class WeightOrthogonalizer:
         logger.info("WeightOrthogonalizer initialized successfully")
         
     def _load_dependencies(self) -> None:
-        """Load features from Phase 2.5 and baseline data from Phase 3.5."""
-        # Load Phase 2.5 features
-        logger.info("Loading PVA latents from Phase 2.5...")
-        phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
-        if not phase2_5_output:
-            raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
-
-        # Load top latents
-        latents_file = Path(phase2_5_output).parent / "top_20_latents.json"
-        if not latents_file.exists():
-            raise FileNotFoundError(f"Top latents file not found: {latents_file}")
-        
-        self.top_latents = load_json(latents_file)
-
-        # Extract best correct and incorrect latents
-        if 'correct' not in self.top_latents or 'incorrect' not in self.top_latents:
-            raise ValueError("Expected 'correct' and 'incorrect' keys in top_20_latents.json")
-
-        if len(self.top_latents['correct']) == 0 or len(self.top_latents['incorrect']) == 0:
-            raise ValueError("No latents found in correct or incorrect arrays")
-
-        # Get the best (first) latent from each category
-        self.best_correct_latent = self.top_latents['correct'][0]
-        self.best_incorrect_latent = self.top_latents['incorrect'][0]
-
-        logger.info(f"Best correct latent: Layer {self.best_correct_latent['layer']}, "
-                   f"Index {self.best_correct_latent['latent_idx']}, "
-                   f"Score {self.best_correct_latent['separation_score']:.4f}")
-        logger.info(f"Best incorrect latent: Layer {self.best_incorrect_latent['layer']}, "
-                   f"Index {self.best_incorrect_latent['latent_idx']}, "
-                   f"Score {self.best_incorrect_latent['separation_score']:.4f}")
-        
-        # Load Phase 3.5 baseline data
-        logger.info("Loading baseline data from Phase 3.5...")
-        phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
-        if not phase3_5_output:
-            raise FileNotFoundError("Phase 3.5 output not found. Please run Phase 3.5 first.")
-        
-        # Load validation dataset at temperature 0.0
-        baseline_file = Path(phase3_5_output).parent / "dataset_temp_0_0.parquet"
-        if not baseline_file.exists():
-            raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
-        
-        self.baseline_data = pd.read_parquet(baseline_file)
-        logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.5 baseline")
-
-        # Apply --start and --end arguments if provided
-        start_idx, end_idx = get_dataset_range(self.config, len(self.baseline_data))
-        if start_idx > 0 or end_idx < len(self.baseline_data):
-            logger.info(f"Processing validation dataset rows {start_idx}-{end_idx-1} (inclusive)")
-            self.baseline_data = self.baseline_data.iloc[start_idx:end_idx].copy()
-            logger.info(f"Filtered to {len(self.baseline_data)} problems")
-        
-        # Load SAEs for both latents
-        logger.info("Loading SAE models...")
-        self.correct_sae = load_sae_for_config(
-            self.config,
-            self.best_correct_latent['layer'],
-            self.device
-        )
-        self.incorrect_sae = load_sae_for_config(
-            self.config,
-            self.best_incorrect_latent['layer'],
-            self.device
+        """Load all dependencies from previous phases using shared utilities."""
+        from common.steering_setup import (
+            load_pva_latents, load_sae_and_directions, load_baseline_data
         )
 
-        # Extract latent directions
-        self.correct_latent_direction = self.correct_sae.W_dec[self.best_correct_latent['latent_idx']]
-        self.incorrect_latent_direction = self.incorrect_sae.W_dec[self.best_incorrect_latent['latent_idx']]
+        # Load PVA latents from Phase 2.5
+        latents = load_pva_latents(self.config)
+        self.top_latents = latents.top_latents
+        self.best_correct_latent = latents.best_correct_latent
+        self.best_incorrect_latent = latents.best_incorrect_latent
 
-        logger.info("SAE latent directions extracted successfully")
-        
+        # Load baseline data from Phase 3.5
+        self.baseline_data, _ = load_baseline_data(
+            self.config, "3.5", "dataset_temp_0_0.parquet"
+        )
+
+        # Load SAE models and extract latent directions
+        sae = load_sae_and_directions(
+            self.config, self.device, self.model,
+            self.best_correct_latent, self.best_incorrect_latent
+        )
+        self.correct_sae = sae.correct_sae
+        self.incorrect_sae = sae.incorrect_sae
+        self.correct_latent_direction = sae.correct_direction
+        self.incorrect_latent_direction = sae.incorrect_direction
+
+        logger.info("Dependencies loaded successfully")
+
     def _split_baseline_by_correctness(self) -> None:
         """Split baseline data into correct and incorrect subsets."""
-        self.correct_baseline = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
-        self.incorrect_baseline = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
-        
-        logger.info(f"Baseline split: {len(self.correct_baseline)} correct, "
-                   f"{len(self.incorrect_baseline)} incorrect")
+        from common.steering_setup import split_by_correctness
+        self.correct_baseline, self.incorrect_baseline = split_by_correctness(self.baseline_data)
     
     def _get_checkpoint_manager(self, experiment_name: str, baseline_type: str) -> CheckpointManager:
         """Get or create checkpoint manager for an experiment."""

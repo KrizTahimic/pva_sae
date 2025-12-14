@@ -429,9 +429,29 @@ Terms removed:
 
 ---
 
-### 4.5 Repeated Patterns to Abstract (feeds into Step 3)
+### 4.5 Steering Setup Extraction ✅ COMPLETED
 
-These findings inform what should go in `common/`:
+Created `common/steering_setup.py` to consolidate duplicated loading code across steering phases.
+
+**New utilities:**
+- `load_pva_latents(config)` → Returns `PVALatents` dataclass
+- `load_sae_and_directions(config, device, model, correct, incorrect)` → Returns `SAEDirections` dataclass
+- `load_baseline_data(config, phase, filename)` → Returns `(DataFrame, phase_dir)`
+- `split_by_correctness(data)` → Returns `(correct_df, incorrect_df)`
+
+**Files updated to use shared utilities:**
+- [x] `phase4_8_steering_analysis/steering_effect_analyzer.py` (~85 → ~30 lines)
+- [x] `phase4_5_coefficient_grid_search/steering_coefficient_selector.py` (~110 → ~35 lines)
+- [x] `phase5_3_weight_orthogonalization/weight_orthogonalizer.py` (~80 → ~30 lines)
+- [x] `phase7_6_instruct_steering/instruct_steering_analyzer.py` (~90 → ~35 lines)
+
+**Impact:** ~235 lines of duplicated code removed, replaced with ~100 lines of shared utilities.
+
+---
+
+### 4.6 Remaining Patterns to Abstract (Future Work)
+
+These findings inform what else could go in `common/`:
 
 | Pattern | Files Affected | Suggested Abstraction |
 |---------|---------------|----------------------|

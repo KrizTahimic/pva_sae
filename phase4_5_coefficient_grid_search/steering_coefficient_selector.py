@@ -76,112 +76,39 @@ class SteeringCoefficientSelector:
         logger.info("SteeringCoefficientSelector initialized successfully")
         
     def _load_dependencies(self) -> None:
-        """Load all dependencies from previous phases."""
-        self._load_pva_latents()
-        self._load_baseline_data()
-        self._load_sae_models()
+        """Load all dependencies from previous phases using shared utilities."""
+        from common.steering_setup import (
+            load_pva_latents, load_sae_and_directions,
+            load_baseline_data, split_by_correctness
+        )
+
+        # Load PVA latents from Phase 2.5
+        latents = load_pva_latents(self.config)
+        self.top_latents = latents.top_latents
+        self.best_correct_latent = latents.best_correct_latent
+        self.best_incorrect_latent = latents.best_incorrect_latent
+        self.phase2_5_output = latents.phase_dir  # Used in manifest
+
+        # Load baseline data from Phase 3.6 (hyperparameter tuning set)
+        self.baseline_data, self.phase3_6_output = load_baseline_data(
+            self.config, "3.6", "dataset_hyperparams_temp_0_0.parquet"
+        )
+
+        # Split by correctness
+        self.initially_correct_data, self.initially_incorrect_data = \
+            split_by_correctness(self.baseline_data)
+
+        # Load SAE models and extract latent directions
+        sae = load_sae_and_directions(
+            self.config, self.device, self.model,
+            self.best_correct_latent, self.best_incorrect_latent
+        )
+        self.correct_sae = sae.correct_sae
+        self.incorrect_sae = sae.incorrect_sae
+        self.correct_latent_direction = sae.correct_direction
+        self.incorrect_latent_direction = sae.incorrect_direction
+
         logger.info("Dependencies loaded successfully")
-
-    def _load_pva_latents(self) -> None:
-        """Load PVA latents from Phase 2.5."""
-        logger.info("Loading PVA latents from Phase 2.5...")
-        self.phase2_5_output = discover_latest_phase_output("2.5", config=self.config)
-        if not self.phase2_5_output:
-            raise FileNotFoundError("Phase 2.5 output not found. Run Phase 2.5 first.")
-
-        # Load top latents
-        latents_file = Path(self.phase2_5_output).parent / "top_20_latents.json"
-        logger.info(f"Loading latents from: {latents_file}")
-        if not latents_file.exists():
-            raise FileNotFoundError(f"Top latents file not found: {latents_file}")
-
-        self.top_latents = load_json(latents_file)
-
-        # Extract best correct and incorrect latents
-        if 'correct' not in self.top_latents or 'incorrect' not in self.top_latents:
-            raise ValueError("Expected 'correct' and 'incorrect' keys in top_20_latents.json")
-
-        if len(self.top_latents['correct']) == 0 or len(self.top_latents['incorrect']) == 0:
-            raise ValueError("No latents found in correct or incorrect arrays")
-
-        # Get the best (first) latent from each category
-        self.best_correct_latent = self.top_latents['correct'][0]
-        self.best_incorrect_latent = self.top_latents['incorrect'][0]
-
-        logger.info(f"Best correct latent: Layer {self.best_correct_latent['layer']}, "
-                   f"Index {self.best_correct_latent['latent_idx']}, "
-                   f"Score {self.best_correct_latent['separation_score']:.4f}")
-        logger.info(f"Best incorrect latent: Layer {self.best_incorrect_latent['layer']}, "
-                   f"Index {self.best_incorrect_latent['latent_idx']}, "
-                   f"Score {self.best_incorrect_latent['separation_score']:.4f}")
-
-    def _load_baseline_data(self) -> None:
-        """Load baseline data from Phase 3.6 and split by correctness."""
-        logger.info("Loading baseline data from Phase 3.6...")
-        self.phase3_6_output = discover_latest_phase_output("3.6", config=self.config)
-        if not self.phase3_6_output:
-            raise FileNotFoundError("Phase 3.6 output not found. Run Phase 3.6 first.")
-
-        # Load hyperparameter dataset
-        baseline_file = Path(self.phase3_6_output).parent / "dataset_hyperparams_temp_0_0.parquet"
-        if not baseline_file.exists():
-            raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
-
-        self.baseline_data = pd.read_parquet(baseline_file)
-        logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.6 baseline")
-
-        # Apply --start and --end arguments if provided for testing
-        start_idx, end_idx = get_dataset_range(self.config, len(self.baseline_data))
-
-        # Apply range filtering for testing
-        if start_idx > 0 or end_idx < len(self.baseline_data):
-            logger.info(f"Limiting dataset for testing: rows {start_idx}-{end_idx-1} (inclusive)")
-            self.baseline_data = self.baseline_data.iloc[start_idx:end_idx].copy()
-            logger.info(f"Reduced to {len(self.baseline_data)} problems for testing")
-
-        # Split baseline data by initial correctness
-        self.initially_correct_data = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
-        self.initially_incorrect_data = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
-
-        logger.info(f"Split baseline: {len(self.initially_correct_data)} initially correct, "
-                   f"{len(self.initially_incorrect_data)} initially incorrect problems")
-
-        if start_idx > 0 or end_idx < len(pd.read_parquet(baseline_file)):
-            logger.info("Using LIMITED dataset for testing - results may not be representative")
-        else:
-            logger.info("Using ALL problems for evaluation (no sampling)")
-
-    def _load_sae_models(self) -> None:
-        """Load SAE models and extract latent directions."""
-        logger.info("Loading SAE models...")
-        logger.info(f"Loading SAE for correct latent (layer {self.best_correct_latent['layer']})...")
-        self.correct_sae = load_sae_for_config(
-            self.config,
-            self.best_correct_latent['layer'],
-            self.device
-        )
-        logger.info(f"Correct latent SAE loaded successfully")
-
-        logger.info(f"Loading SAE for incorrect latent (layer {self.best_incorrect_latent['layer']})...")
-        self.incorrect_sae = load_sae_for_config(
-            self.config,
-            self.best_incorrect_latent['layer'],
-            self.device
-        )
-        logger.info(f"Incorrect latent SAE loaded successfully")
-
-        # Extract latent directions and ensure consistent dtype
-        self.correct_latent_direction = self.correct_sae.W_dec[
-            self.best_correct_latent['latent_idx']
-        ].detach()
-        self.incorrect_latent_direction = self.incorrect_sae.W_dec[
-            self.best_incorrect_latent['latent_idx']
-        ].detach()
-
-        # Ensure latent directions are in the same dtype as the model
-        model_dtype = next(self.model.parameters()).dtype
-        self.correct_latent_direction = self.correct_latent_direction.to(dtype=model_dtype)
-        self.incorrect_latent_direction = self.incorrect_latent_direction.to(dtype=model_dtype)
     
     def save_checkpoint(self, results: list, excluded_tasks: list, 
                        checkpoint_num: int, checkpoint_dir: Path) -> None:
