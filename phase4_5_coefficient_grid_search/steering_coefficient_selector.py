@@ -621,8 +621,8 @@ class SteeringCoefficientSelector:
         logger.info(f"Using ALL problems from hyperparameter tuning set")
         logger.info("SIMPLIFIED: Only measuring correction rate, NOT preservation rate")
         
-        # Get experiment mode from config
-        experiment_mode = getattr(self.config, 'phase4_5_experiment_mode', 'all')
+        # Get experiment mode from config (single source of truth)
+        experiment_mode = self.config.phase4_5_experiment_mode
         logger.info(f"Running experiments in '{experiment_mode}' mode")
         
         # Determine which steering types to evaluate

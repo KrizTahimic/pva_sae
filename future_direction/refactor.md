@@ -480,13 +480,18 @@ All patterns identified during refactoring have been abstracted into `common/`:
 ## Step 5: Polish & Extras (After Core Refactoring)
 
 Nice-to-haves once the foundation is solid.
-- [ ] Is there bad in my current approach in one source of truth. Context: config.py
-- [ ] Rename to code-correctness-sae( the folder, github repo, huggingface etc.)Also in the comments and variable names.
+- [x] Is there bad in my current approach in one source of truth. Context: config.py
+    - **Fixed:** Removed 7 defensive `getattr()` calls that created duplicate defaults
+    - **Fixed:** Phase 4.10 had swapped default values (bug)
+    - **Fixed:** Phase 3.8 manual path construction replaced with `discover_latest_phase_output(config=)`
+    - **Created:** `docs/icml_notes.md` for ICML paper insights
+- [ ] Rename to sae-code-correctness ( the folder, github repo, huggingface etc.) Is this possible?
+    - Also in the comments and variable names do not use pva_sae anymore
 - [ ] Update the docstrings/commetns.
-- [ ] Improve notebooks. Remove unnecessary cells. Also do list comprehensions.
-    - [ ] Understand matplotlib and pandas logic or how it works.
+- [ ] Improve notebooks. Remove unnecessary cells. Also do list comprehensions. Also make sure it works again after the new refactored code.
 - [ ] Fix the figure generation code. Currently it looks soooo messy.
-    - [ ] Make all figures correction green, corruption red, and pick a color for preservation.
+    - [ ] Understand matplotlib and pandas logic or how it works. So I can help instruct my preference and good practice.
+- [ ] Make all figures correction green, corruption red, and pick a color for preservation.
 
 
 ### 5.1 ICML Visualizations (moved from ICML tasks)

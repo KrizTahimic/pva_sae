@@ -53,19 +53,17 @@ def run_evaluation(config):
     np.random.seed(config.evaluation_random_seed)
     torch.manual_seed(config.evaluation_random_seed)
 
-    # Autodiscover Phase 3.5 (with dataset suffix if needed)
-    phase3_5_dir_str = f"data/phase3_5_{config.dataset_name}" if config.dataset_name != "mbpp" else "data/phase3_5"
-    phase3_5_path = discover_latest_phase_output("3.5", phase_dir=phase3_5_dir_str)
+    # Autodiscover Phase 3.5 (uses config for model/dataset-aware path)
+    phase3_5_path = discover_latest_phase_output("3.5", config=config)
     if not phase3_5_path:
-        raise FileNotFoundError(f"No Phase 3.5 output found in {phase3_5_dir_str}. Please run Phase 3.5 first.")
+        raise FileNotFoundError("No Phase 3.5 output found. Please run Phase 3.5 first.")
     phase3_5_dir = Path(phase3_5_path).parent
     logger.info(f"Using Phase 3.5 output: {phase3_5_dir}")
 
     # Autodiscover Phase 3.6 (no dataset suffix - hyperparameters are model-specific, shared across datasets)
-    phase3_6_dir_str = "data/phase3_6"
-    phase3_6_path = discover_latest_phase_output("3.6", phase_dir=phase3_6_dir_str)
+    phase3_6_path = discover_latest_phase_output("3.6", config=config)
     if not phase3_6_path:
-        raise FileNotFoundError(f"No Phase 3.6 output found in {phase3_6_dir_str}. Please run Phase 3.6 first.")
+        raise FileNotFoundError("No Phase 3.6 output found. Please run Phase 3.6 first.")
     phase3_6_dir = Path(phase3_6_path).parent
     logger.info(f"Using Phase 3.6 output: {phase3_6_dir}")
 

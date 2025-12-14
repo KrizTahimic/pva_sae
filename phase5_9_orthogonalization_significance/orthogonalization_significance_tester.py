@@ -36,8 +36,8 @@ class OrthogonalizationSignificanceTester:
         ensure_directory_exists(self.output_dir)
         logger.info(f"Output directory: {self.output_dir}")
         
-        # Significance level
-        self.alpha = getattr(config, 'phase5_9_significance_level', 0.05)
+        # Significance level (single source of truth)
+        self.alpha = config.phase5_9_significance_level
         
         logger.info(f"OrthogonalizationSignificanceTester initialized")
         logger.info(f"Significance level: {self.alpha}")

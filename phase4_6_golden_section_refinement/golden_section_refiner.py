@@ -1026,8 +1026,8 @@ class GoldenSectionCoefficientRefiner:
         logger.info("Starting Phase 4.6: Golden Section Search Coefficient Refinement")
         logger.info("Will refine coefficients found in Phase 4.5 using golden section search")
         
-        # Get experiment mode from config
-        experiment_mode = getattr(self.config, 'phase4_6_experiment_mode', 'all')
+        # Get experiment mode from config (single source of truth)
+        experiment_mode = self.config.phase4_6_experiment_mode
         logger.info(f"Running experiments in '{experiment_mode}' mode")
         
         # Load any existing intermediate results

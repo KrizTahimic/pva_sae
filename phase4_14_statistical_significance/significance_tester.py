@@ -35,8 +35,8 @@ class SignificanceTester:
         ensure_directory_exists(self.output_dir)
         logger.info(f"Output directory: {self.output_dir}")
         
-        # Significance level
-        self.alpha = getattr(config, 'phase4_14_significance_level', 0.05)
+        # Significance level (single source of truth)
+        self.alpha = config.phase4_14_significance_level
         
         logger.info(f"SignificanceTester initialized")
         logger.info(f"Significance level: {self.alpha}")

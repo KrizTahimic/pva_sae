@@ -36,10 +36,10 @@ class ZeroDiscriminationSelector:
         self.output_dir = Path(get_phase_output_dir("4.10", config))
         ensure_directory_exists(self.output_dir)
         
-        # Feature selection parameters
-        self.n_features = getattr(config, 'phase4_10_n_features', 10)
-        self.separation_threshold = getattr(config, 'phase4_10_separation_threshold', 0.001)
-        self.min_activation_freq = getattr(config, 'phase4_10_min_activation_freq', 0.01)
+        # Feature selection parameters (use config directly - single source of truth)
+        self.n_features = config.phase4_10_n_features
+        self.separation_threshold = config.phase4_10_separation_threshold
+        self.min_activation_freq = config.phase4_10_min_activation_freq
         
         # All layers with SAE (1-25 for Gemma-2B)
         self.layers = list(range(1, 26))

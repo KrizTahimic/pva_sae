@@ -455,8 +455,8 @@ class SteeringEffectAnalyzer:
         n_initially_incorrect = len(self.initially_incorrect_data)
         n_initially_correct = len(self.initially_correct_data)
         
-        # Get experiment mode from config
-        experiment_mode = getattr(self.config, 'phase4_8_experiment_mode', 'all')
+        # Get experiment mode from config (single source of truth)
+        experiment_mode = self.config.phase4_8_experiment_mode
         logger.info(f"Running experiments in '{experiment_mode}' mode")
         
         # Apply correct steering to initially incorrect problems
