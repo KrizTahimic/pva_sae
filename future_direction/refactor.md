@@ -562,6 +562,14 @@ Nice-to-haves once the foundation is solid.
     - Changed `hyperparams` → `tuning` (hyperparameter tuning)
     - Changed `validation` → `analysis` (mechanistic analysis)
     - Updated 16+ files with references to split names 
+- [x] Fix MBPP import performance issue.
+    - Imports integrated in `common/dataset_utils.py:268-290` via `data/phase0_4_mbpp_imports/required_imports.json`
+    - **Failure mode analysis (Dec 2024):** Investigated false negative rate
+    - Results: ~1% false negative rate (1 clear case in 100 tasks)
+    - 55-62% of failures are WRONG_LOGIC, 10-15% TYPE_MISMATCH, rest runtime/syntax errors
+    - Conclusion: MBPP evaluation is sound, no need to switch to MBPP+
+    - Full analysis in `future_direction/dataset_and_evaluation_strategy.md`
+- [ ] Make other generating phases have raw_outputs also
 - [ ] Fix the figure generation code. Currently it looks soooo messy.
     - [ ] Understand matplotlib and pandas logic or how it works. So I can help instruct my preference and good practice.
 

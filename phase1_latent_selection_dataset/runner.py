@@ -263,24 +263,6 @@ class Phase1Runner:
                     all_excluded.extend(exclusions)
                     processed_task_ids.update([e['task_id'] for e in exclusions])
 
-        # Second, check for existing dataset files (from completed partial runs)
-        # This allows running --end 99 first, then continuing with full phase 1
-        dataset_files = sorted(output_dir.glob("dataset_*.parquet"))
-
-        if dataset_files:
-            logger.info(f"Found {len(dataset_files)} existing dataset file(s)")
-
-            for dataset_file in dataset_files:
-                df = pd.read_parquet(dataset_file)
-                # Only add tasks not already in checkpoints
-                new_task_ids = set(df['task_id'].tolist()) - processed_task_ids
-                if new_task_ids:
-                    # Filter to only new tasks
-                    new_df = df[df['task_id'].isin(new_task_ids)]
-                    all_results.extend(new_df.to_dict('records'))
-                    processed_task_ids.update(new_task_ids)
-                    logger.info(f"Loaded {len(new_task_ids)} tasks from {dataset_file.name}")
-
         # Also check for excluded_tasks.json (from completed runs)
         exclusion_file = output_dir / "excluded_tasks.json"
         if exclusion_file.exists():

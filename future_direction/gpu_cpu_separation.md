@@ -131,9 +131,9 @@ After Phase 1 generation, before evaluation:
 
 ```python
 # Phase 1, between Pass 1 and Pass 2:
-if not Path("data/test_imports/metadata.json").exists():
+if not Path("data/phase0_4_mbpp_imports/required_imports.json").exists():
     imports = discover_imports_ast(raw_outputs)
-    save_imports("data/test_imports/metadata.json")
+    save_imports("data/phase0_4_mbpp_imports/required_imports.json")
 ```
 
 ### Import Discovery Flow
@@ -143,7 +143,7 @@ Phase 1 Pass 1 (generate)
     ↓
 Import Discovery (AST scan raw_generated_text)
     ↓
-Save data/test_imports/metadata.json
+Save data/phase0_4_mbpp_imports/required_imports.json
     ↓
 Phase 1 Pass 2 (evaluate with imports)
     ↓
@@ -172,7 +172,7 @@ import json
 
 def load_imports() -> list[str]:
     """Load pre-discovered imports for code evaluation."""
-    imports_file = Path("data/test_imports/metadata.json")
+    imports_file = Path("data/phase0_4_mbpp_imports/required_imports.json")
     if imports_file.exists():
         with open(imports_file) as f:
             return json.load(f)['imports']

@@ -346,7 +346,7 @@ class ImportTestRunner:
         logger.info(f"Testing on {len(analysis_data)} problems")
 
         # Setup output directory (fixed path, overwrites each run)
-        output_dir = Path("data/test_imports")
+        output_dir = Path("data/test_imports_experiment")
         output_dir.mkdir(parents=True, exist_ok=True)
         (output_dir / "activations" / "task_activations").mkdir(parents=True, exist_ok=True)
 

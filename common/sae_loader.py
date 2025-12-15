@@ -12,7 +12,8 @@ from typing import Optional, Union
 from abc import ABC, abstractmethod
 from huggingface_hub import hf_hub_download
 
-from common.config import Config, MODEL_CONFIGS, GEMMA_2B_SPARSITY, GEMMA_9B_SPARSITY
+from common.config import Config
+from common.model_registry import get_model, get_all_model_ids, MODELS
 from common.logging import get_logger
 
 logger = get_logger("sae_loader")
@@ -127,19 +128,17 @@ def load_gemma_scope_sae(
     Returns:
         JumpReLUSAE instance with loaded weights
     """
-    # Determine model config
+    # Determine model config using registry
     if model_name is None:
         model_name = config.model_name if config else 'google/gemma-2-2b'
 
-    model_config = MODEL_CONFIGS.get(model_name)
-    if model_config is None:
-        raise ValueError(f"Unknown model: {model_name}")
+    model_info = get_model(model_name)  # Raises ValueError if unknown
 
-    repo_id = model_config['sae_repo']
-    sparsity_map = model_config['sparsity_map']
+    repo_id = model_info.sae_repo
+    sparsity_map = model_info.sparsity_map
 
     # Get the correct sparsity level for this layer
-    if layer_idx not in sparsity_map:
+    if sparsity_map is None or layer_idx not in sparsity_map:
         raise ValueError(f"No sparsity mapping for layer {layer_idx} in {model_name}")
 
     sparsity = sparsity_map[layer_idx]
@@ -272,26 +271,24 @@ def load_sae(
     Returns:
         BaseSAE instance (either JumpReLUSAE or TopKSAE)
     """
-    # Get model config
-    if model_name not in MODEL_CONFIGS:
-        raise ValueError(f"Unknown model: {model_name}. Supported: {list(MODEL_CONFIGS.keys())}")
-    model_config = MODEL_CONFIGS[model_name]
+    # Get model info from registry
+    model_info = get_model(model_name)  # Raises ValueError if unknown
 
     # Validate layer index
-    if layer_idx >= model_config['n_layers']:
+    if layer_idx >= model_info.n_layers:
         raise ValueError(
             f"Layer {layer_idx} out of range for {model_name} "
-            f"(max: {model_config['n_layers'] - 1})"
+            f"(max: {model_info.n_layers - 1})"
         )
 
     # Load appropriate SAE based on format
-    if model_config['sae_format'] == 'npz':
+    if model_info.sae_format == 'npz':
         return load_gemma_scope_sae(layer_idx, device, config, model_name=model_name)
-    elif model_config['sae_format'] == 'safetensors':
-        sae_topk = model_config.get('sae_topk', 64)
+    elif model_info.sae_format == 'safetensors':
+        sae_topk = model_info.sae_topk or 64
         return load_llama_scope_sae(layer_idx, device, config, k=sae_topk)
     else:
-        raise ValueError(f"Unknown SAE format: {model_config['sae_format']}")
+        raise ValueError(f"Unknown SAE format: {model_info.sae_format}")
 
 
 def load_sae_for_config(config: Config, layer_idx: int, device: str) -> BaseSAE:

@@ -66,30 +66,34 @@ def get_phase_output_dir(phase: str, config: 'Config') -> str:
     """
     # Get base directory from registry (single source of truth)
     from common.phase_registry import get_phase_output_dir as registry_get_dir
+    from common.model_registry import get_model_suffix as registry_model_suffix
+    from common.dataset_registry import get_dataset_suffix as registry_dataset_suffix
+
     base_dir = registry_get_dir(phase)
 
-    # Build suffix based on model and dataset
-    suffixes = []
+    # Build suffix based on model and dataset using registries
+    suffix_parts = []
 
     # Phases 0, 0.1, 0.2, 0.3 are data preprocessing - no model suffix
     # Only phases that do model inference should have model suffixes
     data_preprocessing_phases = {'0', '0.1', '0.2', '0.3'}
     if phase not in data_preprocessing_phases:
-        # Add model suffix if not default Gemma 2B
         model_name = getattr(config, 'model_name', 'google/gemma-2-2b')
-        if 'llama' in model_name.lower():
-            suffixes.append('llama')
-        elif 'gemma-2-9b' in model_name.lower():
-            suffixes.append('gemma9b')
+        model_suffix = registry_model_suffix(model_name)
+        if model_suffix:
+            # Strip leading underscore if present (registry returns "_llama", we want "llama")
+            suffix_parts.append(model_suffix.lstrip('_'))
 
     # Add dataset suffix if not default MBPP (applies to all phases)
     dataset_name = getattr(config, 'dataset_name', 'mbpp')
-    if dataset_name.lower() != 'mbpp':
-        suffixes.append(dataset_name.lower())
+    dataset_suffix = registry_dataset_suffix(dataset_name)
+    if dataset_suffix:
+        # Strip leading underscore if present (registry returns "_humaneval", we want "humaneval")
+        suffix_parts.append(dataset_suffix.lstrip('_'))
 
     # Return base directory with suffixes
-    if suffixes:
-        return f"{base_dir}_{'_'.join(suffixes)}"
+    if suffix_parts:
+        return f"{base_dir}_{'_'.join(suffix_parts)}"
     return base_dir
 
 
@@ -103,12 +107,10 @@ def get_model_suffix(config: 'Config') -> str:
     Returns:
         str: Model suffix (e.g., "", "llama", "gemma9b")
     """
+    from common.model_registry import get_model_suffix as registry_model_suffix
     model_name = getattr(config, 'model_name', 'google/gemma-2-2b')
-    if 'llama' in model_name.lower():
-        return 'llama'
-    if 'gemma-2-9b' in model_name.lower():
-        return 'gemma9b'
-    return ''
+    # Registry returns with leading underscore (e.g., "_llama"), strip it
+    return registry_model_suffix(model_name).lstrip('_')
 
 
 def get_dataset_suffix(config: 'Config') -> str:
@@ -121,10 +123,10 @@ def get_dataset_suffix(config: 'Config') -> str:
     Returns:
         str: Dataset suffix (e.g., "", "humaneval")
     """
+    from common.dataset_registry import get_dataset_suffix as registry_dataset_suffix
     dataset_name = getattr(config, 'dataset_name', 'mbpp')
-    if dataset_name.lower() == 'humaneval':
-        return 'humaneval'
-    return ''
+    # Registry returns with leading underscore (e.g., "_humaneval"), strip it
+    return registry_dataset_suffix(dataset_name).lstrip('_')
 
 
 def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None, config=None) -> Optional[str]:

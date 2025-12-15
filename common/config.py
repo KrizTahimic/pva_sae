@@ -49,120 +49,10 @@ COLOR_INCORRECT_DARK = 'darkred'
 COLOR_PRESERVATION_DARK = 'goldenrod'
 COLOR_PRESERVATION_LIGHT = 'khaki'
 
-# GemmaScope sparsity levels for each layer (16k width)
-GEMMA_2B_SPARSITY = {
-    0: 105,
-    1: 102,
-    2: 142,
-    3: 59,
-    4: 124,
-    5: 68,
-    6: 70,
-    7: 69,
-    8: 71,
-    9: 73,
-    10: 77,
-    11: 80,
-    12: 82,
-    13: 84,
-    14: 84,
-    15: 78,
-    16: 78,
-    17: 77,
-    18: 74,
-    19: 73,
-    20: 71,
-    21: 70,
-    22: 72,
-    23: 74,
-    24: 73,
-    25: 116,
-}
-
-# GemmaScope 9B sparsity levels for each layer (16k width)
-# Source: https://github.com/javiferran/sae_entities
-GEMMA_9B_SPARSITY = {
-    0: 129, 1: 69, 2: 67, 3: 90, 4: 91, 5: 77, 6: 93, 7: 92,
-    8: 99, 9: 100, 10: 113, 11: 118, 12: 130, 13: 132, 14: 67, 15: 131,
-    16: 75, 17: 73, 18: 71, 19: 132, 20: 68, 21: 129, 22: 123, 23: 120,
-    24: 114, 25: 114, 26: 116, 27: 118, 28: 119, 29: 119, 30: 120, 31: 114,
-    32: 111, 33: 114, 34: 114, 35: 120, 36: 120, 37: 124, 38: 128, 39: 131,
-    40: 125, 41: 113,
-}
-
-# Model-specific configurations for multi-model support
-MODEL_CONFIGS = {
-    'google/gemma-2-2b': {
-        'hidden_size': 2048,
-        'n_layers': 26,
-        'sae_repo': 'google/gemma-scope-2b-pt-res',
-        'sae_width': 16384,  # 16k latents
-        'sae_format': 'npz',
-        'sae_activation': 'jumprelu',
-        'default_layers': list(range(0, 26)),
-        'sparsity_map': GEMMA_2B_SPARSITY,
-        'sae_topk': None,  # Not applicable for JumpReLU
-    },
-    'google/gemma-2-2b-it': {
-        # Instruction-tuned uses same SAEs (trained on base model)
-        'hidden_size': 2048,
-        'n_layers': 26,
-        'sae_repo': 'google/gemma-scope-2b-pt-res',
-        'sae_width': 16384,
-        'sae_format': 'npz',
-        'sae_activation': 'jumprelu',
-        'default_layers': list(range(0, 26)),
-        'sparsity_map': GEMMA_2B_SPARSITY,
-        'sae_topk': None,
-    },
-    'google/gemma-2-9b': {
-        'hidden_size': 3584,
-        'n_layers': 42,
-        'sae_repo': 'google/gemma-scope-9b-pt-res',
-        'sae_width': 16384,  # 16k latents
-        'sae_format': 'npz',
-        'sae_activation': 'jumprelu',
-        'default_layers': list(range(0, 42)),
-        'sparsity_map': GEMMA_9B_SPARSITY,
-        'sae_topk': None,
-    },
-    'google/gemma-2-9b-it': {
-        # Instruction-tuned uses same SAEs (trained on base model)
-        'hidden_size': 3584,
-        'n_layers': 42,
-        'sae_repo': 'google/gemma-scope-9b-pt-res',
-        'sae_width': 16384,
-        'sae_format': 'npz',
-        'sae_activation': 'jumprelu',
-        'default_layers': list(range(0, 42)),
-        'sparsity_map': GEMMA_9B_SPARSITY,
-        'sae_topk': None,
-    },
-    'meta-llama/Llama-3.1-8B': {
-        'hidden_size': 4096,
-        'n_layers': 32,
-        'sae_repo': 'fnlp/Llama3_1-8B-Base-LXR-8x',
-        'sae_width': 32768,  # 8x expansion: 4096 * 8
-        'sae_format': 'safetensors',
-        'sae_activation': 'topk',
-        'default_layers': list(range(0, 32)),
-        'sparsity_map': None,  # LlamaScope doesn't use sparsity levels
-        'sae_topk': 64,  # TopK parameter for LlamaScope
-        # SAE file path pattern: Llama3_1-8B-Base-L{layer}R-8x/checkpoints/final.safetensors
-    },
-    'meta-llama/Llama-3.1-8B-Instruct': {
-        # Instruction-tuned uses same SAEs (trained on base model)
-        'hidden_size': 4096,
-        'n_layers': 32,
-        'sae_repo': 'fnlp/Llama3_1-8B-Base-LXR-8x',
-        'sae_width': 32768,
-        'sae_format': 'safetensors',
-        'sae_activation': 'topk',
-        'default_layers': list(range(0, 32)),
-        'sparsity_map': None,
-        'sae_topk': 64,
-    },
-}
+# Model and dataset registries - see model_registry.py and dataset_registry.py
+# Import these at runtime to avoid circular imports
+# Use: from common.model_registry import get_model, MODELS
+# Use: from common.dataset_registry import get_dataset, DATASETS
 
 
 @dataclass
@@ -309,15 +199,18 @@ class Config:
 
     def __post_init__(self):
         """Set dynamic defaults and validate basic constraints."""
-        # Validate model is supported
-        if self.model_name not in MODEL_CONFIGS:
-            raise ValueError(f"Unknown model: {self.model_name}. Supported: {list(MODEL_CONFIGS.keys())}")
+        # Import registries here to avoid circular imports
+        from common.model_registry import get_model
+        from common.dataset_registry import get_dataset
 
-        # Dynamically set activation_layers from MODEL_CONFIGS if not explicitly provided
+        # Validate model and dataset via registries (raises ValueError if invalid)
+        model_info = get_model(self.model_name)
+        get_dataset(self.dataset_name)
+
+        # Dynamically set activation_layers from model registry if not explicitly provided
         if self.activation_layers is None:
-            model_config = MODEL_CONFIGS[self.model_name]
             # Use layers 1 to n_layers-1 (skip layer 0)
-            self.activation_layers = list(range(1, model_config['n_layers']))
+            self.activation_layers = list(range(1, model_info.n_layers))
 
         # Validate dataset range
         if self.dataset_end_idx is not None and self.dataset_end_idx < self.dataset_start_idx:
@@ -327,17 +220,24 @@ class Config:
     def from_args(cls, args, phase: Optional[str] = None) -> 'Config':
         """
         Create config from argparse args with phase-specific overrides.
-        
+
         Args:
             args: Parsed command-line arguments
             phase: Phase number as string (e.g., "0", "1", "1.1", "2", "3")
-            
+
         Returns:
             Config object with CLI overrides applied
         """
-        config = cls()
-        
-        # CLI arg to config field mapping
+        # Model/dataset must be set BEFORE __post_init__ validation
+        kwargs = {}
+        if hasattr(args, 'model') and args.model:
+            kwargs['model_name'] = args.model
+        if hasattr(args, 'dataset') and args.dataset:
+            kwargs['dataset_name'] = args.dataset
+
+        config = cls(**kwargs)  # __post_init__ validates via registries
+
+        # CLI arg to config field mapping for remaining overrides
         # Only includes args that actually exist in run.py parser
         arg_mapping = {
             'start': 'dataset_start_idx',
@@ -345,7 +245,7 @@ class Config:
             'verbose': 'verbose',
             'viz_only': 'viz_only',
         }
-        
+
         # Apply overrides from CLI args
         for arg_name, config_field in arg_mapping.items():
             if config_field and hasattr(args, arg_name):

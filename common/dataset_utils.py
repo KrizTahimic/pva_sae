@@ -266,7 +266,7 @@ def evaluate_code(code: str, test_list: list[str]) -> bool:
     namespace = {}
 
     # Pre-import dataset-specific imports
-    # For HumanEval: load from Phase 0.3, For MBPP: load from test_imports
+    # For HumanEval: load from Phase 0.3, For MBPP: load from Phase 0.4
     try:
         from common.config import Config
         config = Config()
@@ -275,7 +275,7 @@ def evaluate_code(code: str, test_list: list[str]) -> bool:
         if config.dataset_name == "humaneval":
             import_file = Path("data/phase0_3_humaneval/required_imports.json")
         elif config.dataset_name == "mbpp":
-            import_file = Path("data/test_imports/metadata.json")
+            import_file = Path("data/phase0_4_mbpp_imports/required_imports.json")
 
         if import_file and import_file.exists():
             import json

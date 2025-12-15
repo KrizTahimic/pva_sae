@@ -10,7 +10,10 @@ Range selection (for testing or subsetting):
     python3 run.py phase 1 --start 0 --end 10                   # Process first 10 problems
     python3 run.py phase 3.5 --start 0 --end 5                  # Validate first 5 problems
 
-Model/dataset configuration is controlled via config.py (not CLI args).
+Model/dataset selection (overrides config.py defaults):
+    python3 run.py phase 1 --model google/gemma-2-9b            # Use Gemma 9B
+    python3 run.py phase 1 --model meta-llama/Llama-3.1-8B      # Use LLAMA 8B
+    python3 run.py phase 1 --dataset humaneval                  # Use HumanEval dataset
 """
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -77,7 +80,26 @@ def setup_argument_parser():
         default=None,
         help='Ending index for dataset (inclusive). If not specified, processes to end of dataset'
     )
-    
+
+    # Model and dataset selection (overrides config.py defaults)
+    from common.model_registry import get_all_model_ids
+    from common.dataset_registry import get_all_dataset_names
+
+    phase_parser.add_argument(
+        '--model',
+        type=str,
+        choices=get_all_model_ids(),
+        default=None,
+        help='Model to use (overrides config.py default)'
+    )
+    phase_parser.add_argument(
+        '--dataset',
+        type=str,
+        choices=get_all_dataset_names(),
+        default=None,
+        help='Dataset to use (overrides config.py default)'
+    )
+
     # Experiment mode arguments for steering phases (4.5, 4.6, 4.8)
     phase_parser.add_argument(
         '--correction-only',

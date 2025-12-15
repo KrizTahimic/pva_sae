@@ -96,11 +96,24 @@ from .dataset_utils import (
     load_raw_activation
 )
 
-# Dataset configuration (for multi-dataset support)
-from .dataset_config import (
-    DatasetConfig,
-    DATASET_CONFIGS,
-    get_dataset_config
+# Dataset registry (for multi-dataset support)
+from .dataset_registry import (
+    DatasetInfo,
+    DATASETS,
+    get_dataset,
+    get_all_dataset_names,
+    get_dataset_suffix as get_dataset_suffix_from_registry
+)
+
+# Model registry (for multi-model support)
+from .model_registry import (
+    ModelInfo,
+    MODELS,
+    get_model,
+    get_all_model_ids,
+    get_model_suffix as get_model_suffix_from_registry,
+    GEMMA_2B_SPARSITY,
+    GEMMA_9B_SPARSITY
 )
 
 # Initialization utilities
@@ -207,10 +220,19 @@ __all__ = [
     'load_and_encode_activation',
     'load_raw_activation',
 
-    # Dataset configuration
-    'DatasetConfig',
-    'DATASET_CONFIGS',
-    'get_dataset_config',
+    # Dataset registry
+    'DatasetInfo',
+    'DATASETS',
+    'get_dataset',
+    'get_all_dataset_names',
+
+    # Model registry
+    'ModelInfo',
+    'MODELS',
+    'get_model',
+    'get_all_model_ids',
+    'GEMMA_2B_SPARSITY',
+    'GEMMA_9B_SPARSITY',
 
     # Initialization utilities
     'setup_deterministic_generation',
