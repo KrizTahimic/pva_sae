@@ -136,7 +136,7 @@ The project follows a systematic experimental pipeline:
 ```
 data/
 ├── phase0/       # Difficulty mappings
-├── phase0_1/     # Split datasets
+├── phase0_1/     # Split datasets (selection 50%, tuning 10%, analysis 40%)
 ├── phase1_0/     # Generated code + activations
 ├── phase2_5/     # SAE analysis results
 ├── phase3_8/     # AUROC/F1 metrics

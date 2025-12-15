@@ -140,18 +140,18 @@ class HyperparameterDataRunner:
             layers=self.extraction_layers  # Extract from unique layers only
         )
     
-    def _load_hyperparameter_data(self) -> pd.DataFrame:
-        """Load hyperparameter split from Phase 0.1."""
-        hyperparams_file = Path(get_phase_output_dir("0.1", self.config)) / "hyperparams_mbpp.parquet"
+    def _load_tuning_data(self) -> pd.DataFrame:
+        """Load tuning split from Phase 0.1."""
+        tuning_file = Path(get_phase_output_dir("0.1", self.config)) / "tuning_mbpp.parquet"
         
-        if not hyperparams_file.exists():
+        if not tuning_file.exists():
             raise FileNotFoundError(
-                f"Hyperparameter data not found at {hyperparams_file}. "
+                f"Tuning data not found at {tuning_file}. "
                 "Please run Phase 0.1 first."
             )
-        
-        data = pd.read_parquet(hyperparams_file)
-        logger.info(f"Loaded {len(data)} hyperparameter problems")
+
+        data = pd.read_parquet(tuning_file)
+        logger.info(f"Loaded {len(data)} tuning split problems")
         
         return data
     
@@ -341,12 +341,12 @@ class HyperparameterDataRunner:
         logger.info("Starting Phase 3.6: Hyperparameter Tuning Set Processing")
         logger.info(f"Extracting activations from layers: {self.extraction_layers}")
         
-        # Load hyperparameter data
-        hyperparams_data = self._load_hyperparameter_data()
-        logger.info(f"Loaded {len(hyperparams_data)} hyperparameter problems")
-        
+        # Load tuning split data
+        tuning_data = self._load_tuning_data()
+        logger.info(f"Loaded {len(tuning_data)} tuning split problems")
+
         # Apply --start and --end arguments if provided
-        hyperparams_data = filter_by_range(hyperparams_data, self.config, "hyperparameter dataset")
+        tuning_data = filter_by_range(tuning_data, self.config, "tuning dataset")
         
         # Setup output directories
         self.output_dir = self._setup_output_directories()
@@ -357,23 +357,23 @@ class HyperparameterDataRunner:
         # Filter out already processed tasks
         if processed_task_ids:
             logger.info(f"Skipping {len(processed_task_ids)} already processed tasks")
-            hyperparams_data = hyperparams_data[~hyperparams_data['task_id'].isin(processed_task_ids)]
-            logger.info(f"Remaining tasks to process: {len(hyperparams_data)}")
-        
+            tuning_data = tuning_data[~tuning_data['task_id'].isin(processed_task_ids)]
+            logger.info(f"Remaining tasks to process: {len(tuning_data)}")
+
         # Initialize with checkpoint data
         results = []  # Current batch results
         excluded_tasks = []  # Current batch exclusions
         all_results = checkpoint_results  # All results including checkpoints
         all_excluded = checkpoint_excluded  # All exclusions including checkpoints
-        
+
         checkpoint_counter = len(list(self.output_dir.glob("checkpoint_*.parquet")))
         tasks_since_checkpoint = 0
-        
+
         # Calculate total attempted BEFORE the loop (needed for logging)
-        total_attempted = len(hyperparams_data) + len(processed_task_ids)
-        
+        total_attempted = len(tuning_data) + len(processed_task_ids)
+
         # Progress bar with milestone logging
-        for idx, row in tqdm_with_logging(hyperparams_data.iterrows(), logger, total=len(hyperparams_data), desc="Hyperparameter data generation"):
+        for idx, row in tqdm_with_logging(tuning_data.iterrows(), logger, total=len(tuning_data), desc="Tuning data generation"):
             # Log which task we're about to process (helps identify hanging tasks)
             task_number = len(all_results) + len(results) + 1  # Current position in overall processing
             logger.info(f"Starting task {task_number}/{total_attempted}: {row['task_id']}")
@@ -450,11 +450,11 @@ class HyperparameterDataRunner:
             logger.info(f"Saved exclusion summary to {exclusion_file}")
         
         # Get original task IDs for metadata
-        original_hyperparams_data = self._load_hyperparameter_data()
-        original_hyperparams_data = filter_by_range(original_hyperparams_data, self.config, "original hyperparameter data")
+        original_tuning_data = self._load_tuning_data()
+        original_tuning_data = filter_by_range(original_tuning_data, self.config, "original tuning data")
         
         # Create and save metadata (with exclusion info)
-        metadata = self._create_metadata(all_results, original_hyperparams_data['task_id'].tolist(), all_excluded)
+        metadata = self._create_metadata(all_results, original_tuning_data['task_id'].tolist(), all_excluded)
         self._save_metadata(metadata)
         
         # Log summary including exclusions
@@ -558,7 +558,7 @@ class HyperparameterDataRunner:
             config=self.config,
             output_dir=str(self.output_dir),
             dependencies={
-                "0.1": str(Path(get_phase_output_dir("0.1", self.config)) / "hyperparams_mbpp.parquet"),
+                "0.1": str(Path(get_phase_output_dir("0.1", self.config)) / "tuning_mbpp.parquet"),
             },
             config_keys=['model_name', 'dataset_name']
         )

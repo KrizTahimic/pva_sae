@@ -400,11 +400,11 @@ class Config:
 
     def get_split_ratios(self) -> list[float]:
         """Get fixed split ratios for Phase 0.1."""
-        # 50% for SAE analysis, 10% for hyperparameter tuning, 40% for validation
+        # 50% for direction selection, 10% for hyperparameter tuning, 40% for mechanistic analysis
         return [0.5, 0.1, 0.4]
-    
+
     def get_split_names(self) -> list[str]:
         """Get split names for Phase 0.1."""
-        return ["sae", "hyperparams", "validation"]
+        return ["selection", "tuning", "analysis"]
 
 

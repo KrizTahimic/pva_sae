@@ -252,7 +252,7 @@ save_tensor(activation, Path("activation.safetensors"))
 ```
 data/
 ├── phase0/       # Difficulty mappings
-├── phase0_1/     # Split datasets (sae_mbpp.parquet, validation_mbpp.parquet)
+├── phase0_1/     # Split datasets (selection_mbpp.parquet, tuning_mbpp.parquet, analysis_mbpp.parquet)
 ├── phase1_0/     # Generated code + activations
 ├── phase2_2/     # Pile activation baseline
 ├── phase2_5/     # SAE analysis (top_20_latents.json)

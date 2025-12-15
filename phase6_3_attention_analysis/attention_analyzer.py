@@ -170,16 +170,16 @@ class AttentionAnalyzer:
         """Load attention patterns from Phase 3.5 and Phase 4.8."""
         attention_data = {}
         
-        # Get task IDs from validation split
+        # Get task IDs from analysis split
         phase0_1_output = discover_latest_phase_output("0.1")
         if not phase0_1_output:
             raise FileNotFoundError("Phase 0.1 output not found")
-        
-        validation_path = Path(phase0_1_output).parent / "validation_mbpp.parquet"
-        validation_df = pd.read_parquet(validation_path)
+
+        analysis_path = Path(phase0_1_output).parent / "analysis_mbpp.parquet"
+        analysis_df = pd.read_parquet(analysis_path)
         
         # Load attention for each task
-        for task_id in tqdm_with_logging(validation_df['task_id'], logger, desc="Loading attention data"):
+        for task_id in tqdm_with_logging(analysis_df['task_id'], logger, desc="Loading attention data"):
             task_data = {}
             
             # Load baseline attention from Phase 3.5

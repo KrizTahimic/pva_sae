@@ -83,17 +83,17 @@ def main():
 
     # Load all three splits
     phase0_1_dir = Path("data/phase0_1")
-    sae_df = pd.read_parquet(phase0_1_dir / "sae_mbpp.parquet")
-    hyperparams_df = pd.read_parquet(phase0_1_dir / "hyperparams_mbpp.parquet")
-    validation_df = pd.read_parquet(phase0_1_dir / "validation_mbpp.parquet")
+    selection_df = pd.read_parquet(phase0_1_dir / "selection_mbpp.parquet")
+    tuning_df = pd.read_parquet(phase0_1_dir / "tuning_mbpp.parquet")
+    analysis_df = pd.read_parquet(phase0_1_dir / "analysis_mbpp.parquet")
 
     # Combine all splits
-    all_data = pd.concat([sae_df, hyperparams_df, validation_df], ignore_index=True)
+    all_data = pd.concat([selection_df, tuning_df, analysis_df], ignore_index=True)
 
     print(f"✅ Loaded {len(all_data)} total problems")
-    print(f"   - SAE set: {len(sae_df)} problems")
-    print(f"   - Hyperparams set: {len(hyperparams_df)} problems")
-    print(f"   - Validation set: {len(validation_df)} problems\n")
+    print(f"   - Selection set: {len(selection_df)} problems")
+    print(f"   - Tuning set: {len(tuning_df)} problems")
+    print(f"   - Analysis set: {len(analysis_df)} problems\n")
 
     # Extract all import statements
     print("Extracting import statements from solutions...")

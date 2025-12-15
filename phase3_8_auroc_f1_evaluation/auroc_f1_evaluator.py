@@ -151,13 +151,13 @@ def run_evaluation(config):
     logger.info("EVALUATING CORRECT-PREDICTING FEATURE")
     logger.info("="*60)
 
-    # Load hyperparameter split for correct latent
+    # Load tuning split for correct latent
     y_true_hp_correct, scores_hp_correct = load_split_activations(
-        'hyperparams', correct_layer, correct_latent_idx, 'correct',
+        'tuning', correct_layer, correct_latent_idx, 'correct',
         phase3_5_dir, phase3_6_dir, config
     )
 
-    logger.info(f"Correct-predicting feature (hyperparameter split):")
+    logger.info(f"Correct-predicting feature (tuning split):")
     logger.info(f"  Total samples: {len(y_true_hp_correct)}")
     logger.info(f"  Positive class (correct code): {sum(y_true_hp_correct == 1)}")
     logger.info(f"  Negative class (incorrect code): {sum(y_true_hp_correct == 0)}")
@@ -170,13 +170,13 @@ def run_evaluation(config):
         output_dir
     )
 
-    # Load validation split
+    # Load analysis split
     y_true_val_correct, scores_val_correct = load_split_activations(
-        'validation', correct_layer, correct_latent_idx, 'correct',
+        'analysis', correct_layer, correct_latent_idx, 'correct',
         phase3_5_dir, phase3_6_dir, config
     )
 
-    logger.info(f"\nCorrect-predicting feature (validation split):")
+    logger.info(f"\nCorrect-predicting feature (analysis split):")
     logger.info(f"  Total samples: {len(y_true_val_correct)}")
     logger.info(f"  Positive class (correct code): {sum(y_true_val_correct == 1)}")
     logger.info(f"  Negative class (incorrect code): {sum(y_true_val_correct == 0)}")
@@ -192,13 +192,13 @@ def run_evaluation(config):
     logger.info("EVALUATING INCORRECT-PREDICTING FEATURE")
     logger.info("="*60)
 
-    # Load hyperparameter split for incorrect latent
+    # Load tuning split for incorrect latent
     y_true_hp_incorrect, scores_hp_incorrect = load_split_activations(
-        'hyperparams', incorrect_layer, incorrect_latent_idx, 'incorrect',
+        'tuning', incorrect_layer, incorrect_latent_idx, 'incorrect',
         phase3_5_dir, phase3_6_dir, config
     )
 
-    logger.info(f"Incorrect-predicting feature (hyperparameter split):")
+    logger.info(f"Incorrect-predicting feature (tuning split):")
     logger.info(f"  Total samples: {len(y_true_hp_incorrect)}")
     logger.info(f"  Positive class (incorrect code): {sum(y_true_hp_incorrect == 1)}")
     logger.info(f"  Negative class (correct code): {sum(y_true_hp_incorrect == 0)}")
@@ -211,13 +211,13 @@ def run_evaluation(config):
         output_dir
     )
 
-    # Load validation split
+    # Load analysis split
     y_true_val_incorrect, scores_val_incorrect = load_split_activations(
-        'validation', incorrect_layer, incorrect_latent_idx, 'incorrect',
+        'analysis', incorrect_layer, incorrect_latent_idx, 'incorrect',
         phase3_5_dir, phase3_6_dir, config
     )
 
-    logger.info(f"\nIncorrect-predicting feature (validation split):")
+    logger.info(f"\nIncorrect-predicting feature (analysis split):")
     logger.info(f"  Total samples: {len(y_true_val_incorrect)}")
     logger.info(f"  Positive class (incorrect code): {sum(y_true_val_incorrect == 1)}")
     logger.info(f"  Negative class (correct code): {sum(y_true_val_incorrect == 0)}")
@@ -611,24 +611,24 @@ def load_split_activations(
     """Load activations for a specific latent from appropriate phase data.
 
     Args:
-        split_name: 'hyperparams' or 'validation'
+        split_name: 'tuning' or 'analysis'
         layer_num: Layer number for the latent
         latent_idx: Index of the specific latent
         latent_type: 'correct' or 'incorrect'
-        phase3_5_dir: Directory containing Phase 3.5 outputs (validation split)
-        phase3_6_dir: Directory containing Phase 3.6 outputs (hyperparams split)
+        phase3_5_dir: Directory containing Phase 3.5 outputs (analysis split)
+        phase3_6_dir: Directory containing Phase 3.6 outputs (tuning split)
 
     Returns:
         Tuple of (labels, activations)
     """
     # Select the correct directory based on split type
-    if split_name == 'hyperparams':
-        # Use Phase 3.6 directory for hyperparameter split
+    if split_name == 'tuning':
+        # Use Phase 3.6 directory for tuning split
         activation_dir = phase3_6_dir
         # Load temperature 0.0 dataset from Phase 3.6
         temp_data = pd.read_parquet(phase3_6_dir / 'dataset_hyperparams_temp_0_0.parquet')
-    else:  # validation
-        # Use Phase 3.5 directory for validation split
+    else:  # analysis
+        # Use Phase 3.5 directory for analysis split
         activation_dir = phase3_5_dir
         # Load temperature 0.0 dataset from Phase 3.5
         temp_data = pd.read_parquet(phase3_5_dir / 'dataset_temp_0_0.parquet')

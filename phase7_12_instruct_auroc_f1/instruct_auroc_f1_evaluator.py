@@ -291,11 +291,11 @@ def load_instruct_activations(
     Returns:
         Tuple of (labels, activations)
     """
-    # Load validation split data (use dataset-specific filename)
+    # Load analysis split data (use dataset-specific filename)
     if dataset_name == "humaneval":
         split_data = pd.read_parquet(phase0_1_dir / 'humaneval.parquet')
     else:
-        split_data = pd.read_parquet(phase0_1_dir / 'validation_mbpp.parquet')
+        split_data = pd.read_parquet(phase0_1_dir / 'analysis_mbpp.parquet')
 
     # Load instruction-tuned model temperature 0.0 dataset from Phase 7.3
     temp_data = pd.read_parquet(phase7_3_dir / 'dataset_instruct_temp_0_0.parquet')
@@ -531,8 +531,8 @@ def main():
                 'idx': int(correct_latent_idx),
                 'layer': int(correct_layer)
             },
-            'validation_metrics': {
-                'split': 'validation',
+            'analysis_metrics': {
+                'split': 'analysis',
                 'n_samples': int(len(y_true_correct)),
                 'optimal_threshold': float(optimal_threshold_correct),
                 'metrics': metrics_correct
@@ -543,8 +543,8 @@ def main():
                 'idx': int(incorrect_latent_idx),
                 'layer': int(incorrect_layer)
             },
-            'validation_metrics': {
-                'split': 'validation',
+            'analysis_metrics': {
+                'split': 'analysis',
                 'n_samples': int(len(y_true_incorrect)),
                 'optimal_threshold': float(optimal_threshold_incorrect),
                 'metrics': metrics_incorrect

@@ -102,21 +102,21 @@ def load_steering_results(config: Config) -> dict[str, list[dict]]:
 
     return results
 
-def load_validation_with_difficulty(config: Config) -> pd.DataFrame:
-    """Load validation dataset with cyclomatic complexity."""
+def load_analysis_with_difficulty(config: Config) -> pd.DataFrame:
+    """Load analysis split dataset with cyclomatic complexity."""
     phase0_1_dir = Path(get_phase_output_dir("0.1", config))
     if not phase0_1_dir.exists():
         raise FileNotFoundError(f"Phase 0.1 output not found at {phase0_1_dir}. Run Phase 0.1 first.")
-    validation_path = phase0_1_dir / "validation_mbpp.parquet"
+    analysis_path = phase0_1_dir / "analysis_mbpp.parquet"
 
-    if not validation_path.exists():
+    if not analysis_path.exists():
         # Try alternative naming
-        validation_path = phase0_1_dir / "validation.parquet"
-        if not validation_path.exists():
-            raise FileNotFoundError(f"Validation dataset not found in: {phase0_1_dir}")
+        analysis_path = phase0_1_dir / "analysis.parquet"
+        if not analysis_path.exists():
+            raise FileNotFoundError(f"Analysis split dataset not found in: {phase0_1_dir}")
 
-    df = pd.read_parquet(validation_path)
-    logger.info(f"Loaded validation dataset: {len(df)} problems")
+    df = pd.read_parquet(analysis_path)
+    logger.info(f"Loaded analysis split dataset: {len(df)} problems")
     logger.info(f"Cyclomatic complexity range: {df['cyclomatic_complexity'].min()}-{df['cyclomatic_complexity'].max()}")
 
     return df
@@ -485,7 +485,7 @@ def main():
         preservation_metrics = data['preservation_analysis']['counts']
 
         # For difficulty distribution we need validation data
-        validation_data = load_validation_with_difficulty(config)
+        validation_data = load_analysis_with_difficulty(config)
         difficulty_groups = group_by_difficulty(validation_data)
 
         plot_steering_trends(correction_metrics, corruption_metrics, preservation_metrics, output_dir)
@@ -500,7 +500,7 @@ def main():
     # Step 1: Load data
     logger.info("\nStep 1: Loading data...")
     steering_results = load_steering_results(config)
-    validation_data = load_validation_with_difficulty(config)
+    validation_data = load_analysis_with_difficulty(config)
 
     # Step 2: Group by difficulty
     logger.info("\nStep 2: Grouping tasks by difficulty...")

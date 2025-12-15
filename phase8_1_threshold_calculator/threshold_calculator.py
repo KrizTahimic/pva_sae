@@ -231,7 +231,7 @@ class ThresholdCalculator:
             'phase': '8.1',
             'timestamp': datetime.now().isoformat(),
             'source_phase': '3.6',
-            'source_dataset': 'hyperparams',
+            'source_dataset': 'tuning',
             'latent_info': {
                 'layer': self.latent_layer,
                 'latent_idx': self.latent_idx,

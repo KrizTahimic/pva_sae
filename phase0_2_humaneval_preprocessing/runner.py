@@ -51,6 +51,6 @@ def run_phase_0_2(config: Config):
     )
 
     logger.info("\nNext steps:")
-    logger.info("  1. Verify schema matches validation_mbpp.parquet")
+    logger.info("  1. Verify schema matches analysis_mbpp.parquet")
     logger.info("  2. Manually inspect converted problems")
     logger.info("  3. Test Phase 3.5 with converted dataset")

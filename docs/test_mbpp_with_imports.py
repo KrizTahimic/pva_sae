@@ -330,20 +330,20 @@ class ImportTestRunner:
         logger.info(f"Dataset: {self.config.dataset_name}")
         logger.info(f"Model: {self.config.model_name}")
 
-        # Load validation data
+        # Load analysis split data
         from common.utils import get_phase_output_dir
-        validation_file = Path(get_phase_output_dir("0.1", self.config)) / "validation_mbpp.parquet"
-        if not validation_file.exists():
-            raise FileNotFoundError(f"Validation data not found: {validation_file}")
+        analysis_file = Path(get_phase_output_dir("0.1", self.config)) / "analysis_mbpp.parquet"
+        if not analysis_file.exists():
+            raise FileNotFoundError(f"Analysis split data not found: {analysis_file}")
 
-        validation_data = pd.read_parquet(validation_file)
-        logger.info(f"Loaded {len(validation_data)} validation problems")
+        analysis_data = pd.read_parquet(analysis_file)
+        logger.info(f"Loaded {len(analysis_data)} analysis split problems")
 
         # Apply range filtering
-        end_idx = self.end_idx if self.end_idx is not None else len(validation_data) - 1
+        end_idx = self.end_idx if self.end_idx is not None else len(analysis_data) - 1
         logger.info(f"Processing rows {self.start_idx} to {end_idx} (inclusive)")
-        validation_data = validation_data.iloc[self.start_idx:end_idx+1].copy()
-        logger.info(f"Testing on {len(validation_data)} problems")
+        analysis_data = analysis_data.iloc[self.start_idx:end_idx+1].copy()
+        logger.info(f"Testing on {len(analysis_data)} problems")
 
         # Setup output directory (fixed path, overwrites each run)
         output_dir = Path("data/test_imports")
@@ -355,7 +355,7 @@ class ImportTestRunner:
         # Process all tasks
         results = []
 
-        for idx, row in tqdm(validation_data.iterrows(), total=len(validation_data), desc="Testing"):
+        for idx, row in tqdm(analysis_data.iterrows(), total=len(analysis_data), desc="Testing"):
             # Build prompt
             test_cases_str = "\n".join([
                 test.strip() if test.strip().startswith('assert ') else f"assert {test.strip()}"

@@ -128,7 +128,7 @@ def load_dataset_split(split_name: str, phase0_1_dir: Path, config: 'Config') ->
     supports both MBPP and HumanEval transparently based on config.
 
     Args:
-        split_name: Split identifier ("sae", "hyperparams", or "validation")
+        split_name: Split identifier ("selection", "tuning", or "analysis")
         phase0_1_dir: Phase 0.1 output directory
         config: Config object with dataset_name attribute
 
@@ -141,7 +141,7 @@ def load_dataset_split(split_name: str, phase0_1_dir: Path, config: 'Config') ->
     Example:
         >>> from common.config import Config
         >>> config = Config()  # Uses config.dataset_name
-        >>> df = load_dataset_split("sae", Path("data/phase0_1"), config)
+        >>> df = load_dataset_split("selection", Path("data/phase0_1"), config)
     """
     split_file = phase0_1_dir / f"{split_name}_{config.dataset_name}.parquet"
 

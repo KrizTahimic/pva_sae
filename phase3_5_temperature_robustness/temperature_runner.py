@@ -279,31 +279,31 @@ class TemperatureRobustnessRunner:
         else:
             logger.info("No activation/attention extraction (temperature 0.0 not in config)")
         
-        # Load validation data
-        validation_data = self._load_validation_data()
-        logger.info(f"Loaded {len(validation_data)} validation problems")
-        
+        # Load analysis split data
+        analysis_data = self._load_analysis_data()
+        logger.info(f"Loaded {len(analysis_data)} analysis split problems")
+
         # Apply --start and --end arguments if provided
-        validation_data = filter_by_range(validation_data, self.config, "validation dataset")
+        analysis_data = filter_by_range(analysis_data, self.config, "analysis dataset")
         
         # Setup output directories
         self.output_dir = self._setup_output_directories()
         
         # Process all tasks
-        all_results, excluded_tasks = self._process_all_tasks(validation_data)
-        
+        all_results, excluded_tasks = self._process_all_tasks(analysis_data)
+
         # Save results by temperature
         for temperature in self.config.temperature_variation_temps:
             temp_results = [r for r in all_results if r['temperature'] == temperature]
             self._save_temperature_results(temp_results, temperature)
-        
+
         # Save metadata
-        metadata = self._create_metadata(all_results, validation_data['task_id'].tolist(), excluded_tasks)
+        metadata = self._create_metadata(all_results, analysis_data['task_id'].tolist(), excluded_tasks)
         self._save_metadata(metadata)
-        
+
         # Save exclusion information
         if excluded_tasks:
-            exclusion_summary = create_exclusion_summary(excluded_tasks, len(validation_data))
+            exclusion_summary = create_exclusion_summary(excluded_tasks, len(analysis_data))
             exclusion_file = self.output_dir / "excluded_tasks.json"
             save_json(exclusion_summary, exclusion_file)
             logger.info(f"Saved exclusion summary to {exclusion_file}")
@@ -322,14 +322,14 @@ class TemperatureRobustnessRunner:
         logger.info("Phase 3.5 completed successfully")
         return metadata
     
-    def _load_validation_data(self) -> pd.DataFrame:
-        """Load validation data from Phase 0.1 (MBPP) or Phase 0.2 (HumanEval)."""
+    def _load_analysis_data(self) -> pd.DataFrame:
+        """Load analysis split data from Phase 0.1 (MBPP) or Phase 0.2 (HumanEval)."""
         if self.config.dataset_name == "mbpp":
-            validation_file = Path(get_phase_output_dir("0.1", self.config)) / "validation_mbpp.parquet"
-            dataset_desc = "MBPP validation"
+            analysis_file = Path(get_phase_output_dir("0.1", self.config)) / "analysis_mbpp.parquet"
+            dataset_desc = "MBPP analysis split"
             prerequisite = "Phase 0.1"
         elif self.config.dataset_name == "humaneval":
-            validation_file = Path(get_phase_output_dir("0.2", self.config)) / "humaneval.parquet"
+            analysis_file = Path(get_phase_output_dir("0.2", self.config)) / "humaneval.parquet"
             dataset_desc = "HumanEval"
             prerequisite = "Phase 0.2"
         else:
@@ -338,14 +338,14 @@ class TemperatureRobustnessRunner:
                 f"Supported datasets: 'mbpp', 'humaneval'"
             )
 
-        if not validation_file.exists():
+        if not analysis_file.exists():
             raise FileNotFoundError(
-                f"{dataset_desc} data not found at {validation_file}. "
+                f"{dataset_desc} data not found at {analysis_file}. "
                 f"Please run {prerequisite} first."
             )
 
-        logger.info(f"Loading {dataset_desc} data from {validation_file}")
-        return pd.read_parquet(validation_file)
+        logger.info(f"Loading {dataset_desc} data from {analysis_file}")
+        return pd.read_parquet(analysis_file)
     
     def _setup_output_directories(self) -> Path:
         """Create output directory structure and return output path."""

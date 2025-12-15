@@ -551,24 +551,28 @@ Nice-to-haves once the foundation is solid.
     - Updated `phase4_6_golden_section_refinement/golden_section_refiner.py`: `latent_index` → `latent_idx` in dict keys
 - [x] Read the new code. Use explore agents to find if there is still outdated docstrings/comments. If so, let's update them.
 - [x] Refactor README.md and CLAUDE.md.
-    - CLAUDE.md: 995 → 312 lines (69% reduction)
-    - README.md: 362 → 188 lines (48% reduction)
-    - Critical checklist at top with backward compatibility rule
-    - Removed redundant sections, code style, screen examples
-- [x] Improve notebooks. Remove unnecessary cells. Also do list comprehensions. Also make sure it works again after the new refactored code.
-    - Deleted 2 broken notebooks: `notebooks/dataset_building_debug.ipynb`, `notebooks/sae_analysis.ipynb`
-    - Cleaned 7 file_check notebooks: removed verbose `"=" * 80` separators, emoji decorations
+    - CLAUDE.md: 995 → 312 lines (69% redu" * 80` separators, emoji decorations
     - Kept all pandas unlimited display settings (`max_rows`, `max_columns`, `max_colwidth`, `width` = None)
     - List comprehension check: most for-loops in notebooks are OUTPUT cells (generated code), not actionable
 - [x] Rename to sae-code-correctness (the folder, github repo, huggingface etc.)
     - Renamed codebase references from `pva_sae` to `sae_code_correctness`
     - External services (GitHub, HuggingFace, conda) to be renamed manually after commit
-- [ ] Rename the dataset split. 
+- [x] Rename the dataset split.
+    - Changed `sae` → `selection` (direction selection)
+    - Changed `hyperparams` → `tuning` (hyperparameter tuning)
+    - Changed `validation` → `analysis` (mechanistic analysis)
+    - Updated 16+ files with references to split names 
 - [ ] Fix the figure generation code. Currently it looks soooo messy.
     - [ ] Understand matplotlib and pandas logic or how it works. So I can help instruct my preference and good practice.
 
 
-### 5.1 ICML Visualizations (moved from ICML tasks)
+### 5.1 ICML Visualizations (moved from ICML tasks)ction)
+    - README.md: 362 → 188 lines (48% reduction)
+    - Critical checklist at top with backward compatibility rule
+    - Removed redundant sections, code style, screen examples
+- [x] Improve notebooks. Remove unnecessary cells. Also do list comprehensions. Also make sure it works again after the new refactored code.
+    - Deleted 2 broken notebooks: `notebooks/dataset_building_debug.ipynb`, `notebooks/sae_analysis.ipynb`
+    - Cleaned 7 file_check notebooks: removed verbose `"=
 
 These visualizations address reviewer feedback. Do after refactoring is stable.
 

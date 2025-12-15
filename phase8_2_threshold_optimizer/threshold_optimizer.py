@@ -185,20 +185,20 @@ class ThresholdOptimizer:
         if not phase0_1_output:
             raise FileNotFoundError("Phase 0.1 output not found. Run Phase 0.1 first.")
 
-        # Load hyperparameter set problems
-        hyperparams_file = Path(phase0_1_output).parent / "hyperparams_mbpp.parquet"
-        if not hyperparams_file.exists():
-            raise FileNotFoundError(f"Hyperparameter problems file not found: {hyperparams_file}")
+        # Load tuning split problems
+        tuning_file = Path(phase0_1_output).parent / "tuning_mbpp.parquet"
+        if not tuning_file.exists():
+            raise FileNotFoundError(f"Tuning split problems file not found: {tuning_file}")
 
-        self.hyperparams_problems = pd.read_parquet(hyperparams_file)
-        logger.info(f"Loaded {len(self.hyperparams_problems)} hyperparameter problems from Phase 0.1")
+        self.tuning_problems = pd.read_parquet(tuning_file)
+        logger.info(f"Loaded {len(self.tuning_problems)} tuning split problems from Phase 0.1")
 
         # Parse test_list if it's stored as JSON strings
-        if 'test_list' in self.hyperparams_problems.columns:
+        if 'test_list' in self.tuning_problems.columns:
             # Check if it's already a list or needs parsing
-            first_test = self.hyperparams_problems.iloc[0]['test_list']
+            first_test = self.tuning_problems.iloc[0]['test_list']
             if isinstance(first_test, str):
-                self.hyperparams_problems['test_list'] = self.hyperparams_problems['test_list'].apply(
+                self.tuning_problems['test_list'] = self.tuning_problems['test_list'].apply(
                     lambda x: json.loads(x) if isinstance(x, str) else x
                 )
                 logger.info("Parsed test_list JSON strings to lists")
@@ -229,7 +229,7 @@ class ThresholdOptimizer:
 
         # === MERGE PHASE 0.1 + PHASE 3.6 ===
         logger.info("Merging Phase 0.1 prompts with Phase 3.6 correctness labels...")
-        self.dataset = self.hyperparams_problems.merge(
+        self.dataset = self.tuning_problems.merge(
             phase3_6_baseline,
             on='task_id',
             how='inner'
@@ -973,7 +973,7 @@ class ThresholdOptimizer:
             },
             'source_dataset': {
                 'phase': '3.6',
-                'dataset': 'hyperparams',
+                'dataset': 'tuning',
                 'n_correct_problems': len(self.correct_problems),
                 'n_incorrect_problems': len(self.incorrect_problems)
             },

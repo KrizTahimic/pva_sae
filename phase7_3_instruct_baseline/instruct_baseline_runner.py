@@ -152,23 +152,23 @@ class InstructBaselineRunner:
             layers=self.extraction_layers  # Extract from unique layers only
         )
     
-    def _load_validation_data(self) -> pd.DataFrame:
-        """Load validation split from Phase 0.1 (MBPP) or Phase 0.2 (HumanEval)."""
+    def _load_analysis_data(self) -> pd.DataFrame:
+        """Load analysis split from Phase 0.1 (MBPP) or Phase 0.2 (HumanEval)."""
         if self.config.dataset_name == "mbpp":
-            validation_file = Path(get_phase_output_dir("0.1", self.config)) / "validation_mbpp.parquet"
+            analysis_file = Path(get_phase_output_dir("0.1", self.config)) / "analysis_mbpp.parquet"
         elif self.config.dataset_name == "humaneval":
-            validation_file = Path(get_phase_output_dir("0.2", self.config)) / "humaneval.parquet"
+            analysis_file = Path(get_phase_output_dir("0.2", self.config)) / "humaneval.parquet"
         else:
             raise ValueError(f"Unknown dataset: {self.config.dataset_name}")
 
-        if not validation_file.exists():
+        if not analysis_file.exists():
             raise FileNotFoundError(
-                f"Validation data not found at {validation_file}. "
+                f"Analysis split data not found at {analysis_file}. "
                 f"Please run Phase 0.1 (MBPP) or Phase 0.2 (HumanEval) first."
             )
 
-        data = pd.read_parquet(validation_file)
-        logger.info(f"Loaded {len(data)} validation problems for instruction-tuned baseline")
+        data = pd.read_parquet(analysis_file)
+        logger.info(f"Loaded {len(data)} analysis split problems for instruction-tuned baseline")
 
         return data
     
@@ -367,24 +367,24 @@ class InstructBaselineRunner:
         logger.info(f"Using instruction-tuned model: {self.model_name}")
         logger.info(f"Extracting activations from layers: {self.extraction_layers}")
         
-        # Load validation data
-        validation_data = self._load_validation_data()
-        logger.info(f"Loaded {len(validation_data)} validation problems")
+        # Load analysis split data
+        analysis_data = self._load_analysis_data()
+        logger.info(f"Loaded {len(analysis_data)} analysis split problems")
 
         # Apply --start and --end arguments if provided
-        validation_data = filter_by_range(validation_data, self.config, "validation dataset")
-        
+        analysis_data = filter_by_range(analysis_data, self.config, "analysis dataset")
+
         # Setup output directories
         self.output_dir = self._setup_output_directories()
-        
+
         # Load existing checkpoints if any
         checkpoint_results, checkpoint_excluded, processed_task_ids = self.load_checkpoints(self.output_dir)
-        
+
         # Filter out already processed tasks
         if processed_task_ids:
             logger.info(f"Skipping {len(processed_task_ids)} already processed tasks")
-            validation_data = validation_data[~validation_data['task_id'].isin(processed_task_ids)]
-            logger.info(f"Remaining tasks to process: {len(validation_data)}")
+            analysis_data = analysis_data[~analysis_data['task_id'].isin(processed_task_ids)]
+            logger.info(f"Remaining tasks to process: {len(analysis_data)}")
         
         # Initialize with checkpoint data
         results = []  # Current batch results
@@ -396,10 +396,10 @@ class InstructBaselineRunner:
         tasks_since_checkpoint = 0
         
         # Calculate total attempted BEFORE the loop (needed for logging)
-        total_attempted = len(validation_data) + len(processed_task_ids)
-        
+        total_attempted = len(analysis_data) + len(processed_task_ids)
+
         # Progress bar with milestone logging
-        for idx, row in tqdm_with_logging(validation_data.iterrows(), logger, total=len(validation_data), desc="Instruction-tuned baseline generation"):
+        for idx, row in tqdm_with_logging(analysis_data.iterrows(), logger, total=len(analysis_data), desc="Instruction-tuned baseline generation"):
             # Log which task we're about to process (helps identify hanging tasks)
             task_number = len(all_results) + len(results) + 1  # Current position in overall processing
             logger.info(f"Starting task {task_number}/{total_attempted}: {row['task_id']}")
@@ -476,11 +476,11 @@ class InstructBaselineRunner:
             logger.info(f"Saved exclusion summary to {exclusion_file}")
         
         # Get original task IDs for metadata
-        original_validation_data = self._load_validation_data()
-        original_validation_data = filter_by_range(original_validation_data, self.config, "original validation data")
-        
+        original_analysis_data = self._load_analysis_data()
+        original_analysis_data = filter_by_range(original_analysis_data, self.config, "original analysis data")
+
         # Create and save metadata (with exclusion info)
-        metadata = self._create_metadata(all_results, original_validation_data['task_id'].tolist(), all_excluded)
+        metadata = self._create_metadata(all_results, original_analysis_data['task_id'].tolist(), all_excluded)
         self._save_metadata(metadata)
         
         # Log summary including exclusions

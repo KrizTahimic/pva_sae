@@ -124,7 +124,7 @@ def convert_humaneval_to_mbpp(output_dir: str = "data/phase0_2_humaneval") -> pd
     """
     Convert HumanEval dataset to MBPP format.
 
-    Output schema matches Phase 0.1 validation_mbpp.parquet:
+    Output schema matches Phase 0.1 analysis_mbpp.parquet:
     - task_id: int64 (sequential 0-163)
     - text: object (problem description/prompt)
     - code: object (canonical solution)
