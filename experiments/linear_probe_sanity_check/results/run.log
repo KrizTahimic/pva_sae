@@ -1,0 +1,272 @@
+==============================================
+Linear Probe vs SAE Sanity Check
+All models, all layers (10-25)
+==============================================
+
+>>> Starting gemma2b (all layers)...
+
+============================================================
+Linear Probe vs SAE Comparison
+Layer: 10 | Model: google/gemma-2-2b
+============================================================
+
+Loading activations...
+  Loaded 489 samples: 147 correct, 342 incorrect
+  Activation shape: (489, 2304)
+
+[1] LINEAR PROBE (Logistic Regression)
+----------------------------------------
+  5-fold CV AUROC: 0.676 (+/- 0.023)
+  Full data AUROC: 1.000
+  Full data F1:    1.000
+  Full data Acc:   1.000
+  Probe direction norm: 8.196
+  Probe bias: 0.027
+  Separation score: 0.832
+  T-statistic: 106.261 (p=2.98e-183)
+
+[2] SAE LATENT PREDICTION
+----------------------------------------
+2025-12-16 09:15:03,785 [INFO] [sae_loader] Loading GemmaScope SAE for google/gemma-2-2b layer 10 (sparsity=77)
+2025-12-16 09:15:06,317 [INFO] [sae_loader] Loaded GemmaScope SAE: d_model=2304, d_sae=16384, dtype=torch.bfloat16
+  ERROR loading SAE: Got unsupported ScalarType BFloat16
+
+[3] RANDOM DIRECTION (Sanity Check)
+----------------------------------------
+  Random direction AUROC: 0.536 (+/- 0.036)
+
+============================================================
+SUMMARY
+============================================================
+  Linear Probe AUROC:  1.000
+  Best SAE Latent:     0.000
+  Random Baseline:     0.536
+
+  >> Linear probe significantly outperforms SAE latent
+     This suggests SAE may be losing information
+
+============================================================
+Linear Probe vs SAE Comparison
+Layer: 11 | Model: google/gemma-2-2b
+============================================================
+
+Loading activations...
+  Loaded 489 samples: 147 correct, 342 incorrect
+  Activation shape: (489, 2304)
+
+[1] LINEAR PROBE (Logistic Regression)
+----------------------------------------
+  5-fold CV AUROC: 0.684 (+/- 0.062)
+  Full data AUROC: 1.000
+  Full data F1:    1.000
+  Full data Acc:   1.000
+  Probe direction norm: 8.094
+  Probe bias: 0.004
+  Separation score: 0.842
+  T-statistic: 110.617 (p=1.24e-182)
+
+[2] SAE LATENT PREDICTION
+----------------------------------------
+2025-12-16 09:15:40,532 [INFO] [sae_loader] Loading GemmaScope SAE for google/gemma-2-2b layer 11 (sparsity=80)
+2025-12-16 09:15:42,625 [INFO] [sae_loader] Loaded GemmaScope SAE: d_model=2304, d_sae=16384, dtype=torch.bfloat16
+  ERROR loading SAE: Got unsupported ScalarType BFloat16
+
+[3] RANDOM DIRECTION (Sanity Check)
+----------------------------------------
+  Random direction AUROC: 0.533 (+/- 0.031)
+
+============================================================
+SUMMARY
+============================================================
+  Linear Probe AUROC:  1.000
+  Best SAE Latent:     0.000
+  Random Baseline:     0.533
+
+  >> Linear probe significantly outperforms SAE latent
+     This suggests SAE may be losing information
+
+============================================================
+Linear Probe vs SAE Comparison
+Layer: 12 | Model: google/gemma-2-2b
+============================================================
+
+Loading activations...
+  Loaded 489 samples: 147 correct, 342 incorrect
+  Activation shape: (489, 2304)
+
+[1] LINEAR PROBE (Logistic Regression)
+----------------------------------------
+  5-fold CV AUROC: 0.603 (+/- 0.038)
+  Full data AUROC: 1.000
+  Full data F1:    1.000
+  Full data Acc:   1.000
+  Probe direction norm: 7.376
+  Probe bias: 0.002
+  Separation score: 0.887
+  T-statistic: 148.319 (p=3.89e-204)
+
+[2] SAE LATENT PREDICTION
+----------------------------------------
+2025-12-16 09:16:09,449 [INFO] [sae_loader] Loading GemmaScope SAE for google/gemma-2-2b layer 12 (sparsity=82)
+2025-12-16 09:16:11,568 [INFO] [sae_loader] Loaded GemmaScope SAE: d_model=2304, d_sae=16384, dtype=torch.bfloat16
+  ERROR loading SAE: Got unsupported ScalarType BFloat16
+
+[3] RANDOM DIRECTION (Sanity Check)
+----------------------------------------
+  Random direction AUROC: 0.551 (+/- 0.037)
+
+============================================================
+SUMMARY
+============================================================
+  Linear Probe AUROC:  1.000
+  Best SAE Latent:     0.000
+  Random Baseline:     0.551
+
+  >> Linear probe significantly outperforms SAE latent
+     This suggests SAE may be losing information
+
+============================================================
+Linear Probe vs SAE Comparison
+Layer: 13 | Model: google/gemma-2-2b
+============================================================
+
+Loading activations...
+  Loaded 489 samples: 147 correct, 342 incorrect
+  Activation shape: (489, 2304)
+
+[1] LINEAR PROBE (Logistic Regression)
+----------------------------------------
+  5-fold CV AUROC: 0.634 (+/- 0.039)
+  Full data AUROC: 1.000
+  Full data F1:    1.000
+  Full data Acc:   1.000
+  Probe direction norm: 7.555
+  Probe bias: 0.003
+  Separation score: 0.880
+  T-statistic: 141.033 (p=2.23e-198)
+
+[2] SAE LATENT PREDICTION
+----------------------------------------
+2025-12-16 09:16:44,000 [INFO] [sae_loader] Loading GemmaScope SAE for google/gemma-2-2b layer 13 (sparsity=84)
+2025-12-16 09:16:46,118 [INFO] [sae_loader] Loaded GemmaScope SAE: d_model=2304, d_sae=16384, dtype=torch.bfloat16
+  ERROR loading SAE: Got unsupported ScalarType BFloat16
+
+[3] RANDOM DIRECTION (Sanity Check)
+----------------------------------------
+  Random direction AUROC: 0.555 (+/- 0.029)
+
+============================================================
+SUMMARY
+============================================================
+  Linear Probe AUROC:  1.000
+  Best SAE Latent:     0.000
+  Random Baseline:     0.555
+
+  >> Linear probe significantly outperforms SAE latent
+     This suggests SAE may be losing information
+
+============================================================
+Linear Probe vs SAE Comparison
+Layer: 14 | Model: google/gemma-2-2b
+============================================================
+
+Loading activations...
+  Loaded 489 samples: 147 correct, 342 incorrect
+  Activation shape: (489, 2304)
+
+[1] LINEAR PROBE (Logistic Regression)
+----------------------------------------
+  5-fold CV AUROC: 0.659 (+/- 0.070)
+  Full data AUROC: 1.000
+  Full data F1:    1.000
+  Full data Acc:   1.000
+  Probe direction norm: 6.375
+  Probe bias: -0.002
+  Separation score: 0.930
+  T-statistic: 250.674 (p=5.01e-261)
+
+[2] SAE LATENT PREDICTION
+----------------------------------------
+2025-12-16 09:17:18,993 [INFO] [sae_loader] Loading GemmaScope SAE for google/gemma-2-2b layer 14 (sparsity=84)
+2025-12-16 09:17:21,033 [INFO] [sae_loader] Loaded GemmaScope SAE: d_model=2304, d_sae=16384, dtype=torch.bfloat16
+  ERROR loading SAE: Got unsupported ScalarType BFloat16
+
+[3] RANDOM DIRECTION (Sanity Check)
+----------------------------------------
+  Random direction AUROC: 0.541 (+/- 0.040)
+
+============================================================
+SUMMARY
+============================================================
+  Linear Probe AUROC:  1.000
+  Best SAE Latent:     0.000
+  Random Baseline:     0.541
+
+  >> Linear probe significantly outperforms SAE latent
+     This suggests SAE may be losing information
+
+============================================================
+Linear Probe vs SAE Comparison
+Layer: 15 | Model: google/gemma-2-2b
+============================================================
+
+Loading activations...
+  Loaded 489 samples: 147 correct, 342 incorrect
+  Activation shape: (489, 2304)
+
+[1] LINEAR PROBE (Logistic Regression)
+----------------------------------------
+  5-fold CV AUROC: 0.638 (+/- 0.040)
+  Full data AUROC: 1.000
+  Full data F1:    1.000
+  Full data Acc:   1.000
+  Probe direction norm: 6.148
+  Probe bias: 0.001
+  Separation score: 0.938
+  T-statistic: 287.297 (p=1.84e-271)
+
+[2] SAE LATENT PREDICTION
+----------------------------------------
+2025-12-16 09:17:54,190 [INFO] [sae_loader] Loading GemmaScope SAE for google/gemma-2-2b layer 15 (sparsity=78)
+2025-12-16 09:17:56,408 [INFO] [sae_loader] Loaded GemmaScope SAE: d_model=2304, d_sae=16384, dtype=torch.bfloat16
+  ERROR loading SAE: Got unsupported ScalarType BFloat16
+
+[3] RANDOM DIRECTION (Sanity Check)
+----------------------------------------
+  Random direction AUROC: 0.545 (+/- 0.023)
+
+============================================================
+SUMMARY
+============================================================
+  Linear Probe AUROC:  1.000
+  Best SAE Latent:     0.000
+  Random Baseline:     0.545
+
+  >> Linear probe significantly outperforms SAE latent
+     This suggests SAE may be losing information
+
+============================================================
+Linear Probe vs SAE Comparison
+Layer: 16 | Model: google/gemma-2-2b
+============================================================
+
+Loading activations...
+  Loaded 489 samples: 147 correct, 342 incorrect
+  Activation shape: (489, 2304)
+
+[1] LINEAR PROBE (Logistic Regression)
+----------------------------------------
+  5-fold CV AUROC: 0.628 (+/- 0.032)
+  Full data AUROC: 1.000
+  Full data F1:    1.000
+  Full data Acc:   1.000
+  Probe direction norm: 6.191
+  Probe bias: 0.004
+  Separation score: 0.937
+  T-statistic: 278.788 (p=1.75e-260)
+
+[2] SAE LATENT PREDICTION
+----------------------------------------
+2025-12-16 09:18:33,013 [INFO] [sae_loader] Loading GemmaScope SAE for google/gemma-2-2b layer 16 (sparsity=78)
+2025-12-16 09:18:35,280 [INFO] [sae_loader] Loaded GemmaScope SAE: d_model=2304, d_sae=16384, dtype=torch.bfloat16
+Terminated

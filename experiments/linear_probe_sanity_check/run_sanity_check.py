@@ -2,12 +2,19 @@
 Linear Probe vs SAE Sanity Check
 
 Compares:
-1. Linear probe (logistic regression on raw activations)
-2. SAE latent (single latent from Phase 2.5)
-3. Random direction (sanity baseline)
+1. Mass-Mean probe (difference-in-means with covariance correction)
+2. Logistic Regression probe (discriminative direction)
+3. SAE latent (best latent by AUROC)
+4. Random direction (sanity baseline)
+
+Mass-Mean Probe: From "The Geometry of Truth" (Marks & Tegmark 2023)
+- More causally implicated in model outputs than logistic regression
+- Corrects for interfering non-orthogonal features
+- Formula: direction = Σ⁻¹ @ (μ_correct - μ_incorrect)
 
 Usage:
     python run_sanity_check.py --model gemma2b --layer 19
+    python run_sanity_check.py --model gemma2b --all-layers
 """
 
 import sys
@@ -22,10 +29,45 @@ import numpy as np
 import torch
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score, f1_score, accuracy_score
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, KFold
 from scipy import stats
 from safetensors.torch import load_file, save_file
 import json
+
+
+def compute_mass_mean_probe(X: np.ndarray, y: np.ndarray, reg_lambda: float = 1e-4) -> np.ndarray:
+    """
+    Compute Mass-Mean probe direction from "The Geometry of Truth" (Marks & Tegmark 2023).
+
+    Unlike plain mean-difference, this corrects for covariance structure,
+    removing interference from correlated but irrelevant features.
+
+    Args:
+        X: Activations [N, d_model]
+        y: Labels (1=correct, 0=incorrect)
+        reg_lambda: Regularization for covariance inversion
+
+    Returns:
+        direction: Mass-Mean probe direction [d_model]
+    """
+    # Mean difference
+    mu_correct = X[y == 1].mean(axis=0)
+    mu_incorrect = X[y == 0].mean(axis=0)
+    mu_diff = mu_correct - mu_incorrect
+
+    # Covariance matrix with regularization
+    Sigma = np.cov(X.T)  # [d_model, d_model]
+    Sigma_reg = Sigma + reg_lambda * np.eye(Sigma.shape[0])
+
+    # Mass-Mean direction: Σ⁻¹ @ μ_diff
+    direction = np.linalg.solve(Sigma_reg, mu_diff)
+
+    return direction
+
+
+def compute_mean_diff(X: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Simple mean difference (CAA/DoM baseline)."""
+    return X[y == 1].mean(axis=0) - X[y == 0].mean(axis=0)
 
 
 def load_activations_for_layer(phase1_dir: Path, layer: int) -> tuple[np.ndarray, np.ndarray]:
@@ -57,20 +99,22 @@ def load_activations_for_layer(phase1_dir: Path, layer: int) -> tuple[np.ndarray
 def load_sae_and_encode(X: np.ndarray, layer: int, model_name: str = "google/gemma-2-2b") -> np.ndarray:
     """Load SAE and encode activations."""
     from common.sae_loader import load_sae_for_config
-    from common.config import ExperimentConfig
+    from common.config import Config
 
-    config = ExperimentConfig()
+    config = Config()
     config.model_name = model_name
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     sae = load_sae_for_config(config, layer, device)
 
-    X_tensor = torch.tensor(X, dtype=sae.W_enc.dtype, device=device)
+    # Convert numpy to tensor (numpy doesn't support bfloat16, so convert after)
+    X_tensor = torch.tensor(X, dtype=torch.float32, device=device)
+    X_tensor = X_tensor.to(dtype=sae.W_enc.dtype)
 
     with torch.no_grad():
         latent_activations = sae.encode(X_tensor)  # [N, 16384]
 
-    return latent_activations.cpu().numpy(), sae
+    return latent_activations.cpu().float().numpy(), sae
 
 
 def get_best_latent_from_phase25(phase25_dir: Path) -> dict | None:
@@ -83,6 +127,42 @@ def get_best_latent_from_phase25(phase25_dir: Path) -> dict | None:
         if "correct" in data and len(data["correct"]) > 0:
             return data["correct"][0]
     return None
+
+
+def compute_direction_metrics(X: np.ndarray, y: np.ndarray, direction: np.ndarray) -> dict:
+    """Compute all metrics for a given direction."""
+    # Project activations onto direction
+    scores = X @ direction  # Raw projections, unbounded
+
+    # AUROC (scale-invariant)
+    auroc = roc_auc_score(y, scores)
+
+    # F1 at optimal threshold
+    thresholds = np.percentile(scores, np.linspace(0, 100, 100))
+    best_f1 = 0
+    for thresh in thresholds:
+        preds = (scores > thresh).astype(int)
+        f1 = f1_score(y, preds, zero_division=0)
+        if f1 > best_f1:
+            best_f1 = f1
+
+    # T-statistic (Welch's t-test)
+    correct_scores = scores[y == 1]
+    incorrect_scores = scores[y == 0]
+    t_stat, p_value = stats.ttest_ind(correct_scores, incorrect_scores, equal_var=False)
+
+    # Separation: mean difference of projections (NOT sigmoid)
+    # This is comparable across methods since all use raw projections
+    separation = np.mean(correct_scores) - np.mean(incorrect_scores)
+
+    return {
+        'auroc': float(auroc),
+        'f1': float(best_f1),
+        't_statistic': float(t_stat),
+        'p_value': float(p_value),
+        'separation': float(separation),
+        'direction_norm': float(np.linalg.norm(direction)),
+    }
 
 
 def run_comparison(phase1_dir: Path, layer: int, phase25_dir: Path = None, model_name: str = "google/gemma-2-2b"):
@@ -102,51 +182,85 @@ def run_comparison(phase1_dir: Path, layer: int, phase25_dir: Path = None, model
         print("ERROR: Not enough samples for meaningful comparison")
         return
 
-    # 2. Train linear probe with cross-validation
-    print("\n[1] LINEAR PROBE (Logistic Regression)")
+    # =========================================================================
+    # [1] MASS-MEAN PROBE (Recommended for steering)
+    # =========================================================================
+    print("\n[1] MASS-MEAN PROBE (Geometry of Truth)")
     print("-" * 40)
 
-    probe = LogisticRegression(max_iter=1000, random_state=42)
+    # Cross-validation for Mass-Mean
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    mass_mean_cv_aurocs = []
+    for train_idx, test_idx in kf.split(X):
+        X_train, X_test = X[train_idx], X[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
+        mm_dir = compute_mass_mean_probe(X_train, y_train)
+        mm_scores = X_test @ mm_dir
+        try:
+            auroc = roc_auc_score(y_test, mm_scores)
+            mass_mean_cv_aurocs.append(auroc)
+        except:
+            pass
+    mass_mean_cv_mean = np.mean(mass_mean_cv_aurocs) if mass_mean_cv_aurocs else 0
+    mass_mean_cv_std = np.std(mass_mean_cv_aurocs) if mass_mean_cv_aurocs else 0
+    print(f"  5-fold CV AUROC: {mass_mean_cv_mean:.3f} (+/- {mass_mean_cv_std:.3f})")
+
+    # Full data metrics
+    mass_mean_dir = compute_mass_mean_probe(X, y)
+    mass_mean_metrics = compute_direction_metrics(X, y, mass_mean_dir)
+
+    print(f"  Full data AUROC: {mass_mean_metrics['auroc']:.3f}")
+    print(f"  Full data F1:    {mass_mean_metrics['f1']:.3f}")
+    print(f"  T-statistic:     {mass_mean_metrics['t_statistic']:.3f} (p={mass_mean_metrics['p_value']:.2e})")
+    print(f"  Separation:      {mass_mean_metrics['separation']:.3f}")
+    print(f"  Direction norm:  {mass_mean_metrics['direction_norm']:.3f}")
+
+    # =========================================================================
+    # [2] LOGISTIC REGRESSION (Best for prediction)
+    # =========================================================================
+    print("\n[2] LOGISTIC REGRESSION")
+    print("-" * 40)
+
+    # Strong L2 regularization to prevent overfitting when d > n (2304 > 489)
+    # Tested C values: 1.0→0.641, 0.01→0.673, 0.001→0.703, 0.0001→0.707 (best)
+    probe = LogisticRegression(C=0.0001, max_iter=2000, random_state=42, solver='lbfgs')
 
     # Cross-validation AUROC
     cv_scores = cross_val_score(probe, X, y, cv=5, scoring='roc_auc')
     print(f"  5-fold CV AUROC: {cv_scores.mean():.3f} (+/- {cv_scores.std():.3f})")
 
-    # Fit on all data for direction extraction
+    # Fit on all data
     probe.fit(X, y)
-    probe_scores = probe.predict_proba(X)[:, 1]
-    probe_auroc = roc_auc_score(y, probe_scores)
-    probe_preds = (probe_scores > 0.5).astype(int)
-    probe_f1 = f1_score(y, probe_preds)
-    probe_acc = accuracy_score(y, probe_preds)
+    logreg_dir = probe.coef_[0]
+    logreg_bias = probe.intercept_[0]
+    logreg_metrics = compute_direction_metrics(X, y, logreg_dir)
 
-    print(f"  Full data AUROC: {probe_auroc:.3f}")
-    print(f"  Full data F1:    {probe_f1:.3f}")
-    print(f"  Full data Acc:   {probe_acc:.3f}")
+    print(f"  AUROC:           {logreg_metrics['auroc']:.3f}")
+    print(f"  F1:              {logreg_metrics['f1']:.3f}")
+    print(f"  T-statistic:     {logreg_metrics['t_statistic']:.3f} (p={logreg_metrics['p_value']:.2e})")
+    print(f"  Separation:      {logreg_metrics['separation']:.3f}")
+    print(f"  Direction norm:  {logreg_metrics['direction_norm']:.3f}")
+    print(f"  Bias:            {logreg_bias:.3f}")
 
-    # Extract the learned direction
-    probe_direction = probe.coef_[0]
-    probe_bias = probe.intercept_[0]
-    print(f"  Probe direction norm: {np.linalg.norm(probe_direction):.3f}")
-    print(f"  Probe bias: {probe_bias:.3f}")
+    # =========================================================================
+    # [3] MEAN DIFFERENCE (Simple baseline)
+    # =========================================================================
+    print("\n[3] MEAN DIFFERENCE (CAA/DoM baseline)")
+    print("-" * 40)
 
-    # Compute separation score and t-statistic for probe
-    # (same metrics used for SAE latents in Phase 2.5 and 2.10)
-    correct_scores = probe_scores[y == 1]
-    incorrect_scores = probe_scores[y == 0]
+    mean_diff_dir = compute_mean_diff(X, y)
+    mean_diff_metrics = compute_direction_metrics(X, y, mean_diff_dir)
 
-    # Separation score: mean(correct) - mean(incorrect)
-    probe_separation_score = np.mean(correct_scores) - np.mean(incorrect_scores)
+    print(f"  AUROC:           {mean_diff_metrics['auroc']:.3f}")
+    print(f"  F1:              {mean_diff_metrics['f1']:.3f}")
+    print(f"  T-statistic:     {mean_diff_metrics['t_statistic']:.3f} (p={mean_diff_metrics['p_value']:.2e})")
+    print(f"  Separation:      {mean_diff_metrics['separation']:.3f}")
+    print(f"  Direction norm:  {mean_diff_metrics['direction_norm']:.3f}")
 
-    # T-statistic: Welch's t-test
-    t_stat, p_value = stats.ttest_ind(correct_scores, incorrect_scores, equal_var=False)
-    probe_t_statistic = t_stat
-
-    print(f"  Separation score: {probe_separation_score:.3f}")
-    print(f"  T-statistic: {probe_t_statistic:.3f} (p={p_value:.2e})")
-
-    # 3. SAE-based prediction
-    print("\n[2] SAE LATENT PREDICTION")
+    # =========================================================================
+    # [4] SAE LATENT (Best single latent by AUROC)
+    # =========================================================================
+    print("\n[4] SAE LATENT (Best by AUROC)")
     print("-" * 40)
 
     try:
@@ -226,66 +340,95 @@ def run_comparison(phase1_dir: Path, layer: int, phase25_dir: Path = None, model
         sae_t_statistic = 0
         sae_p_value = 1.0
 
-    # 4. Random direction baseline
-    print("\n[3] RANDOM DIRECTION (Sanity Check)")
+    # =========================================================================
+    # [5] RANDOM DIRECTION (Sanity Check)
+    # =========================================================================
+    print("\n[5] RANDOM DIRECTION (Sanity Check)")
     print("-" * 40)
 
     np.random.seed(42)
-    random_directions = [np.random.randn(X.shape[1]) for _ in range(10)]
     random_aurocs = []
-
-    for i, rand_dir in enumerate(random_directions):
+    for _ in range(10):
+        rand_dir = np.random.randn(X.shape[1])
         rand_dir = rand_dir / np.linalg.norm(rand_dir)
         rand_scores = X @ rand_dir
         try:
             auroc = roc_auc_score(y, rand_scores)
-            # Take max of positive and negative direction
-            auroc = max(auroc, 1 - auroc)
+            auroc = max(auroc, 1 - auroc)  # Take best of +/-
             random_aurocs.append(auroc)
         except:
             pass
 
-    print(f"  Random direction AUROC: {np.mean(random_aurocs):.3f} (+/- {np.std(random_aurocs):.3f})")
+    print(f"  AUROC: {np.mean(random_aurocs):.3f} (+/- {np.std(random_aurocs):.3f})")
 
-    # 5. Summary
+    # =========================================================================
+    # SUMMARY
+    # =========================================================================
     print("\n" + "="*60)
     print("SUMMARY")
     print("="*60)
-    print(f"  Linear Probe AUROC:  {probe_auroc:.3f}")
-    print(f"  Best SAE Latent:     {best_auroc:.3f}")
-    print(f"  Random Baseline:     {np.mean(random_aurocs):.3f}")
+    print(f"  {'Method':<30} {'CV AUROC':<12} {'Full AUROC':<12} {'Separation':<10}")
+    print(f"  {'-'*64}")
+    print(f"  {'Mass-Mean Probe':<30} {mass_mean_cv_mean:.3f}        {mass_mean_metrics['auroc']:.3f}        {mass_mean_metrics['separation']:.3f}")
+    print(f"  {'Logistic Regression':<30} {cv_scores.mean():.3f}        {logreg_metrics['auroc']:.3f}        {logreg_metrics['separation']:.3f}")
+    print(f"  {'Mean Difference':<30} {'N/A':<12} {mean_diff_metrics['auroc']:.3f}        {mean_diff_metrics['separation']:.3f}*")
+    print(f"  {'SAE Best Latent':<30} {'N/A':<12} {best_auroc:.3f}        {sae_separation_score:.3f}")
+    print(f"  {'Random (baseline)':<30} {'N/A':<12} {np.mean(random_aurocs):.3f}")
+    print()
+    print("  * Mean Diff separation = ||μ+ - μ-||² (not comparable)")
+    print()
+    print("  KEY INSIGHT: CV AUROC is the fair comparison (tests on unseen data)")
+    print(f"    Mass-Mean CV:  {mass_mean_cv_mean:.3f}")
+    print(f"    LogReg CV:     {cv_scores.mean():.3f}")
+    print(f"    SAE:           {best_auroc:.3f} (no CV, but constrained to 16k pre-defined directions)")
     print()
 
-    if probe_auroc > best_auroc + 0.05:
-        print("  >> Linear probe significantly outperforms SAE latent")
-        print("     This suggests SAE may be losing information")
-    elif best_auroc > probe_auroc + 0.05:
-        print("  >> SAE latent outperforms linear probe")
-        print("     This suggests SAE captures meaningful structure")
+    # Interpretation (using CV AUROC for fair comparison)
+    best_probe_cv = max(mass_mean_cv_mean, cv_scores.mean())
+    if best_probe_cv > best_auroc + 0.03:
+        print("  CONCLUSION: Probes outperform SAE on CV AUROC")
+    elif best_auroc > best_probe_cv + 0.03:
+        print("  CONCLUSION: SAE outperforms probes on CV AUROC!")
+        print("     SAE provides interpretability AND better generalization")
     else:
-        print("  >> Performance is comparable")
+        print("  CONCLUSION: Comparable performance")
         print("     SAE provides interpretability without losing accuracy")
 
     return {
-        # Probe metrics
-        'probe_auroc': float(probe_auroc),
-        'probe_f1': float(probe_f1),
-        'probe_acc': float(probe_acc),
-        'probe_separation_score': float(probe_separation_score),
-        'probe_t_statistic': float(probe_t_statistic),
-        'probe_p_value': float(p_value),
-        'probe_direction': probe_direction,  # numpy array [d_model] - excluded from JSON
-        'probe_bias': float(probe_bias),
+        # Mass-Mean probe (recommended for steering)
+        'mass_mean_direction': mass_mean_dir,
+        'mass_mean_cv_auroc': float(mass_mean_cv_mean),
+        'mass_mean_cv_std': float(mass_mean_cv_std),
+        'mass_mean_auroc': mass_mean_metrics['auroc'],
+        'mass_mean_f1': mass_mean_metrics['f1'],
+        'mass_mean_t_statistic': mass_mean_metrics['t_statistic'],
+        'mass_mean_separation': mass_mean_metrics['separation'],
+
+        # Logistic Regression (best for prediction)
+        'logreg_direction': logreg_dir,
+        'logreg_bias': float(logreg_bias),
+        'logreg_auroc': logreg_metrics['auroc'],
+        'logreg_f1': logreg_metrics['f1'],
+        'logreg_t_statistic': logreg_metrics['t_statistic'],
+        'logreg_separation': logreg_metrics['separation'],
+        'logreg_cv_auroc': float(cv_scores.mean()),
+        'logreg_cv_std': float(cv_scores.std()),
+
+        # Mean Difference (simple baseline)
+        'mean_diff_direction': mean_diff_dir,
+        'mean_diff_auroc': mean_diff_metrics['auroc'],
+        'mean_diff_f1': mean_diff_metrics['f1'],
+        'mean_diff_t_statistic': mean_diff_metrics['t_statistic'],
+        'mean_diff_separation': mean_diff_metrics['separation'],
 
         # SAE metrics
         'sae_auroc': float(best_auroc),
         'sae_f1': float(best_f1),
-        'sae_separation_score': float(sae_separation_score),
         'sae_t_statistic': float(sae_t_statistic),
-        'sae_p_value': float(sae_p_value),
+        'sae_separation': float(sae_separation_score),
         'sae_best_latent_idx': int(best_latent_idx),
 
-        # Baseline
+        # Random baseline
         'random_auroc': float(np.mean(random_aurocs)),
         'random_auroc_std': float(np.std(random_aurocs)),
 
@@ -329,6 +472,9 @@ def main():
 
     from datetime import datetime
 
+    # Directions to save (exclude from JSON)
+    direction_keys = ['mass_mean_direction', 'logreg_direction', 'mean_diff_direction']
+
     if args.all_layers:
         # Test layers 10-25 (middle to late layers)
         results = {}
@@ -341,36 +487,95 @@ def main():
 
         # Summary across layers
         print("\n" + "="*60)
-        print("LAYER-WISE SUMMARY")
+        print("LAYER-WISE SUMMARY (AUROC)")
         print("="*60)
-        print(f"{'Layer':<8} {'Probe':<10} {'SAE':<10} {'Winner':<10}")
-        print("-"*40)
+        print(f"{'Layer':<8} {'MassMean':<10} {'LogReg':<10} {'MeanDiff':<10} {'SAE':<10}")
+        print("-"*50)
         for layer, r in sorted(results.items()):
-            winner = "Probe" if r['probe_auroc'] > r['sae_auroc'] + 0.02 else \
-                     "SAE" if r['sae_auroc'] > r['probe_auroc'] + 0.02 else "Tie"
-            print(f"{layer:<8} {r['probe_auroc']:.3f}      {r['sae_auroc']:.3f}      {winner}")
+            print(f"{layer:<8} {r['mass_mean_auroc']:.3f}      {r['logreg_auroc']:.3f}      {r['mean_diff_auroc']:.3f}      {r['sae_auroc']:.3f}")
+
+        # Find best layer for each method
+        print("\n" + "="*60)
+        print("BEST LAYER SELECTION")
+        print("="*60)
+
+        # By AUROC (for prediction)
+        best_mass_mean_auroc = max(results.items(), key=lambda x: x[1]['mass_mean_auroc'])
+        best_logreg_auroc = max(results.items(), key=lambda x: x[1]['logreg_auroc'])
+        best_mean_diff_auroc = max(results.items(), key=lambda x: x[1]['mean_diff_auroc'])
+        best_sae_auroc = max(results.items(), key=lambda x: x[1]['sae_auroc'])
+
+        print("\nBy AUROC (for prediction):")
+        print(f"  Mass-Mean:  Layer {best_mass_mean_auroc[0]} (AUROC={best_mass_mean_auroc[1]['mass_mean_auroc']:.3f})")
+        print(f"  LogReg:     Layer {best_logreg_auroc[0]} (AUROC={best_logreg_auroc[1]['logreg_auroc']:.3f})")
+        print(f"  MeanDiff:   Layer {best_mean_diff_auroc[0]} (AUROC={best_mean_diff_auroc[1]['mean_diff_auroc']:.3f})")
+        print(f"  SAE:        Layer {best_sae_auroc[0]} (AUROC={best_sae_auroc[1]['sae_auroc']:.3f}, Latent={best_sae_auroc[1]['sae_best_latent_idx']})")
+
+        # By t-statistic (alternative for prediction)
+        best_mass_mean_t = max(results.items(), key=lambda x: abs(x[1]['mass_mean_t_statistic']))
+        best_logreg_t = max(results.items(), key=lambda x: abs(x[1]['logreg_t_statistic']))
+        best_sae_t = max(results.items(), key=lambda x: abs(x[1]['sae_t_statistic']))
+
+        print("\nBy |t-statistic| (alternative for prediction):")
+        print(f"  Mass-Mean:  Layer {best_mass_mean_t[0]} (t={best_mass_mean_t[1]['mass_mean_t_statistic']:.1f})")
+        print(f"  LogReg:     Layer {best_logreg_t[0]} (t={best_logreg_t[1]['logreg_t_statistic']:.1f})")
+        print(f"  SAE:        Layer {best_sae_t[0]} (t={best_sae_t[1]['sae_t_statistic']:.1f})")
+
+        # By separation (for steering - note: probe separation != SAE separation in meaning)
+        best_mass_mean_sep = max(results.items(), key=lambda x: abs(x[1]['mass_mean_separation']))
+        best_sae_sep = max(results.items(), key=lambda x: abs(x[1]['sae_separation']))
+
+        print("\nBy |separation| (for steering comparison):")
+        print(f"  Mass-Mean:  Layer {best_mass_mean_sep[0]} (sep={best_mass_mean_sep[1]['mass_mean_separation']:.3f})")
+        print(f"  SAE:        Layer {best_sae_sep[0]} (sep={best_sae_sep[1]['sae_separation']:.3f})")
+        print("  Note: Probe and SAE separation scores are NOT directly comparable (different scales)")
 
         # Save results
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-        # Save each layer's probe weights
+        # Save each layer's probe directions
         for layer, r in results.items():
-            probe_file = output_dir / f"{args.model}_layer{layer}_probe_{timestamp}.safetensors"
+            probe_file = output_dir / f"{args.model}_layer{layer}_probes_{timestamp}.safetensors"
             probe_tensors = {
-                "direction": torch.tensor(r['probe_direction'], dtype=torch.float32),
-                "bias": torch.tensor([r['probe_bias']], dtype=torch.float32),
+                "mass_mean_direction": torch.tensor(r['mass_mean_direction'], dtype=torch.float32),
+                "logreg_direction": torch.tensor(r['logreg_direction'], dtype=torch.float32),
+                "mean_diff_direction": torch.tensor(r['mean_diff_direction'], dtype=torch.float32),
+                "logreg_bias": torch.tensor([r['logreg_bias']], dtype=torch.float32),
             }
             save_file(probe_tensors, str(probe_file))
 
         # Save metrics (without numpy arrays)
         metrics_only = {}
         for layer, r in results.items():
-            metrics_only[str(layer)] = {k: v for k, v in r.items() if k not in ['probe_direction']}
+            metrics_only[str(layer)] = {k: v for k, v in r.items() if k not in direction_keys}
+
+        # Compile best layer info
+        best_layers = {
+            'by_auroc': {
+                'mass_mean': {'layer': best_mass_mean_auroc[0], 'auroc': best_mass_mean_auroc[1]['mass_mean_auroc']},
+                'logreg': {'layer': best_logreg_auroc[0], 'auroc': best_logreg_auroc[1]['logreg_auroc']},
+                'mean_diff': {'layer': best_mean_diff_auroc[0], 'auroc': best_mean_diff_auroc[1]['mean_diff_auroc']},
+                'sae': {'layer': best_sae_auroc[0], 'auroc': best_sae_auroc[1]['sae_auroc'], 'latent_idx': best_sae_auroc[1]['sae_best_latent_idx']},
+            },
+            'by_t_statistic': {
+                'mass_mean': {'layer': best_mass_mean_t[0], 't_stat': best_mass_mean_t[1]['mass_mean_t_statistic']},
+                'logreg': {'layer': best_logreg_t[0], 't_stat': best_logreg_t[1]['logreg_t_statistic']},
+                'sae': {'layer': best_sae_t[0], 't_stat': best_sae_t[1]['sae_t_statistic']},
+            },
+            'by_separation': {
+                'mass_mean': {'layer': best_mass_mean_sep[0], 'separation': best_mass_mean_sep[1]['mass_mean_separation']},
+                'sae': {'layer': best_sae_sep[0], 'separation': best_sae_sep[1]['sae_separation']},
+            },
+        }
 
         output_file = output_dir / f"{args.model}_all_layers_metrics_{timestamp}.json"
         with open(output_file, 'w') as f:
-            json.dump({'model': args.model, 'layers': metrics_only}, f, indent=2)
-        print(f"\nProbe weights saved to: {output_dir}/{args.model}_layer*_probe_{timestamp}.safetensors")
+            json.dump({
+                'model': args.model,
+                'best_layers': best_layers,
+                'layers': metrics_only,
+            }, f, indent=2)
+        print(f"\nProbe directions saved to: {output_dir}/{args.model}_layer*_probes_{timestamp}.safetensors")
         print(f"Metrics saved to: {output_file}")
     else:
         result = run_comparison(phase1_dir, args.layer, phase25_dir, model_name)
@@ -379,18 +584,20 @@ def main():
         if result:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-            # Save probe weights as safetensors
-            probe_file = output_dir / f"{args.model}_layer{args.layer}_probe_{timestamp}.safetensors"
+            # Save all probe directions as safetensors
+            probe_file = output_dir / f"{args.model}_layer{args.layer}_probes_{timestamp}.safetensors"
             probe_tensors = {
-                "direction": torch.tensor(result['probe_direction'], dtype=torch.float32),
-                "bias": torch.tensor([result['probe_bias']], dtype=torch.float32),
+                "mass_mean_direction": torch.tensor(result['mass_mean_direction'], dtype=torch.float32),
+                "logreg_direction": torch.tensor(result['logreg_direction'], dtype=torch.float32),
+                "mean_diff_direction": torch.tensor(result['mean_diff_direction'], dtype=torch.float32),
+                "logreg_bias": torch.tensor([result['logreg_bias']], dtype=torch.float32),
             }
             save_file(probe_tensors, str(probe_file))
-            print(f"\nProbe weights saved to: {probe_file}")
+            print(f"\nProbe directions saved to: {probe_file}")
 
-            # Save metrics as JSON (without the numpy array)
+            # Save metrics as JSON (without the numpy arrays)
             metrics_file = output_dir / f"{args.model}_layer{args.layer}_metrics_{timestamp}.json"
-            metrics = {k: v for k, v in result.items() if k not in ['probe_direction']}
+            metrics = {k: v for k, v in result.items() if k not in direction_keys}
             metrics['model'] = args.model
             metrics['probe_file'] = probe_file.name
             with open(metrics_file, 'w') as f:

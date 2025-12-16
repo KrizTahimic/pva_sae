@@ -81,8 +81,8 @@ def check_phase1_status():
 def main():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--layers", type=int, nargs="+", default=[19],
-                        help="Layers to test (default: 19 - middle layer)")
+    parser.add_argument("--layers", type=int, nargs="+", default=None,
+                        help="Layers to test (default: all layers 10-25)")
     parser.add_argument("--models", type=str, nargs="+",
                         default=["gemma2b", "gemma9b", "llama"],
                         help="Models to test")
@@ -107,8 +107,11 @@ def main():
         print("Minimum 200 samples needed for meaningful comparison.")
         return
 
+    # Default to all layers if not specified
+    layers = args.layers if args.layers else list(range(10, 26))
+
     print(f"\nRunning comparison on: {models_to_run}")
-    print(f"Layers: {args.layers}")
+    print(f"Layers: {layers}")
     print("="*60)
 
     # Assign GPUs (round-robin)
@@ -117,7 +120,7 @@ def main():
     # Run in parallel
     with ProcessPoolExecutor(max_workers=len(models_to_run)) as executor:
         futures = {
-            executor.submit(run_model_on_gpu, model, gpu, args.layers): model
+            executor.submit(run_model_on_gpu, model, gpu, layers): model
             for model, gpu in gpu_assignments.items()
         }
 
@@ -154,7 +157,7 @@ def main():
 
     summary = {
         "timestamp": datetime.now().isoformat(),
-        "layers": args.layers,
+        "layers": layers,
         "models": {}
     }
 
