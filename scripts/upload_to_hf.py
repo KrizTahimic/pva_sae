@@ -127,11 +127,12 @@ def upload_to_hf(repo_id: str, data_dir: Path, dry_run: bool = False) -> None:
         api.create_repo(repo_id=repo_id, repo_type="dataset", exist_ok=True)
         print(f"Created repository: https://huggingface.co/datasets/{repo_id}")
 
-    # Upload
+    # Upload using upload_large_folder for >25k files
     print(f"\nUploading to {repo_id}...")
-    print("This may take 10-30 minutes for ~1.7 GB of data...")
+    print("Using upload_large_folder for large number of files...")
+    print("This may take 30-60 minutes...")
 
-    api.upload_folder(
+    api.upload_large_folder(
         folder_path=str(data_dir),
         repo_id=repo_id,
         repo_type="dataset",
