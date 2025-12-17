@@ -32,7 +32,6 @@ from datetime import datetime
 import torch
 import pandas as pd
 import numpy as np
-from einops import rearrange
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from common.config import Config
@@ -46,7 +45,7 @@ from common.phase_discovery import (
 )
 from common.dataset_utils import extract_code, evaluate_code
 from common.model_loader import load_model_and_tokenizer
-from common.steering_metrics import create_steering_hook
+from common.steering_metrics import create_last_position_steering_hook
 from common.prompt_utils import PromptBuilder
 from common.sae_loader import load_sae_for_config
 
@@ -377,9 +376,10 @@ class SelectiveSteeringAnalyzer:
                 residual = input[0]
                 # Convert decoder direction to match residual dtype
                 latent_direction = self.correct_latent_direction.to(residual.dtype)
-                # Shape: [d_model] -> [1, 1, d_model] for residual stream broadcasting
-                steering = rearrange(latent_direction, 'd -> 1 1 d') * self.correct_coefficient
-                residual = residual + steering.to(residual.device, residual.dtype)
+                # Apply steering at last position only
+                steering = latent_direction * self.correct_coefficient
+                residual = residual.clone()  # Don't modify original tensor
+                residual[:, -1, :] = residual[:, -1, :] + steering.to(residual.device, residual.dtype)
                 return (residual,) + input[1:]
 
             return input

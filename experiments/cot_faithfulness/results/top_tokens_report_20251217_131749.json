@@ -1,0 +1,222 @@
+{
+  "error_acknowledging": [
+    {
+      "token": "Wait",
+      "count": 509,
+      "n_samples": 73,
+      "avg_score": 0.47864023474452944,
+      "std_score": 0.3187861914307599,
+      "min_score": 0.003938616196050794,
+      "max_score": 0.9989146829303942
+    },
+    {
+      "token": "problem",
+      "count": 174,
+      "n_samples": 61,
+      "avg_score": 0.28120674385620564,
+      "std_score": 0.2468939189172866,
+      "min_score": 0.005700056234626633,
+      "max_score": 0.9617581773892925
+    },
+    {
+      "token": "Hmm",
+      "count": 128,
+      "n_samples": 63,
+      "avg_score": 0.43044563231133326,
+      "std_score": 0.2590491939148648,
+      "min_score": 0.012076440879287774,
+      "max_score": 0.9549616906474208
+    },
+    {
+      "token": "wait",
+      "count": 102,
+      "n_samples": 46,
+      "avg_score": 0.6357389468679612,
+      "std_score": 0.26321275953481693,
+      "min_score": 0.015730401938118786,
+      "max_score": 0.9939511824224044
+    },
+    {
+      "token": "actually",
+      "count": 12,
+      "n_samples": 10,
+      "avg_score": 0.2395004739967046,
+      "std_score": 0.19457149599310766,
+      "min_score": 0.009220014630907486,
+      "max_score": 0.7239239641380851
+    },
+    {
+      "token": "wrong",
+      "count": 7,
+      "n_samples": 6,
+      "avg_score": 0.32116090591818364,
+      "std_score": 0.22892939951238653,
+      "min_score": 0.024734834511896703,
+      "max_score": 0.699761666912647
+    },
+    {
+      "token": "mistake",
+      "count": 6,
+      "n_samples": 5,
+      "avg_score": 0.196227742184546,
+      "std_score": 0.15930209150504057,
+      "min_score": 0.004628626370286831,
+      "max_score": 0.4660808482379011
+    },
+    {
+      "token": "error",
+      "count": 5,
+      "n_samples": 5,
+      "avg_score": 0.7043477826776823,
+      "std_score": 0.10777403552206438,
+      "min_score": 0.5875968838731406,
+      "max_score": 0.8383870145363932
+    },
+    {
+      "token": "problems",
+      "count": 4,
+      "n_samples": 3,
+      "avg_score": 0.6327177789660602,
+      "std_score": 0.31377080384838235,
+      "min_score": 0.11512854064864951,
+      "max_score": 0.9457316648576878
+    },
+    {
+      "token": "ValueError",
+      "count": 3,
+      "n_samples": 1,
+      "avg_score": 0.6247804614116922,
+      "std_score": 0.2536841938451298,
+      "min_score": 0.3160535631966526,
+      "max_score": 0.9374135603234955
+    },
+    {
+      "token": "loops",
+      "count": 2,
+      "n_samples": 2,
+      "avg_score": 0.7795496891740052,
+      "std_score": 0.20335116696804406,
+      "min_score": 0.5761985222059611,
+      "max_score": 0.9829008561420493
+    },
+    {
+      "token": "missed",
+      "count": 2,
+      "n_samples": 2,
+      "avg_score": 0.0667792839721397,
+      "std_score": 0.014367020067153846,
+      "min_score": 0.05241226390498585,
+      "max_score": 0.08114630403929354
+    }
+  ],
+  "correctness_claiming": [
+    {
+      "token": "correct",
+      "count": 104,
+      "n_samples": 45,
+      "avg_score": 0.6061199488498052,
+      "std_score": 0.3195425712577409,
+      "min_score": 0.005068248863480893,
+      "max_score": 0.9956526860636294
+    },
+    {
+      "token": "Correct",
+      "count": 56,
+      "n_samples": 21,
+      "avg_score": 0.8385873653175879,
+      "std_score": 0.16281889902354044,
+      "min_score": 0.32448335886752633,
+      "max_score": 0.9891080959895276
+    },
+    {
+      "token": "exactly",
+      "count": 39,
+      "n_samples": 21,
+      "avg_score": 0.5404935263405422,
+      "std_score": 0.2738946150518827,
+      "min_score": 0.06645819648196963,
+      "max_score": 0.9420340364314976
+    },
+    {
+      "token": "correctly",
+      "count": 28,
+      "n_samples": 25,
+      "avg_score": 0.5363215272838892,
+      "std_score": 0.3240321370962546,
+      "min_score": 0.023042304138871306,
+      "max_score": 0.9944347324817597
+    },
+    {
+      "token": "valid",
+      "count": 9,
+      "n_samples": 6,
+      "avg_score": 0.3608993872519013,
+      "std_score": 0.3126771222635202,
+      "min_score": 0.026398900167593824,
+      "max_score": 0.9279652751398255
+    },
+    {
+      "token": "invalid",
+      "count": 4,
+      "n_samples": 4,
+      "avg_score": 0.43000788167936843,
+      "std_score": 0.2815070070391888,
+      "min_score": 0.14052645923389065,
+      "max_score": 0.8888272079545357
+    },
+    {
+      "token": "done",
+      "count": 4,
+      "n_samples": 4,
+      "avg_score": 0.5272925385600817,
+      "std_score": 0.2978788781708035,
+      "min_score": 0.05000371894581045,
+      "max_score": 0.8131268563398941
+    },
+    {
+      "token": "Perfect",
+      "count": 3,
+      "n_samples": 3,
+      "avg_score": 0.9647314785309064,
+      "std_score": 0.015080280909693577,
+      "min_score": 0.9437959783480394,
+      "max_score": 0.9787207244043603
+    },
+    {
+      "token": "properly",
+      "count": 2,
+      "n_samples": 2,
+      "avg_score": 0.0970116784394243,
+      "std_score": 0.03940794037441744,
+      "min_score": 0.05760373806500687,
+      "max_score": 0.13641961881384174
+    },
+    {
+      "token": "property",
+      "count": 2,
+      "n_samples": 2,
+      "avg_score": 0.6937082064936966,
+      "std_score": 0.08855732536279565,
+      "min_score": 0.605150881130901,
+      "max_score": 0.7822655318564923
+    },
+    {
+      "token": "perfect",
+      "count": 1,
+      "n_samples": 1,
+      "avg_score": 0.9791743336869402,
+      "std_score": 0.0,
+      "min_score": 0.9791743336869402,
+      "max_score": 0.9791743336869402
+    },
+    {
+      "token": "completes",
+      "count": 1,
+      "n_samples": 1,
+      "avg_score": 0.8786390998746648,
+      "std_score": 0.0,
+      "min_score": 0.8786390998746648,
+      "max_score": 0.8786390998746648
+    }
+  ]
+}

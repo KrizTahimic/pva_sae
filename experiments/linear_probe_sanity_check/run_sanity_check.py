@@ -129,31 +129,40 @@ def get_best_latent_from_phase25(phase25_dir: Path) -> dict | None:
     return None
 
 
-def compute_direction_metrics(X: np.ndarray, y: np.ndarray, direction: np.ndarray) -> dict:
-    """Compute all metrics for a given direction."""
-    # Project activations onto direction
-    scores = X @ direction  # Raw projections, unbounded
+def compute_direction_metrics(X: np.ndarray, y: np.ndarray, direction: np.ndarray, bias: float = 0.0) -> dict:
+    """Compute all metrics for a given direction.
 
-    # AUROC (scale-invariant)
-    auroc = roc_auc_score(y, scores)
+    Args:
+        X: Activations [N, d_model]
+        y: Labels (1=correct, 0=incorrect)
+        direction: Weight vector [d_model]
+        bias: Bias term for logistic regression (default 0.0 for non-logreg methods)
+    """
+    # Compute logits: w·x + b
+    logits = X @ direction + bias
 
-    # F1 at optimal threshold
-    thresholds = np.percentile(scores, np.linspace(0, 100, 100))
+    # Compute probabilities: sigmoid(logits)
+    probs = 1.0 / (1.0 + np.exp(-logits))
+
+    # AUROC using probabilities (proper logreg output)
+    auroc = roc_auc_score(y, probs)
+
+    # F1 at optimal threshold (on probabilities)
+    thresholds = np.linspace(0, 1, 100)
     best_f1 = 0
     for thresh in thresholds:
-        preds = (scores > thresh).astype(int)
+        preds = (probs > thresh).astype(int)
         f1 = f1_score(y, preds, zero_division=0)
         if f1 > best_f1:
             best_f1 = f1
 
-    # T-statistic (Welch's t-test)
-    correct_scores = scores[y == 1]
-    incorrect_scores = scores[y == 0]
-    t_stat, p_value = stats.ttest_ind(correct_scores, incorrect_scores, equal_var=False)
+    # T-statistic on probabilities (Welch's t-test)
+    correct_probs = probs[y == 1]
+    incorrect_probs = probs[y == 0]
+    t_stat, p_value = stats.ttest_ind(correct_probs, incorrect_probs, equal_var=False)
 
-    # Separation: mean difference of projections (NOT sigmoid)
-    # This is comparable across methods since all use raw projections
-    separation = np.mean(correct_scores) - np.mean(incorrect_scores)
+    # Separation: mean difference of probabilities
+    separation = np.mean(correct_probs) - np.mean(incorrect_probs)
 
     return {
         'auroc': float(auroc),
@@ -162,6 +171,8 @@ def compute_direction_metrics(X: np.ndarray, y: np.ndarray, direction: np.ndarra
         'p_value': float(p_value),
         'separation': float(separation),
         'direction_norm': float(np.linalg.norm(direction)),
+        'mean_prob_correct': float(np.mean(correct_probs)),
+        'mean_prob_incorrect': float(np.mean(incorrect_probs)),
     }
 
 
@@ -221,11 +232,45 @@ def run_comparison(phase1_dir: Path, layer: int, phase25_dir: Path = None, model
     print("\n[2] LOGISTIC REGRESSION")
     print("-" * 40)
 
-    # Strong L2 regularization to prevent overfitting when d > n (2304 > 489)
-    # Tested C values: 1.0→0.641, 0.01→0.673, 0.001→0.703, 0.0001→0.707 (best)
-    probe = LogisticRegression(C=0.0001, max_iter=2000, random_state=42, solver='lbfgs')
+    # Search for optimal regularization strength
+    # C is inverse regularization: larger C = less regularization
+    C_values = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0]
+    print("  Searching for optimal regularization (C)...")
+    print(f"  {'C':<10} {'CV AUROC':<12} {'P(+|+)':<10} {'P(+|-)':<10} {'Sep':<10}")
+    print(f"  {'-'*52}")
 
-    # Cross-validation AUROC
+    best_cv_auroc = 0
+    best_C = 0.0001
+    cv_results = []
+
+    for C in C_values:
+        probe_tmp = LogisticRegression(C=C, max_iter=2000, random_state=42, solver='lbfgs')
+        cv_auroc = cross_val_score(probe_tmp, X, y, cv=5, scoring='roc_auc').mean()
+
+        # Fit to get probability calibration info
+        probe_tmp.fit(X, y)
+        tmp_metrics = compute_direction_metrics(X, y, probe_tmp.coef_[0], bias=probe_tmp.intercept_[0])
+
+        cv_results.append({
+            'C': C,
+            'cv_auroc': cv_auroc,
+            'mean_prob_correct': tmp_metrics['mean_prob_correct'],
+            'mean_prob_incorrect': tmp_metrics['mean_prob_incorrect'],
+            'separation': tmp_metrics['separation'],
+        })
+
+        print(f"  {C:<10} {cv_auroc:.3f}        {tmp_metrics['mean_prob_correct']:.3f}      {tmp_metrics['mean_prob_incorrect']:.3f}      {tmp_metrics['separation']:.3f}")
+
+        if cv_auroc > best_cv_auroc:
+            best_cv_auroc = cv_auroc
+            best_C = C
+
+    print(f"\n  Best C by CV AUROC: {best_C} (AUROC={best_cv_auroc:.3f})")
+
+    # Use best C for final model
+    probe = LogisticRegression(C=best_C, max_iter=2000, random_state=42, solver='lbfgs')
+
+    # Cross-validation AUROC with best C
     cv_scores = cross_val_score(probe, X, y, cv=5, scoring='roc_auc')
     print(f"  5-fold CV AUROC: {cv_scores.mean():.3f} (+/- {cv_scores.std():.3f})")
 
@@ -233,7 +278,7 @@ def run_comparison(phase1_dir: Path, layer: int, phase25_dir: Path = None, model
     probe.fit(X, y)
     logreg_dir = probe.coef_[0]
     logreg_bias = probe.intercept_[0]
-    logreg_metrics = compute_direction_metrics(X, y, logreg_dir)
+    logreg_metrics = compute_direction_metrics(X, y, logreg_dir, bias=logreg_bias)
 
     print(f"  AUROC:           {logreg_metrics['auroc']:.3f}")
     print(f"  F1:              {logreg_metrics['f1']:.3f}")
@@ -241,6 +286,8 @@ def run_comparison(phase1_dir: Path, layer: int, phase25_dir: Path = None, model
     print(f"  Separation:      {logreg_metrics['separation']:.3f}")
     print(f"  Direction norm:  {logreg_metrics['direction_norm']:.3f}")
     print(f"  Bias:            {logreg_bias:.3f}")
+    print(f"  P(correct) for correct:   {logreg_metrics['mean_prob_correct']:.3f}")
+    print(f"  P(correct) for incorrect: {logreg_metrics['mean_prob_incorrect']:.3f}")
 
     # =========================================================================
     # [3] MEAN DIFFERENCE (Simple baseline)
@@ -407,12 +454,15 @@ def run_comparison(phase1_dir: Path, layer: int, phase25_dir: Path = None, model
         # Logistic Regression (best for prediction)
         'logreg_direction': logreg_dir,
         'logreg_bias': float(logreg_bias),
+        'logreg_best_C': float(best_C),
         'logreg_auroc': logreg_metrics['auroc'],
         'logreg_f1': logreg_metrics['f1'],
         'logreg_t_statistic': logreg_metrics['t_statistic'],
         'logreg_separation': logreg_metrics['separation'],
         'logreg_cv_auroc': float(cv_scores.mean()),
         'logreg_cv_std': float(cv_scores.std()),
+        'logreg_mean_prob_correct': logreg_metrics['mean_prob_correct'],
+        'logreg_mean_prob_incorrect': logreg_metrics['mean_prob_incorrect'],
 
         # Mean Difference (simple baseline)
         'mean_diff_direction': mean_diff_dir,

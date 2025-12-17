@@ -1,0 +1,19 @@
+{
+  "model": "gemma9b",
+  "model_name": "google/gemma-2-9b",
+  "layer": 23,
+  "coefficient": 30.0,
+  "direction_type": "mass_mean_probe",
+  "direction_norm": 1.0,
+  "correction_rate": 0.0,
+  "corruption_rate": 96.60377358490567,
+  "preservation_rate": 1.8867924528301887,
+  "n_correction_samples": 224,
+  "n_corruption_samples": 265,
+  "n_preservation_samples": 265,
+  "n_corrected": 0,
+  "n_corrupted": 256,
+  "n_preserved": 5,
+  "duration_seconds": 42464.601529598236,
+  "timestamp": "20251217_002454"
+}

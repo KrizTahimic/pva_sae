@@ -9,8 +9,13 @@ Key differences from SAE steering:
 - For incorrect-predicting: just negate the direction
 - No layer selection needed - uses best layer from probe analysis
 
+Steering modes:
+- continuous: Steer at position -1 throughout (prompt + each generated token)
+- prompt_only: Ferrando-style - steer at -1 during prompt only, skip during generation
+
 Usage:
     python run_probe_steering.py --model gemma2b --coefficient 30
+    python run_probe_steering.py --model gemma2b --coefficient 30 --steering-mode prompt_only
     python run_probe_steering.py --model gemma2b --coefficient 30 --correction-only
 """
 
@@ -68,6 +73,34 @@ def create_last_position_steering_hook(direction: torch.Tensor, coefficient: flo
     return hook_fn
 
 
+def create_prompt_only_steering_hook(direction: torch.Tensor, coefficient: float):
+    """
+    Ferrando-style steering: steer at -1 during prompt only, skip during generation.
+
+    With KV-cache:
+    - Prompt phase: seq_len > 1 (all prompt tokens processed at once)
+    - Generation phase: seq_len == 1 (one token at a time)
+
+    This tests the hypothesis that correctness is determined at prompt encoding time,
+    and steering during generation may be unnecessary or even harmful.
+    """
+    def hook_fn(module, input):
+        residual = input[0]  # [batch, seq_len, d_model]
+
+        # Skip during generation (seq_len == 1 with KV-cache)
+        if residual.shape[1] == 1:
+            return input
+
+        # Prompt phase: steer at position -1 only
+        steering = direction * coefficient
+        residual = residual.clone()
+        residual[:, -1, :] = residual[:, -1, :] + steering.to(residual.device, residual.dtype)
+
+        return (residual,) + input[1:]
+
+    return hook_fn
+
+
 def load_probe_direction(results_dir: Path, model_name: str, layer: int) -> torch.Tensor:
     """Load Mass-Mean probe direction from saved results."""
     # Find the latest probe file for this model and layer
@@ -110,7 +143,7 @@ def _run_steering_worker(args: tuple) -> list[dict]:
     Each worker loads its own model on its assigned GPU.
     """
     (gpu_id, model_key, model_name, coefficient, samples_records,
-     experiment_type, direction_path, layer, config_dict) = args
+     experiment_type, direction_path, layer, config_dict, steering_mode) = args
 
     # Set GPU visibility for this worker
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
@@ -135,8 +168,11 @@ def _run_steering_worker(args: tuple) -> list[dict]:
     )
     model.eval()
 
-    # Create steering hook
-    hook_fn = create_last_position_steering_hook(direction, coefficient)
+    # Create steering hook based on steering mode
+    if steering_mode == "prompt_only":
+        hook_fn = create_prompt_only_steering_hook(direction, coefficient)
+    else:
+        hook_fn = create_last_position_steering_hook(direction, coefficient)
     target_module = model.model.layers[layer]
 
     results = []
@@ -221,7 +257,8 @@ class ProbeSteeringExperiment:
 
     def __init__(self, config: Config, model_key: str, coefficient: float,
                  start_idx: int = 0, end_idx: int | None = None,
-                 parallel: bool = False, n_gpus: int = 4):
+                 parallel: bool = False, n_gpus: int = 4,
+                 steering_mode: str = "continuous"):
         self.config = config
         self.model_key = model_key
         self.coefficient = coefficient
@@ -229,6 +266,7 @@ class ProbeSteeringExperiment:
         self.end_idx = end_idx
         self.parallel = parallel
         self.n_gpus = n_gpus
+        self.steering_mode = steering_mode
         self.device = detect_device()
 
         # Map model keys to config values
@@ -355,8 +393,11 @@ class ProbeSteeringExperiment:
             max_length=self.config.activation_max_length
         ).to(self.device)
 
-        # Create steering hook - ONLY steers last position
-        hook_fn = create_last_position_steering_hook(direction, coefficient)
+        # Create steering hook based on steering mode
+        if self.steering_mode == "prompt_only":
+            hook_fn = create_prompt_only_steering_hook(direction, coefficient)
+        else:
+            hook_fn = create_last_position_steering_hook(direction, coefficient)
         target_module = self.model.model.layers[self.best_layer]
         hook_handle = target_module.register_forward_pre_hook(hook_fn)
 
@@ -544,7 +585,7 @@ class ProbeSteeringExperiment:
             worker_args = [
                 (gpu_id, self.model_key, self.model_name, self.coefficient,
                  list(chunk), exp_type, str(direction_path), self.best_layer,
-                 config_dict)
+                 config_dict, self.steering_mode)
                 for gpu_id, chunk in enumerate(chunks) if len(chunk) > 0
             ]
 
@@ -604,16 +645,17 @@ class ProbeSteeringExperiment:
         corruption_rate = corruption_results['flipped'].sum() / len(corruption_results) * 100 if len(corruption_results) > 0 else 0
         preservation_rate = preservation_results['preserved'].sum() / len(preservation_results) * 100 if len(preservation_results) > 0 else 0
 
-        # Save results
+        # Save results (include steering_mode in filename)
+        mode_suffix = f"_{self.steering_mode}"
         if len(correction_results) > 0:
             save_json(correction_results.to_dict('records'),
-                      self.output_dir / f"correction_results_{timestamp}.json")
+                      self.output_dir / f"correction_results{mode_suffix}_{timestamp}.json")
         if len(corruption_results) > 0:
             save_json(corruption_results.to_dict('records'),
-                      self.output_dir / f"corruption_results_{timestamp}.json")
+                      self.output_dir / f"corruption_results{mode_suffix}_{timestamp}.json")
         if len(preservation_results) > 0:
             save_json(preservation_results.to_dict('records'),
-                      self.output_dir / f"preservation_results_{timestamp}.json")
+                      self.output_dir / f"preservation_results{mode_suffix}_{timestamp}.json")
 
         # Build summary
         summary = {
@@ -621,6 +663,7 @@ class ProbeSteeringExperiment:
             'model_name': self.model_name,
             'layer': self.best_layer,
             'coefficient': self.coefficient,
+            'steering_mode': self.steering_mode,
             'direction_type': 'mass_mean_probe',
             'direction_norm': float(torch.norm(self.correct_direction).item()),
             'correction_rate': correction_rate,
@@ -637,12 +680,13 @@ class ProbeSteeringExperiment:
             'timestamp': timestamp
         }
 
-        save_json(summary, self.output_dir / f"summary_{timestamp}.json")
+        save_json(summary, self.output_dir / f"summary{mode_suffix}_{timestamp}.json")
 
         # Print summary
         logger.info("\n" + "="*60)
         logger.info("PARALLEL RESULTS SUMMARY")
         logger.info("="*60)
+        logger.info(f"Steering Mode: {self.steering_mode}")
         logger.info(f"Correction Rate: {correction_rate:.1f}% ({summary['n_corrected']}/{summary['n_correction_samples']})")
         logger.info(f"Corruption Rate: {corruption_rate:.1f}% ({summary['n_corrupted']}/{summary['n_corruption_samples']})")
         logger.info(f"Preservation Rate: {preservation_rate:.1f}% ({summary['n_preserved']}/{summary['n_preservation_samples']})")
@@ -662,6 +706,7 @@ class ProbeSteeringExperiment:
         logger.info(f"Model: {self.model_name}")
         logger.info(f"Layer: {self.best_layer}")
         logger.info(f"Coefficient: {self.coefficient}")
+        logger.info(f"Steering Mode: {self.steering_mode}")
         logger.info(f"Direction norm: {torch.norm(self.correct_direction).item():.3f}")
         logger.info(f"Parallel: {self.parallel} (GPUs: {self.n_gpus})" if self.parallel else "Sequential mode")
         logger.info("="*60)
@@ -690,16 +735,17 @@ class ProbeSteeringExperiment:
         corruption_rate = corruption_results['flipped'].sum() / len(corruption_results) * 100 if len(corruption_results) > 0 else 0
         preservation_rate = preservation_results['preserved'].sum() / len(preservation_results) * 100 if len(preservation_results) > 0 else 0
 
-        # Save results
+        # Save results (include steering_mode in filename)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        mode_suffix = f"_{self.steering_mode}"
 
-        correction_file = self.output_dir / f"correction_results_{timestamp}.json"
+        correction_file = self.output_dir / f"correction_results{mode_suffix}_{timestamp}.json"
         save_json(correction_results.to_dict('records'), correction_file)
 
         if not correction_only:
-            corruption_file = self.output_dir / f"corruption_results_{timestamp}.json"
+            corruption_file = self.output_dir / f"corruption_results{mode_suffix}_{timestamp}.json"
             save_json(corruption_results.to_dict('records'), corruption_file)
-            preservation_file = self.output_dir / f"preservation_results_{timestamp}.json"
+            preservation_file = self.output_dir / f"preservation_results{mode_suffix}_{timestamp}.json"
             save_json(preservation_results.to_dict('records'), preservation_file)
 
         # Save summary
@@ -709,6 +755,7 @@ class ProbeSteeringExperiment:
             'model_name': self.model_name,
             'layer': self.best_layer,
             'coefficient': self.coefficient,
+            'steering_mode': self.steering_mode,
             'direction_type': 'mass_mean_probe',
             'direction_norm': float(torch.norm(self.correct_direction).item()),
             'correction_rate': correction_rate,
@@ -724,13 +771,14 @@ class ProbeSteeringExperiment:
             'timestamp': timestamp
         }
 
-        summary_file = self.output_dir / f"summary_{timestamp}.json"
+        summary_file = self.output_dir / f"summary{mode_suffix}_{timestamp}.json"
         save_json(summary, summary_file)
 
         # Print summary
         logger.info("\n" + "="*60)
         logger.info("RESULTS SUMMARY")
         logger.info("="*60)
+        logger.info(f"Steering Mode: {self.steering_mode}")
         logger.info(f"Correction Rate: {correction_rate:.1f}% ({summary['n_corrected']}/{summary['n_correction_samples']})")
         if not correction_only:
             logger.info(f"Corruption Rate: {corruption_rate:.1f}% ({summary['n_corrupted']}/{summary['n_corruption_samples']})")
@@ -761,13 +809,17 @@ def main():
                         help="Run in parallel across multiple GPUs")
     parser.add_argument("--n-gpus", type=int, default=4,
                         help="Number of GPUs to use in parallel mode (default: 4)")
+    parser.add_argument("--steering-mode", type=str, default="continuous",
+                        choices=["continuous", "prompt_only"],
+                        help="Steering mode: continuous (steer every token) or prompt_only (Ferrando-style, skip generation)")
     args = parser.parse_args()
 
     config = Config()
     experiment = ProbeSteeringExperiment(
         config, args.model, args.coefficient,
         start_idx=args.start, end_idx=args.end,
-        parallel=args.parallel, n_gpus=args.n_gpus
+        parallel=args.parallel, n_gpus=args.n_gpus,
+        steering_mode=args.steering_mode
     )
     experiment.run(correction_only=args.correction_only, preservation_only=args.preservation_only)
 

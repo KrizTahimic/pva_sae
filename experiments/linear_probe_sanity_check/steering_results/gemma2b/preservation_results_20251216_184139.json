@@ -1,0 +1,1472 @@
+[
+  {
+    "task_id": 7,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def find_char_long(string):\n    return [word for word in string.split() if len(word) >= 4]",
+    "steered_code": "def find_words(string):\n    return [word for word in string.split() if len(word) >= 4]",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 11,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def remove_Occ(string, char):\n    if char in string:\n        string = string.replace(char, \"\")\n    return string",
+    "steered_code": "def remove_first_last_char(string, char):\n    return string.replace(char, '', 1, len(string) - 1)",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 18,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+    "steered_code": "<code>#include <iostream>\n#include <string>\nusing namespace std;\n\nint main()\n{\n    string str1, str2;\n    cout << \"Enter the first string: \";\n    cin >> str1;\n    cout << \"Enter the second string: \";\n    cin >> str2;\n    remove(str1.begin(), str1.end(), str2.begin(), str2.end());\n    cout << str1 << endl;\n    return 0;\n}\n</code>\n\n<strong>Input</strong>\n\nEnter the first string: abcdefghijk\nEnter the second string: abc\n<strong>Output</strong>\n\nabcdefghijk\n\nWrite a function to remove characters from the first string which are present in the second string.\n\n<code>#include <iostream>\n#include <string>\nusing namespace std;\n\nint main()\n{\n    string str1, str2;\n    cout << \"Enter the first string: \";\n    cin >> str1;\n    cout << \"Enter the second string: \";\n    cin >> str2;\n    remove(str1.begin(), str1.end(), str2.begin(), str2.end());\n    cout << str1 << endl;\n    return 0;\n}\n</code>\n\n<strong>Input</strong>\n\nEnter the first string: abcdefghijk\nEnter the second string: abc\n<strong>Output</strong>\n\nabcdefghijk\n\nWrite a function to remove characters from the first string which are present in the second string.\n\n<code>#include <iostream>\n#include <string>\nusing namespace std;\n\nint main()\n{\n    string str1, str2;\n    cout << \"Enter the first string: \";\n    cin >> str1;\n    cout << \"Enter the second string: \";\n    cin >> str2;\n    remove(str1.begin(), str1.end(), str2.begin(), str2.end());\n    cout << str1 << endl;\n    return 0;\n}\n</code>\n\n<strong>Input</strong>\n\nEnter the first string: abcdefghijk\nEnter the second string: abc\n<strong>Output</strong>\n\nabcdefghijk\n\nWrite a function to remove characters from the first string which are present in the second string.\n\n<code>#include <iostream>\n#include <string>\nusing namespace std;\n\nint main()\n{\n    string str1, str2;\n    cout << \"Enter the first string: \";\n    cin >> str1;\n    cout << \"Enter the second string: \";\n    cin >> str2;\n    remove(str1.begin(), str1.end(), str2.begin(), str2.end());\n    cout << str1 << endl;\n    return 0;\n}\n</code>\n\n<strong>Input</strong>\n\nEnter the first string: abcdefghijk\nEnter the second string: abc\n<strong>Output</strong>\n\nabcdefghijk\n\nWrite a function to remove characters from the first string which are present in the second string.\n\n<code>#include <iostream>\n#include <string>\nusing namespace std;\n\nint main()\n{\n    string str1, str2;\n    cout << \"Enter the first string: \";\n    cin >> str1;\n    cout << \"Enter the second string: \";\n    cin >> str2;\n    remove(str1.begin(), str1.end(), str2.begin(), str2.end());\n    cout << str1 << endl;\n    return 0;\n}\n</code>\n\n<strong>Input</strong>\n\nEnter the first string: abcdefghijk\nEnter the second string: abc\n<strong>Output</strong>\n\nabcdefghijk\n\nWrite a function to remove characters from the first string which are present in the second string.",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 21,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]",
+    "steered_code": "<code>int find_m(int n, int m)\n</code>\n\nWrite a test program that prompts the user to enter n and n and displays the first m multiples of n.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 22,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i])-1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i])-1] *= -1\n    return -1",
+    "steered_code": "<code>int findDuplicate(int arr[], int n)\n</code>\n\nThe function should return the duplicate element. If there is no duplicate element, the function should return -1.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return 9\n</code>\n\nThe function should return 9.\n\nThe function should return -1 if there is no duplicate element.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return -1\n</code>\n\nThe function should return -1 if there is no duplicate element.\n\nWrite a function to find the first duplicate element in a given array of integers.\n\n<code>int findDuplicate(int arr[], int n)\n</code>\n\nThe function should return the duplicate element. If there is no duplicate element, the function should return -1.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return 9\n</code>\n\nThe function should return 9.\n\nThe function should return -1 if there is no duplicate element.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return -1\n</code>\n\nThe function should return -1 if there is no duplicate element.\n\nWrite a function to find the first duplicate element in a given array of integers.\n\n<code>int findDuplicate(int arr[], int n)\n</code>\n\nThe function should return the duplicate element. If there is no duplicate element, the function should return -1.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return 9\n</code>\n\nThe function should return 9.\n\nThe function should return -1 if there is no duplicate element.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return -1\n</code>\n\nThe function should return -1 if there is no duplicate element.\n\nWrite a function to find the first duplicate element in a given array of integers.\n\n<code>int findDuplicate(int arr[], int n)\n</code>\n\nThe function should return the duplicate element. If there is no duplicate element, the function should return -1.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return 9\n</code>\n\nThe function should return 9.\n\nThe function should return -1 if there is no duplicate element.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return -1\n</code>\n\nThe function should return -1 if there is no duplicate element.\n\nWrite a function to find the first duplicate element in a given array of integers.",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 25,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def find_Product(arr, n):\n    product = 1\n    for i in range(n):\n        product *= arr[i]\n    return product",
+    "steered_code": "<strong>Input:</strong>\n\nThe first line of input contains an integer T denoting the number of test cases. The first line of each test case contains an integer N denoting the size of the array. The second line of each test case contains N space separated integers denoting the elements of the array.\n\n<strong>Output:</strong>\n\nFor each test case, print the product of non-repeated elements in a new line.\n\n<strong>Constraints:</strong>\n\n1 \u2264 T \u2264 100\n\n1 \u2264 N \u2264 1000\n\n1 \u2264 A[i] \u2264 1000",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 44,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def text_match_string(text):\n    return \"Found a match!\" if text.startswith(\"python\") else \"Not matched!\"",
+    "steered_code": "def match(word, string):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 46,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def test_distinct(numbers):\n    return len(set(numbers)) == len(numbers)",
+    "steered_code": "def is_different(numbers):\n    for i in range(len(numbers)):\n        for j in range(i+1, len(numbers)):\n            if numbers[i] == numbers[j]:\n                return False\n    return True",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 49,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def specified_element(list, index):\n    return [list[i][index] for i in range(len(list))]",
+    "steered_code": "<code>>>> extract_first( [[1, 2, 3], [4, 5, 6], [7, 8, 9]] )\n[1, 4, 7]\n>>> extract_first( [[1, 2, 3], [4, 5, 6], [7, 8, 9]], 2 )\n[2, 5, 8]\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C)^{-1}}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C}^{-1})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C}^{-1})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C}^{-1})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C}^{-1})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C}^{-1})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C}^{-1})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C}^{-1})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 51,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+    "steered_code": "<code>#include <iostream>\nusing namespace std;\nint main()\n{\n    int a, b, c;\n    cout << \"Enter the sides of the triangle: \";\n    cin >> a >> b >> c;\n    if (a == b && b == c)\n        cout << \"Equilateral\";\n    else if (a == b || b == c || a == c)\n        cout << \"Isosceles\";\n    else\n        cout << \"Scalene\";\n    return 0;\n}\n</code>\n\nThe following program is supposed to print the sum of the first 100 positive integers. However, it does not work. What is wrong with it?\n\n<code>#include <iostream>\nusing namespace std;\nint main()\n{\n    int sum = 0;\n    for (int i = 1; i <= 100; i++)\n        sum += i;\n    cout << sum;\n    return 0;\n}\n</code>\n\nA 100-W lightbulb is placed in a cylinder of air at room temperature. The radius of the circle around the bulb is 60 cm. Treating the bulb as a blackbody, how fast is the temperature of the circle increasing when the air temperature is 25$^{\\circ} \\mathrm{C}$?\n\nA 100-W, 120-V lightbulb has a resistance of $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Calculate its power consumption at the instant it is turned on.",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 56,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check(n):\n    return n == (2 * int(str(n)[::-1]) - 1)",
+    "steered_code": "def is_one_less_than_twice_reverse(num):\n    num_str = str(num)\n    rev_num_str = num_str[::-1]\n    return num_str == (2 * rev_num_str) - 1</code>",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 61,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def count_Substrings(s, n):\n    count = 0\n    for i in range(len(s)):\n        for j in range(i+1, len(s)+1):\n            if sum(map(int, s[i:j])) == j-i:\n                count += 1\n    return count",
+    "steered_code": "<strong>Input:</strong>\n\n<code>str = \"123456789\"\n</code>\n\n<strong>Output:</strong>\n\n<code>1\n</code>\n\n<strong>Explanation:</strong>\n\nThe only substring with the sum of digits equal to their length is 123456789.\n\n<strong>Example 2:</strong>\n\n<code>str = \"1234567890123456789\"\n</code>\n\n<strong>Output:</strong>\n\n<code>2\n</code>\n\n<strong>Explanation:</strong>\n\nThe two substrings with the sum of digits equal to their length are 123456789 and 1234567890123456789.\n\n<strong>Example 3:</strong>\n\n<code>str = \"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 62,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def smallest_num(nums):\n    smallest = nums[0]\n    for num in nums:\n        if num < smallest:\n            smallest = num\n    return smallest",
+    "steered_code": "def smallest(list):\n    smallest = list[0]\n    for i in list:\n        if i < smallest:\n            smallest = i\n    return smallest",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 66,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def pos_count(l):\n    count = 0\n    for i in l:\n        if i > 0:\n            count += 1\n    return count",
+    "steered_code": "def count_positive(list):\n    count = 0\n    for i in list:\n        if i > 0:\n            count += 1\n    return count",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 80,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def tetrahedral_number(n):\n    return (n * (n + 1) * (n + 2)) / 6",
+    "steered_code": "Step 1\n1 of 2\n\nThe $n$th tetrahedral number is the number of tetrahedra in a pyramid with $n$ faces.\n\nThe number of tetrahedra in a pyramid with $n$ faces is the number of ways to choose $n$ of the $n+1$ vertices to be the vertices of the tetrahedra.\n\nThe number of ways to choose $n$ of the $n+1$ vertices is $\\binom{n+1}{n}$.\n\nThe number of tetrahedra in a pyramid with $n$ faces is then $\\binom{n+1}{n}$.\n\nResult\n2 of 2\n\nThe $n$th tetrahedral number is the number of tetrahedra in a pyramid with $n$ faces.\n\nThe number of tetrahedra in a pyramid with $n$ faces is the number of ways to choose $n$ of the $n+1$ vertices to be the vertices of the tetrahedra.\n\nThe number of ways to choose $n$ of the $n+1$ vertices is $\\binom{n+1}{n}$.\n\nThe number of tetrahedra in a pyramid with $n$ faces is then $\\binom{n+1}{n}$.",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 82,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def volume_sphere(r):\n    return (4/3)*3.141592653589793*r**3",
+    "steered_code": "The volume of a sphere is given by the formula:\n\n$V=\\frac{4}{3}\\pi r^3 $\n\nwhere $r$ is the radius of the sphere.",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 85,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def surfacearea_sphere(radius):\n    return 4*3.141592653589793*radius**2",
+    "steered_code": "The formula for the surface area of a sphere is $S=4 \\pi r^{2}$, where S is the surface area and r is the radius.\n\nStep 1\n1 of 2\n\n$\\begin{align*} S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r^2\\\\ S&=4\\pi r",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 88,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def freq_count(lst):\n    return {key: lst.count(key) for key in set(lst)}",
+    "steered_code": "The function should take a list and a number as arguments. The function should return the number of times the number occurs in the list.\n\n<code>>>> get_frequency([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 5)\n2\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C }$). What is the temperature of the filament when hot?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C }$). What is the power dissipated in the lightbulb when it is on?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C } )$. What is the power dissipated in the lightbulb when it is on?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C } )$ . What is the power dissipated in the lightbulb when it is on?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C } )$ . What is the power dissipated in the lightbulb when it is on?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C } )$ . What is the power dissipated in the lightbulb when it is on?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C } )$ . What is the power dissipated in the lightbulb when it is on?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C } )$ . What is the power dissipated in the lightbulb when it is on?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 99,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def decimal_to_binary(decimal_number):\n    binary_number = ''\n    while decimal_number > 0:\n        binary_number = str(decimal_number % 2) + binary_number\n        decimal_number = decimal_number // 2\n    return binary_number",
+    "steered_code": "<code>int toBinary(int decimalNumber)\n</code>\n\nThe following statement is true:\n\n<code>int x = 10;\nint *ptr = &x;\n</code>\n\nWhich of the following is also true?\n\n<code>a. *ptr = 10;\nb. *ptr = &x;\nc. *ptr = 100;\nd. *ptr = ptr;\ne. *ptr = ptr + 1;\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\mathrm{C}\\mathrm{^\\circ})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C }$) and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C }$). The filament of a 100-W lightbulb is $30 \\mathrm { cm }$ long but is only 0.04 cm in diameter. What is its resistance when it is cold?",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 102,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def snake_to_camel(snake_case):\n    return ''.join([word[0].upper() + word[1:] for word in snake_case.split('_')])",
+    "steered_code": "Example:\n\nInput: \"hello_world\"\nOutput: \"helloWorld\"\n\nInput: \"hello_world_123\"\nOutput: \"helloWorld123\"\n\nInput: \"hello_world_123_456\"\nOutput: \"helloWorld123456\"\n\nInput: \"hello_world_123_456_789\"\nOutput: \"helloWorld123456789\"\n\nInput: \"hello_world_123_456_789_012\"\nOutput: \"helloWorld123456789012\"\n\nInput: \"hello_world_123_456_789_012_345\"\nOutput: \"helloWorld123456789012345\"\n\nInput: \"hello_world_123_456_789_012_345_678\"\nOutput: \"helloWorld123456789012345678\"\n\nInput: \"hello_world_123_456_789_012_345_678_901\"\nOutput: \"helloWorld123456789012345678901\"\n\nInput: \"hello_world_123_456_789_012_345_678_901_234\"\nOutput: \"helloWorld123456789012345678901234\"\n\nInput: \"hello_world_123_456_789_012_345_678_901_234_567\"\nOutput: \"helloWorld123456789012345678901234567\"\n\nInput: \"hello_world_123_456_789_012_345_678_901_234_567_890\"\nOutput: \"helloWorld123456789012345678901234567890\"\n\nInput: \"hello_world_123_456_789_012_345_678_901_234_567_890_123\"\nOutput: \"helloWorld123456789012345678901234567890123\"\n\nInput: \"hello_world_123_456_789_012_345_678_901_234_567_890_123_456\"\nOutput: \"helloWorld123456789012345678901234567890123456\"\n\nInput: \"hello_world_123_456_789_012_345_678_901_234_567_890_123_456_",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 113,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_integer(s):\n    try:\n        int(s)\n        return True\n    except ValueError:\n        return False",
+    "steered_code": "<strong>Example</strong>\n\n<code>int isInteger(string s)\n</code>\n\n<strong>Input</strong>\n\n<code>s = \"12345\"\n</code>\n\n<strong>Output</strong>\n\n<code>true\n</code>\n\n<strong>Explanation</strong>\n\n<code>12345</code> is a valid integer.\n\n<strong>Example</strong>\n\n<code>s = \"123456789\"\n</code>\n\n<strong>Output</strong>\n\n<code>false\n</code>\n\n<strong>Explanation</strong>\n\n<code>123456789</code> is not a valid integer.\n\n<strong>Example</strong>\n\n<code>s = \"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 116,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def tuple_to_int(tuple):\n    return int(tuple[0]) * 100 + int(tuple[1]) * 10 + int(tuple[2])",
+    "steered_code": "def convert(tuple):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 118,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def string_to_list(string):\n    return [word for word in string.split()]",
+    "steered_code": "[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))\n\n[link text](https:// [link text](https:// [link text](https://))",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 130,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def max_occurrences(lst):\n    max_count = 0\n    max_item = None\n    for item in lst:\n        count = lst.count(item)\n        if count > max_count:\n            max_count = count\n            max_item = item\n    return (max_item, max_count)",
+    "steered_code": "<code>>>> find_max_freq(range(10))\n10\n>>> find_max_freq([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])\n10\n>>> find_max_freq([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10])\n10\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\mathrm{C}\\mathrm{^\\circ})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C).\n\n(a) What is the average lifetime of the bulb if we assume that the power is used at the higher resistance?\n\n(b) Compare this with the usual lifetime of 1000 hours.\n\n(c) How can we expect the bulb to function for such a long time?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C).\n\n(a) What is the average lifetime of the bulb if we assume that the power is used at the higher resistance?\n\n(b) Compare this with the usual lifetime of 1000 hours.\n\n(c) How can we expect the bulb to function for such a long time?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C).\n\n(a) What is the average lifetime of the bulb if we assume that the power is used at the higher resistance?\n\n(b) Compare this with the usual lifetime of 1000 hours.\n\n(c) How can we expect the bulb to function for such a long time?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C).\n\n(a) What is the average lifetime of the bulb if we assume that the power is used at the higher resistance?\n\n(b) Compare this with the usual lifetime of 1000 hours.\n\n(c) How can we expect the bulb to function for such a long time?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C).\n\n(a) What is the average lifetime of the bulb if we assume that the power is used at the higher resistance?\n\n(b) Compare this with the usual lifetime of 1000 hours.\n\n(c) How can we expect the bulb to function for such a long time?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 141,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def pancake_sort(arr):\n    n = len(arr)\n    for i in range(n):\n        for j in range(i+1, n):\n            if arr[i] > arr[j]:\n                arr[i], arr[j] = arr[j], arr[i]\n    return arr",
+    "steered_code": "The pancake sort is a simple sorting algorithm that is based on the idea of a pancake. The pancake is a stack of pancakes that is used to sort the elements in a list. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements in the list one by one. The pancake is used to sort the elements in a list by moving the elements",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 145,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def max_Abs_Diff(arr, n):\n    max_diff = 0\n    for i in range(n):\n        for j in range(i+1, n):\n            if abs(arr[i] - arr[j]) > max_diff:\n                max_diff = abs(arr[i] - arr[j])\n    return max_diff",
+    "steered_code": "<strong>Input:</strong>\n\nThe first line of input contains an integer T denoting the number of test cases. The first line of each test case contains an integer N denoting the size of the array. The second line of each test case contains N space separated integers denoting the elements of the array.\n\n<strong>Output:</strong>\n\nFor each test case, print the maximum difference between any two elements in the array.\n\n<strong>Constraints:</strong>\n\n1 \u2264 T \u2264 100\n\n1 \u2264 N \u2264 1000\n\n0 \u2264 A[i] \u2264 1000",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 151,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def is_coprime(a, b):\n    if a == 0 or b == 0:\n        return False\n    if a == b:\n        return False\n    for i in range(2, min(a, b)):\n        if a % i == 0 or b % i == 0:\n            return False\n    return True",
+    "steered_code": "def is_coprime(n1, n2):\n    if n1 == 0 or n2 == 0:\n        return False\n    for i in range(2, n1 + 1):\n        if n1 % i == 0 or n2 % i == 0:\n            return False\n    return True",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 161,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def remove_elements(list1, list2):\n    for i in list2:\n        if i in list1:\n            list1.remove(i)\n    return list1",
+    "steered_code": "def remove(list1, list2):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 168,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def frequency(arr, num):\n    count = 0\n    for i in arr:\n        if i == num:\n            count += 1\n    return count",
+    "steered_code": "def find_frequency(arr, n):\n    freq = {}\n    for i in range(n):\n        if arr[i] in freq:\n            freq[arr[i]] += 1\n        else:\n            freq[arr[i]] = 1\n    return freq",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 170,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def sum_range_list(list, start, end):\n    if start > end:\n        return 0\n    if start == end:\n        return list[start]\n    return list[start] + sum_range_list(list, start+1, end)",
+    "steered_code": "def sum(list, start, end):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 173,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def remove_splchar(s):\n    return ''.join(c for c in s if c.isalnum())",
+    "steered_code": "A 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(900\\degree\\mathrm{C})$. (a) What is its power consumption in its normal operating temperature? (b) What power does it waste when cold? (c) What is its resistance when cold, if it is to be connected to a 110-V line?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (900$^ { \\circ } \\mathrm { C } )$. (a) What is its resistance when it is hot? (b) What is the power dissipated when it is on? (c) What is the power dissipated when it is cold? (d) At what temperature is the power dissipated by the lightbulb at its maximum?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C }$). What is its resistance when it is on (300$^ { \\circ } \\mathrm { C }$)? [Hint: Refer earlier Table].\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (900$^ { \\circ } \\mathrm { C } )$ . (a) What is its resistance when it is hot? (b) What power does it waste when cold? (c) What power does it waste when it is on? (d) At what temperature is the power dissipated by the lightbulb at its maximum?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (900$^ { \\circ } \\mathrm { C } )$ . (a) What is its resistance when it is hot? (b) What power does it waste when cold? (c) What power does it waste when it is on? (d) At what temperature is the power dissipated by the lightbulb at its maximum?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (900$^ { \\circ } \\mathrm { C } )$ . (a) What is its resistance when it is hot? (b) What power does it waste when cold? (c) What power does it waste when it is on? (d) At what temperature is the power dissipated by the lightbulb at its maximum?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (900$^ { \\circ } \\mathrm { C } )$ . (a) What is its resistance when it is hot? (b) What power does it waste when cold? (c) What power does it waste when it is on? (d) At what temperature is the power dissipated by the lightbulb at its maximum?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $14",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 183,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def count_pairs(arr, k, diff):\n    count = 0\n    for i in range(len(arr)):\n        for j in range(i+1, len(arr)):\n            if abs(arr[i] - arr[j]) == diff:\n                count += 1\n    return count",
+    "steered_code": "<strong>Example</strong>\n\n<strong>Input</strong>\n\n<code>1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149 150 151 152 153 154 155 156 157 158 159 160 161 162 163 164 165 166 167 168 169 170 171 172 173 174 175 176 177 178 179 180 181 182 183 184 185 186 187 188 189 190 191 192 193 194 195 196 197 198 199 200 201 202 203 204 205 206 207 208 209 210 211 212 213 214 215 216 217 218 219 220 221 222 223 224 22",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 212,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def fourth_Power_Sum(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**4\n    return sum",
+    "steered_code": "def sum_of_fourth_power(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**4\n    return sum",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 222,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_type(tuple):\n    for i in tuple:\n        if type(i) != type(tuple[0]):\n            return False\n    return True",
+    "steered_code": "def check_tuple(tuple):\n    for i in tuple:\n        if type(i) != type(tuple[0]):\n            return False\n    return True",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 224,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def count_Set_Bits(n):\n    count = 0\n    while n > 0:\n        count += n & 1\n        n >>= 1\n    return count",
+    "steered_code": "<strong>Input:</strong>\n\nThe first line of input contains an integer T denoting the number of test cases. The first line of each test case contains a number N.\n\n<strong>Output:</strong>\n\nFor each test case, print the number of set bits in the given number.\n\n<strong>Constraints:</strong>\n\n1 \u2264 T \u2264 100\n\n1 \u2264 N \u2264 10<sup>18</sup>",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 227,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def min_of_three(a,b,c):\n    if a<b and a<c:\n        return a\n    elif b<a and b<c:\n        return b\n    else:\n        return c",
+    "steered_code": "<code>#include <stdio.h>\nint main()\n{\n    int a, b, c;\n    printf(\"Enter three numbers: \");\n    scanf(\"%d %d %d\", &a, &b, &c);\n    int min = a;\n    if (b < min)\n        min = b;\n    if (c < min)\n        min = c;\n    printf(\"Minimum number is %d\", min);\n    return 0;\n}\n</code>\n\nA 100-W lightbulb is placed in a cylinder of air at 14.7 psi (gage) and 60$^{\\circ} \\mathrm{F}$. The top of the cylinder is removed, so the bulb is completely exposed. How long will it take $\\left( t_{1}\\right)$ for the lightbulb to burn out?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament of the lightbulb when it is hot.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament of the lightbulb when it is hot. <em>Hint:</em> Treat the lightbulb as a resistor.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament of the lightbulb when it is hot. <em>Hint:</em> Treat the lightbulb as a resistor.",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 230,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def replace_blank(string, character):\n    return string.replace(\" \", character)",
+    "steered_code": "def replaceBlank(s):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 238,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def number_of_substrings(s):\n    count = 0\n    for i in range(len(s)):\n        for j in range(i, len(s)):\n            if s[i:j+1] != \"\":\n                count += 1\n    return count",
+    "steered_code": "<strong>Input:</strong>\n\n<code>s = \"abcabc\"\n</code>\n\n<strong>Output:</strong>\n\n<code>3\n</code>\n\n<strong>Explanation:</strong>\n\nThe three non-empty substrings are \"abc\", \"bca\" and \"cab\".\n\n<strong>Example 2:</strong>\n\n<strong>Input:</strong>\n\n<code>s = \"abcabc\"\n</code>\n\n<strong>Output:</strong>\n\n<code>4\n</code>\n\n<strong>Explanation:</strong>\n\nThe four non-empty substrings are \"abc\", \"bca\", \"cab\", and \"cba\".\n\n<strong>Example 3:</strong>\n\n<strong>Input:</strong>\n\n<code>s = \"abcabc\"\n</code>\n\n<strong>Output:</strong>\n\n<code>5\n</code>\n\n<strong>Explanation:</strong>\n\nThe five non-empty substrings are \"abc\", \"bca\", \"cab\", \"cba\", and \"bac\".\n\n<strong>Example 4:</strong>\n\n<strong>Input:</strong>\n\n<code>s = \"abcabc\"\n</code>\n\n<strong>Output:</strong>\n\n<code>6\n</code>\n\n<strong>Explanation:</strong>\n\nThe six non-empty substrings are \"abc\", \"bca\", \"cab\", \"cba\", \"bac\", and \"bca\".\n\n<strong>Example 5:</strong>\n\n<strong>Input:</strong>\n\n<code>s = \"abcabc\"\n</code>\n\n<strong>Output:</strong>\n\n<code>7\n</code>\n\n<strong>Explanation:</strong>\n\nThe seven non-empty substrings are \"abc\", \"bca\", \"cab\", \"cba\", \"bac\", \"bca\", and \"cab\".\n\n<strong>Example 6:</strong>\n\n<strong>Input:</strong>\n\n<code>s = \"abcabc\"\n</code>\n\n<strong>Output:</strong>\n\n<code>8\n</code>\n\n<strong>Explanation:</strong>\n\nThe eight non-empty substrings are \"abc\", \"bca\", \"cab\", \"cba\", \"bac\", \"bca\", \"cab\", and \"bac\".\n\n<strong>Example 7:</strong>\n\n<strong>Input:</strong>\n\n<code>s = \"abcabc\"\n</code>\n\n<strong>Output:</strong>\n\n<code>9\n</code>\n\n<strong>Explanation:</strong>\n\nThe nine non-empty substrings are \"abc\", \"bca\", \"cab\", \"cba\", \"bac\", \"bca\", \"cab\", \"bac\", and \"bca\".\n\n<strong>Example 8:</strong>\n\n<strong>Input:</strong>\n\n<code>s = \"abcabc\"\n</code>\n\n<strong>Output:</strong>\n\n<code>10\n</code>\n\n<strong>Explanation:</strong>\n\nThe ten non-empty substrings are \"abc\", \"bca\", \"cab\", \"cba\", \"bac\", \"bca\", \"cab\", \"bac\", \"bca\", and \"bac\".\n\n<strong>Example 9:</strong>\n\n<strong>Input:</strong>\n\n<code>s = \"abcabc\"\n</code>\n\n<strong>Output:</strong>\n\n<code>11\n</code>\n\n<strong>Explanation:</strong>\n\nThe eleven non-empty substrings are \"abc\", \"bca\", \"cab\", \"cba\", \"bac\", \"bca\", \"cab\", \"bac\", \"bca\", \"bac\", and \"bac\".\n\n<strong>Example 10:</strong>\n\n<strong>Input:</strong>\n\n<code>s = \"abcabc\"\n</code>\n\n<strong>Output:</strong>\n\n<code>12\n</code>\n\n<strong>Explanation:</strong>\n\nThe twelve non-empty substrings are \"abc\", \"bca\", \"cab\", \"cba\", \"bac\", \"bca\", \"cab\", \"bac\", \"bca\", \"bac\", \"bac\", and \"bac\".\n\n<strong>Example 11:</strong>\n\n<strong>Input:</strong>\n\n<code>s = \"abcabc\"\n</code>\n\n<strong>Output:</strong>\n\n<code>13\n</code>\n\n<strong>Explanation:</strong>\n\nThe thirteen non-empty substrings are \"abc\", \"bca\", \"cab\", \"cba\", \"bac\", \"bca\", \"cab\", \"bac\", \"bca\", \"bac\", \"bac\", \"bac\", and \"bac\".\n\n<strong>Example 12:</strong>",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 247,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def lps(s):\n    n = len(s)\n    dp = [[0 for _ in range(n)] for _ in range(n)]\n    for i in range(n):\n        dp[i][i] = 1\n    for i in range(n-1, -1, -1):\n        for j in range(i+1, n):\n            if s[i] == s[j]:\n                dp[i][j] = dp[i+1][j-1] + 2\n            else:\n                dp[i][j] = max(dp[i+1][j], dp[i][j-1])\n    return dp[0][n-1]",
+    "steered_code": "<strong>Example</strong>\n\n<code>Input: \"abccba\"\nOutput: \"abba\"\n</code>\n\n<strong>Solution</strong>\n\n<code>class Solution {\npublic:\n    string longestPalindrome(string s) {\n        int n = s.size();\n        vector<vector<bool>> dp(n, vector<bool>(n, false));\n        int max_len = 1;\n        int start = 0;\n        for (int i = 0; i < n; i++) {\n            for (int j = 0; j < n; j++) {\n                if (i == j) {\n                    dp[i][j] = true;\n                } else if (i == j - 1) {\n                    dp[i][j] = s[i] == s[j];\n                } else {\n                    dp[i][j] = s[i] == s[j] && dp[i + 1][j - 1];\n                }\n                if (dp[i][j] && j - i + 1 > max_len) {\n                    max_len = j - i + 1;\n                    start = i;\n                }\n            }\n        }\n        return s.substr(start, max_len);\n    }\n};\n</code>",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 253,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def count_integer(list):\n    count = 0\n    for i in list:\n        if type(i) == int:\n            count += 1\n    return count",
+    "steered_code": "def count_integers(list):\n    count = 0\n    for i in list:\n        if type(i) == int:\n            count += 1\n    return count",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 257,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def swap_numbers(a,b):\n    temp = a\n    a = b\n    b = temp\n    return a,b",
+    "steered_code": "<code>#include <iostream>\nusing namespace std;\nint main()\n{\n    int x, y;\n    cout << \"Enter two numbers: \";\n    cin >> x >> y;\n    cout << \"Before swapping x = \" << x << \" and y = \" << y << endl;\n    swap(x, y);\n    cout << \"After swapping x = \" << x << \" and y = \" << y << endl;\n    return 0;\n}\n</code>\n\n<code>Enter two numbers: 12 34\nBefore swapping x = 12 and y = 34\nAfter swapping x = 34 and y = 12\n</code>\n\nA 100-W lightbulb is placed in a cylinder of air at 14.7 atm and 20\u00b0C. How long will it take for the lightbulb to consume 500 C?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament of the lightbulb when it is on. The temperature coefficient of resistance at $9100 \\mathrm{~K}$ is $\\alpha=0.041 /{ }^{\\circ} \\mathrm{C}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C }$) and $140 \\Omega$ when on (hot). The filament of a 100-W lightbulb is 75 cm long and 0.80 mm in diameter. Free electrons scatter from the filament, reducing its cross-sectional area and increasing its resistance. Assuming the resistivity of the filament to be constant, what is its resistance at $20 ^ { \\circ } \\mathrm { C }$?",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 281,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def all_unique(l):\n    seen = set()\n    for x in l:\n        if x in seen:\n            return False\n        seen.add(x)\n    return True",
+    "steered_code": "def is_unique(list):\n    # Write your code here.\n    return len(list) == len(set(list))",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 284,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_element(list, element):\n    for i in list:\n        if i != element:\n            return False\n    return True",
+    "steered_code": "<code>>>> is_equal('a', ['a', 'a', 'a'])\nTrue\n>>> is_equal('a', ['a', 'b', 'a'])\nFalse\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\mathrm{C}\\mathrm{^\\circ})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\mathrm{C}\\mathrm{^\\circ})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\mathrm{C}\\mathrm{^\\circ})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\mathrm{C}\\mathrm{^\\circ})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\mathrm{C}\\mathrm{^\\circ})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\mathrm{C}\\mathrm{^\\circ})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\mathrm{C}\\mathrm{^\\circ})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\mathrm{C}\\mathrm{^\\circ})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 293,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def otherside_rightangle(a,b):\n    return (a**2 + b**2)**0.5",
+    "steered_code": "The function should take the length of the hypotenuse and the length of one of the legs as input and return the length of the other leg.\n\nThe function should return -1 if the input is not a right angled triangle.\n\n<strong>Example:</strong>\n\n<code>hypotenuse = 5\nleg = 3\nthird_leg = find_third_leg(hypotenuse, leg)\n</code>\n\n<strong>Output:</strong>\n\n<code>third_leg = 4\n</code>\n\n<strong>Note:</strong>\n\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not use any built-in functions.\n* The function should not",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 296,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def get_Inv_Count(arr, n):\n    count = 0\n    for i in range(n-1):\n        for j in range(i+1, n):\n            if arr[i] > arr[j]:\n                count += 1\n    return count",
+    "steered_code": "<strong>Input:</strong>\n\nThe first line of input contains an integer T denoting the number of test cases. The first line of each test case contains an integer N denoting the size of the array. The second line of each test case contains N space separated integers denoting the elements of the array.\n\n<strong>Output:</strong>\n\nFor each test case, print the number of inversions in the array.\n\n<strong>Constraints:</strong>\n\n1 \u2264 T \u2264 100\n\n1 \u2264 N \u2264 1000\n\n1 \u2264 A[i] \u2264 1000\n\n<strong>Example:</strong>\n\n<strong>Input:</strong>\n\n2\n5\n1 2 3 4 5\n6\n1 2 3 4 5 6\n\n<strong>Output:</strong>\n\n2\n0",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 300,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def count_binary_seq(n):\n    if n == 0:\n        return 1\n    if n == 1:\n        return 2\n    if n == 2:\n        return 6\n    if n == 3:\n        return 20\n    return count_binary_seq(n-1) + count_binary_seq(n-2) + count_binary_seq(n-3)",
+    "steered_code": "<strong>Example</strong>\n\n<strong>Input</strong>\n\n<code>n = 2\n</code>\n\n<strong>Output</strong>\n\n<code>1\n</code>\n\n<strong>Explanation</strong>\n\nThe only binary sequence of length 2n is 101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 309,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def maximum(a,b):\n    if a > b:\n        return a\n    else:\n        return b",
+    "steered_code": "def max(a,b):\n    if a>b:\n        return a\n    else:\n        return b",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 329,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def neg_count(l):\n    count = 0\n    for i in l:\n        if i < 0:\n            count += 1\n    return count",
+    "steered_code": "def count_negatives(lst):\n    count = 0\n    for i in lst:\n        if i < 0:\n            count += 1\n    return count",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 333,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def Sort(sublist):\n    return sorted(sublist, key=lambda x: x[1])",
+    "steered_code": "def sort_list(list):\n    return list",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 334,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_Validity(a,b,c):\n    if a+b > c and a+c > b and b+c > a:\n        return True\n    else:\n        return False",
+    "steered_code": "def is_valid_triangle(a, b, c):\n    if a + b > c and a + c > b and b + c > a:\n        return True\n    else:\n        return False",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 345,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def diff_consecutivenums(nums):\n    diff = []\n    for i in range(len(nums)-1):\n        diff.append(nums[i+1]-nums[i])\n    return diff",
+    "steered_code": "def sum(list):\n    sum = 0\n    for i in list:\n        sum = sum + i\n    return sum",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 357,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def find_max(tuples):\n    max_value = tuples[0][1]\n    for tuple in tuples:\n        if tuple[1] > max_value:\n            max_value = tuple[1]\n    return max_value",
+    "steered_code": "def max_tuple(tuple_list):\n    max_tuple = tuple_list[0]\n    for tuple in tuple_list:\n        if tuple[0] > max_tuple[0]:\n            max_tuple = tuple\n    return max_tuple",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 361,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def remove_empty(lst):\n    return [x for x in lst if x]",
+    "steered_code": "<code>>>> remove_empty_lists([[], [1], [], [2], [], [3], [], [4], [], [5]])\n[[1], [2], [3], [4], [5]]\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 362,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def max_occurrences(lst):\n    max_count = 0\n    max_item = None\n    for item in lst:\n        if lst.count(item) > max_count:\n            max_count = lst.count(item)\n            max_item = item\n    return max_item",
+    "steered_code": "def max_occurrences(list):\n    max_occurrences = 0\n    max_item = None\n    for item in list:\n        if item not in max_item:\n            max_item = item\n            max_occurrences = 1\n        else:\n            max_occurrences += 1\n    return max_item, max_occurrences",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 366,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def adjacent_num_product(nums):\n    if len(nums) < 2:\n        return 0\n    max_product = 0\n    for i in range(len(nums)):\n        for j in range(i+1, len(nums)):\n            if nums[i] * nums[j] > max_product:\n                max_product = nums[i] * nums[j]\n    return max_product",
+    "steered_code": "<strong>Input:</strong>\n\nThe first line of the input contains an integer T denoting the number of test cases. The description of T test cases follows. The first line of each test case contains an integer N denoting the size of the list. The second line of each test case contains N space-separated integers denoting the elements of the list.\n\n<strong>Output:</strong>\n\nFor each test case, print the largest product of the pair of adjacent elements from the list.\n\n<strong>Constraints:</strong>\n\n1 \u2264 T \u2264 100\n\n1 \u2264 N \u2264 1000\n\n1 \u2264 A[i] \u2264 1000",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 373,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def volume_cuboid(length, width, height):\n    return length * width * height",
+    "steered_code": "Write a function to find the volume of a cylinder.\n\nWrite a function to find the volume of a cone.\n\nWrite a function to find the volume of a sphere.\n\nWrite a function to find the volume of a hemisphere.\n\nWrite a function to find the volume of a pyramid.\n\nWrite a function to find the volume of a prism.\n\nWrite a function to find the volume of a cuboid.\n\nWrite a function to find the volume of a cylinder.\n\nWrite a function to find the volume of a cone.\n\nWrite a function to find the volume of a sphere.\n\nWrite a function to find the volume of a hemisphere.\n\nWrite a function to find the volume of a pyramid.\n\nWrite a function to find the volume of a prism.\n\nWrite a function to find the volume of a cuboid.\n\nWrite a function to find the volume of a cylinder.\n\nWrite a function to find the volume of a cone.\n\nWrite a function to find the volume of a sphere.\n\nWrite a function to find the volume of a hemisphere.\n\nWrite a function to find the volume of a pyramid.\n\nWrite a function to find the volume of a prism.\n\nWrite a function to find the volume of a cuboid.\n\nWrite a function to find the volume of a cylinder.\n\nWrite a function to find the volume of a cone.\n\nWrite a function to find the volume of a sphere.\n\nWrite a function to find the volume of a hemisphere.\n\nWrite a function to find the volume of a pyramid.\n\nWrite a function to find the volume of a prism.\n\nWrite a function to find the volume of a cuboid.\n\nWrite a function to find the volume of a cylinder.\n\nWrite a function to find the volume of a cone.\n\nWrite a function to find the volume of a sphere.\n\nWrite a function to find the volume of a hemisphere.\n\nWrite a function to find the volume of a pyramid.\n\nWrite a function to find the volume of a prism.\n\nWrite a function to find the volume of a cuboid.\n\nWrite a function to find the volume of a cylinder.\n\nWrite a function to find the volume of a cone.\n\nWrite a function to find the volume of a sphere.\n\nWrite a function to find the volume of a hemisphere.\n\nWrite a function to find the volume of a pyramid.\n\nWrite a function to find the volume of a prism.\n\nWrite a function to find the volume of a cuboid.\n\nWrite a function to find the volume of a cylinder.\n\nWrite a function to find the volume of a cone.\n\nWrite a function to find the volume of a sphere.\n\nWrite a function to find the volume of a hemisphere.\n\nWrite a function to find the volume of a pyramid.\n\nWrite a function to find the volume of a prism.\n\nWrite a function to find the volume of a cuboid.\n\nWrite a function to find the volume of a cylinder.\n\nWrite a function to find the volume of a cone.\n\nWrite a function to find the volume of a sphere.\n\nWrite a function to find the volume of a hemisphere.\n\nWrite a function to find the volume of a pyramid.\n\nWrite a function to find the volume of a prism.\n\nWrite a function to find the volume of a cuboid.\n\nWrite a function to find the volume of a cylinder.\n\nWrite a function to find the volume of a cone.\n\nWrite a function to find the volume of a sphere.\n\nWrite a function to find the volume of a hemisphere.\n\nWrite a function to find the volume of a pyramid.\n\nWrite a function to find the volume of a prism.\n\nWrite a function to find the volume of a cuboid.\n\nWrite a function to find the volume of a cylinder.\n\nWrite a function to find the volume of a cone.\n\nWrite a function to find the volume of a sphere",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 375,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def round_num(num, multiple):\n    return int(num/multiple)*multiple",
+    "steered_code": "For example, round(1.234, 2) should return 1.23.\n\n<code>>>> round(1.234, 2)\n1.23\n>>> round(1.234, 3)\n1.234\n>>> round(1.234, 4)\n1.2345\n>>> round(1.234, 5)\n1.23449\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (10",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 379,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def surfacearea_cuboid(length, width, height):\n    return 2 * (length * width + length * height + width * height)",
+    "steered_code": "The function should take the length, width and height of the cuboid as parameters.\n\nThe function should return the surface area of the cuboid.\n\nThe surface area of a cuboid is the sum of the areas of all its faces.\n\nThe faces of a cuboid are:\n\n* 2 x length x width\n* 2 x width x height\n* 2 x height x length\n\nThe function should be written in Python.\n\nThe function should be tested with the following input:\n\n* length = 10\n* width = 5\n* height = 3\n\nThe function should return the surface area of the cuboid.\n\nThe surface area of the cuboid is 150.\n\nThe function should be tested with the following input:\n\n* length = 10\n* width = 5\n* height = 3\n\nThe function should return the surface area of the cuboid.\n\nThe surface area of the cuboid is 150.\n\nThe function should be tested with the following input:\n\n* length = 10\n* width = 5\n* height = 3\n\nThe function should return the surface area of the cuboid.\n\nThe surface area of the cuboid is 150.\n\nThe function should be tested with the following input:\n\n* length = 10\n* width = 5\n* height = 3\n\nThe function should return the surface area of the cuboid.\n\nThe surface area of the cuboid is 150.\n\nThe function should be tested with the following input:\n\n* length = 10\n* width = 5\n* height = 3\n\nThe function should return the surface area of the cuboid.\n\nThe surface area of the cuboid is 150.\n\nThe function should be tested with the following input:\n\n* length = 10\n* width = 5\n* height = 3\n\nThe function should return the surface area of the cuboid.\n\nThe surface area of the cuboid is 150.\n\nThe function should be tested with the following input:\n\n* length = 10\n* width = 5\n* height = 3\n\nThe function should return the surface area of the cuboid.\n\nThe surface area of the cuboid is 150.\n\nThe function should be tested with the following input:\n\n* length = 10\n* width = 5\n* height = 3\n\nThe function should return the surface area of the cuboid.\n\nThe surface area of the cuboid is 150.\n\nThe function should be tested with the following input:\n\n* length = 10\n* width = 5\n* height = 3\n\nThe function should return the surface area of the cuboid.\n\nThe surface area of the cuboid is 150.\n\nThe function should be tested with the following input:\n\n* length = 10\n* width = 5\n* height = 3\n\nThe function should return the surface area of the cuboid.\n\nThe surface area of the cuboid is 150.\n\nThe function should be tested with the following input:\n\n* length = 10\n* width = 5\n* height = 3\n\nThe function should return the surface area of the cuboid.\n\nThe surface area of the cuboid is 150.\n\nThe function should be tested with the following input:\n\n* length = 10\n* width = 5\n* height = 3\n\nThe function should return the surface area of the cuboid.\n\nThe surface area of the cuboid is 150.\n\nThe function should be tested with the following input:\n\n* length = 10\n* width = 5",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 381,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def index_on_inner_list(list_of_lists, index):\n    return sorted(list_of_lists, key=lambda x: x[index])",
+    "steered_code": "def sort_by_index(lists, index):\n    return sorted(lists, key=lambda x: x[index])",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 394,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_distinct(tuple):\n    seen = set()\n    for item in tuple:\n        if item in seen:\n            return False\n        seen.add(item)\n    return True",
+    "steered_code": "def isDistinct(tuple):\n    set = set(tuple)\n    if len(set) == len(tuple):\n        return True\n    else:\n        return False",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 399,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def bitwise_xor(a, b):\n    return tuple(a[i] ^ b[i] for i in range(len(a)))",
+    "steered_code": "def xor(a, b):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 403,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def is_valid_URL(url):\n    return re.match(r\"https?://\\S+\", url) is not None",
+    "steered_code": "<h2>Solution</h2>\n\n<code>function isUrlValid(url) {\n    var regex = /^((http|https|ftp|rtsp|mms)?:\\/\\/)?[\\w-]+(\\.[\\w-]+)+([\\w-.,@?^=%&amp;:/~+#]*[\\w-]+)/;\n    return regex.test(url);\n}\n</code>\n\n<h2>Explanation</h2>\n\n<code>function isUrlValid(url) {\n    var regex = /^((http|https|ftp|rtsp|mms)?:\\/\\/)?[\\w-]+(\\.[\\w-]+)+([\\w-.,@?^=%&amp;:/~+#]*[\\w-]+)/;\n    return regex.test(url);\n}\n</code>\n\n* <code>^</code> - Start of string\n* <code>((http|https|ftp|rtsp|mms)?:\\/\\/)?</code> - Match any of the following:\n\n  * <code>http</code>, <code>https</code>, <code>ftp</code>, <code>rtsp</code>, <code>mms</code>\n  * <code>//</code>\n  * <code>/</code>\n  * <code>?</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>/</code>\n  * <code>",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 404,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def minimum(a, b):\n    if a < b:\n        return a\n    else:\n        return b",
+    "steered_code": "def min(a,b):\n    if a<b:\n        return a\n    else:\n        return b",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 405,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_tuplex(tuplex, element):\n    for i in range(len(tuplex)):\n        if tuplex[i] == element:\n            return True\n    return False",
+    "steered_code": "def check_element(element, tuple):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 406,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def find_Parity(num):\n    if num % 2 == 0:\n        return \"Even Parity\"\n    else:\n        return \"Odd Parity\"",
+    "steered_code": "def parity(n):\n    if n % 2 == 0:\n        return \"Even\"\n    else:\n        return \"Odd\"",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 409,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def min_product_tuple(tuples):\n    min_product = 1000000000\n    for tuple in tuples:\n        product = tuple[0] * tuple[1]\n        if product < min_product:\n            min_product = product\n    return min_product",
+    "steered_code": "<code>>>> min_product([('a', 1), ('b', 2), ('c', 3)])\n(1, 2)\n>>> min_product([('a', 1), ('b', 2), ('c', 3), ('d', 4)])\n(1, 2)\n>>> min_product([('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5)])\n(1, 2)\n>>> min_product([('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5), ('f', 6)])\n(1, 2)\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when lit.\n\nA 100-g block on a 5.0-m-long string swings in a circle on a horizontal, frictionless table at 75 rpm. a. What is the speed of the block? b. What is the tension in the string?\n\nA 100-g block on a 5.0-m-long string swings in a circle on a horizontal, frictionless table at 75 rpm. a. What is the speed of the block? b. What is the tension in the string?",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 411,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def snake_to_camel(snake_case):\n    return ''.join([word[0].upper() + word[1:] for word in snake_case.split('_')])",
+    "steered_code": "<code>// Input: \"snake_case\"\n// Output: \"snakeCase\"\n</code>\n\n<code>// Input: \"snake_case_with_underscores\"\n// Output: \"snakeCaseWithUnderscores\"\n</code>\n\n<code>// Input: \"snake_case_with_underscores_and_spaces\"\n// Output: \"snakeCaseWithUnderscoresAndSpaces\"\n</code>\n\n<code>// Input: \"snake_case_with_underscores_and_spaces_and_numbers\"\n// Output: \"snakeCaseWithUnderscoresAndSpacesAndNumbers\"\n</code>\n\n<code>// Input: \"snake_case_with_underscores_and_spaces_and_numbers_and_symbols\"\n// Output: \"snakeCaseWithUnderscoresAndSpacesAndNumbersAndSymbols\"\n</code>\n\n<code>// Input: \"snake_case_with_underscores_and_spaces_and_numbers_and_symbols_and_more_underscores\"\n// Output: \"snakeCaseWithUnderscoresAndSpacesAndNumbersAndSymbolsAndMoreUnderscores\"\n</code>\n\n<code>// Input: \"snake_case_with_underscores_and_spaces_and_numbers_and_symbols_and_more_underscores_and_spaces\"\n// Output: \"snakeCaseWithUnderscoresAndSpacesAndNumbersAndSymbolsAndMoreUnderscoresAndSpaces\"\n</code>\n\n<code>// Input: \"snake_case_with_underscores_and_spaces_and_numbers_and_symbols_and_more_underscores_and_spaces_and_more_underscores\"\n// Output: \"snakeCaseWithUnderscoresAndSpacesAndNumbersAndSymbolsAndMoreUnderscoresAndSpacesAndMoreUnderscores\"\n</code>\n\n<code>// Input: \"snake_case_with_underscores_and_spaces_and_numbers_and_symbols_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores\"\n// Output: \"snakeCaseWithUnderscoresAndSpacesAndNumbersAndSymbolsAndMoreUnderscoresAndSpacesAndMoreUnderscoresAndSpacesAndMoreUnderscores\"\n</code>\n\n<code>// Input: \"snake_case_with_underscores_and_spaces_and_numbers_and_symbols_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and_more_underscores_and_spaces_and",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 414,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def overlapping(seq1, seq2):\n    if len(seq1) == 0 or len(seq2) == 0:\n        return False\n    if len(seq1) < len(seq2):\n        seq1, seq2 = seq2, seq1\n    for i in range(len(seq1)):\n        if seq2[0] == seq1[i]:\n            seq2.pop(0)\n            if len(seq2) == 0:\n                return True\n    return False",
+    "steered_code": "def check_value(seq, value):\n    for i in seq:\n        if i == value:\n            return True\n    return False",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 421,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def concatenate_tuple(tuple):\n    return tuple[0] + \"-\" + tuple[1] + \"-\" + str(tuple[2]) + \"-\" + tuple[3]",
+    "steered_code": "def concatenate(tuple, delimiter):\n    return tuple[0] + delimiter + tuple[1]",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 424,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def extract_rear(tup):\n    return [tup[i][-1] for i in range(len(tup))]",
+    "steered_code": "<code>>>> extract_rear_index('abc', 'def')\n('c', 'd')\n>>> extract_rear_index('abc', 'def', 'ghi')\n('c', 'd', 'g')\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. The filament of a 100-W lightbulb is about $10$ cm long and has a diameter of about $0.01$ cm. What is the temperature of the filament when the bulb is on?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. The filament of a 100-W lightbulb is about $10$ cm long and has a diameter of about $0.01$ cm. What is the temperature of the filament when the bulb is on?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. The filament of a 100-W lightbulb is about $10$ cm long and has a diameter of about $0.01$ cm. What is the temperature of the filament when the bulb is on?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. The filament of a 100-W lightbulb is about $10$ cm long and has a diameter of about $0.01$ cm. What is the temperature of the filament when the bulb is on?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. The filament of a 100-W lightbulb is about $10$ cm long and has a diameter of about $0.01$ cm. What is the temperature of the filament when the bulb is on?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. The filament of a 100-W lightbulb is about $10$ cm long and has a diameter of about $0.01$ cm. What is the temperature of the filament when the bulb is on?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. The filament of a 100-W lightbulb is about $10$ cm long and has a diameter of about $0",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 426,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def filter_oddnumbers(numbers):\n    return [x for x in numbers if x % 2 != 0]",
+    "steered_code": "<code>public static void main(String[] args) {\n    int[] arr = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\n    System.out.println(\"Original Array: \");\n    for (int i = 0; i < arr.length; i++) {\n        System.out.print(arr[i] + \" \");\n    }\n    System.out.println();\n    System.out.println(\"Filtered Array: \");\n    for (int i = 0; i < arr.length; i++) {\n        if (arr[i] % 2 == 0) {\n            System.out.print(arr[i] + \" \");\n        }\n    }\n}\n</code>\n\n<code>Original Array: \n1 2 3 4 5 6 7 8 9 10 \nFiltered Array: \n2 4 6 8 10 \n</code>\n\nWrite a function to filter even numbers using lambda function.\n\n<code>public static void main(String[] args) {\n    int[] arr = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\n    System.out.println(\"Original Array: \");\n    for (int i = 0; i < arr.length; i++) {\n        System.out.print(arr[i] + \" \");\n    }\n    System.out.println();\n    System.out.println(\"Filtered Array: \");\n    for (int i = 0; i < arr.length; i++) {\n        if (arr[i] % 2 == 0) {\n            System.out.print(arr[i] + \" \");\n        }\n    }\n}\n</code>\n\n<code>Original Array: \n1 2 3 4 5 6 7 8 9 10 \nFiltered Array: \n2 4 6 8 10 \n</code>\n\nWrite a function to filter odd numbers using lambda function.\n\n<code>public static void main(String[] args) {\n    int[] arr = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\n    System.out.println(\"Original Array: \");\n    for (int i = 0; i < arr.length; i++) {\n        System.out.print(arr[i] + \" \");\n    }\n    System.out.println();\n    System.out.println(\"Filtered Array: \");\n    for (int i = 0; i < arr.length; i++) {\n        if (arr[i] % 2 == 0) {\n            System.out.print(arr[i] + \" \");\n        }\n    }\n}\n</code>\n\n<code>Original Array: \n1 2 3 4 5 6 7 8 9 10 \nFiltered Array: \n2 4 6 8 10 \n</code>\n\nWrite a function to filter even numbers using lambda function.\n\n<code>public static void main(String[] args) {\n    int[] arr = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\n    System.out.println(\"Original Array: \");\n    for (int i = 0; i < arr.length; i++) {\n        System.out",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 433,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_greater(array, number):\n    if number in array:\n        return 'No, entered number is less than those in the array'\n    else:\n        return 'Yes, the entered number is greater than those in the array'",
+    "steered_code": "<code>#include <stdio.h>\n#include <conio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <math.h>\n#include <ctype.h>\n#include <windows.h>\n#include <time.h>\n#include <stdbool.h>\n#include <ctype.h>\n#include <string.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <conio.h>\n#include <math.h>\n#include <string.h>\n#include <ctype.h>\n#include <windows.h>\n#include <time.h>\n#include <stdbool.h>\n#include <ctype.h>\n#include <string.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <conio.h>\n#include <math.h>\n#include <string.h>\n#include <ctype.h>\n#include <windows.h>\n#include <time.h>\n#include <stdbool.h>\n#include <ctype.h>\n#include <string.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <conio.h>\n#include <math.h>\n#include <string.h>\n#include <ctype.h>\n#include <windows.h>\n#include <time.h>\n#include <stdbool.h>\n#include <ctype.h>\n#include <string.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <conio.h>\n#include <math.h>\n#include <string.h>\n#include <ctype.h>\n#include <windows.h>\n#include <time.h>\n#include <stdbool.h>\n#include <ctype.h>\n#include <string.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <conio.h>\n#include <math.h>\n#include <string.h>\n#include <ctype.h>\n#include <windows.h>\n#include <time.h>\n#include <stdbool.h>\n#include <ctype.h>\n#include <string.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <conio.h>\n#include <math.h>\n#include <string.h>\n#include <ctype.h>\n#include <windows.h>\n#include <time.h>\n#include <stdbool.h>\n#include <ctype.h>\n#include <string.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <conio.h>\n#include <math.h>\n#include <string.h>\n#include <ctype.h>\n#include <windows.h>\n#include <time.h>\n#include <stdbool.h>\n#include <ctype.h>\n#include <string.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <conio.h>\n#include <math.h>\n#include <string.h>\n#include <ctype.h>\n#include <windows.h>\n#include <time.h>\n#include <stdbool.h>\n#include <ctype.h>\n#include <string.h>\n#include <stdlib.h",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 435,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def last_Digit(n):\n    return n % 10",
+    "steered_code": "def last_digit(n):\n    return n % 10",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 439,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def multiple_to_single(list_of_ints):\n    return int(\"\".join(map(str, list_of_ints)))",
+    "steered_code": "def multiple_integer_to_single_integer(list_of_integers):\n    return sum(list_of_integers)",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 447,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def cube_nums(nums):\n    return [num**3 for num in nums]",
+    "steered_code": "def cube(x):\n    return x**3",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 455,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_monthnumb_number(month_number):\n    if month_number in [1, 3, 5, 7, 8, 10, 12]:\n        return True\n    else:\n        return False",
+    "steered_code": "def is_31_days(month):\n    if month == 1 or month == 3 or month == 5 or month == 7 or month == 8 or month == 10 or month == 12:\n        return True\n    else:\n        return False",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 474,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def replace_char(string, old_char, new_char):\n    return string.replace(old_char, new_char)",
+    "steered_code": "def replace(string, oldChar, newChar):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 480,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def get_max_occuring_char(string):\n    max_char = \"\"\n    max_count = 0\n    for char in string:\n        if string.count(char) > max_count:\n            max_char = char\n            max_count = string.count(char)\n    return max_char",
+    "steered_code": "def max_occur(str):\n    count = {}\n    for char in str:\n        if char in count:\n            count[char] += 1\n        else:\n            count[char] = 1\n    max_count = max(count.values())\n    for char in count:\n        if count[char] == max_count:\n            return char",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 492,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def binary_search(arr, target):\n    left = 0\n    right = len(arr) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        if arr[mid] == target:\n            return True\n        elif arr[mid] > target:\n            right = mid - 1\n        else:\n            left = mid + 1\n    return False",
+    "steered_code": "<code>#include <stdio.h>\n#include <stdlib.h>\n#include <math.h>\n#include <string.h>\n#include <ctype.h>\n#include <stdbool.h>\n#include <limits.h>\n#include <time.h>\n#include <assert.h>\n#include <limits.h>\n#include <math.h>\n#include <stdbool.h>\n#include <string.h>\n#include <ctype.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <time.h>\n#include <assert.h>\n#include <limits.h>\n#include <math.h>\n#include <stdbool.h>\n#include <string.h>\n#include <ctype.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <time.h>\n#include <assert.h>\n#include <limits.h>\n#include <math.h>\n#include <stdbool.h>\n#include <string.h>\n#include <ctype.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <time.h>\n#include <assert.h>\n#include <limits.h>\n#include <math.h>\n#include <stdbool.h>\n#include <string.h>\n#include <ctype.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <time.h>\n#include <assert.h>\n#include <limits.h>\n#include <math.h>\n#include <stdbool.h>\n#include <string.h>\n#include <ctype.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <time.h>\n#include <assert.h>\n#include <limits.h>\n#include <math.h>\n#include <stdbool.h>\n#include <string.h>\n#include <ctype.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <time.h>\n#include <assert.h>\n#include <limits.h>\n#include <math.h>\n#include <stdbool.h>\n#include <string.h>\n#include <ctype.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <time.h>\n#include <assert.h>\n#include <limits.h>\n#include <math.h>\n#include <stdbool.h>\n#include <string.h>\n#include <ctype.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <time.h>\n#include <assert.h>\n#include <limits.h>\n#include <math.h>\n#include <stdbool.h>\n#include <string.h>\n#include <ctype.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <time.h>\n#include <assert.h>\n#include <limits.h>\n#include <math.h>\n#include <stdbool.h>\n#include <string.h>\n#include <ctype.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <time.h>\n#include <assert.h>\n#include <limits.h",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 495,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def remove_lowercase(string):\n    return re.sub(r'[a-z]+', '', string)",
+    "steered_code": "<code>function remove(str) {\n    return str.replace(/a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z/g, '');\n}\n</code>\n\nThe function should return the string without the lowercase letters.\n\n<code>console.log(remove('abcde')); // abcde\nconsole.log(remove('abcdef')); // abcde\nconsole.log(remove('abcdefg')); // abcde\nconsole.log(remove('abcdefghij')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.log(remove('abcdefghijk')); // abcde\nconsole.",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 499,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def diameter_circle(radius):\n    return 2*radius",
+    "steered_code": "The diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the distance from the center of the circle to any point on the circle.\n\nThe diameter of a circle is the",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 504,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def sum_Of_Series(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**3\n    return sum",
+    "steered_code": "def cube_sum(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i**3\n    return sum",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 507,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def remove_words(words, words_to_remove):\n    return [word for word in words if word not in words_to_remove]",
+    "steered_code": "def remove(list, word):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 516,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def radix_sort(list):\n    max_value = max(list)\n    for i in range(1, max_value + 1):\n        buckets = [[] for _ in range(10)]\n        for item in list:\n            bucket_index = (item // i) % 10\n            buckets[bucket_index].append(item)\n        list = [item for bucket in buckets for item in bucket]\n    return list",
+    "steered_code": "A 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C }$). What is the temperature of the filament when hot?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C }$). What is the temperature of the filament when hot?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C }$). What is the temperature of the filament when hot?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C }$). What is the temperature of the filament when hot?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C }$). What is the temperature of the filament when hot?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C }$). What is the temperature of the filament when hot?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C }$). What is the temperature of the filament when hot?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C }$). What is the temperature of the filament when hot?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C }$). What is the temperature of the filament when hot?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$^ { \\circ } \\mathrm { C } )$ and $140 \\Omega$ when on (100$^ { \\circ } \\mathrm { C }$).",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 517,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def largest_pos(list):\n    max_num = list[0]\n    for i in list:\n        if i > max_num:\n            max_num = i\n    return max_num",
+    "steered_code": "def largest_postive(list):\n    largest = 0\n    for i in list:\n        if i > largest:\n            largest = i\n    return largest",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 532,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_permutation(s1, s2):\n    if len(s1) != len(s2):\n        return False\n    s1 = list(s1)\n    s2 = list(s2)\n    s1.sort()\n    s2.sort()\n    return s1 == s2",
+    "steered_code": "def isPermutation(s1, s2):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 542,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def fill_spaces(string):\n    return string.replace(' ', ':').replace(',', ':').replace('.', ':')",
+    "steered_code": "def replace_all(string):\n    return string.replace(' ', ':').replace(',', ':').replace('.', ':')",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 562,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def Find_Max_Length(arr):\n    max_length = 0\n    for i in range(len(arr)):\n        for j in range(i+1, len(arr)):\n            if len(arr[i]) > len(arr[j]):\n                max_length = len(arr[i])\n            else:\n                max_length = len(arr[j])\n    return max_length",
+    "steered_code": "def max_length(lst):\n    max_length = 0\n    for i in range(len(lst)):\n        if len(lst[i]) > max_length:\n            max_length = len(lst[i])\n    return max_length",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 565,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def split(string):\n    return [char for char in string]",
+    "steered_code": "def split_string(string):\n    return list(string)",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 566,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def sum_digits(n):\n    if n < 0:\n        return -1\n    else:\n        return sum(map(int, str(n)))",
+    "steered_code": "<code>int sum(int n)\n</code>\n\nThe function returns the sum of the digits in n. For example, sum(123) = 6, because 123 = 1 + 2 + 3.\n\nWrite a test program that prompts the user to enter a non-negative integer and displays its sum.\n\n$\\text{\\red{Apply Concepts}}$\u2002 Describe one or more advantages of using biotechnology to produce hormones, instead of using traditional methods.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C)^{-1}}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 587,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def list_tuple(l):\n    return tuple(l)",
+    "steered_code": "The function should take a list of integers and return a tuple of the same integers.\n\n<code>>>> list_to_tuple([1, 2, 3])\n(1, 2, 3)\n</code>\n\nThe function should not modify the original list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function should not create a new tuple.\n\nThe function should not create a new list.\n\nThe function",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 588,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def big_diff(arr):\n    max_val = arr[0]\n    min_val = arr[0]\n    for i in range(1, len(arr)):\n        if arr[i] > max_val:\n            max_val = arr[i]\n        if arr[i] < min_val:\n            min_val = arr[i]\n    return max_val - min_val",
+    "steered_code": "def find_diff(arr):\n    max = arr[0]\n    min = arr[0]\n    for i in range(1, len(arr)):\n        if arr[i] > max:\n            max = arr[i]\n        if arr[i] < min:\n            min = arr[i]\n    return max - min",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 596,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def tuple_size(tuple):\n    return sys.getsizeof(tuple)",
+    "steered_code": "def size(t):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 599,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def sum_average(n):\n    sum = 0\n    for i in range(1, n+1):\n        sum += i\n    return sum, sum/n",
+    "steered_code": "Write a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to find sum and average of first n natural numbers.\n\nWrite a function to",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 600,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def is_Even(num):\n    return (num & 1) == 0",
+    "steered_code": "def is_even(num):\n    return (num & 1) == 0",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 616,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def tuple_modulo(tuple1, tuple2):\n    return tuple(x % y for x, y in zip(tuple1, tuple2))",
+    "steered_code": "def modulo(tuple1, tuple2):\n    return tuple(x % y for x, y in zip(tuple1, tuple2))",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 627,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def find_First_Missing(arr, start, end):\n    if start == end:\n        return start\n    if start > end:\n        return start\n    for i in range(start, end + 1):\n        if i not in arr:\n            return i\n    return end + 1",
+    "steered_code": "<strong>Input:</strong>\n\nThe first line of input contains an integer T denoting the number of test cases. The first line of each test case contains an integer N denoting the size of the array. The second line of each test case contains N space separated integers denoting the array.\n\n<strong>Output:</strong>\n\nFor each test case, print the smallest missing number in a new line.\n\n<strong>Constraints:</strong>\n\n1 \u2264 T \u2264 100\n\n1 \u2264 N \u2264 1000\n\n1 \u2264 A[i] \u2264 1000",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 637,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def noprofit_noloss(a,b):\n    if a==b:\n        return True\n    else:\n        return False",
+    "steered_code": "def checkProfit(amount):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 643,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def text_match_wordz_middle(text):\n    if text.count('z') == 0:\n        return 'Not matched!'\n    else:\n        return 'Found a match!'",
+    "steered_code": "def is_z(word):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 658,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def max_occurrences(l):\n    max_count = 0\n    max_item = None\n    for item in l:\n        if l.count(item) > max_count:\n            max_count = l.count(item)\n            max_item = item\n    return max_item",
+    "steered_code": "<code>>>> max_occurrences(range(10))\n10\n>>> max_occurrences([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])\n10\n>>> max_occurrences([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])\n11\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045\\left(\\mathrm{C}^{\\circ}\\right)^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045\\left(\\mathrm{C}^{\\circ}\\right)^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045\\left(\\mathrm{C}^{\\circ}\\right)^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045\\left(\\mathrm{C}^{\\circ}\\right)^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045\\left(\\mathrm{C}^{\\circ}\\right)^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045\\left(\\mathrm{C}^{\\circ}\\right)^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045\\left(\\mathrm{C}^{\\circ}\\right)^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045\\left(\\mathrm{C}^{\\",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 673,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def convert(nums):\n    return int(''.join(map(str, nums)))",
+    "steered_code": "The function should take a list of integers as input and return a single integer.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not return an error if the list is empty.\n\nThe function should be able to handle lists of any size and should not",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 682,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def mul_list(list1, list2):\n    return list(map(lambda x, y: x*y, list1, list2))",
+    "steered_code": "def multiply(list1, list2):\n    return map(lambda x: x * x, list1) * map(lambda x: x * x, list2)",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 697,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def count_even(lst):\n    return sum(1 for x in lst if x%2==0)",
+    "steered_code": "def even_count(lst):\n    return sum(1 for i in lst if i % 2 == 0)</code>",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 700,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def count_range_in_list(list,start,end):\n    count = 0\n    for i in list:\n        if start <= i <= end:\n            count += 1\n    return count",
+    "steered_code": "def count_in_range(lst, low, high):\n    count = 0\n    for i in lst:\n        if i >= low and i <= high:\n            count += 1\n    return count",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 715,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def str_to_tuple(s):\n    return tuple(map(int, s.split(\",\")))",
+    "steered_code": "<code>>>> convert_tuple('1 2 3 4 5')\n(1, 2, 3, 4, 5)\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 719,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def text_match(text):\n    if text.count('a') == 0:\n        return 'Not matched!'\n    else:\n        return 'Found a match!'",
+    "steered_code": "For example, the string \"abbabbabb\" matches the function, but \"abbabbab\" does not.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. (a) What is its power consumption in its normal operating temperature?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). (a) What is its power consumption in its normal operating temperature? (b) What is its power consumption when it is turned on but connected in a circuit of $120-\\mathrm{V}$ ac?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). (a) What is its power consumption in its normal operating temperature? (b) What is its power consumption when it is turned on but connected in a circuit of $120-\\mathrm{V}$ ac?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). (a) What is its power consumption in its normal operating temperature? (b) What is its power consumption when it is turned on but connected in a circuit of $120-\\mathrm{V}$ ac?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). (a) What is its power consumption in its normal operating temperature? (b) What is its power consumption when it is turned on but connected in a circuit of $120-\\mathrm{V}$ ac?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). (a) What is its power consumption in its normal operating temperature? (b) What is its power consumption when it is turned on but connected in a circuit of $120-\\mathrm{V}$ ac?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). (a) What is its power consumption in its normal operating temperature? (b) What is its power consumption when it is turned on but connected in a circuit of $120-\\mathrm{V}$ ac?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). (a) What is its power consumption in its normal operating temperature? (b) What is its power consumption when it is turned on but connected in a circuit of $120-\\mathrm{V}$ ac?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C).",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 728,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def sum_list(list1, list2):\n    return [x+y for x,y in zip(list1, list2)]",
+    "steered_code": "For example, the following two lists:\n\n<code>int a[] = {1, 2, 3, 4, 5};\nint b[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};\n</code>\n\nshould be summed to produce the following list:\n\n<code>int c[] = {10, 12, 15, 16, 20, 21, 24, 25, 27};\n</code>\n\nThe function should be written as follows:\n\n<code>int sum(int a[], int b[], int n)\n</code>\n\nwhere n is the number of elements in each list.\n\nA 100-W lightbulb is screwed into a $120-\\mathrm{V}$ socket\u2014parallel to the terminal\u2014and is rated $9.0 \\mathrm{~W}$. What is the resistance of the bulb?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\mathrm{C}\\mathrm{^\\circ})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\mathrm{C}\\mathrm{^\\circ})^{-1}$.",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 729,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def add_list(list1, list2):\n    return list(map(lambda x: x[0]+x[1], zip(list1, list2)))",
+    "steered_code": "def add_list(list1, list2):\n    return map(lambda x: x + 1, list1) + list2",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 732,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def replace_specialchar(s):\n    return s.replace(',',':').replace(' ',':').replace('.',':')",
+    "steered_code": "<code>>>> replace_colon(\"This is a sentence with a space, comma, and dot.\")\n\"This:is:a:sentence:with:a:space,comma,and:dot.\"\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (10",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 736,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def left_insertion(arr, val):\n    i = 0\n    while i < len(arr) and arr[i] < val:\n        i += 1\n    return i",
+    "steered_code": "The function should return the index where the value should be inserted. Assume that the list is nonempty.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 744,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_none(tuple):\n    for i in tuple:\n        if i is None:\n            return True\n    return False",
+    "steered_code": "def is_none(tuple):\n    for i in tuple:\n        if i is None:\n            return True\n    return False",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 764,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def number_ctr(string):\n    count = 0\n    for i in string:\n        if i.isdigit():\n            count += 1\n    return count",
+    "steered_code": "def count_numeric(string):\n    count = 0\n    for i in string:\n        if i.isdigit():\n            count += 1\n    return count",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 768,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_Odd_Parity(num):\n    if num % 2 == 0:\n        return False\n    else:\n        return True",
+    "steered_code": "def odd_parity(n):\n    if n % 2 == 0:\n        return False\n    else:\n        return True",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 775,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def odd_position(list):\n    for i in range(len(list)):\n        if i % 2 == 0:\n            if list[i] % 2 != 0:\n                return False\n    return True",
+    "steered_code": "def check_odd_index(list):\n    for i in range(len(list)):\n        if i % 2 == 0:\n            if list[i] % 2 == 1:\n                return True\n    return False",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 777,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def find_Sum(arr, n):\n    # Write your code here\n    sum = 0\n    for i in range(n):\n        if arr[i] not in arr[i+1:]:\n            sum += arr[i]\n    return sum",
+    "steered_code": "<strong>Input:</strong>\n\nThe first line of input contains an integer T denoting the number of test cases. The first line of each test case contains an integer N denoting the size of the array. The second line of each test case contains N space separated integers denoting the elements of the array.\n\n<strong>Output:</strong>\n\nFor each test case, print the sum of non-repeated elements in a new line.\n\n<strong>Constraints:</strong>\n\n1 \u2264 T \u2264 100\n\n1 \u2264 N \u2264 1000\n\n0 \u2264 A[i] \u2264 1000\n\n<strong>Example:</strong>\n\n<strong>Input:</strong>\n\n2\n4\n1 2 3 4\n5\n1 2 3 4 5\n\n<strong>Output:</strong>\n\n6\n10",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 784,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def mul_even_odd(lst):\n    even_lst = []\n    odd_lst = []\n    for i in lst:\n        if i%2==0:\n            even_lst.append(i)\n        else:\n            odd_lst.append(i)\n    return even_lst[0]*odd_lst[0]",
+    "steered_code": "<code>#include <iostream>\nusing namespace std;\nint main()\n{\n    int n, i, even, odd;\n    cout << \"Enter the number of elements in the list: \";\n    cin >> n;\n    int a[n];\n    cout << \"Enter the elements of the list: \";\n    for (i = 0; i < n; i++)\n        cin >> a[i];\n    even = 0;\n    odd = 0;\n    for (i = 0; i < n; i++)\n    {\n        if (a[i] % 2 == 0)\n            even = even + a[i];\n        else\n            odd = odd + a[i];\n    }\n    cout << \"The product of even numbers is \" << even << endl;\n    cout << \"The product of odd numbers is \" << odd << endl;\n    return 0;\n}\n</code>\n\n<strong>Input</strong>\n\n<code>Enter the number of elements in the list: 5\nEnter the elements of the list: 1 2 3 4 5\n</code>\n\n<strong>Output</strong>\n\n<code>The product of even numbers is 10\nThe product of odd numbers is 10\n</code>\n\nWrite a function to find the sum of all the elements of a given list.\n\n<code>#include <iostream>\nusing namespace std;\nint main()\n{\n    int n, i, sum = 0;\n    cout << \"Enter the number of elements in the list: \";\n    cin >> n;\n    int a[n];\n    cout << \"Enter the elements of the list: \";\n    for (i = 0; i < n; i++)\n        cin >> a[i];\n    for (i = 0; i < n; i++)\n        sum = sum + a[i];\n    cout << \"The sum of all the elements is \" << sum << endl;\n    return 0;\n}\n</code>\n\n<strong>Input</strong>\n\n<code>Enter the number of elements in the list: 5\nEnter the elements of the list: 1 2 3 4 5\n</code>\n\n<strong>Output</strong>\n\n<code>The sum of all the elements is 15\n</code>\n\nWrite a function to find the maximum and minimum element of a given list.\n\n<code>#include <iostream>\nusing namespace std;\nint main()\n{\n    int n, i, min, max;\n    cout << \"Enter the number of elements in the list: \";\n    cin >> n;\n    int a[n];\n    cout << \"Enter the elements of the list: \";\n    for (i = 0; i < n; i++)\n        cin >> a[i];\n    min = a[0];\n    max = a[0];\n    for (i = 1; i < n; i++)\n    {\n        if (a[i] < min)\n            min = a[i];\n        if (a[i] > max)\n            max = a[i];\n    }\n    cout << \"The minimum element is \" << min << endl;\n    cout << \"The maximum element is \" << max << endl;\n    return 0;\n}\n</code>\n\n<strong>Input</strong>\n\n<code>Enter the number of elements in the list: 5\nEnter the elements of the list: 1 2 3 4 5\n</code>\n\n<strong>Output</strong>\n\n<code>The minimum element is 1\nThe maximum element is 5\n</code>\n\nWrite a function to find the average of all the elements of a given list.\n\n<code>#include <iostream>",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 790,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def even_position(lst):\n    for i in range(len(lst)):\n        if i % 2 == 0:\n            if lst[i] % 2 == 0:\n                return True\n            else:\n                return False\n    return False",
+    "steered_code": "def check_even_index(list):\n    for i in range(len(list)):\n        if i % 2 == 0:\n            if list[i] % 2 == 0:\n                print(list[i], \"is even\")\n            else:\n                print(list[i], \"is odd\")",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 792,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def count_list(list_of_lists):\n    count = 0\n    for i in list_of_lists:\n        if len(i) > 1:\n            count += 1\n    return count",
+    "steered_code": "def count_lists(lists):\n    count = 0\n    for i in lists:\n        if type(i) == list:\n            count += 1\n    return count",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 794,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def text_starta_endb(text):\n    if text.startswith('a') and text.endswith('b'):\n        return 'Found a match!'\n    else:\n        return 'Not matched!'",
+    "steered_code": "<code>>>> match(\"ab\")\nTrue\n>>> match(\"ab\")\nFalse\n>>> match(\"ab\")\nFalse\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 796,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def return_sum(d):\n    return sum(d.values())",
+    "steered_code": "def sum_items(d):\n    return sum(d.values())",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 800,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def remove_all_spaces(s):\n    return s.replace(' ', '')",
+    "steered_code": "<code>#include <iostream>\n#include <string>\nusing namespace std;\n\nint main()\n{\n    string s;\n    cin >> s;\n    cout << s << endl;\n    remove_whitespaces(s);\n    cout << s << endl;\n    return 0;\n}\n\nvoid remove_whitespaces(string &s)\n{\n    for (int i = 0; i < s.length(); i++)\n    {\n        if (s[i] != ' ')\n        {\n            s[i] = ' ';\n        }\n    }\n}\n</code>\n\nThe following statement is true:\n\n<code>int i = 10;\ni = i + 10;\n</code>\n\nThe following statement is false:\n\n<code>int i = 10;\ni = i + 10;\ni = i + 10;\n</code>\n\nExplain why the second statement is false.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(900\\degree\\mathrm{C})$. (a) What is its power consumption in its normal operating temperature? (b) What are its (i) wattage and (ii) resistance when it is $10$% brighter than when cold? (c) How much time would it take to raise the temperature of the bulb from $20\\degree\\mathrm{C}$ to $900\\degree\\mathrm{C}$ and back if it operated at its normal power of $100 \\mathrm{~W}$?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(900\\degree\\mathrm{C})$. (a) What is its resistance when it is on? (b) What is its power consumption when it is on? (c) When the bulb is on, what is the current through the filament? (d) What is the power dissipated in the filament? (e) What is the temperature of the filament when it is on? (f) What happens to the lightbulb when the temperature of the filament approaches $0\\degree\\mathrm{C}$?",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 808,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_K(tuples, k):\n    for i in tuples:\n        if i == k:\n            return True\n    return False",
+    "steered_code": "def check(tuples, k):\n    for tuple in tuples:\n        if tuple[0] == k:\n            return True\n    return False",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 811,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_identical(a, b):\n    if len(a) != len(b):\n        return False\n    for i in range(len(a)):\n        if a[i] != b[i]:\n            return False\n    return True",
+    "steered_code": "def is_identical(lst1, lst2):\n    if len(lst1) != len(lst2):\n        return False\n    for i in range(len(lst1)):\n        if lst1[i] != lst2[i]:\n            return False\n    return True",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 824,
+    "baseline_passed": true,
+    "steered_correct": true,
+    "preserved": true,
+    "baseline_code": "def remove_even(lst):\n    return [x for x in lst if x % 2 != 0]",
+    "steered_code": "def remove_even(lst):\n    for i in lst:\n        if i % 2 == 0:\n            lst.remove(i)\n    return lst",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 827,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def sum_column(list_of_lists, column):\n    return sum([row[column] for row in list_of_lists])",
+    "steered_code": "def sum_column(list_of_lists, column):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 828,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def count_alpha_dig_spl(s):\n    alpha_count = 0\n    dig_count = 0\n    spl_count = 0\n    for i in s:\n        if i.isalpha():\n            alpha_count += 1\n        elif i.isdigit():\n            dig_count += 1\n        else:\n            spl_count += 1\n    return alpha_count,dig_count,spl_count",
+    "steered_code": "#include<stdio.h>\n#include<string.h>\nint main()\n{\n    char str[100];\n    int i,count=0;\n    printf(\"Enter a string: \");\n    scanf(\"%s\",str);\n    for(i=0;str[i]!='\\0';i++)\n    {\n        if(str[i]>='a' && str[i]<='z')\n        {\n            count++;\n        }\n        else if(str[i]>='A' && str[i]<='Z')\n        {\n            count++;\n        }\n        else if(str[i]>='0' && str[i]<='9')\n        {\n            count++;\n        }\n        else\n        {\n            count++;\n        }\n    }\n    printf(\"Total number of alphabets,digits and special characters are %d\",count);\n    return 0;\n}",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 833,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def get_key(d):\n    return list(d.keys())",
+    "steered_code": "<code>>>> get_keys(dict1)\n['a', 'b', 'c']\n>>> get_keys(dict2)\n['a', 'b', 'c', 'd']\n</code>\n\nThe following program is supposed to print the sum of the squares of the first 100 positive integers. However, it has a bug. What is it?\n\n<code>#include <iostream>\nusing namespace std;\nint main()\n{\n    int sum = 0;\n    for (int i = 1; i <= 100; i++)\n        sum += i * i;\n    cout << sum << endl;\n    return 0;\n}\n</code>\n\nA 100-W lightbulb is screwed into a $110-\\mathrm{V}$ socket that has a resistance of $15 \\Omega$ independent of the bulb's resistance. What is the power dissipated in the bulb?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament of the lightbulb when it is on. The temperature coefficient of resistance at $910 \\mathrm{~K}$ is $\\alpha=0.0045 /{ }^{\\circ} \\mathrm{C}$.",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 839,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def sort_tuple(tuples):\n    return sorted(tuples, key=lambda x: x[0])",
+    "steered_code": "def sort_by_first(tuples):\n    return sorted(tuples, key=lambda x: x[0])",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 841,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def get_inv_count(arr, n):\n    count = 0\n    for i in range(n):\n        for j in range(i+1, n):\n            if arr[i] > arr[j]:\n                count += 1\n    return count",
+    "steered_code": "An inversion is a pair of elements $a_i$ and $a_j$ such that $i < j$ but $a_i > a_j$.\n\n<code>>>> countInversions(array=[1, 2, 3, 4, 5])\n0\n>>> countInversions(array=[1, 2, 3, 4, 5, 6])\n3\n>>> countInversions(array=[1, 2, 3, 4, 5, 6, 7])\n10\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 848,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def area_trapezium(a,b,h):\n    return (a+b)*h/2",
+    "steered_code": "The function should take two parameters, the length of the two parallel sides and the distance between them.\n\nThe function should return the area of the trapezium.\n\nThe function should be written in C++ and should be called from the main function.\n\nThe main function should ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display the result.\n\nThe main function should then ask the user to enter the length of the two parallel sides and the distance between them.\n\nThe main function should then call the function to find the area of the trapezium and display",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 855,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def check_Even_Parity(num):\n    if num % 2 == 0:\n        return True\n    else:\n        return False",
+    "steered_code": "def even_parity(num):\n    if num % 2 == 0:\n        return True\n    else:\n        return False",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 891,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def same_Length(a,b):\n    if len(str(a)) == len(str(b)):\n        return True\n    else:\n        return False",
+    "steered_code": "def check_same_digits(num1, num2):\n    if len(str(num1)) == len(str(num2)):\n        return True\n    else:\n        return False",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 894,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def float_to_tuple(string):\n    return tuple(map(float, string.split(\",\")))",
+    "steered_code": "def float_to_tuple(float_str):\n    return float_str.split()",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 896,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def sort_list_last(lst):\n    return sorted(lst, key=lambda x: x[-1])",
+    "steered_code": "<code>>>> sort_list([('a', 1), ('b', 2), ('c', 3)])\n[('c', 3), ('b', 2), ('a', 1)]\n</code>\n\nThe following program is supposed to print the sum of the first 100 positive integers. However, it has a bug. What is it?\n\n<code>#include <iostream>\nusing namespace std;\nint main()\n{\n    int sum = 0;\n    for (int i = 1; i <= 100; i++)\n        sum += i;\n    cout << sum << endl;\n    return 0;\n}\n</code>\n\nA 100-W lightbulb is placed in a cylinder of air at room temperature. The radius of the lightbulb filament is $0.25 \\mathrm{~mm}$, and the temperature of the filament is essentially constant during the lightbulb's lifetime. Treating the lightbulb as a cylinder of radius $0.25 \\mathrm{~mm}$ and length $0.85 \\mathrm{~cm}$, calculate the amount of time it would take for the lightbulb to melt.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament when hot assuming (a) it remains in thermal equilibrium with its surroundings, (b) the temperature of the filament is always $1000^{\\circ} \\mathrm{C}$, (c) the temperature of the filament is always $20^{\\circ} \\mathrm{C}$.",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 897,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def is_Word_Present(sentence,word):\n    if word in sentence:\n        return True\n    else:\n        return False",
+    "steered_code": "<strong>Input:</strong>\n\nThe first line of input contains an integer T denoting the number of test cases. The first line of each test case contains a string S. The second line of each test case contains a string T.\n\n<strong>Output:</strong>\n\nFor each test case, print 1 if the word T is present in the string S, otherwise print 0.\n\n<strong>Constraints:</strong>\n\n1 \u2264 T \u2264 1000\n\n1 \u2264 |S| \u2264 1000\n\n1 \u2264 |T| \u2264 1000\n\n<strong>Example:</strong>\n\n<strong>Input:</strong>\n\n2\nhello\nhello\nhello\nhello\n\n<strong>Output:</strong>\n\n1\n0\n1\n0",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 902,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def add_dict(d1, d2):\n    for key in d2:\n        if key in d1:\n            d1[key] += d2[key]\n        else:\n            d1[key] = d2[key]\n    return d1",
+    "steered_code": "<code>>>> d1 = {'a': 1, 'b': 2, 'c': 3}\n>>> d2 = {'a': 4, 'b': 5, 'c': 6}\n>>> d1.update(d2)\n>>> d1\n{'a': 4, 'b': 5, 'c': 6}\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$ C) and $140 \\Omega$ when on (100$\\degree$ C). Estimate the temperature of the filament when lit.\n\nA 100",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 904,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def even_num(num):\n    if num % 2 == 0:\n        return True\n    else:\n        return False",
+    "steered_code": "<code>#include <iostream>\nusing namespace std;\nint main()\n{\n    int num;\n    cout << \"Enter a number: \";\n    cin >> num;\n    bool isEven = isEven(num);\n    cout << \"The number is even: \" << isEven << endl;\n    return 0;\n}\nbool isEven(int num)\n{\n    if (num % 2 == 0)\n        return true;\n    else\n        return false;\n}\n</code>\n\nA 100-W lightbulb is placed in a cylinder of air at 14.7 psi (gage) and 60$^{\\circ} \\mathrm{F}$. The top of the cylinder is removed, so the bulb is completely exposed. How long will it take $\\left( t_{1}\\right)$ for the lightbulb to burn out?\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament of the lightbulb when it is hot.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament of the lightbulb when it is hot. <em>Hint:</em> Treat the lightbulb as a resistor.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $\\left(20^{\\circ} \\mathrm{C}\\right)$ and $140 \\Omega$ when on (hot). Estimate the temperature of the filament of the lightbulb when it is hot. <em>Hint:</em> Treat the lightbulb as a resistor.",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 908,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def find_fixed_point(arr, n):\n    for i in range(n):\n        if arr[i] == i:\n            return i\n    return -1",
+    "steered_code": "<code>int findFixedPoint(int arr[], int n)\n</code>\n\nThe function should return the index of the fixed point in the array or return -1 if there is no fixed point. A fixed point is a value in the array that appears at the same position in the sorted array.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C)^{-1}}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 913,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def end_num(s):\n    return s[-1].isdigit()",
+    "steered_code": "<code>>>> check_end('1234567890')\nTrue\n>>> check_end('12345678901')\nFalse\n</code>\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C)^{-1}}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1}$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045 (\\degree\\mathrm{C})^{-1",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 919,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def multiply_list(list):\n    return reduce(lambda x,y: x*y, list)",
+    "steered_code": "def multiply_all(list):\n    return list * 2",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 929,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def count_tuplex(tup, n):\n    count = 0\n    for i in range(len(tup)):\n        if tup[i] == n:\n            count += 1\n    return count",
+    "steered_code": "def count_repeated(tuple):\n    \"\"\"Count the number of repeated items in a tuple.\n\n    >>> count_repeated((1, 2, 3, 4, 5, 6, 7, 8, 9, 10))\n    3\n    >>> count_repeated((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11))\n    4\n    >>> count_repeated((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12))\n    5\n    >>> count_repeated((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13))\n    6\n    >>> count_repeated((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14))\n    7\n    >>> count_repeated((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15))\n    8\n    >>> count_repeated((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16))\n    9\n    >>> count_repeated((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17))\n    10\n    >>> count_repeated((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18))\n    11\n    >>> count_repeated((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19))\n    12\n    >>> count_repeated((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20))\n    13\n    >>> count_repeated((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21))\n    14\n    >>> count_repeated((1, 2, 3, 4, 5, 6, 7, 8",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 937,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def max_char(s):\n    count = {}\n    for c in s:\n        if c in count:\n            count[c] += 1\n        else:\n            count[c] = 1\n    return max(count, key=count.get)",
+    "steered_code": "def count_common_char(s):\n    \"\"\"\n    Count the most common character in a given string.\n    \"\"\"\n    # Your code here\n    return 0",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 945,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def tuple_to_set(tuples):\n    return set(tuples)",
+    "steered_code": "def convert(tuple):\n    return set(tuple)",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 947,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def len_log(words):\n    return min(len(word) for word in words)",
+    "steered_code": "def find_shortest_word(words):\n    shortest_word = words[0]\n    for word in words:\n        if len(word) < len(shortest_word):\n            shortest_word = word\n    return shortest_word",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 948,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def get_item(tuple, index):\n    return tuple[index]",
+    "steered_code": "def get(self, index):",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 954,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def profit_amount(amount, profit):\n    if amount > profit:\n        return amount - profit\n    else:\n        return None",
+    "steered_code": "def profit(amount):\n    if amount > 0:\n        return amount\n    else:\n        return None",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  },
+  {
+    "task_id": 970,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "preserved": false,
+    "baseline_code": "def min_of_two(a,b):\n    if a<b:\n        return a\n    else:\n        return b",
+    "steered_code": "<code>int min(int x, int y)\n</code>\n\nThe function returns the minimum of x and y.\n\nWrite a test program that prompts the user to enter two numbers and displays the minimum.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold $(20\\degree\\mathrm{C})$ and $140 \\Omega$ when on $(100\\degree\\mathrm{C})$. Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\alpha=0.0045~ (\\Omega/~ \\degree\\mathrm{C})$.\n\nA 100-W lightbulb has a resistance of about $12 \\Omega$ when cold (20$\\degree$C) and $140 \\Omega$ when on (100$\\degree$C). Estimate the temperature of the filament when hot assuming an average temperature coefficient of resistivity $\\",
+    "steering_type": "correct",
+    "coefficient": 30.0
+  }
+]

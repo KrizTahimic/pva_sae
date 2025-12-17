@@ -1,0 +1,78 @@
+{
+  "error_acknowledging": [
+    {
+      "token": "problem",
+      "count": 8,
+      "n_samples": 2,
+      "avg_score": 0.06523723341524601,
+      "std_score": 0.4580135166958898,
+      "min_score": -0.8097455501556396,
+      "max_score": 0.8660701513290405
+    },
+    {
+      "token": "Wait",
+      "count": 7,
+      "n_samples": 2,
+      "avg_score": -0.14823926985263824,
+      "std_score": 0.5815344649603235,
+      "min_score": -0.7460559010505676,
+      "max_score": 0.7591493129730225
+    },
+    {
+      "token": "wait",
+      "count": 4,
+      "n_samples": 1,
+      "avg_score": 0.4126073122024536,
+      "std_score": 0.047775975981364655,
+      "min_score": 0.3660993278026581,
+      "max_score": 0.48934024572372437
+    },
+    {
+      "token": "Hmm",
+      "count": 2,
+      "n_samples": 2,
+      "avg_score": -0.08996908366680145,
+      "std_score": 0.19377197325229645,
+      "min_score": -0.2837410569190979,
+      "max_score": 0.103802889585495
+    },
+    {
+      "token": "mistake",
+      "count": 2,
+      "n_samples": 1,
+      "avg_score": -0.31737516820430756,
+      "std_score": 0.04346282780170441,
+      "min_score": -0.36083799600601196,
+      "max_score": -0.27391234040260315
+    },
+    {
+      "token": "Problem",
+      "count": 1,
+      "n_samples": 1,
+      "avg_score": -0.31774088740348816,
+      "std_score": 0.0,
+      "min_score": -0.31774088740348816,
+      "max_score": -0.31774088740348816
+    },
+    {
+      "token": "wrong",
+      "count": 1,
+      "n_samples": 1,
+      "avg_score": -0.3033539056777954,
+      "std_score": 0.0,
+      "min_score": -0.3033539056777954,
+      "max_score": -0.3033539056777954
+    }
+  ],
+  "correctness_claiming": [
+    {
+      "token": "correct",
+      "count": 4,
+      "n_samples": 1,
+      "avg_score": 0.5845780372619629,
+      "std_score": 0.1647741249655476,
+      "min_score": 0.38544517755508423,
+      "max_score": 0.8404520750045776
+    }
+  ]
+}

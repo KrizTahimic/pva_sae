@@ -32,7 +32,7 @@ from common.config import (
     MIN_CORRECTION_EFFECT_PERCENT, MIN_PRESERVATION_EFFECT_PERCENT, PLOT_DPI
 )
 from common.steering_metrics import (
-    create_steering_hook,
+    create_last_position_steering_hook,
     calculate_correction_rate,
     calculate_corruption_rate
 )
@@ -386,7 +386,7 @@ class SteeringEffectAnalyzer:
                                                    logger, total=len(problems_to_process),
                                                    desc=f"{steering_type.capitalize()} steering")):
 
-            hook_fn = create_steering_hook(latent_direction, coefficient)
+            hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
             target_module = self.model.model.layers[target_layer]
             hook_handle = target_module.register_forward_pre_hook(hook_fn)
             attention_extractor.setup_hooks()

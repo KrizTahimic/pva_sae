@@ -32,7 +32,7 @@ from common.phase_discovery import (
 )
 from common.config import Config, MEMORY_HIGH_PERCENT, MEMORY_WARNING_PERCENT
 from common.steering_metrics import (
-    create_steering_hook,
+    create_last_position_steering_hook,
     calculate_correction_rate,
     calculate_corruption_rate
 )
@@ -276,7 +276,7 @@ class InstructSteeringAnalyzer:
                                               start=start_idx):
             
             # Setup hook for this specific task
-            hook_fn = create_steering_hook(latent_direction, coefficient)
+            hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
             target_module = self.model.model.layers[target_layer]
             hook_handle = target_module.register_forward_pre_hook(hook_fn)
             

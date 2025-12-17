@@ -1,0 +1,642 @@
+[
+  {
+    "task_id": 38,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 40,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 43,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 44,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 45,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 46,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 48,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 49,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 50,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 51,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 54,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 55,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 56,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 61,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 62,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 63,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 64,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 65,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 66,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 67,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 101,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 102,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 108,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 109,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 113,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 114,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 116,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 118,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 119,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 120,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 124,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 125,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 128,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 130,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 131,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 135,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 137,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 138,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 140,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 141,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 1,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 2,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 3,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 5,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 7,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 11,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 13,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 14,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 15,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 16,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 18,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 19,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 21,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 22,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 24,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 25,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 27,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 29,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 31,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 33,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 69,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 70,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 72,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 74,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 77,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 78,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 80,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 81,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 82,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 83,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 84,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 85,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 88,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 89,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 94,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 96,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 97,
+    "baseline_passed": true,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 98,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 99,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  },
+  {
+    "task_id": 100,
+    "baseline_passed": false,
+    "success": true,
+    "has_think_block": false,
+    "think_content": "",
+    "token_results": []
+  }
+]

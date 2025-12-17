@@ -28,7 +28,7 @@ from common.config import (
     Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_WARNING_PERCENT, MEMORY_CRITICAL_PERCENT
 )
 from common.steering_metrics import (
-    create_steering_hook,
+    create_last_position_steering_hook,
     calculate_correction_rate,
     calculate_corruption_rate,
     calculate_preservation_rate,
@@ -227,7 +227,7 @@ class SteeringCoefficientSelector:
             
             
             # Setup hook for this specific task
-            hook_fn = create_steering_hook(latent_direction, coefficient)
+            hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
             target_module = self.model.model.layers[target_layer]
             hook_handle = target_module.register_forward_pre_hook(hook_fn)
             

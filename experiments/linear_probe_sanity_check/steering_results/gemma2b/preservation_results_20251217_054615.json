@@ -1,0 +1,112 @@
+[
+  {
+    "task_id": 49,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "baseline_code": "def specified_element(list, index):\n    return [list[i][index] for i in range(len(list))]",
+    "steered_code": "<code>>>> extract_first( [[1, 2, 3], [4, 5, 6], [7, 8, 9]] )\n[1, 4, 7]\n>>> extract_first( [[1, 2, 3], [4, 5, 6], [7, 8, 9]], 2 )\n[2, 5, 8]\n</code>\n\nA 100-turn circular coil has a diameter of 4.00 cm and a resistance of $5.20 \\Omega$. A magnetic field perpendicular to the coil is changing at a rate of 80.0 mT/s. Find the induced current in the coil.\n\nA 100-turn circular coil has a diameter of 2.00 cm. It is placed in a spatially uniform magnetic field that is perpendicular to the coil's surface. The magnetic field's magnitude varies over time according to the expression $B_{\\mathrm{app}}=0.0200 \\mathrm{T}-0.0800 \\mathrm{t}$, where t is in seconds and $A p p$ represents the an- plied field, perpendicular to the coil's surface. The coil's resistance is $8.00 \\Omega$. Calculate the magnitude and the direction (clockwise or counterclockwise) of the current induced in the coil at $t=2.00 \\mathrm{s}$.\n\nA 100-turn circular coil has a diameter of 2.00 cm. It is placed in a spatially uniform magnetic field that is perpendicular to the coil's surface. The magnetic field's magnitude varies over time according to the expression $B_{\\mathrm{app}}=0.0200 \\mathrm{T}-0.0800 \\mathrm{t}$, where t is in seconds and $A p p$ represents the applied field, perpendicular to the coil's surface. The coil's resistance is $8.00 \\Omega$. Calculate the magnitude and the direction (clockwise or counterclockwise) of the current induced in the coil at t = 2.00 s.",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": false
+  },
+  {
+    "task_id": 51,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "baseline_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+    "steered_code": "def isEquilateral(a, b, c):\n    if a == b and b == c:\n        print(\"Equilateral\")\n    else:\n        print(\"Not Equilateral\")",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": false
+  },
+  {
+    "task_id": 44,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "baseline_code": "def text_match_string(text):\n    return \"Found a match!\" if text.startswith(\"python\") else \"Not matched!\"",
+    "steered_code": "def match(word, string):",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": false
+  },
+  {
+    "task_id": 46,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "baseline_code": "def test_distinct(numbers):\n    return len(set(numbers)) == len(numbers)",
+    "steered_code": "def is_different(numbers):\n    for i in range(len(numbers)):\n        for j in range(i+1, len(numbers)):\n            if numbers[i] == numbers[j]:\n                return False\n    return True",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": false
+  },
+  {
+    "task_id": 21,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "baseline_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]",
+    "steered_code": "<code>public static int findMultiples(int n, int m)\n</code>\n\nThe function should return the number of multiples of n between 1 and m.\n\nWrite a test program that prompts the user to enter n and m and displays the number of multiples.\n\nA 1.00-kg block is resting against a light, compressed spring at the bottom of a rough plane inclined at an angle of $30.0^{\\circ}$; the coefficient of kinetic friction between block and plane is $\\mu_{\\mathrm{k}}=0.100$. Suppose the spring is compressed $10.0 \\mathrm{~cm}$ from its equilibrium length. The spring is then released, and the block separates from the spring and slides up the incline a distance of $20.0 \\mathrm{~cm}$. When it stops, it has slid $20.0 \\mathrm{~cm}$ from its initial position. What is the change in the mechanical energy of the block-spring-Earth system during the release from rest?\n\nA 1.00-kg block is attached to a horizontal spring with spring constant 2500 N/m. The block is at rest on a frictionless surface. A 10 g bullet is fired into the block, in the face opposite the spring, and sticks. a. What was the bullet's speed if the subsequent oscillations have an amplitude of 10.0 cm? b. Suppose that the block is attached to a light, rigid rod. Find the speed of the bullet if the bullet-block system is to make one complete oscillation.\n\nA 1.00-kg block is attached to a horizontal spring with spring constant 2500 N/m. The block is at rest on a frictionless surface. A 10 g bullet is fired into the block, in the face opposite the spring, and sticks. a. What was the bullet's speed if the subsequent oscillations have an amplitude of 10.0 cm? b. Suppose that the block is attached to a light, rigid rod. Find the speed of the bullet if the bullet-block system is to make one complete oscillation.",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": false
+  },
+  {
+    "task_id": 22,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "baseline_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i])-1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i])-1] *= -1\n    return -1",
+    "steered_code": "<code>int findDuplicate(int arr[], int n)\n</code>\n\nThe function should return the duplicate element. If there is no duplicate element, it should return -1.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return 9\n</code>\n\nThe function should return 9.\n\nThe function should return -1 if there is no duplicate element.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return -1\n</code>\n\nThe function should return -1 if there is no duplicate element.\n\nWrite a function to find the first duplicate element in a given array of integers.\n\n<code>int findDuplicate(int arr[], int n)\n</code>\n\nThe function should return the duplicate element. If there is no duplicate element, it should return -1.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return 9\n</code>\n\nThe function should return 9.\n\nThe function should return -1 if there is no duplicate element.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return -1\n</code>\n\nThe function should return -1 if there is no duplicate element.\n\nWrite a function to find the first duplicate element in a given array of integers.\n\n<code>int findDuplicate(int arr[], int n)\n</code>\n\nThe function should return the duplicate element. If there is no duplicate element, it should return -1.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return 9\n</code>\n\nThe function should return 9.\n\nThe function should return -1 if there is no duplicate element.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return -1\n</code>\n\nThe function should return -1 if there is no duplicate element.\n\nWrite a function to find the first duplicate element in a given array of integers.\n\n<code>int findDuplicate(int arr[], int n)\n</code>\n\nThe function should return the duplicate element. If there is no duplicate element, it should return -1.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return 9\n</code>\n\nThe function should return 9.\n\nThe function should return -1 if there is no duplicate element.\n\n<code>int arr[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };\nfindDuplicate(arr, 10); // should return -1\n</code>\n\nThe function should return -1 if there is no duplicate element.\n\nWrite a function to find the first duplicate element in a given array of integers.\n\n<code>int find",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": false
+  },
+  {
+    "task_id": 25,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "baseline_code": "def find_Product(arr, n):\n    product = 1\n    for i in range(n):\n        product *= arr[i]\n    return product",
+    "steered_code": "<strong>Input:</strong>\n\nThe first line of the input contains an integer T denoting the number of test cases. The first line of each test case contains an integer N denoting the size of the array. The second line of each test case contains N space separated integers denoting the elements of the array.\n\n<strong>Output:</strong>\n\nFor each test case, print the product of non-repeated elements in a new line.\n\n<strong>Constraints:</strong>\n\n1 \u2264 T \u2264 100\n\n1 \u2264 N \u2264 1000\n\n1 \u2264 A[i] \u2264 1000\n\n<strong>Example:</strong>\n\n<strong>Input:</strong>\n\n2\n4\n1 2 3 4\n5\n1 2 3 4 5\n\n<strong>Output:</strong>\n\n24\n120",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": false
+  },
+  {
+    "task_id": 7,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "baseline_code": "def find_char_long(string):\n    return [word for word in string.split() if len(word) >= 4]",
+    "steered_code": "def find_words(string):\n    \"\"\"\n    Find all words in a string that are at least 4 characters long.\n    \"\"\"\n    return [word for word in string.split() if len(word) >= 4]",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": false
+  },
+  {
+    "task_id": 11,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "baseline_code": "def remove_Occ(string, char):\n    if char in string:\n        string = string.replace(char, \"\")\n    return string",
+    "steered_code": "def remove_first_last_char(string, char):\n    if char in string:\n        string = string.replace(char, '')\n        string = string.replace(char, '')\n    return string",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": false
+  },
+  {
+    "task_id": 18,
+    "baseline_passed": true,
+    "steered_correct": false,
+    "baseline_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+    "steered_code": "def remove(s1, s2):\n    for i in s2:\n        s1 = s1.replace(i, \"\")\n    return s1",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": false
+  }
+]

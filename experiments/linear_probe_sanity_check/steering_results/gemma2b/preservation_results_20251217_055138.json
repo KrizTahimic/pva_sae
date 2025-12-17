@@ -1,0 +1,112 @@
+[
+  {
+    "task_id": 44,
+    "baseline_passed": true,
+    "steered_correct": true,
+    "baseline_code": "def text_match_string(text):\n    return \"Found a match!\" if text.startswith(\"python\") else \"Not matched!\"",
+    "steered_code": "def text_match_string(text):\n    return \"Found a match!\" if text.startswith(\"python\") else \"Not matched!\"",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": true
+  },
+  {
+    "task_id": 46,
+    "baseline_passed": true,
+    "steered_correct": true,
+    "baseline_code": "def test_distinct(numbers):\n    return len(set(numbers)) == len(numbers)",
+    "steered_code": "def test_distinct(numbers):\n    return len(set(numbers)) == len(numbers)",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": true
+  },
+  {
+    "task_id": 49,
+    "baseline_passed": true,
+    "steered_correct": true,
+    "baseline_code": "def specified_element(list, index):\n    return [list[i][index] for i in range(len(list))]",
+    "steered_code": "def specified_element(list, index):\n    return [list[i][index] for i in range(len(list))]",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": true
+  },
+  {
+    "task_id": 51,
+    "baseline_passed": true,
+    "steered_correct": true,
+    "baseline_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+    "steered_code": "def check_equilateral(a,b,c):\n    if a==b and b==c:\n        return True\n    else:\n        return False",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": true
+  },
+  {
+    "task_id": 7,
+    "baseline_passed": true,
+    "steered_correct": true,
+    "baseline_code": "def find_char_long(string):\n    return [word for word in string.split() if len(word) >= 4]",
+    "steered_code": "def find_char_long(string):\n    return [word for word in string.split() if len(word) >= 4]",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": true
+  },
+  {
+    "task_id": 11,
+    "baseline_passed": true,
+    "steered_correct": true,
+    "baseline_code": "def remove_Occ(string, char):\n    if char in string:\n        string = string.replace(char, \"\")\n    return string",
+    "steered_code": "def remove_Occ(string, char):\n    if char in string:\n        string = string.replace(char, \"\")\n    return string",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": true
+  },
+  {
+    "task_id": 18,
+    "baseline_passed": true,
+    "steered_correct": true,
+    "baseline_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+    "steered_code": "def remove_dirty_chars(s1, s2):\n    return ''.join(c for c in s1 if c not in s2)",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": true
+  },
+  {
+    "task_id": 21,
+    "baseline_passed": true,
+    "steered_correct": true,
+    "baseline_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]",
+    "steered_code": "def multiples_of_num(num, n):\n    return [i*n for i in range(1, num+1)]",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": true
+  },
+  {
+    "task_id": 22,
+    "baseline_passed": true,
+    "steered_correct": true,
+    "baseline_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i])-1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i])-1] *= -1\n    return -1",
+    "steered_code": "def find_first_duplicate(arr):\n    for i in range(len(arr)):\n        if arr[abs(arr[i])-1] < 0:\n            return abs(arr[i])\n        arr[abs(arr[i])-1] *= -1\n    return -1",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": true
+  },
+  {
+    "task_id": 25,
+    "baseline_passed": true,
+    "steered_correct": true,
+    "baseline_code": "def find_Product(arr, n):\n    product = 1\n    for i in range(n):\n        product *= arr[i]\n    return product",
+    "steered_code": "def find_Product(arr, n):\n    product = 1\n    for i in range(n):\n        product *= arr[i]\n    return product",
+    "steering_type": "correct",
+    "coefficient": 0.0,
+    "success": true,
+    "preserved": true
+  }
+]

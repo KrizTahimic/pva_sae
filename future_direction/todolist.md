@@ -294,10 +294,33 @@ Updated 15 files to use these constants.
 
 Use `einops.rearrange` and `einops.reduce` for self-documenting tensor operations.
 
-**Steering hooks - `rearrange('d -> 1 1 d')`:**
-- [x] **steering_metrics.py:242** - Double unsqueeze → rearrange
-- [x] **threshold_optimizer.py:482** - Same pattern
-- [x] **selective_steering_analyzer.py:379** - Same pattern
+**Steering hooks - UPDATED (2025-12-17):**
+- [x] **Changed from all-positions to last-position-only steering**
+- [x] Removed `rearrange('d -> 1 1 d')` broadcasting pattern
+- [x] Now uses: `residual[:, -1, :] = residual[:, -1, :] + steering`
+- [x] Files updated: `steering_metrics.py`, `threshold_optimizer.py`, `selective_steering_analyzer.py`
+
+**Continuous vs Prompt-Only Steering (Deviates from Ferrando 2024)**
+
+- [x] MVP test: Continuous vs prompt-only comparison (LLaMA, 40 samples, probe direction)
+- [ ] Production test: Run full SAE steering comparison on all models
+- [ ] Validate finding holds with SAE latent directions (not just probe)
+
+**MVP Results (2025-12-17):**
+
+| Mode | Coefficient=1 | Correction Rate |
+|------|---------------|-----------------|
+| **Continuous** | 1 | **7.5%** (3/40) |
+| Prompt-only | 1 | 0% (0/40) |
+
+**Hypothesis**: For **longer generation tasks** (code generation ~50-200 tokens), continuous steering outperforms prompt-only. Ferrando et al. used prompt-only for **entity recognition** (short answers), where KV-cache persistence suffices. For code:
+1. Correctness is NOT fully determined at prompt encoding time
+2. Steering effect through KV-cache decays over longer generations
+3. Each generated token benefits from active steering reinforcement
+
+**Current Decision**: Production code updated to continuous last-position-only steering (pending full validation).
+**Experiment Code**: `experiments/linear_probe_sanity_check/run_probe_steering.py` (keeps both modes)
+**Documentation**: `future_direction/linear_probe_vs_sae_comparison.md`
 
 **Reduction operations - `reduce('n f -> f', 'mean')`:**
 - [x] **sae_analyzer.py:102-112** - Per-feature statistics (4 mean operations)
@@ -632,6 +655,64 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 
 **Note:** Visualization tasks moved to Step 5.1 for smoother refactoring flow.
 
+### Paper Narrative Framing
+
+- [ ] **Decide: MechInterp-focused framing** (not SAE-focused)
+
+  **Core claim:** "Code correctness is linearly represented in LLMs"
+
+  **Why MechInterp > SAE framing:**
+  - Results show SAE and probes find ~similar directions (converging evidence)
+  - Linear representation is the discovery; SAE/probes are tools to find it
+  - Handles negative results gracefully (if probes beat SAE → "probes stronger but SAE found it unsupervised")
+  - Stronger ICML positioning (linear representation hypothesis is hot topic)
+
+  **SAE's unique value (still important):**
+  | Property | SAE | Probes |
+  |----------|-----|--------|
+  | Supervision needed | No | Yes |
+  | Interpretable | Yes | Limited |
+  | Hyperparameter tuning | None | Critical (C=0.0001) |
+
+  **Narrative arc:**
+  1. Intro: LLMs generate buggy code. Can we understand how they represent correctness?
+  2. Core claim: Correctness is encoded as a linear direction in activation space
+  3. Evidence: SAE finds it unsupervised, probes recover similar direction, both enable steering
+  4. Key insight: Converging evidence from supervised and unsupervised methods
+
+  **One-liner:** "We show code correctness is linearly represented in LLMs, validated by converging evidence from SAE and probe methods"
+
+### Linear Probe Baseline Comparison
+
+**Purpose:** Converging evidence for the MechInterp framing.
+**Reference:** `future_direction/linear_probe_vs_sae_comparison.md`
+**MVP code:** `experiments/linear_probe_sanity_check/`
+
+#### Phases Needed
+
+- [ ] **Probe Detection Phase** - AUROC/F1 evaluation with probes
+  - [ ] Find optimal L2 regularization (C parameter) via CV
+  - [ ] Compare: Mass-Mean, LogReg, Mean-Diff, SAE, Random
+  - [ ] Report best layer per method
+  - [ ] t-statistic comparison
+
+- [ ] **Probe Steering Phase** - Coefficient grid search
+  - [ ] Adapt Phase 4.5 coefficient search for probe directions
+  - [ ] Test continuous vs prompt_only modes
+  - [ ] Model-specific calibration (LLaMA needs ~30x smaller coef)
+
+- [ ] **Head-to-Head Comparison** - Final paper table
+  - [ ] SAE vs Probe on same samples, same metrics
+  - [ ] Detection: AUROC, F1, t-statistic
+  - [ ] Steering: Correction rate, Preservation rate
+
+#### MVP Results So Far (2025-12-17)
+
+**Detection:** SAE competitive with regularized LogReg (ties or wins on 2/3 models)
+**Steering:** Probe steering works; continuous mode needed for correction
+
+---
+
 - [x] **Selective steering implementation** (Reviewers RXZd, vRko) - DONE
     - Conclusion: Selective steering in current form still not advisable. Better strategy: generate without steering first, only apply steering on retry if code is detected as wrong.
 
@@ -645,6 +726,12 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
     - Will this also work for LLAMA? orthogonalization_target_weights: list[str] = field(
         default_factory=lambda: ['embed', 'attn_o', 'mlp_down']
     )
+
+- [ ] **Error type breakdown analysis** (Reviewer RXZd)
+  - [ ] Categorize errors: syntax, logic, type, runtime, etc.
+  - [ ] Detection: Which error types does incorrect-predicting direction catch better?
+  - [ ] Steering: Which error types does correction work on?
+  - Supports MechInterp narrative by showing what the linear direction encodes
 
 - [ ] **Feature threshold sensitivity analysis** (Reviewer RXZd)
     - [x] **Infrastructure ready**: Phase 2.3 extracts pile frequency computation, enabling easy threshold testing

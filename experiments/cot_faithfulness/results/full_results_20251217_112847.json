@@ -1,0 +1,32 @@
+[
+  {
+    "task_id": 1,
+    "success": false,
+    "error": "a Tensor with 166 elements cannot be converted to Scalar",
+    "token_results": []
+  },
+  {
+    "task_id": 2,
+    "success": false,
+    "error": "a Tensor with 118 elements cannot be converted to Scalar",
+    "token_results": []
+  },
+  {
+    "task_id": 3,
+    "success": false,
+    "error": "a Tensor with 45 elements cannot be converted to Scalar",
+    "token_results": []
+  },
+  {
+    "task_id": 5,
+    "success": false,
+    "error": "a Tensor with 68 elements cannot be converted to Scalar",
+    "token_results": []
+  },
+  {
+    "task_id": 7,
+    "success": false,
+    "error": "a Tensor with 102 elements cannot be converted to Scalar",
+    "token_results": []
+  }
+]

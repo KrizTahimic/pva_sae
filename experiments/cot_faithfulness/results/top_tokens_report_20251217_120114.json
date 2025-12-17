@@ -1,0 +1,87 @@
+{
+  "error_acknowledging": [
+    {
+      "token": "Wait",
+      "count": 13,
+      "n_samples": 2,
+      "avg_score": 0.4975148165850908,
+      "std_score": 0.0008874925428069588,
+      "min_score": 0.49574769121681783,
+      "max_score": 0.49906168068549217
+    },
+    {
+      "token": "problem",
+      "count": 7,
+      "n_samples": 2,
+      "avg_score": 0.49771786479831326,
+      "std_score": 0.0006901313791131715,
+      "min_score": 0.49724522249769176,
+      "max_score": 0.49936386651223463
+    },
+    {
+      "token": "Hmm",
+      "count": 5,
+      "n_samples": 2,
+      "avg_score": 0.4983725989869604,
+      "std_score": 0.0008506443341727148,
+      "min_score": 0.49734970499009373,
+      "max_score": 0.49975675474442993
+    },
+    {
+      "token": "wait",
+      "count": 2,
+      "n_samples": 2,
+      "avg_score": 0.49819804619821073,
+      "std_score": 3.2705019197804e-05,
+      "min_score": 0.49816534117901295,
+      "max_score": 0.49823075121740856
+    },
+    {
+      "token": "problems",
+      "count": 1,
+      "n_samples": 1,
+      "avg_score": 0.49453010591071317,
+      "std_score": 0.0,
+      "min_score": 0.49453010591071317,
+      "max_score": 0.49453010591071317
+    },
+    {
+      "token": "mistake",
+      "count": 1,
+      "n_samples": 1,
+      "avg_score": 0.4971571242383698,
+      "std_score": 0.0,
+      "min_score": 0.4971571242383698,
+      "max_score": 0.4971571242383698
+    },
+    {
+      "token": "wrong",
+      "count": 1,
+      "n_samples": 1,
+      "avg_score": 0.4970888295303211,
+      "std_score": 0.0,
+      "min_score": 0.4970888295303211,
+      "max_score": 0.4970888295303211
+    }
+  ],
+  "correctness_claiming": [
+    {
+      "token": "Correct",
+      "count": 2,
+      "n_samples": 1,
+      "avg_score": 0.49858433712187383,
+      "std_score": 0.00028597400985708177,
+      "min_score": 0.49829836311201675,
+      "max_score": 0.4988703111317309
+    },
+    {
+      "token": "done",
+      "count": 1,
+      "n_samples": 1,
+      "avg_score": 0.497745650729541,
+      "std_score": 0.0,
+      "min_score": 0.497745650729541,
+      "max_score": 0.497745650729541
+    }
+  ]
+}

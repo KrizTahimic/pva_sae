@@ -11,7 +11,6 @@ import torch
 import tokenize
 import io
 from difflib import SequenceMatcher
-from einops import rearrange
 from common.logging import get_logger
 
 logger = get_logger("common.steering_metrics")
@@ -210,13 +209,17 @@ def calculate_code_similarity(code1: str, code2: str) -> float:
     return similarity
 
 
-def create_steering_hook(latent_direction: torch.Tensor,
-                        coefficient: float) -> Callable:
+def create_last_position_steering_hook(latent_direction: torch.Tensor,
+                                       coefficient: float) -> Callable:
     """
-    Create a hook that adds SAE latent direction to residual stream.
+    Create a steering hook that modifies ONLY the last position.
 
-    This hook modifies the model's internal representations by adding
-    a scaled SAE latent direction to steer the model's behavior.
+    During autoregressive generation:
+    - Prefill: steers only the last prompt token (position -1)
+    - Generation: steers each new token (seq_len=1, so position 0 = last)
+
+    This is more targeted than steering all positions - only affects
+    where next-token prediction happens.
 
     Args:
         latent_direction: Decoder weight vector for a latent [d_model]
@@ -229,9 +232,10 @@ def create_steering_hook(latent_direction: torch.Tensor,
         # input[0] is residual stream: [batch_size, seq_len, d_model]
         residual = input[0]
 
-        # Shape: [d_model] -> [1, 1, d_model] for broadcasting with [batch, seq, d_model]
-        steering = rearrange(latent_direction, 'd -> 1 1 d') * coefficient
-        residual = residual + steering.to(residual.device, residual.dtype)
+        # Only modify the LAST position
+        steering = latent_direction * coefficient
+        residual = residual.clone()  # Don't modify original tensor
+        residual[:, -1, :] = residual[:, -1, :] + steering.to(residual.device, residual.dtype)
 
         return (residual,) + input[1:]
 

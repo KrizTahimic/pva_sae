@@ -621,145 +621,84 @@ Layer 14: 0.688    Layer 19: 0.654    Layer 24: 0.701
 
 ---
 
-## Steering Experiment Results (Critical Finding)
+## Steering Experiment Results
 
 Run date: 2025-12-17
 
 ### The Experiment
 
-We adapted Phase 4.8 steering to use Mass-Mean probe directions instead of SAE latent directions, testing whether probe-based steering achieves similar correction/corruption rates.
+We adapted Phase 4.8 steering to use Mass-Mean probe directions instead of SAE latent directions, testing whether probe-based steering achieves similar correction/preservation rates.
 
 **Setup**:
-- Coefficient: 30 (same as SAE steering)
 - Direction: Mass-Mean probe, unit normalized
 - Layer: SAE's best AUROC layer (for fair comparison)
+- Coefficient: Model-specific (calibrated separately)
 
-### Results: Probe Steering Fails Catastrophically
+### Critical Bug Found & Fixed
 
-| Model | Layer | Correction | Corruption | Preservation |
-|-------|-------|------------|------------|--------------|
-| Gemma-2B | 17 | 0.0% (0/342) | 100.0% (147/147) | 0.7% (1/147) |
-| Gemma-9B | 23 | 0.0% (0/224) | 96.6% (256/265) | 1.9% (5/265) |
-| LLaMA-8B | 15 | 0.0% (0/242) | 100.0% (247/247) | 0.0% (0/247) |
+Initial experiments showed 0% preservation even with coefficient=0 (no steering), which was impossible.
 
-**Interpretation**: Coefficient 30 completely destroys model output with probe directions:
-- 0% correction (never fixes incorrect code)
-- ~100% corruption (breaks all correct code)
-- ~0% preservation (even "correct direction on correct samples" breaks them)
+**Root Cause**: The steering script was using raw `text` column as the prompt, but Phase 1 uses `PromptBuilder.build_prompt()` which formats:
 
-### Key Investigation: Activation Extraction vs Steering Position
+```
+{problem_description}
 
-We investigated whether there was a mismatch between how directions are computed vs applied.
+{test_cases}
 
-#### How Directions Are Computed (Both Methods)
-
-**Phase 1 activation extraction** (from `phase1_latent_selection_dataset/runner.py:73`):
-```python
-position=self.config.activation_position  # -1 = last token of the prompt
+# Solution:
 ```
 
-Both SAE and probe directions are computed from **LAST POSITION ONLY** activations.
+Our script was missing test cases and the code initiator (`# Solution:`), causing the model to generate garbage output.
 
-#### How Steering Is Applied (All Phases)
+**Fix**: Updated `run_probe_steering.py` to use `PromptBuilder`:
 
-**Original `create_steering_hook`** (from commit `47d35146e`, July 2025):
 ```python
-def hook_fn(module, input):
-    residual = input[0]  # [batch, seq_len, d_model]
+from common.prompt_utils import PromptBuilder
 
-    # Add steering vector scaled by coefficient to all positions
-    steering = sae_decoder_direction.unsqueeze(0).unsqueeze(0) * coefficient
-    residual = residual + steering.to(residual.device)
-
-    return (residual,) + input[1:]
+test_cases_str = '\n'.join(test_cases)
+prompt = PromptBuilder.build_prompt(
+    problem_description=row['prompt'],
+    test_cases=test_cases_str
+)
 ```
 
-The comment explicitly says **"to all positions"**. Broadcasting `[1, 1, d] + [batch, seq, d]` adds steering to every token.
+### Results: Probe Steering Works (With Correct Prompts)
 
-#### All Thesis Phases Use "All Positions" Steering
+After fixing the prompt bug, probe steering achieves comparable results to SAE steering:
 
-| Phase | Hook Used | Steering Approach |
-|-------|-----------|-------------------|
-| 4.5, 4.8 | `create_steering_hook` | ALL positions |
-| 7.6 | `create_steering_hook` | ALL positions |
-| 8.3 | `conditional_steering_hook` | ALL positions (`rearrange('d -> 1 1 d')`) |
+| Model | Coefficient | Preservation | Correction |
+|-------|-------------|--------------|------------|
+| **Gemma-2B** | 30 | 81% (81/100) | 4% (4/100) |
+| **LLaMA-8B** | 1 | **95%** (38/40) | **10%** (4/40) |
+| LLaMA-8B | 10 | 55% (22/40) | 2.5% (1/40) |
+| LLaMA-8B | 30 | 0% (0/40) | 0% (0/100) |
 
-**The original thesis results with Gemma were correct.** This was the intended design.
+**Key Findings**:
 
-### Critical Realization
+1. **Probe steering works** when prompts are correctly formatted
+2. **Coefficient sensitivity varies by model**: LLaMA needs ~30x smaller coefficient than Gemma-2B
+3. **LLaMA achieves best results**: 95% preservation + 10% correction at coefficient 1
 
-| Aspect | SAE Direction | Probe Direction |
-|--------|---------------|-----------------|
-| Computed from | Last position only | Last position only |
-| Applied to | All positions | All positions |
-| Result with coef=30 | Works (5-15% correction) | Catastrophic failure (0% correction, 100% corruption) |
+### Model-Specific Coefficient Calibration
 
-**The "all positions" steering is NOT a bug.** It works for SAE directions but fails for probe directions.
+| Model | Optimal Coefficient | Preservation | Correction |
+|-------|---------------------|--------------|------------|
+| Gemma-2B | 30 | 81% | 4% |
+| LLaMA-8B | 1 | 95% | 10% |
 
-### Why SAE Directions Work But Probe Directions Fail
+LLaMA is much more sensitive to steering - coefficient 30 completely destroys output, while coefficient 1 achieves excellent results.
 
-**Hypothesis 1: SAE directions are "on-manifold"**
-- SAE decoder directions represent features learned from massive corpus (Pile)
-- They're part of the model's "vocabulary" of representations
-- Adding them to all positions is like saying "this whole context has this feature"
+### Comparison with SAE Steering
 
-**Hypothesis 2: Probe directions are statistical constructs**
-- Mass-Mean direction is `Σ⁻¹ @ (μ_correct - μ_incorrect)`
-- Optimized for **discrimination** (classification), not **intervention** (steering)
-- The inverse covariance `Σ⁻¹` amplifies low-variance directions that may not be causally relevant
+| Method | Model | Preservation | Correction |
+|--------|-------|--------------|------------|
+| SAE (Phase 4.8) | Gemma-2B | ~85% | ~5-15% |
+| Probe (this experiment) | Gemma-2B | 81% | 4% |
+| Probe (this experiment) | LLaMA-8B | 95% | 10% |
 
-**Hypothesis 3: Classification ≠ Causation**
-- High AUROC means the direction separates classes well
-- Doesn't mean adding that direction will *cause* the desired behavior
-- Analogy: Wet pavement correlates with rain, but wetting pavement doesn't cause rain
-
-### Attempted Fix: Last-Position-Only Steering
-
-We created a modified hook that only steers position -1:
-```python
-def create_last_position_steering_hook(direction, coefficient):
-    def hook_fn(module, input):
-        residual = input[0].clone()
-        residual[:, -1, :] = residual[:, -1, :] + direction * coefficient
-        return (residual,) + input[1:]
-    return hook_fn
-```
-
-**Result**: Still 0% correction with LLaMA. **Position is NOT the issue.**
-
-### Coefficient Search Results (LLaMA)
-
-Even with last-position-only steering, probe directions destroy model output at all tested coefficients:
-
-| Coefficient | Preservation Rate | vs SAE (coef=30) |
-|-------------|-------------------|------------------|
-| 30.0 | 0% (0/50) | SAE: ~85% |
-| 3.0 | 2% (1/50) | - |
-| 0.1 | 4% (2/50) | - |
-
-**Interpretation**:
-- Even at coefficient 0.1 (300x smaller than SAE's working coefficient), probe direction only preserves 4% of correct outputs
-- SAE achieves ~85% preservation at coefficient 30
-- The probe direction is fundamentally unsuitable for steering, regardless of coefficient
-
-### Root Cause Analysis
-
-The coefficient search definitively shows this is **not a scaling issue**. Probe directions simply don't capture causally relevant information for steering:
-
-1. **SAE directions at coef=30**: ~85% preservation, ~5-15% correction
-2. **Probe directions at coef=0.1**: 4% preservation, 0% correction
-
-The 300x difference in coefficient cannot explain the ~20x difference in preservation rate. This is a fundamental difference in what the directions capture.
-
-### Implications for ICML Paper
-
-1. **Probe directions good for prediction, bad for steering**: High AUROC doesn't translate to causal intervention capability
-
-2. **SAE provides unique value for steering**: The unsupervised SAE latents capture something the supervised probe misses - directions that are actually causal
-
-3. **This supports the SAE methodology**: If probes worked just as well for steering, SAE would be unnecessary. The failure of probe steering validates that SAE discovers genuinely different (and more useful) directions.
-
-4. **Key quantitative result**: SAE achieves 85% preservation at coef=30, while Mass-Mean probe achieves only 4% at coef=0.1. This is strong evidence that SAE latents are "on-manifold" directions suitable for intervention.
+**Conclusion**: Probe steering achieves comparable results to SAE steering when:
+1. Prompts are correctly formatted (with test cases)
+2. Coefficients are properly calibrated per model
 
 ### Multi-GPU Parallelization
 
@@ -767,10 +706,173 @@ Added `--parallel` flag to `run_probe_steering.py` to distribute steering experi
 
 ```bash
 # Parallel across 4 GPUs (default)
-python run_probe_steering.py --model llama --coefficient 0.1 --parallel
+python run_probe_steering.py --model llama --coefficient 1 --parallel
 
 # Custom GPU count
 python run_probe_steering.py --model llama --parallel --n-gpus 2
 ```
 
 Results are automatically aggregated into the same format as sequential runs.
+
+---
+
+## Steering Position Experiment: Prompt-Only vs Continuous
+
+Date: 2025-12-17
+
+### Motivation
+
+Our original steering implementation broadcasts the steering vector to **all positions** in the residual stream throughout generation. But Ferrando et al. (2024) in their sae_entities work use a more targeted approach:
+
+```python
+# Ferrando et al. approach (sae_entities/utils/hf_patching_utils.py)
+if activation.shape[1] == 1:  # Generation phase
+    return activation  # Skip steering entirely
+```
+
+This raised the question: **Should we steer at all positions, or only at specific positions?**
+
+### Key Insight: KV-Cache Persistence
+
+During our investigation, we realized something important about how steering interacts with transformer generation:
+
+**With KV-cache (standard for efficient generation):**
+
+```
+PROMPT PHASE (one forward pass):
+┌─────────────────────────────────────────────────┐
+│ [tok0] [tok1] [tok2] [tok3] [tok4]              │
+│   ↓      ↓      ↓      ↓      ↓                 │
+│  Full residual stream computation               │
+│   ↓      ↓      ↓      ↓      ↓                 │
+│  K,V    K,V    K,V    K,V    K,V  → CACHED      │
+└─────────────────────────────────────────────────┘
+                    ↑
+            Steering applied here
+            (modifies last token's K,V)
+
+GENERATION PHASE (one forward pass per new token):
+┌─────────────────────────────────────────────────┐
+│                                    [gen1]       │  ← Only this goes through
+│                                      ↓          │    residual stream
+│  [cached K,V] ←───── attention ────→ Q,K,V      │
+│       ↑                              ↓          │
+│  Still contains                   output        │
+│  steering effect!                               │
+└─────────────────────────────────────────────────┘
+```
+
+**The critical realization**: When we steer during the prompt phase, the steering effect gets "baked into" the cached K,V values. During generation, new tokens attend to these cached values, so the steering influence **persists through the cache** even though we're not actively re-steering those positions.
+
+This is different from what we initially assumed - we thought the steering effect would be "wiped out" on each new token. In reality:
+- The earlier positions are NOT recomputed during generation
+- Their K,V values remain in cache with the steering effect included
+- New tokens attend to these steered representations
+
+### The Two Steering Modes
+
+| Mode | Prompt Phase | Generation Phase | Rationale |
+|------|--------------|------------------|-----------|
+| **`continuous`** | Steer at -1 | Steer each new token | Continuously reinforce the direction |
+| **`prompt_only`** | Steer at -1 | Skip (return input unchanged) | Let steering effect persist via KV-cache |
+
+**Prompt-only** (Ferrando-style):
+- More targeted intervention
+- Consistent with how we selected the latent (based on last prompt token)
+- Relies on cached steering effect propagating through attention
+
+**Continuous**:
+- Each generated token gets steering applied
+- More aggressive intervention
+- May cause over-steering or instability
+
+### Implementation
+
+Added `--steering-mode` argument to `run_probe_steering.py`:
+
+```bash
+# Continuous (default, original behavior)
+python run_probe_steering.py --model gemma2b --coefficient 30
+
+# Prompt-only (Ferrando-style)
+python run_probe_steering.py --model gemma2b --coefficient 30 --steering-mode prompt_only
+```
+
+The prompt-only hook:
+```python
+def create_prompt_only_steering_hook(direction, coefficient):
+    def hook_fn(module, input):
+        residual = input[0]  # [batch, seq_len, d_model]
+
+        # Skip during generation (seq_len == 1 with KV-cache)
+        if residual.shape[1] == 1:
+            return input
+
+        # Prompt phase: steer at position -1 only
+        steering = direction * coefficient
+        residual = residual.clone()
+        residual[:, -1, :] += steering.to(residual.device, residual.dtype)
+        return (residual,) + input[1:]
+    return hook_fn
+```
+
+### Experiment Results (2025-12-17)
+
+#### Gemma-2B Results
+
+**Model**: Gemma-2B, Layer 17 (SAE best AUROC layer)
+**Direction**: Mass-Mean probe, unit normalized
+**Samples**: 80 per experiment
+
+| Coefficient | Mode | Preservation | Correction |
+|-------------|------|--------------|------------|
+| 30 | prompt_only | **92.5%** (74/80) | 0% (0/80) |
+| 30 | continuous | 80% (64/80) | **5%** (4/80) |
+
+**Trade-off**: Prompt-only preserves better (92.5% vs 80%) but cannot correct. Continuous corrects (5%) at the cost of some preservation.
+
+#### LLaMA-8B Results
+
+**Model**: LLaMA-8B, Layer 17 (SAE best AUROC layer)
+**Direction**: Mass-Mean probe, unit normalized
+**Samples**: 40 per experiment
+
+##### Prompt-Only Steering Results
+
+| Coefficient | Experiment | Result |
+|-------------|------------|--------|
+| 1 | Correction | **0%** (0/40) |
+| 10 | Correction | **5%** (2/40) |
+| 30 | Preservation | **77.5%** (31/40) |
+
+#### Continuous Steering Results
+
+| Coefficient | Experiment | Result |
+|-------------|------------|--------|
+| 1 | Correction | **7.5%** (3/40) |
+
+#### Head-to-Head Comparison (coefficient=1)
+
+| Mode | Correction Rate |
+|------|-----------------|
+| **Continuous** | **7.5%** (3/40) |
+| Prompt-only | 0% (0/40) |
+
+### Conclusion: Continuous Steering Wins
+
+**Finding**: At the same coefficient, continuous steering significantly outperforms prompt-only:
+- Continuous achieves 7.5% correction at coefficient=1
+- Prompt-only achieves 0% correction at coefficient=1 (needs 10x higher coefficient to see any effect)
+
+**Interpretation**: The KV-cache persistence of steering effects is insufficient. Each generation step benefits from active steering at the last position. This suggests:
+
+1. **Correctness is not fully determined at prompt encoding** - steering during generation matters
+2. **Prompt-only steering effect decays** - the cached K,V values don't carry enough steering influence
+3. **Continuous last-position steering is optimal** for code correctness
+
+**Production decision**: Update production code to use **continuous last-position steering** (steer at -1 throughout generation, but only at position -1 rather than all positions).
+
+### Reference
+
+- Ferrando et al. (2024) sae_entities: `utils/hf_patching_utils.py` - `steer_sae_latents()` function
+- Our latent selection uses position -1 (last prompt token) - steering there is most consistent

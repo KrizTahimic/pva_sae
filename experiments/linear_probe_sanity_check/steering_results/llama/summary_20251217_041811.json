@@ -1,0 +1,19 @@
+{
+  "model": "llama",
+  "model_name": "meta-llama/Llama-3.1-8B",
+  "layer": 17,
+  "coefficient": 30.0,
+  "direction_type": "mass_mean_probe",
+  "direction_norm": 0.9999999403953552,
+  "correction_rate": 0,
+  "corruption_rate": 0,
+  "preservation_rate": 0.0,
+  "n_correction_samples": 0,
+  "n_corruption_samples": 0,
+  "n_preservation_samples": 50,
+  "n_corrected": 0,
+  "n_corrupted": 0,
+  "n_preserved": 0,
+  "duration_seconds": 1419.625916004181,
+  "timestamp": "20251217_041811"
+}

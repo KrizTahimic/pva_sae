@@ -1,0 +1,21 @@
+{
+  "model": "gemma2b",
+  "model_name": "google/gemma-2-2b",
+  "layer": 17,
+  "coefficient": 30.0,
+  "steering_mode": "prompt_only",
+  "direction_type": "mass_mean_probe",
+  "direction_norm": 1.0,
+  "correction_rate": 0,
+  "corruption_rate": 0,
+  "preservation_rate": 92.5,
+  "n_correction_samples": 0,
+  "n_corruption_samples": 0,
+  "n_preservation_samples": 80,
+  "n_corrected": 0,
+  "n_corrupted": 0,
+  "n_preserved": 74,
+  "parallel": true,
+  "n_gpus": 4,
+  "timestamp": "20251217_080835"
+}

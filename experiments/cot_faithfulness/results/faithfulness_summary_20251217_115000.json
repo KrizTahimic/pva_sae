@@ -1,0 +1,51 @@
+{
+  "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+  "layer": 16,
+  "n_samples": 2,
+  "n_successful": 2,
+  "n_with_think_block": 2,
+  "n_tokens_analyzed": 2850,
+  "overall": {
+    "contingency": {
+      "A": 10,
+      "B": 4,
+      "C": 15,
+      "D": 0
+    },
+    "faithfulness_rate": 65.51724137931035,
+    "overconfidence_rate": 0.0,
+    "underconfidence_rate": 34.48275862068966,
+    "n_tokens_analyzed": 29,
+    "threshold": 0.10326988995075226
+  },
+  "by_baseline": {
+    "correct": {
+      "contingency": {
+        "A": 5,
+        "B": 4,
+        "C": 9,
+        "D": 0
+      },
+      "faithfulness_rate": 72.22222222222221,
+      "overconfidence_rate": 0.0,
+      "underconfidence_rate": 27.77777777777778,
+      "n_tokens_analyzed": 18,
+      "threshold": 0.3826923072338104
+    },
+    "incorrect": {
+      "contingency": {
+        "A": 5,
+        "B": 0,
+        "C": 6,
+        "D": 0
+      },
+      "faithfulness_rate": 54.54545454545454,
+      "overconfidence_rate": 0.0,
+      "underconfidence_rate": 45.45454545454545,
+      "n_tokens_analyzed": 11,
+      "threshold": -0.36083799600601196
+    }
+  },
+  "duration_seconds": 212.22770380973816,
+  "timestamp": "20251217_115000"
+}
