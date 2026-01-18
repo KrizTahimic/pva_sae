@@ -261,7 +261,8 @@ class ZeroDiscSteeringGenerator:
 
                     return {
                         'generated_code': generated_code,
-                        'steered_correct': steered_correct
+                        'steered_correct': steered_correct,
+                        'raw_output': generated_text
                     }
                 
                 # Attempt generation with retry logic
@@ -279,6 +280,7 @@ class ZeroDiscSteeringGenerator:
                         'steered_correct': generation_result['steered_correct'],
                         'baseline_code': row['generated_code'],
                         'steered_code': generation_result['generated_code'],
+                        'raw_output_steered': generation_result['raw_output'],
                         'steering_type': steering_type,
                         'latent_layer': layer,
                         'latent_idx': latent_idx,

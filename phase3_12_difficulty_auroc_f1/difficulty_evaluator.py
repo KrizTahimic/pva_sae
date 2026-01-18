@@ -24,6 +24,7 @@ from sklearn.metrics import (
 
 from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists
+from common.config import PLOT_DPI, PLOT_STYLE
 from common.phase_discovery import discover_latest_phase_output
 from common.viz_utils import handle_viz_only_mode
 from common.utils import save_json, load_json
@@ -222,7 +223,7 @@ def calculate_difficulty_metrics(
         plt.title(f'ROC Curve - {latent_type.capitalize()}-Predicting Feature ({group_name.capitalize()} Group)')
         plt.legend()
         plt.grid(True, alpha=0.3)
-        plt.savefig(output_dir / f'roc_curve_{latent_type}_{group_name}.png', dpi=150, bbox_inches='tight')
+        plt.savefig(output_dir / f'roc_curve_{latent_type}_{group_name}.png', dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
         
         # Plot confusion matrix for this group
@@ -241,7 +242,7 @@ def calculate_difficulty_metrics(
         plt.title(f'Confusion Matrix - {latent_type.capitalize()}-Predicting Feature ({group_name.capitalize()} Group)')
         plt.ylabel('True Label')
         plt.xlabel('Predicted Label')
-        plt.savefig(output_dir / f'confusion_matrix_{latent_type}_{group_name}.png', dpi=150, bbox_inches='tight')
+        plt.savefig(output_dir / f'confusion_matrix_{latent_type}_{group_name}.png', dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
         
         results[group_name] = {
@@ -288,7 +289,7 @@ def plot_difficulty_distribution(
                 f'{size}\n({percentage:.1f}%)', ha='center', va='bottom')
     
     plt.tight_layout()
-    plt.savefig(output_dir / 'difficulty_distribution.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / 'difficulty_distribution.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
 
 def plot_roc_curves_by_difficulty(
@@ -332,7 +333,7 @@ def plot_roc_curves_by_difficulty(
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(output_dir / f'roc_curves_by_difficulty_{latent_type}.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / f'roc_curves_by_difficulty_{latent_type}.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
 
 def calculate_trend(values: list) -> str:
@@ -416,7 +417,7 @@ def plot_auroc_trends(
             plt.text(i, i_auroc - 0.05, f'{i_auroc:.3f}', ha='center', va='top', color='red')
     
     plt.tight_layout()
-    plt.savefig(output_dir / 'auroc_trends_by_difficulty.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / 'auroc_trends_by_difficulty.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
 
 def main():
@@ -506,7 +507,7 @@ def main():
         ax2.set_xticks(range(len(difficulties)))
         ax2.set_xticklabels([d.capitalize() for d in difficulties])
         plt.tight_layout()
-        plt.savefig(output_dir / 'metrics_comparison_by_difficulty.png', dpi=150, bbox_inches='tight')
+        plt.savefig(output_dir / 'metrics_comparison_by_difficulty.png', dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
 
         # Regenerate AUROC trends plot
@@ -661,7 +662,7 @@ def main():
     ax2.set_xticklabels([d.capitalize() for d in difficulties])
 
     plt.tight_layout()
-    plt.savefig(output_dir / 'metrics_comparison_by_difficulty.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / 'metrics_comparison_by_difficulty.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
     
     # Generate additional comparative visualizations

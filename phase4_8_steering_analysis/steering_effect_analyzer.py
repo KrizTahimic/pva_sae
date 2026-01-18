@@ -29,7 +29,7 @@ from common.phase_discovery import (
 from common.viz_utils import handle_viz_only_mode
 from common.config import (
     Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_CRITICAL_PERCENT,
-    MIN_CORRECTION_EFFECT_PERCENT, MIN_PRESERVATION_EFFECT_PERCENT, PLOT_DPI
+    MIN_CORRECTION_EFFECT_PERCENT, MIN_PRESERVATION_EFFECT_PERCENT, PLOT_DPI, PLOT_STYLE
 )
 from common.steering_metrics import (
     create_last_position_steering_hook,
@@ -281,6 +281,7 @@ class SteeringEffectAnalyzer:
 
         return {
             'generated_code': generated_code,
+            'raw_output': generated_text,
             'steered_correct': steered_correct,
             'test_cases': test_cases,
             'prompt': prompt,
@@ -420,6 +421,7 @@ class SteeringEffectAnalyzer:
                         'flipped': baseline_passed != steered_correct,
                         'baseline_code': row['generated_code'],
                         'steered_code': generation_result['generated_code'],
+                        'raw_output_steered': generation_result['raw_output'],
                         'steering_type': steering_type,
                         'coefficient': coefficient
                     })
@@ -600,7 +602,7 @@ class SteeringEffectAnalyzer:
         
     def create_visualizations(self, metrics: dict) -> None:
         """Create visualization plots for steering effects."""
-        plt.style.use('seaborn-v0_8')
+        plt.style.use(PLOT_STYLE)
         fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
 
         # Plot correction rate

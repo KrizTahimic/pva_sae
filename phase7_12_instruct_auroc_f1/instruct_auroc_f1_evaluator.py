@@ -21,7 +21,7 @@ from sklearn.metrics import (
     confusion_matrix, roc_curve
 )
 
-from common.config import Config
+from common.config import Config, PLOT_DPI, PLOT_STYLE
 from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists
 from common.phase_discovery import discover_latest_phase_output, write_phase_output
@@ -141,7 +141,7 @@ def find_optimal_threshold(
     plt.legend()
 
     # Save plot
-    plt.savefig(output_dir / f'f1_threshold_plot_{latent_type}.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / f'f1_threshold_plot_{latent_type}.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
 
     # Evaluate at optimal threshold
@@ -183,7 +183,7 @@ def plot_confusion_matrix(
     plt.xlabel('Predicted Label')
 
     # Save plot
-    plt.savefig(output_dir / f'confusion_matrix_{latent_type}.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / f'confusion_matrix_{latent_type}.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
 
 def plot_comparative_metrics(
@@ -265,7 +265,7 @@ def plot_comparative_metrics(
 
     # Save
     plt.tight_layout()
-    plt.savefig(output_dir / 'comparative_metrics.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / 'comparative_metrics.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
 
 def load_instruct_activations(

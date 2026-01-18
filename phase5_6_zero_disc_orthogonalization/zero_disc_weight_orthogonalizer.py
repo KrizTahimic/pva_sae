@@ -26,7 +26,7 @@ from common.phase_discovery import (
     get_phase_output_dir,
     filter_by_range
 )
-from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_CRITICAL_PERCENT
+from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_CRITICAL_PERCENT, PLOT_DPI, PLOT_STYLE
 from common.steering_metrics import (
     calculate_correction_rate,
     calculate_corruption_rate,
@@ -257,7 +257,8 @@ class ZeroDiscWeightOrthogonalizer:
                         'baseline_passed': False,
                         'orthogonalized_correct': passed,
                         'baseline_code': row['generated_code'],
-                        'orthogonalized_code': code
+                        'orthogonalized_code': code,
+                        'raw_output_orthogonalized': generated
                     }
 
                 # Attempt generation with retry and timeout
@@ -341,7 +342,8 @@ class ZeroDiscWeightOrthogonalizer:
                         'orthogonalized_correct': passed,
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': code,
-                        'similarity': similarity
+                        'similarity': similarity,
+                        'raw_output_orthogonalized': generated
                     }
 
                 # Attempt generation with retry and timeout
@@ -491,7 +493,7 @@ class ZeroDiscWeightOrthogonalizer:
         # Save figure
         viz_dir = self.output_dir / "visualizations"
         ensure_directory_exists(viz_dir)
-        plt.savefig(viz_dir / "zero_disc_orthogonalization_effects.png", dpi=150, bbox_inches='tight')
+        plt.savefig(viz_dir / "zero_disc_orthogonalization_effects.png", dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
         
         logger.info(f"Saved visualization to {viz_dir / 'zero_disc_orthogonalization_effects.png'}")

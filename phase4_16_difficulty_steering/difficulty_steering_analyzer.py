@@ -16,7 +16,7 @@ from typing import Any
 from scipy.stats import chi2_contingency
 
 from common.logging import get_logger
-from common.config import Config
+from common.config import Config, PLOT_DPI, PLOT_STYLE
 from common.utils import ensure_directory_exists
 from common.phase_discovery import get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
@@ -303,7 +303,7 @@ def plot_steering_trends(
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
 
-    plt.savefig(output_dir / 'steering_by_difficulty_trends.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / 'steering_by_difficulty_trends.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
     logger.info(f"Saved trend plot: {output_dir / 'steering_by_difficulty_trends.png'}")
 
@@ -331,7 +331,7 @@ def plot_difficulty_distribution(
                 f'{size}\n({percentage:.1f}%)', ha='center', va='bottom')
 
     plt.tight_layout()
-    plt.savefig(output_dir / 'difficulty_distribution.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / 'difficulty_distribution.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
     logger.info(f"Saved distribution plot: {output_dir / 'difficulty_distribution.png'}")
 

@@ -23,7 +23,7 @@ from common.phase_discovery import (
     get_phase_output_dir,
     write_phase_output
 )
-from common.config import Config
+from common.config import Config, PLOT_DPI, PLOT_STYLE
 from common.viz_utils import handle_viz_only_mode
 from common.tensor_utils import load_attention, to_numpy
 
@@ -465,7 +465,7 @@ class AttentionAnalyzer:
         ax.set_ylim(0, 100)
         
         plt.tight_layout()
-        plt.savefig(self.visualizations_dir / 'attention_distribution.png', dpi=150)
+        plt.savefig(self.visualizations_dir / 'attention_distribution.png', dpi=PLOT_DPI)
         plt.close()
         
     def create_head_attention_heatmap(self, attention_data: dict) -> None:
@@ -495,7 +495,7 @@ class AttentionAnalyzer:
         plt.title('Per-Head Attention Distribution')
         
         plt.tight_layout()
-        plt.savefig(self.visualizations_dir / 'head_attention_heatmap.png', dpi=150)
+        plt.savefig(self.visualizations_dir / 'head_attention_heatmap.png', dpi=PLOT_DPI)
         plt.close()
         
     def create_attention_delta_plots(self, differences_correct: dict, differences_incorrect: dict) -> None:
@@ -549,7 +549,7 @@ class AttentionAnalyzer:
         
         plt.suptitle('Attention Redistribution Due to Steering')
         plt.tight_layout()
-        plt.savefig(self.visualizations_dir / 'attention_delta_plots.png', dpi=150)
+        plt.savefig(self.visualizations_dir / 'attention_delta_plots.png', dpi=PLOT_DPI)
         plt.close()
         
     def create_significance_table(self, differences_correct: dict, differences_incorrect: dict) -> None:
@@ -602,7 +602,7 @@ class AttentionAnalyzer:
         
         plt.title('Statistical Significance of Attention Changes', fontsize=14, fontweight='bold')
         plt.tight_layout()
-        plt.savefig(self.visualizations_dir / 'significance_table.png', dpi=150, bbox_inches='tight')
+        plt.savefig(self.visualizations_dir / 'significance_table.png', dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
         
     def create_attention_transformation_scatter(self, attention_data: dict, steering_type: str) -> None:
@@ -664,7 +664,7 @@ class AttentionAnalyzer:
         
         plt.suptitle(f'Attention Transformation: Baseline → {steering_type.title()} Steering')
         plt.tight_layout()
-        plt.savefig(self.visualizations_dir / f'transformation_scatter_{steering_type}.png', dpi=150)
+        plt.savefig(self.visualizations_dir / f'transformation_scatter_{steering_type}.png', dpi=PLOT_DPI)
         plt.close()
         
     def create_head_specific_transformation_plot(self, attention_data: dict, steering_type: str) -> None:
@@ -731,7 +731,7 @@ class AttentionAnalyzer:
         
         plt.suptitle(f'Per-Head Attention Transformation Analysis - {steering_type.title()} Steering')
         plt.tight_layout()
-        plt.savefig(self.visualizations_dir / f'head_specific_transformations_{steering_type}.png', dpi=150)
+        plt.savefig(self.visualizations_dir / f'head_specific_transformations_{steering_type}.png', dpi=PLOT_DPI)
         plt.close()
         
     def create_test_last_token_transformation_plot(self, attention_data: dict, steering_type: str) -> None:
@@ -820,7 +820,7 @@ class AttentionAnalyzer:
         plt.suptitle(f'Attention to Last Test Token: {steering_type.title()} Steering\n(All individual data points shown)', 
                     fontsize=12, fontweight='bold')
         plt.tight_layout()
-        plt.savefig(self.visualizations_dir / f'test_last_token_transformation_{steering_type}.png', dpi=150)
+        plt.savefig(self.visualizations_dir / f'test_last_token_transformation_{steering_type}.png', dpi=PLOT_DPI)
         plt.close()
         
     def create_head_attention_change_bars(self, attention_data: dict, steering_type: str) -> None:
@@ -924,7 +924,7 @@ class AttentionAnalyzer:
         
         plt.suptitle(f'Per-Head Attention Changes: {steering_type.title()} Steering\n(* indicates statistically significant change)')
         plt.tight_layout()
-        plt.savefig(self.visualizations_dir / f'head_attention_changes_{steering_type}.png', dpi=150)
+        plt.savefig(self.visualizations_dir / f'head_attention_changes_{steering_type}.png', dpi=PLOT_DPI)
         plt.close()
         
     def create_comparative_head_changes(self, attention_data: dict) -> None:
@@ -995,7 +995,7 @@ class AttentionAnalyzer:
         
         plt.suptitle('Head-Specific Attention Changes: Correct vs Incorrect Steering Comparison')
         plt.tight_layout()
-        plt.savefig(self.visualizations_dir / 'comparative_head_changes.png', dpi=150)
+        plt.savefig(self.visualizations_dir / 'comparative_head_changes.png', dpi=PLOT_DPI)
         plt.close()
         
     def save_analysis_results(self, results: dict) -> None:

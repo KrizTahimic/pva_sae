@@ -564,6 +564,7 @@ class ThresholdOptimizer:
                 'preserved': preserved,
                 'corrupted': corrupted,
                 'generated_code': generated_code,
+                'raw_output_steered': generated_text,
                 'source': 'selective_steering'  # Track that we generated with steering
             }
 

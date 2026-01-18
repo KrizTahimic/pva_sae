@@ -34,6 +34,7 @@ STEERING_EFFECT_THRESHOLD_PERCENT = 90
 
 # === Visualization ===
 PLOT_DPI = 300
+PLOT_STYLE = 'seaborn-v0_8'  # Consistent style across all visualizations
 
 # === Visualization Colors ===
 # Semantic color scheme for consistent visualizations across all phases

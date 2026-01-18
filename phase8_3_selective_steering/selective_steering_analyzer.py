@@ -435,6 +435,7 @@ class SelectiveSteeringAnalyzer:
                 'steered_correct': steered_correct,
                 'baseline_code': baseline_row['generated_code'],
                 'steered_code': generated_code,
+                'raw_output_steered': generated_text,
                 'source': 'selective_steering'  # Track that we generated with steering
             }
 

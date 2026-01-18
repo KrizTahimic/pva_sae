@@ -578,6 +578,7 @@ class GoldenSectionCoefficientRefiner:
 
                     return {
                         'generated_code': generated_code,
+                        'raw_output': generated_text,
                         'steered_correct': steered_correct
                     }
                 
@@ -607,7 +608,8 @@ class GoldenSectionCoefficientRefiner:
                         'flipped': baseline_passed != steered_correct,
                         'code_similarity': code_similarity,
                         'baseline_code': baseline_code,
-                        'steered_code': generated_code
+                        'steered_code': generated_code,
+                        'raw_output_steered': generation_result['raw_output']
                     }
                     
                     results.append(result)

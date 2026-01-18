@@ -17,7 +17,7 @@ from sklearn.metrics import roc_auc_score, f1_score, roc_curve, precision_recall
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-from common.config import Config
+from common.config import Config, PLOT_DPI, PLOT_STYLE
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device, format_duration
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
@@ -353,7 +353,7 @@ class TemperatureAUROCEvaluator:
         
         plt.tight_layout()
         output_path = self.output_dir / 'temperature_trends.png'
-        plt.savefig(output_path, dpi=150)
+        plt.savefig(output_path, dpi=PLOT_DPI)
         plt.close()
         
         self.logger.info(f"Saved temperature trends plot to {output_path}")
@@ -421,7 +421,7 @@ class TemperatureAUROCEvaluator:
         
         plt.tight_layout()
         output_path = self.output_dir / 'roc_curves_by_temperature.png'
-        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.savefig(output_path, dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
         
         self.logger.info(f"Saved ROC curves plot to {output_path}")
@@ -513,7 +513,7 @@ class TemperatureAUROCEvaluator:
         
         plt.tight_layout()
         output_path = self.output_dir / 'precision_recall_curves_by_temperature.png'
-        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.savefig(output_path, dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
         
         self.logger.info(f"Saved Precision-Recall curves plot to {output_path}")

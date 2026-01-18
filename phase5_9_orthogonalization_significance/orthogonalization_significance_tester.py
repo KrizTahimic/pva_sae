@@ -20,7 +20,7 @@ from common.logging import get_logger
 from common.viz_utils import handle_viz_only_mode
 from common.utils import ensure_directory_exists, load_json, save_json
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
-from common.config import Config
+from common.config import Config, PLOT_DPI, PLOT_STYLE
 
 logger = get_logger("phase5_9.orthogonalization_significance_tester")
 
@@ -379,7 +379,7 @@ class OrthogonalizationSignificanceTester:
 
         plt.tight_layout()
         output_file1 = self.output_dir / 'incorrect_orthogonalization.png'
-        plt.savefig(output_file1, dpi=150, bbox_inches='tight')
+        plt.savefig(output_file1, dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
 
         # Correct orthogonalization plot (corruption experiments)
@@ -407,7 +407,7 @@ class OrthogonalizationSignificanceTester:
 
         plt.tight_layout()
         output_file2 = self.output_dir / 'correct_orthogonalization.png'
-        plt.savefig(output_file2, dpi=150, bbox_inches='tight')
+        plt.savefig(output_file2, dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
 
         logger.info(f"Saved incorrect orthogonalization visualization to: {output_file1}")

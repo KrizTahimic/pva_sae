@@ -592,9 +592,9 @@ Nice-to-haves once the foundation is solid.
     - 55-62% of failures are WRONG_LOGIC, 10-15% TYPE_MISMATCH, rest runtime/syntax errors
     - Conclusion: MBPP evaluation is sound, no need to switch to MBPP+
     - Full analysis in `future_direction/dataset_and_evaluation_strategy.md`
-- [ ] Make other generating phases have raw_outputs also
-- [ ] Fix the figure generation code. Currently it looks soooo messy.
-    - [ ] Understand matplotlib and pandas logic or how it works. So I can help instruct my preference and good practice.
+- [x] Make other generating phases have raw_outputs also
+- [x] Fix the figure generation code. Currently it looks soooo messy. (Comment: I forgot what this means. I'm not even sure if this is already been fixed.)
+    - [x] Understand matplotlib and pandas logic or how it works. So I can help instruct my preference and good practice. (Comment. I pressed for time. Maybe not do this yet. Skip for now.)
 
 
 ### 5.1 ICML Visualizations (moved from ICML tasks)ction)
@@ -607,7 +607,7 @@ Nice-to-haves once the foundation is solid.
 
 These visualizations address reviewer feedback. Do after refactoring is stable.
 
-- [ ] **Top-10 features table** (Reviewers 7JAK, jwL5)
+- [ ] **Top-10 features table** (Reviewers 7JAK, jwL5) (Comment: How can we check if this is already wokring? Do we need to try to mock data first or run a subsample of the of the phases? I prefer the subsample. But let me know what you think. I just worried using a mock data will be messy since it will come from different source unless there is a cleaner way to test this? Like importing some library? like pytest in SWE but for data?)
     - Create table showing top-10 features per direction
     - Columns: layer, feature_idx, separation score, t-statistic, AUROC
 
@@ -770,6 +770,7 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 - [ ] **CoT faithfulness experiment** - Statistical testing methodology
     - [ ] Figure out how to do statistical testing for correct/incorrect related directions (both predicting and steering)
     - [ ]  Its not important if initially correct or incorrect. Whats important is if it predict it will generate incorrect code does the model say it?
+    - [ ] How to give score to faithfulness? How did the original paper did it?
     - **Clarification:** No need to test swapping predicting and steering latents - current setup makes sense:
         - t-statistic → for predicting directions
         - separation score → for steering directions

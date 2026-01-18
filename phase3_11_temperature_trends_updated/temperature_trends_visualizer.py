@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from common.config import Config
+from common.config import Config, PLOT_DPI, PLOT_STYLE
 from common.logging import get_logger
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
@@ -130,7 +130,7 @@ class TemperatureTrendsVisualizer:
 
         plt.tight_layout()
         output_path = self.output_dir / 'temperature_trends.png'
-        plt.savefig(output_path, dpi=150)
+        plt.savefig(output_path, dpi=PLOT_DPI)
         plt.close()
 
         self.logger.info(f"Saved updated temperature trends plot to {output_path}")

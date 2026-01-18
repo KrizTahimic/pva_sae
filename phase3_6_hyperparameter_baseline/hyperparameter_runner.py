@@ -261,6 +261,7 @@ class HyperparameterDataRunner:
                 'temperature': 0.0,
                 'prompt': prompt,
                 'generated_code': generated_code,
+                'raw_output': generated_text,
                 'baseline_passed': baseline_passed,
                 'error_message': None,
                 'generation_time': generation_time,

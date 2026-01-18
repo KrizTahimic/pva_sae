@@ -30,7 +30,7 @@ from common.phase_discovery import (
     write_phase_output,
     get_dataset_range
 )
-from common.config import Config, MEMORY_HIGH_PERCENT, MEMORY_WARNING_PERCENT
+from common.config import Config, MEMORY_HIGH_PERCENT, MEMORY_WARNING_PERCENT, PLOT_DPI, PLOT_STYLE
 from common.steering_metrics import (
     create_last_position_steering_hook,
     calculate_correction_rate,
@@ -319,7 +319,8 @@ class InstructSteeringAnalyzer:
                         'generated_code': generated_code,
                         'steered_correct': steered_correct,
                         'test_cases': test_cases,
-                        'prompt': prompt
+                        'prompt': prompt,
+                        'raw_output': generated_text
                     }
                 
                 # Attempt generation with retry logic using timeout
@@ -343,6 +344,7 @@ class InstructSteeringAnalyzer:
                         'flipped': flipped,
                         'baseline_code': row['generated_code'],
                         'steered_code': generation_result['generated_code'],
+                        'raw_output_steered': generation_result['raw_output'],
                         'steering_type': steering_type,
                         'coefficient': coefficient
                     }
@@ -667,7 +669,7 @@ class InstructSteeringAnalyzer:
         
     def create_visualizations(self, metrics: dict) -> None:
         """Create visualization plots for steering effects with cross-model comparison."""
-        plt.style.use('seaborn-v0_8')
+        plt.style.use(PLOT_STYLE)
         
         # Check if cross-model comparison is available
         if metrics.get('cross_model_comparison', {}).get('comparison_available', False):

@@ -33,7 +33,7 @@ from datetime import datetime
 from common.logging import get_logger
 from common.utils import ensure_directory_exists
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
-from common.config import Config
+from common.config import Config, PLOT_DPI, PLOT_STYLE
 from common.viz_utils import handle_viz_only_mode
 
 logger = get_logger("phase2_15.layerwise_visualizer")
@@ -200,6 +200,7 @@ class LayerwiseVisualizer:
 
     def create_separation_heatmap(self, matrix: np.ndarray) -> None:
         """Create heatmap for separation scores across layers."""
+        plt.style.use(PLOT_STYLE)
         fig, ax = plt.subplots(figsize=(14, 4))
 
         # Create heatmap
@@ -236,7 +237,7 @@ class LayerwiseVisualizer:
                                    linewidth=3, linestyle='--'))
 
         plt.tight_layout()
-        plt.savefig(self.visualizations_dir / 'layerwise_separation_heatmap.png', dpi=150, bbox_inches='tight')
+        plt.savefig(self.visualizations_dir / 'layerwise_separation_heatmap.png', dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
 
         logger.info(f"Saved separation heatmap to {self.visualizations_dir}")
@@ -279,7 +280,7 @@ class LayerwiseVisualizer:
                                    linewidth=3, linestyle='--'))
 
         plt.tight_layout()
-        plt.savefig(self.visualizations_dir / 'layerwise_tstatistics_heatmap.png', dpi=150, bbox_inches='tight')
+        plt.savefig(self.visualizations_dir / 'layerwise_tstatistics_heatmap.png', dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
 
         logger.info(f"Saved t-statistics heatmap to {self.visualizations_dir}")

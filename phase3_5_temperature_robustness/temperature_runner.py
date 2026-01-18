@@ -507,6 +507,7 @@ class TemperatureRobustnessRunner:
                         'temperature': 0.0,
                         'prompt': prompt,
                         'generated_code': temp0_result['generated_code'],
+                        'raw_output': temp0_result['generated_text'],
                         'baseline_passed': temp0_result['baseline_passed'],
                         'error_message': None,
                         'generation_time': temp0_result['generation_time'],
@@ -617,15 +618,16 @@ class TemperatureRobustnessRunner:
         """Generate solution for a single task/temperature/sample combination."""
         start_time = time.time()
         
+        generated_text = ""
         try:
             # Generate without re-extracting activations
             generated_text = self.generate_at_temperature(prompt, temperature)
             generated_code = extract_code(generated_text, prompt)
-            
+
             # Evaluate solution
             baseline_passed = evaluate_code(generated_code, row['test_list'])
             error_message = None
-            
+
         except Exception as e:
             logger.warning(f"Generation failed for {row['task_id']} at temp {temperature}: {e}")
             generated_code = ""
@@ -639,6 +641,7 @@ class TemperatureRobustnessRunner:
             'temperature': temperature,
             'prompt': prompt,
             'generated_code': generated_code,
+            'raw_output': generated_text,
             'baseline_passed': baseline_passed,
             'error_message': error_message,
             'generation_time': generation_time,

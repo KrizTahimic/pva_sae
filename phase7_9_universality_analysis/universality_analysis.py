@@ -13,7 +13,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any
 
-from common.config import Config, PLOT_DPI
+from common.config import Config, PLOT_DPI, PLOT_STYLE
 from common.phase_discovery import get_phase_output_dir, write_phase_output
 from common.logging import get_logger
 from common.viz_utils import handle_viz_only_mode
@@ -21,7 +21,7 @@ from common.viz_utils import handle_viz_only_mode
 logger = get_logger("phase7_9.universality_analysis")
 
 # Set style for publication-quality figures
-plt.style.use('seaborn-v0_8-darkgrid')
+plt.style.use(PLOT_STYLE)
 sns.set_palette("husl")
 
 class UniversalityAnalyzer:

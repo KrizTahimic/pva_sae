@@ -18,7 +18,7 @@ import seaborn as sns
 from common.logging import get_logger
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.utils import ensure_directory_exists, load_json, save_json
-from common.config import Config
+from common.config import Config, PLOT_DPI, PLOT_STYLE
 from common.viz_utils import handle_viz_only_mode
 
 logger = get_logger("phase4_14.significance_tester")
@@ -528,7 +528,7 @@ class SignificanceTester:
         
         # Save figure
         output_file = self.output_dir / 'triangulation_comparison.png'
-        plt.savefig(output_file, dpi=150, bbox_inches='tight')
+        plt.savefig(output_file, dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
         
         logger.info(f"Saved visualization to: {output_file}")

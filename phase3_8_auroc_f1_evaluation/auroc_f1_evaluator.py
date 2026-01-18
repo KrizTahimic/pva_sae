@@ -21,7 +21,7 @@ from sklearn.metrics import (
 )
 
 from common.logging import get_logger
-from common.config import Config
+from common.config import Config, PLOT_DPI, PLOT_STYLE
 from common.utils import detect_device, ensure_directory_exists
 from common.phase_discovery import discover_latest_phase_output
 from common.viz_utils import handle_viz_only_mode
@@ -423,7 +423,7 @@ def plot_combined_f1_thresholds(
     plt.tight_layout()
 
     # Save plot
-    plt.savefig(output_dir / 'f1_threshold_plot_combined.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / 'f1_threshold_plot_combined.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
 
     logger.info(f"Saved combined F1 threshold plot to {output_dir / 'f1_threshold_plot_combined.png'}")
@@ -461,7 +461,7 @@ def plot_confusion_matrix(
     plt.xlabel('Predicted Label')
 
     # Save plot
-    plt.savefig(output_dir / f'confusion_matrix_{latent_type}.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / f'confusion_matrix_{latent_type}.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
 
 def plot_comparative_metrics(
@@ -543,7 +543,7 @@ def plot_comparative_metrics(
     
     # Save
     plt.tight_layout()
-    plt.savefig(output_dir / 'comparative_metrics.png', dpi=150, bbox_inches='tight')
+    plt.savefig(output_dir / 'comparative_metrics.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
 
 def plot_precision_recall_curves(
@@ -594,7 +594,7 @@ def plot_precision_recall_curves(
 
     # Save as standalone PNG
     output_path = output_dir / 'precision_recall_curves.png'
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.savefig(output_path, dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
 
     logger.info(f"Saved precision-recall curves to {output_path}")
