@@ -394,20 +394,18 @@ class GoldenSectionCoefficientRefiner:
                        f"[{lower}, {upper}] (Phase 4.5 optimal: {optimal_coeff})")
     
     def _determine_search_bounds(self, optimal_coeff: float, steering_type: str) -> tuple[float, float]:
-        """Determine search bounds based on steering type using fixed extensions."""
-        
-        # Use different bounds based on steering type
-        if steering_type == 'correct':
-            # Correct steering: smaller search range appropriate for 10-100 coefficient range
-            extension = 10
-        else:
-            # Incorrect steering: larger search range appropriate for 100-500 coefficient range
+        """Determine search bounds based on coefficient magnitude."""
+
+        # Adaptive extension based on coefficient scale
+        if optimal_coeff >= 100:
             extension = 100
-        
+        else:
+            extension = 10
+
         lower = max(1.0, optimal_coeff - extension)
         upper = optimal_coeff + extension
         logger.info(f"  Using ±{extension} bounds around optimal {optimal_coeff}: [{lower}, {upper}]")
-        
+
         return lower, upper
     
     def _round_coefficient(self, coeff: float) -> float:
@@ -839,8 +837,9 @@ class GoldenSectionCoefficientRefiner:
                                (a_int, b_int), best_coeff, best_score)
         
         # Golden section search iterations
-        # Continue until we have consecutive integers (width <= 1)
-        while b_int - a_int > 1:
+        # Continue until search range < tolerance (production: 1 = consecutive integers)
+        tolerance = int(self.config.phase4_6_tolerance)
+        while b_int - a_int > tolerance:
             iteration += 1
             
             # Special handling for narrow bounds (width=2) - the final search step
@@ -955,9 +954,9 @@ class GoldenSectionCoefficientRefiner:
             # Check memory usage periodically
             self.check_memory_usage()
             
-            # Convergence check: stop if we've reached consecutive integers
-            if b_int - a_int <= 1:
-                logger.debug(f"  Converged to consecutive integers: [{a_int}, {b_int}]")
+            # Convergence check: stop if we've reached tolerance
+            if b_int - a_int <= tolerance:
+                logger.debug(f"  Converged: range [{a_int}, {b_int}] <= tolerance {tolerance}")
                 break
             
             # Clear GPU cache

@@ -555,6 +555,27 @@ Nice-to-haves once the foundation is solid.
     - Config override still works: setting explicit value bypasses auto-discovery
     - **Behavior:** If Phase 8.2 not run and no override set, raises FileNotFoundError with clear message
 
+- [x] **Search tolerance configuration** (test vs production)
+    - **Problem:** Golden section search tolerances were hardcoded or unused (dead code)
+    - **Fixed Phase 4.6:** `phase4_6_tolerance` config now actually controls stopping condition
+    - **Fixed Phase 4.6 extension:** Now adaptive based on coefficient magnitude (not steering type)
+      - If `optimal_coeff >= 100` → use ±100 extension
+      - If `optimal_coeff < 100` → use ±10 extension
+    - **Fixed Phase 8.2:** Added `phase8_2_tolerance` and `phase8_2_refinement_radius` configs
+    - **Config pattern in `common/config.py`:**
+      ```python
+      # Quick test: stop early (range < 10)
+      phase4_6_tolerance: float = 10.0
+      # Production: search to convergence (range < 1 = consecutive integers)
+      # phase4_6_tolerance: float = 1.0
+      ```
+    - **For production runs:** Uncomment the `= 1` lines for Phase 4.6 and 8.2 tolerances
+    - **Files updated:**
+      - `common/config.py` - added configs with test/production comments
+      - `phase4_6_golden_section_refinement/golden_section_refiner.py` - uses `config.phase4_6_tolerance`, adaptive extension
+      - `common/search_optimization.py` - added `tolerance` parameter to TwoStageOptimizer
+      - `phase8_2_threshold_optimizer/threshold_optimizer.py` - passes config values to optimizer
+
 - [x] **Visualization color scheme standardized** (correction=green, corruption=red, preservation=gold)
     - Added color constants to `common/config.py`: `COLOR_CORRECTION`, `COLOR_CORRUPTION`, `COLOR_PRESERVATION`, etc.
     - Added "Visualization Color Scheme" documentation section to `CLAUDE.md`

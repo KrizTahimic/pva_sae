@@ -30,6 +30,7 @@ class TwoStageOptimizer:
         evaluate_fn: Callable[[int], float],
         grid_points: list[int],
         refinement_radius: int = 10,
+        tolerance: int = 1,
         lower_bound: int = 1,
         upper_bound: int = 99,
         available_values: list[int] | None = None
@@ -39,6 +40,7 @@ class TwoStageOptimizer:
             evaluate_fn: Function that takes an integer and returns a score (higher = better)
             grid_points: Coarse grid points to test (e.g., [10, 20, ..., 90])
             refinement_radius: How far to search around coarse optimal (default ±10)
+            tolerance: Stop when search range < tolerance (default 1 = consecutive integers)
             lower_bound: Minimum allowed value
             upper_bound: Maximum allowed value
             available_values: If provided, only these values can be tested (for discrete search spaces)
@@ -46,6 +48,7 @@ class TwoStageOptimizer:
         self.evaluate_fn = evaluate_fn
         self.grid_points = grid_points
         self.refinement_radius = refinement_radius
+        self.tolerance = tolerance
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
         self.available_values = sorted(available_values) if available_values else None
@@ -139,7 +142,7 @@ class TwoStageOptimizer:
         f2 = self._get_score(int(round(x2)))
 
         iteration = 0
-        while int(b) - int(a) > 1:
+        while int(b) - int(a) > self.tolerance:
             iteration += 1
 
             if f1 > f2:  # Left side is better, discard right

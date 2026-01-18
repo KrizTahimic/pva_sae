@@ -228,6 +228,9 @@ def run_evaluation(config):
         optimal_threshold_incorrect, 'incorrect_validation', output_dir
     )
 
+    # Generate combined F1 threshold plot
+    plot_combined_f1_thresholds(hp_metrics_correct, hp_metrics_incorrect, output_dir)
+
     # Save results
     results = {
         'timestamp': datetime.now().isoformat(),

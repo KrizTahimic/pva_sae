@@ -803,7 +803,8 @@ class ThresholdOptimizer:
         optimizer = TwoStageOptimizer(
             evaluate_fn=self._evaluate_percentile_score,
             grid_points=[p for p in range(10, 100, 10) if p in available_pcts],
-            refinement_radius=10,
+            refinement_radius=self.config.phase8_2_refinement_radius,
+            tolerance=self.config.phase8_2_tolerance,
             lower_bound=min(available_pcts),
             upper_bound=max(available_pcts),
             available_values=available_pcts

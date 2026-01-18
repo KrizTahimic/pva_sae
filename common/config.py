@@ -73,7 +73,7 @@ class Config:
     
     # === MODEL SETTINGS ===
     # Options: "google/gemma-2-2b", "google/gemma-2-9b", "meta-llama/Llama-3.1-8B"
-    model_name: str = "meta-llama/Llama-3.1-8B"  # Default model (change for experiments)
+    model_name: str = "google/gemma-2-2b"  # Default model (change for experiments)
     model_max_new_tokens: int = MAX_NEW_TOKENS
     model_temperature: float = 0.0
     model_device: Optional[str] = None  # Auto-detect if None
@@ -164,10 +164,12 @@ class Config:
     phase4_5_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption'
 
     # === GOLDEN SECTION SEARCH COEFFICIENT REFINEMENT (Phase 4.6) ===
-    # Quick test: high tolerance for fast convergence
-    phase4_6_tolerance: float = 10.0  # Stop when range < tolerance (no max_iterations - runs to convergence)
-    # Full refinement (uncomment for thorough testing):
+    # Stopping tolerance: stop when search range < tolerance
+    # Quick test: stop early (range < 10)
+    phase4_6_tolerance: float = 10.0
+    # Production: search to convergence (range < 1 = consecutive integers)
     # phase4_6_tolerance: float = 1.0
+
     phase4_6_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption'
 
     # === STEERING EFFECT ANALYSIS (Phase 4.8) ===
@@ -181,6 +183,15 @@ class Config:
 
     # === STATISTICAL SIGNIFICANCE TESTING (Phase 4.14) ===
     phase4_14_significance_level: float = 0.05  # Alpha level for statistical tests
+
+    # === PERCENTILE THRESHOLD OPTIMIZER (Phase 8.2) ===
+    # Refinement radius: how wide to search around coarse optimal (±radius)
+    phase8_2_refinement_radius: int = 10  # ±10 percentiles around coarse optimal
+    # Stopping tolerance: stop when search range < tolerance
+    # Quick test: stop early (range < 10)
+    phase8_2_tolerance: int = 10
+    # Production: search to convergence (range < 1 = consecutive integers)
+    # phase8_2_tolerance: int = 1
 
     # === SELECTIVE STEERING BASED ON THRESHOLD (Phase 8.3) ===
     phase8_3_use_percentile_threshold: bool = True  # Use percentile-based threshold
