@@ -141,6 +141,16 @@ PHASES: dict[str, PhaseInfo] = {
         category="feature_discovery",
         patterns="*.png",
     ),
+    "2.20": PhaseInfo(
+        id="2.20",
+        name="Latent Landscape Visualization",
+        output_dir="data/phase2_20",
+        module="phase2_20_latent_landscape.latent_landscape_visualizer",
+        runner="Phase220Runner",
+        runner_type="class",
+        category="feature_discovery",
+        patterns=["latent_landscape_scatter.png", "separation_score_distribution.png", "t_statistic_distribution.png"],
+    ),
 
     # =========================================================================
     # Phase 3.x: Statistical Validation

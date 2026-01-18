@@ -155,16 +155,22 @@ The fundamental pattern across all phases:
 
 ### Latent Source Architecture
 
-**TWO distinct latent selection methods** for different purposes:
+**TWO distinct latent selection methods** for different use cases:
 
-| Source | Metric | Function | Used By |
-|--------|--------|----------|---------|
-| Phase 2.10 | t-statistic | `load_predicting_latents()` | Phases 3.x (AUROC/F1) |
-| Phase 2.5 | separation score | `load_steering_latents()` | Phases 4.x, 5.x, 6.x, 7.x |
+| Use Case | Source | Metric | Used By |
+|----------|--------|--------|---------|
+| Validation | Phase 2.10 | t-statistic | Phases 3.x (AUROC/F1) |
+| Steering | Phase 2.5 | separation score | Phases 4.x, 5.x, 6.x, 7.x |
 
 **Why two sources?**
-- **Predicting** (t-statistic): Sensitivity to confidence gradients - for statistical validation
-- **Steering** (separation score): Categorical exclusivity - for causal intervention
+- **Validation** (t-statistic): Measures activation magnitude differences - for statistical metrics (AUROC/F1)
+- **Steering** (separation score): Measures categorical exclusivity (activates for one class, not the other) - for causal intervention
+
+**Terminology clarification:**
+- "correct-predicting" / "incorrect-predicting" = **latent behavior** (which class it activates more for)
+- "validation latents" / "steering latents" = **use case** (which experiments use them)
+
+Both use cases have correct-predicting AND incorrect-predicting latents. The difference is the selection metric.
 
 ### Activation Extraction
 
