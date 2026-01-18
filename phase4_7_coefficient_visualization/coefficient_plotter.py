@@ -63,7 +63,7 @@ class CoefficientVisualizer:
     def _load_phase4_6_data(self) -> dict:
         """Load golden section search history from Phase 4.6."""
         # Load both correct and incorrect steering refinement data
-        incorrect_path = self.phase4_6_dir / "golden_section_history.json"
+        incorrect_path = self.phase4_6_dir / "refinement_analysis.json"
         with open(incorrect_path) as f:
             data = json.load(f)
 
