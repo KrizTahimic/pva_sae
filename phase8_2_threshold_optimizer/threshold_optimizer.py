@@ -793,13 +793,20 @@ class ThresholdOptimizer:
         logger.info(f"Correct problems: {len(self.correct_problems)}")
         logger.info("="*60)
 
+        # Extract available percentiles from Phase 8.1
+        available_pcts = sorted([
+            int(k[1:]) for k in self.percentile_thresholds.keys()
+        ])
+        logger.info(f"Available percentiles: {available_pcts}")
+
         # Create optimizer with evaluation function
         optimizer = TwoStageOptimizer(
             evaluate_fn=self._evaluate_percentile_score,
-            grid_points=list(range(10, 100, 10)),  # [10, 20, ..., 90]
+            grid_points=[p for p in range(10, 100, 10) if p in available_pcts],
             refinement_radius=10,
-            lower_bound=1,
-            upper_bound=99
+            lower_bound=min(available_pcts),
+            upper_bound=max(available_pcts),
+            available_values=available_pcts
         )
 
         # Run optimization

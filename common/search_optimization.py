@@ -31,7 +31,8 @@ class TwoStageOptimizer:
         grid_points: list[int],
         refinement_radius: int = 10,
         lower_bound: int = 1,
-        upper_bound: int = 99
+        upper_bound: int = 99,
+        available_values: list[int] | None = None
     ):
         """
         Args:
@@ -40,12 +41,14 @@ class TwoStageOptimizer:
             refinement_radius: How far to search around coarse optimal (default ±10)
             lower_bound: Minimum allowed value
             upper_bound: Maximum allowed value
+            available_values: If provided, only these values can be tested (for discrete search spaces)
         """
         self.evaluate_fn = evaluate_fn
         self.grid_points = grid_points
         self.refinement_radius = refinement_radius
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
+        self.available_values = sorted(available_values) if available_values else None
 
         # Cache for evaluated points
         self.cache: dict[int, float] = {}
@@ -93,7 +96,10 @@ class TwoStageOptimizer:
 
     def golden_section_search(self, center: int) -> tuple[int, float]:
         """
-        Stage 2: Golden section refinement around center point.
+        Stage 2: Refinement around center point.
+
+        If available_values is set, does discrete search within range.
+        Otherwise, uses golden section for continuous integer search.
 
         Args:
             center: Center point from coarse search
@@ -105,6 +111,22 @@ class TwoStageOptimizer:
         lower = max(self.lower_bound, center - self.refinement_radius)
         upper = min(self.upper_bound, center + self.refinement_radius)
 
+        # If we have discrete available values, search only those in range
+        if self.available_values:
+            candidates = [v for v in self.available_values if lower <= v <= upper]
+            logger.info(f"Discrete refinement in [{lower}, {upper}]: candidates={candidates}")
+
+            for value in candidates:
+                self._get_score(value)
+
+            # Find best from all evaluated
+            best_value = max(self.cache.keys(), key=lambda k: self.cache[k])
+            best_score = self.cache[best_value]
+
+            logger.info(f"Discrete refinement complete: optimal={best_value}, score={best_score:.4f}")
+            return best_value, best_score
+
+        # Continuous golden section search
         logger.info(f"Starting golden section search: bounds=[{lower}, {upper}]")
 
         a, b = float(lower), float(upper)
