@@ -644,7 +644,7 @@ These visualizations address reviewer feedback. Do after refactoring is stable.
 
     **Reference:** Ferrando et al. 2024 Figure 2
 
-- [ ] **Steering coefficient search plots** (Reviewer 7JAK)
+- [x] **Steering coefficient search plots** (Reviewer 7JAK)
     - Show coefficient search process for appendix
     - X-axis: coefficient value, Y-axis: correction/corruption rate
     - [x] Fix this hardcoded  phase4_5_incorrect_coefficients: Updated commented grid to `[10, 20, 30, ..., 100, 200, ..., 1000]` (1-100 in increments of 10, then 200-1000 in increments of 100)
@@ -691,32 +691,78 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 
 ### Linear Probe Baseline Comparison
 
-**Purpose:** Converging evidence for the MechInterp framing.
+**Purpose:** Converging evidence for the linear representation hypothesis (NOT competition).
+**Framing:** Multiple methods find similar directions → validates representation is real.
 **Reference:** `future_direction/linear_probe_vs_sae_comparison.md`
 **MVP code:** `experiments/linear_probe_sanity_check/`
 
+#### Theoretical Pairing
+
+| Baseline | SAE Direction | Why it fits |
+|----------|---------------|-------------|
+| LogReg | Predicting (t-stat) | Both optimize for classification |
+| Mass-mean | Steering (separation) | Both for causal intervention (Marks & Tegmark 2023) |
+
+#### Experimental Design
+
+**Search all layers independently** — don't force same layer comparison.
+- Layer convergence IS the evidence (both find middle layers → same representation)
+- Forcing same layer would handicap probes and lose convergence evidence
+
+**Only detection + steering needed** for baseline comparison:
+- Orthogonalization/attention/temperature test THE DIRECTION, not the method
+- If directions are similar (check via cosine similarity), SAE results transfer to probes
+- Per Nanda: "Should this update beliefs?" — redundant experiments don't
+
 #### Phases Needed
 
-- [ ] **Probe Detection Phase** - AUROC/F1 evaluation with probes
-  - [ ] Find optimal L2 regularization (C parameter) via CV
-  - [ ] Compare: Mass-Mean, LogReg, Mean-Diff, SAE, Random
-  - [ ] Report best layer per method
-  - [ ] t-statistic comparison
+- [ ] **Direction Similarity Check** (do first)
+  - [ ] Cosine similarity: LogReg direction vs SAE predicting direction
+  - [ ] Cosine similarity: Mass-mean direction vs SAE steering direction
+  - [ ] If high (>0.7): Skip redundant experiments (ortho/attention/temp)
+  - [ ] If low (<0.5): Consider additional validation on probe directions
 
-- [ ] **Probe Steering Phase** - Coefficient grid search
-  - [ ] Adapt Phase 4.5 coefficient search for probe directions
-  - [ ] Test continuous vs prompt_only modes
-  - [ ] Model-specific calibration (LLaMA needs ~30x smaller coef)
+- [ ] **Detection Comparison** (LogReg vs SAE predicting)
+  - [ ] Search all layers, find optimal per method
+  - [ ] Report: AUROC, F1, best layer
+  - [ ] Already done in MVP — just need to finalize numbers
 
-- [ ] **Head-to-Head Comparison** - Final paper table
-  - [ ] SAE vs Probe on same samples, same metrics
-  - [ ] Detection: AUROC, F1, t-statistic
-  - [ ] Steering: Correction rate, Preservation rate
+- [ ] **Steering Comparison** (Mass-mean vs SAE steering)
+  - [ ] Coefficient search for mass-mean direction
+  - [ ] Correction rate, corruption rate, preservation rate
+  - [ ] Continuous mode (not prompt-only)
+
+#### What NOT to do for probes
+
+- ❌ Weight orthogonalization (redundant if directions similar)
+- ❌ Attention analysis (redundant if directions similar)
+- ❌ Temperature robustness (tests direction, not method)
+- ❌ Force same-layer comparison (loses convergence evidence)
+
+#### Main Paper Presentation
+
+**One table:**
+| Use Case | Method | Best Layer | Key Metric | Supervised |
+|----------|--------|------------|------------|------------|
+| Detection | LogReg | L18 | AUROC 0.73 | ✓ |
+| | SAE | L17 | AUROC 0.67 | ✗ |
+| Steering | Mass-mean | L17 | Corr 6% | ✓ |
+| | SAE | L16 | Corr 4% | ✗ |
+
+**One paragraph:**
+> "Both supervised (LogReg L18, Mass-mean L17) and unsupervised (SAE L17) methods identify middle layers as encoding code correctness. This independent convergence, combined with high cosine similarity between directions (0.XX), provides robust evidence that the linear representation exists regardless of detection method."
 
 #### MVP Results So Far (2025-12-17)
 
+| Model | LogReg Best | SAE Best | Convergence |
+|-------|-------------|----------|-------------|
+| Gemma-2B | L18 | L17 | ✓ Adjacent |
+| Gemma-9B | L19 | L23 | ~ 4 layers apart |
+| LLaMA-8B | L16 | L17 | ✓ Adjacent |
+
 **Detection:** SAE competitive with regularized LogReg (ties or wins on 2/3 models)
 **Steering:** Probe steering works; continuous mode needed for correction
+**Interpretation:** Layer convergence = converging evidence for linear representation
 
 ---
 
@@ -773,14 +819,6 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
     - All MBPP/HumanEval problems are beginner-level - artificial bucketing not meaningful
     - Model can't solve harder benchmarks (APPS, CodeContests) so can't study correctness on them
     - Frame honestly: "Our study focuses on entry-level programming tasks where the model achieves non-trivial performance (~30% pass rate). Generalization to more complex programming challenges is limited by current model capabilities."
-
-- [ ] **CoT faithfulness experiment** - Statistical testing methodology
-    - [ ] Figure out how to do statistical testing for correct/incorrect related directions (both predicting and steering)
-    - [ ]  Its not important if initially correct or incorrect. Whats important is if it predict it will generate incorrect code does the model say it?
-    - [ ] How to give score to faithfulness? How did the original paper did it?
-    - **Clarification:** No need to test swapping predicting and steering latents - current setup makes sense:
-        - t-statistic → for predicting directions
-        - separation score → for steering directions
 
 ---
 
