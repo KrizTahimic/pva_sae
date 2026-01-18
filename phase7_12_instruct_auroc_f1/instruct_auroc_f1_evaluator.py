@@ -397,14 +397,13 @@ def main():
         phase0_1_dir = Path(args.phase0_1_dir)
 
     if not args.phase7_3_dir:
-        # Use dataset-specific Phase 7.3 directory
-        phase7_3_dir_str = f"data/phase7_3_{config.dataset_name}" if config.dataset_name != "mbpp" else "data/phase7_3"
-        latest_output = discover_latest_phase_output("7.3", phase_dir=phase7_3_dir_str)
+        # Use config-aware Phase 7.3 directory discovery
+        latest_output = discover_latest_phase_output("7.3", config=config)
         if latest_output:
             phase7_3_dir = Path(latest_output).parent
             logger.info(f"Auto-discovered Phase 7.3 output: {phase7_3_dir}")
         else:
-            raise FileNotFoundError(f"No Phase 7.3 output found in {phase7_3_dir_str}. Please run Phase 7.3 first.")
+            raise FileNotFoundError("No Phase 7.3 output found. Please run Phase 7.3 first.")
     else:
         phase7_3_dir = Path(args.phase7_3_dir)
 
