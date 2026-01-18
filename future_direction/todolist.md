@@ -790,16 +790,48 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 - [x] **Selective steering implementation** (Reviewers RXZd, vRko) - DONE
     - Conclusion: Selective steering in current form still not advisable. Better strategy: generate without steering first, only apply steering on retry if code is detected as wrong.
 
-- [ ] **LLAMA + HumanEval experiments** (All reviewers) - RUN AFTER REFACTORING
+- [ ] **Multi-Model Experiments** (All reviewers) - RUN AFTER REFACTORING
+
+    **Decision: Run ALL phases for larger models (not just core)**
+
+    **Hypothesis:** Larger models may have symmetric representations (both correct AND incorrect-predicting directions work), unlike Gemma-2B's asymmetry.
+
+    | Metric | Gemma-2B (current) | Larger models (predicted) |
+    |--------|-------------------|---------------------------|
+    | Correct-predicting F1 | 0.504 (weak) | Higher (~0.7+) |
+    | Incorrect-predicting F1 | 0.821 (strong) | Similar or higher |
+    | Correct steering effect | Weak | Stronger |
+
+    **Why full phases (not just core)?**
+    - This is hypothesis-driven, not redundant replication
+    - If true → major finding (scale affects representation completeness)
+    - If false → still valuable (asymmetry is fundamental across scales)
+    - Orthogonalization/attention differences would be compelling evidence
+
+    **Paper framing:**
+    > "We investigate whether the asymmetry between correct and incorrect-predicting representations persists across model scales."
+
+    #### Gemma-9B
+    - [ ] Run all phases on `google/gemma-2-9b`
+    - [ ] Run all phases on `google/gemma-2-9b-it` (instruct)
+    - [ ] Compare asymmetry metrics to Gemma-2B
+
+    #### LLaMA-8B
     - [ ] Run all phases on `meta-llama/Llama-3.1-8B` with `llama_scope_lxr_8x`
     - [ ] Run all phases on `meta-llama/Llama-3.1-8B-Instruct`
-    - [ ] Perform Mechanistic Analysis with HumanEval
-    - **Prerequisites:** Step 2 multi-model support, Step 3 model-agnostic abstractions
-    - **SAE Verified**: `fnlp/Llama-Scope` 32K (8x expansion) matches Neuronpedia's `llamascope-res-32k`
-    - Addresses "single model, single benchmark" criticism
-    - Will this also work for LLAMA? orthogonalization_target_weights: list[str] = field(
-        default_factory=lambda: ['embed', 'attn_o', 'mlp_down']
-    )
+    - [ ] Compare asymmetry metrics to Gemma models
+
+    #### HumanEval (transfer validation)
+    **Purpose:** Test if MBPP-discovered directions transfer to different benchmark.
+    **Core phases only** (detection + steering) — ortho/attention/temp test the direction, already validated on MBPP.
+
+    - [ ] Gemma-2B + HumanEval: Core phases (detection + steering)
+    - [ ] Gemma-9B + HumanEval: Core phases (detection + steering)
+    - [ ] LLaMA-8B + HumanEval: Core phases (detection + steering)
+
+    **Prerequisites:** Step 2 multi-model support, Step 3 model-agnostic abstractions
+    **SAE Verified**: `fnlp/Llama-Scope` 32K (8x expansion) matches Neuronpedia's `llamascope-res-32k`
+    **Note:** Check if LLAMA orthogonalization weights need adjustment: `['embed', 'attn_o', 'mlp_down']`
 
 - [ ] **Error type breakdown analysis** (Reviewer RXZd)
   - [ ] Categorize errors: syntax, logic, type, runtime, etc.
