@@ -2,15 +2,12 @@
 Phase 8.2: Percentile Threshold Optimizer
 
 Finds the optimal percentile threshold that maximizes net benefit (correction_rate - corruption_rate)
-by testing all percentiles from Phase 8.1 on the hyperparameter dataset.
+by testing percentiles from Phase 8.1 on the hyperparameter dataset.
 
-Grid Search Strategy:
-- Tests percentiles: [50, 75, 80, 85, 90, 95]
-- For each percentile:
-  * Runs correction experiment (initially incorrect problems)
-  * Runs preservation experiment (initially correct problems)
-  * Calculates net benefit = correction_rate - corruption_rate
-- Selects percentile with highest net benefit
+Two-Stage Search Strategy:
+- Stage 1: Coarse grid [10, 20, ..., 90] with early stopping
+- Stage 2: Golden section refinement +/-10 around optimal
+- Reduces ~99 evaluations to ~15 evaluations (~85% compute savings)
 
 Data Sources:
 - Phase 0.1: MBPP problem specifications (prompts + tests)
@@ -52,6 +49,7 @@ from common.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_last_position_steering_hook
 from common.prompt_utils import PromptBuilder
 from common.sae_loader import load_sae_for_config
+from common.search_optimization import TwoStageOptimizer
 
 logger = get_logger(__name__)
 
@@ -80,9 +78,8 @@ class ThresholdOptimizer:
     """
     Percentile Threshold Optimizer for Phase 8.2.
 
-    Performs grid search across percentiles [50, 75, 80, 85, 90, 95] from Phase 8.1,
-    testing each on the hyperparameter dataset to find the threshold that maximizes
-    net benefit (correction_rate - corruption_rate).
+    Uses two-stage optimization (coarse grid + golden section) to efficiently
+    find the threshold that maximizes net benefit (correction_rate - corruption_rate).
     """
 
     def __init__(self, config: Config):
@@ -104,6 +101,9 @@ class ThresholdOptimizer:
 
         # Load dependencies
         self._load_dependencies()
+
+        # Cache for percentile evaluation results
+        self._percentile_results_cache: dict[int, dict] = {}
 
         logger.info("Initialization complete")
 
@@ -782,138 +782,152 @@ class ThresholdOptimizer:
 
     def optimize_threshold(self) -> dict:
         """
-        Main optimization loop with resume support.
+        Two-stage optimization: coarse grid + golden section refinement.
 
-        Tests all percentiles from Phase 8.1, runs correction + preservation experiments,
-        and selects the optimal threshold based on net benefit.
-
-        Returns:
-            dict with optimal threshold and full comparison data
+        Uses TwoStageOptimizer from common/search_optimization.py.
         """
         logger.info("="*60)
-        logger.info("STARTING GRID SEARCH OPTIMIZATION")
+        logger.info("STARTING TWO-STAGE THRESHOLD OPTIMIZATION")
         logger.info("="*60)
-
-        percentiles_to_test = list(range(5, 100, 5))  # [5, 10, 15, ..., 95]
-        logger.info(f"Testing percentiles: {percentiles_to_test}")
         logger.info(f"Incorrect problems: {len(self.incorrect_problems)}")
         logger.info(f"Correct problems: {len(self.correct_problems)}")
         logger.info("="*60)
+
+        # Create optimizer with evaluation function
+        optimizer = TwoStageOptimizer(
+            evaluate_fn=self._evaluate_percentile_score,
+            grid_points=list(range(10, 100, 10)),  # [10, 20, ..., 90]
+            refinement_radius=10,
+            lower_bound=1,
+            upper_bound=99
+        )
+
+        # Run optimization
+        optimal_pct, optimal_score, all_evaluations = optimizer.optimize()
+
+        # Build results dict in expected format
         results = {}
+        for pct in all_evaluations.keys():
+            results[f'p{pct}'] = self._get_percentile_result(pct)
 
-        for pct in percentiles_to_test:
-            logger.info(f"\n{'='*60}")
-            logger.info(f"TESTING PERCENTILE: {pct}th")
-            logger.info(f"{'='*60}")
-
-            percentile_key = f'p{pct}'
-            threshold_info = self.percentile_thresholds[percentile_key]
-            threshold = threshold_info['threshold']
-
-            logger.info(f"Threshold: {threshold:.4f}")
-            logger.info(f"Expected steering rate: ~{threshold_info['steer_percentage']:.0f}%")
-
-            # Check if this percentile is already completed
-            if self._is_percentile_completed(pct):
-                logger.info(f"✓ Percentile {pct} already completed, loading results...")
-                results[percentile_key] = self._load_percentile_results(pct, threshold)
-                continue
-
-            # === CORRECTION EXPERIMENT ===
-            logger.info(f"\n--- Correction Experiment (p{pct}) ---")
-
-            # Try to resume from checkpoint
-            correction_checkpoint = self._load_checkpoint(pct, 'correction')
-
-            if correction_checkpoint:
-                logger.info(f"Resuming correction experiment from checkpoint...")
-                correction_results = correction_checkpoint['results']
-                start_idx = correction_checkpoint['last_completed_index'] + 1
-            else:
-                logger.info(f"Starting correction experiment from beginning...")
-                correction_results = []
-                start_idx = 0
-
-            # Run correction experiment (with resume)
-            correction_metrics = self._run_selective_steering_for_threshold(
-                threshold=threshold,
-                percentile=pct,
-                dataset_type='correction',
-                start_idx=start_idx,
-                previous_results=correction_results
-            )
-
-            logger.info(f"\n✓ Correction complete:")
-            logger.info(f"  Correction rate: {correction_metrics['correction_rate']:.4f} "
-                       f"({correction_metrics['n_corrected']}/{correction_metrics['n_problems']})")
-            logger.info(f"  Steering rate: {correction_metrics['steering_rate']:.4f}")
-
-            # === PRESERVATION EXPERIMENT ===
-            logger.info(f"\n--- Preservation Experiment (p{pct}) ---")
-
-            # Try to resume from checkpoint
-            preservation_checkpoint = self._load_checkpoint(pct, 'preservation')
-
-            if preservation_checkpoint:
-                logger.info(f"Resuming preservation experiment from checkpoint...")
-                preservation_results = preservation_checkpoint['results']
-                start_idx = preservation_checkpoint['last_completed_index'] + 1
-            else:
-                logger.info(f"Starting preservation experiment from beginning...")
-                preservation_results = []
-                start_idx = 0
-
-            # Run preservation experiment (with resume)
-            preservation_metrics = self._run_selective_steering_for_threshold(
-                threshold=threshold,
-                percentile=pct,
-                dataset_type='preservation',
-                start_idx=start_idx,
-                previous_results=preservation_results
-            )
-
-            logger.info(f"\n✓ Preservation complete:")
-            logger.info(f"  Preservation rate: {preservation_metrics['preservation_rate']:.4f} "
-                       f"({preservation_metrics['n_preserved']}/{preservation_metrics['n_problems']})")
-            logger.info(f"  Corruption rate: {preservation_metrics['corruption_rate']:.4f} "
-                       f"({preservation_metrics['n_corrupted']}/{preservation_metrics['n_problems']})")
-            logger.info(f"  Steering rate: {preservation_metrics['steering_rate']:.4f}")
-
-            # Calculate net benefit
-            net_benefit = correction_metrics['correction_rate'] - preservation_metrics['corruption_rate']
-
-            results[percentile_key] = {
-                'percentile': pct,
-                'threshold': threshold,
-                'steer_percentage': threshold_info['steer_percentage'],
-                'correction_experiment': correction_metrics,
-                'preservation_experiment': preservation_metrics,
-                'net_benefit': net_benefit
-            }
-
-            logger.info(f"\n✓ Percentile {pct} complete:")
-            logger.info(f"  Net benefit = {net_benefit:.4f} (correction - corruption)")
-            logger.info(f"  = {correction_metrics['correction_rate']:.4f} - {preservation_metrics['corruption_rate']:.4f}")
-
-        # Select optimal percentile
         logger.info(f"\n{'='*60}")
-        logger.info("SELECTING OPTIMAL THRESHOLD")
+        logger.info(f"OPTIMAL: {optimal_pct}th percentile")
+        logger.info(f"Net benefit: {optimal_score:.4f}")
         logger.info(f"{'='*60}")
 
-        optimal_key = max(results.keys(), key=lambda k: results[k]['net_benefit'])
-        optimal_result = results[optimal_key]
+        return {
+            'optimal_percentile': optimal_pct,
+            'optimal_threshold': self.percentile_thresholds[f'p{optimal_pct}']['threshold'],
+            'optimal_net_benefit': optimal_score,
+            'results': results
+        }
 
-        logger.info(f"\n✓ OPTIMAL: {optimal_result['percentile']}th percentile")
-        logger.info(f"  Threshold: {optimal_result['threshold']:.4f}")
-        logger.info(f"  Net benefit: {optimal_result['net_benefit']:.4f}")
-        logger.info(f"  Correction rate: {optimal_result['correction_experiment']['correction_rate']:.4f}")
-        logger.info(f"  Corruption rate: {optimal_result['preservation_experiment']['corruption_rate']:.4f}")
+    def _evaluate_percentile_score(self, pct: int) -> float:
+        """
+        Evaluate a percentile and return net_benefit score.
+        Used as callback for TwoStageOptimizer.
+        """
+        result = self._evaluate_percentile(pct)
+        self._percentile_results_cache[pct] = result  # Cache full result
+        return result['net_benefit']
+
+    def _get_percentile_result(self, pct: int) -> dict:
+        """Get cached full result for a percentile."""
+        if pct in self._percentile_results_cache:
+            return self._percentile_results_cache[pct]
+        # Shouldn't happen, but handle gracefully
+        return self._evaluate_percentile(pct)
+
+    def _evaluate_percentile(self, pct: int) -> dict:
+        """Evaluate a single percentile (correction + preservation experiments)."""
+        pct_key = f'p{pct}'
+
+        # Check if already completed (checkpoint)
+        if self._is_percentile_completed(pct):
+            threshold = self.percentile_thresholds[pct_key]['threshold']
+            logger.info(f"Percentile {pct} already completed, loading from checkpoint...")
+            return self._load_percentile_results(pct, threshold)
+
+        threshold_info = self.percentile_thresholds[pct_key]
+        threshold = threshold_info['threshold']
+
+        logger.info(f"\n{'='*60}")
+        logger.info(f"EVALUATING PERCENTILE: {pct}th (threshold={threshold:.4f})")
+        logger.info(f"{'='*60}")
+
+        # === CORRECTION EXPERIMENT ===
+        logger.info(f"\n--- Correction Experiment (p{pct}) ---")
+
+        # Try to resume from checkpoint
+        correction_checkpoint = self._load_checkpoint(pct, 'correction')
+
+        if correction_checkpoint:
+            logger.info(f"Resuming correction experiment from checkpoint...")
+            correction_results = correction_checkpoint['results']
+            start_idx = correction_checkpoint['last_completed_index'] + 1
+        else:
+            logger.info(f"Starting correction experiment from beginning...")
+            correction_results = []
+            start_idx = 0
+
+        # Run correction experiment (with resume)
+        correction_metrics = self._run_selective_steering_for_threshold(
+            threshold=threshold,
+            percentile=pct,
+            dataset_type='correction',
+            start_idx=start_idx,
+            previous_results=correction_results
+        )
+
+        logger.info(f"\n Correction complete:")
+        logger.info(f"  Correction rate: {correction_metrics['correction_rate']:.4f} "
+                   f"({correction_metrics['n_corrected']}/{correction_metrics['n_problems']})")
+        logger.info(f"  Steering rate: {correction_metrics['steering_rate']:.4f}")
+
+        # === PRESERVATION EXPERIMENT ===
+        logger.info(f"\n--- Preservation Experiment (p{pct}) ---")
+
+        # Try to resume from checkpoint
+        preservation_checkpoint = self._load_checkpoint(pct, 'preservation')
+
+        if preservation_checkpoint:
+            logger.info(f"Resuming preservation experiment from checkpoint...")
+            preservation_results = preservation_checkpoint['results']
+            start_idx = preservation_checkpoint['last_completed_index'] + 1
+        else:
+            logger.info(f"Starting preservation experiment from beginning...")
+            preservation_results = []
+            start_idx = 0
+
+        # Run preservation experiment (with resume)
+        preservation_metrics = self._run_selective_steering_for_threshold(
+            threshold=threshold,
+            percentile=pct,
+            dataset_type='preservation',
+            start_idx=start_idx,
+            previous_results=preservation_results
+        )
+
+        logger.info(f"\n Preservation complete:")
+        logger.info(f"  Preservation rate: {preservation_metrics['preservation_rate']:.4f} "
+                   f"({preservation_metrics['n_preserved']}/{preservation_metrics['n_problems']})")
+        logger.info(f"  Corruption rate: {preservation_metrics['corruption_rate']:.4f} "
+                   f"({preservation_metrics['n_corrupted']}/{preservation_metrics['n_problems']})")
+        logger.info(f"  Steering rate: {preservation_metrics['steering_rate']:.4f}")
+
+        net_benefit = correction_metrics['correction_rate'] - preservation_metrics['corruption_rate']
+
+        logger.info(f"\np{pct}: correction={correction_metrics['correction_rate']:.4f}, "
+                   f"corruption={preservation_metrics['corruption_rate']:.4f}, "
+                   f"net_benefit={net_benefit:.4f}")
 
         return {
-            'optimal_percentile': optimal_result['percentile'],
-            'optimal_threshold': optimal_result['threshold'],
-            'optimal_net_benefit': optimal_result['net_benefit'],
-            'results': results
+            'percentile': pct,
+            'threshold': threshold,
+            'steer_percentage': threshold_info['steer_percentage'],
+            'correction_experiment': correction_metrics,
+            'preservation_experiment': preservation_metrics,
+            'net_benefit': net_benefit
         }
 
     def _load_percentile_results(self, percentile: int, threshold: float) -> dict:
