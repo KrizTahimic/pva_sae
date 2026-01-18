@@ -447,6 +447,16 @@ PHASES: dict[str, PhaseInfo] = {
         category="selective",
         patterns=["selective_steering_summary.json", "selective_correction_results.json", "selective_preservation_results.json"],
     ),
+    "8.7": PhaseInfo(
+        id="8.7",
+        name="Threshold Search Visualization",
+        output_dir="data/phase8_7",
+        module="phase8_7_threshold_visualization.threshold_plotter",
+        runner="Phase87Runner",
+        runner_type="class",
+        category="selective",
+        patterns=["phase_8_7_summary.json", "threshold_search.png"],
+    ),
 }
 
 

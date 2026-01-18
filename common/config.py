@@ -73,7 +73,7 @@ class Config:
     
     # === MODEL SETTINGS ===
     # Options: "google/gemma-2-2b", "google/gemma-2-9b", "meta-llama/Llama-3.1-8B"
-    model_name: str = "google/gemma-2-2b"  # Default model (change for experiments)
+    model_name: str = "meta-llama/Llama-3.1-8B"  # Default model (change for experiments)
     model_max_new_tokens: int = MAX_NEW_TOKENS
     model_temperature: float = 0.0
     model_device: Optional[str] = None  # Auto-detect if None
@@ -122,7 +122,7 @@ class Config:
     sae_dtype: str = "bfloat16"  # SAE weight dtype: "bfloat16" (faster) or "float32" (original)
     
     # === PILE FILTERING (Phase 2) ===
-    pile_filter_enabled: bool = True  # Enabled by default to filter out general language features
+    pile_filter_enabled: bool = False  # Disabled for LLAMA (no Phase 2.3 data)
     pile_threshold: float = 0.02
     pile_samples: int = 10000
     
@@ -153,8 +153,9 @@ class Config:
     phase4_5_correct_coefficients: list[float] = field(default_factory=lambda: [30.0])
     phase4_5_incorrect_coefficients: list[float] = field(default_factory=lambda: [30.0])
     # Full grid search (uncomment for thorough testing):
-    # phase4_5_correct_coefficients: list[float] = field(default_factory=lambda: [1.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
-    # phase4_5_incorrect_coefficients: list[float] = field(default_factory=lambda: [1.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
+    # 1-100 in increments of 10, then 200-1000 in increments of 100
+    # phase4_5_correct_coefficients: list[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
+    # phase4_5_incorrect_coefficients: list[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
 
     
     phase4_5_search_tolerance: float = 2.0  # Stop binary search when range < tolerance

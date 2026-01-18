@@ -607,15 +607,16 @@ Nice-to-haves once the foundation is solid.
 
 These visualizations address reviewer feedback. Do after refactoring is stable.
 
-- [ ] **Top-10 features table** (Reviewers 7JAK, jwL5) (Comment: How can we check if this is already wokring? Do we need to try to mock data first or run a subsample of the of the phases? I prefer the subsample. But let me know what you think. I just worried using a mock data will be messy since it will come from different source unless there is a cleaner way to test this? Like importing some library? like pytest in SWE but for data?)
+- [x] **Feature-Selection Landscape scatter plot** (Reviewers 7JAK, jwL5) (Comment: How can we check if this is already wokring? Do we need to try to mock data first or run a subsample of the of the phases? I prefer the subsample. But let me know what you think. I just worried using a mock data will be messy since it will come from different source unless there is a cleaner way to test this? Like importing some library? like pytest in SWE but for data?)
+    - X-axis: activation frequency of incorrect code, Y-axis: activation frequency of correct code.
+    - Show all features as dots, highlight maybe the top 5 of each direction.
+      - maybe also highlight the filtered out directions?
+
+- [x] **Top-10 features table** (Reviewers 7JAK, jwL5) 
     - Create table showing top-10 features per direction
     - Columns: layer, feature_idx, separation score, t-statistic, AUROC
 
-- [ ] **Feature-Selection Landscape scatter plot** (Reviewers 7JAK, jwL5)
-    - X-axis: separation score, Y-axis: t-statistic
-    - Show all features as dots, highlight chosen features as statistical outliers (>3σ)
-
-- [ ] **Layer-wise visualization** (adapted from Ferrando et al. 2024, Figure 2)
+- [x] **Layer-wise visualization** (adapted from Ferrando et al. 2024, Figure 2)
 
     **Goal:** Show layerwise evolution of top-4 latents for all 4 directions.
 
@@ -646,7 +647,13 @@ These visualizations address reviewer feedback. Do after refactoring is stable.
 - [ ] **Steering coefficient search plots** (Reviewer 7JAK)
     - Show coefficient search process for appendix
     - X-axis: coefficient value, Y-axis: correction/corruption rate
-    - [ ] Fix this hardcoded  phase4_5_incorrect_coefficients: List[float] = field(default_factory=lambda: [100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0]). Make it do 1-100 in increments of 10. If still on corruption rate then do 200-1000 in increments of 1000
+    - [x] Fix this hardcoded  phase4_5_incorrect_coefficients: Updated commented grid to `[10, 20, 30, ..., 100, 200, ..., 1000]` (1-100 in increments of 10, then 200-1000 in increments of 100)
+    - [x] Added Phase 8.7 for threshold search visualization (similar to Phase 4.7)
+
+- [ ] **Cleanup mock test data** (created 2026-01-18)
+    - Delete `data/phase8_2_llama/` mock data after real Phase 8.2 run
+    - Delete `data/phase8_7_llama/` mock outputs after real Phase 8.2 run
+    - Mock data used to test Phase 8.7 visualization code
 
 
 ## ICML Submission Tasks (Based on ICLR Reviewer Feedback)
