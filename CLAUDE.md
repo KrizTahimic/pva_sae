@@ -166,11 +166,14 @@ The fundamental pattern across all phases:
 - **Validation** (t-statistic): Measures activation magnitude differences - for statistical metrics (AUROC/F1)
 - **Steering** (separation score): Measures categorical exclusivity (activates for one class, not the other) - for causal intervention
 
-**Terminology clarification:**
-- "correct-predicting" / "incorrect-predicting" = **latent behavior** (which class it activates more for)
-- "validation latents" / "steering latents" = **use case** (which experiments use them)
+**Terminology - 4 latent directions:**
 
-Both use cases have correct-predicting AND incorrect-predicting latents. The difference is the selection metric.
+| Source | Correct Latents | Incorrect Latents |
+|--------|-----------------|-------------------|
+| Phase 2.10 (t-statistic) | correct-**predicting** | incorrect-**predicting** |
+| Phase 2.5 (separation score) | correct-**steering** | incorrect-**steering** |
+
+The suffix indicates use case: "predicting" for validation (AUROC/F1), "steering" for causal intervention.
 
 ### Activation Extraction
 
