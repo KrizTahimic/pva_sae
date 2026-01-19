@@ -500,7 +500,11 @@ class GoldenSectionCoefficientRefiner:
             Score (float) or full results dictionary including score, results list, and metrics
         """
         # Create checkpoint directory for this evaluation
-        checkpoint_dir = self.output_dir / f"eval_checkpoints_{steering_type}_coeff_{int(coefficient)}"
+        # Use GPU-specific directory in parallel mode to avoid race conditions
+        if self.n_gpus > 1:
+            checkpoint_dir = self.output_dir / f"eval_checkpoints_{steering_type}_coeff_{int(coefficient)}_gpu{self.gpu_id}"
+        else:
+            checkpoint_dir = self.output_dir / f"eval_checkpoints_{steering_type}_coeff_{int(coefficient)}"
         ensure_directory_exists(checkpoint_dir)
         
         # Load existing checkpoints if any

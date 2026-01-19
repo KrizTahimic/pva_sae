@@ -134,13 +134,16 @@ def _worker_phase(
 
         # Import phase module
         module = importlib.import_module(phase.module)
-        runner_cls = getattr(module, phase.runner)
+        runner_obj = getattr(module, phase.runner)
 
-        # Create runner with gpu_id for task filtering
-        runner = runner_cls(config, gpu_id=gpu_id, n_gpus=n_gpus)
-
-        # Run phase
-        result = runner.run()
+        # Handle both class-based and function-based runners
+        if phase.runner_type == "function":
+            # Function-based: call directly with parameters
+            result = runner_obj(config, gpu_id=gpu_id, n_gpus=n_gpus)
+        else:
+            # Class-based: instantiate then call .run()
+            runner = runner_obj(config, gpu_id=gpu_id, n_gpus=n_gpus)
+            result = runner.run()
 
         worker_logger.info(f"Worker {gpu_id}: Completed successfully")
 

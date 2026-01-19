@@ -309,6 +309,9 @@ class ThresholdOptimizer:
 
     def _get_checkpoint_dir(self, percentile: int, dataset_type: str) -> Path:
         """Get checkpoint directory for specific percentile + dataset type."""
+        # Use GPU-specific directory in parallel mode to avoid race conditions
+        if self.n_gpus > 1:
+            return self.checkpoint_dir / f"p{percentile}_{dataset_type}_gpu{self.gpu_id}"
         return self.checkpoint_dir / f"p{percentile}_{dataset_type}"
 
     def _save_checkpoint(
