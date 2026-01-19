@@ -131,6 +131,16 @@ PHASES: dict[str, PhaseInfo] = {
         category="feature_discovery",
         patterns=["top_20_latents.json"],
     ),
+    "2.13": PhaseInfo(
+        id="2.13",
+        name="Threshold Sensitivity Analysis",
+        output_dir="data/phase2_13",
+        module="phase2_13_threshold_sensitivity.threshold_sensitivity_analyzer",
+        runner="ThresholdSensitivityAnalyzer",
+        runner_type="class",
+        category="feature_discovery",
+        patterns=["threshold_sensitivity.json", "threshold_sensitivity_table.png", "threshold_sensitivity_appendix.tex"],
+    ),
     "2.15": PhaseInfo(
         id="2.15",
         name="Layer-wise Analysis Visualization",
