@@ -786,7 +786,7 @@ class GoldenSectionCoefficientRefiner:
             search_history = checkpoint['search_history']
             self.cached_scores[steering_type].update(checkpoint['cached_scores'])
             a_int, b_int = checkpoint['current_bounds']
-            best_coefficient = checkpoint['best_coefficient']
+            best_coeff = checkpoint['best_coefficient']
             best_score = checkpoint['best_score']
             iteration = checkpoint['iteration']
             
@@ -865,6 +865,11 @@ class GoldenSectionCoefficientRefiner:
         # Golden section search iterations
         # Continue until search range < tolerance (production: 1 = consecutive integers)
         tolerance = int(self.config.phase4_6_tolerance)
+
+        # Track consecutive iterations without improvement for early stopping
+        no_improvement_count = 0
+        PLATEAU_THRESHOLD = 3  # Stop after N iterations without improvement
+
         while b_int - a_int > tolerance:
             iteration += 1
             
@@ -953,11 +958,14 @@ class GoldenSectionCoefficientRefiner:
             # Update best if improved
             current_best = max(f1, f2)
             current_best_coeff = x1 if f1 > f2 else x2
-            
+
             if current_best > best_score:
                 best_score = current_best
                 best_coeff = current_best_coeff
+                no_improvement_count = 0  # Reset counter on improvement
                 logger.info(f"  New best: {best_coeff} with {best_score:.1f}%")
+            else:
+                no_improvement_count += 1  # Increment on no improvement
             
             logger.info(f"Iteration {iteration}: bounds=[{a_int}, {b_int}], "
                        f"tested {new_point}={new_score:.1f}%, "
@@ -976,7 +984,23 @@ class GoldenSectionCoefficientRefiner:
             self.save_checkpoint(steering_type, iteration, search_history,
                                self.cached_scores[steering_type],
                                (a_int, b_int), best_coeff, best_score)
-            
+
+            # Early stopping: plateau detected
+            if no_improvement_count >= PLATEAU_THRESHOLD:
+                logger.info(f"Performance plateau: {no_improvement_count} iterations without improvement")
+                logger.info(f"Early stopping, using lower coefficient: {a_int}")
+                best_coeff = a_int  # Use lower (more conservative) coefficient
+                best_score = self.get_score(a_int, steering_type)
+                search_history.append({
+                    'iteration': iteration + 1,
+                    'early_stop': True,
+                    'reason': 'plateau_detected',
+                    'plateau_iterations': no_improvement_count,
+                    'final_coefficient': a_int,
+                    'final_score': best_score
+                })
+                break
+
             # Check memory usage periodically
             self.check_memory_usage()
             
