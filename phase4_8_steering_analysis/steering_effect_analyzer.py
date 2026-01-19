@@ -345,8 +345,11 @@ class SteeringEffectAnalyzer:
 
         # Convert results to DataFrame and merge with original
         results_df = pd.DataFrame(results)
+        merge_cols = ['task_id', 'steered_code', 'steered_correct', 'flipped']
+        if 'steered_error_type' in results_df.columns:
+            merge_cols.append('steered_error_type')
         steered_df = original_df.merge(
-            results_df[['task_id', 'steered_code', 'steered_correct', 'flipped']],
+            results_df[merge_cols],
             on='task_id',
             how='left'
         )
@@ -495,10 +498,11 @@ class SteeringEffectAnalyzer:
             
             # Save correction results immediately for debugging
             if not correction_results.empty:
-                correction_data = correction_results[
-                    ['task_id', 'baseline_passed', 'steered_correct', 'flipped',
-                     'generated_code', 'steered_generated_code']
-                ].to_dict('records')
+                export_cols = ['task_id', 'baseline_passed', 'steered_correct', 'flipped',
+                               'generated_code', 'steered_generated_code']
+                if 'steered_error_type' in correction_results.columns:
+                    export_cols.append('steered_error_type')
+                correction_data = correction_results[export_cols].to_dict('records')
                 save_json(correction_data, self.output_dir / "all_correction_results.json")
                 logger.info(f"Saved {len(correction_data)} correction steering results to all_correction_results.json")
         else:
@@ -517,10 +521,11 @@ class SteeringEffectAnalyzer:
             
             # Save corruption results immediately for debugging
             if not corruption_results.empty:
-                corruption_data = corruption_results[
-                    ['task_id', 'baseline_passed', 'steered_correct', 'flipped',
-                     'generated_code', 'steered_generated_code']
-                ].to_dict('records')
+                export_cols = ['task_id', 'baseline_passed', 'steered_correct', 'flipped',
+                               'generated_code', 'steered_generated_code']
+                if 'steered_error_type' in corruption_results.columns:
+                    export_cols.append('steered_error_type')
+                corruption_data = corruption_results[export_cols].to_dict('records')
                 save_json(corruption_data, self.output_dir / "all_corruption_results.json")
                 logger.info(f"Saved {len(corruption_data)} corruption steering results to all_corruption_results.json")
         else:
@@ -542,10 +547,11 @@ class SteeringEffectAnalyzer:
         
         # Save preservation results immediately for debugging
         if not preservation_results.empty:
-            preservation_data = preservation_results[
-                ['task_id', 'baseline_passed', 'steered_correct', 'flipped',
-                 'generated_code', 'steered_generated_code']
-            ].to_dict('records')
+            export_cols = ['task_id', 'baseline_passed', 'steered_correct', 'flipped',
+                           'generated_code', 'steered_generated_code']
+            if 'steered_error_type' in preservation_results.columns:
+                export_cols.append('steered_error_type')
+            preservation_data = preservation_results[export_cols].to_dict('records')
             save_json(preservation_data, self.output_dir / "all_preservation_results.json")
             logger.info(f"Saved {len(preservation_data)} preservation steering results to all_preservation_results.json")
         

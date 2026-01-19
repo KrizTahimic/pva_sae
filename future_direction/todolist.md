@@ -833,16 +833,23 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
     **SAE Verified**: `fnlp/Llama-Scope` 32K (8x expansion) matches Neuronpedia's `llamascope-res-32k`
     **Note:** Check if LLAMA orthogonalization weights need adjustment: `['embed', 'attn_o', 'mlp_down']`
 
-- [ ] **Error type breakdown analysis** (Reviewer RXZd)
-  - [ ] Categorize errors: syntax, logic, type, runtime, etc.
-  - [ ] Detection: Which error types does incorrect-predicting direction catch better?
-  - [ ] Steering: Which error types does correction work on?
+- [x] **Error type breakdown analysis** (Reviewer RXZd) - DONE
+  - [x] Categorize errors: syntax, logic, type, runtime, etc.
+  - [x] Detection: Which error types does incorrect-predicting direction catch better?
+  - [x] Steering: Which error types does correction work on?
   - Supports MechInterp narrative by showing what the linear direction encodes
+  - **Implementation:**
+    - Added `EvaluationResult` dataclass and `evaluate_code_with_error_type()` to `common/dataset_utils.py`
+    - Error categories: passed, syntax, name, type, logic, runtime, timeout
+    - Updated 13 phase modules to capture `baseline_error_type`, `steered_error_type`, or `orthogonalized_error_type`
+    - Created Phase 9.1 (`phase9_1_error_type_analysis/`) for analysis and visualization
+    - Fixed Phase 4.8 to properly export `steered_error_type` in JSON and parquet files
+  - **Commit:** `fb07b771a` (feat: Add error type breakdown analysis for ICLR reviewer question)    
 
-- [ ] **Feature threshold sensitivity analysis** (Reviewer RXZd)
+- [x] **Feature threshold sensitivity analysis** (Reviewer RXZd)
     - [x] **Infrastructure ready**: Phase 2.3 extracts pile frequency computation, enabling easy threshold testing
-    - [ ] Test sensitivity to the >2% activation threshold on pile-10k (vary threshold, rerun Phase 2.5/2.10 only)
-    - [ ] Report how many features get filtered out in top-20 (needs full 10,000 pile samples)
+    - [x] Test sensitivity to the >2% activation threshold on pile-10k (vary threshold, rerun Phase 2.5/2.10 only)
+    - [x] Report how many features get filtered out in top-20 (needs full 10,000 pile samples)
     - **Reporting plan**:
         - Main paper: "Of top-20 candidates, X filtered at 2% threshold, Y remained. Selected feature ranked #Z."
         - Appendix: Small table showing filtering counts at 1%, 2%, 5% thresholds (shows threshold isn't arbitrary)
@@ -851,7 +858,7 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
         - 5-10 filtered → filter is doing meaningful work, emphasize its importance
         - 10+ filtered → may indicate selection method issues, investigate further
     - **Note**: Current 2% threshold is copied from Ferrando et al. 2024 (entities paper). No first-principles justification yet. Results will inform whether to keep, adjust, or provide post-hoc justification.
-- [ ] In AUROC and F1? How did the inspiration do it? How did they make the thresholds to test? Copy them or improve.
+- [x] In AUROC and F1? How did the inspiration do it? How did they make the thresholds to test? Copy them or improve.
 - [ ] In steering if performance is not changing stop the search already and use the lower steering coefficient. In golden section search.
     - Consider applying the same in phase 3.8 also in threshold.
 
@@ -876,15 +883,15 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 ---
 
 ## Step 6: Multi-GPU Parallel Execution (After Experiments Work)
-- [ ] **Consider adding `--model` CLI argument** for quick model switching during testing (Step 6). Also `--dataset`
+- [x] **CLI `--model` and `--dataset` arguments** - Already implemented in run.py:84-101, config.py:232-269
 - [ ] Consider condensing the code more like some can be just a variation of one code like steering etc. But take this with high risk and put little importance. Leaning to not do this. or maybe atleast have steering function that will always be called. Ask CC if my current architecture/codebase design make sense or if could be better.
 - [ ] Test all phase one by one first if it is all running.
     - [ ] Exmaine each of the output file.
     - [ ] Code review manually. With CC help ofcourse but read all code manually. Make sure I understand and it is correct. Make it a rule for me to actually read the code before testing.
     - [ ] Understand the methods especially the linear algebra. Visualize etc. Enter learning mode. Learn to code. Get used to it.
-- [ ] Consider batching or not since one problem already do 50% GPU usage?
+- [x] Consider batching or not since one problem already do 50% GPU usage?
 - [ ] and running all four gpu at once. 
-- [ ] Consider learning and implementing other optimization.
+- [x] Consider learning and implementing other optimization.
 - [x] **Gemma-2-9B Support Added:**
     - Added `GEMMA_9B_SPARSITY` dict (42 layers) to `common/config.py`
     - Added `google/gemma-2-9b` and `google/gemma-2-9b-it` to `MODEL_CONFIGS`
@@ -901,7 +908,7 @@ Run experiments across 4 GPUs efficiently. Do this after multi-model support is 
 
 ### Solution: Job Queue Pattern
 
-- [ ] Add `--model` and `--dataset` CLI flags to `run.py`
+- [x] Add `--model` and `--dataset` CLI flags to `run.py` - Already done (lines 84-101)
 - [ ] Create `scripts/job_queue.py` with task queue pattern
 - [ ] Workers (one per GPU) grab jobs from queue as they finish
 - [ ] Support for job dependencies (Phase 2.5 needs Phase 1)

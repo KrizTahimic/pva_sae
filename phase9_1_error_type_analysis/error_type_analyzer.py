@@ -127,10 +127,28 @@ class ErrorTypeAnalyzer:
 
     def _analyze_steering_errors(self) -> dict:
         """Analyze error type distribution from steering (Phase 4.8)."""
-        self.steering_df = self._load_phase_data("4.8", ["baseline_passed", "steered_correct", "steered_error_type"])
+        # Load steering results from JSON files in Phase 4.8
+        phase_4_8_dir = Path(get_phase_output_dir("4.8", self.config))
 
-        if self.steering_df is None:
+        correction_file = phase_4_8_dir / "all_correction_results.json"
+        corruption_file = phase_4_8_dir / "all_corruption_results.json"
+        preservation_file = phase_4_8_dir / "all_preservation_results.json"
+
+        all_results = []
+        for result_file in [correction_file, corruption_file, preservation_file]:
+            if result_file.exists():
+                try:
+                    with open(result_file) as f:
+                        results = json.load(f)
+                        all_results.extend(results)
+                except Exception as e:
+                    logger.warning(f"Error loading {result_file}: {e}")
+
+        if not all_results:
             return {"status": "missing_data"}
+
+        self.steering_df = pd.DataFrame(all_results)
+        logger.info(f"Loaded {len(self.steering_df)} steering results from Phase 4.8")
 
         # Check if steered_error_type exists
         if "steered_error_type" not in self.steering_df.columns:
