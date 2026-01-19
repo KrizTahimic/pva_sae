@@ -296,7 +296,7 @@ class Phase1Runner:
         
         return memory_percent
     
-    def run(self, split_name: str = "sae"):
+    def run(self, split_name: str = "selection"):
         """Run Phase 1 dataset building for specified split."""
         logger.info("Starting Phase 1: Dataset Building")
         logger.info(f"Model: {self.config.model_name}, Split: {split_name}")
