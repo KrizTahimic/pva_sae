@@ -35,6 +35,7 @@ Usage:
 
 import os
 import gc
+import json
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import asdict
@@ -194,6 +195,11 @@ def run_phase_parallel(phase_id: str, config: Config, n_gpus: int) -> dict:
     # Get output directory for this phase
     from common.phase_discovery import get_phase_output_dir
     output_dir = get_phase_output_dir(phase_id, config)
+
+    # Add _probe suffix for probe-based steering phases
+    if phase_id in ("4.5", "4.6", "4.7", "4.8") and getattr(config, 'direction_source', 'sae') == 'probe_mass_mean':
+        output_dir = str(Path(output_dir).parent / (Path(output_dir).name + "_probe"))
+
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     # Use spawn context for CUDA compatibility
@@ -249,6 +255,269 @@ def run_phase_parallel(phase_id: str, config: Config, n_gpus: int) -> dict:
     return merged_result
 
 
+def _merge_phase4_5_json_results(
+    output_path: Path,
+    n_gpus: int,
+    config: Config,
+    phase_id: str
+) -> dict:
+    """
+    Merge Phase 4.5/4.6 JSON results from parallel GPU workers.
+
+    Phase 4.5 produces coefficient_analysis_gpu{N}.json files with structure:
+    {
+        "correct_steering": {
+            "optimal_coefficient": float,
+            "best_result": {...},
+            "search_history": [{"coefficient": float, "metrics": {...}, "results": [...]}]
+        },
+        "incorrect_steering": {...}
+    }
+
+    This function merges results by:
+    1. Combining per-problem results from all GPUs for each coefficient
+    2. Recalculating metrics based on merged results
+    3. Determining overall optimal coefficients
+    """
+    # Find per-GPU JSON files (Phase 4.5 uses coefficient_analysis, Phase 4.6 uses refinement_analysis)
+    if phase_id == "4.6":
+        json_files = sorted(output_path.glob("refinement_analysis_gpu*.json"))
+        output_filename = "refinement_analysis.json"
+        selected_filename = "refined_coefficients.json"
+        selected_pattern = "refined_coefficients_gpu*.json"
+    else:
+        json_files = sorted(output_path.glob("coefficient_analysis_gpu*.json"))
+        output_filename = "coefficient_analysis.json"
+        selected_filename = "selected_coefficients.json"
+        selected_pattern = "selected_coefficients_gpu*.json"
+
+    if not json_files:
+        raise RuntimeError(
+            f"No per-GPU coefficient_analysis files found in {output_path}. "
+            f"Expected pattern: coefficient_analysis_gpu*.json"
+        )
+
+    logger.info(f"Found {len(json_files)} GPU JSON files to merge")
+
+    # Load all per-GPU results
+    gpu_results = []
+    for json_file in json_files:
+        with open(json_file) as f:
+            gpu_results.append(json.load(f))
+        logger.info(f"  Loaded {json_file.name}")
+
+    # Phase 4.6 has different structure - pick best result from each GPU
+    if phase_id == "4.6":
+        merged = {}
+        for steering_key in ['correct_steering', 'incorrect_steering']:
+            steering_type = steering_key.replace('_steering', '')
+
+            best_coefficient = None
+            best_score = -1
+            best_result = None
+
+            for gpu_data in gpu_results:
+                if steering_key not in gpu_data:
+                    continue
+                gpu_result = gpu_data[steering_key]
+                score = gpu_result.get('best_score', 0)
+                if score > best_score:
+                    best_score = score
+                    best_coefficient = gpu_result.get('optimal_coefficient')
+                    best_result = gpu_result
+
+            if best_result:
+                merged[steering_key] = best_result
+                logger.info(f"  {steering_key}: optimal_coefficient={best_coefficient}, "
+                           f"best_score={best_score:.1f}%")
+            else:
+                logger.warning(f"No {steering_key} results found across GPUs")
+
+        # Save and cleanup handled below
+        merged_file = output_path / output_filename
+        with open(merged_file, 'w') as f:
+            json.dump(merged, f, indent=2)
+        logger.info(f"Saved merged analysis: {merged_file}")
+
+        selected_files = sorted(output_path.glob(selected_pattern))
+        if selected_files:
+            with open(selected_files[0]) as f:
+                selected = json.load(f)
+            for steering_type in ['correct', 'incorrect']:
+                steering_key = f'{steering_type}_steering'
+                if steering_key in merged and steering_type in selected:
+                    selected[steering_type]['coefficient'] = merged[steering_key].get('optimal_coefficient')
+            selected_merged_file = output_path / selected_filename
+            with open(selected_merged_file, 'w') as f:
+                json.dump(selected, f, indent=2)
+            logger.info(f"Saved merged coefficients: {selected_merged_file}")
+
+        write_phase_output(phase=phase_id, outputs={"primary": output_filename},
+                          config=config, output_dir=str(output_path))
+        logger.info("Wrote phase_output.json manifest")
+
+        for f in json_files:
+            f.unlink()
+            logger.info(f"  Cleaned up {f.name}")
+        for f in selected_files:
+            f.unlink()
+            logger.info(f"  Cleaned up {f.name}")
+
+        return {'merged_file': str(merged_file), 'steering_types': list(merged.keys()), 'n_gpus': n_gpus}
+
+    # Phase 4.5 merging - combine per-problem results across GPUs
+    merged = {}
+    for steering_key in ['correct_steering', 'incorrect_steering']:
+        steering_type = steering_key.replace('_steering', '')
+
+        # Collect search histories from all GPUs
+        all_histories = []
+        for gpu_data in gpu_results:
+            if steering_key in gpu_data and gpu_data[steering_key].get('search_history'):
+                all_histories.extend(gpu_data[steering_key]['search_history'])
+
+        if not all_histories:
+            logger.warning(f"No {steering_key} results found across GPUs")
+            continue
+
+        # Group by coefficient
+        coeff_results = {}
+        for hist in all_histories:
+            coeff = hist['coefficient']
+            if coeff not in coeff_results:
+                coeff_results[coeff] = {
+                    'coefficient': coeff,
+                    'steering_type': steering_type,
+                    'all_results': [],
+                    'metrics': {}
+                }
+            # Extend with this GPU's problem results
+            if 'results' in hist:
+                coeff_results[coeff]['all_results'].extend(hist['results'])
+
+        # Recalculate metrics for each coefficient
+        merged_history = []
+        best_coefficient = None
+        best_score = -1
+        best_result = None
+
+        for coeff, data in sorted(coeff_results.items()):
+            results = data['all_results']
+            n_problems = len(results)
+
+            if n_problems == 0:
+                continue
+
+            # Calculate metrics based on steering type
+            if steering_type == 'correct':
+                # Correction rate: incorrect baseline → correct steered
+                corrections = sum(1 for r in results
+                                 if not r.get('baseline_passed', True) and r.get('steered_correct', False))
+                incorrect_baseline = sum(1 for r in results if not r.get('baseline_passed', True))
+                correction_rate = (corrections / incorrect_baseline * 100) if incorrect_baseline > 0 else 0
+
+                metrics = {'correction_rate': correction_rate}
+                score = correction_rate
+            else:
+                # Corruption rate: correct baseline → incorrect steered
+                corruptions = sum(1 for r in results
+                                 if r.get('baseline_passed', False) and not r.get('steered_correct', True))
+                correct_baseline = sum(1 for r in results if r.get('baseline_passed', False))
+                corruption_rate = (corruptions / correct_baseline * 100) if correct_baseline > 0 else 0
+
+                # Average similarity
+                similarities = [r.get('code_similarity', 0) for r in results if 'code_similarity' in r]
+                avg_similarity = (sum(similarities) / len(similarities) * 100) if similarities else 0
+
+                # Composite score (same formula as Phase 4.5)
+                composite_score = corruption_rate * 0.5 + avg_similarity * 0.5
+
+                metrics = {
+                    'corruption_rate': corruption_rate,
+                    'avg_similarity': avg_similarity,
+                    'composite_score': composite_score
+                }
+                score = composite_score
+
+            # Calculate divergence metrics
+            similarities = [r.get('code_similarity', 0) for r in results if 'code_similarity' in r]
+            mean_similarity = sum(similarities) / len(similarities) if similarities else 0
+
+            hist_entry = {
+                'coefficient': coeff,
+                'steering_type': steering_type,
+                'metrics': metrics,
+                'divergence': {'mean_code_similarity': mean_similarity},
+                'n_problems': n_problems,
+                'results': results
+            }
+            merged_history.append(hist_entry)
+
+            # Track best
+            if score > best_score:
+                best_score = score
+                best_coefficient = coeff
+                best_result = hist_entry
+
+        merged[steering_key] = {
+            'optimal_coefficient': best_coefficient,
+            'best_result': best_result,
+            'search_history': merged_history
+        }
+
+        logger.info(f"  {steering_key}: optimal_coefficient={best_coefficient}, "
+                   f"best_score={best_score:.1f}%, n_coefficients={len(merged_history)}")
+
+    # Save merged analysis file
+    merged_file = output_path / output_filename
+    with open(merged_file, 'w') as f:
+        json.dump(merged, f, indent=2)
+    logger.info(f"Saved merged analysis: {merged_file}")
+
+    # Also merge and save selected/refined coefficients
+    selected_files = sorted(output_path.glob(selected_pattern))
+    if selected_files:
+        # Use the first GPU's selected coefficients as base, update with merged optimal
+        with open(selected_files[0]) as f:
+            selected = json.load(f)
+
+        # Update with merged optimal coefficients
+        for steering_type in ['correct', 'incorrect']:
+            steering_key = f'{steering_type}_steering'
+            if steering_key in merged and steering_type in selected:
+                selected[steering_type]['coefficient'] = merged[steering_key]['optimal_coefficient']
+                if merged[steering_key]['best_result']:
+                    selected[steering_type]['metrics'] = merged[steering_key]['best_result']['metrics']
+
+        selected_merged_file = output_path / selected_filename
+        with open(selected_merged_file, 'w') as f:
+            json.dump(selected, f, indent=2)
+        logger.info(f"Saved merged coefficients: {selected_merged_file}")
+
+    # Write phase_output.json manifest
+    write_phase_output(
+        phase=phase_id,
+        outputs={"primary": output_filename},
+        config=config,
+        output_dir=str(output_path)
+    )
+    logger.info("Wrote phase_output.json manifest")
+
+    # Clean up per-GPU files
+    for f in json_files:
+        f.unlink()
+        logger.info(f"  Cleaned up {f.name}")
+    for f in selected_files:
+        f.unlink()
+        logger.info(f"  Cleaned up {f.name}")
+
+    return {
+        'merged_file': str(merged_file),
+        'steering_types': list(merged.keys()),
+        'n_gpus': n_gpus
+    }
+
+
 def _merge_parallel_results(
     phase_id: str,
     output_dir: str,
@@ -271,6 +540,10 @@ def _merge_parallel_results(
         Merged result dict
     """
     output_path = Path(output_dir)
+
+    # Phase 4.5/4.6 use JSON output format, not parquet
+    if phase_id in ("4.5", "4.6"):
+        return _merge_phase4_5_json_results(output_path, n_gpus, config, phase_id)
 
     # Find per-GPU result files
     # Phase 3.5 uses a different pattern for temperature experiments
