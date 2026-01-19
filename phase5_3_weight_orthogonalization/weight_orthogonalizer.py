@@ -369,11 +369,12 @@ class WeightOrthogonalizer:
         # Statistical significance testing
         n_incorrect = len(incorrect_results)
         n_corrected = sum(1 for r in incorrect_results if r['orthogonalized_correct'])
-        correction_pvalue = binomtest(n_corrected, n_incorrect, p=0.5, alternative='greater').pvalue
-        
+        # Handle empty dataset case (e.g., in parallel mode when GPU gets 0 tasks)
+        correction_pvalue = binomtest(n_corrected, n_incorrect, p=0.5, alternative='greater').pvalue if n_incorrect > 0 else 1.0
+
         n_correct = len(correct_results)
         n_preserved = sum(1 for r in correct_results if r['orthogonalized_correct'])
-        preservation_pvalue = binomtest(n_preserved, n_correct, p=0.5, alternative='greater').pvalue
+        preservation_pvalue = binomtest(n_preserved, n_correct, p=0.5, alternative='greater').pvalue if n_correct > 0 else 1.0
         
         results = {
             'direction': 'incorrect',
@@ -542,7 +543,8 @@ class WeightOrthogonalizer:
         # Statistical significance testing
         n_correct = len(correct_results)
         n_corrupted = sum(1 for r in correct_results if not r['orthogonalized_correct'])
-        corruption_pvalue = binomtest(n_corrupted, n_correct, p=0.5, alternative='greater').pvalue
+        # Handle empty dataset case (e.g., in parallel mode when GPU gets 0 tasks)
+        corruption_pvalue = binomtest(n_corrupted, n_correct, p=0.5, alternative='greater').pvalue if n_correct > 0 else 1.0
         
         results = {
             'direction': 'correct',

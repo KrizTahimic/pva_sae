@@ -417,7 +417,9 @@ def discover_optimal_percentile(config: 'Config') -> dict:
 
     optimal_file = get_phase_output_file("8.2", "primary", config=config)
     data = load_json(optimal_file)
+    # Data is nested under optimization_summary
+    summary = data["optimization_summary"]
     return {
-        "percentile": data["optimal_percentile"],
-        "threshold": data["optimal_threshold"],
+        "percentile": summary["optimal_percentile"],
+        "threshold": summary["optimal_threshold"],
     }
