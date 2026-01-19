@@ -16,7 +16,7 @@ from datetime import datetime
 from einops import reduce
 from huggingface_hub import hf_hub_download
 
-from common.config import Config, GEMMA_2B_SPARSITY
+from common.config import Config
 from common.logging import get_logger, tqdm_with_logging
 from common.phase_discovery import get_phase_output_dir
 from common.pile_filter_utils import load_pile_frequencies, apply_pile_filter

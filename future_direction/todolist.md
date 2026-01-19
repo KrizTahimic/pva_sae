@@ -785,6 +785,7 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 **Steering:** Probe steering works; continuous mode needed for correction
 **Interpretation:** Layer convergence = converging evidence for linear representation
 
+- [ ] Try improving linear probe like what is the right regularization.
 ---
 
 - [x] **Selective steering implementation** (Reviewers RXZd, vRko) - DONE

@@ -5,6 +5,7 @@ Creates visualizations for latent selection:
 1. Scatter plot: All SAE latents by activation frequency (correct vs incorrect)
 2. Histogram: Distribution of separation scores showing top-10 steering latents as outliers
 3. Histogram: Distribution of t-statistics showing top-10 validation latents as outliers
+4. Layer-wise evolution: Top-N latents tracked across layers (Ferrando et al. 2024 style)
 
 Highlights top 10 latents from:
 - Phase 2.5 (separation score - for steering experiments)
@@ -135,7 +136,10 @@ class LatentLandscapeVisualizer:
         sep_score_stats = self._create_separation_score_histogram(all_latents, top_2_5)
         t_stat_stats = self._create_t_statistic_histogram(all_t_stats, top_2_10)
 
-        # 7. Save metadata with statistics
+        # 7. Create Ferrando-style layer-wise evolution plot
+        self._create_layerwise_evolution_plot(all_latents, all_t_stats)
+
+        # 8. Save metadata with statistics
         results = {
             "n_total_latents": len(all_latents),
             "n_layers": len(self.config.activation_layers),
@@ -157,7 +161,8 @@ class LatentLandscapeVisualizer:
             outputs={
                 "primary": "latent_landscape_scatter.png",
                 "separation_histogram": "separation_score_distribution.png",
-                "t_stat_histogram": "t_statistic_distribution.png"
+                "t_stat_histogram": "t_statistic_distribution.png",
+                "layerwise_evolution": "layerwise_latent_evolution.png"
             },
             config=self.config,
             output_dir=str(self.output_dir)
@@ -541,6 +546,161 @@ class LatentLandscapeVisualizer:
 
         logger.info(f"Saved t-statistic histogram to {output_path}")
         return distribution_stats
+
+    def _compute_layerwise_top_n(
+        self,
+        all_latents: dict,
+        all_t_stats: dict,
+        metric: str,
+        top_n: int = 4
+    ) -> dict:
+        """Compute top-N latents per layer for a given metric.
+
+        Args:
+            all_latents: Dict of (layer, latent_idx) -> {f_correct, f_incorrect, separation_score}
+            all_t_stats: Dict of (layer, latent_idx) -> t_statistic
+            metric: Either 'separation_score' or 't_statistic'
+            top_n: Number of top latents to track per layer
+
+        Returns:
+            Dict with 'correct' and 'incorrect' keys, each containing:
+                {layer_idx: [top_n_scores]} sorted descending
+        """
+        result = {'correct': {}, 'incorrect': {}}
+
+        for layer_idx in self.config.activation_layers:
+            # Collect scores for this layer
+            correct_scores = []
+            incorrect_scores = []
+
+            for (layer, latent_idx), latent_data in all_latents.items():
+                if layer != layer_idx:
+                    continue
+
+                if metric == 'separation_score':
+                    score = latent_data['separation_score']
+                elif metric == 't_statistic':
+                    key = (layer, latent_idx)
+                    if key not in all_t_stats:
+                        continue
+                    score = all_t_stats[key]
+                else:
+                    raise ValueError(f"Unknown metric: {metric}")
+
+                # Positive scores = correct-predicting, negative = incorrect-predicting
+                if score > 0:
+                    correct_scores.append(score)
+                elif score < 0:
+                    incorrect_scores.append(abs(score))
+
+            # Sort and take top N
+            correct_scores.sort(reverse=True)
+            incorrect_scores.sort(reverse=True)
+
+            result['correct'][layer_idx] = correct_scores[:top_n]
+            result['incorrect'][layer_idx] = incorrect_scores[:top_n]
+
+        return result
+
+    def _create_layerwise_evolution_plot(
+        self,
+        all_latents: dict,
+        all_t_stats: dict,
+        top_n: int = 5
+    ) -> None:
+        """Create Ferrando-style layer-wise latent evolution plot.
+
+        Creates a 2x2 subplot grid showing how top latent metrics evolve across layers.
+        Inspired by Ferrando et al. 2024 Figure 2.
+
+        Args:
+            all_latents: Dict of (layer, latent_idx) -> {f_correct, f_incorrect, separation_score}
+            all_t_stats: Dict of (layer, latent_idx) -> t_statistic
+            top_n: Number of top latents to track per layer (default 4)
+        """
+        plt.style.use(PLOT_STYLE)
+        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+
+        # Compute layerwise data for both metrics
+        sep_data = self._compute_layerwise_top_n(all_latents, all_t_stats, 'separation_score', top_n)
+        t_data = self._compute_layerwise_top_n(all_latents, all_t_stats, 't_statistic', top_n)
+
+        layers = sorted(self.config.activation_layers)
+
+        # Plot configuration: (row, col, metric_data, metric_name, color, latent_type)
+        plot_configs = [
+            (0, 0, t_data['correct'], 't-statistic', COLOR_CORRECTION, 'Correct-predicting'),
+            (0, 1, t_data['incorrect'], 't-statistic', COLOR_CORRUPTION, 'Incorrect-predicting'),
+            (1, 0, sep_data['correct'], 'Separation Score', COLOR_CORRECTION, 'Correct Steering'),
+            (1, 1, sep_data['incorrect'], 'Separation Score', COLOR_CORRUPTION, 'Incorrect Steering'),
+        ]
+
+        for row, col, data, metric_name, color, latent_type in plot_configs:
+            ax = axes[row, col]
+
+            # Prepare data arrays for plotting
+            # For each rank (1st, 2nd, etc.), collect values across layers
+            for rank in range(top_n):
+                rank_values = []
+                rank_layers = []
+
+                for layer in layers:
+                    if layer in data and len(data[layer]) > rank:
+                        rank_values.append(data[layer][rank])
+                        rank_layers.append(layer)
+
+                if not rank_values:
+                    continue
+
+                # Style: Top 1 = solid thick, others = dashed with decreasing opacity
+                if rank == 0:
+                    linestyle = '-'
+                    linewidth = 2.5
+                    alpha = 1.0
+                    label = f'Top 1'
+                else:
+                    linestyle = '--'
+                    linewidth = 1.5
+                    alpha = 0.7 - (rank - 1) * 0.15
+                    label = f'Top {rank + 1}'
+
+                ax.plot(rank_layers, rank_values, linestyle=linestyle, linewidth=linewidth,
+                       color=color, alpha=alpha, label=label, marker='o', markersize=4)
+
+            # Add error bars showing min-max range at each layer
+            layer_mins = []
+            layer_maxs = []
+            valid_layers = []
+
+            for layer in layers:
+                if layer in data and len(data[layer]) > 0:
+                    valid_layers.append(layer)
+                    layer_mins.append(min(data[layer]))
+                    layer_maxs.append(max(data[layer]))
+
+            if valid_layers:
+                # Plot min-max as shaded region
+                ax.fill_between(valid_layers, layer_mins, layer_maxs, alpha=0.15, color=color)
+
+            # Configure axes
+            ax.set_xlabel('Layer', fontsize=11)
+            ax.set_ylabel(metric_name, fontsize=11)
+            ax.set_title(f'{latent_type} Latents', fontsize=12)
+            ax.legend(loc='upper left', fontsize=8)
+            ax.grid(True, alpha=0.3)
+
+            # Set x-ticks to show all layers
+            ax.set_xticks(layers[::2])  # Show every other layer to avoid crowding
+
+        plt.suptitle('Layer-wise Evolution of Top Latents', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+
+        # Save
+        output_path = self.output_dir / "layerwise_latent_evolution.png"
+        plt.savefig(output_path, dpi=PLOT_DPI, bbox_inches='tight')
+        plt.close()
+
+        logger.info(f"Saved layer-wise evolution plot to {output_path}")
 
 
 class Phase220Runner:

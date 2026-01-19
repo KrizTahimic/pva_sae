@@ -1,4 +1,4 @@
-{
+Wha{
   "model": "gemma2b",
   "best_layers": {
     "by_auroc": {
