@@ -243,7 +243,7 @@ class ThresholdSensitivityAnalyzer:
             'current_threshold': f"{self.config.pile_threshold:.1%}",
             'thresholds_tested': [f"{t:.1%}" for t in THRESHOLDS_TO_TEST],
             'separation_score': {
-                'correct': {
+                'correct_steering': {
                     'top20_details': self._analyze_top_latents(
                         top_100_separation['correct'], pile_frequencies, 'separation_score'
                     ),
@@ -251,7 +251,7 @@ class ThresholdSensitivityAnalyzer:
                         top_100_separation['correct'], pile_frequencies
                     )
                 },
-                'incorrect': {
+                'incorrect_steering': {
                     'top20_details': self._analyze_top_latents(
                         top_100_separation['incorrect'], pile_frequencies, 'separation_score'
                     ),
@@ -261,7 +261,7 @@ class ThresholdSensitivityAnalyzer:
                 }
             },
             't_statistic': {
-                'correct': {
+                'correct_predicting': {
                     'top20_details': self._analyze_top_latents(
                         top_100_tstat['correct'], pile_frequencies, 't_statistic'
                     ),
@@ -269,7 +269,7 @@ class ThresholdSensitivityAnalyzer:
                         top_100_tstat['correct'], pile_frequencies
                     )
                 },
-                'incorrect': {
+                'incorrect_predicting': {
                     'top20_details': self._analyze_top_latents(
                         top_100_tstat['incorrect'], pile_frequencies, 't_statistic'
                     ),
@@ -332,12 +332,22 @@ class ThresholdSensitivityAnalyzer:
         x_labels = [f"{t:.1%}" for t in thresholds]
         x = np.arange(len(thresholds))
 
-        for row, (method, method_key) in enumerate([('Separation Score', 'separation_score'),
-                                                      ('T-Statistic', 't_statistic')]):
-            for col, (category, color) in enumerate([('correct', COLOR_CORRECT_PREDICTING),
-                                                      ('incorrect', COLOR_INCORRECT_PREDICTING)]):
+        # Define method-specific categories with appropriate terminology
+        method_configs = [
+            ('Separation Score', 'separation_score', [
+                ('correct_steering', 'Correct-steering', COLOR_CORRECT_PREDICTING),
+                ('incorrect_steering', 'Incorrect-steering', COLOR_INCORRECT_PREDICTING)
+            ]),
+            ('T-Statistic', 't_statistic', [
+                ('correct_predicting', 'Correct-predicting', COLOR_CORRECT_PREDICTING),
+                ('incorrect_predicting', 'Incorrect-predicting', COLOR_INCORRECT_PREDICTING)
+            ])
+        ]
+
+        for row, (method, method_key, categories) in enumerate(method_configs):
+            for col, (category_key, category_label, color) in enumerate(categories):
                 ax = axes[row, col]
-                data = results[method_key][category]['ranking_stability']
+                data = results[method_key][category_key]['ranking_stability']
 
                 # Get survival counts
                 n_surviving = [data['by_threshold'][f"{t:.1%}"]['n_surviving'] for t in thresholds]
@@ -356,7 +366,7 @@ class ThresholdSensitivityAnalyzer:
 
                 ax.set_xlabel('Pile Threshold')
                 ax.set_ylabel('Latents Surviving (of top-100)')
-                ax.set_title(f'{method} - {category.capitalize()}-predicting\n'
+                ax.set_title(f'{method} - {category_label}\n'
                             f'(Top-1 stable: {data["top1_stable_across_all"]})')
                 ax.set_xticks(x)
                 ax.set_xticklabels(x_labels)
@@ -394,12 +404,12 @@ class ThresholdSensitivityAnalyzer:
             "\\toprule",
             "Rank & Layer & Latent & Score & Pile Freq & Survives 2\\%? \\\\",
             "\\midrule",
-            "\\multicolumn{6}{c}{\\textbf{Correct-predicting (Separation Score)}} \\\\",
+            "\\multicolumn{6}{c}{\\textbf{Correct-steering (Separation Score)}} \\\\",
             "\\midrule"
         ]
 
-        # Add correct-predicting latents
-        for latent in results['separation_score']['correct']['top20_details'][:10]:
+        # Add correct-steering latents
+        for latent in results['separation_score']['correct_steering']['top20_details'][:10]:
             survives = "\\cmark" if latent['survives_2pct'] else "\\xmark"
             lines.append(
                 f"{latent['unfiltered_rank']} & {latent['layer']} & {latent['latent_idx']} & "
@@ -408,12 +418,12 @@ class ThresholdSensitivityAnalyzer:
 
         lines.extend([
             "\\midrule",
-            "\\multicolumn{6}{c}{\\textbf{Incorrect-predicting (Separation Score)}} \\\\",
+            "\\multicolumn{6}{c}{\\textbf{Incorrect-steering (Separation Score)}} \\\\",
             "\\midrule"
         ])
 
-        # Add incorrect-predicting latents
-        for latent in results['separation_score']['incorrect']['top20_details'][:10]:
+        # Add incorrect-steering latents
+        for latent in results['separation_score']['incorrect_steering']['top20_details'][:10]:
             survives = "\\cmark" if latent['survives_2pct'] else "\\xmark"
             lines.append(
                 f"{latent['unfiltered_rank']} & {latent['layer']} & {latent['latent_idx']} & "
@@ -429,8 +439,12 @@ class ThresholdSensitivityAnalyzer:
         ])
 
         # Add summary comments
-        for method in ['separation_score', 't_statistic']:
-            for category in ['correct', 'incorrect']:
+        method_categories = [
+            ('separation_score', ['correct_steering', 'incorrect_steering']),
+            ('t_statistic', ['correct_predicting', 'incorrect_predicting'])
+        ]
+        for method, categories in method_categories:
+            for category in categories:
                 stability = results[method][category]['ranking_stability']
                 lines.append(
                     f"% {method} {category}: top-1 stable = {stability['top1_stable_across_all']}, "
@@ -451,13 +465,24 @@ class ThresholdSensitivityAnalyzer:
         logger.info("QUESTION: Would we select different latents at 1% or 5% vs 2%?")
         logger.info("")
 
-        for method, method_key in [('SEPARATION SCORE (for steering)', 'separation_score'),
-                                   ('T-STATISTIC (for validation)', 't_statistic')]:
+        # Define method-specific categories with display labels
+        method_configs = [
+            ('SEPARATION SCORE (for steering)', 'separation_score', [
+                ('correct_steering', 'Correct-steering'),
+                ('incorrect_steering', 'Incorrect-steering')
+            ]),
+            ('T-STATISTIC (for validation)', 't_statistic', [
+                ('correct_predicting', 'Correct-predicting'),
+                ('incorrect_predicting', 'Incorrect-predicting')
+            ])
+        ]
+
+        for method, method_key, categories in method_configs:
             logger.info(f"{method}:")
 
-            for category in ['correct', 'incorrect']:
-                stability = results[method_key][category]['ranking_stability']
-                logger.info(f"  {category.capitalize()}-predicting:")
+            for category_key, category_label in categories:
+                stability = results[method_key][category_key]['ranking_stability']
+                logger.info(f"  {category_label}:")
                 logger.info(f"    Top-1 stable across all thresholds: {stability['top1_stable_across_all']}")
                 logger.info(f"    Top-1 at each threshold: {stability['top1_values']}")
 
@@ -472,9 +497,10 @@ class ThresholdSensitivityAnalyzer:
 
         # Print the top-5 latents for separation score with their pile frequencies
         logger.info("TOP-5 SEPARATION SCORE LATENTS (unfiltered ranking):")
-        for category in ['correct', 'incorrect']:
-            logger.info(f"  {category.capitalize()}-predicting:")
-            for lat in results['separation_score'][category]['top20_details'][:5]:
+        for category_key, category_label in [('correct_steering', 'Correct-steering'),
+                                              ('incorrect_steering', 'Incorrect-steering')]:
+            logger.info(f"  {category_label}:")
+            for lat in results['separation_score'][category_key]['top20_details'][:5]:
                 status = "✓ survives" if lat['survives_2pct'] else "✗ filtered"
                 logger.info(
                     f"    #{lat['unfiltered_rank']}: L{lat['layer']}_F{lat['latent_idx']} "
