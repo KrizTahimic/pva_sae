@@ -202,7 +202,7 @@ class ProbeDirectionComputer:
                         stability. Default 1e-4 prevents singular matrix issues.
 
         Returns:
-            Mass-mean direction [d_model], unnormalized
+            Mass-mean direction [d_model], L2-normalized to unit norm
         """
         if reg_lambda is None:
             reg_lambda = self.config.probe_mass_mean_reg_lambda
@@ -218,6 +218,10 @@ class ProbeDirectionComputer:
 
         # Mass-Mean direction: Σ⁻¹ @ μ_diff
         direction = np.linalg.solve(Sigma_reg, mu_diff)
+
+        # Normalize to unit L2 norm (matches SAE decoder direction convention)
+        # This ensures same coefficient ranges work for both probe and SAE steering
+        direction = direction / np.linalg.norm(direction)
 
         return direction
 

@@ -73,7 +73,9 @@ class CheckpointManager:
         experiment_name: str,
         frequency: int = 50,
         keep_last: int = 3,
-        memory_threshold: float = 95.0
+        memory_threshold: float = 95.0,
+        gpu_id: int = 0,
+        n_gpus: int = 1
     ):
         """Initialize the checkpoint manager.
 
@@ -83,13 +85,38 @@ class CheckpointManager:
             frequency: Save checkpoint every N processed items
             keep_last: Number of old checkpoints to keep
             memory_threshold: Force save when RAM usage exceeds this percentage
+            gpu_id: GPU index for multi-GPU parallelization (default: 0)
+            n_gpus: Total number of GPUs (default: 1, single-GPU mode)
         """
         self.checkpoint_dir = Path(checkpoint_dir)
         self.experiment_name = experiment_name
         self.frequency = frequency
         self.keep_last = keep_last
         self.memory_threshold = memory_threshold
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+    def _get_checkpoint_pattern(self, for_glob: bool = True) -> str:
+        """Get the checkpoint filename pattern.
+
+        Args:
+            for_glob: If True, returns glob pattern with wildcard.
+                      If False, returns format string for saving.
+
+        Returns:
+            Pattern string
+        """
+        if self.n_gpus > 1:
+            if for_glob:
+                return f"checkpoint_{self.experiment_name}_gpu{self.gpu_id}_*.json"
+            else:
+                return f"checkpoint_{self.experiment_name}_gpu{self.gpu_id}_{{timestamp}}.json"
+        else:
+            if for_glob:
+                return f"checkpoint_{self.experiment_name}_*.json"
+            else:
+                return f"checkpoint_{self.experiment_name}_{{timestamp}}.json"
 
     def should_save(self, count: int, memory_percent: float = None) -> bool:
         """Check if we should save a checkpoint.
@@ -138,7 +165,8 @@ class CheckpointManager:
         }
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        checkpoint_file = self.checkpoint_dir / f"checkpoint_{self.experiment_name}_{timestamp}.json"
+        pattern = self._get_checkpoint_pattern(for_glob=False)
+        checkpoint_file = self.checkpoint_dir / pattern.format(timestamp=timestamp)
 
         save_json(checkpoint_data, checkpoint_file)
         logger.info(f"Saved checkpoint: {len(processed_ids)} processed, {len(excluded_ids)} excluded")
@@ -156,7 +184,7 @@ class CheckpointManager:
         Raises:
             ValueError: If checkpoint version doesn't match current VERSION
         """
-        pattern = f"checkpoint_{self.experiment_name}_*.json"
+        pattern = self._get_checkpoint_pattern(for_glob=True)
         files = sorted(self.checkpoint_dir.glob(pattern))
 
         if not files:
@@ -190,7 +218,7 @@ class CheckpointManager:
 
     def _cleanup_old(self) -> None:
         """Keep only last N checkpoints."""
-        pattern = f"checkpoint_{self.experiment_name}_*.json"
+        pattern = self._get_checkpoint_pattern(for_glob=True)
         files = sorted(self.checkpoint_dir.glob(pattern))
 
         if len(files) > self.keep_last:
@@ -200,7 +228,7 @@ class CheckpointManager:
 
     def cleanup_all(self) -> None:
         """Remove all checkpoints after successful completion."""
-        pattern = f"checkpoint_{self.experiment_name}_*.json"
+        pattern = self._get_checkpoint_pattern(for_glob=True)
         files = list(self.checkpoint_dir.glob(pattern))
 
         for f in files:
@@ -211,5 +239,5 @@ class CheckpointManager:
 
     def has_checkpoint(self) -> bool:
         """Check if any checkpoint exists for this experiment."""
-        pattern = f"checkpoint_{self.experiment_name}_*.json"
+        pattern = self._get_checkpoint_pattern(for_glob=True)
         return any(self.checkpoint_dir.glob(pattern))

@@ -128,7 +128,49 @@ class HyperparameterDataRunner:
 
         # Setup activation extraction layers (copying Phase 3.5's elegant same/different layer handling)
         self._setup_activation_extraction()
-    
+
+    def _get_checkpoint_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
+        """Get checkpoint filename pattern.
+
+        Args:
+            checkpoint_num: Specific checkpoint number (ignored if for_glob=True)
+            for_glob: If True, returns glob pattern for finding files
+
+        Returns:
+            Filename pattern string
+        """
+        if self.n_gpus > 1:
+            if for_glob:
+                return f"checkpoint_gpu{self.gpu_id}_*.parquet"
+            else:
+                return f"checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}.parquet"
+        else:
+            if for_glob:
+                return "checkpoint_*.parquet"
+            else:
+                return f"checkpoint_{checkpoint_num:04d}.parquet"
+
+    def _get_exclusion_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
+        """Get exclusion filename pattern.
+
+        Args:
+            checkpoint_num: Specific checkpoint number (ignored if for_glob=True)
+            for_glob: If True, returns glob pattern for finding files
+
+        Returns:
+            Filename pattern string
+        """
+        if self.n_gpus > 1:
+            if for_glob:
+                return f"checkpoint_gpu{self.gpu_id}_*_exclusions.json"
+            else:
+                return f"checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}_exclusions.json"
+        else:
+            if for_glob:
+                return "checkpoint_*_exclusions.json"
+            else:
+                return f"checkpoint_{checkpoint_num:04d}_exclusions.json"
+
     def _setup_activation_extraction(self):
         """
         Setup activation extraction layers, handling same/different layer cases.
@@ -293,25 +335,26 @@ class HyperparameterDataRunner:
             logger.warning(f"Task {row['task_id']} failed after {self.config.max_retries} attempts: {error_msg}")
             return None
     
-    def save_checkpoint(self, results: list, excluded_tasks: list, 
+    def save_checkpoint(self, results: list, excluded_tasks: list,
                        checkpoint_num: int, output_dir: Path) -> None:
         """Save checkpoint to disk and clear memory."""
         if not results:
             return
-            
-        # Save current results to checkpoint file
-        checkpoint_file = output_dir / f"checkpoint_{checkpoint_num:04d}.parquet"
+
+        # Save current results to checkpoint file (GPU-specific when parallel)
+        checkpoint_file = output_dir / self._get_checkpoint_pattern(checkpoint_num)
         pd.DataFrame(results).to_parquet(checkpoint_file, index=False)
         logger.info(f"Saved checkpoint {checkpoint_num} with {len(results)} tasks to {checkpoint_file}")
-        
+
         # Save exclusions if any
         if excluded_tasks:
-            exclusion_file = output_dir / f"checkpoint_{checkpoint_num:04d}_exclusions.json"
+            exclusion_file = output_dir / self._get_exclusion_pattern(checkpoint_num)
             save_json(excluded_tasks, exclusion_file)
-    
+
     def load_checkpoints(self, output_dir: Path) -> tuple[list, list, set]:
         """Load existing checkpoints if any."""
-        checkpoint_files = sorted(output_dir.glob("checkpoint_*.parquet"))
+        # Use GPU-specific pattern when running in parallel
+        checkpoint_files = sorted(output_dir.glob(self._get_checkpoint_pattern(for_glob=True)))
         
         if not checkpoint_files:
             return [], [], set()
@@ -382,7 +425,7 @@ class HyperparameterDataRunner:
         all_results = checkpoint_results  # All results including checkpoints
         all_excluded = checkpoint_excluded  # All exclusions including checkpoints
 
-        checkpoint_counter = len(list(self.output_dir.glob("checkpoint_*.parquet")))
+        checkpoint_counter = len(list(self.output_dir.glob(self._get_checkpoint_pattern(for_glob=True))))
         tasks_since_checkpoint = 0
 
         # Calculate total attempted BEFORE the loop (needed for logging)
@@ -490,15 +533,16 @@ class HyperparameterDataRunner:
         logger.info(f"Activations saved to: {self.output_dir / 'activations'}/")
         
         # Clean up checkpoint files after successful completion
-        checkpoint_files = list(self.output_dir.glob("checkpoint_*.parquet"))
+        # Use GPU-specific pattern when running in parallel
+        checkpoint_files = list(self.output_dir.glob(self._get_checkpoint_pattern(for_glob=True)))
+        exclusion_files = list(self.output_dir.glob(self._get_exclusion_pattern(for_glob=True)))
         if checkpoint_files:
             logger.info(f"Cleaning up {len(checkpoint_files)} checkpoint files...")
             for checkpoint_file in checkpoint_files:
                 checkpoint_file.unlink()
-                # Also remove exclusion files
-                exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
-                if exclusion_file.exists():
-                    exclusion_file.unlink()
+        if exclusion_files:
+            for exclusion_file in exclusion_files:
+                exclusion_file.unlink()
         
         if all_excluded:
             logger.warning(f"Excluded tasks: {[t['task_id'] for t in all_excluded]}")

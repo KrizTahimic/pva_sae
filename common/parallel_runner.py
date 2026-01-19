@@ -48,6 +48,7 @@ import torch
 from common.logging import get_logger
 from common.config import Config
 from common.utils import get_timestamp
+from common.phase_discovery import write_phase_output
 
 
 logger = get_logger(__name__)
@@ -272,11 +273,24 @@ def _merge_parallel_results(
     output_path = Path(output_dir)
 
     # Find per-GPU result files
-    gpu_result_files = sorted(output_path.glob("results_gpu*.parquet"))
+    # Phase 3.5 uses a different pattern for temperature experiments
+    if phase_id == "3.5":
+        gpu_result_files = sorted(output_path.glob("results_gpu*_temp_*.parquet"))
+    else:
+        gpu_result_files = sorted(output_path.glob("results_gpu*.parquet"))
 
     if not gpu_result_files:
-        logger.warning("No per-GPU result files found to merge")
-        return {}
+        raise RuntimeError(
+            f"No per-GPU result files found in {output_dir}. "
+            f"Expected pattern: results_gpu*.parquet. "
+            f"Check worker logs for errors."
+        )
+
+    if len(gpu_result_files) < n_gpus:
+        logger.warning(
+            f"Only found {len(gpu_result_files)}/{n_gpus} GPU result files. "
+            f"Some workers may have failed."
+        )
 
     logger.info(f"Found {len(gpu_result_files)} GPU result files to merge")
 
@@ -298,6 +312,15 @@ def _merge_parallel_results(
     merged_file = output_path / f"dataset_merged_{timestamp}.parquet"
     merged_df.to_parquet(merged_file, index=False)
     logger.info(f"Saved merged dataset: {merged_file} ({len(merged_df)} rows)")
+
+    # Write phase_output.json manifest for downstream discovery
+    write_phase_output(
+        phase=phase_id,
+        outputs={"primary": merged_file.name},
+        config=config,
+        output_dir=str(output_path)
+    )
+    logger.info("Wrote phase_output.json manifest")
 
     # Clean up per-GPU files
     for result_file in gpu_result_files:

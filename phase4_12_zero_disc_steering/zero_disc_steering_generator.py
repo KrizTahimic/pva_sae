@@ -152,12 +152,25 @@ class ZeroDiscSteeringGenerator:
                    f"(separation={selected_feature['separation_score']:.6f})")
         logger.info(f"  Will use positive coefficient ({self.correct_coefficient}) for correction")
         logger.info(f"  Will use negative coefficient ({self.incorrect_coefficient}) for corruption")
-        
+
         return selected_feature
-        
+
+    def _get_checkpoint_pattern(self, steering_type: str, index: int = None, for_glob: bool = False) -> str:
+        """Get checkpoint filename pattern."""
+        if self.n_gpus > 1:
+            if for_glob:
+                return f"{steering_type}_checkpoint_gpu{self.gpu_id}_*.json"
+            else:
+                return f"{steering_type}_checkpoint_gpu{self.gpu_id}_{index}.json"
+        else:
+            if for_glob:
+                return f"{steering_type}_checkpoint_*.json"
+            else:
+                return f"{steering_type}_checkpoint_{index}.json"
+
     def _save_checkpoint(self, results: list[dict], steering_type: str, index: int) -> None:
         """Save checkpoint of current results."""
-        checkpoint_file = self.checkpoint_dir / f'{steering_type}_checkpoint_{index}.json'
+        checkpoint_file = self.checkpoint_dir / self._get_checkpoint_pattern(steering_type, index)
         checkpoint_data = {
             'results': results,
             'last_index': index,
@@ -166,22 +179,22 @@ class ZeroDiscSteeringGenerator:
         }
         save_json(checkpoint_data, checkpoint_file)
         logger.debug(f"Saved checkpoint at index {index} to {checkpoint_file}")
-        
+
     def _load_checkpoint(self, steering_type: str) -> tuple[list[dict], int]:
         """Load latest checkpoint if exists."""
-        checkpoints = list(self.checkpoint_dir.glob(f'{steering_type}_checkpoint_*.json'))
+        checkpoints = list(self.checkpoint_dir.glob(self._get_checkpoint_pattern(steering_type, for_glob=True)))
         if not checkpoints:
             return [], 0
-            
+
         # Find latest checkpoint by index number
         latest_checkpoint = max(checkpoints, key=lambda p: int(p.stem.split('_')[-1]))
         checkpoint_data = load_json(latest_checkpoint)
         logger.info(f"Resuming from checkpoint: {latest_checkpoint.name} (index {checkpoint_data['last_index']})")
         return checkpoint_data['results'], checkpoint_data['last_index']
-        
+
     def _cleanup_checkpoints(self, steering_type: str) -> None:
         """Remove checkpoint files after successful completion."""
-        checkpoints = list(self.checkpoint_dir.glob(f'{steering_type}_checkpoint_*.json'))
+        checkpoints = list(self.checkpoint_dir.glob(self._get_checkpoint_pattern(steering_type, for_glob=True)))
         for checkpoint_file in checkpoints:
             checkpoint_file.unlink()
         logger.debug(f"Cleaned up {len(checkpoints)} checkpoint files for {steering_type}")

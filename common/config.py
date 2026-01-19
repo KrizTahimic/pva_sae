@@ -148,12 +148,11 @@ class Config:
     phase3_10_temperatures: list[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
     
     # === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
-    # Separate coefficient grids for correct vs incorrect steering
-    # Quick test: single coefficient (same value for fast testing)
+    # Both SAE and probe directions are L2-normalized to unit norm
+    # Quick test: single coefficient
     phase4_5_correct_coefficients: list[float] = field(default_factory=lambda: [30.0])
     phase4_5_incorrect_coefficients: list[float] = field(default_factory=lambda: [30.0])
     # Full grid search (uncomment for thorough testing):
-    # 1-100 in increments of 10, then 200-1000 in increments of 100
     # phase4_5_correct_coefficients: list[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
     # phase4_5_incorrect_coefficients: list[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
 

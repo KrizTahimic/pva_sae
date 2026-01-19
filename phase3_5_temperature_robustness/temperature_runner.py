@@ -111,14 +111,14 @@ class TemperatureRobustnessRunner:
         # Checkpoint settings
         self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
         self.memory_warning_threshold = MEMORY_WARNING_PERCENT
-        
+
         # Load model and tokenizer
         logger.info(f"Loading model {config.model_name} on device: {self.device}")
         self.model, self.tokenizer = load_model_and_tokenizer(
             config.model_name,
             device=self.device  # Pass device object, not string
         )
-        
+
         # Validate model is on correct device
         actual_device = next(self.model.parameters()).device
         if actual_device != self.device:
@@ -157,14 +157,14 @@ class TemperatureRobustnessRunner:
                 logger.info(f"Both correct and incorrect latents use the same layer: {unique_layers[0]}")
             else:
                 logger.info(f"Using different layers - Correct: {self.best_latents['correct']}, Incorrect: {self.best_latents['incorrect']}")
-            
+
             # Initialize activation extractor but don't setup hooks yet
             # We'll only setup hooks when generating at temperature 0
             self.activation_extractor = ActivationExtractor(
                 self.model,
                 layers=self.extraction_layers  # Extract from all unique layers
             )
-            
+
             # Initialize attention extractor for the same layers
             self.attention_extractor = AttentionExtractor(
                 self.model,
@@ -178,13 +178,55 @@ class TemperatureRobustnessRunner:
             self.activation_extractor = None
             self.attention_extractor = None
             logger.info("Temperature 0.0 not in config, skipping activation/attention extraction setup")
-        
+
         # Validate configuration
         if not config.temperature_variation_temps:
             raise ValueError("temperature_variation_temps must be specified")
         if not config.temperature_samples_per_temp or config.temperature_samples_per_temp < 1:
             raise ValueError("temperature_samples_per_temp must be >= 1")
-    
+
+    def _get_checkpoint_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
+        """Get checkpoint filename pattern.
+
+        Args:
+            checkpoint_num: Specific checkpoint number (ignored if for_glob=True)
+            for_glob: If True, returns glob pattern for finding files
+
+        Returns:
+            Filename pattern string
+        """
+        if self.n_gpus > 1:
+            if for_glob:
+                return f"checkpoint_gpu{self.gpu_id}_*.parquet"
+            else:
+                return f"checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}.parquet"
+        else:
+            if for_glob:
+                return "checkpoint_*.parquet"
+            else:
+                return f"checkpoint_{checkpoint_num:04d}.parquet"
+
+    def _get_exclusion_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
+        """Get exclusion filename pattern.
+
+        Args:
+            checkpoint_num: Specific checkpoint number (ignored if for_glob=True)
+            for_glob: If True, returns glob pattern for finding files
+
+        Returns:
+            Filename pattern string
+        """
+        if self.n_gpus > 1:
+            if for_glob:
+                return f"checkpoint_gpu{self.gpu_id}_*_exclusions.json"
+            else:
+                return f"checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}_exclusions.json"
+        else:
+            if for_glob:
+                return "checkpoint_*_exclusions.json"
+            else:
+                return f"checkpoint_{checkpoint_num:04d}_exclusions.json"
+
     def generate_temp0_with_activations(self, prompt: str) -> tuple[str, dict[int, torch.Tensor], dict[int, torch.Tensor]]:
         """
         Generate at temperature 0, extracting both activations and attention patterns.
@@ -323,15 +365,16 @@ class TemperatureRobustnessRunner:
             logger.info(f"Saved exclusion summary to {exclusion_file}")
         
         # Clean up checkpoint files after successful completion
-        checkpoint_files = list(self.output_dir.glob("checkpoint_*.parquet"))
+        # Use GPU-specific pattern when running in parallel
+        checkpoint_files = list(self.output_dir.glob(self._get_checkpoint_pattern(for_glob=True)))
+        exclusion_files = list(self.output_dir.glob(self._get_exclusion_pattern(for_glob=True)))
         if checkpoint_files:
             logger.info(f"Cleaning up {len(checkpoint_files)} checkpoint files...")
             for checkpoint_file in checkpoint_files:
                 checkpoint_file.unlink()
-                # Also remove exclusion files
-                exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
-                if exclusion_file.exists():
-                    exclusion_file.unlink()
+        if exclusion_files:
+            for exclusion_file in exclusion_files:
+                exclusion_file.unlink()
         
         logger.info("Phase 3.5 completed successfully")
         return metadata
@@ -382,25 +425,26 @@ class TemperatureRobustnessRunner:
         
         return output_dir
     
-    def save_checkpoint(self, results: list, excluded_tasks: list, 
+    def save_checkpoint(self, results: list, excluded_tasks: list,
                        checkpoint_num: int, output_dir: Path) -> None:
         """Save checkpoint to disk and clear memory."""
         if not results:
             return
-            
-        # Save current results to checkpoint file
-        checkpoint_file = output_dir / f"checkpoint_{checkpoint_num:04d}.parquet"
+
+        # Save current results to checkpoint file (GPU-specific when parallel)
+        checkpoint_file = output_dir / self._get_checkpoint_pattern(checkpoint_num)
         pd.DataFrame(results).to_parquet(checkpoint_file, index=False)
         logger.info(f"Saved checkpoint {checkpoint_num} with {len(results)} results to {checkpoint_file}")
-        
+
         # Save exclusions if any
         if excluded_tasks:
-            exclusion_file = output_dir / f"checkpoint_{checkpoint_num:04d}_exclusions.json"
+            exclusion_file = output_dir / self._get_exclusion_pattern(checkpoint_num)
             save_json(excluded_tasks, exclusion_file)
     
     def load_checkpoints(self, output_dir: Path) -> tuple[list, list, set]:
         """Load existing checkpoints if any."""
-        checkpoint_files = sorted(output_dir.glob("checkpoint_*.parquet"))
+        # Use GPU-specific pattern when running in parallel
+        checkpoint_files = sorted(output_dir.glob(self._get_checkpoint_pattern(for_glob=True)))
         
         if not checkpoint_files:
             return [], [], set()
@@ -461,7 +505,7 @@ class TemperatureRobustnessRunner:
         all_results = checkpoint_results  # All results including checkpoints
         all_excluded = checkpoint_excluded  # All exclusions including checkpoints
         
-        checkpoint_counter = len(list(output_dir.glob("checkpoint_*.parquet")))
+        checkpoint_counter = len(list(output_dir.glob(self._get_checkpoint_pattern(for_glob=True))))
         tasks_since_checkpoint = 0
 
         # Progress bar with milestone logging (tracks tasks, not individual samples)

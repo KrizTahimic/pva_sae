@@ -49,6 +49,48 @@ class Phase1Runner:
         # Checkpoint settings
         self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
         self.memory_warning_threshold = MEMORY_WARNING_PERCENT
+
+    def _get_checkpoint_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
+        """Get checkpoint filename pattern.
+
+        Args:
+            checkpoint_num: Specific checkpoint number (ignored if for_glob=True)
+            for_glob: If True, returns glob pattern for finding files
+
+        Returns:
+            Filename pattern string
+        """
+        if self.n_gpus > 1:
+            if for_glob:
+                return f"checkpoint_gpu{self.gpu_id}_*.parquet"
+            else:
+                return f"checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}.parquet"
+        else:
+            if for_glob:
+                return "checkpoint_*.parquet"
+            else:
+                return f"checkpoint_{checkpoint_num:04d}.parquet"
+
+    def _get_exclusion_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
+        """Get exclusion filename pattern.
+
+        Args:
+            checkpoint_num: Specific checkpoint number (ignored if for_glob=True)
+            for_glob: If True, returns glob pattern for finding files
+
+        Returns:
+            Filename pattern string
+        """
+        if self.n_gpus > 1:
+            if for_glob:
+                return f"checkpoint_gpu{self.gpu_id}_*_exclusions.json"
+            else:
+                return f"checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}_exclusions.json"
+        else:
+            if for_glob:
+                return "checkpoint_*_exclusions.json"
+            else:
+                return f"checkpoint_{checkpoint_num:04d}_exclusions.json"
         
     def setup(self):
         """Load model and setup activation hooks."""
@@ -225,20 +267,20 @@ class Phase1Runner:
             logger.warning(f"Task {task_id} failed after {self.config.max_retries} attempts: {error_msg}")
             return None
     
-    def save_checkpoint(self, results: list, excluded_tasks: list, 
+    def save_checkpoint(self, results: list, excluded_tasks: list,
                        checkpoint_num: int, output_dir: Path) -> None:
         """Save checkpoint to disk and clear memory."""
         if not results:
             return
-            
-        # Save current results to checkpoint file
-        checkpoint_file = output_dir / f"checkpoint_{checkpoint_num:04d}.parquet"
+
+        # Save current results to checkpoint file (GPU-specific when parallel)
+        checkpoint_file = output_dir / self._get_checkpoint_pattern(checkpoint_num)
         pd.DataFrame(results).to_parquet(checkpoint_file, index=False)
         logger.info(f"Saved checkpoint {checkpoint_num} with {len(results)} tasks to {checkpoint_file}")
-        
+
         # Save exclusions if any
         if excluded_tasks:
-            exclusion_file = output_dir / f"checkpoint_{checkpoint_num:04d}_exclusions.json"
+            exclusion_file = output_dir / self._get_exclusion_pattern(checkpoint_num)
             from common.utils import save_json
             save_json(excluded_tasks, exclusion_file)
         
@@ -254,7 +296,8 @@ class Phase1Runner:
         processed_task_ids = set()
 
         # First, check for checkpoint files (from interrupted runs)
-        checkpoint_files = sorted(output_dir.glob("checkpoint_*.parquet"))
+        # Use GPU-specific pattern when running in parallel
+        checkpoint_files = sorted(output_dir.glob(self._get_checkpoint_pattern(for_glob=True)))
 
         if checkpoint_files:
             logger.info(f"Found {len(checkpoint_files)} existing checkpoint(s)")
@@ -529,15 +572,16 @@ class Phase1Runner:
         logger.info(f"Activations saved to: {activation_dir}/")
         
         # Clean up checkpoint files after successful completion
-        checkpoint_files = list(output_dir.glob("checkpoint_*.parquet"))
+        # Use GPU-specific pattern when running in parallel
+        checkpoint_files = list(output_dir.glob(self._get_checkpoint_pattern(for_glob=True)))
+        exclusion_files = list(output_dir.glob(self._get_exclusion_pattern(for_glob=True)))
         if checkpoint_files:
             logger.info(f"Cleaning up {len(checkpoint_files)} checkpoint files...")
             for checkpoint_file in checkpoint_files:
                 checkpoint_file.unlink()
-                # Also remove exclusion files
-                exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
-                if exclusion_file.exists():
-                    exclusion_file.unlink()
+        if exclusion_files:
+            for exclusion_file in exclusion_files:
+                exclusion_file.unlink()
         
         if all_excluded:
             logger.warning(f"Excluded tasks: {[t['task_id'] for t in all_excluded]}")

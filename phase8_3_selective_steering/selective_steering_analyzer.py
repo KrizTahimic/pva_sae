@@ -110,6 +110,26 @@ class SelectiveSteeringAnalyzer:
 
         logger.info("Initialization complete")
 
+    def _get_checkpoint_pattern(self, experiment_type: str, timestamp: str = None, for_glob: bool = False) -> str:
+        """Get checkpoint filename pattern."""
+        if self.n_gpus > 1:
+            if for_glob:
+                return f"checkpoint_{experiment_type}_gpu{self.gpu_id}_*.json"
+            else:
+                return f"checkpoint_{experiment_type}_gpu{self.gpu_id}_{timestamp}.json"
+        else:
+            if for_glob:
+                return f"checkpoint_{experiment_type}_*.json"
+            else:
+                return f"checkpoint_{experiment_type}_{timestamp}.json"
+
+    def _get_all_checkpoint_pattern(self, for_glob: bool = True) -> str:
+        """Get pattern for all checkpoints (for cleanup)."""
+        if self.n_gpus > 1:
+            return f"checkpoint_*_gpu{self.gpu_id}_*.json"
+        else:
+            return "checkpoint_*.json"
+
     def _load_dependencies(self):
         """Load all required dependencies from previous phases."""
         logger.info("Loading dependencies...")
@@ -848,9 +868,9 @@ class SelectiveSteeringAnalyzer:
             'checkpoint_version': 1
         }
 
-        # Create checkpoint filename with timestamp
+        # Create checkpoint filename with timestamp (GPU-specific when parallel)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        checkpoint_file = self.checkpoint_dir / f"checkpoint_{experiment_type}_{timestamp}.json"
+        checkpoint_file = self.checkpoint_dir / self._get_checkpoint_pattern(experiment_type, timestamp)
 
         # Save checkpoint
         save_json(checkpoint_data, checkpoint_file)
@@ -861,7 +881,8 @@ class SelectiveSteeringAnalyzer:
 
     def load_checkpoint(self, experiment_type: str) -> Optional[dict]:
         """Load most recent checkpoint for experiment type if available."""
-        checkpoint_pattern = f"checkpoint_{experiment_type}_*.json"
+        # Use GPU-specific pattern when running in parallel
+        checkpoint_pattern = self._get_checkpoint_pattern(experiment_type, for_glob=True)
         checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
 
         if not checkpoint_files:
@@ -882,7 +903,8 @@ class SelectiveSteeringAnalyzer:
 
     def cleanup_old_checkpoints(self, experiment_type: str, keep_last: int = 3) -> None:
         """Remove old checkpoint files, keeping only the most recent ones."""
-        checkpoint_pattern = f"checkpoint_{experiment_type}_*.json"
+        # Use GPU-specific pattern when running in parallel
+        checkpoint_pattern = self._get_checkpoint_pattern(experiment_type, for_glob=True)
         checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
 
         if len(checkpoint_files) > keep_last:
@@ -892,7 +914,8 @@ class SelectiveSteeringAnalyzer:
 
     def cleanup_all_checkpoints(self) -> None:
         """Remove all checkpoint files after successful completion."""
-        checkpoint_files = list(self.checkpoint_dir.glob("checkpoint_*.json"))
+        # Use GPU-specific pattern when running in parallel
+        checkpoint_files = list(self.checkpoint_dir.glob(self._get_all_checkpoint_pattern()))
         for checkpoint_file in checkpoint_files:
             checkpoint_file.unlink()
             logger.debug(f"Removed checkpoint: {checkpoint_file.name}")

@@ -143,7 +143,46 @@ class GoldenSectionCoefficientRefiner:
         self.checkpoint_frequency = 1  # Save after each iteration
         self.memory_warning_threshold = 85  # Warn at 85% memory usage
         self.memory_critical_threshold = 95  # Critical at 95% memory usage
-        
+
+    def _get_iter_checkpoint_pattern(self, iteration: int = None, for_glob: bool = False) -> str:
+        """Get iteration checkpoint filename pattern."""
+        if self.n_gpus > 1:
+            if for_glob:
+                return f"checkpoint_iter_gpu{self.gpu_id}_*.json"
+            else:
+                return f"checkpoint_iter_gpu{self.gpu_id}_{iteration}.json"
+        else:
+            if for_glob:
+                return "checkpoint_iter_*.json"
+            else:
+                return f"checkpoint_iter_{iteration}.json"
+
+    def _get_eval_checkpoint_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
+        """Get evaluation checkpoint filename pattern."""
+        if self.n_gpus > 1:
+            if for_glob:
+                return f"eval_checkpoint_gpu{self.gpu_id}_*.parquet"
+            else:
+                return f"eval_checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}.parquet"
+        else:
+            if for_glob:
+                return "eval_checkpoint_*.parquet"
+            else:
+                return f"eval_checkpoint_{checkpoint_num:04d}.parquet"
+
+    def _get_eval_exclusion_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
+        """Get evaluation exclusion filename pattern."""
+        if self.n_gpus > 1:
+            if for_glob:
+                return f"eval_checkpoint_gpu{self.gpu_id}_*_exclusions.json"
+            else:
+                return f"eval_checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}_exclusions.json"
+        else:
+            if for_glob:
+                return "eval_checkpoint_*_exclusions.json"
+            else:
+                return f"eval_checkpoint_{checkpoint_num:04d}_exclusions.json"
+
     def save_checkpoint(self, steering_type: str, iteration: int, 
                        search_history: list[dict], cached_scores: dict,
                        current_bounds: tuple[int, int], best_coefficient: int,
@@ -163,7 +202,7 @@ class GoldenSectionCoefficientRefiner:
             'timestamp': datetime.now().isoformat()
         }
         
-        checkpoint_file = checkpoint_dir / f"checkpoint_iter_{iteration}.json"
+        checkpoint_file = checkpoint_dir / self._get_iter_checkpoint_pattern(iteration)
         save_json(checkpoint_data, checkpoint_file)
         logger.info(f"Saved checkpoint for {steering_type} steering, iteration {iteration}")
     
@@ -172,9 +211,9 @@ class GoldenSectionCoefficientRefiner:
         checkpoint_dir = self.output_dir / f"checkpoints_{steering_type}"
         if not checkpoint_dir.exists():
             return None
-        
-        # Find latest checkpoint by iteration number
-        checkpoint_files = list(checkpoint_dir.glob("checkpoint_iter_*.json"))
+
+        # Find latest checkpoint by iteration number (GPU-specific when parallel)
+        checkpoint_files = list(checkpoint_dir.glob(self._get_iter_checkpoint_pattern(for_glob=True)))
         if not checkpoint_files:
             return None
         
@@ -218,15 +257,15 @@ class GoldenSectionCoefficientRefiner:
         if not results and not excluded_tasks:
             return
             
-        # Save results if any
+        # Save results if any (GPU-specific when parallel)
         if results:
-            checkpoint_file = checkpoint_dir / f"eval_checkpoint_{checkpoint_num:04d}.parquet"
+            checkpoint_file = checkpoint_dir / self._get_eval_checkpoint_pattern(checkpoint_num)
             pd.DataFrame(results).to_parquet(checkpoint_file, index=False)
             logger.debug(f"Saved evaluation checkpoint {checkpoint_num} with {len(results)} results")
-        
+
         # Save exclusions if any
         if excluded_tasks:
-            exclusion_file = checkpoint_dir / f"eval_checkpoint_{checkpoint_num:04d}_exclusions.json"
+            exclusion_file = checkpoint_dir / self._get_eval_exclusion_pattern(checkpoint_num)
             save_json(excluded_tasks, exclusion_file)
             logger.debug(f"Saved {len(excluded_tasks)} exclusions to checkpoint {checkpoint_num}")
     
@@ -234,9 +273,10 @@ class GoldenSectionCoefficientRefiner:
         """Load existing evaluation checkpoints if any."""
         if not checkpoint_dir.exists():
             return [], [], set()
-            
-        checkpoint_files = sorted(checkpoint_dir.glob("eval_checkpoint_*.parquet"))
-        exclusion_files = sorted(checkpoint_dir.glob("eval_checkpoint_*_exclusions.json"))
+
+        # Use GPU-specific pattern when running in parallel
+        checkpoint_files = sorted(checkpoint_dir.glob(self._get_eval_checkpoint_pattern(for_glob=True)))
+        exclusion_files = sorted(checkpoint_dir.glob(self._get_eval_exclusion_pattern(for_glob=True)))
         
         if not checkpoint_files and not exclusion_files:
             return [], [], set()
@@ -267,9 +307,10 @@ class GoldenSectionCoefficientRefiner:
         """Clean up evaluation checkpoint files after successful completion."""
         if not checkpoint_dir.exists():
             return
-            
-        checkpoint_files = list(checkpoint_dir.glob("eval_checkpoint_*.parquet"))
-        exclusion_files = list(checkpoint_dir.glob("eval_checkpoint_*_exclusions.json"))
+
+        # Use GPU-specific pattern when running in parallel
+        checkpoint_files = list(checkpoint_dir.glob(self._get_eval_checkpoint_pattern(for_glob=True)))
+        exclusion_files = list(checkpoint_dir.glob(self._get_eval_exclusion_pattern(for_glob=True)))
         
         total_files = len(checkpoint_files) + len(exclusion_files)
         if total_files > 0:
@@ -287,7 +328,8 @@ class GoldenSectionCoefficientRefiner:
         """Remove checkpoint files after successful completion."""
         checkpoint_dir = self.output_dir / f"checkpoints_{steering_type}"
         if checkpoint_dir.exists():
-            checkpoint_files = list(checkpoint_dir.glob("checkpoint_iter_*.json"))
+            # Use GPU-specific pattern when running in parallel
+            checkpoint_files = list(checkpoint_dir.glob(self._get_iter_checkpoint_pattern(for_glob=True)))
             for checkpoint_file in checkpoint_files:
                 checkpoint_file.unlink()
             # Remove directory if empty
@@ -572,7 +614,7 @@ class GoldenSectionCoefficientRefiner:
         results = []  # Current batch of results
         excluded_tasks = []  # Current batch of exclusions
         task_counter = 0
-        checkpoint_counter = len(list(checkpoint_dir.glob("eval_checkpoint_*.parquet")))
+        checkpoint_counter = len(list(checkpoint_dir.glob(self._get_eval_checkpoint_pattern(for_glob=True))))
         tasks_since_checkpoint = 0
         
         iterator = problems_df.iterrows()
