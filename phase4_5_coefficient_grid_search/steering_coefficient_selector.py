@@ -44,16 +44,24 @@ logger = get_logger("phase4_5.steering_evaluator")
 
 class SteeringCoefficientSelector:
     """Select optimal steering coefficients through adaptive search."""
-    
-    def __init__(self, config: Config):
-        """Initialize with configuration, load dependencies."""
+
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize with configuration, load dependencies.
+
+        Args:
+            config: Configuration object
+            gpu_id: GPU index for parallel execution (0-indexed)
+            n_gpus: Total number of GPUs (1 = sequential)
+        """
         self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
         self.device = detect_device()
-        
+
         # Checkpoint settings
         self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
         self.memory_warning_threshold = MEMORY_WARNING_PERCENT
-        
+
         # Phase output directories
         self.output_dir = Path(get_phase_output_dir("4.5", config))
         ensure_directory_exists(self.output_dir)
@@ -97,6 +105,18 @@ class SteeringCoefficientSelector:
         # Split by correctness
         self.initially_correct_data, self.initially_incorrect_data = \
             split_by_correctness(self.baseline_data)
+
+        # Filter for parallel execution (round-robin task distribution)
+        if self.n_gpus > 1:
+            from common.parallel_runner import filter_dataframe_for_gpu
+            self.initially_correct_data = filter_dataframe_for_gpu(
+                self.initially_correct_data, self.gpu_id, self.n_gpus
+            )
+            self.initially_incorrect_data = filter_dataframe_for_gpu(
+                self.initially_incorrect_data, self.gpu_id, self.n_gpus
+            )
+            logger.info(f"GPU {self.gpu_id}/{self.n_gpus}: Processing {len(self.initially_correct_data)} correct, "
+                       f"{len(self.initially_incorrect_data)} incorrect tasks (parallel mode)")
 
         # Load SAE models and extract latent directions
         sae = load_sae_and_directions(
@@ -699,9 +719,13 @@ class SteeringCoefficientSelector:
             elif self.device.type == "mps":
                 torch.mps.synchronize()
         
-        # Save all results
-        save_json(all_results, self.output_dir / "coefficient_analysis.json")
-        save_json(selected_coefficients, self.output_dir / "selected_coefficients.json")
+        # Save all results (use GPU-specific names in parallel mode)
+        if self.n_gpus > 1:
+            save_json(all_results, self.output_dir / f"coefficient_analysis_gpu{self.gpu_id}.json")
+            save_json(selected_coefficients, self.output_dir / f"selected_coefficients_gpu{self.gpu_id}.json")
+        else:
+            save_json(all_results, self.output_dir / "coefficient_analysis.json")
+            save_json(selected_coefficients, self.output_dir / "selected_coefficients.json")
         
         # Create phase summary
         summary = {
@@ -726,51 +750,59 @@ class SteeringCoefficientSelector:
             }
         }
         
-        save_json(summary, self.output_dir / "phase_4_5_summary.json")
-        
-        # Log final summary
-        logger.info(f"\n{'='*80}")
-        logger.info("PHASE 4.5 RESULTS SUMMARY")
-        logger.info(f"{'='*80}")
-        logger.info(f"Correct steering:")
-        logger.info(f"  - Optimal coefficient: {selected_coefficients['correct']['coefficient']}")
-        if 'correction_rate' in selected_coefficients['correct']:
-            logger.info(f"  - Correction rate: {selected_coefficients['correct']['correction_rate']:.1f}%")
-        elif 'correction_rate' in selected_coefficients['correct']['metrics']:
-            logger.info(f"  - Correction rate: {selected_coefficients['correct']['metrics']['correction_rate']:.1f}%")
-        logger.info("  - NOTE: Preservation rate NOT measured in simplified approach")
-        
-        logger.info(f"\nIncorrect steering:")
-        logger.info(f"  - Optimal coefficient: {selected_coefficients['incorrect']['coefficient']}")
-        if 'corruption_rate' in selected_coefficients['incorrect']:
-            logger.info(f"  - Corruption rate: {selected_coefficients['incorrect']['corruption_rate']:.1f}%")
-        elif 'corruption_rate' in selected_coefficients['incorrect']['metrics']:
-            logger.info(f"  - Corruption rate: {selected_coefficients['incorrect']['metrics']['corruption_rate']:.1f}%")
-            if 'avg_similarity' in selected_coefficients['incorrect']['metrics']:
-                logger.info(f"  - Avg similarity: {selected_coefficients['incorrect']['metrics']['avg_similarity']:.1f}%")
-        
+        # Save summary (use GPU-specific name in parallel mode)
+        if self.n_gpus > 1:
+            save_json(summary, self.output_dir / f"phase_4_5_summary_gpu{self.gpu_id}.json")
+        else:
+            save_json(summary, self.output_dir / "phase_4_5_summary.json")
+
+        # Log final summary (only for sequential or first GPU in parallel)
+        if self.n_gpus == 1 or self.gpu_id == 0:
+            logger.info(f"\n{'='*80}")
+            logger.info("PHASE 4.5 RESULTS SUMMARY")
+            logger.info(f"{'='*80}")
+            if 'correct' in selected_coefficients:
+                logger.info(f"Correct steering:")
+                logger.info(f"  - Optimal coefficient: {selected_coefficients['correct']['coefficient']}")
+                if 'correction_rate' in selected_coefficients['correct']:
+                    logger.info(f"  - Correction rate: {selected_coefficients['correct']['correction_rate']:.1f}%")
+                elif 'correction_rate' in selected_coefficients['correct']['metrics']:
+                    logger.info(f"  - Correction rate: {selected_coefficients['correct']['metrics']['correction_rate']:.1f}%")
+                logger.info("  - NOTE: Preservation rate NOT measured in simplified approach")
+
+            if 'incorrect' in selected_coefficients:
+                logger.info(f"\nIncorrect steering:")
+                logger.info(f"  - Optimal coefficient: {selected_coefficients['incorrect']['coefficient']}")
+                if 'corruption_rate' in selected_coefficients['incorrect']:
+                    logger.info(f"  - Corruption rate: {selected_coefficients['incorrect']['corruption_rate']:.1f}%")
+                elif 'corruption_rate' in selected_coefficients['incorrect']['metrics']:
+                    logger.info(f"  - Corruption rate: {selected_coefficients['incorrect']['metrics']['corruption_rate']:.1f}%")
+                    if 'avg_similarity' in selected_coefficients['incorrect']['metrics']:
+                        logger.info(f"  - Avg similarity: {selected_coefficients['incorrect']['metrics']['avg_similarity']:.1f}%")
+
         logger.info(f"\nPhase 4.5 completed in {time.time() - start_time:.1f} seconds")
         logger.info(f"Results saved to: {self.output_dir}")
         logger.info(f"{'='*80}\n")
 
-        # Write phase_output.json manifest
-        from common.phase_discovery import write_phase_output
+        # Write phase_output.json manifest (skip in parallel mode - orchestrator handles it)
+        if self.n_gpus == 1:
+            from common.phase_discovery import write_phase_output
 
-        write_phase_output(
-            phase="4.5",
-            outputs={
-                "primary": "phase_4_5_summary.json",
-                "selected_coefficients": "selected_coefficients.json",
-                "coefficient_analysis": "coefficient_analysis.json",
-            },
-            config=self.config,
-            output_dir=str(self.output_dir),
-            dependencies={
-                "2.5": str(Path(self.phase2_5_output).parent),
-                "3.6": str(self.phase3_6_output),
-            },
-            config_keys=['model_name', 'dataset_name', 'phase4_5_correct_coefficients', 'phase4_5_incorrect_coefficients']
-        )
-        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+            write_phase_output(
+                phase="4.5",
+                outputs={
+                    "primary": "phase_4_5_summary.json",
+                    "selected_coefficients": "selected_coefficients.json",
+                    "coefficient_analysis": "coefficient_analysis.json",
+                },
+                config=self.config,
+                output_dir=str(self.output_dir),
+                dependencies={
+                    "2.5": str(Path(self.phase2_5_output).parent),
+                    "3.6": str(self.phase3_6_output),
+                },
+                config_keys=['model_name', 'dataset_name', 'phase4_5_correct_coefficients', 'phase4_5_incorrect_coefficients']
+            )
+            logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
 
         return summary

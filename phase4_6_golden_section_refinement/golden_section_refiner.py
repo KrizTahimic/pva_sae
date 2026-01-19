@@ -46,16 +46,24 @@ logger = get_logger("phase4_6.golden_section_refiner")
 
 class GoldenSectionCoefficientRefiner:
     """Refine steering coefficients using golden section search."""
-    
-    def __init__(self, config: Config):
-        """Initialize with configuration and load dependencies."""
+
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize with configuration and load dependencies.
+
+        Args:
+            config: Configuration object
+            gpu_id: GPU index for parallel execution (0-indexed)
+            n_gpus: Total number of GPUs (1 = sequential)
+        """
         self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
         self.device = detect_device()
-        
+
         # Golden ratio and related constants
         self.phi = (1 + math.sqrt(5)) / 2  # Golden ratio ≈ 1.618034
         self.resphi = 2 - self.phi         # ≈ 0.381966
-        
+
         # Memory monitoring thresholds - lower than defaults for more aggressive cleanup during refinement
         self.memory_warning_threshold = 80  # Lower than MEMORY_WARNING_PERCENT (85)
         self.memory_critical_threshold = MEMORY_HIGH_PERCENT  # 90%
@@ -313,10 +321,22 @@ class GoldenSectionCoefficientRefiner:
         # Split baseline data by initial correctness
         self.initially_correct_data = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
         self.initially_incorrect_data = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
-        
+
+        # Filter for parallel execution (round-robin task distribution)
+        if self.n_gpus > 1:
+            from common.parallel_runner import filter_dataframe_for_gpu
+            self.initially_correct_data = filter_dataframe_for_gpu(
+                self.initially_correct_data, self.gpu_id, self.n_gpus
+            )
+            self.initially_incorrect_data = filter_dataframe_for_gpu(
+                self.initially_incorrect_data, self.gpu_id, self.n_gpus
+            )
+            logger.info(f"GPU {self.gpu_id}/{self.n_gpus}: Processing {len(self.initially_correct_data)} correct, "
+                       f"{len(self.initially_incorrect_data)} incorrect tasks (parallel mode)")
+
         logger.info(f"Split baseline: {len(self.initially_correct_data)} initially correct, "
                    f"{len(self.initially_incorrect_data)} initially incorrect problems")
-        
+
         # Load SAEs for both latents
         logger.info("Loading SAE models...")
         self.correct_sae = load_sae_for_config(
@@ -1145,9 +1165,13 @@ class GoldenSectionCoefficientRefiner:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         
-        # Save all results
-        save_json(refinement_results, self.output_dir / "refinement_analysis.json")
-        save_json(refined_coefficients, self.output_dir / "refined_coefficients.json")
+        # Save all results (use GPU-specific names in parallel mode)
+        if self.n_gpus > 1:
+            save_json(refinement_results, self.output_dir / f"refinement_analysis_gpu{self.gpu_id}.json")
+            save_json(refined_coefficients, self.output_dir / f"refined_coefficients_gpu{self.gpu_id}.json")
+        else:
+            save_json(refinement_results, self.output_dir / "refinement_analysis.json")
+            save_json(refined_coefficients, self.output_dir / "refined_coefficients.json")
         
         # Clean up all checkpoints now that both steering types are complete
         logger.info("Cleaning up checkpoints after successful completion")
@@ -1181,13 +1205,17 @@ class GoldenSectionCoefficientRefiner:
             }
         }
         
-        save_json(summary, self.output_dir / "phase_4_6_summary.json")
-        
+        # Save summary (use GPU-specific name in parallel mode)
+        if self.n_gpus > 1:
+            save_json(summary, self.output_dir / f"phase_4_6_summary_gpu{self.gpu_id}.json")
+        else:
+            save_json(summary, self.output_dir / "phase_4_6_summary.json")
+
         # Log final summary
         logger.info(f"\n{'='*80}")
         logger.info("PHASE 4.6 RESULTS SUMMARY")
         logger.info(f"{'='*80}")
-        
+
         for steering_type, coeff_data in refined_coefficients.items():
             logger.info(f"\n{steering_type.capitalize()} steering:")
             logger.info(f"  - Phase 4.5 coefficient: {coeff_data['phase4_5_coefficient']:.2f}")
@@ -1195,30 +1223,31 @@ class GoldenSectionCoefficientRefiner:
             logger.info(f"  - Improvement: {coeff_data['improvement']:+.2f}")
             logger.info(f"  - Best score: {coeff_data['best_score']:.1f}%")
             logger.info(f"  - Search iterations: {coeff_data['search_iterations']}")
-        
+
         logger.info(f"\nPhase 4.6 completed in {time.time() - start_time:.1f} seconds")
         logger.info(f"Results saved to: {self.output_dir}")
         logger.info(f"Method: Golden Section Search (mathematically optimal for unimodal functions)")
         logger.info(f"{'='*80}\n")
 
-        # Write phase_output.json manifest
-        from common.phase_discovery import write_phase_output
+        # Write phase_output.json manifest (skip in parallel mode - orchestrator handles it)
+        if self.n_gpus == 1:
+            from common.phase_discovery import write_phase_output
 
-        write_phase_output(
-            phase="4.6",
-            outputs={
-                "primary": "phase_4_6_summary.json",
-                "refined_coefficients": "refined_coefficients.json",
-                "refinement_analysis": "refinement_analysis.json",
-            },
-            config=self.config,
-            output_dir=str(self.output_dir),
-            dependencies={
-                "4.5": str(self.phase4_5_dir),
-                "3.6": str(self.phase3_6_dir),
-            },
-            config_keys=['model_name', 'dataset_name']
-        )
-        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+            write_phase_output(
+                phase="4.6",
+                outputs={
+                    "primary": "phase_4_6_summary.json",
+                    "refined_coefficients": "refined_coefficients.json",
+                    "refinement_analysis": "refinement_analysis.json",
+                },
+                config=self.config,
+                output_dir=str(self.output_dir),
+                dependencies={
+                    "4.5": str(self.phase4_5_dir),
+                    "3.6": str(self.phase3_6_dir),
+                },
+                config_keys=['model_name', 'dataset_name']
+            )
+            logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
 
         return summary

@@ -48,10 +48,18 @@ logger = get_logger("phase5_3.weight_orthogonalizer")
 
 class WeightOrthogonalizer:
     """Analyze weight orthogonalization effects on validation data."""
-    
-    def __init__(self, config: Config):
-        """Initialize with configuration, load dependencies."""
+
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize with configuration, load dependencies.
+
+        Args:
+            config: Configuration object
+            gpu_id: GPU index for parallel execution (0-indexed)
+            n_gpus: Total number of GPUs (1 = sequential)
+        """
         self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
         self.device = detect_device()
 
         # Phase output directories with dataset suffix
@@ -118,6 +126,18 @@ class WeightOrthogonalizer:
         """Split baseline data into correct and incorrect subsets."""
         from common.steering_setup import split_by_correctness
         self.correct_baseline, self.incorrect_baseline = split_by_correctness(self.baseline_data)
+
+        # Filter for parallel execution (round-robin task distribution)
+        if self.n_gpus > 1:
+            from common.parallel_runner import filter_dataframe_for_gpu
+            self.correct_baseline = filter_dataframe_for_gpu(
+                self.correct_baseline, self.gpu_id, self.n_gpus
+            )
+            self.incorrect_baseline = filter_dataframe_for_gpu(
+                self.incorrect_baseline, self.gpu_id, self.n_gpus
+            )
+            logger.info(f"GPU {self.gpu_id}/{self.n_gpus}: Processing {len(self.correct_baseline)} correct, "
+                       f"{len(self.incorrect_baseline)} incorrect tasks (parallel mode)")
     
     def _get_checkpoint_manager(self, experiment_name: str, baseline_type: str) -> CheckpointManager:
         """Get or create checkpoint manager for an experiment."""

@@ -95,11 +95,19 @@ class TemperatureRobustnessRunner:
 
         return best_latents
     
-    def __init__(self, config: Config):
-        """Initialize with configuration."""
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize with configuration.
+
+        Args:
+            config: Configuration object
+            gpu_id: GPU index for parallel execution (0-indexed)
+            n_gpus: Total number of GPUs (1 = sequential)
+        """
         self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
         self.device = detect_device()
-        
+
         # Checkpoint settings
         self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
         self.memory_warning_threshold = MEMORY_WARNING_PERCENT
@@ -285,6 +293,12 @@ class TemperatureRobustnessRunner:
 
         # Apply --start and --end arguments if provided
         analysis_data = filter_by_range(analysis_data, self.config, "analysis dataset")
+
+        # Filter for parallel execution (round-robin task distribution)
+        if self.n_gpus > 1:
+            from common.parallel_runner import filter_dataframe_for_gpu
+            analysis_data = filter_dataframe_for_gpu(analysis_data, self.gpu_id, self.n_gpus)
+            logger.info(f"GPU {self.gpu_id}/{self.n_gpus}: Processing {len(analysis_data)} tasks (parallel mode)")
         
         # Setup output directories
         self.output_dir = self._setup_output_directories()
@@ -685,12 +699,16 @@ class TemperatureRobustnessRunner:
     ) -> None:
         """Save results for a specific temperature."""
         df = pd.DataFrame(results)
-        
+
         # Save to temperature-specific file
+        # Use GPU-specific filename in parallel mode for later merging
         temp_str = f"{temperature}".replace(".", "_")
-        output_file = self.output_dir / f"dataset_temp_{temp_str}.parquet"
+        if self.n_gpus > 1:
+            output_file = self.output_dir / f"results_gpu{self.gpu_id}_temp_{temp_str}.parquet"
+        else:
+            output_file = self.output_dir / f"dataset_temp_{temp_str}.parquet"
         df.to_parquet(output_file, index=False)
-        
+
         logger.info(f"Saved {len(results)} results to {output_file}")
     
     def _create_metadata(
@@ -740,26 +758,31 @@ class TemperatureRobustnessRunner:
     
     def _save_metadata(self, metadata: dict) -> None:
         """Save metadata to file."""
-        output_file = self.output_dir / "metadata.json"
+        # In parallel mode, save GPU-specific metadata
+        if self.n_gpus > 1:
+            output_file = self.output_dir / f"metadata_gpu{self.gpu_id}.json"
+        else:
+            output_file = self.output_dir / "metadata.json"
         with open(output_file, 'w') as f:
             json.dump(metadata, f, indent=2)
 
         logger.info(f"Saved metadata to {output_file}")
 
-        # Write phase_output.json manifest
-        from common.phase_discovery import write_phase_output
+        # Write phase_output.json manifest (skip in parallel mode - orchestrator handles it)
+        if self.n_gpus == 1:
+            from common.phase_discovery import write_phase_output
 
-        # Build outputs dict with temperature-specific files
-        outputs = {"primary": "metadata.json"}
-        for temp in self.config.temperature_variation_temps:
-            temp_str = f"{temp}".replace(".", "_")
-            outputs[f"temp_{temp_str}"] = f"dataset_temp_{temp_str}.parquet"
+            # Build outputs dict with temperature-specific files
+            outputs = {"primary": "metadata.json"}
+            for temp in self.config.temperature_variation_temps:
+                temp_str = f"{temp}".replace(".", "_")
+                outputs[f"temp_{temp_str}"] = f"dataset_temp_{temp_str}.parquet"
 
-        write_phase_output(
-            phase="3.5",
-            outputs=outputs,
-            config=self.config,
-            output_dir=str(self.output_dir),
-            config_keys=['model_name', 'dataset_name', 'temperature_variation_temps']
-        )
-        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+            write_phase_output(
+                phase="3.5",
+                outputs=outputs,
+                config=self.config,
+                output_dir=str(self.output_dir),
+                config_keys=['model_name', 'dataset_name', 'temperature_variation_temps']
+            )
+            logger.info(f"Saved phase_output.json manifest to {self.output_dir}")

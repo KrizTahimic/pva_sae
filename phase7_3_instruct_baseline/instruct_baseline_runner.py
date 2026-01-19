@@ -102,15 +102,23 @@ class InstructBaselineRunner:
         
         return best_layers
     
-    def __init__(self, config: Config):
-        """Initialize with configuration for instruction-tuned model."""
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize with configuration for instruction-tuned model.
+
+        Args:
+            config: Configuration object
+            gpu_id: GPU index for parallel execution (0-indexed)
+            n_gpus: Total number of GPUs (1 = sequential)
+        """
         self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
         self.device = detect_device()
-        
+
         # Checkpoint settings
         self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
         self.memory_warning_threshold = MEMORY_WARNING_PERCENT
-        
+
         # CRITICAL: Use instruction-tuned model
         self.model_name = "google/gemma-2-2b-it"
         logger.info(f"Loading INSTRUCTION-TUNED model {self.model_name} on device: {self.device}")
@@ -374,6 +382,12 @@ class InstructBaselineRunner:
 
         # Apply --start and --end arguments if provided
         analysis_data = filter_by_range(analysis_data, self.config, "analysis dataset")
+
+        # Filter for parallel execution (round-robin task distribution)
+        if self.n_gpus > 1:
+            from common.parallel_runner import filter_dataframe_for_gpu
+            analysis_data = filter_dataframe_for_gpu(analysis_data, self.gpu_id, self.n_gpus)
+            logger.info(f"GPU {self.gpu_id}/{self.n_gpus}: Processing {len(analysis_data)} tasks (parallel mode)")
 
         # Setup output directories
         self.output_dir = self._setup_output_directories()

@@ -80,9 +80,17 @@ class SelectiveSteeringAnalyzer:
     exceeds optimal threshold, following Phase 4.8 split testing pattern.
     """
 
-    def __init__(self, config: Config):
-        """Initialize the selective steering analyzer."""
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize the selective steering analyzer.
+
+        Args:
+            config: Configuration object
+            gpu_id: GPU index for parallel execution (0-indexed)
+            n_gpus: Total number of GPUs (1 = sequential)
+        """
         self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
         self.device = torch.device(detect_device())
 
         # Create output directory with dataset suffix
@@ -276,6 +284,18 @@ class SelectiveSteeringAnalyzer:
         # Split baseline into two groups based on baseline_passed
         self.initially_incorrect_data = self.baseline_data[~self.baseline_data['baseline_passed']].copy()
         self.initially_correct_data = self.baseline_data[self.baseline_data['baseline_passed']].copy()
+
+        # Filter for parallel execution (round-robin task distribution)
+        if self.n_gpus > 1:
+            from common.parallel_runner import filter_dataframe_for_gpu
+            self.initially_incorrect_data = filter_dataframe_for_gpu(
+                self.initially_incorrect_data, self.gpu_id, self.n_gpus
+            )
+            self.initially_correct_data = filter_dataframe_for_gpu(
+                self.initially_correct_data, self.gpu_id, self.n_gpus
+            )
+            logger.info(f"GPU {self.gpu_id}/{self.n_gpus}: Processing {len(self.initially_correct_data)} correct, "
+                       f"{len(self.initially_incorrect_data)} incorrect tasks (parallel mode)")
 
         n_incorrect = len(self.initially_incorrect_data)
         n_correct = len(self.initially_correct_data)

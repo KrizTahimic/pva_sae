@@ -125,6 +125,15 @@ def setup_argument_parser():
         help='Regenerate visualizations without recomputing (requires previous run)'
     )
 
+    # Multi-GPU parallelization
+    phase_parser.add_argument(
+        '--parallel',
+        type=int,
+        default=1,
+        metavar='N',
+        help='Number of GPUs for parallel execution (default: 1 = sequential)'
+    )
+
     return parser
 
 
@@ -200,7 +209,23 @@ def main():
         print(f"{'='*60}")
         
         try:
-            # Run selected phase using the generic runner
+            # Check for parallel execution
+            n_gpus = getattr(args, 'parallel', 1)
+
+            if n_gpus > 1:
+                # Use parallel runner for multi-GPU execution
+                from common.parallel_runner import run_phase_parallel, PARALLELIZABLE_PHASES
+
+                if args.phase not in PARALLELIZABLE_PHASES:
+                    logger.warning(f"Phase {args.phase} does not support --parallel. Running sequentially.")
+                    n_gpus = 1
+                else:
+                    logger.info(f"Running Phase {args.phase} in parallel mode with {n_gpus} GPUs")
+                    run_phase_parallel(args.phase, config, n_gpus)
+                    print(f"✅ Phase {args.phase} completed successfully (parallel execution)!")
+                    sys.exit(0)
+
+            # Run selected phase using the generic runner (sequential)
             # All phases now follow the standard Runner(config).run() pattern
             if can_use_generic_runner(args.phase):
                 generic_run_phase(args.phase, config, device)

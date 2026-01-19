@@ -92,11 +92,19 @@ class HyperparameterDataRunner:
 
         return best_latents
     
-    def __init__(self, config: Config):
-        """Initialize with configuration."""
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize with configuration.
+
+        Args:
+            config: Configuration object
+            gpu_id: GPU index for parallel execution (0-indexed)
+            n_gpus: Total number of GPUs (1 = sequential)
+        """
         self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
         self.device = detect_device()
-        
+
         # Checkpoint settings
         self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
         self.memory_warning_threshold = MEMORY_WARNING_PERCENT
@@ -348,7 +356,13 @@ class HyperparameterDataRunner:
 
         # Apply --start and --end arguments if provided
         tuning_data = filter_by_range(tuning_data, self.config, "tuning dataset")
-        
+
+        # Filter for parallel execution (round-robin task distribution)
+        if self.n_gpus > 1:
+            from common.parallel_runner import filter_dataframe_for_gpu
+            tuning_data = filter_dataframe_for_gpu(tuning_data, self.gpu_id, self.n_gpus)
+            logger.info(f"GPU {self.gpu_id}/{self.n_gpus}: Processing {len(tuning_data)} tasks (parallel mode)")
+
         # Setup output directories
         self.output_dir = self._setup_output_directories()
         
@@ -495,11 +509,15 @@ class HyperparameterDataRunner:
     def _save_results(self, results: list[dict]) -> None:
         """Save results to parquet file."""
         df = pd.DataFrame(results)
-        
+
         # Save to parquet file
-        output_file = self.output_dir / "dataset_hyperparams_temp_0_0.parquet"
+        # Use GPU-specific filename in parallel mode for later merging
+        if self.n_gpus > 1:
+            output_file = self.output_dir / f"results_gpu{self.gpu_id}.parquet"
+        else:
+            output_file = self.output_dir / "dataset_hyperparams_temp_0_0.parquet"
         df.to_parquet(output_file, index=False)
-        
+
         logger.info(f"Saved {len(results)} results to {output_file}")
     
     def _create_metadata(
@@ -543,24 +561,29 @@ class HyperparameterDataRunner:
     
     def _save_metadata(self, metadata: dict) -> None:
         """Save metadata to file."""
-        output_file = self.output_dir / "metadata.json"
+        # In parallel mode, save GPU-specific metadata
+        if self.n_gpus > 1:
+            output_file = self.output_dir / f"metadata_gpu{self.gpu_id}.json"
+        else:
+            output_file = self.output_dir / "metadata.json"
         save_json(metadata, output_file)
         logger.info(f"Saved metadata to {output_file}")
 
-        # Write phase_output.json manifest
-        from common.phase_discovery import write_phase_output
+        # Write phase_output.json manifest (skip in parallel mode - orchestrator handles it)
+        if self.n_gpus == 1:
+            from common.phase_discovery import write_phase_output
 
-        write_phase_output(
-            phase="3.6",
-            outputs={
-                "primary": "metadata.json",
-                "dataset": "dataset_hyperparams_temp_0_0.parquet",
-            },
-            config=self.config,
-            output_dir=str(self.output_dir),
-            dependencies={
-                "0.1": str(Path(get_phase_output_dir("0.1", self.config)) / "tuning_mbpp.parquet"),
-            },
-            config_keys=['model_name', 'dataset_name']
-        )
-        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+            write_phase_output(
+                phase="3.6",
+                outputs={
+                    "primary": "metadata.json",
+                    "dataset": "dataset_hyperparams_temp_0_0.parquet",
+                },
+                config=self.config,
+                output_dir=str(self.output_dir),
+                dependencies={
+                    "0.1": str(Path(get_phase_output_dir("0.1", self.config)) / "tuning_mbpp.parquet"),
+                },
+                config_keys=['model_name', 'dataset_name']
+            )
+            logger.info(f"Saved phase_output.json manifest to {self.output_dir}")

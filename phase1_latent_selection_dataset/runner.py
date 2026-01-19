@@ -30,14 +30,22 @@ logger = get_logger("phase1_latent_selection_dataset.runner", phase="1")
 
 class Phase1Runner:
     """Simple runner for Phase 1 dataset building with checkpointing support."""
-    
-    def __init__(self, config: Config):
-        """Initialize with centralized config."""
+
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize with centralized config.
+
+        Args:
+            config: Configuration object
+            gpu_id: GPU index for parallel execution (0-indexed)
+            n_gpus: Total number of GPUs (1 = sequential)
+        """
         self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
         self.model = None
         self.tokenizer = None
         self.activation_extractor = None
-        
+
         # Checkpoint settings
         self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
         self.memory_warning_threshold = MEMORY_WARNING_PERCENT
@@ -316,6 +324,12 @@ class Phase1Runner:
         total_tasks = len(df)
         df = filter_by_range(df, self.config, f"{split_name} split tasks")
         logger.info(f"Processing {len(df)} out of {total_tasks} tasks in {split_name} split")
+
+        # Filter for parallel execution (round-robin task distribution)
+        if self.n_gpus > 1:
+            from common.parallel_runner import filter_dataframe_for_gpu
+            df = filter_dataframe_for_gpu(df, self.gpu_id, self.n_gpus)
+            logger.info(f"GPU {self.gpu_id}/{self.n_gpus}: Processing {len(df)} tasks (parallel mode)")
         
         # Create output directories
         # Use model/dataset-aware output directory
@@ -462,16 +476,25 @@ class Phase1Runner:
         final_df = successful_original_data.merge(results_df, on='task_id', how='inner')
         
         # Collect old dataset files BEFORE saving (for cleanup after successful save)
-        old_dataset_files = list(output_dir.glob("dataset_*.parquet"))
+        # Skip cleanup in parallel mode - orchestrator handles it
+        if self.n_gpus == 1:
+            old_dataset_files = list(output_dir.glob("dataset_*.parquet"))
+        else:
+            old_dataset_files = []
 
         # Save dataset (only successful tasks)
+        # Use GPU-specific filename in parallel mode for later merging
         timestamp = get_timestamp()
-        output_file = output_dir / f"dataset_{split_name}_{timestamp}.parquet"
+        if self.n_gpus > 1:
+            output_file = output_dir / f"results_gpu{self.gpu_id}.parquet"
+        else:
+            output_file = output_dir / f"dataset_{split_name}_{timestamp}.parquet"
         final_df.to_parquet(output_file, index=False)
 
         logger.info(f"Dataset saved to {output_file}")
 
         # Delete old dataset files after successful save (keeps only the merged file)
+        # Skip in parallel mode - orchestrator handles cleanup
         for old_file in old_dataset_files:
             if old_file != output_file:  # Don't delete the one we just created
                 old_file.unlink()
@@ -518,23 +541,24 @@ class Phase1Runner:
             logger.warning(f"Excluded tasks: {[t['task_id'] for t in all_excluded]}")
         logger.info("="*60 + "\n")
 
-        # Write phase_output.json manifest
-        from common.phase_discovery import write_phase_output
+        # Write phase_output.json manifest (skip in parallel mode - orchestrator handles it)
+        if self.n_gpus == 1:
+            from common.phase_discovery import write_phase_output
 
-        write_phase_output(
-            phase="1",
-            outputs={
-                "primary": output_file.name,
-                "activations_dir": "activations/",
-            },
-            config=self.config,
-            output_dir=str(output_dir),
-            dependencies={
-                "0.1": str(phase0_1_dir),
-            },
-            config_keys=['model_name', 'dataset_name', 'model_temperature']
-        )
-        logger.info(f"Saved phase_output.json manifest to {output_dir}")
+            write_phase_output(
+                phase="1",
+                outputs={
+                    "primary": output_file.name,
+                    "activations_dir": "activations/",
+                },
+                config=self.config,
+                output_dir=str(output_dir),
+                dependencies={
+                    "0.1": str(phase0_1_dir),
+                },
+                config_keys=['model_name', 'dataset_name', 'model_temperature']
+            )
+            logger.info(f"Saved phase_output.json manifest to {output_dir}")
 
         # Cleanup hooks to free memory
         self.activation_extractor.remove_hooks()

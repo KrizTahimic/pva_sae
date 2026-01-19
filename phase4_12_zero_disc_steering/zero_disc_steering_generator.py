@@ -41,12 +41,20 @@ logger = get_logger("phase4_12.zero_disc_steering_generator")
 
 class ZeroDiscSteeringGenerator:
     """Generate steering results using zero-discrimination features."""
-    
-    def __init__(self, config: Config):
-        """Initialize with configuration, load dependencies."""
+
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize with configuration, load dependencies.
+
+        Args:
+            config: Configuration object
+            gpu_id: GPU index for parallel execution (0-indexed)
+            n_gpus: Total number of GPUs (1 = sequential)
+        """
         self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
         self.device = detect_device()
-        
+
         # Phase output directories with dataset suffix
         self.output_dir = Path(get_phase_output_dir('4.12', config))
         ensure_directory_exists(self.output_dir)
@@ -117,7 +125,19 @@ class ZeroDiscSteeringGenerator:
         # Split by initial correctness
         self.incorrect_problems = self.validation_data[self.validation_data['baseline_passed'] == False].copy()
         self.correct_problems = self.validation_data[self.validation_data['baseline_passed'] == True].copy()
-        
+
+        # Filter for parallel execution (round-robin task distribution)
+        if self.n_gpus > 1:
+            from common.parallel_runner import filter_dataframe_for_gpu
+            self.incorrect_problems = filter_dataframe_for_gpu(
+                self.incorrect_problems, self.gpu_id, self.n_gpus
+            )
+            self.correct_problems = filter_dataframe_for_gpu(
+                self.correct_problems, self.gpu_id, self.n_gpus
+            )
+            logger.info(f"GPU {self.gpu_id}/{self.n_gpus}: Processing {len(self.correct_problems)} correct, "
+                       f"{len(self.incorrect_problems)} incorrect tasks (parallel mode)")
+
         logger.info(f"Split: {len(self.correct_problems)} correct, {len(self.incorrect_problems)} incorrect")
         
     def _select_best_zero_disc_features(self) -> dict:

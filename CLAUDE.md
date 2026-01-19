@@ -78,7 +78,29 @@ python3 run.py phase {N} [OPTIONS]
 --start N --end M    # Process subset (for testing)
 --viz-only           # Regenerate plots without recomputing (seconds vs hours)
 --correction-only    # Only correction experiments (phases 4.5, 4.6, 4.8)
+--parallel N         # Multi-GPU parallelization (distribute tasks across N GPUs)
 ```
+
+### Multi-GPU Parallelization
+
+Phases with `model.generate()` support `--parallel N` for ~3-4x speedup:
+
+```bash
+# Run Phase 1 across 4 GPUs
+python3 run.py phase 1 --parallel 4
+
+# Test with subset first
+python3 run.py phase 1 --parallel 4 --start 0 --end 40
+```
+
+**How it works:**
+- Tasks distributed round-robin: GPU 0 gets tasks [0,4,8...], GPU 1 gets [1,5,9...]
+- Each GPU saves `results_gpu{N}.parquet`
+- Orchestrator merges results after completion
+
+**Supported phases:** 1, 3.5, 3.6, 4.5, 4.6, 4.8, 4.12, 5.3, 5.6, 7.3, 7.6, 8.2, 8.3
+
+See `common/parallel_runner.py` for implementation details.
 
 ### Checkpointing
 
@@ -150,6 +172,7 @@ The fundamental pattern across all phases:
 | `common/config.py` | Centralized configuration |
 | `common/phase_discovery.py` | Auto-discovery, output paths |
 | `common/sae_loader.py` | GemmaScope SAE loading |
+| `common/parallel_runner.py` | Multi-GPU parallelization orchestration |
 | `phase2_5_separation_score_analysis/sae_analyzer.py` | Separation score analysis |
 | `phase4_8_steering_analysis/steering_effect_analyzer.py` | Steering interventions |
 

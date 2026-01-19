@@ -63,12 +63,20 @@ def _format_effect_log(
 
 class InstructSteeringAnalyzer:
     """Analyze steering effects on instruction-tuned model validation data."""
-    
-    def __init__(self, config: Config):
-        """Initialize with configuration, load dependencies."""
+
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize with configuration, load dependencies.
+
+        Args:
+            config: Configuration object
+            gpu_id: GPU index for parallel execution (0-indexed)
+            n_gpus: Total number of GPUs (1 = sequential)
+        """
         self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
         self.device = detect_device()
-        
+
         # Phase output directories with dataset suffix
         self.output_dir = Path(get_phase_output_dir('7.6', config))
         ensure_directory_exists(self.output_dir)
@@ -224,10 +232,22 @@ class InstructSteeringAnalyzer:
         # Split baseline data by initial correctness
         self.initially_correct_data = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
         self.initially_incorrect_data = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
-        
+
+        # Filter for parallel execution (round-robin task distribution)
+        if self.n_gpus > 1:
+            from common.parallel_runner import filter_dataframe_for_gpu
+            self.initially_correct_data = filter_dataframe_for_gpu(
+                self.initially_correct_data, self.gpu_id, self.n_gpus
+            )
+            self.initially_incorrect_data = filter_dataframe_for_gpu(
+                self.initially_incorrect_data, self.gpu_id, self.n_gpus
+            )
+            logger.info(f"GPU {self.gpu_id}/{self.n_gpus}: Processing {len(self.initially_correct_data)} correct, "
+                       f"{len(self.initially_incorrect_data)} incorrect tasks (parallel mode)")
+
         logger.info(f"Split instruction-tuned baseline: {len(self.initially_correct_data)} initially correct, "
                    f"{len(self.initially_incorrect_data)} initially incorrect problems")
-        
+
         # Validate we have sufficient data for both experiments
         if len(self.initially_correct_data) == 0:
             raise ValueError("No initially correct problems found in instruction-tuned baseline data")

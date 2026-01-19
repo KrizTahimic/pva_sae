@@ -82,9 +82,17 @@ class ThresholdOptimizer:
     find the threshold that maximizes net benefit (correction_rate - corruption_rate).
     """
 
-    def __init__(self, config: Config):
-        """Initialize the threshold optimizer."""
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize the threshold optimizer.
+
+        Args:
+            config: Configuration object
+            gpu_id: GPU index for parallel execution (0-indexed)
+            n_gpus: Total number of GPUs (1 = sequential)
+        """
         self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
         self.device = torch.device(detect_device())
 
         # Create output directory
@@ -278,6 +286,18 @@ class ThresholdOptimizer:
         # Split into two groups based on baseline_passed
         self.incorrect_problems = self.dataset[~self.dataset['baseline_passed']].copy()
         self.correct_problems = self.dataset[self.dataset['baseline_passed']].copy()
+
+        # Filter for parallel execution (round-robin task distribution)
+        if self.n_gpus > 1:
+            from common.parallel_runner import filter_dataframe_for_gpu
+            self.incorrect_problems = filter_dataframe_for_gpu(
+                self.incorrect_problems, self.gpu_id, self.n_gpus
+            )
+            self.correct_problems = filter_dataframe_for_gpu(
+                self.correct_problems, self.gpu_id, self.n_gpus
+            )
+            logger.info(f"GPU {self.gpu_id}/{self.n_gpus}: Processing {len(self.correct_problems)} correct, "
+                       f"{len(self.incorrect_problems)} incorrect tasks (parallel mode)")
 
         n_incorrect = len(self.incorrect_problems)
         n_correct = len(self.correct_problems)
