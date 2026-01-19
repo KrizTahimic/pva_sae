@@ -213,9 +213,11 @@ class SimilarityAnalyzer:
                 }
 
             results['comparisons'].append(comparison)
+            sim = comparison['cosine_similarity']
+            sim_str = f"{sim:.3f}" if sim is not None else "N/A"
             self.logger.info(
                 f"  {probe_method} (L{probe_layer}) vs {sae_type}-{comparison_type} SAE (L{sae_layer}): "
-                f"cosine={comparison['cosine_similarity']:.3f if comparison['cosine_similarity'] is not None else 'N/A'}"
+                f"cosine={sim_str}"
             )
 
         return results
@@ -342,10 +344,16 @@ class SimilarityAnalyzer:
         self.logger.info("="*60)
 
         self.logger.info("\nKey Comparisons:")
-        self.logger.info(f"  Steering (Mass-mean vs SAE): {key_findings['steering_primary']['similarity']:.3f if key_findings['steering_primary']['similarity'] else 'N/A'}")
-        self.logger.info(f"    → {key_findings['steering_primary']['interpretation']}")
-        self.logger.info(f"  Prediction (LogReg vs SAE): {key_findings['prediction_primary']['similarity']:.3f if key_findings['prediction_primary']['similarity'] else 'N/A'}")
-        self.logger.info(f"    → {key_findings['prediction_primary']['interpretation']}")
+        steer_sim = key_findings['steering_primary']['similarity']
+        steer_sim_str = f"{steer_sim:.3f}" if steer_sim is not None else "N/A"
+        steer_interp = key_findings['steering_primary']['interpretation'] or "N/A"
+        self.logger.info(f"  Steering (Mass-mean vs SAE): {steer_sim_str}")
+        self.logger.info(f"    → {steer_interp}")
+        pred_sim = key_findings['prediction_primary']['similarity']
+        pred_sim_str = f"{pred_sim:.3f}" if pred_sim is not None else "N/A"
+        pred_interp = key_findings['prediction_primary']['interpretation'] or "N/A"
+        self.logger.info(f"  Prediction (LogReg vs SAE): {pred_sim_str}")
+        self.logger.info(f"    → {pred_interp}")
 
         self.logger.info("\nInterpretation Guide:")
         self.logger.info("  > 0.7: Same representation found (strong convergence)")
