@@ -5,19 +5,17 @@ Analyzes how sensitive latent selection is to the pile filtering threshold.
 Addresses reviewer question: "You exclude features activating >2% on pile-10k.
 How sensitive are results to this threshold?"
 
-Loads per-layer latent scores from Phase 2.5 (separation score) and Phase 2.10 (t-statistic),
-reconstructs top-100 globally, then applies different thresholds to measure stability.
+Key question: Would we select different latents if we used 1% or 5% instead of 2%?
 """
 
 import json
-from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from common.config import Config, PLOT_DPI, PLOT_STYLE
+from common.config import Config, PLOT_DPI, PLOT_STYLE, COLOR_CORRECT_PREDICTING, COLOR_INCORRECT_PREDICTING
 from common.logging import get_logger
 from common.phase_discovery import get_phase_output_dir, write_phase_output
 from common.pile_filter_utils import load_pile_frequencies
@@ -85,18 +83,7 @@ class ThresholdSensitivityAnalyzer:
         score_key: str,
         k: int = 100
     ) -> dict[str, list[dict]]:
-        """
-        Select top-k latents globally across all layers.
-
-        Args:
-            layer_data: Dict mapping layer_idx to layer results with 'latents' key
-            score_key: Key to sort by ('separation_score' or 't_statistic')
-            k: Number of top latents to select per category
-
-        Returns:
-            Dict with 'correct' and 'incorrect' lists of top-k latents
-        """
-        # Collect all latents from all layers
+        """Select top-k latents globally across all layers."""
         all_correct = []
         all_incorrect = []
 
@@ -106,7 +93,6 @@ class ThresholdSensitivityAnalyzer:
             for latent in data['latents']['incorrect']:
                 all_incorrect.append({**latent, 'layer': layer_idx})
 
-        # Sort by score (descending) with deterministic tiebreakers
         top_correct = sorted(
             all_correct,
             key=lambda x: (-x[score_key], x['layer'], x['latent_idx'])
@@ -119,59 +105,114 @@ class ThresholdSensitivityAnalyzer:
 
         return {'correct': top_correct, 'incorrect': top_incorrect}
 
-    def _apply_threshold_and_count(
+    def _get_pile_frequency(
         self,
-        top_latents: dict[str, list[dict]],
+        latent: dict,
+        pile_frequencies: dict[int, any]
+    ) -> float:
+        """Get pile frequency for a latent. Returns 0 if not available."""
+        layer = latent['layer']
+        feat_idx = latent['latent_idx']
+
+        if layer not in pile_frequencies or pile_frequencies[layer] is None:
+            return 0.0
+
+        return pile_frequencies[layer][feat_idx].item()
+
+    def _analyze_top_latents(
+        self,
+        top_latents: list[dict],
         pile_frequencies: dict[int, any],
-        threshold: float,
-        max_retain: int = 20
-    ) -> dict[str, dict]:
+        score_key: str
+    ) -> dict:
         """
-        Apply pile threshold and count filtered/retained latents.
+        Analyze top latents: their pile frequencies and at which thresholds they survive.
 
-        Args:
-            top_latents: Dict with 'correct' and 'incorrect' lists
-            pile_frequencies: Dict mapping layer_idx to frequency tensors
-            threshold: Maximum pile frequency (features above this are filtered)
-            max_retain: Maximum features to retain per category
-
-        Returns:
-            Dict with filtering statistics for each category
+        Returns detailed info about each latent and threshold survival.
         """
-        results = {}
+        results = []
 
-        for category in ['correct', 'incorrect']:
-            filtered_count = 0
-            retained = []
+        for rank, latent in enumerate(top_latents[:20]):  # Analyze top-20 in detail
+            pile_freq = self._get_pile_frequency(latent, pile_frequencies)
 
-            for latent in top_latents[category]:
-                layer = latent['layer']
-                feat_idx = latent['latent_idx']
+            # Determine at which thresholds this latent survives
+            survives_at = [t for t in THRESHOLDS_TO_TEST if pile_freq < t]
+            filtered_at = [t for t in THRESHOLDS_TO_TEST if pile_freq >= t]
 
-                # Check pile frequency
-                if layer not in pile_frequencies or pile_frequencies[layer] is None:
-                    # No pile data - keep latent
-                    if len(retained) < max_retain:
-                        retained.append(latent)
-                    continue
-
-                pile_freq = pile_frequencies[layer][feat_idx].item()
-
-                if pile_freq >= threshold:
-                    filtered_count += 1
-                else:
-                    if len(retained) < max_retain:
-                        retained.append(latent)
-
-            results[category] = {
-                'filtered': filtered_count,
-                'retained': len(retained),
-                'retained_latents': retained,
-                'top1_layer': retained[0]['layer'] if retained else None,
-                'top1_latent_idx': retained[0]['latent_idx'] if retained else None
-            }
+            results.append({
+                'unfiltered_rank': rank + 1,
+                'layer': latent['layer'],
+                'latent_idx': latent['latent_idx'],
+                'score': latent[score_key],
+                'pile_frequency': pile_freq,
+                'pile_frequency_pct': f"{pile_freq:.2%}",
+                'survives_at_thresholds': [f"{t:.1%}" for t in survives_at],
+                'filtered_at_thresholds': [f"{t:.1%}" for t in filtered_at],
+                'survives_2pct': pile_freq < 0.02
+            })
 
         return results
+
+    def _compute_filtered_ranking(
+        self,
+        top_latents: list[dict],
+        pile_frequencies: dict[int, any],
+        threshold: float
+    ) -> list[dict]:
+        """
+        Apply threshold filter and return the resulting ranking.
+
+        Returns latents that survive the filter, in their filtered rank order.
+        """
+        surviving = []
+        for latent in top_latents:
+            pile_freq = self._get_pile_frequency(latent, pile_frequencies)
+            if pile_freq < threshold:
+                surviving.append({**latent, 'pile_frequency': pile_freq})
+        return surviving
+
+    def _analyze_ranking_stability(
+        self,
+        top_latents: list[dict],
+        pile_frequencies: dict[int, any]
+    ) -> dict:
+        """
+        Key analysis: How does the #1 ranked latent change across thresholds?
+        """
+        rankings_by_threshold = {}
+
+        for threshold in THRESHOLDS_TO_TEST:
+            surviving = self._compute_filtered_ranking(top_latents, pile_frequencies, threshold)
+            thresh_str = f"{threshold:.1%}"
+
+            if surviving:
+                top1 = surviving[0]
+                rankings_by_threshold[thresh_str] = {
+                    'top1_layer': top1['layer'],
+                    'top1_latent_idx': top1['latent_idx'],
+                    'top1_id': f"L{top1['layer']}_F{top1['latent_idx']}",
+                    'n_surviving': len(surviving),
+                    'n_filtered': len(top_latents) - len(surviving)
+                }
+            else:
+                rankings_by_threshold[thresh_str] = {
+                    'top1_layer': None,
+                    'top1_latent_idx': None,
+                    'top1_id': "None",
+                    'n_surviving': 0,
+                    'n_filtered': len(top_latents)
+                }
+
+        # Check if top-1 is the same across all thresholds
+        top1_ids = [v['top1_id'] for v in rankings_by_threshold.values()]
+        all_same = len(set(top1_ids)) == 1
+
+        return {
+            'by_threshold': rankings_by_threshold,
+            'top1_stable_across_all': all_same,
+            'top1_values': top1_ids,
+            'unique_top1_count': len(set(top1_ids))
+        }
 
     def run(self) -> dict:
         """Run threshold sensitivity analysis."""
@@ -184,11 +225,11 @@ class ThresholdSensitivityAnalyzer:
             logger.error(str(e))
             raise
 
-        # Load per-layer latent scores from both selection methods
+        # Load per-layer latent scores
         separation_layer_data = self._load_layer_latents_separation()
         tstat_layer_data = self._load_layer_latents_tstat()
 
-        # Select top-100 globally (unfiltered) for each method
+        # Select top-100 globally (unfiltered)
         top_100_separation = self._select_top_k_globally(
             separation_layer_data, 'separation_score', k=100
         )
@@ -196,103 +237,53 @@ class ThresholdSensitivityAnalyzer:
             tstat_layer_data, 't_statistic', k=100
         )
 
-        # Apply each threshold and collect results
+        # Analyze each method and category
         results = {
-            'thresholds_tested': THRESHOLDS_TO_TEST,
-            'separation_score_latents': {'correct': {}, 'incorrect': {}},
-            't_statistic_latents': {'correct': {}, 'incorrect': {}},
-            'stability_summary': {}
-        }
-
-        # Track top-1 stability across thresholds
-        top1_correct_sep = []
-        top1_incorrect_sep = []
-        top1_correct_tstat = []
-        top1_incorrect_tstat = []
-
-        for threshold in THRESHOLDS_TO_TEST:
-            thresh_str = str(threshold)
-            logger.info(f"Testing threshold: {threshold:.1%}")
-
-            # Separation score method
-            sep_results = self._apply_threshold_and_count(
-                top_100_separation, pile_frequencies, threshold
-            )
-            results['separation_score_latents']['correct'][thresh_str] = {
-                'filtered': sep_results['correct']['filtered'],
-                'retained': sep_results['correct']['retained'],
-                'top1_layer': sep_results['correct']['top1_layer'],
-                'top1_latent_idx': sep_results['correct']['top1_latent_idx']
-            }
-            results['separation_score_latents']['incorrect'][thresh_str] = {
-                'filtered': sep_results['incorrect']['filtered'],
-                'retained': sep_results['incorrect']['retained'],
-                'top1_layer': sep_results['incorrect']['top1_layer'],
-                'top1_latent_idx': sep_results['incorrect']['top1_latent_idx']
-            }
-
-            top1_correct_sep.append(
-                (sep_results['correct']['top1_layer'], sep_results['correct']['top1_latent_idx'])
-            )
-            top1_incorrect_sep.append(
-                (sep_results['incorrect']['top1_layer'], sep_results['incorrect']['top1_latent_idx'])
-            )
-
-            # T-statistic method
-            tstat_results = self._apply_threshold_and_count(
-                top_100_tstat, pile_frequencies, threshold
-            )
-            results['t_statistic_latents']['correct'][thresh_str] = {
-                'filtered': tstat_results['correct']['filtered'],
-                'retained': tstat_results['correct']['retained'],
-                'top1_layer': tstat_results['correct']['top1_layer'],
-                'top1_latent_idx': tstat_results['correct']['top1_latent_idx']
-            }
-            results['t_statistic_latents']['incorrect'][thresh_str] = {
-                'filtered': tstat_results['incorrect']['filtered'],
-                'retained': tstat_results['incorrect']['retained'],
-                'top1_layer': tstat_results['incorrect']['top1_layer'],
-                'top1_latent_idx': tstat_results['incorrect']['top1_latent_idx']
-            }
-
-            top1_correct_tstat.append(
-                (tstat_results['correct']['top1_layer'], tstat_results['correct']['top1_latent_idx'])
-            )
-            top1_incorrect_tstat.append(
-                (tstat_results['incorrect']['top1_layer'], tstat_results['incorrect']['top1_latent_idx'])
-            )
-
-        # Check stability: is top-1 the same across all thresholds?
-        results['stability_summary'] = {
+            'question': "How sensitive is latent selection to the pile filtering threshold?",
+            'current_threshold': f"{self.config.pile_threshold:.1%}",
+            'thresholds_tested': [f"{t:.1%}" for t in THRESHOLDS_TO_TEST],
             'separation_score': {
-                'top1_correct_stable': len(set(top1_correct_sep)) == 1,
-                'top1_incorrect_stable': len(set(top1_incorrect_sep)) == 1,
-                'top1_correct_values': [
-                    f"L{t[0]}_F{t[1]}" if t[0] is not None else "None" for t in top1_correct_sep
-                ],
-                'top1_incorrect_values': [
-                    f"L{t[0]}_F{t[1]}" if t[0] is not None else "None" for t in top1_incorrect_sep
-                ]
+                'correct': {
+                    'top20_details': self._analyze_top_latents(
+                        top_100_separation['correct'], pile_frequencies, 'separation_score'
+                    ),
+                    'ranking_stability': self._analyze_ranking_stability(
+                        top_100_separation['correct'], pile_frequencies
+                    )
+                },
+                'incorrect': {
+                    'top20_details': self._analyze_top_latents(
+                        top_100_separation['incorrect'], pile_frequencies, 'separation_score'
+                    ),
+                    'ranking_stability': self._analyze_ranking_stability(
+                        top_100_separation['incorrect'], pile_frequencies
+                    )
+                }
             },
             't_statistic': {
-                'top1_correct_stable': len(set(top1_correct_tstat)) == 1,
-                'top1_incorrect_stable': len(set(top1_incorrect_tstat)) == 1,
-                'top1_correct_values': [
-                    f"L{t[0]}_F{t[1]}" if t[0] is not None else "None" for t in top1_correct_tstat
-                ],
-                'top1_incorrect_values': [
-                    f"L{t[0]}_F{t[1]}" if t[0] is not None else "None" for t in top1_incorrect_tstat
-                ]
+                'correct': {
+                    'top20_details': self._analyze_top_latents(
+                        top_100_tstat['correct'], pile_frequencies, 't_statistic'
+                    ),
+                    'ranking_stability': self._analyze_ranking_stability(
+                        top_100_tstat['correct'], pile_frequencies
+                    )
+                },
+                'incorrect': {
+                    'top20_details': self._analyze_top_latents(
+                        top_100_tstat['incorrect'], pile_frequencies, 't_statistic'
+                    ),
+                    'ranking_stability': self._analyze_ranking_stability(
+                        top_100_tstat['incorrect'], pile_frequencies
+                    )
+                }
+            },
+            'metadata': {
+                'creation_timestamp': datetime.now().isoformat(),
+                'model_name': self.config.model_name,
+                'dataset_name': self.config.dataset_name,
+                'n_layers_analyzed': len(self.config.activation_layers)
             }
-        }
-
-        # Add metadata
-        results['metadata'] = {
-            'creation_timestamp': datetime.now().isoformat(),
-            'model_name': self.config.model_name,
-            'dataset_name': self.config.dataset_name,
-            'current_threshold': self.config.pile_threshold,
-            'n_layers_analyzed': len(self.config.activation_layers)
         }
 
         # Save outputs
@@ -332,97 +323,53 @@ class ThresholdSensitivityAnalyzer:
         logger.info(f"Saved results to {output_file}")
 
     def _generate_visualization(self, results: dict) -> None:
-        """Generate bar chart showing filtering counts at each threshold."""
+        """Generate visualization showing top-1 stability and survival counts."""
         plt.style.use(PLOT_STYLE)
 
-        fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
-        thresholds = results['thresholds_tested']
+        thresholds = THRESHOLDS_TO_TEST
         x_labels = [f"{t:.1%}" for t in thresholds]
         x = np.arange(len(thresholds))
-        bar_width = 0.35
 
-        # Plot separation score results
-        for col, category in enumerate(['correct', 'incorrect']):
-            ax = axes[0, col]
+        for row, (method, method_key) in enumerate([('Separation Score', 'separation_score'),
+                                                      ('T-Statistic', 't_statistic')]):
+            for col, (category, color) in enumerate([('correct', COLOR_CORRECT_PREDICTING),
+                                                      ('incorrect', COLOR_INCORRECT_PREDICTING)]):
+                ax = axes[row, col]
+                data = results[method_key][category]['ranking_stability']
 
-            filtered = [
-                results['separation_score_latents'][category][str(t)]['filtered']
-                for t in thresholds
-            ]
-            retained = [
-                results['separation_score_latents'][category][str(t)]['retained']
-                for t in thresholds
-            ]
+                # Get survival counts
+                n_surviving = [data['by_threshold'][f"{t:.1%}"]['n_surviving'] for t in thresholds]
+                top1_ids = [data['by_threshold'][f"{t:.1%}"]['top1_id'] for t in thresholds]
 
-            bars1 = ax.bar(x - bar_width/2, filtered, bar_width, label='Filtered', color='red', alpha=0.7)
-            bars2 = ax.bar(x + bar_width/2, retained, bar_width, label='Retained', color='green', alpha=0.7)
+                # Bar chart of surviving latents
+                bars = ax.bar(x, n_surviving, color=color, alpha=0.7, edgecolor='black')
 
-            ax.set_xlabel('Pile Threshold')
-            ax.set_ylabel('Count (of top-100)')
-            ax.set_title(f'Separation Score - {category.capitalize()}-predicting')
-            ax.set_xticks(x)
-            ax.set_xticklabels(x_labels)
-            ax.legend()
-            ax.axhline(y=20, color='gray', linestyle='--', alpha=0.5, label='Target (20)')
-
-            # Add value labels on bars
-            for bar in bars1:
-                height = bar.get_height()
-                if height > 0:
-                    ax.annotate(f'{int(height)}',
+                # Add top-1 ID labels on bars
+                for i, (bar, top1_id) in enumerate(zip(bars, top1_ids)):
+                    height = bar.get_height()
+                    ax.annotate(f'{top1_id}',
                                 xy=(bar.get_x() + bar.get_width()/2, height),
                                 xytext=(0, 3), textcoords="offset points",
-                                ha='center', va='bottom', fontsize=8)
-            for bar in bars2:
-                height = bar.get_height()
-                if height > 0:
-                    ax.annotate(f'{int(height)}',
-                                xy=(bar.get_x() + bar.get_width()/2, height),
-                                xytext=(0, 3), textcoords="offset points",
-                                ha='center', va='bottom', fontsize=8)
+                                ha='center', va='bottom', fontsize=8, rotation=45)
 
-        # Plot t-statistic results
-        for col, category in enumerate(['correct', 'incorrect']):
-            ax = axes[1, col]
+                ax.set_xlabel('Pile Threshold')
+                ax.set_ylabel('Latents Surviving (of top-100)')
+                ax.set_title(f'{method} - {category.capitalize()}-predicting\n'
+                            f'(Top-1 stable: {data["top1_stable_across_all"]})')
+                ax.set_xticks(x)
+                ax.set_xticklabels(x_labels)
+                ax.set_ylim(0, 110)
 
-            filtered = [
-                results['t_statistic_latents'][category][str(t)]['filtered']
-                for t in thresholds
-            ]
-            retained = [
-                results['t_statistic_latents'][category][str(t)]['retained']
-                for t in thresholds
-            ]
+                # Highlight current threshold
+                current_idx = thresholds.index(self.config.pile_threshold)
+                bars[current_idx].set_edgecolor('blue')
+                bars[current_idx].set_linewidth(3)
 
-            bars1 = ax.bar(x - bar_width/2, filtered, bar_width, label='Filtered', color='red', alpha=0.7)
-            bars2 = ax.bar(x + bar_width/2, retained, bar_width, label='Retained', color='green', alpha=0.7)
-
-            ax.set_xlabel('Pile Threshold')
-            ax.set_ylabel('Count (of top-100)')
-            ax.set_title(f'T-Statistic - {category.capitalize()}-predicting')
-            ax.set_xticks(x)
-            ax.set_xticklabels(x_labels)
-            ax.legend()
-            ax.axhline(y=20, color='gray', linestyle='--', alpha=0.5, label='Target (20)')
-
-            # Add value labels on bars
-            for bar in bars1:
-                height = bar.get_height()
-                if height > 0:
-                    ax.annotate(f'{int(height)}',
-                                xy=(bar.get_x() + bar.get_width()/2, height),
-                                xytext=(0, 3), textcoords="offset points",
-                                ha='center', va='bottom', fontsize=8)
-            for bar in bars2:
-                height = bar.get_height()
-                if height > 0:
-                    ax.annotate(f'{int(height)}',
-                                xy=(bar.get_x() + bar.get_width()/2, height),
-                                xytext=(0, 3), textcoords="offset points",
-                                ha='center', va='bottom', fontsize=8)
-
-        plt.suptitle('Threshold Sensitivity Analysis: Pile Filtering Impact', fontsize=14)
+        plt.suptitle('Threshold Sensitivity: How does the #1 latent change across thresholds?\n'
+                     '(Blue border = current 2% threshold; labels show top-1 latent at each threshold)',
+                     fontsize=12)
         plt.tight_layout()
 
         output_file = self.output_dir / "threshold_sensitivity_table.png"
@@ -431,91 +378,108 @@ class ThresholdSensitivityAnalyzer:
         logger.info(f"Saved visualization to {output_file}")
 
     def _generate_latex_table(self, results: dict) -> None:
-        """Generate LaTeX table for paper appendix."""
-        thresholds = results['thresholds_tested']
-
-        latex_lines = [
+        """Generate LaTeX table showing top-10 latents with their pile frequencies."""
+        lines = [
             "% Auto-generated by Phase 2.13: Threshold Sensitivity Analysis",
+            "% Key question: Does the selected latent change with different thresholds?",
+            "",
             "\\begin{table}[h]",
             "\\centering",
-            "\\caption{Sensitivity of latent selection to pile filtering threshold. "
-            "Shows number of latents filtered from top-100 candidates at each threshold.}",
+            "\\caption{Top-10 latents by separation score with pile activation frequencies. "
+            "Latents with pile frequency $\\geq$ threshold are filtered. "
+            "At 2\\% threshold, the top-ranked surviving latent becomes our selected direction.}",
             "\\label{tab:threshold-sensitivity}",
-            "\\begin{tabular}{lcccccc}",
+            "\\small",
+            "\\begin{tabular}{cccccc}",
             "\\toprule",
-            "Selection Method & Category & " + " & ".join([f"{t:.1%}" for t in thresholds]) + " \\\\",
+            "Rank & Layer & Latent & Score & Pile Freq & Survives 2\\%? \\\\",
+            "\\midrule",
+            "\\multicolumn{6}{c}{\\textbf{Correct-predicting (Separation Score)}} \\\\",
             "\\midrule"
         ]
 
-        # Separation score rows
-        for category in ['correct', 'incorrect']:
-            filtered_counts = [
-                str(results['separation_score_latents'][category][str(t)]['filtered'])
-                for t in thresholds
-            ]
-            method = "Separation Score" if category == 'correct' else ""
-            latex_lines.append(
-                f"{method} & {category.capitalize()} & " + " & ".join(filtered_counts) + " \\\\"
+        # Add correct-predicting latents
+        for latent in results['separation_score']['correct']['top20_details'][:10]:
+            survives = "\\cmark" if latent['survives_2pct'] else "\\xmark"
+            lines.append(
+                f"{latent['unfiltered_rank']} & {latent['layer']} & {latent['latent_idx']} & "
+                f"{latent['score']:.3f} & {latent['pile_frequency_pct']} & {survives} \\\\"
             )
 
-        latex_lines.append("\\midrule")
+        lines.extend([
+            "\\midrule",
+            "\\multicolumn{6}{c}{\\textbf{Incorrect-predicting (Separation Score)}} \\\\",
+            "\\midrule"
+        ])
 
-        # T-statistic rows
-        for category in ['correct', 'incorrect']:
-            filtered_counts = [
-                str(results['t_statistic_latents'][category][str(t)]['filtered'])
-                for t in thresholds
-            ]
-            method = "T-Statistic" if category == 'correct' else ""
-            latex_lines.append(
-                f"{method} & {category.capitalize()} & " + " & ".join(filtered_counts) + " \\\\"
+        # Add incorrect-predicting latents
+        for latent in results['separation_score']['incorrect']['top20_details'][:10]:
+            survives = "\\cmark" if latent['survives_2pct'] else "\\xmark"
+            lines.append(
+                f"{latent['unfiltered_rank']} & {latent['layer']} & {latent['latent_idx']} & "
+                f"{latent['score']:.3f} & {latent['pile_frequency_pct']} & {survives} \\\\"
             )
 
-        latex_lines.extend([
+        lines.extend([
             "\\bottomrule",
             "\\end{tabular}",
             "\\end{table}",
             "",
-            "% Stability Summary:",
-            f"% Separation Score - Correct top-1 stable: {results['stability_summary']['separation_score']['top1_correct_stable']}",
-            f"% Separation Score - Incorrect top-1 stable: {results['stability_summary']['separation_score']['top1_incorrect_stable']}",
-            f"% T-Statistic - Correct top-1 stable: {results['stability_summary']['t_statistic']['top1_correct_stable']}",
-            f"% T-Statistic - Incorrect top-1 stable: {results['stability_summary']['t_statistic']['top1_incorrect_stable']}"
+            "% Summary:",
         ])
+
+        # Add summary comments
+        for method in ['separation_score', 't_statistic']:
+            for category in ['correct', 'incorrect']:
+                stability = results[method][category]['ranking_stability']
+                lines.append(
+                    f"% {method} {category}: top-1 stable = {stability['top1_stable_across_all']}, "
+                    f"values = {stability['top1_values']}"
+                )
 
         output_file = self.output_dir / "threshold_sensitivity_appendix.tex"
         with open(output_file, 'w') as f:
-            f.write('\n'.join(latex_lines))
+            f.write('\n'.join(lines))
         logger.info(f"Saved LaTeX table to {output_file}")
 
     def _log_summary(self, results: dict) -> None:
-        """Log summary of results."""
-        logger.info("=" * 60)
-        logger.info("THRESHOLD SENSITIVITY ANALYSIS SUMMARY")
-        logger.info("=" * 60)
+        """Log clear summary answering the reviewer's question."""
+        logger.info("=" * 70)
+        logger.info("THRESHOLD SENSITIVITY ANALYSIS - SUMMARY")
+        logger.info("=" * 70)
+        logger.info("")
+        logger.info("QUESTION: Would we select different latents at 1% or 5% vs 2%?")
+        logger.info("")
 
-        # Current threshold (2%)
-        current = str(self.config.pile_threshold)
-        logger.info(f"\nCurrent threshold: {self.config.pile_threshold:.1%}")
+        for method, method_key in [('SEPARATION SCORE (for steering)', 'separation_score'),
+                                   ('T-STATISTIC (for validation)', 't_statistic')]:
+            logger.info(f"{method}:")
 
-        for method, method_key in [('Separation Score', 'separation_score_latents'),
-                                   ('T-Statistic', 't_statistic_latents')]:
-            logger.info(f"\n{method}:")
             for category in ['correct', 'incorrect']:
-                data = results[method_key][category].get(current, {})
+                stability = results[method_key][category]['ranking_stability']
+                logger.info(f"  {category.capitalize()}-predicting:")
+                logger.info(f"    Top-1 stable across all thresholds: {stability['top1_stable_across_all']}")
+                logger.info(f"    Top-1 at each threshold: {stability['top1_values']}")
+
+                if not stability['top1_stable_across_all']:
+                    # Find where the change happens
+                    values = stability['top1_values']
+                    for i in range(1, len(values)):
+                        if values[i] != values[i-1]:
+                            logger.info(f"    ⚠ Change at {THRESHOLDS_TO_TEST[i]:.1%}: {values[i-1]} → {values[i]}")
+
+            logger.info("")
+
+        # Print the top-5 latents for separation score with their pile frequencies
+        logger.info("TOP-5 SEPARATION SCORE LATENTS (unfiltered ranking):")
+        for category in ['correct', 'incorrect']:
+            logger.info(f"  {category.capitalize()}-predicting:")
+            for lat in results['separation_score'][category]['top20_details'][:5]:
+                status = "✓ survives" if lat['survives_2pct'] else "✗ filtered"
                 logger.info(
-                    f"  {category.capitalize()}: "
-                    f"{data.get('filtered', 'N/A')} filtered, "
-                    f"{data.get('retained', 'N/A')} retained"
+                    f"    #{lat['unfiltered_rank']}: L{lat['layer']}_F{lat['latent_idx']} "
+                    f"(pile={lat['pile_frequency_pct']}) → {status} at 2%"
                 )
 
-        # Stability summary
-        logger.info("\nTop-1 Latent Stability Across Thresholds:")
-        for method, method_key in [('Separation Score', 'separation_score'),
-                                   ('T-Statistic', 't_statistic')]:
-            summary = results['stability_summary'][method_key]
-            logger.info(f"  {method}:")
-            logger.info(f"    Correct top-1 stable: {summary['top1_correct_stable']}")
-            logger.info(f"    Incorrect top-1 stable: {summary['top1_incorrect_stable']}")
-
-        logger.info("=" * 60)
+        logger.info("")
+        logger.info("=" * 70)
