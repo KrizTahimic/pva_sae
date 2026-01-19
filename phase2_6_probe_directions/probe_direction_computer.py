@@ -4,12 +4,41 @@ Phase 2.6: Probe Direction Computation
 Computes linear probe directions from Phase 1 activations for baseline comparison
 with SAE-based correctness prediction and steering.
 
-Two probe methods:
-1. Mass-Mean (Marks & Tegmark 2023) - for steering (Phase 4.x)
-   Direction = Σ⁻¹ @ (μ_correct - μ_incorrect)
+MOTIVATION: Recent work has shown that simple linear probes often match or outperform
+SAE-based methods for both concept detection and steering:
 
-2. Logistic Regression - for prediction (Phase 3.8)
-   Finds discriminative hyperplane via regularized logistic regression.
+- Kantamneni et al. (2025), "Are Sparse Autoencoders Useful? A Case Study in
+  Sparse Probing" (arXiv:2502.16681) - Neel Nanda et al. at Google DeepMind
+  found SAE probes underperform logistic regression across 113 datasets.
+
+- AxBench (arXiv:2501.17148) found DiffMean and Linear Probe achieve ~0.94 AUROC
+  vs vanilla SAE's 0.695 for concept detection.
+
+This phase provides converging evidence: if probes and SAE directions identify
+similar representations (high cosine similarity) and achieve comparable metrics,
+this validates the linear representation hypothesis underlying both approaches.
+
+Two probe methods:
+
+1. Mass-Mean Probe (for steering, Phase 4.x)
+   Reference: Marks & Tegmark (2023), "The Geometry of Truth"
+              arXiv:2310.06824
+
+   Formula: direction = Σ⁻¹ @ (μ₊ - μ₋)
+
+   Equivalent to Fisher's Linear Discriminant direction. The covariance correction
+   removes interference from correlated but irrelevant features, making it more
+   suitable for causal interventions than plain mean-difference.
+
+   Related: Contrastive Activation Addition (CAA) uses mean-difference without
+   covariance correction (Rimsky et al. 2023).
+
+2. Logistic Regression Probe (for prediction, Phase 3.8)
+   Reference: Alain & Bengio (2016), "Understanding intermediate layers using
+              linear classifier probes" arXiv:1610.01644
+
+   Finds the discriminative hyperplane via L2-regularized logistic regression.
+   Hyperparameter C selected via cross-validation on AUROC.
 
 Usage:
     python3 run.py phase 2.6
@@ -132,18 +161,32 @@ class ProbeDirectionComputer:
     def compute_mass_mean_direction(
         self, X: np.ndarray, y: np.ndarray, reg_lambda: Optional[float] = None
     ) -> np.ndarray:
-        """Compute Mass-Mean probe direction (Marks & Tegmark 2023).
+        """Compute Mass-Mean probe direction (Fisher's LDA variant).
 
-        Unlike plain mean-difference, this corrects for covariance structure,
-        removing interference from correlated but irrelevant features.
+        Reference: Marks & Tegmark (2023), "The Geometry of Truth"
+                   arXiv:2310.06824
+
+        Formula: direction = Σ⁻¹ @ (μ₊ - μ₋)
+
+        where Σ is the pooled covariance matrix (regularized for stability).
+
+        This is equivalent to Fisher's Linear Discriminant (LDA) direction.
+        Unlike plain mean-difference (CAA/DoM), this corrects for covariance
+        structure, removing interference from correlated but irrelevant features.
+
+        Why covariance correction matters for steering:
+        - If feature A (correctness) is correlated with feature B (code style),
+          plain mean-diff will partially encode B.
+        - Σ⁻¹ decorrelates, isolating the direction that best separates classes.
 
         Args:
             X: Activations [N, d_model]
             y: Labels (1=correct, 0=incorrect)
-            reg_lambda: Regularization for covariance inversion (uses config default if None)
+            reg_lambda: Tikhonov regularization (λI added to Σ) for numerical
+                        stability. Default 1e-4 prevents singular matrix issues.
 
         Returns:
-            Mass-mean direction [d_model]
+            Mass-mean direction [d_model], unnormalized
         """
         if reg_lambda is None:
             reg_lambda = self.config.probe_mass_mean_reg_lambda
@@ -167,12 +210,24 @@ class ProbeDirectionComputer:
     ) -> tuple[np.ndarray, float, float]:
         """Compute logistic regression probe direction with hyperparameter search.
 
+        Reference: Alain & Bengio (2016), "Understanding intermediate layers
+                   using linear classifier probes" arXiv:1610.01644
+
+        Recent validation: Kantamneni et al. (2025) arXiv:2502.16681 showed
+        logistic regression outperforms SAE probes across 113 datasets.
+
+        Model: P(correct | x) = σ(w·x + b)
+
+        The weight vector w defines the probe direction. L2 regularization
+        (controlled by C = 1/λ) prevents overfitting. Best C selected via
+        cross-validation on AUROC.
+
         Args:
             X: Activations [N, d_model]
             y: Labels (1=correct, 0=incorrect)
 
         Returns:
-            Tuple of (direction, bias, best_C)
+            Tuple of (direction [d_model], bias, best_C)
         """
         C_values = self.config.probe_logreg_C_values
         cv_folds = self.config.probe_cv_folds

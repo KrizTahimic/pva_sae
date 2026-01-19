@@ -207,8 +207,10 @@ class Config:
     evaluation_random_seed: int = 42
 
     # === PROBE BASELINE SETTINGS (Phase 2.6) ===
+    # Reference: Kantamneni et al. (2025) "Are Sparse Autoencoders Useful?" arXiv:2502.16681
     probe_mass_mean_reg_lambda: float = 1e-4  # Regularization for covariance inversion
-    probe_logreg_C_values: list[float] = field(default_factory=lambda: [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0])
+    # C range: 10^-5 to 10^5 (matches Nanda et al. 2025 - 10 orders of magnitude)
+    probe_logreg_C_values: list[float] = field(default_factory=lambda: [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3, 1e4, 1e5])
     probe_cv_folds: int = 5  # Cross-validation folds for hyperparameter selection
 
     # === DIRECTION SOURCE (CLI overridable) ===
