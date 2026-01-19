@@ -44,6 +44,7 @@ Usage:
     python3 run.py phase 2.6
 """
 
+import os
 import numpy as np
 import torch
 from pathlib import Path
@@ -55,6 +56,8 @@ from sklearn.model_selection import cross_val_score, KFold
 from sklearn.metrics import roc_auc_score, f1_score
 from scipy import stats
 from safetensors.torch import load_file, save_file
+from tqdm import tqdm
+from joblib import Parallel, delayed
 
 from common.config import Config
 from common.logging import get_logger
@@ -66,6 +69,19 @@ from common.phase_discovery import (
 )
 
 logger = get_logger("phase2_6.probe_direction_computer")
+
+
+def get_n_jobs(n_tasks: int) -> int:
+    """Get optimal number of parallel jobs: min(CPUs, tasks).
+
+    Args:
+        n_tasks: Number of tasks to parallelize (e.g., number of layers)
+
+    Returns:
+        Optimal number of parallel workers
+    """
+    n_cpus = os.cpu_count() or 4
+    return min(n_cpus, n_tasks)
 
 
 @dataclass
@@ -425,17 +441,32 @@ class ProbeDirectionComputer:
 
         # Get layers to process from config
         layers = self.config.activation_layers
+        n_jobs = get_n_jobs(len(layers))
         self.logger.info(f"Processing {len(layers)} layers: {layers}")
+        self.logger.info(f"Using {n_jobs} parallel workers (CPUs available: {os.cpu_count()})")
 
-        # Compute probes for each layer
-        results = {}
-        for layer in layers:
+        # Compute probes for each layer in parallel with progress bar
+        def process_layer_safe(layer: int) -> tuple[int, ProbeResult | None, str | None]:
+            """Wrapper to catch exceptions and return (layer, result, error)."""
             try:
                 result = self.compute_probes_for_layer(layer)
-                results[layer] = result
+                return (layer, result, None)
             except Exception as e:
-                self.logger.warning(f"Failed to process layer {layer}: {e}")
-                continue
+                return (layer, None, str(e))
+
+        # Run parallel processing with tqdm progress
+        parallel_results = Parallel(n_jobs=n_jobs, backend='loky')(
+            delayed(process_layer_safe)(layer)
+            for layer in tqdm(layers, desc="Computing probes", unit="layer")
+        )
+
+        # Collect results
+        results = {}
+        for layer, result, error in parallel_results:
+            if result is not None:
+                results[layer] = result
+            else:
+                self.logger.warning(f"Failed to process layer {layer}: {error}")
 
         if not results:
             raise ValueError("No layers successfully processed")
