@@ -37,7 +37,7 @@ from common.steering_metrics import (
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common.model_loader import load_model_and_tokenizer
 from common.utils import load_json, save_json
-from common.dataset_utils import evaluate_code, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_5.steering_evaluator")
@@ -286,15 +286,16 @@ class SteeringCoefficientSelector:
                     )
                     generated_code = extract_code(generated_text, prompt)
                     
-                    # Evaluate code
+                    # Evaluate code with error type
                     test_list = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-                    
-                    steered_correct = evaluate_code(generated_code, test_list)
+
+                    eval_result = evaluate_code_with_error_type(generated_code, test_list)
 
                     return {
                         'generated_code': generated_code,
                         'raw_output': generated_text,
-                        'steered_correct': steered_correct
+                        'steered_correct': eval_result.passed,
+                        'steered_error_type': eval_result.error_type
                     }
                 
                 # Attempt generation with retry logic and timeout protection
@@ -324,6 +325,7 @@ class SteeringCoefficientSelector:
                         'task_id': row['task_id'],
                         'baseline_passed': baseline_passed,
                         'steered_correct': steered_correct,
+                        'steered_error_type': generation_result['steered_error_type'],
                         'flipped': flipped,
                         'flip_direction': f"{'pass' if baseline_passed else 'fail'}→{'pass' if steered_correct else 'fail'}",
                         'code_similarity': code_similarity,

@@ -43,7 +43,7 @@ from common.phase_discovery import (
     write_phase_output,
     filter_by_range
 )
-from common.dataset_utils import extract_code, evaluate_code
+from common.dataset_utils import extract_code, evaluate_code_with_error_type
 from common.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_last_position_steering_hook
 from common.prompt_utils import PromptBuilder
@@ -444,15 +444,16 @@ class SelectiveSteeringAnalyzer:
             )
             generated_code = extract_code(generated_text, prompt)
 
-            # === STEP 9: Evaluate ===
-            steered_correct = evaluate_code(generated_code, test_cases)
+            # === STEP 9: Evaluate with error type ===
+            eval_result = evaluate_code_with_error_type(generated_code, test_cases)
 
             return {
                 'task_id': task_id,
                 'baseline_passed': baseline_row['baseline_passed'],
                 'steered': True,
                 'incorrect_pred_activation': state.incorrect_pred_activation,
-                'steered_correct': steered_correct,
+                'steered_correct': eval_result.passed,
+                'steered_error_type': eval_result.error_type,
                 'baseline_code': baseline_row['generated_code'],
                 'steered_code': generated_code,
                 'raw_output_steered': generated_text,

@@ -39,7 +39,7 @@ from common.steering_metrics import (
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common.model_loader import load_model_and_tokenizer
 from common.utils import load_json, save_json
-from common.dataset_utils import evaluate_code, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code
 from common.activation_hooks import (
     AttentionExtractor,
     save_raw_attention_with_boundaries
@@ -297,12 +297,13 @@ class SteeringEffectAnalyzer:
         )
         generated_code = extract_code(generated_text, prompt)
         attention_patterns = attention_extractor.get_attention_patterns()
-        steered_correct = evaluate_code(generated_code, test_cases)
+        eval_result = evaluate_code_with_error_type(generated_code, test_cases)
 
         return {
             'generated_code': generated_code,
             'raw_output': generated_text,
-            'steered_correct': steered_correct,
+            'steered_correct': eval_result.passed,
+            'steered_error_type': eval_result.error_type,
             'test_cases': test_cases,
             'prompt': prompt,
             'attention_patterns': attention_patterns,
@@ -438,6 +439,7 @@ class SteeringEffectAnalyzer:
                         'task_id': row['task_id'],
                         'baseline_passed': baseline_passed,
                         'steered_correct': steered_correct,
+                        'steered_error_type': generation_result['steered_error_type'],
                         'flipped': baseline_passed != steered_correct,
                         'baseline_code': row['generated_code'],
                         'steered_code': generation_result['generated_code'],

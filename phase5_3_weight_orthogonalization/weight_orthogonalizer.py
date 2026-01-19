@@ -38,7 +38,7 @@ from common.steering_metrics import (
 from common.retry_utils import retry_with_timeout
 from common.model_loader import load_model_and_tokenizer
 from common.utils import load_json, save_json
-from common.dataset_utils import evaluate_code, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code
 from common.weight_orthogonalization import orthogonalize_gemma_weights
 from common.sae_loader import load_sae_for_config
 from common.checkpoint_manager import CheckpointManager
@@ -237,12 +237,13 @@ class WeightOrthogonalizer:
                     generated = self._generate_with_model(model, tokenizer, prompt)
                     code = extract_code(generated, prompt)
                     test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-                    passed = evaluate_code(code, test_cases)
+                    eval_result = evaluate_code_with_error_type(code, test_cases)
 
                     return {
                         'task_id': row['task_id'],
                         'baseline_passed': False,
-                        'orthogonalized_correct': passed,
+                        'orthogonalized_correct': eval_result.passed,
+                        'orthogonalized_error_type': eval_result.error_type,
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': code,
                         'raw_output_orthogonalized': generated
@@ -316,12 +317,13 @@ class WeightOrthogonalizer:
                     generated = self._generate_with_model(model, tokenizer, prompt)
                     code = extract_code(generated, prompt)
                     test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-                    passed = evaluate_code(code, test_cases)
+                    eval_result = evaluate_code_with_error_type(code, test_cases)
 
                     return {
                         'task_id': row['task_id'],
                         'baseline_passed': True,
-                        'orthogonalized_correct': passed,
+                        'orthogonalized_correct': eval_result.passed,
+                        'orthogonalized_error_type': eval_result.error_type,
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': code,
                         'raw_output_orthogonalized': generated
@@ -477,7 +479,7 @@ class WeightOrthogonalizer:
                     generated = self._generate_with_model(model, tokenizer, prompt)
                     code = extract_code(generated, prompt)
                     test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-                    passed = evaluate_code(code, test_cases)
+                    eval_result = evaluate_code_with_error_type(code, test_cases)
 
                     # Calculate code similarity
                     similarity = calculate_code_similarity(row['generated_code'], code)
@@ -485,7 +487,8 @@ class WeightOrthogonalizer:
                     return {
                         'task_id': row['task_id'],
                         'baseline_passed': True,
-                        'orthogonalized_correct': passed,
+                        'orthogonalized_correct': eval_result.passed,
+                        'orthogonalized_error_type': eval_result.error_type,
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': code,
                         'similarity': similarity,

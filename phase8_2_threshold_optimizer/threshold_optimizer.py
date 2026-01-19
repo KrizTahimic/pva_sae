@@ -44,7 +44,7 @@ from common.phase_discovery import (
     write_phase_output,
     filter_by_range
 )
-from common.dataset_utils import extract_code, evaluate_code
+from common.dataset_utils import extract_code, evaluate_code_with_error_type
 from common.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_last_position_steering_hook
 from common.prompt_utils import PromptBuilder
@@ -549,11 +549,12 @@ class ThresholdOptimizer:
             generated_text = self.tokenizer.decode(outputs[0][prompt_length:], skip_special_tokens=True)
             generated_code = extract_code(generated_text, prompt)
 
-            # Evaluate code
-            steered_correct = evaluate_code(
+            # Evaluate code with error type
+            eval_result = evaluate_code_with_error_type(
                 generated_code,
                 test_cases
             )
+            steered_correct = eval_result.passed
 
             # Determine outcome
             was_steered = steering_state.should_steer
@@ -583,6 +584,7 @@ class ThresholdOptimizer:
                 'incorrect_pred_activation': steering_state.incorrect_pred_activation,
                 'threshold': threshold,
                 'steered_correct': steered_correct,
+                'steered_error_type': eval_result.error_type,
                 'corrected': corrected,
                 'preserved': preserved,
                 'corrupted': corrupted,

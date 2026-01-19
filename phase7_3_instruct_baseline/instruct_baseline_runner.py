@@ -24,7 +24,7 @@ from common.model_loader import load_model_and_tokenizer
 from common.activation_hooks import ActivationExtractor
 from common.utils import save_json, load_json, detect_device, ensure_directory_exists
 from common.tensor_utils import save_activation
-from common.dataset_utils import evaluate_code, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir, write_phase_output, filter_by_range
 from common.prompt_utils import PromptBuilder
 from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_WARNING_PERCENT
@@ -283,19 +283,20 @@ class InstructBaselineRunner:
             # Generate with activations
             generated_text, activations = self.generate_with_activations(prompt, row['task_id'])
             
-            # Extract code and evaluate
+            # Extract code and evaluate with error type
             generated_code = extract_code(generated_text, prompt)
-            baseline_passed = evaluate_code(generated_code, row['test_list'])
-            
+            eval_result = evaluate_code_with_error_type(generated_code, row['test_list'])
+
             generation_time = time.time() - start_time
-            
+
             return {
                 'task_id': row['task_id'],
                 'temperature': 0.0,
                 'prompt': prompt,
                 'generated_code': generated_code,
                 'raw_output': generated_text,
-                'baseline_passed': baseline_passed,
+                'baseline_passed': eval_result.passed,
+                'baseline_error_type': eval_result.error_type,
                 'error_message': None,
                 'generation_time': generation_time,
                 'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),

@@ -24,7 +24,7 @@ from common.activation_hooks import (
 )
 from common.utils import save_json, load_json
 from common.tensor_utils import save_activation
-from common.dataset_utils import evaluate_code, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code
 from common.prompt_utils import PromptBuilder
 from common.config import (
     Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_WARNING_PERCENT, MEMORY_CRITICAL_PERCENT
@@ -485,16 +485,17 @@ class TemperatureRobustnessRunner:
                     generated_text, task_activations, attention_patterns = self.generate_temp0_with_activations(prompt)
                     generation_time = time.time() - start_time
                     
-                    # Extract code and evaluate
+                    # Extract code and evaluate with error type
                     generated_code = extract_code(generated_text, prompt)
-                    baseline_passed = evaluate_code(generated_code, row['test_list'])
-                    
+                    eval_result = evaluate_code_with_error_type(generated_code, row['test_list'])
+
                     return {
                         'generated_text': generated_text,
                         'task_activations': task_activations,
                         'attention_patterns': attention_patterns,
                         'generated_code': generated_code,
-                        'baseline_passed': baseline_passed,
+                        'baseline_passed': eval_result.passed,
+                        'baseline_error_type': eval_result.error_type,
                         'generation_time': generation_time
                     }
                 
@@ -523,6 +524,7 @@ class TemperatureRobustnessRunner:
                         'generated_code': temp0_result['generated_code'],
                         'raw_output': temp0_result['generated_text'],
                         'baseline_passed': temp0_result['baseline_passed'],
+                        'baseline_error_type': temp0_result['baseline_error_type'],
                         'error_message': None,
                         'generation_time': temp0_result['generation_time'],
                         'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
@@ -638,18 +640,21 @@ class TemperatureRobustnessRunner:
             generated_text = self.generate_at_temperature(prompt, temperature)
             generated_code = extract_code(generated_text, prompt)
 
-            # Evaluate solution
-            baseline_passed = evaluate_code(generated_code, row['test_list'])
+            # Evaluate solution with error type
+            eval_result = evaluate_code_with_error_type(generated_code, row['test_list'])
+            baseline_passed = eval_result.passed
+            baseline_error_type = eval_result.error_type
             error_message = None
 
         except Exception as e:
             logger.warning(f"Generation failed for {row['task_id']} at temp {temperature}: {e}")
             generated_code = ""
             baseline_passed = False
+            baseline_error_type = "runtime"  # Generation error
             error_message = str(e)
-        
+
         generation_time = time.time() - start_time
-        
+
         return {
             'task_id': row['task_id'],
             'temperature': temperature,
@@ -657,6 +662,7 @@ class TemperatureRobustnessRunner:
             'generated_code': generated_code,
             'raw_output': generated_text,
             'baseline_passed': baseline_passed,
+            'baseline_error_type': baseline_error_type,
             'error_message': error_message,
             'generation_time': generation_time,
             'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),

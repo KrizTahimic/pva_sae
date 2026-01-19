@@ -39,7 +39,7 @@ from common.retry_utils import retry_generation, retry_with_timeout, create_excl
 from common.model_loader import load_model_and_tokenizer
 from common.utils import load_json, save_json
 from common.steering_setup import load_steering_latents
-from common.dataset_utils import evaluate_code, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_6.golden_section_refiner")
@@ -592,8 +592,8 @@ class GoldenSectionCoefficientRefiner:
                     )
                     generated_code = extract_code(generated_text, prompt)
                     
-                    # Evaluate code
-                    steered_correct = evaluate_code(
+                    # Evaluate code with error type
+                    eval_result = evaluate_code_with_error_type(
                         generated_code,
                         json.loads(row['test_list'])
                     )
@@ -601,7 +601,8 @@ class GoldenSectionCoefficientRefiner:
                     return {
                         'generated_code': generated_code,
                         'raw_output': generated_text,
-                        'steered_correct': steered_correct
+                        'steered_correct': eval_result.passed,
+                        'steered_error_type': eval_result.error_type
                     }
                 
                 # Attempt generation with retry logic and timeout protection
@@ -627,6 +628,7 @@ class GoldenSectionCoefficientRefiner:
                         'task_id': row['task_id'],
                         'baseline_passed': baseline_passed,
                         'steered_correct': steered_correct,
+                        'steered_error_type': generation_result['steered_error_type'],
                         'flipped': baseline_passed != steered_correct,
                         'code_similarity': code_similarity,
                         'baseline_code': baseline_code,

@@ -23,7 +23,7 @@ from common.model_loader import load_model_and_tokenizer
 from common.activation_hooks import ActivationExtractor
 from common.utils import create_activation_filename
 from common.tensor_utils import save_activation
-from common.dataset_utils import load_dataset_split, extract_code, evaluate_code
+from common.dataset_utils import load_dataset_split, extract_code, evaluate_code_with_error_type
 
 # Use the project's phase-based logger
 logger = get_logger("phase1_latent_selection_dataset.runner", phase="1")
@@ -193,13 +193,14 @@ class Phase1Runner:
                 if len(generated_code) > CODE_LENGTH_WARNING_CHARS:
                     logger.warning(f"Task {task_id}: Generated {len(generated_code)} chars of code - likely incorrect")
                 
-                # Evaluate code
-                baseline_passed = evaluate_code(generated_code, task['test_list'])
-                
+                # Evaluate code with error type classification
+                eval_result = evaluate_code_with_error_type(generated_code, task['test_list'])
+
                 return {
                     'generated_code': generated_code,
                     'raw_output': generated_text,  # Full model output before extraction (for debugging)
-                    'baseline_passed': baseline_passed,
+                    'baseline_passed': eval_result.passed,
+                    'baseline_error_type': eval_result.error_type,
                     'activations': activations,  # Residual stream from prompt processing
                     'generation_time': generation_time
                 }
@@ -407,7 +408,8 @@ class Phase1Runner:
                     'task_id': task['task_id'],
                     'generated_code': result['generated_code'],
                     'raw_output': result['raw_output'],  # Full model output for debugging
-                    'baseline_passed': result['baseline_passed']
+                    'baseline_passed': result['baseline_passed'],
+                    'baseline_error_type': result['baseline_error_type']
                 })
             else:
                 # Task failed after all retries - exclude from dataset

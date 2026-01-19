@@ -10,6 +10,7 @@ This module provides utilities for:
 
 import contextlib
 import signal
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
@@ -26,6 +27,34 @@ from .tensor_utils import load_activation
 
 logger = get_logger("common.dataset_utils")
 
+
+# ============================================================================
+# Evaluation Result Data Structure
+# ============================================================================
+
+@dataclass
+class EvaluationResult:
+    """
+    Result of code evaluation with error type classification.
+
+    Error types:
+        - "passed": All tests pass
+        - "syntax": SyntaxError, IndentationError (compilation errors)
+        - "name": NameError, AttributeError (reference errors)
+        - "type": TypeError (type mismatches)
+        - "logic": AssertionError (test fails - condition/operation errors)
+        - "runtime": IndexError, ValueError, KeyError, etc. (runtime exceptions)
+        - "timeout": Execution timeout (infinite loop)
+    """
+    passed: bool
+    error_type: str  # "passed", "syntax", "name", "type", "logic", "runtime", "timeout"
+    error_message: Optional[str]
+    exception_class: Optional[str]  # e.g., "IndexError"
+
+
+# ============================================================================
+# Dataset Splitting
+# ============================================================================
 
 def split_by_correctness(
     df: pd.DataFrame,
@@ -251,18 +280,42 @@ def timeout(seconds):
         signal.signal(signal.SIGALRM, old_handler)
 
 
-def evaluate_code(code: str, test_list: list[str]) -> bool:
+def _classify_exception(exc: Exception) -> tuple[str, str]:
     """
-    Evaluate generated code against test cases with timeout protection.
-
-    Args:
-        code: Generated code to test
-        test_list: List of test assertion strings
+    Classify an exception into an error type category.
 
     Returns:
-        True if all tests pass, False otherwise
+        Tuple of (error_type, exception_class_name)
     """
-    # Create namespace for execution
+    exc_class = type(exc).__name__
+
+    # Syntax errors (compilation)
+    if isinstance(exc, (SyntaxError, IndentationError)):
+        return "syntax", exc_class
+
+    # Name/reference errors
+    if isinstance(exc, (NameError, AttributeError, UnboundLocalError)):
+        return "name", exc_class
+
+    # Type errors
+    if isinstance(exc, TypeError):
+        return "type", exc_class
+
+    # Logic errors (test assertion failures)
+    if isinstance(exc, AssertionError):
+        return "logic", exc_class
+
+    # Runtime errors (IndexError, ValueError, KeyError, ZeroDivisionError, etc.)
+    return "runtime", exc_class
+
+
+def _prepare_namespace() -> dict:
+    """
+    Create namespace with pre-imported modules for code execution.
+
+    Returns:
+        Namespace dict with common imports loaded
+    """
     namespace = {}
 
     # Pre-import dataset-specific imports
@@ -289,27 +342,116 @@ def evaluate_code(code: str, test_list: list[str]) -> bool:
         # If config loading fails, continue without pre-imports
         pass
 
-    # Execute the code with timeout
-    try:
-        with timeout(5):  # 5 second timeout for code execution
-            exec(code, namespace)
-    except TimeoutError:
-        # Code took too long (likely blocked on input() or infinite loop)
-        return False
-    except Exception:
-        # Other execution errors
-        return False
+    return namespace
 
-    # Run each test with timeout
+
+def evaluate_code_with_error_type(
+    code: str,
+    test_list: list[str],
+    timeout_seconds: int = 5
+) -> EvaluationResult:
+    """
+    Evaluate generated code against test cases with detailed error type classification.
+
+    Algorithm:
+    1. compile() check -> syntax error
+    2. exec(code) -> name/type/runtime/timeout
+    3. exec(test) -> logic (AssertionError) or other
+    4. All pass -> passed
+
+    Args:
+        code: Generated code to test
+        test_list: List of test assertion strings
+        timeout_seconds: Timeout per execution step (default: 5)
+
+    Returns:
+        EvaluationResult with passed status, error_type, error_message, and exception_class
+
+    Example:
+        >>> result = evaluate_code_with_error_type("def foo(", [])
+        >>> assert result.error_type == "syntax"
+        >>> result = evaluate_code_with_error_type("def foo(): return 1", ["assert foo() == 2"])
+        >>> assert result.error_type == "logic"
+    """
+    # Step 1: Compile check (catches syntax errors without execution)
+    try:
+        compile(code, '<string>', 'exec')
+    except SyntaxError as e:
+        error_type, exc_class = _classify_exception(e)
+        return EvaluationResult(
+            passed=False,
+            error_type=error_type,
+            error_message=str(e),
+            exception_class=exc_class
+        )
+
+    # Prepare namespace with common imports
+    namespace = _prepare_namespace()
+
+    # Step 2: Execute the code definition
+    try:
+        with timeout(timeout_seconds):
+            exec(code, namespace)
+    except TimeoutError as e:
+        return EvaluationResult(
+            passed=False,
+            error_type="timeout",
+            error_message=str(e),
+            exception_class="TimeoutError"
+        )
+    except Exception as e:
+        error_type, exc_class = _classify_exception(e)
+        return EvaluationResult(
+            passed=False,
+            error_type=error_type,
+            error_message=str(e),
+            exception_class=exc_class
+        )
+
+    # Step 3: Run each test
     for test in test_list:
         try:
-            with timeout(5):  # 5 second timeout per test
+            with timeout(timeout_seconds):
                 exec(test, namespace)
-        except (TimeoutError, Exception):
-            return False
+        except TimeoutError as e:
+            return EvaluationResult(
+                passed=False,
+                error_type="timeout",
+                error_message=str(e),
+                exception_class="TimeoutError"
+            )
+        except Exception as e:
+            error_type, exc_class = _classify_exception(e)
+            return EvaluationResult(
+                passed=False,
+                error_type=error_type,
+                error_message=str(e),
+                exception_class=exc_class
+            )
 
-    # All tests passed
-    return True
+    # Step 4: All tests passed
+    return EvaluationResult(
+        passed=True,
+        error_type="passed",
+        error_message=None,
+        exception_class=None
+    )
+
+
+def evaluate_code(code: str, test_list: list[str]) -> bool:
+    """
+    Evaluate generated code against test cases with timeout protection.
+
+    This is a backward-compatible wrapper around evaluate_code_with_error_type().
+
+    Args:
+        code: Generated code to test
+        test_list: List of test assertion strings
+
+    Returns:
+        True if all tests pass, False otherwise
+    """
+    return evaluate_code_with_error_type(code, test_list).passed
 
 
 # ============================================================================

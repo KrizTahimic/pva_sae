@@ -34,7 +34,7 @@ from common.steering_metrics import (
 )
 from common.retry_utils import retry_with_timeout
 from common.model_loader import load_model_and_tokenizer
-from common.dataset_utils import evaluate_code, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_12.zero_disc_steering_generator")
@@ -275,13 +275,14 @@ class ZeroDiscSteeringGenerator:
                         skip_special_tokens=True
                     )
                     generated_code = extract_code(generated_text, prompt)
-                    
-                    # Evaluate code
-                    steered_correct = evaluate_code(generated_code, row['test_list'])
+
+                    # Evaluate code with error type
+                    eval_result = evaluate_code_with_error_type(generated_code, row['test_list'])
 
                     return {
                         'generated_code': generated_code,
-                        'steered_correct': steered_correct,
+                        'steered_correct': eval_result.passed,
+                        'steered_error_type': eval_result.error_type,
                         'raw_output': generated_text
                     }
                 
@@ -298,6 +299,7 @@ class ZeroDiscSteeringGenerator:
                         'task_id': row['task_id'],
                         'baseline_passed': row['baseline_passed'],
                         'steered_correct': generation_result['steered_correct'],
+                        'steered_error_type': generation_result['steered_error_type'],
                         'baseline_code': row['generated_code'],
                         'steered_code': generation_result['generated_code'],
                         'raw_output_steered': generation_result['raw_output'],

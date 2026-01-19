@@ -467,6 +467,20 @@ PHASES: dict[str, PhaseInfo] = {
         category="selective",
         patterns=["phase_8_7_summary.json", "threshold_search.png"],
     ),
+
+    # =========================================================================
+    # Phase 9.x: Error Type Analysis
+    # =========================================================================
+    "9.1": PhaseInfo(
+        id="9.1",
+        name="Error Type Breakdown Analysis",
+        output_dir="data/phase9_1",
+        module="phase9_1_error_type_analysis.error_type_analyzer",
+        runner="run_phase_9_1",
+        runner_type="function",
+        category="analysis",
+        patterns=["error_type_analysis.json", "baseline_error_distribution.png", "correction_rates_by_error_type.png"],
+    ),
 }
 
 
