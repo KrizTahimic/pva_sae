@@ -6,6 +6,8 @@ Consolidates duplicated loading code from:
 - phase4_8_steering_analysis/steering_effect_analyzer.py
 - phase5_3_weight_orthogonalization/weight_orthogonalizer.py
 - phase7_6_instruct_steering/instruct_steering_analyzer.py
+
+Also provides probe direction loading for linear probe baseline comparison.
 """
 
 from dataclasses import dataclass
@@ -13,6 +15,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import pandas as pd
+from safetensors.torch import load_file
 
 from common.config import Config
 from common.phase_discovery import discover_latest_phase_output, filter_by_range
@@ -40,6 +43,106 @@ class SAEDirections:
     incorrect_sae: object
     correct_direction: torch.Tensor
     incorrect_direction: torch.Tensor
+
+
+@dataclass
+class ProbeDirections:
+    """Container for probe directions from Phase 2.6."""
+    correct_direction: torch.Tensor  # For steering: mass_mean, for prediction: logreg
+    incorrect_direction: torch.Tensor  # Negated direction for incorrect steering
+    layer: int
+    method: str  # "mass_mean" or "logreg"
+    bias: float  # Only used for logreg
+    phase_dir: str
+
+
+def load_probe_directions(
+    config: Config,
+    device: torch.device,
+    model: nn.Module,
+    method: str = "mass_mean"
+) -> ProbeDirections:
+    """Load probe directions from Phase 2.6.
+
+    Args:
+        config: Configuration object
+        device: Target device for tensors
+        model: The language model (for dtype matching)
+        method: "mass_mean" (for steering) or "logreg" (for prediction)
+
+    Returns:
+        ProbeDirections dataclass with direction tensors
+
+    Raises:
+        FileNotFoundError: If Phase 2.6 output not found
+        ValueError: If invalid method specified
+    """
+    if method not in ("mass_mean", "logreg"):
+        raise ValueError(f"Invalid probe method: {method}. Must be 'mass_mean' or 'logreg'")
+
+    # Load Phase 2.6 output
+    phase2_6_output = discover_latest_phase_output("2.6", config=config)
+    if not phase2_6_output:
+        raise FileNotFoundError(
+            "Phase 2.6 output not found. Run Phase 2.6 first to compute probe directions."
+        )
+    phase_dir = str(Path(phase2_6_output).parent)
+    logger.info(f"Loading probe directions from Phase 2.6: {phase_dir}")
+
+    # Load best probe info
+    best_probes = load_json(Path(phase_dir) / "best_probe_directions.json")
+    best_layer = best_probes[method]['best_layer']
+    bias = best_probes[method].get('bias', 0.0) if method == 'logreg' else 0.0
+
+    logger.info(f"Best {method} probe at layer {best_layer}")
+
+    # Load probe direction tensor
+    probe_file = Path(phase_dir) / "probe_directions" / f"layer_{best_layer}_probes.safetensors"
+    if not probe_file.exists():
+        raise FileNotFoundError(f"Probe file not found: {probe_file}")
+
+    tensors = load_file(str(probe_file))
+    direction_key = f"{method}_direction"
+    direction = tensors[direction_key].to(device)
+
+    # Match model dtype
+    model_dtype = next(model.parameters()).dtype
+    direction = direction.to(dtype=model_dtype)
+
+    # For steering, we use the same direction for "correct" steering
+    # and negate it for "incorrect" steering
+    correct_direction = direction
+    incorrect_direction = -direction  # Negate for incorrect steering
+
+    logger.info(f"Probe direction converted to model dtype: {model_dtype}")
+
+    return ProbeDirections(
+        correct_direction=correct_direction,
+        incorrect_direction=incorrect_direction,
+        layer=best_layer,
+        method=method,
+        bias=bias,
+        phase_dir=phase_dir,
+    )
+
+
+def get_direction_source_info(config: Config) -> dict:
+    """Get information about the configured direction source.
+
+    Returns:
+        Dictionary with 'source', 'is_probe', and 'probe_method' keys
+    """
+    source = getattr(config, 'direction_source', 'sae')
+
+    if source == 'sae':
+        return {'source': 'sae', 'is_probe': False, 'probe_method': None}
+    elif source == 'probe_logreg':
+        return {'source': 'probe', 'is_probe': True, 'probe_method': 'logreg'}
+    elif source == 'probe_mass_mean':
+        return {'source': 'probe', 'is_probe': True, 'probe_method': 'mass_mean'}
+    else:
+        logger.warning(f"Unknown direction source: {source}, defaulting to SAE")
+        return {'source': 'sae', 'is_probe': False, 'probe_method': None}
 
 
 def _load_latents_from_phase(config: Config, phase: str, purpose: str) -> PVALatents:

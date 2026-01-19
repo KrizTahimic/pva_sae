@@ -69,7 +69,12 @@ def run_evaluation(config):
 
     # Setup output directory (with dataset suffix if needed)
     from common.phase_discovery import get_phase_output_dir
+    direction_source = getattr(config, 'direction_source', 'sae')
     output_dir = Path(get_phase_output_dir('3.8', config))
+
+    # Add "_probe" suffix if using probe directions
+    if direction_source == 'probe_logreg':
+        output_dir = output_dir.parent / (output_dir.name + "_probe")
     ensure_directory_exists(output_dir)
     logger.info(f"Output directory: {output_dir}")
 
@@ -111,51 +116,98 @@ def run_evaluation(config):
         logger.info("Note: Confusion matrices and PR curves require full rerun to regenerate")
         return results
 
-    # Phase 1: Load best latents from Phase 2.10 (t-statistic based selection)
-    logger.info("Loading best latents from Phase 2.10...")
+    # Determine direction source (SAE or probe)
+    direction_source = getattr(config, 'direction_source', 'sae')
+    use_probe = direction_source == 'probe_logreg'
 
-    # Auto-discover Phase 2.10 output
-    phase2_10_dir = discover_latest_phase_output("2.10")
-    if not phase2_10_dir:
-        raise FileNotFoundError("No Phase 2.10 output found. Please run Phase 2.10 first.")
-    phase2_10_dir = Path(phase2_10_dir).parent
+    if use_probe:
+        # === PROBE BASELINE MODE ===
+        logger.info("=" * 60)
+        logger.info("PROBE BASELINE MODE: Using LogReg probe from Phase 2.6")
+        logger.info("=" * 60)
 
-    # Load best latents from Phase 2.10
-    top_latents_file = phase2_10_dir / 'top_20_latents.json'
-    if not top_latents_file.exists():
-        raise FileNotFoundError(f"top_20_latents.json not found in {phase2_10_dir}. Please run Phase 2.10 first.")
+        # Load Phase 2.6 probe directions
+        phase2_6_dir = discover_latest_phase_output("2.6", config=config)
+        if not phase2_6_dir:
+            raise FileNotFoundError("No Phase 2.6 output found. Run Phase 2.6 first.")
+        phase2_6_dir = Path(phase2_6_dir).parent
 
-    top_latents = load_json(top_latents_file)
+        best_probes = load_json(phase2_6_dir / 'best_probe_directions.json')
+        probe_layer = best_probes['logreg']['best_layer']
+        probe_bias = best_probes['logreg'].get('bias', 0.0)
 
-    # Validate structure
-    if 'correct' not in top_latents or 'incorrect' not in top_latents:
-        raise ValueError("Missing 'correct' or 'incorrect' in top_20_latents.json")
+        # Load probe direction tensor
+        from safetensors.torch import load_file
+        probe_file = phase2_6_dir / 'probe_directions' / f'layer_{probe_layer}_probes.safetensors'
+        if not probe_file.exists():
+            raise FileNotFoundError(f"Probe file not found: {probe_file}")
 
-    if not top_latents['correct'] or not top_latents['incorrect']:
-        raise ValueError("Empty latent list in top_20_latents.json")
+        probe_tensors = load_file(str(probe_file))
+        probe_direction = probe_tensors['logreg_direction'].to(detect_device())
 
-    # Get the best (index 0) latents
-    best_correct = top_latents['correct'][0]
-    best_incorrect = top_latents['incorrect'][0]
+        logger.info(f"LogReg probe: layer {probe_layer}, bias {probe_bias:.4f}")
+        logger.info(f"Probe CV AUROC: {best_probes['logreg']['cv_auroc']:.4f}")
 
-    correct_layer = best_correct['layer']
-    correct_latent_idx = best_correct['latent_idx']
-    incorrect_layer = best_incorrect['layer']
-    incorrect_latent_idx = best_incorrect['latent_idx']
+        # Set layer/idx for logging (probe uses same direction for both)
+        correct_layer = probe_layer
+        incorrect_layer = probe_layer
+        correct_latent_idx = None  # Not applicable for probes
+        incorrect_latent_idx = None
+        phase2_10_dir = phase2_6_dir  # For dependency tracking
 
-    logger.info(f"Best correct-predicting latent: idx {correct_latent_idx} at layer {correct_layer}")
-    logger.info(f"Best incorrect-predicting latent: idx {incorrect_latent_idx} at layer {incorrect_layer}")
+    else:
+        # === SAE MODE (default) ===
+        # Phase 1: Load best latents from Phase 2.10 (t-statistic based selection)
+        logger.info("Loading best latents from Phase 2.10...")
+
+        # Auto-discover Phase 2.10 output
+        phase2_10_dir = discover_latest_phase_output("2.10")
+        if not phase2_10_dir:
+            raise FileNotFoundError("No Phase 2.10 output found. Please run Phase 2.10 first.")
+        phase2_10_dir = Path(phase2_10_dir).parent
+
+        # Load best latents from Phase 2.10
+        top_latents_file = phase2_10_dir / 'top_20_latents.json'
+        if not top_latents_file.exists():
+            raise FileNotFoundError(f"top_20_latents.json not found in {phase2_10_dir}. Please run Phase 2.10 first.")
+
+        top_latents = load_json(top_latents_file)
+
+        # Validate structure
+        if 'correct' not in top_latents or 'incorrect' not in top_latents:
+            raise ValueError("Missing 'correct' or 'incorrect' in top_20_latents.json")
+
+        if not top_latents['correct'] or not top_latents['incorrect']:
+            raise ValueError("Empty latent list in top_20_latents.json")
+
+        # Get the best (index 0) latents
+        best_correct = top_latents['correct'][0]
+        best_incorrect = top_latents['incorrect'][0]
+
+        correct_layer = best_correct['layer']
+        correct_latent_idx = best_correct['latent_idx']
+        incorrect_layer = best_incorrect['layer']
+        incorrect_latent_idx = best_incorrect['latent_idx']
+
+        logger.info(f"Best correct-predicting latent: idx {correct_latent_idx} at layer {correct_layer}")
+        logger.info(f"Best incorrect-predicting latent: idx {incorrect_latent_idx} at layer {incorrect_layer}")
 
     # Phase 2: Evaluate Correct-Predicting Feature
     logger.info("\n" + "="*60)
-    logger.info("EVALUATING CORRECT-PREDICTING FEATURE")
+    logger.info(f"EVALUATING CORRECT-PREDICTING {'PROBE' if use_probe else 'FEATURE'}")
     logger.info("="*60)
 
     # Load tuning split for correct latent
-    y_true_hp_correct, scores_hp_correct = load_split_activations(
-        'tuning', correct_layer, correct_latent_idx, 'correct',
-        phase3_5_dir, phase3_6_dir, config
-    )
+    if use_probe:
+        y_true_hp_correct, scores_hp_correct = load_split_probe_activations(
+            'tuning', probe_layer, probe_direction, probe_bias, 'correct',
+            phase3_5_dir, phase3_6_dir, config
+        )
+    else:
+        y_true_hp_correct, scores_hp_correct = load_split_activations(
+            'tuning', correct_layer, correct_latent_idx, 'correct',
+            phase3_5_dir, phase3_6_dir, config
+        )
 
     logger.info(f"Correct-predicting feature (tuning split):")
     logger.info(f"  Total samples: {len(y_true_hp_correct)}")
@@ -171,10 +223,16 @@ def run_evaluation(config):
     )
 
     # Load analysis split
-    y_true_val_correct, scores_val_correct = load_split_activations(
-        'analysis', correct_layer, correct_latent_idx, 'correct',
-        phase3_5_dir, phase3_6_dir, config
-    )
+    if use_probe:
+        y_true_val_correct, scores_val_correct = load_split_probe_activations(
+            'analysis', probe_layer, probe_direction, probe_bias, 'correct',
+            phase3_5_dir, phase3_6_dir, config
+        )
+    else:
+        y_true_val_correct, scores_val_correct = load_split_activations(
+            'analysis', correct_layer, correct_latent_idx, 'correct',
+            phase3_5_dir, phase3_6_dir, config
+        )
 
     logger.info(f"\nCorrect-predicting feature (analysis split):")
     logger.info(f"  Total samples: {len(y_true_val_correct)}")
@@ -189,14 +247,21 @@ def run_evaluation(config):
 
     # Phase 3: Evaluate Incorrect-Predicting Feature
     logger.info("\n" + "="*60)
-    logger.info("EVALUATING INCORRECT-PREDICTING FEATURE")
+    logger.info(f"EVALUATING INCORRECT-PREDICTING {'PROBE' if use_probe else 'FEATURE'}")
     logger.info("="*60)
 
     # Load tuning split for incorrect latent
-    y_true_hp_incorrect, scores_hp_incorrect = load_split_activations(
-        'tuning', incorrect_layer, incorrect_latent_idx, 'incorrect',
-        phase3_5_dir, phase3_6_dir, config
-    )
+    if use_probe:
+        # For incorrect prediction with probe, negate the direction
+        y_true_hp_incorrect, scores_hp_incorrect = load_split_probe_activations(
+            'tuning', probe_layer, -probe_direction, -probe_bias, 'incorrect',
+            phase3_5_dir, phase3_6_dir, config
+        )
+    else:
+        y_true_hp_incorrect, scores_hp_incorrect = load_split_activations(
+            'tuning', incorrect_layer, incorrect_latent_idx, 'incorrect',
+            phase3_5_dir, phase3_6_dir, config
+        )
 
     logger.info(f"Incorrect-predicting feature (tuning split):")
     logger.info(f"  Total samples: {len(y_true_hp_incorrect)}")
@@ -212,10 +277,16 @@ def run_evaluation(config):
     )
 
     # Load analysis split
-    y_true_val_incorrect, scores_val_incorrect = load_split_activations(
-        'analysis', incorrect_layer, incorrect_latent_idx, 'incorrect',
-        phase3_5_dir, phase3_6_dir, config
-    )
+    if use_probe:
+        y_true_val_incorrect, scores_val_incorrect = load_split_probe_activations(
+            'analysis', probe_layer, -probe_direction, -probe_bias, 'incorrect',
+            phase3_5_dir, phase3_6_dir, config
+        )
+    else:
+        y_true_val_incorrect, scores_val_incorrect = load_split_activations(
+            'analysis', incorrect_layer, incorrect_latent_idx, 'incorrect',
+            phase3_5_dir, phase3_6_dir, config
+        )
 
     logger.info(f"\nIncorrect-predicting feature (analysis split):")
     logger.info(f"  Total samples: {len(y_true_val_incorrect)}")
@@ -234,6 +305,7 @@ def run_evaluation(config):
     # Save results
     results = {
         'timestamp': datetime.now().isoformat(),
+        'direction_source': direction_source,
         'correct_predicting_latent': {
             'layer': correct_layer,
             'latent_idx': correct_latent_idx,
@@ -249,9 +321,16 @@ def run_evaluation(config):
         'source_files': {
             'phase3_5_dir': str(phase3_5_dir),
             'phase3_6_dir': str(phase3_6_dir),
-            'phase2_10_dir': str(phase2_10_dir)
+            'phase2_10_dir' if not use_probe else 'phase2_6_dir': str(phase2_10_dir)
         }
     }
+    if use_probe:
+        results['probe_info'] = {
+            'method': 'logreg',
+            'layer': probe_layer,
+            'bias': probe_bias,
+            'cv_auroc': best_probes['logreg']['cv_auroc'],
+        }
 
     results_path = output_dir / 'auroc_f1_results.json'
     save_json(results, results_path)
@@ -601,6 +680,81 @@ def plot_precision_recall_curves(
     plt.close()
 
     logger.info(f"Saved precision-recall curves to {output_path}")
+
+def load_split_probe_activations(
+    split_name: str,
+    layer_num: int,
+    probe_direction: torch.Tensor,
+    probe_bias: float,
+    latent_type: str,
+    phase3_5_dir: Path,
+    phase3_6_dir: Path,
+    config: Config
+) -> tuple[np.ndarray, np.ndarray]:
+    """Load activations and compute probe scores (for probe baseline comparison).
+
+    Args:
+        split_name: 'tuning' or 'analysis'
+        layer_num: Layer number for the probe
+        probe_direction: Probe direction tensor [d_model]
+        probe_bias: Probe bias term (for logreg, 0 for mass_mean)
+        latent_type: 'correct' or 'incorrect'
+        phase3_5_dir: Directory containing Phase 3.5 outputs (analysis split)
+        phase3_6_dir: Directory containing Phase 3.6 outputs (tuning split)
+        config: Configuration object
+
+    Returns:
+        Tuple of (labels, scores)
+    """
+    # Select the correct directory based on split type
+    if split_name == 'tuning':
+        activation_dir = phase3_6_dir
+        temp_data = pd.read_parquet(phase3_6_dir / 'dataset_hyperparams_temp_0_0.parquet')
+    else:
+        activation_dir = phase3_5_dir
+        temp_data = pd.read_parquet(phase3_5_dir / 'dataset_temp_0_0.parquet')
+
+    device = detect_device()
+    scores = []
+    labels = []
+    missing_tasks = []
+
+    for _, row in temp_data.iterrows():
+        task_id = row['task_id']
+        baseline_passed = row['baseline_passed']
+
+        act_file = activation_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.safetensors'
+
+        if not act_file.exists():
+            missing_tasks.append(task_id)
+            continue
+
+        # Load raw activation
+        raw_activation = load_activation(act_file, device)
+        raw_activation = raw_activation.to(probe_direction.dtype)
+
+        # Compute probe score: w @ x + b
+        with torch.no_grad():
+            score = (raw_activation @ probe_direction).item() + probe_bias
+
+        scores.append(score)
+
+        # Create label
+        if latent_type == 'correct':
+            label = 1 if baseline_passed else 0
+        else:
+            label = 1 if not baseline_passed else 0
+
+        labels.append(label)
+
+    if missing_tasks:
+        logger.warning(f"Missing activation files for {len(missing_tasks)} tasks")
+
+    logger.info(f"Loaded {len(labels)} samples for {split_name} split (probe)")
+    logger.info(f"Class distribution: {np.bincount(labels)}")
+
+    return np.array(labels), np.array(scores)
+
 
 def load_split_activations(
     split_name: str,

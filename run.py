@@ -134,6 +134,15 @@ def setup_argument_parser():
         help='Number of GPUs for parallel execution (default: 1 = sequential)'
     )
 
+    # Direction source for probe baseline comparison
+    phase_parser.add_argument(
+        '--direction-source',
+        type=str,
+        choices=['sae', 'probe_logreg', 'probe_mass_mean'],
+        default=None,
+        help='Direction source: sae (default), probe_logreg (for prediction), probe_mass_mean (for steering)'
+    )
+
     return parser
 
 
@@ -196,6 +205,11 @@ def main():
                     mode = mode_value
                     break
             setattr(config, config_attr, mode)
+
+        # Handle direction source argument for probe baseline comparison
+        if hasattr(args, 'direction_source') and args.direction_source is not None:
+            config.direction_source = args.direction_source
+            logger.info(f"Using direction source: {args.direction_source}")
 
         # Show config and exit if requested
         if args.show_config:

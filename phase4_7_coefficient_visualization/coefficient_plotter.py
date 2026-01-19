@@ -268,6 +268,10 @@ class Phase47Runner:
         # Setup paths using phase discovery
         from common.phase_discovery import get_phase_output_dir, discover_latest_phase_output
 
+        # Determine direction source
+        direction_source = getattr(self.config, 'direction_source', 'sae')
+        use_probe = direction_source == 'probe_mass_mean'
+
         # Discover Phase 4.5 and 4.6 directories
         phase4_5_output = discover_latest_phase_output("4.5", config=self.config)
         if not phase4_5_output:
@@ -279,7 +283,30 @@ class Phase47Runner:
 
         self.phase4_5_dir = Path(phase4_5_output).parent
         self.phase4_6_dir = Path(phase4_6_output).parent
+
+        # If using probe, look in the _probe directories
+        if use_probe:
+            probe_4_5_dir = self.phase4_5_dir.parent / (self.phase4_5_dir.name + "_probe")
+            probe_4_6_dir = self.phase4_6_dir.parent / (self.phase4_6_dir.name + "_probe")
+
+            if not probe_4_5_dir.exists():
+                raise FileNotFoundError(
+                    f"Phase 4.5 probe output not found at {probe_4_5_dir}. "
+                    f"Run Phase 4.5 with --direction-source probe_mass_mean first."
+                )
+            if not probe_4_6_dir.exists():
+                raise FileNotFoundError(
+                    f"Phase 4.6 probe output not found at {probe_4_6_dir}. "
+                    f"Run Phase 4.6 with --direction-source probe_mass_mean first."
+                )
+
+            self.phase4_5_dir = probe_4_5_dir
+            self.phase4_6_dir = probe_4_6_dir
+            self.logger.info("PROBE BASELINE MODE: Using probe directories")
+
         self.output_dir = Path(get_phase_output_dir("4.7", self.config))
+        if use_probe:
+            self.output_dir = self.output_dir.parent / (self.output_dir.name + "_probe")
 
         # Handle --viz-only mode
         def viz_from_data(data):

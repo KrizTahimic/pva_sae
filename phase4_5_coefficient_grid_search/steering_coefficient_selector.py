@@ -62,8 +62,14 @@ class SteeringCoefficientSelector:
         self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
         self.memory_warning_threshold = MEMORY_WARNING_PERCENT
 
-        # Phase output directories
+        # Determine direction source
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source == 'probe_mass_mean'
+
+        # Phase output directories (add "_probe" suffix for probe mode)
         self.output_dir = Path(get_phase_output_dir("4.5", config))
+        if self.use_probe:
+            self.output_dir = self.output_dir.parent / (self.output_dir.name + "_probe")
         ensure_directory_exists(self.output_dir)
         
         self.examples_dir = self.output_dir / "coefficient_examples"
@@ -87,15 +93,51 @@ class SteeringCoefficientSelector:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
             load_steering_latents, load_sae_and_directions,
-            load_baseline_data, split_by_correctness
+            load_baseline_data, split_by_correctness,
+            load_probe_directions
         )
 
-        # Load steering latents from Phase 2.5 (separation score selection)
-        latents = load_steering_latents(self.config)
-        self.top_latents = latents.top_latents
-        self.best_correct_latent = latents.best_correct_latent
-        self.best_incorrect_latent = latents.best_incorrect_latent
-        self.phase2_5_output = latents.phase_dir  # Used in manifest
+        if self.use_probe:
+            # === PROBE MODE ===
+            logger.info("=" * 60)
+            logger.info("PROBE BASELINE MODE: Using Mass-Mean probe from Phase 2.6")
+            logger.info("=" * 60)
+
+            # Load probe directions from Phase 2.6
+            probe = load_probe_directions(
+                self.config, self.device, self.model, method="mass_mean"
+            )
+            self.correct_latent_direction = probe.correct_direction
+            self.incorrect_latent_direction = probe.incorrect_direction
+            self.probe_layer = probe.layer
+            self.phase2_5_output = probe.phase_dir  # For manifest (actually Phase 2.6)
+
+            # Create placeholder latent info for compatibility
+            self.best_correct_latent = {'layer': probe.layer, 'latent_idx': None}
+            self.best_incorrect_latent = {'layer': probe.layer, 'latent_idx': None}
+            self.top_latents = None
+            self.correct_sae = None
+            self.incorrect_sae = None
+
+            logger.info(f"Mass-mean probe layer: {probe.layer}")
+        else:
+            # === SAE MODE (default) ===
+            # Load steering latents from Phase 2.5 (separation score selection)
+            latents = load_steering_latents(self.config)
+            self.top_latents = latents.top_latents
+            self.best_correct_latent = latents.best_correct_latent
+            self.best_incorrect_latent = latents.best_incorrect_latent
+            self.phase2_5_output = latents.phase_dir  # Used in manifest
+
+            # Load SAE models and extract latent directions
+            sae = load_sae_and_directions(
+                self.config, self.device, self.model,
+                self.best_correct_latent, self.best_incorrect_latent
+            )
+            self.correct_sae = sae.correct_sae
+            self.incorrect_sae = sae.incorrect_sae
+            self.correct_latent_direction = sae.correct_direction
+            self.incorrect_latent_direction = sae.incorrect_direction
 
         # Load baseline data from Phase 3.6 (hyperparameter tuning set)
         self.baseline_data, self.phase3_6_output = load_baseline_data(
@@ -117,16 +159,6 @@ class SteeringCoefficientSelector:
             )
             logger.info(f"GPU {self.gpu_id}/{self.n_gpus}: Processing {len(self.initially_correct_data)} correct, "
                        f"{len(self.initially_incorrect_data)} incorrect tasks (parallel mode)")
-
-        # Load SAE models and extract latent directions
-        sae = load_sae_and_directions(
-            self.config, self.device, self.model,
-            self.best_correct_latent, self.best_incorrect_latent
-        )
-        self.correct_sae = sae.correct_sae
-        self.incorrect_sae = sae.incorrect_sae
-        self.correct_latent_direction = sae.correct_direction
-        self.incorrect_latent_direction = sae.incorrect_direction
 
         logger.info("Dependencies loaded successfully")
     
@@ -225,10 +257,10 @@ class SteeringCoefficientSelector:
         # Select latent direction and target layer
         if steering_type == 'correct':
             latent_direction = self.correct_latent_direction
-            target_layer = self.best_correct_latent['layer']
+            target_layer = self.probe_layer if self.use_probe else self.best_correct_latent['layer']
         else:
             latent_direction = self.incorrect_latent_direction
-            target_layer = self.best_incorrect_latent['layer']
+            target_layer = self.probe_layer if self.use_probe else self.best_incorrect_latent['layer']
         
         # Initialize with checkpoint data
         results = []  # Current batch
@@ -646,6 +678,8 @@ class SteeringCoefficientSelector:
         """Run simple grid search and save results."""
         start_time = time.time()
         logger.info("Starting Phase 4.5: Simple Grid Search Coefficient Selection")
+        if self.use_probe:
+            logger.info("PROBE BASELINE MODE: Using Mass-Mean probe directions")
         logger.info(f"Using ALL problems from hyperparameter tuning set")
         logger.info("SIMPLIFIED: Only measuring correction rate, NOT preservation rate")
         
@@ -740,6 +774,7 @@ class SteeringCoefficientSelector:
             'timestamp': datetime.now().isoformat(),
             'duration_seconds': time.time() - start_time,
             'method': 'simple_grid_search_with_early_stopping',
+            'direction_source': self.direction_source,
             'config': {
                 'correct_grid_points': self.config.phase4_5_correct_coefficients,
                 'incorrect_grid_points': self.config.phase4_5_incorrect_coefficients,
@@ -755,6 +790,11 @@ class SteeringCoefficientSelector:
                 'best_incorrect_latent': self.best_incorrect_latent
             }
         }
+        if self.use_probe:
+            summary['probe_info'] = {
+                'method': 'mass_mean',
+                'layer': self.probe_layer,
+            }
         
         # Save summary (use GPU-specific name in parallel mode)
         if self.n_gpus > 1:

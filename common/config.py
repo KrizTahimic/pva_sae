@@ -205,7 +205,19 @@ class Config:
     
     # === EVALUATION (Phase 3.8) ===
     evaluation_random_seed: int = 42
-    
+
+    # === PROBE BASELINE SETTINGS (Phase 2.6) ===
+    probe_mass_mean_reg_lambda: float = 1e-4  # Regularization for covariance inversion
+    probe_logreg_C_values: list[float] = field(default_factory=lambda: [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0])
+    probe_cv_folds: int = 5  # Cross-validation folds for hyperparameter selection
+
+    # === DIRECTION SOURCE (CLI overridable) ===
+    # Options: "sae", "probe_logreg", "probe_mass_mean"
+    # - sae: Use SAE latent directions (default)
+    # - probe_logreg: Use logistic regression probe (for prediction tasks like AUROC/F1)
+    # - probe_mass_mean: Use mass-mean probe (for steering tasks)
+    direction_source: str = "sae"
+
     # === LOGGING ===
     log_dir: str = DEFAULT_LOG_DIR
     verbose: bool = False

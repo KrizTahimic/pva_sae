@@ -68,9 +68,15 @@ class GoldenSectionCoefficientRefiner:
         self.memory_warning_threshold = 80  # Lower than MEMORY_WARNING_PERCENT (85)
         self.memory_critical_threshold = MEMORY_HIGH_PERCENT  # 90%
         self.evaluation_checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
-        
-        # Phase output directories
+
+        # Determine direction source
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source == 'probe_mass_mean'
+
+        # Phase output directories (add "_probe" suffix for probe mode)
         self.output_dir = Path(get_phase_output_dir("4.6", config))
+        if self.use_probe:
+            self.output_dir = self.output_dir.parent / (self.output_dir.name + "_probe")
         ensure_directory_exists(self.output_dir)
         
         self.examples_dir = self.output_dir / "refinement_examples"
@@ -293,13 +299,60 @@ class GoldenSectionCoefficientRefiner:
                 pass
         
     def _load_dependencies(self) -> None:
-        """Load features from Phase 2.5 and baseline data from Phase 3.6."""
-        # Load steering latents from Phase 2.5 (separation score selection)
-        pva_latents = load_steering_latents(self.config)
-        self.top_latents = pva_latents.top_latents
-        self.best_correct_latent = pva_latents.best_correct_latent
-        self.best_incorrect_latent = pva_latents.best_incorrect_latent
-        
+        """Load features from Phase 2.5/2.6 and baseline data from Phase 3.6."""
+        from common.steering_setup import load_probe_directions
+
+        if self.use_probe:
+            # === PROBE MODE ===
+            logger.info("=" * 60)
+            logger.info("PROBE BASELINE MODE: Using Mass-Mean probe from Phase 2.6")
+            logger.info("=" * 60)
+
+            # Load probe directions from Phase 2.6
+            probe = load_probe_directions(
+                self.config, self.device, self.model, method="mass_mean"
+            )
+            self.correct_latent_direction = probe.correct_direction
+            self.incorrect_latent_direction = probe.incorrect_direction
+            self.probe_layer = probe.layer
+
+            # Create placeholder latent info for compatibility
+            self.best_correct_latent = {'layer': probe.layer, 'latent_idx': None}
+            self.best_incorrect_latent = {'layer': probe.layer, 'latent_idx': None}
+            self.top_latents = None
+            self.correct_sae = None
+            self.incorrect_sae = None
+
+            logger.info(f"Mass-mean probe layer: {probe.layer}")
+        else:
+            # === SAE MODE (default) ===
+            # Load steering latents from Phase 2.5 (separation score selection)
+            pva_latents = load_steering_latents(self.config)
+            self.top_latents = pva_latents.top_latents
+            self.best_correct_latent = pva_latents.best_correct_latent
+            self.best_incorrect_latent = pva_latents.best_incorrect_latent
+
+            # Load SAEs for both latents
+            logger.info("Loading SAE models...")
+            self.correct_sae = load_sae_for_config(
+                self.config,
+                self.best_correct_latent['layer'],
+                self.device
+            )
+            self.incorrect_sae = load_sae_for_config(
+                self.config,
+                self.best_incorrect_latent['layer'],
+                self.device
+            )
+
+            # Extract latent directions
+            self.correct_latent_direction = self.correct_sae.W_dec[
+                self.best_correct_latent['latent_idx']
+            ].detach()
+            self.incorrect_latent_direction = self.incorrect_sae.W_dec[
+                self.best_incorrect_latent['latent_idx']
+            ].detach()
+
         # Load Phase 3.6 baseline data
         logger.info("Loading baseline data from Phase 3.6...")
         phase3_6_output = discover_latest_phase_output("3.6", config=self.config)
@@ -311,13 +364,13 @@ class GoldenSectionCoefficientRefiner:
         baseline_file = self.phase3_6_dir / "dataset_hyperparams_temp_0_0.parquet"
         if not baseline_file.exists():
             raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
-        
+
         self.baseline_data = pd.read_parquet(baseline_file)
         logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.6 baseline")
 
         # Apply --start and --end arguments if provided for testing
         self.baseline_data = filter_by_range(self.baseline_data, self.config, "baseline data")
-        
+
         # Split baseline data by initial correctness
         self.initially_correct_data = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
         self.initially_incorrect_data = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
@@ -336,27 +389,6 @@ class GoldenSectionCoefficientRefiner:
 
         logger.info(f"Split baseline: {len(self.initially_correct_data)} initially correct, "
                    f"{len(self.initially_incorrect_data)} initially incorrect problems")
-
-        # Load SAEs for both latents
-        logger.info("Loading SAE models...")
-        self.correct_sae = load_sae_for_config(
-            self.config,
-            self.best_correct_latent['layer'],
-            self.device
-        )
-        self.incorrect_sae = load_sae_for_config(
-            self.config,
-            self.best_incorrect_latent['layer'],
-            self.device
-        )
-
-        # Extract latent directions
-        self.correct_latent_direction = self.correct_sae.W_dec[
-            self.best_correct_latent['latent_idx']
-        ].detach()
-        self.incorrect_latent_direction = self.incorrect_sae.W_dec[
-            self.best_incorrect_latent['latent_idx']
-        ].detach()
         
     def _load_phase4_5_results(self) -> None:
         """Load Phase 4.5 results to determine search bounds and cache scores."""
@@ -366,6 +398,18 @@ class GoldenSectionCoefficientRefiner:
         if not phase4_5_output:
             raise FileNotFoundError("Phase 4.5 output not found. Run Phase 4.5 first.")
         self.phase4_5_dir = Path(phase4_5_output).parent
+
+        # If using probe, look in the _probe directory
+        if self.use_probe:
+            probe_dir = self.phase4_5_dir.parent / (self.phase4_5_dir.name + "_probe")
+            if probe_dir.exists():
+                self.phase4_5_dir = probe_dir
+                logger.info(f"Using probe-mode Phase 4.5 output: {self.phase4_5_dir}")
+            else:
+                raise FileNotFoundError(
+                    f"Phase 4.5 probe output not found at {probe_dir}. "
+                    f"Run Phase 4.5 with --direction-source probe_mass_mean first."
+                )
 
         # Load coefficient analysis
         analysis_file = self.phase4_5_dir / "coefficient_analysis.json"
@@ -520,10 +564,10 @@ class GoldenSectionCoefficientRefiner:
         # Select decoder direction and target layer
         if steering_type == 'correct':
             latent_direction = self.correct_latent_direction
-            target_layer = self.best_correct_latent['layer']
+            target_layer = self.probe_layer if self.use_probe else self.best_correct_latent['layer']
         else:
             latent_direction = self.incorrect_latent_direction
-            target_layer = self.best_incorrect_latent['layer']
+            target_layer = self.probe_layer if self.use_probe else self.best_incorrect_latent['layer']
         
         results = []  # Current batch of results
         excluded_tasks = []  # Current batch of exclusions
@@ -1075,6 +1119,8 @@ class GoldenSectionCoefficientRefiner:
         """Run golden section search refinement for both steering types."""
         start_time = time.time()
         logger.info("Starting Phase 4.6: Golden Section Search Coefficient Refinement")
+        if self.use_probe:
+            logger.info("PROBE BASELINE MODE: Using Mass-Mean probe directions")
         logger.info("Will refine coefficients found in Phase 4.5 using golden section search")
         
         # Get experiment mode from config (single source of truth)
@@ -1221,6 +1267,7 @@ class GoldenSectionCoefficientRefiner:
             'timestamp': datetime.now().isoformat(),
             'duration_seconds': time.time() - start_time,
             'method': 'golden_section_search',
+            'direction_source': self.direction_source,
             'config': {
                 'tolerance': self.config.phase4_6_tolerance,
                 'model': self.config.model_name,
@@ -1234,6 +1281,11 @@ class GoldenSectionCoefficientRefiner:
                 'phase4_5_bounds': self.search_bounds
             }
         }
+        if self.use_probe:
+            summary['probe_info'] = {
+                'method': 'mass_mean',
+                'layer': self.probe_layer,
+            }
         
         # Save summary (use GPU-specific name in parallel mode)
         if self.n_gpus > 1:
