@@ -773,9 +773,10 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 | **Other Phases** |||||
 | 5.3 | Weight Orthogonalization | ✓ | - | ✓ | ✅ DONE ✅ VERIFIED |
 | 5.6 | Zero-Disc Orthogonalization | ✓ | - | - | ⏭️ N/A (SAE control experiment) |
-| 6.3 | Attention Analysis | ✓ | - | - | ⏭️ N/A (uses existing Phase 4.8 data) |
-| 8.2 | Threshold Optimizer | ✓ | [ ] | [ ] | 🔧 FUTURE (dual-direction architecture) |
-| 8.3 | Selective Steering | ✓ | [ ] | [ ] | 🔧 FUTURE (dual-direction architecture) |
+| 6.3 | Attention Analysis | ✓ | - | ✓ | ✅ DONE (loads probe layer, finds Phase 4.8 probe output) |
+| 8.1 | Threshold Calculator | ✓ | ✓ | - | ✅ DONE (logreg probe for percentile thresholds) |
+| 8.2 | Threshold Optimizer | ✓ | ✓ | ✓ | ✅ DONE (dual-direction: logreg predict, mass_mean steer) |
+| 8.3 | Selective Steering | ✓ | ✓ | ✓ | ✅ DONE (dual-direction: logreg predict, mass_mean steer) |
 
 Legend: ✓ = implemented, [ ] = needs implementation, - = not applicable, ⏭️ = not applicable for this phase, ✅ VERIFIED = tested and working
 
@@ -790,7 +791,7 @@ Legend: ✓ = implemented, [ ] = needs implementation, - = not applicable, ⏭�
   - Supports `--direction-source probe_logreg`
   - Test result: AUROC 0.67, F1 0.67 (on analysis split)
 - [x] **Phase 7.3**: N/A (activation extraction only, no direction usage)
-- [x] **Phase 8.2**: 🔧 FUTURE (dual-direction architecture - needs separate logreg for prediction, mass_mean for steering)
+- [x] **Phase 8.2**: ✅ DONE (dual-direction: logreg for prediction, mass_mean for steering)
 
 **Steering phases (add `--direction-source probe_mass_mean`):**
 - [x] **Phase 4.8**: Steering analysis with probe ✅ DONE (2026-01-20) ✅ VERIFIED
@@ -804,8 +805,8 @@ Legend: ✓ = implemented, [ ] = needs implementation, - = not applicable, ⏭�
   - Supports `--direction-source probe_mass_mean`
   - Test result: 33.3% correction, 0% corruption, 100% preservation
 - [x] **Phase 5.6**: N/A (SAE control experiment - intentionally SAE-only)
-- [x] **Phase 6.3**: N/A (uses existing Phase 4.8 data - no new implementation needed)
-- [x] **Phase 8.3**: 🔧 FUTURE (dual-direction architecture - needs separate logreg for prediction, mass_mean for steering)
+- [x] **Phase 6.3**: ✅ DONE (loads probe layer, looks for Phase 4.8 probe output)
+- [x] **Phase 8.3**: ✅ DONE (dual-direction: logreg for prediction, mass_mean for steering)
 
 #### Implementation Pattern
 
@@ -997,18 +998,15 @@ GPU=1 ts python3 run.py phase 1 --model llama --dataset mbpp
 
 ## Future Work (added 2026-01-20)
 
-### Phase 8.2/8.3 Probe Support
+### Phase 8.2/8.3 Probe Support ✅ COMPLETE
 
-Phases 8.2 and 8.3 have a dual-direction architecture (one direction for prediction/threshold checking, another for steering). Full probe support requires careful design:
+Phases 8.2 and 8.3 use dual-direction architecture (logreg for prediction, mass_mean for steering):
 
-- [ ] **Phase 8.2 Threshold Optimizer:**
-  - Load LogReg probe for incorrect-predicting threshold checking
-  - Load Mass-mean probe for correct steering direction
-  - Coordinate two different layers (prediction vs steering layers may differ)
+- [x] **Phase 8.1 Threshold Calculator:** Added probe support (logreg for percentile thresholds)
+- [x] **Phase 8.2 Threshold Optimizer:** Dual-direction - logreg (L14) for threshold, mass_mean (L11) for steering
+- [x] **Phase 8.3 Selective Steering:** Same dual-direction pattern as 8.2
 
-- [ ] **Phase 8.3 Selective Steering:**
-  - Same dual-direction requirement as Phase 8.2
-  - Probe for threshold gating + probe for steering intervention
+**Key insight:** Both probes used internally regardless of `--direction-source` flag. Tested successfully with `--parallel 4 --end 11`.
 
 ### Phase 9 Redesign
 

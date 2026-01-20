@@ -69,7 +69,7 @@ PARALLELIZABLE_PHASES = {
     "5.6",   # Zero-disc orthogonalization
     "7.3",   # Instruct baseline
     "7.6",   # Instruct steering
-    "8.2",   # Threshold optimizer
+    # "8.2" removed - outputs JSON (not parquet), doesn't parallelize well (grid search)
     "8.3",   # Selective steering
 }
 
