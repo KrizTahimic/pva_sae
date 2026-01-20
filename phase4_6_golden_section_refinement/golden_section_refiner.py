@@ -342,7 +342,7 @@ class GoldenSectionCoefficientRefiner:
         
     def _load_dependencies(self) -> None:
         """Load features from Phase 2.5/2.6 and baseline data from Phase 3.6."""
-        from common.steering_setup import load_probe_directions
+        from common.steering_setup import load_probe_directions_for_steering
 
         if self.use_probe:
             # === PROBE MODE ===
@@ -351,21 +351,19 @@ class GoldenSectionCoefficientRefiner:
             logger.info("=" * 60)
 
             # Load probe directions from Phase 2.6
-            probe = load_probe_directions(
+            self.probe = load_probe_directions_for_steering(
                 self.config, self.device, self.model, method="mass_mean"
             )
-            self.correct_latent_direction = probe.correct_direction
-            self.incorrect_latent_direction = probe.incorrect_direction
-            self.probe_layer = probe.layer
+            self.correct_latent_direction = self.probe.correct_direction
+            self.incorrect_latent_direction = self.probe.incorrect_direction
+            self.probe_layer = self.probe.layer
 
-            # Create placeholder latent info for compatibility
-            self.best_correct_latent = {'layer': probe.layer, 'latent_idx': None}
-            self.best_incorrect_latent = {'layer': probe.layer, 'latent_idx': None}
+            # Probe mode doesn't use SAE
             self.top_latents = None
             self.correct_sae = None
             self.incorrect_sae = None
 
-            logger.info(f"Mass-mean probe layer: {probe.layer}")
+            logger.info(f"Mass-mean probe layer: {self.probe.layer}")
         else:
             # === SAE MODE (default) ===
             # Load steering latents from Phase 2.5 (separation score selection)
@@ -1189,18 +1187,26 @@ class GoldenSectionCoefficientRefiner:
                 logger.info(f"Skipping {steering_type} steering - already completed")
                 # Extract the coefficient info for the summary
                 result = refinement_results[f'{steering_type}_steering']
-                if steering_type == 'correct':
-                    feature = self.best_correct_latent
+
+                # Get layer/latent info based on mode
+                if self.use_probe:
+                    layer = self.probe.layer
+                    latent_idx = None
                 else:
-                    feature = self.best_incorrect_latent
-                
+                    if steering_type == 'correct':
+                        feature = self.best_correct_latent
+                    else:
+                        feature = self.best_incorrect_latent
+                    layer = feature['layer']
+                    latent_idx = feature['latent_idx']
+
                 phase4_5_optimal = self.search_bounds[steering_type]['optimal_from_phase4_5']
                 refined_coefficients[steering_type] = {
                     'refined_coefficient': result['optimal_coefficient'],
                     'phase4_5_coefficient': phase4_5_optimal,
                     'improvement': result['optimal_coefficient'] - phase4_5_optimal,
-                    'layer': feature['layer'],
-                    'latent_idx': feature['latent_idx'],
+                    'layer': layer,
+                    'latent_idx': latent_idx,
                     'best_score': result.get('best_score', 0),
                     'search_iterations': len(result.get('search_history', [])),
                     'search_bounds': self.search_bounds[steering_type],
@@ -1225,10 +1231,8 @@ class GoldenSectionCoefficientRefiner:
             # Get full evaluation results for the optimal coefficient
             if steering_type == 'correct':
                 eval_data = self.initially_incorrect_data
-                feature = self.best_correct_latent
             else:
                 eval_data = self.initially_correct_data
-                feature = self.best_incorrect_latent
             
             # Get final score and full results
             final_evaluation = self.evaluate_coefficient(
@@ -1256,23 +1260,29 @@ class GoldenSectionCoefficientRefiner:
             eval_data.to_parquet(self.output_dir / problems_filename)
             logger.info(f"Saved {len(eval_data)} problems to {problems_filename}")
             
-            # Get feature info for metadata
-            if steering_type == 'correct':
-                feature = self.best_correct_latent
+            # Get layer/latent info for metadata
+            if self.use_probe:
+                layer = self.probe.layer
+                latent_idx = None
             else:
-                feature = self.best_incorrect_latent
-            
+                if steering_type == 'correct':
+                    feature = self.best_correct_latent
+                else:
+                    feature = self.best_incorrect_latent
+                layer = feature['layer']
+                latent_idx = feature['latent_idx']
+
             # Use the score from the refinement results
             final_score = refinement_results[f'{steering_type}_steering']['best_score']
-            
+
             # Save refined coefficient with metadata
             phase4_5_optimal = self.search_bounds[steering_type]['optimal_from_phase4_5']
             refined_coefficients[steering_type] = {
                 'refined_coefficient': optimal_coeff,
                 'phase4_5_coefficient': phase4_5_optimal,
                 'improvement': optimal_coeff - phase4_5_optimal,
-                'layer': feature['layer'],
-                'latent_idx': feature['latent_idx'],
+                'layer': layer,
+                'latent_idx': latent_idx,
                 'best_score': final_score,
                 'search_iterations': len(search_history),
                 'search_bounds': self.search_bounds[steering_type],

@@ -761,42 +761,46 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 |-------|-------------|:---:|:--------------:|:-----------------:|--------|
 | **Detection Phases** |||||
 | 3.8 | AUROC/F1 Evaluation | ✓ | ✓ | - | ✅ DONE |
-| 3.10 | Temperature Robustness | ✓ | [ ] | - | 🔧 TODO |
-| 7.3 | Instruct Detection | ✓ | [ ] | - | 🔧 TODO |
-| 7.12 | Instruct AUROC/F1 | ✓ | [ ] | - | 🔧 TODO |
+| 3.10 | Temperature Robustness | ✓ | ✓ | - | ✅ DONE |
+| 7.3 | Instruct Detection | ✓ | - | - | ⏭️ N/A (activation extraction only) |
+| 7.12 | Instruct AUROC/F1 | ✓ | ✓ | - | ✅ DONE |
 | **Steering Phases** |||||
 | 4.5 | Coefficient Grid Search | ✓ | - | ✓ | ✅ DONE |
 | 4.6 | Golden Section Refinement | ✓ | - | ✓ | ✅ DONE |
 | 4.7 | Coefficient Visualization | ✓ | - | ✓ | ✅ DONE |
 | 4.8 | Steering Analysis | ✓ | - | ✓ | ✅ DONE |
-| 7.6 | Instruct Steering | ✓ | - | [ ] | 🔧 TODO |
+| 7.6 | Instruct Steering | ✓ | - | ✓ | ✅ DONE |
 | **Other Phases** |||||
-| 5.3 | Weight Orthogonalization | ✓ | - | [ ] | 🔧 TODO |
-| 5.6 | Zero-Disc Orthogonalization | ✓ | - | [ ] | 🔧 TODO |
-| 6.3 | Attention Analysis | ✓ | - | [ ] | 🔧 TODO |
-| 8.2 | Threshold Optimizer | ✓ | [ ] | - | 🔧 TODO |
-| 8.3 | Selective Steering | ✓ | - | [ ] | 🔧 TODO |
+| 5.3 | Weight Orthogonalization | ✓ | - | ✓ | ✅ DONE |
+| 5.6 | Zero-Disc Orthogonalization | ✓ | - | - | ⏭️ N/A (SAE control experiment) |
+| 6.3 | Attention Analysis | ✓ | - | - | ⏭️ N/A (uses existing Phase 4.8 data) |
+| 8.2 | Threshold Optimizer | ✓ | [ ] | [ ] | 🔧 FUTURE (dual-direction architecture) |
+| 8.3 | Selective Steering | ✓ | [ ] | [ ] | 🔧 FUTURE (dual-direction architecture) |
 
-Legend: ✓ = implemented, [ ] = needs implementation, - = not applicable
+Legend: ✓ = implemented, [ ] = needs implementation, - = not applicable, ⏭️ = not applicable for this phase
 
 #### Implementation Tasks
 
 **Detection phases (add `--direction-source probe_logreg`):**
-- [ ] **Phase 3.10**: Temperature robustness with probe
-  - Load logreg direction from Phase 2.6
+- [x] **Phase 3.10**: Temperature robustness with probe ✅ DONE (2026-01-20)
+  - Load logreg direction from Phase 2.6 via `load_probe_directions_for_predicting()`
   - Compute detection scores across temperatures
-- [ ] **Phase 7.3**: Instruct model detection with probe
-- [ ] **Phase 7.12**: Instruct AUROC/F1 with probe
-- [ ] **Phase 8.2**: Threshold optimizer with probe detection
+- [x] **Phase 7.12**: Instruct AUROC/F1 with probe ✅ DONE (2026-01-20)
+  - Added `load_instruct_activations_probe()` function
+  - Supports `--direction-source probe_logreg`
+- [ ] **Phase 7.3**: Instruct model detection with probe - N/A (activation extraction only, no direction usage)
+- [ ] **Phase 8.2**: Threshold optimizer with probe detection - FUTURE (dual-direction architecture)
 
 **Steering phases (add `--direction-source probe_mass_mean`):**
-- [ ] **Phase 5.3**: Weight orthogonalization with probe direction
+- [x] **Phase 5.3**: Weight orthogonalization with probe direction ✅ DONE (2026-01-20)
   - Orthogonalize mass-mean direction from weights
-  - Test if steering effect is removed
-- [ ] **Phase 5.6**: Zero-disc orthogonalization with probe
-- [ ] **Phase 6.3**: Attention analysis with probe direction
-- [ ] **Phase 7.6**: Instruct steering with probe
-- [ ] **Phase 8.3**: Selective steering with probe
+  - Supports `--direction-source probe_mass_mean`
+- [x] **Phase 7.6**: Instruct steering with probe ✅ DONE (2026-01-20)
+  - Added probe coefficient discovery from Phase 4.6 probe output
+  - Supports `--direction-source probe_mass_mean`
+- [ ] **Phase 5.6**: Zero-disc orthogonalization with probe - N/A (SAE control experiment)
+- [ ] **Phase 6.3**: Attention analysis with probe direction - N/A (uses existing Phase 4.8 data)
+- [ ] **Phase 8.3**: Selective steering with probe - FUTURE (dual-direction architecture)
 
 #### Implementation Pattern
 
@@ -987,6 +991,35 @@ GPU=1 ts python3 run.py phase 1 --model llama --dataset mbpp
 
 - [ ] Test run all 10 records.
 
+
+## Future Work (added 2026-01-20)
+
+### Phase 8.2/8.3 Probe Support
+
+Phases 8.2 and 8.3 have a dual-direction architecture (one direction for prediction/threshold checking, another for steering). Full probe support requires careful design:
+
+- [ ] **Phase 8.2 Threshold Optimizer:**
+  - Load LogReg probe for incorrect-predicting threshold checking
+  - Load Mass-mean probe for correct steering direction
+  - Coordinate two different layers (prediction vs steering layers may differ)
+
+- [ ] **Phase 8.3 Selective Steering:**
+  - Same dual-direction requirement as Phase 8.2
+  - Probe for threshold gating + probe for steering intervention
+
+### Phase 9 Redesign
+
+Current Phase 9.1 implementation should be deleted and redesigned. Instead of a separate analysis phase, add error type statistics directly to each phase's output:
+
+- [ ] Delete current Phase 9.1 implementation
+- [ ] Add error type statistics to each phase's output:
+  - Phase 1: `baseline_error_type_distribution`
+  - Phase 3.5, 3.10: `temperature_error_type_distribution`
+  - Phase 4.8, 7.6: `steered_error_type_distribution`
+  - Phase 5.3, 5.6: `orthogonalized_error_type_distribution`
+- [ ] Create summary visualization that reads from all phases' built-in stats
+
+---
 
 FINAL
 - [ ] Add here the ICML LaTeX.

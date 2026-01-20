@@ -75,10 +75,11 @@ python3 run.py phase {N} [OPTIONS]
 ### Key Options
 
 ```bash
---start N --end M    # Process subset (for testing)
---viz-only           # Regenerate plots without recomputing (seconds vs hours)
---correction-only    # Only correction experiments (phases 4.5, 4.6, 4.8)
---parallel N         # Multi-GPU parallelization (distribute tasks across N GPUs)
+--start N --end M              # Process subset (for testing)
+--viz-only                     # Regenerate plots without recomputing (seconds vs hours)
+--correction-only              # Only correction experiments (phases 4.5, 4.6, 4.8)
+--parallel N                   # Multi-GPU parallelization (distribute tasks across N GPUs)
+--direction-source SOURCE      # sae (default), probe_logreg, or probe_mass_mean
 ```
 
 ### Multi-GPU Parallelization
@@ -172,31 +173,29 @@ The fundamental pattern across all phases:
 | `common/config.py` | Centralized configuration |
 | `common/phase_discovery.py` | Auto-discovery, output paths |
 | `common/sae_loader.py` | GemmaScope SAE loading |
+| `common/steering_setup.py` | Direction loading (SAE + probe) |
 | `common/parallel_runner.py` | Multi-GPU parallelization orchestration |
 | `phase2_5_separation_score_analysis/sae_analyzer.py` | Separation score analysis |
 | `phase4_8_steering_analysis/steering_effect_analyzer.py` | Steering interventions |
 
-### Latent Source Architecture
+### Direction Source Architecture
 
-**TWO distinct latent selection methods** for different use cases:
+**THREE direction sources** for different use cases:
+
+| Source | Method | Best For | CLI Flag |
+|--------|--------|----------|----------|
+| SAE (Phase 2.5/2.10) | Unsupervised | Discovery | `--direction-source sae` |
+| Probe LogReg (Phase 2.6) | Supervised | Detection (AUROC/F1) | `--direction-source probe_logreg` |
+| Probe Mass-Mean (Phase 2.6) | Supervised | Steering (correction) | `--direction-source probe_mass_mean` |
+
+**SAE Latent Selection** (legacy, still used):
 
 | Use Case | Source | Metric | Used By |
 |----------|--------|--------|---------|
 | Validation | Phase 2.10 | t-statistic | Phases 3.x (AUROC/F1) |
 | Steering | Phase 2.5 | separation score | Phases 4.x, 5.x, 6.x, 7.x |
 
-**Why two sources?**
-- **Validation** (t-statistic): Measures activation magnitude differences - for statistical metrics (AUROC/F1)
-- **Steering** (separation score): Measures categorical exclusivity (activates for one class, not the other) - for causal intervention
-
-**Terminology - 4 latent directions:**
-
-| Source | Correct Latents | Incorrect Latents |
-|--------|-----------------|-------------------|
-| Phase 2.10 (t-statistic) | correct-**predicting** | incorrect-**predicting** |
-| Phase 2.5 (separation score) | correct-**steering** | incorrect-**steering** |
-
-The suffix indicates use case: "predicting" for validation (AUROC/F1), "steering" for causal intervention.
+**Probe vs SAE:** Different projections of the same linear representation. Probes find directions optimized for the task; SAE finds unsupervised latents with interpretability benefits.
 
 ### Activation Extraction
 
@@ -205,10 +204,14 @@ Activations captured at **last prompt token** (position -1) from **residual stre
 ### Steering Mechanism
 
 ```python
+# SAE steering
 steered_activation = original_activation + coefficient * sae_decoder_direction
+
+# Probe steering (mass-mean)
+steered_activation = original_activation + coefficient * probe_direction
 ```
 
-Coefficient selection: coarse-to-fine search (Phase 4.5) → golden section refinement (Phase 4.6).
+Both use same hook mechanism; only the direction source differs. Coefficient selection: coarse-to-fine search (Phase 4.5) → golden section refinement (Phase 4.6).
 
 ---
 

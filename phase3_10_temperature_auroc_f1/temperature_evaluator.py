@@ -3,6 +3,8 @@ Temperature-Based AUROC Analysis for SAE-Code-Correctness (Phase 3.10).
 
 Analyzes how latent feature effectiveness varies across different temperature settings
 in Python code generation using per-sample analysis.
+
+Supports both SAE latents (default) and probe directions (--direction-source probe_logreg).
 """
 
 import os
@@ -25,6 +27,7 @@ from common.viz_utils import handle_viz_only_mode
 from common.utils import save_json, load_json
 from common.sae_loader import load_sae_for_config
 from common.tensor_utils import load_activation
+from safetensors.torch import load_file
 
 class TemperatureAUROCEvaluator:
     """Evaluates PVA feature performance across different temperatures using per-sample analysis."""
@@ -35,40 +38,78 @@ class TemperatureAUROCEvaluator:
         self.logger = get_logger("phase3_10", phase="3.10")
         self.device = detect_device()
         self.logger.info(f"Using device: {self.device}")
-        
+
+        # Direction source: 'sae' (default) or 'probe_logreg'
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source == 'probe_logreg'
+        self.logger.info(f"Direction source: {self.direction_source}")
+
         # Temperature levels to analyze from config
         self.temperatures = config.phase3_10_temperatures
         self.logger.info(f"Will analyze {len(self.temperatures)} temperature levels: {self.temperatures}")
-        
+
         # Discover dependencies
         self._discover_dependencies()
 
         # Output directory (registry handles model/dataset suffixes)
         self.output_dir = Path(get_phase_output_dir("3.10", config))
+
+        # Add "_probe" suffix if using probe directions
+        if self.use_probe:
+            self.output_dir = self.output_dir.parent / (self.output_dir.name + "_probe")
+
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # No aggregation tracking needed for per-sample analysis
     
     def _discover_dependencies(self) -> None:
         """Discover and load dependencies from previous phases."""
-        # Phase 3.8: Best features and thresholds
-        phase3_8_dir = get_phase_output_dir("3.8", self.config)
-        phase3_8_path = discover_latest_phase_output("3.8", phase_dir=phase3_8_dir)
-        if not phase3_8_path:
-            raise ValueError(f"Phase 3.8 output not found in {phase3_8_dir}. Please run Phase 3.8 first.")
-        
-        # If path is a file, get its parent directory
-        phase3_8_path = Path(phase3_8_path)
-        if phase3_8_path.is_file():
-            phase3_8_dir = phase3_8_path.parent
+        if self.use_probe:
+            # Probe mode: Load from Phase 3.8_probe and Phase 2.6
+            phase3_8_base_dir = Path(get_phase_output_dir("3.8", self.config))
+            phase3_8_probe_dir = phase3_8_base_dir.parent / (phase3_8_base_dir.name + "_probe")
+
+            if not phase3_8_probe_dir.exists():
+                raise ValueError(
+                    f"Phase 3.8 probe output not found at {phase3_8_probe_dir}. "
+                    f"Please run Phase 3.8 with --direction-source probe_logreg first."
+                )
+
+            self.phase3_8_dir = phase3_8_probe_dir
+            self.phase3_8_results_path = phase3_8_probe_dir / "auroc_f1_results.json"
+
+            if not self.phase3_8_results_path.exists():
+                raise FileNotFoundError(f"Phase 3.8 probe results not found at {self.phase3_8_results_path}")
+
+            self.logger.info(f"Found Phase 3.8 probe results: {self.phase3_8_results_path}")
+
+            # Also need Phase 2.6 for probe directions
+            phase2_6_path = discover_latest_phase_output("2.6", config=self.config)
+            if not phase2_6_path:
+                raise ValueError("Phase 2.6 output not found. Please run Phase 2.6 first.")
+            phase2_6_path = Path(phase2_6_path)
+            self.phase2_6_dir = phase2_6_path.parent if phase2_6_path.is_file() else phase2_6_path
+            self.logger.info(f"Found Phase 2.6 probe data: {self.phase2_6_dir}")
+
         else:
-            phase3_8_dir = phase3_8_path
-            
-        self.phase3_8_results_path = phase3_8_dir / "auroc_f1_results.json"
-        if not self.phase3_8_results_path.exists():
-            raise FileNotFoundError(f"Phase 3.8 results not found at {self.phase3_8_results_path}")
-        
-        self.logger.info(f"Found Phase 3.8 results: {self.phase3_8_results_path}")
+            # SAE mode: Load from regular Phase 3.8
+            phase3_8_dir = get_phase_output_dir("3.8", self.config)
+            phase3_8_path = discover_latest_phase_output("3.8", phase_dir=phase3_8_dir)
+            if not phase3_8_path:
+                raise ValueError(f"Phase 3.8 output not found in {phase3_8_dir}. Please run Phase 3.8 first.")
+
+            # If path is a file, get its parent directory
+            phase3_8_path = Path(phase3_8_path)
+            if phase3_8_path.is_file():
+                self.phase3_8_dir = phase3_8_path.parent
+            else:
+                self.phase3_8_dir = phase3_8_path
+
+            self.phase3_8_results_path = self.phase3_8_dir / "auroc_f1_results.json"
+            if not self.phase3_8_results_path.exists():
+                raise FileNotFoundError(f"Phase 3.8 results not found at {self.phase3_8_results_path}")
+
+            self.logger.info(f"Found Phase 3.8 results: {self.phase3_8_results_path}")
 
         # Phase 3.5: Temperature datasets
         phase3_5_path = discover_latest_phase_output("3.5", config=self.config)
@@ -92,30 +133,57 @@ class TemperatureAUROCEvaluator:
                 raise FileNotFoundError(f"Temperature dataset not found: {temp_file}")
     
     def load_best_latents(self) -> dict[str, dict]:
-        """Load best latents and thresholds from Phase 3.8."""
-        self.logger.info("Loading Phase 3.8 best latents and thresholds")
-        
-        results = load_json(self.phase3_8_results_path)
-        
-        # Extract best latents for correct and incorrect
-        best_latents = {
-            'correct': {
-                'layer': results['correct_predicting_latent']['latent']['layer'],
-                'latent_idx': results['correct_predicting_latent']['latent']['idx'],
-                'threshold': results['correct_predicting_latent']['threshold_optimization']['optimal_threshold']
-            },
-            'incorrect': {
-                'layer': results['incorrect_predicting_latent']['latent']['layer'],
-                'latent_idx': results['incorrect_predicting_latent']['latent']['idx'],
-                'threshold': results['incorrect_predicting_latent']['threshold_optimization']['optimal_threshold']
-            }
-        }
+        """Load best latents/probe directions and thresholds from Phase 3.8."""
+        self.logger.info(f"Loading Phase 3.8 {'probe' if self.use_probe else 'latent'} info and thresholds")
 
-        self.logger.info(f"Best correct latent: Layer {best_latents['correct']['layer']}, "
-                        f"Index {best_latents['correct']['latent_idx']}")
-        self.logger.info(f"Best incorrect latent: Layer {best_latents['incorrect']['layer']}, "
-                        f"Index {best_latents['incorrect']['latent_idx']}")
-        
+        results = load_json(self.phase3_8_results_path)
+
+        if self.use_probe:
+            # Probe mode: Load probe direction using shared utility
+            from common.steering_setup import load_probe_directions_for_predicting
+            probe = load_probe_directions_for_predicting(self.config, self.device, method="logreg")
+
+            # Get thresholds from Phase 3.8 probe results
+            correct_threshold = results['correct_predicting_latent']['hyperparameter_split']['threshold']
+            incorrect_threshold = results['incorrect_predicting_latent']['hyperparameter_split']['threshold']
+
+            best_latents = {
+                'correct': {
+                    'layer': probe.layer,
+                    'threshold': correct_threshold,
+                    'probe_direction': probe.correct_direction,
+                    'probe_bias': probe.bias,
+                },
+                'incorrect': {
+                    'layer': probe.layer,
+                    'threshold': incorrect_threshold,
+                    'probe_direction': probe.incorrect_direction,  # Already negated
+                    'probe_bias': -probe.bias,
+                }
+            }
+
+            self.logger.info(f"LogReg probe: layer {probe.layer}, bias {probe.bias:.4f}")
+
+        else:
+            # SAE mode: Extract best latents for correct and incorrect
+            best_latents = {
+                'correct': {
+                    'layer': results['correct_predicting_latent']['layer'],
+                    'latent_idx': results['correct_predicting_latent']['latent_idx'],
+                    'threshold': results['correct_predicting_latent']['hyperparameter_split']['threshold']
+                },
+                'incorrect': {
+                    'layer': results['incorrect_predicting_latent']['layer'],
+                    'latent_idx': results['incorrect_predicting_latent']['latent_idx'],
+                    'threshold': results['incorrect_predicting_latent']['hyperparameter_split']['threshold']
+                }
+            }
+
+            self.logger.info(f"Best correct latent: Layer {best_latents['correct']['layer']}, "
+                            f"Index {best_latents['correct']['latent_idx']}")
+            self.logger.info(f"Best incorrect latent: Layer {best_latents['incorrect']['layer']}, "
+                            f"Index {best_latents['incorrect']['latent_idx']}")
+
         return best_latents
     
     def load_temperature_dataset(self, temperature: float) -> pd.DataFrame:
@@ -145,14 +213,17 @@ class TemperatureAUROCEvaluator:
         """Process data for a single temperature using per-sample analysis."""
         sample_latent_values = []
         sample_labels = []
-        
+
         # Cache for activation values to avoid redundant loading
         activation_cache = {}
-        
+
+        # Get logger reference for tqdm
+        logger = self.logger
+
         # Process each row as an individual sample
         for _, row in tqdm_with_logging(temp_dataset.iterrows(), logger, total=len(temp_dataset), desc="Processing samples"):
             task_id = row['task_id']
-            
+
             # Check cache first
             if task_id in activation_cache:
                 feature_value = activation_cache[task_id]
@@ -172,17 +243,27 @@ class TemperatureAUROCEvaluator:
                     # Load activation (preserves bfloat16)
                     raw_tensor = load_activation(activation_path, self.device)
 
-                    # Encode through SAE to get feature value
-                    with torch.no_grad():
-                        # Get SAE dtype to ensure compatibility
-                        sae_dtype = next(sae.parameters()).dtype
-                        raw_tensor = raw_tensor.to(dtype=sae_dtype)
-                        # Ensure [1, d_model] shape for SAE encoding
-                        if raw_tensor.ndim == 1:
-                            raw_tensor = rearrange(raw_tensor, 'd -> 1 d')
-                        latent_activations = sae.encode(raw_tensor)
-                        latent_value = latent_activations[0, best_latents['latent_idx']].item()
-                    
+                    if self.use_probe:
+                        # Probe mode: dot product with probe direction
+                        with torch.no_grad():
+                            probe_direction = best_latents['probe_direction']
+                            probe_bias = best_latents['probe_bias']
+                            raw_tensor = raw_tensor.to(dtype=probe_direction.dtype)
+                            if raw_tensor.ndim > 1:
+                                raw_tensor = raw_tensor.squeeze()
+                            latent_value = (raw_tensor @ probe_direction).item() + probe_bias
+                    else:
+                        # SAE mode: encode through SAE to get feature value
+                        with torch.no_grad():
+                            # Get SAE dtype to ensure compatibility
+                            sae_dtype = next(sae.parameters()).dtype
+                            raw_tensor = raw_tensor.to(dtype=sae_dtype)
+                            # Ensure [1, d_model] shape for SAE encoding
+                            if raw_tensor.ndim == 1:
+                                raw_tensor = rearrange(raw_tensor, 'd -> 1 d')
+                            latent_activations = sae.encode(raw_tensor)
+                            latent_value = latent_activations[0, best_latents['latent_idx']].item()
+
                     # Cache the latent value for this task
                     activation_cache[task_id] = latent_value
 
@@ -195,18 +276,23 @@ class TemperatureAUROCEvaluator:
 
             sample_latent_values.append(latent_value)
             sample_labels.append(label)
-        
+
         return np.array(sample_latent_values), np.array(sample_labels)
     
     def evaluate_across_temperatures(self, best_latents: dict[str, dict]) -> dict:
         """Evaluate feature performance at each temperature."""
         results = {}
-        
-        # Load SAEs once for reuse
-        self.logger.info("Loading SAEs for feature encoding")
-        sae_correct = load_sae_for_config(self.config, best_latents['correct']['layer'], self.device)
-        sae_incorrect = load_sae_for_config(self.config, best_latents['incorrect']['layer'], self.device)
-        
+
+        # Load SAEs once for reuse (only needed for SAE mode)
+        if self.use_probe:
+            self.logger.info("Using probe directions for scoring (no SAE needed)")
+            sae_correct = None
+            sae_incorrect = None
+        else:
+            self.logger.info("Loading SAEs for feature encoding")
+            sae_correct = load_sae_for_config(self.config, best_latents['correct']['layer'], self.device)
+            sae_incorrect = load_sae_for_config(self.config, best_latents['incorrect']['layer'], self.device)
+
         for temp in self.temperatures:
             self.logger.info(f"\nProcessing temperature {temp}")
             
@@ -280,10 +366,11 @@ class TemperatureAUROCEvaluator:
                 self.logger.info(f"Temperature {temp}, {feature_type}: "
                                f"AUROC={auroc:.3f}, F1={f1:.3f}")
         
-        # Clean up SAEs
-        del sae_correct, sae_incorrect
-        torch.cuda.empty_cache()
-        
+        # Clean up SAEs (if loaded)
+        if not self.use_probe:
+            del sae_correct, sae_incorrect
+            torch.cuda.empty_cache()
+
         return results
     
     def plot_temperature_trends(self, results: dict) -> None:
@@ -524,13 +611,22 @@ class TemperatureAUROCEvaluator:
         lines.append("PHASE 3.10: TEMPERATURE-BASED AUROC ANALYSIS")
         lines.append("=" * 60)
         lines.append("")
-        
-        # Latent information
-        lines.append("BEST LATENTS ANALYZED:")
-        lines.append(f"  Correct-predicting: Layer {best_latents['correct']['layer']}, "
-                    f"Latent {best_latents['correct']['latent_idx']}")
-        lines.append(f"  Incorrect-predicting: Layer {best_latents['incorrect']['layer']}, "
-                    f"Latent {best_latents['incorrect']['latent_idx']}")
+
+        # Direction source
+        lines.append(f"Direction source: {self.direction_source}")
+        lines.append("")
+
+        # Latent/probe information
+        if self.use_probe:
+            lines.append("PROBE DIRECTIONS ANALYZED:")
+            lines.append(f"  Correct-predicting: Layer {best_latents['correct']['layer']} (LogReg probe)")
+            lines.append(f"  Incorrect-predicting: Layer {best_latents['incorrect']['layer']} (LogReg probe, negated)")
+        else:
+            lines.append("BEST LATENTS ANALYZED:")
+            lines.append(f"  Correct-predicting: Layer {best_latents['correct']['layer']}, "
+                        f"Latent {best_latents['correct']['latent_idx']}")
+            lines.append(f"  Incorrect-predicting: Layer {best_latents['incorrect']['layer']}, "
+                        f"Latent {best_latents['incorrect']['latent_idx']}")
         lines.append("")
         
         # Methodology information
@@ -622,13 +718,22 @@ class TemperatureAUROCEvaluator:
     
     def save_results(self, results: dict, best_latents: dict[str, dict]) -> None:
         """Save all results to output directory."""
+        # Prepare best_latents for JSON serialization (remove torch tensors)
+        best_latents_serializable = {}
+        for key, val in best_latents.items():
+            best_latents_serializable[key] = {
+                k: v for k, v in val.items()
+                if not isinstance(v, torch.Tensor)
+            }
+
         # Save comprehensive JSON results
         output_data = {
             'creation_timestamp': pd.Timestamp.now().isoformat(),
             'phase': '3.10',
             'description': 'Temperature-Based AUROC Analysis',
+            'direction_source': self.direction_source,
             'temperatures_analyzed': sorted(results.keys()),
-            'best_latents': best_latents,
+            'best_latents': best_latents_serializable,
             'results_by_temperature': results,
             'methodology': {
                 'analysis_method': 'per_sample',
@@ -650,6 +755,13 @@ class TemperatureAUROCEvaluator:
         # Write phase_output.json manifest
         from common.phase_discovery import write_phase_output
 
+        dependencies = {
+            "3.5": str(self.phase3_5_dir),
+            "3.8": str(self.phase3_8_dir),
+        }
+        if self.use_probe:
+            dependencies["2.6"] = str(self.phase2_6_dir)
+
         write_phase_output(
             phase="3.10",
             outputs={
@@ -659,11 +771,8 @@ class TemperatureAUROCEvaluator:
             },
             config=self.config,
             output_dir=str(self.output_dir),
-            dependencies={
-                "3.5": str(self.phase3_5_dir),
-                "3.8": str(self.phase3_8_dir),
-            },
-            config_keys=['model_name', 'dataset_name']
+            dependencies=dependencies,
+            config_keys=['model_name', 'dataset_name', 'direction_source']
         )
         self.logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
     
@@ -682,6 +791,7 @@ class TemperatureAUROCEvaluator:
             return {}
 
         self.logger.info("Starting Phase 3.10: Temperature-Based AUROC Analysis")
+        self.logger.info(f"Direction source: {self.direction_source}")
         self.logger.info("Using per-sample analysis (no aggregation)")
 
         # Load best features from Phase 3.8

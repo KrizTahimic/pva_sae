@@ -2,6 +2,8 @@
 
 This script evaluates bidirectional SAE latents (correct-predicting and incorrect-predicting)
 using AUROC and F1 metrics on the validation split from Phase 7.3 instruction-tuned model data.
+
+Supports both SAE latents (default) and probe directions (--direction-source probe_logreg).
 """
 
 import json
@@ -29,6 +31,7 @@ from common.viz_utils import handle_viz_only_mode
 from common.utils import save_json, load_json
 from common.sae_loader import load_sae_for_config
 from common.tensor_utils import load_activation
+from safetensors.torch import load_file
 
 logger = get_logger("phase7_12.instruct_auroc_f1_evaluator")
 
@@ -366,6 +369,95 @@ def load_instruct_activations(
 
     return np.array(labels), np.array(activations)
 
+
+def load_instruct_activations_probe(
+    layer_num: int,
+    probe_direction: torch.Tensor,
+    probe_bias: float,
+    latent_type: str,
+    phase0_1_dir: Path,
+    phase7_3_dir: Path,
+    config: Config,
+    dataset_name: str = "mbpp"
+) -> tuple[np.ndarray, np.ndarray]:
+    """Load activations and score with probe direction from Phase 7.3 instruction-tuned model data.
+
+    Args:
+        layer_num: Layer number for probe
+        probe_direction: Probe direction tensor
+        probe_bias: Probe bias value
+        latent_type: 'correct' or 'incorrect'
+        phase0_1_dir: Directory containing Phase 0.1 outputs
+        phase7_3_dir: Directory containing Phase 7.3 outputs (instruct model validation data)
+        config: Config object
+        dataset_name: "mbpp" or "humaneval"
+
+    Returns:
+        Tuple of (labels, scores)
+    """
+    # Load analysis split data (use dataset-specific filename)
+    if dataset_name == "humaneval":
+        split_data = pd.read_parquet(phase0_1_dir / 'humaneval.parquet')
+    else:
+        split_data = pd.read_parquet(phase0_1_dir / 'analysis_mbpp.parquet')
+
+    # Load instruction-tuned model temperature 0.0 dataset from Phase 7.3
+    temp_data = pd.read_parquet(phase7_3_dir / 'dataset_instruct_temp_0_0.parquet')
+
+    device = detect_device()
+    scores = []
+    labels = []
+    missing_tasks = []
+
+    for _, row in split_data.iterrows():
+        task_id = row['task_id']
+
+        # Load raw activations from Phase 7.3
+        act_file = phase7_3_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.safetensors'
+
+        if not act_file.exists():
+            missing_tasks.append(task_id)
+            continue
+
+        # Get test result from temperature 0.0 dataset
+        task_results = temp_data[temp_data['task_id'] == task_id]['baseline_passed'].values
+        if len(task_results) == 0:
+            logger.warning(f"No test results found for task {task_id}")
+            continue
+
+        # Load activation (preserves bfloat16)
+        raw_activation = load_activation(act_file, device)
+
+        # Score with probe direction
+        with torch.no_grad():
+            raw_activation = raw_activation.to(dtype=probe_direction.dtype)
+            if raw_activation.ndim > 1:
+                raw_activation = raw_activation.squeeze()
+            score = (raw_activation @ probe_direction).item() + probe_bias
+
+        scores.append(score)
+
+        # Use the result at temperature 0.0
+        baseline_passed = task_results[0]
+
+        # Create label based on what we're predicting
+        if latent_type == 'correct':
+            # Predicting correctness: 1=correct, 0=incorrect
+            label = 1 if baseline_passed else 0
+        else:
+            # Predicting incorrectness: 1=incorrect, 0=correct
+            label = 1 if not baseline_passed else 0
+
+        labels.append(label)
+
+    if missing_tasks:
+        logger.warning(f"Missing activation files for {len(missing_tasks)} tasks: {missing_tasks[:5]}...")
+
+    logger.info(f"Loaded {len(labels)} samples from instruction-tuned model data (probe scoring)")
+    logger.info(f"Class distribution: {np.bincount(labels)}")
+
+    return np.array(labels), np.array(scores)
+
 def main():
     parser = argparse.ArgumentParser(description="Phase 7.12: AUROC and F1 Evaluation for Instruction-Tuned Model")
     parser.add_argument("--phase0-1-dir", type=str, help="Path to Phase 0.1 output directory")
@@ -379,6 +471,16 @@ def main():
     config = Config()
     np.random.seed(config.evaluation_random_seed)
     torch.manual_seed(config.evaluation_random_seed)
+
+    # Determine direction source
+    direction_source = getattr(config, 'direction_source', 'sae')
+    use_probe = direction_source == 'probe_logreg'
+    device = detect_device()
+
+    if use_probe:
+        logger.info("=" * 60)
+        logger.info("PROBE MODE: Using LogReg probe from Phase 2.6")
+        logger.info("=" * 60)
 
     # Auto-discover phase outputs if not provided (with dataset suffix support)
     if not args.phase0_1_dir:
@@ -407,12 +509,14 @@ def main():
     else:
         phase7_3_dir = Path(args.phase7_3_dir)
 
-    # Create output directory with dataset suffix
+    # Create output directory with dataset suffix (add "_probe" suffix for probe mode)
     if args.output_dir:
         output_dir = Path(args.output_dir)
     else:
         from common.phase_discovery import get_phase_output_dir
         output_dir = Path(get_phase_output_dir('7.12', config))
+        if use_probe:
+            output_dir = output_dir.parent / (output_dir.name + "_probe")
     ensure_directory_exists(output_dir)
     logger.info(f"Output directory: {output_dir}")
 
@@ -432,53 +536,73 @@ def main():
         logger.info("Visualization regeneration complete")
         return
 
-    # Phase 1: Load best features from Phase 2.10 (t-statistic based selection)
-    logger.info("Loading best features from Phase 2.10...")
+    # Phase 1: Load best features/probe directions
+    if use_probe:
+        # === PROBE MODE ===
+        logger.info("Loading probe directions from Phase 2.6...")
+        from common.steering_setup import load_probe_directions_for_predicting
+        probe = load_probe_directions_for_predicting(config, device, method="logreg")
 
-    # Auto-discover Phase 2.10 output
-    phase2_10_dir = discover_latest_phase_output("2.10")
-    if not phase2_10_dir:
-        raise FileNotFoundError("No Phase 2.10 output found. Please run Phase 2.10 first.")
-    phase2_10_dir = Path(phase2_10_dir).parent
+        probe_layer = probe.layer
+        correct_direction = probe.correct_direction
+        incorrect_direction = probe.incorrect_direction
+        probe_bias = probe.bias
 
-    # Load best latents from Phase 2.10
-    top_latents_file = phase2_10_dir / 'top_20_latents.json'
-    if not top_latents_file.exists():
-        raise FileNotFoundError(f"top_20_latents.json not found in {phase2_10_dir}. Please run Phase 2.10 first.")
+        logger.info(f"LogReg probe: layer {probe_layer}, bias {probe_bias:.4f}")
+    else:
+        # === SAE MODE ===
+        logger.info("Loading best features from Phase 2.10...")
 
-    top_latents = load_json(top_latents_file)
+        # Auto-discover Phase 2.10 output
+        phase2_10_dir = discover_latest_phase_output("2.10")
+        if not phase2_10_dir:
+            raise FileNotFoundError("No Phase 2.10 output found. Please run Phase 2.10 first.")
+        phase2_10_dir = Path(phase2_10_dir).parent
 
-    # Validate structure
-    if 'correct' not in top_latents or 'incorrect' not in top_latents:
-        raise ValueError("Missing 'correct' or 'incorrect' in top_20_latents.json")
+        # Load best latents from Phase 2.10
+        top_latents_file = phase2_10_dir / 'top_20_latents.json'
+        if not top_latents_file.exists():
+            raise FileNotFoundError(f"top_20_latents.json not found in {phase2_10_dir}. Please run Phase 2.10 first.")
 
-    if not top_latents['correct'] or not top_latents['incorrect']:
-        raise ValueError("Empty latent list in top_20_latents.json")
+        top_latents = load_json(top_latents_file)
 
-    # Get the best (index 0) latents
-    best_correct = top_latents['correct'][0]
-    best_incorrect = top_latents['incorrect'][0]
+        # Validate structure
+        if 'correct' not in top_latents or 'incorrect' not in top_latents:
+            raise ValueError("Missing 'correct' or 'incorrect' in top_20_latents.json")
 
-    correct_layer = best_correct['layer']
-    correct_latent_idx = best_correct['latent_idx']
-    incorrect_layer = best_incorrect['layer']
-    incorrect_latent_idx = best_incorrect['latent_idx']
+        if not top_latents['correct'] or not top_latents['incorrect']:
+            raise ValueError("Empty latent list in top_20_latents.json")
 
-    logger.info(f"Best correct-predicting latent: idx {correct_latent_idx} at layer {correct_layer}")
-    logger.info(f"Best incorrect-predicting latent: idx {incorrect_latent_idx} at layer {incorrect_layer}")
+        # Get the best (index 0) latents
+        best_correct = top_latents['correct'][0]
+        best_incorrect = top_latents['incorrect'][0]
 
-    # Phase 2: Evaluate Correct-Predicting Latent on Instruction-Tuned Model
+        correct_layer = best_correct['layer']
+        correct_latent_idx = best_correct['latent_idx']
+        incorrect_layer = best_incorrect['layer']
+        incorrect_latent_idx = best_incorrect['latent_idx']
+
+        logger.info(f"Best correct-predicting latent: idx {correct_latent_idx} at layer {correct_layer}")
+        logger.info(f"Best incorrect-predicting latent: idx {incorrect_latent_idx} at layer {incorrect_layer}")
+
+    # Phase 2: Evaluate Correct-Predicting Direction on Instruction-Tuned Model
     logger.info("\n" + "="*60)
-    logger.info("EVALUATING CORRECT-PREDICTING LATENT (INSTRUCT MODEL)")
+    logger.info(f"EVALUATING CORRECT-PREDICTING {'PROBE' if use_probe else 'LATENT'} (INSTRUCT MODEL)")
     logger.info("="*60)
 
-    # Load validation data for correct latent from instruction-tuned model
-    y_true_correct, scores_correct = load_instruct_activations(
-        correct_layer, correct_latent_idx, 'correct',
-        phase0_1_dir, phase7_3_dir, config, config.dataset_name
-    )
+    # Load validation data for correct direction from instruction-tuned model
+    if use_probe:
+        y_true_correct, scores_correct = load_instruct_activations_probe(
+            probe_layer, correct_direction, probe_bias, 'correct',
+            phase0_1_dir, phase7_3_dir, config, config.dataset_name
+        )
+    else:
+        y_true_correct, scores_correct = load_instruct_activations(
+            correct_layer, correct_latent_idx, 'correct',
+            phase0_1_dir, phase7_3_dir, config, config.dataset_name
+        )
 
-    logger.info(f"\nCorrect-predicting feature (instruction-tuned model):")
+    logger.info(f"\nCorrect-predicting {'probe' if use_probe else 'feature'} (instruction-tuned model):")
     logger.info(f"Total samples: {len(y_true_correct)}")
     logger.info(f"Positive class (correct code): {sum(y_true_correct == 1)}")
     logger.info(f"Negative class (incorrect code): {sum(y_true_correct == 0)}")
@@ -492,18 +616,24 @@ def main():
         output_dir
     )
 
-    # Phase 3: Evaluate Incorrect-Predicting Latent on Instruction-Tuned Model
+    # Phase 3: Evaluate Incorrect-Predicting Direction on Instruction-Tuned Model
     logger.info("\n" + "="*60)
-    logger.info("EVALUATING INCORRECT-PREDICTING LATENT (INSTRUCT MODEL)")
+    logger.info(f"EVALUATING INCORRECT-PREDICTING {'PROBE' if use_probe else 'LATENT'} (INSTRUCT MODEL)")
     logger.info("="*60)
 
-    # Load validation data for incorrect latent from instruction-tuned model
-    y_true_incorrect, scores_incorrect = load_instruct_activations(
-        incorrect_layer, incorrect_latent_idx, 'incorrect',
-        phase0_1_dir, phase7_3_dir, config, config.dataset_name
-    )
+    # Load validation data for incorrect direction from instruction-tuned model
+    if use_probe:
+        y_true_incorrect, scores_incorrect = load_instruct_activations_probe(
+            probe_layer, incorrect_direction, -probe_bias, 'incorrect',
+            phase0_1_dir, phase7_3_dir, config, config.dataset_name
+        )
+    else:
+        y_true_incorrect, scores_incorrect = load_instruct_activations(
+            incorrect_layer, incorrect_latent_idx, 'incorrect',
+            phase0_1_dir, phase7_3_dir, config, config.dataset_name
+        )
 
-    logger.info(f"\nIncorrect-predicting feature (instruction-tuned model):")
+    logger.info(f"\nIncorrect-predicting {'probe' if use_probe else 'feature'} (instruction-tuned model):")
     logger.info(f"Total samples: {len(y_true_incorrect)}")
     logger.info(f"Positive class (incorrect code): {sum(y_true_incorrect == 1)}")
     logger.info(f"Negative class (correct code): {sum(y_true_incorrect == 0)}")
@@ -521,11 +651,46 @@ def main():
     logger.info("SAVING RESULTS")
     logger.info("="*60)
 
-    # Compile results for both latents
+    # Compile results
     results = {
         'phase': '7.12',
         'model_type': 'instruction-tuned (gemma-2-2b-it)',
-        'correct_predicting_latent': {
+        'direction_source': direction_source,
+        'creation_timestamp': datetime.now().isoformat()
+    }
+
+    if use_probe:
+        results['probe_info'] = {
+            'method': 'logreg',
+            'layer': int(probe_layer),
+            'bias': float(probe_bias),
+        }
+        results['correct_predicting_latent'] = {
+            'probe': {
+                'layer': int(probe_layer),
+                'method': 'logreg'
+            },
+            'analysis_metrics': {
+                'split': 'analysis',
+                'n_samples': int(len(y_true_correct)),
+                'optimal_threshold': float(optimal_threshold_correct),
+                'metrics': metrics_correct
+            }
+        }
+        results['incorrect_predicting_latent'] = {
+            'probe': {
+                'layer': int(probe_layer),
+                'method': 'logreg'
+            },
+            'analysis_metrics': {
+                'split': 'analysis',
+                'n_samples': int(len(y_true_incorrect)),
+                'optimal_threshold': float(optimal_threshold_incorrect),
+                'metrics': metrics_incorrect
+            }
+        }
+    else:
+        results['correct_predicting_latent'] = {
             'latent': {
                 'idx': int(correct_latent_idx),
                 'layer': int(correct_layer)
@@ -536,8 +701,8 @@ def main():
                 'optimal_threshold': float(optimal_threshold_correct),
                 'metrics': metrics_correct
             }
-        },
-        'incorrect_predicting_latent': {
+        }
+        results['incorrect_predicting_latent'] = {
             'latent': {
                 'idx': int(incorrect_latent_idx),
                 'layer': int(incorrect_layer)
@@ -548,9 +713,7 @@ def main():
                 'optimal_threshold': float(optimal_threshold_incorrect),
                 'metrics': metrics_incorrect
             }
-        },
-        'creation_timestamp': datetime.now().isoformat()
-    }
+        }
 
     # Save comprehensive results
     save_json(results, output_dir / 'evaluation_results.json')
@@ -563,18 +726,26 @@ def main():
     )
 
     # Generate summary
+    if use_probe:
+        correct_header = f"\nCorrect-Predicting Probe (Layer {probe_layer}, LogReg):"
+        incorrect_header = f"\nIncorrect-Predicting Probe (Layer {probe_layer}, LogReg, negated):"
+    else:
+        correct_header = f"\nCorrect-Predicting Latent (Layer {correct_layer}, Latent {correct_latent_idx}):"
+        incorrect_header = f"\nIncorrect-Predicting Latent (Layer {incorrect_layer}, Latent {incorrect_latent_idx}):"
+
     summary_lines = [
         "=" * 60,
         "PHASE 7.12 FINAL RESULTS SUMMARY",
         "INSTRUCTION-TUNED MODEL (gemma-2-2b-it)",
+        f"Direction source: {direction_source}",
         "=" * 60,
-        f"\nCorrect-Predicting Latent (Layer {correct_layer}, Latent {correct_latent_idx}):",
+        correct_header,
         f"  Optimal Threshold: {optimal_threshold_correct:.4f}",
         f"  AUROC: {metrics_correct['auroc']:.4f}",
         f"  F1: {metrics_correct['f1']:.4f}",
         f"  Precision: {metrics_correct['precision']:.4f}",
         f"  Recall: {metrics_correct['recall']:.4f}",
-        f"\nIncorrect-Predicting Latent (Layer {incorrect_layer}, Latent {incorrect_latent_idx}):",
+        incorrect_header,
         f"  Optimal Threshold: {optimal_threshold_incorrect:.4f}",
         f"  AUROC: {metrics_incorrect['auroc']:.4f}",
         f"  F1: {metrics_incorrect['f1']:.4f}",

@@ -56,22 +56,20 @@ class ProbeDirections:
     phase_dir: str
 
 
-def load_probe_directions(
+def _load_probe_base(
     config: Config,
     device: torch.device,
-    model: nn.Module,
-    method: str = "mass_mean"
-) -> ProbeDirections:
-    """Load probe directions from Phase 2.6.
+    method: str
+) -> tuple[torch.Tensor, int, float, str]:
+    """Internal helper to load probe directions from Phase 2.6.
 
     Args:
         config: Configuration object
         device: Target device for tensors
-        model: The language model (for dtype matching)
         method: "mass_mean" (for steering) or "logreg" (for prediction)
 
     Returns:
-        ProbeDirections dataclass with direction tensors
+        Tuple of (direction tensor, layer, bias, phase_dir)
 
     Raises:
         FileNotFoundError: If Phase 2.6 output not found
@@ -105,7 +103,76 @@ def load_probe_directions(
     direction_key = f"{method}_direction"
     direction = tensors[direction_key].to(device)
 
-    # Match model dtype
+    return direction, best_layer, bias, phase_dir
+
+
+def load_probe_directions_for_predicting(
+    config: Config,
+    device: torch.device,
+    method: str = "logreg"
+) -> ProbeDirections:
+    """Load probe directions for PREDICTION/DETECTION tasks (Phases 3.x, 8.2 prediction).
+
+    Use this when scoring activations for AUROC/F1 metrics. Does NOT require
+    the LLM model since no dtype matching is needed for dot-product scoring.
+
+    Args:
+        config: Configuration object
+        device: Target device for tensors
+        method: "logreg" (default, optimal for detection) or "mass_mean"
+
+    Returns:
+        ProbeDirections dataclass with direction tensors in float32
+
+    Raises:
+        FileNotFoundError: If Phase 2.6 output not found
+        ValueError: If invalid method specified
+    """
+    direction, best_layer, bias, phase_dir = _load_probe_base(config, device, method)
+
+    # Keep as float32 for scoring (no model dtype matching needed)
+    correct_direction = direction
+    incorrect_direction = -direction  # Negate for incorrect prediction
+
+    logger.info(f"Probe direction loaded in dtype: {direction.dtype}")
+
+    return ProbeDirections(
+        correct_direction=correct_direction,
+        incorrect_direction=incorrect_direction,
+        layer=best_layer,
+        method=method,
+        bias=bias,
+        phase_dir=phase_dir,
+    )
+
+
+def load_probe_directions_for_steering(
+    config: Config,
+    device: torch.device,
+    model: nn.Module,
+    method: str = "mass_mean"
+) -> ProbeDirections:
+    """Load probe directions for STEERING tasks (Phases 4.x, 5.x, 7.x, 8.x steering).
+
+    Use this when modifying model activations via steering hooks. Requires
+    the LLM model to match probe direction dtype with model dtype.
+
+    Args:
+        config: Configuration object
+        device: Target device for tensors
+        model: The language model (for dtype matching)
+        method: "mass_mean" (default, optimal for steering) or "logreg"
+
+    Returns:
+        ProbeDirections dataclass with direction tensors matching model dtype
+
+    Raises:
+        FileNotFoundError: If Phase 2.6 output not found
+        ValueError: If invalid method specified
+    """
+    direction, best_layer, bias, phase_dir = _load_probe_base(config, device, method)
+
+    # Match model dtype for activation modification
     model_dtype = next(model.parameters()).dtype
     direction = direction.to(dtype=model_dtype)
 
@@ -124,6 +191,36 @@ def load_probe_directions(
         bias=bias,
         phase_dir=phase_dir,
     )
+
+
+def load_probe_directions(
+    config: Config,
+    device: torch.device,
+    model: nn.Module,
+    method: str = "mass_mean"
+) -> ProbeDirections:
+    """Load probe directions from Phase 2.6.
+
+    DEPRECATED: Use load_probe_directions_for_steering() for steering tasks
+    or load_probe_directions_for_predicting() for detection/prediction tasks.
+
+    This function is kept for backward compatibility and delegates to
+    load_probe_directions_for_steering().
+
+    Args:
+        config: Configuration object
+        device: Target device for tensors
+        model: The language model (for dtype matching)
+        method: "mass_mean" (for steering) or "logreg" (for prediction)
+
+    Returns:
+        ProbeDirections dataclass with direction tensors
+    """
+    logger.warning(
+        "load_probe_directions() is deprecated. Use load_probe_directions_for_steering() "
+        "for steering tasks or load_probe_directions_for_predicting() for detection tasks."
+    )
+    return load_probe_directions_for_steering(config, device, model, method)
 
 
 def get_direction_source_info(config: Config) -> dict:

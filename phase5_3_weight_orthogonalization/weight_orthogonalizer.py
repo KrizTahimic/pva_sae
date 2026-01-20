@@ -62,8 +62,14 @@ class WeightOrthogonalizer:
         self.n_gpus = n_gpus
         self.device = detect_device()
 
-        # Phase output directories with dataset suffix
+        # Determine direction source
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source == 'probe_mass_mean'
+
+        # Phase output directories with dataset suffix (add "_probe" suffix for probe mode)
         self.output_dir = Path(get_phase_output_dir('5.3', config))
+        if self.use_probe:
+            self.output_dir = self.output_dir.parent / (self.output_dir.name + "_probe")
         ensure_directory_exists(self.output_dir)
         logger.info(f"Output directory: {self.output_dir}")
 
@@ -95,30 +101,54 @@ class WeightOrthogonalizer:
     def _load_dependencies(self) -> None:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
-            load_steering_latents, load_sae_and_directions, load_baseline_data
+            load_steering_latents, load_sae_and_directions, load_baseline_data,
+            load_probe_directions_for_steering
         )
 
-        # Load steering latents from Phase 2.5 (separation score selection)
-        latents = load_steering_latents(self.config)
-        self.top_latents = latents.top_latents
-        self.best_correct_latent = latents.best_correct_latent
-        self.best_incorrect_latent = latents.best_incorrect_latent
-        self.phase2_5_dir = latents.phase_dir
+        if self.use_probe:
+            # === PROBE MODE ===
+            logger.info("=" * 60)
+            logger.info("PROBE MODE: Using Mass-Mean probe from Phase 2.6")
+            logger.info("=" * 60)
+
+            # Load probe directions from Phase 2.6
+            self.probe = load_probe_directions_for_steering(
+                self.config, self.device, self.model, method="mass_mean"
+            )
+            self.correct_latent_direction = self.probe.correct_direction
+            self.incorrect_latent_direction = self.probe.incorrect_direction
+            self.probe_layer = self.probe.layer
+            self.phase2_5_dir = self.probe.phase_dir  # Actually Phase 2.6
+
+            # Probe mode doesn't use SAE
+            self.top_latents = None
+            self.correct_sae = None
+            self.incorrect_sae = None
+
+            logger.info(f"Mass-mean probe layer: {self.probe.layer}")
+        else:
+            # === SAE MODE ===
+            # Load steering latents from Phase 2.5 (separation score selection)
+            latents = load_steering_latents(self.config)
+            self.top_latents = latents.top_latents
+            self.best_correct_latent = latents.best_correct_latent
+            self.best_incorrect_latent = latents.best_incorrect_latent
+            self.phase2_5_dir = latents.phase_dir
+
+            # Load SAE models and extract latent directions (uses self.model for dtype)
+            sae = load_sae_and_directions(
+                self.config, self.device, self.model,
+                self.best_correct_latent, self.best_incorrect_latent
+            )
+            self.correct_sae = sae.correct_sae
+            self.incorrect_sae = sae.incorrect_sae
+            self.correct_latent_direction = sae.correct_direction
+            self.incorrect_latent_direction = sae.incorrect_direction
 
         # Load baseline data from Phase 3.5
         self.baseline_data, self.phase3_5_dir = load_baseline_data(
             self.config, "3.5", "dataset_temp_0_0.parquet"
         )
-
-        # Load SAE models and extract latent directions (uses self.model for dtype)
-        sae = load_sae_and_directions(
-            self.config, self.device, self.model,
-            self.best_correct_latent, self.best_incorrect_latent
-        )
-        self.correct_sae = sae.correct_sae
-        self.incorrect_sae = sae.incorrect_sae
-        self.correct_latent_direction = sae.correct_direction
-        self.incorrect_latent_direction = sae.incorrect_direction
 
         logger.info("Dependencies loaded successfully")
 
@@ -725,6 +755,7 @@ class WeightOrthogonalizer:
         # Compile final results
         results = {
             'timestamp': datetime.now().isoformat(),
+            'direction_source': self.direction_source,
             'config': {
                 'model': self.config.model_name,
                 'target_weights': self.config.orthogonalization_target_weights,
@@ -732,7 +763,19 @@ class WeightOrthogonalizer:
                 'n_correct_baseline': len(self.correct_baseline),
                 'n_incorrect_baseline': len(self.incorrect_baseline)
             },
-            'latents_used': {
+            'incorrect_orthogonalization': self.incorrect_results,
+            'correct_orthogonalization': self.correct_results,
+            'runtime_seconds': time.time() - start_time
+        }
+
+        # Add direction info based on mode
+        if self.use_probe:
+            results['probe_info'] = {
+                'method': 'mass_mean',
+                'layer': self.probe.layer,
+            }
+        else:
+            results['latents_used'] = {
                 'correct': {
                     'layer': self.best_correct_latent['layer'],
                     'latent_idx': self.best_correct_latent['latent_idx'],
@@ -743,11 +786,7 @@ class WeightOrthogonalizer:
                     'latent_idx': self.best_incorrect_latent['latent_idx'],
                     'score': self.best_incorrect_latent.get('separation_score', self.best_incorrect_latent.get('t_statistic'))
                 }
-            },
-            'incorrect_orthogonalization': self.incorrect_results,
-            'correct_orthogonalization': self.correct_results,
-            'runtime_seconds': time.time() - start_time
-        }
+            }
         
         # Save main results
         save_json(results, self.output_dir / "orthogonalization_results.json")

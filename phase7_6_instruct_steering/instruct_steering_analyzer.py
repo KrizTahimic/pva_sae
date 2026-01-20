@@ -77,8 +77,14 @@ class InstructSteeringAnalyzer:
         self.n_gpus = n_gpus
         self.device = detect_device()
 
-        # Phase output directories with dataset suffix
+        # Determine direction source
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source == 'probe_mass_mean'
+
+        # Phase output directories with dataset suffix (add "_probe" suffix for probe mode)
         self.output_dir = Path(get_phase_output_dir('7.6', config))
+        if self.use_probe:
+            self.output_dir = self.output_dir.parent / (self.output_dir.name + "_probe")
         ensure_directory_exists(self.output_dir)
         logger.info(f"Output directory: {self.output_dir}")
         
@@ -111,38 +117,90 @@ class InstructSteeringAnalyzer:
     def _load_dependencies(self) -> None:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
-            load_steering_latents, load_sae_and_directions, load_baseline_data
+            load_steering_latents, load_sae_and_directions, load_baseline_data,
+            load_probe_directions_for_steering
         )
 
-        # Load steering latents from Phase 2.5 (separation score selection)
-        latents = load_steering_latents(self.config)
-        self.top_latents = latents.top_latents
-        self.best_correct_latent = latents.best_correct_latent
-        self.best_incorrect_latent = latents.best_incorrect_latent
+        if self.use_probe:
+            # === PROBE MODE ===
+            logger.info("=" * 60)
+            logger.info("PROBE MODE: Using Mass-Mean probe from Phase 2.6")
+            logger.info("=" * 60)
+
+            # Load probe directions from Phase 2.6
+            self.probe = load_probe_directions_for_steering(
+                self.config, self.device, self.model, method="mass_mean"
+            )
+            self.correct_latent_direction = self.probe.correct_direction
+            self.incorrect_latent_direction = self.probe.incorrect_direction
+            self.probe_layer = self.probe.layer
+
+            # Probe mode doesn't use SAE
+            self.top_latents = None
+            self.correct_sae = None
+            self.incorrect_sae = None
+
+            logger.info(f"Mass-mean probe layer: {self.probe.layer}")
+        else:
+            # === SAE MODE ===
+            # Load steering latents from Phase 2.5 (separation score selection)
+            latents = load_steering_latents(self.config)
+            self.top_latents = latents.top_latents
+            self.best_correct_latent = latents.best_correct_latent
+            self.best_incorrect_latent = latents.best_incorrect_latent
+
+            # Load SAE models and extract latent directions
+            sae = load_sae_and_directions(
+                self.config, self.device, self.model,
+                self.best_correct_latent, self.best_incorrect_latent
+            )
+            self.correct_sae = sae.correct_sae
+            self.incorrect_sae = sae.incorrect_sae
+            self.correct_latent_direction = sae.correct_direction
+            self.incorrect_latent_direction = sae.incorrect_direction
 
         # Load baseline data from Phase 7.3 (instruction-tuned baseline)
         self.baseline_data, _ = load_baseline_data(
             self.config, "7.3", "dataset_instruct_temp_0_0.parquet"
         )
 
-        # Load SAE models and extract latent directions
-        sae = load_sae_and_directions(
-            self.config, self.device, self.model,
-            self.best_correct_latent, self.best_incorrect_latent
-        )
-        self.correct_sae = sae.correct_sae
-        self.incorrect_sae = sae.incorrect_sae
-        self.correct_latent_direction = sae.correct_direction
-        self.incorrect_latent_direction = sae.incorrect_direction
-
         # Load steering coefficients from Phase 4.6
-        from common.phase_discovery import discover_steering_coefficients
-        coefficients = discover_steering_coefficients(self.config)
-        self.correct_coefficient = coefficients["correct"]
-        self.incorrect_coefficient = coefficients["incorrect"]
-        logger.info(f"Loaded coefficients from Phase 4.6: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
+        self._load_steering_coefficients()
 
         logger.info("Dependencies loaded successfully")
+
+    def _load_steering_coefficients(self) -> None:
+        """Load steering coefficients from Phase 4.6."""
+        from common.phase_discovery import discover_steering_coefficients, discover_latest_phase_output
+
+        if self.use_probe:
+            # For probe mode, look in the _probe directory
+            phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
+            if not phase4_6_output:
+                raise FileNotFoundError("Phase 4.6 output not found. Run Phase 4.6 first.")
+            phase4_6_dir = Path(phase4_6_output).parent
+            probe_dir = phase4_6_dir.parent / (phase4_6_dir.name + "_probe")
+
+            if not probe_dir.exists():
+                raise FileNotFoundError(
+                    f"Phase 4.6 probe output not found at {probe_dir}. "
+                    f"Run Phase 4.6 with --direction-source probe_mass_mean first."
+                )
+
+            # Load coefficients directly from probe directory
+            coefficients_file = probe_dir / "refined_coefficients.json"
+            if not coefficients_file.exists():
+                raise FileNotFoundError(f"Refined coefficients not found: {coefficients_file}")
+
+            coefficients_data = load_json(coefficients_file)
+            self.correct_coefficient = coefficients_data.get("correct", {}).get("refined_coefficient", 30)
+            self.incorrect_coefficient = coefficients_data.get("incorrect", {}).get("refined_coefficient", 100)
+            logger.info(f"Loaded probe coefficients from {probe_dir}: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
+        else:
+            coefficients = discover_steering_coefficients(self.config)
+            self.correct_coefficient = coefficients["correct"]
+            self.incorrect_coefficient = coefficients["incorrect"]
+            logger.info(f"Loaded SAE coefficients from Phase 4.6: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
 
     def _get_checkpoint_pattern(self, steering_type: str, timestamp: str = None, for_glob: bool = False) -> str:
         """Get checkpoint filename pattern."""
@@ -284,18 +342,29 @@ class InstructSteeringAnalyzer:
         logger.info(f"Applying {steering_type} steering with coefficient {coefficient} to {len(problems_df)} problems on instruction-tuned model")
         
         # Select decoder direction and target layer based on steering type
-        if steering_type == 'correct':
-            latent_direction = self.correct_latent_direction
-            target_layer = self.best_correct_latent['layer']
-        elif steering_type == 'preservation':
-            # Use same correct feature for preservation
-            latent_direction = self.correct_latent_direction
-            target_layer = self.best_correct_latent['layer']
-        elif steering_type == 'incorrect':
-            latent_direction = self.incorrect_latent_direction
-            target_layer = self.best_incorrect_latent['layer']
+        if self.use_probe:
+            # Probe mode: same layer for both directions
+            target_layer = self.probe.layer
+            if steering_type in ('correct', 'preservation'):
+                latent_direction = self.correct_latent_direction
+            elif steering_type == 'incorrect':
+                latent_direction = self.incorrect_latent_direction
+            else:
+                raise ValueError(f"Invalid steering_type: {steering_type}")
         else:
-            raise ValueError(f"Invalid steering_type: {steering_type}. Must be 'correct', 'preservation', or 'incorrect'")
+            # SAE mode: different layers for correct/incorrect
+            if steering_type == 'correct':
+                latent_direction = self.correct_latent_direction
+                target_layer = self.best_correct_latent['layer']
+            elif steering_type == 'preservation':
+                # Use same correct feature for preservation
+                latent_direction = self.correct_latent_direction
+                target_layer = self.best_correct_latent['layer']
+            elif steering_type == 'incorrect':
+                latent_direction = self.incorrect_latent_direction
+                target_layer = self.best_incorrect_latent['layer']
+            else:
+                raise ValueError(f"Invalid steering_type: {steering_type}. Must be 'correct', 'preservation', or 'incorrect'")
         
         # Check for existing checkpoint
         checkpoint_data = self.load_checkpoint(steering_type)
@@ -882,7 +951,16 @@ class InstructSteeringAnalyzer:
                     metrics['preservation_rate'] > 50
                 )
             },
-            'latents_used': {
+        }
+
+        # Add direction info based on mode
+        if self.use_probe:
+            summary['probe_info'] = {
+                'method': 'mass_mean',
+                'layer': self.probe.layer,
+            }
+        else:
+            summary['latents_used'] = {
                 'correct': {
                     'layer': self.best_correct_latent['layer'],
                     'latent_idx': self.best_correct_latent['latent_idx'],

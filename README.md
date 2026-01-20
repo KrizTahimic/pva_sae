@@ -1,15 +1,19 @@
-# SAE-Code-Correctness: Sparse Autoencoder Analysis of Code Correctness
+# Linear Representation of Code Correctness in LLMs
 
-This repository contains the implementation for investigating program validity awareness in language models using Sparse Autoencoders (SAEs).
+This repository investigates the **Linear Representation Hypothesis** for code correctness in language models: the claim that LLMs linearly encode whether generated code will pass tests.
 
 ## Overview
 
-This research analyzes how language models internally represent the concept of code correctness. Using Google's Gemma 2 model (2B parameters) with the MBPP and HumanEval datasets, we:
+We provide evidence from two complementary methods:
+- **Sparse Autoencoders (SAE)**: Unsupervised discovery of correctness-encoding latent directions
+- **Linear Probes**: Supervised validation with logistic regression and mass-mean difference
 
-1. Generate Python code solutions using a base language model
-2. Classify solutions as correct (pass@1) or incorrect based on test execution
-3. Apply Sparse Autoencoders from GemmaScope to identify latent directions that encode correctness
-4. Validate findings through statistical analysis (AUROC, F1) and causal intervention via model steering
+Using Google's Gemma 2 models with MBPP and HumanEval datasets, we:
+
+1. Generate Python code solutions and classify as correct/incorrect via test execution
+2. Identify linear directions encoding correctness using SAE latents and probe methods
+3. Validate through statistical metrics (AUROC, F1) and causal steering interventions
+4. Demonstrate that different methods find complementary projections of the same underlying representation
 
 ## Installation
 
@@ -113,9 +117,17 @@ python3 run.py phase 8.3     # Threshold-based steering
 ### Key Options
 
 ```bash
---start N --end M    # Process subset (for testing)
---viz-only           # Regenerate plots only (seconds vs hours)
+--start N --end M              # Process subset (for testing)
+--viz-only                     # Regenerate plots only (seconds vs hours)
+--direction-source SOURCE      # Direction source: sae, probe_logreg, probe_mass_mean
 ```
+
+#### Direction Sources
+| Source | Method | Best For |
+|--------|--------|----------|
+| `sae` (default) | SAE decoder directions from Phase 2.5/2.10 | Unsupervised discovery |
+| `probe_logreg` | Logistic regression from Phase 2.6 | Detection (AUROC/F1) |
+| `probe_mass_mean` | Mean difference from Phase 2.6 | Steering (correction/corruption) |
 
 ## Methodology
 
@@ -148,11 +160,18 @@ All data available on [HuggingFace](https://huggingface.co/datasets/kriztahimic/
 
 ## Key Findings
 
-The analysis identifies latent directions in language models that:
-1. Discriminate between correct and incorrect code with high AUROC (>0.7)
-2. Demonstrate causal influence through steering interventions
-3. Show robustness across different generation temperatures
-4. Transfer between base and instruction-tuned model variants
+| Task | Method | Best Layer | Metric |
+|------|--------|------------|--------|
+| Detection | LogReg Probe | L18 | AUROC 0.89 |
+| Detection | SAE | L17 | F1 0.82 |
+| Steering | Mass-Mean Probe | L11 | **13.3% correction** |
+| Steering | SAE | L16 | ~3-4% correction |
+
+**Key insights:**
+1. Code correctness is linearly represented in middle layers (L11-L18)
+2. SAE provides unsupervised discovery; probes enable stronger causal intervention
+3. Different methods find complementary projections of the same underlying representation
+4. Representations transfer between base and instruction-tuned model variants
 
 ## Hardware Requirements
 

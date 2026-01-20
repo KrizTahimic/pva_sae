@@ -108,7 +108,7 @@ class SteeringEffectAnalyzer:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
             load_steering_latents, load_sae_and_directions, load_baseline_data,
-            load_probe_directions
+            load_probe_directions_for_steering
         )
 
         if self.use_probe:
@@ -118,22 +118,20 @@ class SteeringEffectAnalyzer:
             logger.info("=" * 60)
 
             # Load probe directions from Phase 2.6
-            probe = load_probe_directions(
+            self.probe = load_probe_directions_for_steering(
                 self.config, self.device, self.model, method="mass_mean"
             )
-            self.correct_latent_direction = probe.correct_direction
-            self.incorrect_latent_direction = probe.incorrect_direction
-            self.probe_layer = probe.layer
-            self.phase2_5_dir = probe.phase_dir  # Actually Phase 2.6
+            self.correct_latent_direction = self.probe.correct_direction
+            self.incorrect_latent_direction = self.probe.incorrect_direction
+            self.probe_layer = self.probe.layer
+            self.phase2_5_dir = self.probe.phase_dir  # Actually Phase 2.6
 
-            # Create placeholder latent info for compatibility
-            self.best_correct_latent = {'layer': probe.layer, 'latent_idx': None}
-            self.best_incorrect_latent = {'layer': probe.layer, 'latent_idx': None}
+            # Probe mode doesn't use SAE
             self.top_latents = None
             self.correct_sae = None
             self.incorrect_sae = None
 
-            logger.info(f"Mass-mean probe layer: {probe.layer}")
+            logger.info(f"Mass-mean probe layer: {self.probe.layer}")
         else:
             # === SAE MODE (default) ===
             # Load steering latents from Phase 2.5 (separation score selection)
@@ -862,7 +860,15 @@ class SteeringEffectAnalyzer:
                     )
                 }
             },
-            'latents_used': {
+        }
+        # Add direction info based on mode
+        if self.use_probe:
+            summary['probe_info'] = {
+                'method': 'mass_mean',
+                'layer': self.probe.layer,
+            }
+        else:
+            summary['latents_used'] = {
                 'correct': {
                     'layer': self.best_correct_latent['layer'],
                     'latent_idx': self.best_correct_latent['latent_idx'],
@@ -874,7 +880,6 @@ class SteeringEffectAnalyzer:
                     'score': self.best_incorrect_latent.get('separation_score', self.best_incorrect_latent.get('t_statistic'))
                 }
             }
-        }
 
         # Save summary (use GPU-specific name in parallel mode)
         if self.n_gpus > 1:

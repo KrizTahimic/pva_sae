@@ -136,7 +136,7 @@ class SteeringCoefficientSelector:
         from common.steering_setup import (
             load_steering_latents, load_sae_and_directions,
             load_baseline_data, split_by_correctness,
-            load_probe_directions
+            load_probe_directions_for_steering
         )
 
         if self.use_probe:
@@ -146,22 +146,20 @@ class SteeringCoefficientSelector:
             logger.info("=" * 60)
 
             # Load probe directions from Phase 2.6
-            probe = load_probe_directions(
+            self.probe = load_probe_directions_for_steering(
                 self.config, self.device, self.model, method="mass_mean"
             )
-            self.correct_latent_direction = probe.correct_direction
-            self.incorrect_latent_direction = probe.incorrect_direction
-            self.probe_layer = probe.layer
-            self.phase2_5_output = probe.phase_dir  # For manifest (actually Phase 2.6)
+            self.correct_latent_direction = self.probe.correct_direction
+            self.incorrect_latent_direction = self.probe.incorrect_direction
+            self.probe_layer = self.probe.layer
+            self.phase2_5_output = self.probe.phase_dir  # For manifest (actually Phase 2.6)
 
-            # Create placeholder latent info for compatibility
-            self.best_correct_latent = {'layer': probe.layer, 'latent_idx': None}
-            self.best_incorrect_latent = {'layer': probe.layer, 'latent_idx': None}
+            # Probe mode doesn't use SAE
             self.top_latents = None
             self.correct_sae = None
             self.incorrect_sae = None
 
-            logger.info(f"Mass-mean probe layer: {probe.layer}")
+            logger.info(f"Mass-mean probe layer: {self.probe.layer}")
         else:
             # === SAE MODE (default) ===
             # Load steering latents from Phase 2.5 (separation score selection)
@@ -764,14 +762,23 @@ class SteeringCoefficientSelector:
                 metric_value = search_results['best_result']['metrics']['composite_score']
             
             # Save selected coefficient with metadata
-            latent_lookup = {'correct': self.best_correct_latent, 'incorrect': self.best_incorrect_latent}
             coeff_lookup = {'correct': self.config.phase4_5_correct_coefficients, 'incorrect': self.config.phase4_5_incorrect_coefficients}
-            best_latent = latent_lookup[steering_type]
+
+            if self.use_probe:
+                # Probe mode: use probe layer
+                layer = self.probe.layer
+                latent_idx = None  # Not applicable for probes
+            else:
+                # SAE mode: use latent info
+                latent_lookup = {'correct': self.best_correct_latent, 'incorrect': self.best_incorrect_latent}
+                best_latent = latent_lookup[steering_type]
+                layer = best_latent['layer']
+                latent_idx = best_latent['latent_idx']
 
             selected_coefficients[steering_type] = {
                 'coefficient': optimal_coeff,
-                'layer': best_latent['layer'],
-                'latent_idx': best_latent['latent_idx'],
+                'layer': layer,
+                'latent_idx': latent_idx,
                 primary_metric: metric_value,
                 'metrics': search_results['best_result']['metrics'],
                 'n_problems_evaluated': search_results['best_result']['n_problems'],
@@ -830,15 +837,16 @@ class SteeringCoefficientSelector:
             },
             'results': {
                 'selected_coefficients': selected_coefficients,
-                'best_correct_latent': self.best_correct_latent,
-                'best_incorrect_latent': self.best_incorrect_latent
             }
         }
         if self.use_probe:
             summary['probe_info'] = {
                 'method': 'mass_mean',
-                'layer': self.probe_layer,
+                'layer': self.probe.layer,
             }
+        else:
+            summary['results']['best_correct_latent'] = self.best_correct_latent
+            summary['results']['best_incorrect_latent'] = self.best_incorrect_latent
         
         # Save summary (use GPU-specific name in parallel mode)
         if self.n_gpus > 1:

@@ -126,34 +126,20 @@ def run_evaluation(config):
         logger.info("PROBE BASELINE MODE: Using LogReg probe from Phase 2.6")
         logger.info("=" * 60)
 
-        # Load Phase 2.6 probe directions
-        phase2_6_dir = discover_latest_phase_output("2.6", config=config)
-        if not phase2_6_dir:
-            raise FileNotFoundError("No Phase 2.6 output found. Run Phase 2.6 first.")
-        phase2_6_dir = Path(phase2_6_dir).parent
+        # Load probe directions using shared utility
+        from common.steering_setup import load_probe_directions_for_predicting
+        probe = load_probe_directions_for_predicting(config, detect_device(), method="logreg")
 
-        best_probes = load_json(phase2_6_dir / 'best_probe_directions.json')
-        probe_layer = best_probes['logreg']['best_layer']
-        probe_bias = best_probes['logreg'].get('bias', 0.0)
-
-        # Load probe direction tensor
-        from safetensors.torch import load_file
-        probe_file = phase2_6_dir / 'probe_directions' / f'layer_{probe_layer}_probes.safetensors'
-        if not probe_file.exists():
-            raise FileNotFoundError(f"Probe file not found: {probe_file}")
-
-        probe_tensors = load_file(str(probe_file))
-        probe_direction = probe_tensors['logreg_direction'].to(detect_device())
+        probe_layer = probe.layer
+        probe_bias = probe.bias
+        probe_direction = probe.correct_direction
 
         logger.info(f"LogReg probe: layer {probe_layer}, bias {probe_bias:.4f}")
-        logger.info(f"Probe CV AUROC: {best_probes['logreg']['cv_auroc']:.4f}")
 
-        # Set layer/idx for logging (probe uses same direction for both)
+        # Set layer for logging (probe uses same layer for both)
         correct_layer = probe_layer
         incorrect_layer = probe_layer
-        correct_latent_idx = None  # Not applicable for probes
-        incorrect_latent_idx = None
-        phase2_10_dir = phase2_6_dir  # For dependency tracking
+        phase2_10_dir = Path(probe.phase_dir)  # For dependency tracking
 
     else:
         # === SAE MODE (default) ===
@@ -303,6 +289,10 @@ def run_evaluation(config):
     plot_combined_f1_thresholds(hp_metrics_correct, hp_metrics_incorrect, output_dir)
 
     # Save results
+    # For probe mode, latent_idx is None (not applicable)
+    correct_latent_idx = None if use_probe else correct_latent_idx
+    incorrect_latent_idx = None if use_probe else incorrect_latent_idx
+
     results = {
         'timestamp': datetime.now().isoformat(),
         'direction_source': direction_source,
@@ -329,7 +319,6 @@ def run_evaluation(config):
             'method': 'logreg',
             'layer': probe_layer,
             'bias': probe_bias,
-            'cv_auroc': best_probes['logreg']['cv_auroc'],
         }
 
     results_path = output_dir / 'auroc_f1_results.json'
