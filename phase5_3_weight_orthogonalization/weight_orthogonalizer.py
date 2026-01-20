@@ -38,7 +38,7 @@ from common.steering_metrics import (
 from common.retry_utils import retry_with_timeout
 from common.model_loader import load_model_and_tokenizer
 from common.utils import load_json, save_json
-from common.dataset_utils import evaluate_code_with_error_type, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code, compute_error_type_distribution
 from common.weight_orthogonalization import orthogonalize_gemma_weights
 from common.sae_loader import load_sae_for_config
 from common.checkpoint_manager import CheckpointManager
@@ -799,6 +799,15 @@ class WeightOrthogonalizer:
         save_json(weight_changes, self.output_dir / "weight_changes.json")
         
         
+        # Collect all orthogonalized results for error distribution
+        all_orthogonalized_results = []
+        for examples_key in ['corrected', 'not_corrected', 'preserved', 'corrupted']:
+            if examples_key in self.incorrect_results.get('examples', {}):
+                all_orthogonalized_results.extend(self.incorrect_results['examples'][examples_key])
+        for examples_key in ['corrupted', 'preserved', 'high_similarity', 'low_similarity']:
+            if examples_key in self.correct_results.get('examples', {}):
+                all_orthogonalized_results.extend(self.correct_results['examples'][examples_key])
+
         # Create summary
         summary = {
             'phase': '5.3',
@@ -822,7 +831,10 @@ class WeightOrthogonalizer:
                 'phase_5_3_summary.json',
                 'visualizations/orthogonalization_effects.png',
                 'examples/'
-            ]
+            ],
+            'orthogonalized_error_type_distribution': compute_error_type_distribution(
+                all_orthogonalized_results, 'orthogonalized_error_type'
+            ) if all_orthogonalized_results else None
         }
         save_json(summary, self.output_dir / "phase_5_3_summary.json")
         

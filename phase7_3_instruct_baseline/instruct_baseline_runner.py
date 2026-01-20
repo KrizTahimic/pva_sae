@@ -24,7 +24,7 @@ from common.model_loader import load_model_and_tokenizer
 from common.activation_hooks import ActivationExtractor
 from common.utils import save_json, load_json, detect_device, ensure_directory_exists
 from common.tensor_utils import save_activation
-from common.dataset_utils import evaluate_code_with_error_type, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code, compute_error_type_distribution
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir, write_phase_output, filter_by_range
 from common.prompt_utils import PromptBuilder
 from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_WARNING_PERCENT
@@ -635,9 +635,12 @@ class InstructBaselineRunner:
                 "n_incorrect": len(all_results) - correct_count,
                 "pass_rate": correct_count / len(all_results) if all_results else 0.0,
                 "avg_generation_time": np.mean([r['generation_time'] for r in all_results])
-            }
+            },
+            "baseline_error_type_distribution": compute_error_type_distribution(
+                all_results, "baseline_error_type"
+            ) if all_results else None
         }
-        
+
         return metadata
     
     def _save_metadata(self, metadata: dict) -> None:

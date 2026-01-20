@@ -491,15 +491,15 @@ PHASES: dict[str, PhaseInfo] = {
     # =========================================================================
     # Phase 9.x: Error Type Analysis
     # =========================================================================
-    "9.1": PhaseInfo(
-        id="9.1",
-        name="Error Type Breakdown Analysis",
-        output_dir="data/phase9_1",
-        module="phase9_1_error_type_analysis.error_type_analyzer",
-        runner="run_phase_9_1",
+    "9.5": PhaseInfo(
+        id="9.5",
+        name="Error Type Summary",
+        output_dir="data/phase9_5",
+        module="phase9_5_error_summary.error_summary_visualizer",
+        runner="run_phase_9_5",
         runner_type="function",
         category="analysis",
-        patterns=["error_type_analysis.json", "baseline_error_distribution.png", "correction_rates_by_error_type.png"],
+        patterns=["error_summary.json", "baseline_error_distribution.png", "steered_error_distribution.png", "baseline_vs_steered_comparison.png"],
     ),
 }
 

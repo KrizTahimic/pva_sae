@@ -34,7 +34,7 @@ from common.steering_metrics import (
 )
 from common.retry_utils import retry_with_timeout
 from common.model_loader import load_model_and_tokenizer
-from common.dataset_utils import evaluate_code_with_error_type, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code, compute_error_type_distribution
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_12.zero_disc_steering_generator")
@@ -438,7 +438,10 @@ class ZeroDiscSteeringGenerator:
                 'n_corrected': sum(1 for r in correction_results if r['steered_correct'] and not r['baseline_passed']),
                 'n_corrupted': sum(1 for r in corruption_results if not r['steered_correct'] and r['baseline_passed']),
                 'n_preserved': sum(1 for r in preservation_results if r['steered_correct'] and r['baseline_passed'])
-            }
+            },
+            'steered_error_type_distribution': compute_error_type_distribution(
+                correction_results + corruption_results + preservation_results, 'steered_error_type'
+            )
         }
         
         # Save results

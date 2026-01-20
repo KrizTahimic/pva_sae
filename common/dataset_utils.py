@@ -12,7 +12,7 @@ import contextlib
 import signal
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from common.config import Config
@@ -26,6 +26,82 @@ from .logging import get_logger
 from .tensor_utils import load_activation
 
 logger = get_logger("common.dataset_utils")
+
+
+# ============================================================================
+# Error Type Constants
+# ============================================================================
+
+# Canonical error type categories (order for display)
+ERROR_TYPES = ["passed", "syntax", "name", "type", "logic", "runtime", "timeout"]
+
+
+# ============================================================================
+# Error Type Distribution Helper
+# ============================================================================
+
+def compute_error_type_distribution(
+    records: Union[pd.DataFrame, list[dict]],
+    error_type_column: str
+) -> dict:
+    """
+    Compute error type counts and percentages for a collection of records.
+
+    This is the single source of truth for error type distribution computation.
+    All generation phases use this function to ensure consistent output schema.
+
+    Args:
+        records: DataFrame or list of dicts containing error type data
+        error_type_column: Name of the column containing error type values
+
+    Returns:
+        Dictionary with structure:
+        {
+            "total": int,
+            "counts": {"passed": int, "syntax": int, ...},
+            "percentages": {"passed": float, "syntax": float, ...}
+        }
+
+    Example:
+        >>> from common.dataset_utils import compute_error_type_distribution
+        >>> dist = compute_error_type_distribution(results_df, "baseline_error_type")
+        >>> print(f"Pass rate: {dist['percentages']['passed']:.1f}%")
+    """
+    # Convert to DataFrame if needed
+    if isinstance(records, list):
+        if not records:
+            return {
+                "total": 0,
+                "counts": {et: 0 for et in ERROR_TYPES},
+                "percentages": {et: 0.0 for et in ERROR_TYPES}
+            }
+        df = pd.DataFrame(records)
+    else:
+        df = records
+
+    if error_type_column not in df.columns:
+        logger.warning(f"Column '{error_type_column}' not found in data")
+        return {
+            "total": 0,
+            "counts": {et: 0 for et in ERROR_TYPES},
+            "percentages": {et: 0.0 for et in ERROR_TYPES}
+        }
+
+    total = len(df)
+    counts = df[error_type_column].value_counts()
+
+    result = {
+        "total": total,
+        "counts": {},
+        "percentages": {}
+    }
+
+    for error_type in ERROR_TYPES:
+        count = int(counts.get(error_type, 0))
+        result["counts"][error_type] = count
+        result["percentages"][error_type] = round(count / total * 100, 2) if total > 0 else 0.0
+
+    return result
 
 
 # ============================================================================

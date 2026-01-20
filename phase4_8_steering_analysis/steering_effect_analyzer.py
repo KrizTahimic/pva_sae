@@ -39,7 +39,7 @@ from common.steering_metrics import (
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common.model_loader import load_model_and_tokenizer
 from common.utils import load_json, save_json
-from common.dataset_utils import evaluate_code_with_error_type, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code, compute_error_type_distribution
 from common.activation_hooks import (
     AttentionExtractor,
     save_raw_attention_with_boundaries
@@ -834,6 +834,12 @@ class SteeringEffectAnalyzer:
         else:
             save_json(metrics, self.output_dir / "steering_effect_analysis.json")
 
+        # Collect all steered results for error distribution
+        all_steered_results = []
+        for exp_type in ['correction', 'corruption', 'preservation']:
+            if exp_type in metrics.get('detailed_results', {}):
+                all_steered_results.extend(metrics['detailed_results'][exp_type])
+
         # Create phase summary
         summary = {
             'phase': '4.8',
@@ -860,6 +866,9 @@ class SteeringEffectAnalyzer:
                     )
                 }
             },
+            'steered_error_type_distribution': compute_error_type_distribution(
+                all_steered_results, 'steered_error_type'
+            ) if all_steered_results else None,
         }
         # Add direction info based on mode
         if self.use_probe:
@@ -957,9 +966,9 @@ class SteeringEffectAnalyzer:
             },
             'exclusion_summary': exclusion_summary,
             'detailed_results': {
-                'correction': correction_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not correction_results.empty else [],
-                'corruption': corruption_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not corruption_results.empty else [],
-                'preservation': preservation_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not preservation_results.empty else []
+                'correction': correction_results[['task_id', 'baseline_passed', 'steered_correct', 'steered_error_type', 'flipped']].to_dict('records') if (not correction_results.empty and 'steered_error_type' in correction_results.columns) else (correction_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not correction_results.empty else []),
+                'corruption': corruption_results[['task_id', 'baseline_passed', 'steered_correct', 'steered_error_type', 'flipped']].to_dict('records') if (not corruption_results.empty and 'steered_error_type' in corruption_results.columns) else (corruption_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not corruption_results.empty else []),
+                'preservation': preservation_results[['task_id', 'baseline_passed', 'steered_correct', 'steered_error_type', 'flipped']].to_dict('records') if (not preservation_results.empty and 'steered_error_type' in preservation_results.columns) else (preservation_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not preservation_results.empty else [])
             }
         }
 

@@ -1030,7 +1030,7 @@ Current Phase 9.1 implementation should be deleted and redesigned. Instead of a 
   - **Orthogonalization phases:**
     - Phase 5.3: `orthogonalized_error_type_distribution`
     - Phase 5.6: `orthogonalized_error_type_distribution` (zero-disc)
-- [ ] Create summary visualization that reads from all phases' built-in stats
+- [ ] Create summary visualization that reads from all phases' built-in stats. Maybe make this the new phase 9.5? I'm not sure. Let's discuss
 
 
 ---
@@ -1040,3 +1040,7 @@ FINAL
 - [ ] Improve the aesthetic of my visualization.
 
 - [ ] How did we implement logreg threshold?
+- [ ] Consider also doing selective steering and weight orthognalization.
+- [ ] Maybe create a slash command with 
+  Let's do this todolist. Include me in decision making. Use explore agents. Feel free to stop and ask me questions.
+  Make sure to never do bandaid fix. and always do a proper good practice fix that is easy to maintain and read. Base it on @CLAUDE.md guidelines.

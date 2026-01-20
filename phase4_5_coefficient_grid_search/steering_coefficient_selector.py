@@ -37,7 +37,7 @@ from common.steering_metrics import (
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common.model_loader import load_model_and_tokenizer
 from common.utils import load_json, save_json
-from common.dataset_utils import evaluate_code_with_error_type, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code, compute_error_type_distribution
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_5.steering_evaluator")
@@ -818,6 +818,15 @@ class SteeringCoefficientSelector:
             save_json(all_results, self.output_dir / "coefficient_analysis.json")
             save_json(selected_coefficients, self.output_dir / "selected_coefficients.json")
         
+        # Collect all steered results from the best coefficient evaluations
+        all_steered_results = []
+        for steering_type in steering_types:
+            steering_key = f'{steering_type}_steering'
+            if steering_key in all_results and 'best_result' in all_results[steering_key]:
+                best_result = all_results[steering_key]['best_result']
+                if 'results' in best_result:
+                    all_steered_results.extend(best_result['results'])
+
         # Create phase summary
         summary = {
             'phase': '4.5',
@@ -837,7 +846,10 @@ class SteeringCoefficientSelector:
             },
             'results': {
                 'selected_coefficients': selected_coefficients,
-            }
+            },
+            'steered_error_type_distribution': compute_error_type_distribution(
+                all_steered_results, 'steered_error_type'
+            ) if all_steered_results else None
         }
         if self.use_probe:
             summary['probe_info'] = {

@@ -39,7 +39,7 @@ from common.retry_utils import retry_generation, retry_with_timeout, create_excl
 from common.model_loader import load_model_and_tokenizer
 from common.utils import load_json, save_json
 from common.steering_setup import load_steering_latents
-from common.dataset_utils import evaluate_code_with_error_type, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code, compute_error_type_distribution
 from common.sae_loader import load_sae_for_config
 
 logger = get_logger("phase4_6.golden_section_refiner")
@@ -1312,6 +1312,17 @@ class GoldenSectionCoefficientRefiner:
             intermediate_file.unlink()
             logger.info("Removed intermediate results file")
         
+        # Collect all steered results from refinement evaluations for error distribution
+        all_steered_results = []
+        for steering_type in ['correct', 'incorrect']:
+            steering_key = f'{steering_type}_steering'
+            if steering_key in refinement_results:
+                # Get results from the refinement (if full results were stored)
+                result_data = refinement_results[steering_key]
+                if 'results' in result_data:
+                    # Direct results list
+                    all_steered_results.extend(result_data['results'])
+
         # Create phase summary
         summary = {
             'phase': '4.6',
@@ -1331,7 +1342,10 @@ class GoldenSectionCoefficientRefiner:
             'results': {
                 'refined_coefficients': refined_coefficients,
                 'phase4_5_bounds': self.search_bounds
-            }
+            },
+            'steered_error_type_distribution': compute_error_type_distribution(
+                all_steered_results, 'steered_error_type'
+            ) if all_steered_results else None
         }
         if self.use_probe:
             summary['probe_info'] = {

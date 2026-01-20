@@ -43,7 +43,7 @@ from common.phase_discovery import (
     write_phase_output,
     filter_by_range
 )
-from common.dataset_utils import extract_code, evaluate_code_with_error_type
+from common.dataset_utils import extract_code, evaluate_code_with_error_type, compute_error_type_distribution
 from common.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_last_position_steering_hook
 from common.prompt_utils import PromptBuilder
@@ -1106,6 +1106,9 @@ class SelectiveSteeringAnalyzer:
         preservation_metrics = self._calculate_preservation_metrics(preservation_results)
         combined_metrics = self._calculate_combined_metrics(correction_results, preservation_results)
 
+        # Collect all steered results for error distribution
+        all_steered_results = correction_results + preservation_results
+
         # Create summary
         summary = {
             'phase': '8.3',
@@ -1124,7 +1127,10 @@ class SelectiveSteeringAnalyzer:
             },
             'correction_experiment': correction_metrics,
             'preservation_experiment': preservation_metrics,
-            'combined_metrics': combined_metrics
+            'combined_metrics': combined_metrics,
+            'steered_error_type_distribution': compute_error_type_distribution(
+                all_steered_results, 'steered_error_type'
+            ) if all_steered_results else None
         }
 
         # Save combined summary

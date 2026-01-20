@@ -23,7 +23,7 @@ from common.model_loader import load_model_and_tokenizer
 from common.activation_hooks import ActivationExtractor
 from common.utils import create_activation_filename
 from common.tensor_utils import save_activation
-from common.dataset_utils import load_dataset_split, extract_code, evaluate_code_with_error_type
+from common.dataset_utils import load_dataset_split, extract_code, evaluate_code_with_error_type, compute_error_type_distribution
 
 # Use the project's phase-based logger
 logger = get_logger("phase1_latent_selection_dataset.runner", phase="1")
@@ -587,6 +587,34 @@ class Phase1Runner:
             logger.warning(f"Excluded tasks: {[t['task_id'] for t in all_excluded]}")
         logger.info("="*60 + "\n")
 
+        # Create summary JSON with error distribution (skip in parallel mode - orchestrator handles it)
+        if self.n_gpus == 1:
+            from datetime import datetime
+            error_dist = compute_error_type_distribution(final_df, "baseline_error_type")
+            summary = {
+                "phase": "1",
+                "description": "Dataset Building",
+                "timestamp": datetime.now().isoformat(),
+                "config": {
+                    "model": self.config.model_name,
+                    "dataset": self.config.dataset_name,
+                    "split": split_name,
+                    "temperature": self.config.model_temperature
+                },
+                "results": {
+                    "tasks_attempted": total_attempted,
+                    "tasks_included": n_included,
+                    "tasks_excluded": n_excluded,
+                    "correct_count": int(n_correct),
+                    "incorrect_count": int(n_incorrect),
+                    "pass_rate": pass_rate
+                },
+                "baseline_error_type_distribution": error_dist
+            }
+            summary_file = output_dir / "phase_1_summary.json"
+            save_json(summary, summary_file)
+            logger.info(f"Saved phase_1_summary.json to {output_dir}")
+
         # Write phase_output.json manifest (skip in parallel mode - orchestrator handles it)
         if self.n_gpus == 1:
             from common.phase_discovery import write_phase_output
@@ -595,6 +623,7 @@ class Phase1Runner:
                 phase="1",
                 outputs={
                     "primary": output_file.name,
+                    "summary": "phase_1_summary.json",
                     "activations_dir": "activations/",
                 },
                 config=self.config,

@@ -44,7 +44,7 @@ from common.phase_discovery import (
     write_phase_output,
     filter_by_range
 )
-from common.dataset_utils import extract_code, evaluate_code_with_error_type
+from common.dataset_utils import extract_code, evaluate_code_with_error_type, compute_error_type_distribution
 from common.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_last_position_steering_hook
 from common.prompt_utils import PromptBuilder

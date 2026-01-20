@@ -24,7 +24,7 @@ from common.activation_hooks import (
 )
 from common.utils import save_json, load_json
 from common.tensor_utils import save_activation
-from common.dataset_utils import evaluate_code_with_error_type, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code, compute_error_type_distribution
 from common.prompt_utils import PromptBuilder
 from common.config import (
     Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_WARNING_PERCENT, MEMORY_CRITICAL_PERCENT
@@ -803,7 +803,14 @@ class TemperatureRobustnessRunner:
                 "pass_rate": correct_count / len(temp_results) if temp_results else 0.0,
                 "avg_generation_time": np.mean([r['generation_time'] for r in temp_results])
             }
-        
+
+        # Add error type distribution for temperature 0.0 results
+        temp0_results = [r for r in all_results if r['temperature'] == 0.0]
+        if temp0_results:
+            metadata["baseline_error_type_distribution"] = compute_error_type_distribution(
+                temp0_results, "baseline_error_type"
+            )
+
         return metadata
     
     def _save_metadata(self, metadata: dict) -> None:
