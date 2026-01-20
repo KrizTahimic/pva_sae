@@ -800,6 +800,39 @@ def _merge_parallel_results(
     )
     logger.info("Wrote phase_output.json manifest")
 
+    # Phase 1: Create summary JSON (required by Phase 9.5)
+    if phase_id == "1":
+        from datetime import datetime
+        from common.dataset_utils import compute_error_type_distribution
+        from common.utils import save_json
+
+        error_dist = compute_error_type_distribution(merged_df, "baseline_error_type")
+
+        summary = {
+            "phase": "1",
+            "description": "Dataset Building",
+            "timestamp": datetime.now().isoformat(),
+            "config": {
+                "model": config.model_name,
+                "dataset": config.dataset_name,
+                "split": "selection",
+                "temperature": config.model_temperature
+            },
+            "results": {
+                "tasks_attempted": len(merged_df),
+                "tasks_included": len(merged_df),
+                "tasks_excluded": 0,
+                "correct_count": int(merged_df['baseline_passed'].sum()),
+                "incorrect_count": int((~merged_df['baseline_passed']).sum()),
+                "pass_rate": float(merged_df['baseline_passed'].mean() * 100)
+            },
+            "baseline_error_type_distribution": error_dist
+        }
+
+        summary_file = output_path / "phase_1_summary.json"
+        save_json(summary, summary_file)
+        logger.info(f"Saved Phase 1 summary: {summary_file}")
+
     # Clean up per-GPU files
     for result_file in gpu_result_files:
         result_file.unlink()
