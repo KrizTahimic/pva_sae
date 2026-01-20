@@ -836,3 +836,382 @@ class TemperatureRobustnessRunner:
                 config_keys=['model_name', 'dataset_name', 'temperature_variation_temps']
             )
             logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+
+
+# =============================================================================
+# Iterative Parallel Support Classes
+# =============================================================================
+
+class TemperatureEvaluator:
+    """
+    Evaluates ONE temperature on a subset of tasks.
+
+    Used by IterativeParallelRunner for parallel temperature robustness testing.
+    Each GPU runs one TemperatureEvaluator instance.
+    """
+
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize and load model (called once per worker)."""
+        self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
+        self.device = detect_device()
+
+        logger.info(f"TemperatureEvaluator GPU {gpu_id}: Initializing...")
+
+        # Load model and tokenizer
+        self.model, self.tokenizer = load_model_and_tokenizer(
+            config.model_name,
+            device=self.device
+        )
+
+        # Initialize seeds for deterministic generation
+        import random
+        torch.manual_seed(config.evaluation_random_seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(config.evaluation_random_seed)
+        random.seed(config.evaluation_random_seed)
+        np.random.seed(config.evaluation_random_seed)
+
+        # Discover best latents from Phase 2.10 (if temp 0.0 in config)
+        if 0.0 in config.temperature_variation_temps:
+            self.best_latents = self._discover_best_latents()
+            unique_layers = list(set([self.best_latents['correct'], self.best_latents['incorrect']]))
+            self.extraction_layers = unique_layers
+            self.activation_extractor = ActivationExtractor(self.model, layers=self.extraction_layers)
+            self.attention_extractor = AttentionExtractor(self.model, layers=self.extraction_layers, position=-1)
+        else:
+            self.best_latents = None
+            self.extraction_layers = []
+            self.activation_extractor = None
+            self.attention_extractor = None
+
+        # Load analysis data
+        self.analysis_data = self._load_analysis_data()
+
+        # Apply range filter
+        self.analysis_data = filter_by_range(self.analysis_data, config, "analysis dataset")
+
+        # Filter for this GPU
+        from common.parallel_runner import filter_dataframe_for_gpu
+        self.analysis_data = filter_dataframe_for_gpu(
+            self.analysis_data, gpu_id, n_gpus
+        )
+
+        logger.info(f"TemperatureEvaluator GPU {gpu_id}: Processing {len(self.analysis_data)} tasks")
+
+    def _discover_best_latents(self) -> dict[str, int]:
+        """Discover best latents from Phase 2.10."""
+        from common.phase_discovery import get_phase_output_dir, discover_latest_phase_output
+
+        phase_2_10_dir = Path(get_phase_output_dir("2.10", self.config))
+        top_latents_file = phase_2_10_dir / "top_20_latents.json"
+
+        if not top_latents_file.exists():
+            latest_output = discover_latest_phase_output("2.10")
+            if latest_output:
+                output_dir = Path(latest_output).parent
+                top_latents_file = output_dir / "top_20_latents.json"
+
+        if not top_latents_file.exists():
+            raise FileNotFoundError("top_20_latents.json not found in Phase 2.10")
+
+        with open(top_latents_file, 'r') as f:
+            top_latents = json.load(f)
+
+        best_correct = top_latents['correct'][0]
+        best_incorrect = top_latents['incorrect'][0]
+
+        return {
+            'correct': best_correct['layer'],
+            'incorrect': best_incorrect['layer'],
+            'correct_latent_idx': best_correct['latent_idx'],
+            'incorrect_latent_idx': best_incorrect['latent_idx']
+        }
+
+    def _load_analysis_data(self) -> pd.DataFrame:
+        """Load analysis split data."""
+        from common.phase_discovery import get_phase_output_dir
+
+        if self.config.dataset_name == "mbpp":
+            analysis_file = Path(get_phase_output_dir("0.1", self.config)) / "analysis_mbpp.parquet"
+        elif self.config.dataset_name == "humaneval":
+            analysis_file = Path(get_phase_output_dir("0.2", self.config)) / "humaneval.parquet"
+        else:
+            raise ValueError(f"Unknown dataset: {self.config.dataset_name}")
+
+        return pd.read_parquet(analysis_file)
+
+    def evaluate_single_value(self, temperature: float) -> dict:
+        """Generate and evaluate at ONE temperature for all tasks on this GPU."""
+        logger.info(f"GPU {self.gpu_id}: Evaluating temperature={temperature}")
+
+        results = []
+        excluded_tasks = []
+
+        for _, row in self.analysis_data.iterrows():
+            # Build prompt
+            test_cases_str = "\n".join([
+                test.strip() if test.strip().startswith('assert ') else f"assert {test.strip()}"
+                for test in row['test_list']
+            ])
+            prompt = PromptBuilder.build_prompt(
+                problem_description=row['text'],
+                test_cases=test_cases_str
+            )
+
+            try:
+                if temperature == 0.0 and self.activation_extractor:
+                    # Generate with activation extraction
+                    result = self._generate_temp0_with_activations(row, prompt)
+                else:
+                    # Generate without activations
+                    result = self._generate_at_temperature(row, prompt, temperature)
+
+                results.append(result)
+
+            except Exception as e:
+                logger.error(f"GPU {self.gpu_id}: Task {row['task_id']} failed: {e}")
+                excluded_tasks.append({
+                    'task_id': row['task_id'],
+                    'error': str(e)
+                })
+
+            # Memory cleanup
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        return {
+            'temperature': temperature,
+            'results': results,
+            'excluded_tasks': excluded_tasks,
+            'n_results': len(results),
+            'n_excluded': len(excluded_tasks)
+        }
+
+    def _generate_temp0_with_activations(self, row, prompt: str) -> dict:
+        """Generate at temperature 0 with activation extraction."""
+        start_time = time.time()
+
+        self.activation_extractor.setup_hooks()
+        self.attention_extractor.setup_hooks()
+
+        try:
+            inputs = self.tokenizer(
+                prompt,
+                return_tensors="pt",
+                truncation=True,
+                max_length=self.config.activation_max_length
+            ).to(self.device)
+
+            self.activation_extractor.activations.clear()
+
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    temperature=0.0,
+                    max_new_tokens=self.config.model_max_new_tokens,
+                    do_sample=False,
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    output_attentions=True,
+                    return_dict_in_generate=True
+                )
+
+            generated_text = self.tokenizer.decode(
+                outputs.sequences[0][inputs['input_ids'].shape[1]:],
+                skip_special_tokens=True
+            )
+
+            generated_code = extract_code(generated_text, prompt)
+            eval_result = evaluate_code_with_error_type(generated_code, row['test_list'])
+            generation_time = time.time() - start_time
+
+            return {
+                'task_id': row['task_id'],
+                'temperature': 0.0,
+                'prompt': prompt,
+                'generated_code': generated_code,
+                'raw_output': generated_text,
+                'baseline_passed': eval_result.passed,
+                'baseline_error_type': eval_result.error_type,
+                'error_message': None,
+                'generation_time': generation_time,
+                'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
+                'generation_idx': 0,
+                'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
+            }
+
+        finally:
+            self.activation_extractor.remove_hooks()
+            self.attention_extractor.remove_hooks()
+
+    def _generate_at_temperature(self, row, prompt: str, temperature: float) -> dict:
+        """Generate at non-zero temperature."""
+        start_time = time.time()
+
+        inputs = self.tokenizer(
+            prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=self.config.activation_max_length
+        ).to(self.device)
+
+        with torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                temperature=temperature,
+                max_new_tokens=self.config.model_max_new_tokens,
+                do_sample=temperature > 0,
+                pad_token_id=self.tokenizer.pad_token_id,
+                eos_token_id=self.tokenizer.eos_token_id
+            )
+
+        generated_text = self.tokenizer.decode(
+            outputs[0][inputs['input_ids'].shape[1]:],
+            skip_special_tokens=True
+        )
+
+        generated_code = extract_code(generated_text, prompt)
+        eval_result = evaluate_code_with_error_type(generated_code, row['test_list'])
+        generation_time = time.time() - start_time
+
+        return {
+            'task_id': row['task_id'],
+            'temperature': temperature,
+            'prompt': prompt,
+            'generated_code': generated_code,
+            'raw_output': generated_text,
+            'baseline_passed': eval_result.passed,
+            'baseline_error_type': eval_result.error_type,
+            'error_message': None,
+            'generation_time': generation_time,
+            'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
+            'generation_idx': 0,
+            'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
+        }
+
+
+class TemperatureOrchestrator:
+    """
+    Orchestrates temperature robustness testing (sequential or parallel).
+
+    In parallel mode, uses IterativeParallelRunner to coordinate
+    evaluation across GPUs with checkpointing after each temperature.
+    """
+
+    def __init__(self, config: Config, n_gpus: int = 1):
+        """Initialize orchestrator."""
+        self.config = config
+        self.n_gpus = n_gpus
+
+        from common.phase_discovery import get_phase_output_dir
+        self.output_dir = Path(get_phase_output_dir("3.5", config))
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        logger.info(f"TemperatureOrchestrator: {n_gpus} GPU(s), temps: {config.temperature_variation_temps}")
+
+    def run(self) -> dict:
+        """Run temperature robustness testing."""
+        if self.n_gpus == 1:
+            return self._run_sequential()
+        else:
+            return self._run_parallel()
+
+    def _run_sequential(self) -> dict:
+        """Sequential execution using existing TemperatureRobustnessRunner."""
+        runner = TemperatureRobustnessRunner(self.config, gpu_id=0, n_gpus=1)
+        return runner.run()
+
+    def _run_parallel(self) -> dict:
+        """Parallel execution using IterativeParallelRunner."""
+        from common.iterative_parallel_runner import IterativeParallelRunner
+        from common.phase_discovery import write_phase_output
+
+        logger.info(f"Starting parallel temperature testing with {self.n_gpus} GPUs")
+
+        runner = IterativeParallelRunner(
+            phase_evaluator_class=TemperatureEvaluator,
+            config=self.config,
+            n_gpus=self.n_gpus,
+            values_to_test=self.config.temperature_variation_temps,
+            early_stop_fn=lambda *args: False,  # No early stopping for temperature
+            merge_fn=self._merge_temperature_results,
+            checkpoint_dir=self.output_dir / "parallel_checkpoints"
+        )
+
+        result = runner.run()
+
+        # Save per-temperature results
+        for entry in result['history']:
+            temp = entry['value']
+            temp_str = f"{temp}".replace(".", "_")
+            df = pd.DataFrame(entry.get('results', []))
+            output_file = self.output_dir / f"dataset_temp_{temp_str}.parquet"
+            df.to_parquet(output_file, index=False)
+            logger.info(f"Saved {len(df)} results to {output_file}")
+
+        # Save metadata
+        metadata = self._create_metadata(result)
+        with open(self.output_dir / "metadata.json", 'w') as f:
+            json.dump(metadata, f, indent=2)
+
+        # Write manifest
+        outputs = {"primary": "metadata.json"}
+        for temp in self.config.temperature_variation_temps:
+            temp_str = f"{temp}".replace(".", "_")
+            outputs[f"temp_{temp_str}"] = f"dataset_temp_{temp_str}.parquet"
+
+        write_phase_output(
+            phase="3.5",
+            outputs=outputs,
+            config=self.config,
+            output_dir=str(self.output_dir),
+            config_keys=['model_name', 'dataset_name', 'temperature_variation_temps']
+        )
+
+        logger.info(f"Results saved to: {self.output_dir}")
+        return metadata
+
+    def _merge_temperature_results(self, gpu_results: list[dict]) -> dict:
+        """Merge results from all GPUs for one temperature."""
+        all_results = []
+        all_excluded = []
+
+        for r in gpu_results:
+            all_results.extend(r.get('results', []))
+            all_excluded.extend(r.get('excluded_tasks', []))
+
+        temp = gpu_results[0]['temperature'] if gpu_results else 0.0
+
+        return {
+            'temperature': temp,
+            'results': all_results,
+            'excluded_tasks': all_excluded,
+            'n_results': len(all_results),
+            'n_excluded': len(all_excluded),
+            'score': len(all_results)  # Not used for early stopping
+        }
+
+    def _create_metadata(self, result: dict) -> dict:
+        """Create metadata from parallel results."""
+        metadata = {
+            "creation_timestamp": datetime.now().isoformat(),
+            "temperatures": self.config.temperature_variation_temps,
+            "n_gpus": self.n_gpus,
+            "temperature_stats": {}
+        }
+
+        for entry in result['history']:
+            temp = entry['value']
+            results = entry.get('results', [])
+            correct_count = sum(1 for r in results if r.get('baseline_passed', False))
+
+            metadata["temperature_stats"][str(temp)] = {
+                "n_correct": correct_count,
+                "n_incorrect": len(results) - correct_count,
+                "pass_rate": correct_count / len(results) if results else 0.0
+            }
+
+        return metadata

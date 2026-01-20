@@ -1242,3 +1242,556 @@ class ThresholdOptimizer:
         logger.info("\n✅ Phase 8.2 completed successfully")
 
         return optimization_results
+
+
+# =============================================================================
+# Iterative Parallel Support Classes
+# =============================================================================
+
+class ThresholdEvaluator:
+    """
+    Evaluates a single percentile on a subset of problems.
+
+    Used by IterativeParallelRunner for parallel threshold optimization.
+    Each GPU runs one ThresholdEvaluator instance.
+    """
+
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize and load model (called once per worker)."""
+        self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
+        self.device = torch.device(detect_device())
+
+        # Direction source detection
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source in ('probe_logreg', 'probe_mass_mean')
+
+        logger.info(f"ThresholdEvaluator GPU {gpu_id}: Initializing...")
+
+        # Load dependencies (model, SAE, data)
+        self._load_dependencies()
+
+        logger.info(f"ThresholdEvaluator GPU {gpu_id}: Initialization complete")
+
+    def _load_dependencies(self):
+        """Load model, SAE, and filter problems for this GPU."""
+        # Load model and tokenizer
+        logger.info(f"GPU {self.gpu_id}: Loading model...")
+        self.model, self.tokenizer = load_model_and_tokenizer(
+            model_name=self.config.model_name,
+            device=self.device,
+            trust_remote_code=self.config.model_trust_remote_code
+        )
+
+        if self.use_probe:
+            # PROBE MODE
+            from common.steering_setup import (
+                load_probe_directions_for_predicting,
+                load_probe_directions_for_steering
+            )
+
+            self.predicting_probe = load_probe_directions_for_predicting(
+                self.config, self.device, method="logreg"
+            )
+            self.incorrect_pred_layer = self.predicting_probe.layer
+            self.predicting_direction = self.predicting_probe.incorrect_direction
+            self.predicting_bias = self.predicting_probe.bias
+
+            self.steering_probe = load_probe_directions_for_steering(
+                self.config, self.device, self.model, method="mass_mean"
+            )
+            self.correct_steer_layer = self.steering_probe.layer
+            self.correct_latent_direction = self.steering_probe.correct_direction
+
+            self.predicting_sae = None
+            self.steering_sae = None
+            self.incorrect_pred_latent = None
+            self.correct_steer_latent = None
+        else:
+            # SAE MODE
+            phase3_8_output = discover_latest_phase_output("3.8")
+            phase3_8_results = load_json(Path(phase3_8_output).parent / "auroc_f1_results.json")
+
+            incorrect_pred_info = phase3_8_results['incorrect_predicting_latent']
+            self.incorrect_pred_layer = incorrect_pred_info['layer']
+            self.incorrect_pred_latent = incorrect_pred_info['latent_idx']
+
+            from common.steering_setup import load_steering_latents
+            pva_latents = load_steering_latents(self.config)
+            self.best_correct_latent = pva_latents.top_latents['correct'][0]
+            self.correct_steer_layer = self.best_correct_latent['layer']
+            self.correct_steer_latent = self.best_correct_latent['latent_idx']
+
+            self.predicting_sae = load_sae_for_config(self.config, self.incorrect_pred_layer, self.device)
+            self.steering_sae = load_sae_for_config(self.config, self.correct_steer_layer, self.device)
+
+            self.correct_latent_direction = self.steering_sae.W_dec[self.correct_steer_latent].detach()
+            model_dtype = next(self.model.parameters()).dtype
+            self.correct_latent_direction = self.correct_latent_direction.to(dtype=model_dtype)
+
+            self.predicting_direction = None
+            self.predicting_bias = 0.0
+
+        # Load Phase 4.6 coefficient
+        phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
+        phase4_6_dir = Path(phase4_6_output).parent
+        if self.use_probe:
+            probe_dir = phase4_6_dir.parent / (phase4_6_dir.name + "_probe")
+            if probe_dir.exists():
+                phase4_6_dir = probe_dir
+        refined_coefficients = load_json(phase4_6_dir / "refined_coefficients.json")
+        self.steering_coefficient = refined_coefficients['correct']['refined_coefficient']
+
+        # Load Phase 0.1 problem specifications
+        phase0_1_output = discover_latest_phase_output("0.1")
+        tuning_file = Path(phase0_1_output).parent / "tuning_mbpp.parquet"
+        self.tuning_problems = pd.read_parquet(tuning_file)
+
+        if 'test_list' in self.tuning_problems.columns:
+            first_test = self.tuning_problems.iloc[0]['test_list']
+            if isinstance(first_test, str):
+                self.tuning_problems['test_list'] = self.tuning_problems['test_list'].apply(
+                    lambda x: json.loads(x) if isinstance(x, str) else x
+                )
+
+        # Load Phase 3.6 baseline
+        phase3_6_output = discover_latest_phase_output("3.6")
+        baseline_file = Path(phase3_6_output).parent / "dataset_hyperparams_temp_0_0.parquet"
+        phase3_6_baseline = pd.read_parquet(baseline_file)
+
+        if 'test_list' in phase3_6_baseline.columns:
+            phase3_6_baseline = phase3_6_baseline.drop(columns=['test_list'])
+
+        # Merge
+        self.dataset = self.tuning_problems.merge(
+            phase3_6_baseline,
+            on='task_id',
+            how='inner'
+        )
+
+        # Apply range filter
+        self.dataset = filter_by_range(self.dataset, self.config, "hyperparameter dataset")
+
+        # Create baseline lookup
+        self.baseline_lookup = {
+            row['task_id']: row for _, row in self.dataset.iterrows()
+        }
+
+        # Split by correctness
+        self.incorrect_problems = self.dataset[~self.dataset['baseline_passed']].copy()
+        self.correct_problems = self.dataset[self.dataset['baseline_passed']].copy()
+
+        # Filter for this GPU (round-robin)
+        from common.parallel_runner import filter_dataframe_for_gpu
+        self.incorrect_problems = filter_dataframe_for_gpu(
+            self.incorrect_problems, self.gpu_id, self.n_gpus
+        )
+        self.correct_problems = filter_dataframe_for_gpu(
+            self.correct_problems, self.gpu_id, self.n_gpus
+        )
+
+        logger.info(f"GPU {self.gpu_id}: Processing {len(self.correct_problems)} correct, "
+                   f"{len(self.incorrect_problems)} incorrect tasks")
+
+        # Load Phase 8.1 percentile thresholds
+        phase8_1_output = discover_latest_phase_output("8.1")
+        phase8_1_dir = Path(phase8_1_output).parent
+        if self.use_probe:
+            probe_dir = phase8_1_dir.parent / (phase8_1_dir.name + "_probe")
+            if probe_dir.exists():
+                phase8_1_dir = probe_dir
+        phase8_1_results = load_json(phase8_1_dir / "percentile_thresholds.json")
+        self.percentile_thresholds = phase8_1_results['percentile_thresholds']
+
+    def evaluate_single_value(self, percentile: int) -> dict:
+        """Evaluate ONE percentile on this GPU's problems."""
+        pct_key = f'p{percentile}'
+        threshold = self.percentile_thresholds[pct_key]['threshold']
+
+        logger.info(f"GPU {self.gpu_id}: Evaluating p{percentile} (threshold={threshold:.4f})")
+
+        # Run correction experiment
+        correction_results = self._run_experiment(
+            self.incorrect_problems, threshold, 'correction'
+        )
+
+        # Run preservation experiment
+        preservation_results = self._run_experiment(
+            self.correct_problems, threshold, 'preservation'
+        )
+
+        # Calculate local metrics
+        n_corrected = sum(1 for r in correction_results if r.get('corrected', False))
+        n_corrupted = sum(1 for r in preservation_results if r.get('corrupted', False))
+
+        return {
+            'percentile': percentile,
+            'threshold': threshold,
+            'correction_results': correction_results,
+            'preservation_results': preservation_results,
+            'n_corrected': n_corrected,
+            'n_corrupted': n_corrupted,
+            'n_incorrect': len(correction_results),
+            'n_correct': len(preservation_results),
+            'results': correction_results + preservation_results  # For merge_fn
+        }
+
+    def _run_experiment(self, problems_df, threshold: float, dataset_type: str) -> list[dict]:
+        """Run steering experiment on problems."""
+        results = []
+
+        for _, row in problems_df.iterrows():
+            task_id = row['task_id']
+            baseline_passed = row['baseline_passed']
+
+            try:
+                # Build prompt
+                if isinstance(row['test_list'], (list, tuple)):
+                    test_cases_str = '\n'.join(
+                        f"assert {test}" if not test.startswith('assert') else test
+                        for test in row['test_list']
+                    )
+                else:
+                    test_cases_str = '\n'.join(
+                        f"assert {test}" if not str(test).startswith('assert') else str(test)
+                        for test in row['test_list']
+                    )
+
+                prompt = PromptBuilder.build_prompt(
+                    problem_description=row['text'],
+                    test_cases=test_cases_str
+                )
+
+                result = self._generate_with_selective_steering(
+                    task_id, prompt, row['test_list'], threshold, baseline_passed
+                )
+                results.append(result)
+
+            except Exception as e:
+                logger.error(f"GPU {self.gpu_id}: Error on {task_id}: {e}")
+                results.append({
+                    'task_id': task_id,
+                    'baseline_passed': baseline_passed,
+                    'was_steered': False,
+                    'steered_correct': baseline_passed,
+                    'corrected': False,
+                    'preserved': baseline_passed,
+                    'corrupted': False,
+                    'error': str(e)
+                })
+
+        return results
+
+    def _generate_with_selective_steering(
+        self, task_id: str, prompt: str, test_cases, threshold: float, baseline_passed: bool
+    ) -> dict:
+        """Generate code with conditional steering based on feature activation."""
+        inputs = self.tokenizer(
+            prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=self.config.activation_max_length
+        ).to(self.device)
+
+        prompt_length = inputs['input_ids'].shape[1]
+        steering_state = SteeringState(prompt_length)
+
+        def activation_monitor_hook(module, input):
+            if steering_state.first_token_checked:
+                return
+            residual = input[0]
+            raw_activation = residual[:, -1, :]
+
+            with torch.no_grad():
+                if self.use_probe:
+                    activation_float = raw_activation.to(dtype=self.predicting_direction.dtype)
+                    score = (activation_float @ self.predicting_direction).item() + self.predicting_bias
+                    incorrect_pred_activation = score
+                else:
+                    activation_bf16 = raw_activation.to(dtype=self.predicting_sae.W_enc.dtype, device=self.device)
+                    latent_activations = self.predicting_sae.encode(activation_bf16)
+                    incorrect_pred_activation = latent_activations[0, self.incorrect_pred_latent].item()
+
+            steering_state.incorrect_pred_activation = float(incorrect_pred_activation)
+            steering_state.should_steer = incorrect_pred_activation > threshold
+            steering_state.first_token_checked = True
+
+        def conditional_steering_hook(module, input):
+            residual = input[0]
+            if not steering_state.first_token_checked or not steering_state.should_steer:
+                return (residual,) + input[1:]
+
+            latent_direction = self.correct_latent_direction.to(residual.dtype)
+            steering = latent_direction * self.steering_coefficient
+            residual = residual.clone()
+            residual[:, -1, :] = residual[:, -1, :] + steering.to(residual.device, residual.dtype)
+            return (residual,) + input[1:]
+
+        l19_hook = self.model.model.layers[self.incorrect_pred_layer].register_forward_pre_hook(activation_monitor_hook)
+        l16_hook = self.model.model.layers[self.correct_steer_layer].register_forward_pre_hook(conditional_steering_hook)
+
+        try:
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=self.config.model_max_new_tokens,
+                    temperature=0.0,
+                    do_sample=False,
+                    pad_token_id=self.tokenizer.eos_token_id
+                )
+
+            if not steering_state.should_steer:
+                baseline_row = self.baseline_lookup[task_id]
+                return {
+                    'task_id': task_id,
+                    'baseline_passed': baseline_passed,
+                    'was_steered': False,
+                    'incorrect_pred_activation': steering_state.incorrect_pred_activation,
+                    'threshold': threshold,
+                    'steered_correct': baseline_row['baseline_passed'],
+                    'corrected': False,
+                    'preserved': baseline_row['baseline_passed'] if baseline_passed else False,
+                    'corrupted': not baseline_row['baseline_passed'] if baseline_passed else False,
+                    'source': 'phase3_6_baseline'
+                }
+
+            generated_text = self.tokenizer.decode(outputs[0][prompt_length:], skip_special_tokens=True)
+            generated_code = extract_code(generated_text, prompt)
+            eval_result = evaluate_code_with_error_type(generated_code, test_cases)
+            steered_correct = eval_result.passed
+
+            if baseline_passed:
+                preserved = steered_correct
+                corrupted = not steered_correct
+                corrected = False
+            else:
+                corrected = steered_correct
+                preserved = False
+                corrupted = False
+
+            return {
+                'task_id': task_id,
+                'baseline_passed': baseline_passed,
+                'was_steered': True,
+                'incorrect_pred_activation': steering_state.incorrect_pred_activation,
+                'threshold': threshold,
+                'steered_correct': steered_correct,
+                'corrected': corrected,
+                'preserved': preserved,
+                'corrupted': corrupted,
+                'source': 'selective_steering'
+            }
+
+        finally:
+            l19_hook.remove()
+            l16_hook.remove()
+
+
+class ThresholdOrchestrator:
+    """
+    Orchestrates threshold optimization (sequential or parallel).
+
+    In parallel mode, uses IterativeParallelRunner to coordinate
+    evaluation across GPUs with proper merging for early stopping.
+    """
+
+    def __init__(self, config: Config, n_gpus: int = 1):
+        """Initialize orchestrator (no model loading here)."""
+        self.config = config
+        self.n_gpus = n_gpus
+
+        # Direction source
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source in ('probe_logreg', 'probe_mass_mean')
+
+        # Output directory
+        self.output_dir = Path(get_phase_output_dir("8.2", config))
+        if self.use_probe:
+            self.output_dir = self.output_dir.parent / (self.output_dir.name + "_probe")
+        ensure_directory_exists(self.output_dir)
+
+        # Load percentile thresholds for orchestration
+        phase8_1_output = discover_latest_phase_output("8.1")
+        phase8_1_dir = Path(phase8_1_output).parent
+        if self.use_probe:
+            probe_dir = phase8_1_dir.parent / (phase8_1_dir.name + "_probe")
+            if probe_dir.exists():
+                phase8_1_dir = probe_dir
+        phase8_1_results = load_json(phase8_1_dir / "percentile_thresholds.json")
+        self.percentile_thresholds = phase8_1_results['percentile_thresholds']
+
+        # Determine percentiles to test
+        self.available_pcts = sorted([int(k[1:]) for k in self.percentile_thresholds.keys()])
+        self.percentiles_to_test = [p for p in range(10, 100, 10) if p in self.available_pcts]
+
+        logger.info(f"ThresholdOrchestrator: {n_gpus} GPU(s), percentiles: {self.percentiles_to_test}")
+
+    def run(self) -> dict:
+        """Run threshold optimization."""
+        if self.n_gpus == 1:
+            return self._run_sequential()
+        else:
+            return self._run_parallel()
+
+    def _run_sequential(self) -> dict:
+        """Sequential execution using existing ThresholdOptimizer."""
+        optimizer = ThresholdOptimizer(self.config, gpu_id=0, n_gpus=1)
+        return optimizer.run()
+
+    def _run_parallel(self) -> dict:
+        """Parallel execution using IterativeParallelRunner."""
+        from common.iterative_parallel_runner import IterativeParallelRunner
+
+        logger.info(f"Starting parallel threshold optimization with {self.n_gpus} GPUs")
+
+        runner = IterativeParallelRunner(
+            phase_evaluator_class=ThresholdEvaluator,
+            config=self.config,
+            n_gpus=self.n_gpus,
+            values_to_test=self.percentiles_to_test,
+            early_stop_fn=self._should_early_stop,
+            merge_fn=self._merge_percentile_results,
+            checkpoint_dir=self.output_dir / "parallel_checkpoints"
+        )
+
+        result = runner.run()
+
+        # Convert runner results to expected format
+        optimization_results = self._format_results(result)
+
+        # Save results
+        self._save_results(optimization_results)
+
+        return optimization_results
+
+    def _merge_percentile_results(self, gpu_results: list[dict]) -> dict:
+        """Merge results from all GPUs for one percentile."""
+        # Combine results
+        all_correction = []
+        all_preservation = []
+
+        for r in gpu_results:
+            all_correction.extend(r.get('correction_results', []))
+            all_preservation.extend(r.get('preservation_results', []))
+
+        # Calculate merged metrics
+        n_corrected = sum(1 for r in all_correction if r.get('corrected', False))
+        n_corrupted = sum(1 for r in all_preservation if r.get('corrupted', False))
+        n_preserved = sum(1 for r in all_preservation if r.get('preserved', False))
+        n_steered_corr = sum(1 for r in all_correction if r.get('was_steered', False))
+        n_steered_pres = sum(1 for r in all_preservation if r.get('was_steered', False))
+
+        correction_rate = n_corrected / len(all_correction) if all_correction else 0
+        corruption_rate = n_corrupted / len(all_preservation) if all_preservation else 0
+        preservation_rate = n_preserved / len(all_preservation) if all_preservation else 0
+        net_benefit = correction_rate - corruption_rate
+
+        return {
+            'correction_rate': correction_rate,
+            'corruption_rate': corruption_rate,
+            'preservation_rate': preservation_rate,
+            'net_benefit': net_benefit,
+            'score': net_benefit,  # Used by early stopping
+            'n_problems': len(all_correction) + len(all_preservation),
+            'n_corrected': n_corrected,
+            'n_corrupted': n_corrupted,
+            'n_preserved': n_preserved,
+            'n_incorrect': len(all_correction),
+            'n_correct': len(all_preservation),
+            'n_steered_correction': n_steered_corr,
+            'n_steered_preservation': n_steered_pres,
+            'correction_results': all_correction,
+            'preservation_results': all_preservation,
+        }
+
+    def _should_early_stop(self, current: dict, history: list[dict]) -> bool:
+        """Early stop if net_benefit is declining."""
+        if len(history) < 2:
+            return False
+        best_score = max(h.get('score', h.get('net_benefit', 0)) for h in history[:-1])
+        current_score = current.get('score', current.get('net_benefit', 0))
+        return current_score < best_score - 0.01  # Small tolerance
+
+    def _format_results(self, runner_result: dict) -> dict:
+        """Format IterativeParallelRunner results for Phase 8.2 output."""
+        optimal_pct = runner_result['optimal_value']
+        optimal_score = runner_result['optimal_score']
+        history = runner_result['history']
+
+        # Build results dict
+        results = {}
+        for entry in history:
+            pct = entry['value']
+            threshold = self.percentile_thresholds[f'p{pct}']['threshold']
+            results[f'p{pct}'] = {
+                'percentile': pct,
+                'threshold': threshold,
+                'steer_percentage': self.percentile_thresholds[f'p{pct}']['steer_percentage'],
+                'correction_experiment': {
+                    'n_problems': entry.get('n_incorrect', 0),
+                    'n_corrected': entry.get('n_corrected', 0),
+                    'correction_rate': entry.get('correction_rate', 0),
+                    'steering_rate': entry.get('n_steered_correction', 0) / max(1, entry.get('n_incorrect', 1))
+                },
+                'preservation_experiment': {
+                    'n_problems': entry.get('n_correct', 0),
+                    'n_corrupted': entry.get('n_corrupted', 0),
+                    'n_preserved': entry.get('n_preserved', 0),
+                    'corruption_rate': entry.get('corruption_rate', 0),
+                    'preservation_rate': entry.get('preservation_rate', 0),
+                    'steering_rate': entry.get('n_steered_preservation', 0) / max(1, entry.get('n_correct', 1))
+                },
+                'net_benefit': entry.get('net_benefit', 0)
+            }
+
+        return {
+            'optimal_percentile': optimal_pct,
+            'optimal_threshold': self.percentile_thresholds[f'p{optimal_pct}']['threshold'],
+            'optimal_net_benefit': optimal_score,
+            'results': results
+        }
+
+    def _save_results(self, optimization_results: dict):
+        """Save optimization results."""
+        # Use the ThresholdOptimizer's save logic by creating a minimal instance
+        # Or implement directly here
+
+        optimal_pct = optimization_results['optimal_percentile']
+        optimal_data = optimization_results['results'][f'p{optimal_pct}']
+
+        # Save optimal percentile JSON
+        optimal_output = {
+            'phase': '8.2',
+            'timestamp': datetime.now().isoformat(),
+            'optimization_summary': {
+                'metric': 'net_benefit',
+                'formula': 'correction_rate - corruption_rate',
+                'optimal_percentile': optimal_pct,
+                'optimal_threshold': optimization_results['optimal_threshold'],
+                'optimal_net_benefit': optimization_results['optimal_net_benefit'],
+            },
+            'direction_source': self.direction_source,
+        }
+        save_json(optimal_output, self.output_dir / "optimal_percentile.json")
+
+        # Save comparison JSON
+        comparison_output = {
+            'percentiles_tested': list(optimization_results['results'].keys()),
+            'results': optimization_results['results'],
+            'optimal_percentile': f'p{optimal_pct}'
+        }
+        save_json(comparison_output, self.output_dir / "threshold_comparison.json")
+
+        # Write manifest
+        write_phase_output(
+            phase="8.2",
+            outputs={
+                "primary": "optimal_percentile.json",
+                "comparison": "threshold_comparison.json"
+            },
+            config=self.config,
+            output_dir=str(self.output_dir)
+        )
+
+        logger.info(f"Results saved to: {self.output_dir}")

@@ -1385,3 +1385,434 @@ class GoldenSectionCoefficientRefiner:
             logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
 
         return summary
+
+
+# =============================================================================
+# Iterative Parallel Support Classes
+# =============================================================================
+
+class RefinementEvaluator:
+    """
+    Evaluates ONE coefficient on a subset of tasks.
+
+    Used by IterativeParallelRunner for parallel golden section refinement.
+    Each GPU runs one RefinementEvaluator instance.
+    """
+
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize and load model (called once per worker)."""
+        self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
+        self.device = detect_device()
+
+        # Direction source
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source == 'probe_mass_mean'
+
+        logger.info(f"RefinementEvaluator GPU {gpu_id}: Initializing...")
+
+        # Load model
+        self.model, self.tokenizer = load_model_and_tokenizer(
+            config.model_name,
+            device=self.device,
+            trust_remote_code=config.model_trust_remote_code
+        )
+        self.model.eval()
+
+        # Load dependencies
+        self._load_dependencies()
+
+        logger.info(f"RefinementEvaluator GPU {gpu_id}: Initialization complete")
+
+    def _load_dependencies(self):
+        """Load steering directions and baseline data."""
+        from common.steering_setup import load_probe_directions_for_steering
+        from common.parallel_runner import filter_dataframe_for_gpu
+
+        if self.use_probe:
+            self.probe = load_probe_directions_for_steering(
+                self.config, self.device, self.model, method="mass_mean"
+            )
+            self.correct_latent_direction = self.probe.correct_direction
+            self.incorrect_latent_direction = self.probe.incorrect_direction
+            self.probe_layer = self.probe.layer
+            self.best_correct_latent = None
+            self.best_incorrect_latent = None
+        else:
+            pva_latents = load_steering_latents(self.config)
+            self.best_correct_latent = pva_latents.best_correct_latent
+            self.best_incorrect_latent = pva_latents.best_incorrect_latent
+
+            correct_sae = load_sae_for_config(
+                self.config, self.best_correct_latent['layer'], self.device
+            )
+            incorrect_sae = load_sae_for_config(
+                self.config, self.best_incorrect_latent['layer'], self.device
+            )
+
+            self.correct_latent_direction = correct_sae.W_dec[
+                self.best_correct_latent['latent_idx']
+            ].detach()
+            self.incorrect_latent_direction = incorrect_sae.W_dec[
+                self.best_incorrect_latent['latent_idx']
+            ].detach()
+
+        # Load baseline data
+        phase3_6_output = discover_latest_phase_output("3.6", config=self.config)
+        phase3_6_dir = Path(phase3_6_output).parent
+        baseline_file = phase3_6_dir / "dataset_hyperparams_temp_0_0.parquet"
+        self.baseline_data = pd.read_parquet(baseline_file)
+        self.baseline_data = filter_by_range(self.baseline_data, self.config, "baseline data")
+
+        self.initially_correct_data = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
+        self.initially_incorrect_data = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
+
+        # Filter for this GPU
+        self.initially_correct_data = filter_dataframe_for_gpu(
+            self.initially_correct_data, self.gpu_id, self.n_gpus
+        )
+        self.initially_incorrect_data = filter_dataframe_for_gpu(
+            self.initially_incorrect_data, self.gpu_id, self.n_gpus
+        )
+
+        logger.info(f"GPU {self.gpu_id}: Processing {len(self.initially_correct_data)} correct, "
+                   f"{len(self.initially_incorrect_data)} incorrect tasks")
+
+    def evaluate_single_value(self, value: tuple) -> dict:
+        """
+        Evaluate a coefficient for a given steering type.
+
+        Args:
+            value: Tuple of (coefficient, steering_type)
+        """
+        coefficient, steering_type = value
+        logger.info(f"GPU {self.gpu_id}: Evaluating coefficient={coefficient}, type={steering_type}")
+
+        if steering_type == 'correct':
+            eval_data = self.initially_incorrect_data
+            latent_direction = self.correct_latent_direction
+            target_layer = self.probe_layer if self.use_probe else self.best_correct_latent['layer']
+        else:
+            eval_data = self.initially_correct_data
+            latent_direction = self.incorrect_latent_direction
+            target_layer = self.probe_layer if self.use_probe else self.best_incorrect_latent['layer']
+
+        results = []
+
+        for _, row in eval_data.iterrows():
+            hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
+            target_module = self.model.model.layers[target_layer]
+            hook_handle = target_module.register_forward_pre_hook(hook_fn)
+
+            try:
+                prompt = row['prompt']
+                inputs = self.tokenizer(
+                    prompt,
+                    return_tensors="pt",
+                    truncation=True,
+                    max_length=self.config.activation_max_length
+                ).to(self.device)
+
+                with torch.no_grad():
+                    outputs = self.model.generate(
+                        **inputs,
+                        max_new_tokens=self.config.model_max_new_tokens,
+                        do_sample=False,
+                        pad_token_id=self.tokenizer.pad_token_id
+                    )
+
+                generated_text = self.tokenizer.decode(
+                    outputs[0][inputs['input_ids'].shape[1]:],
+                    skip_special_tokens=True
+                )
+                generated_code = extract_code(generated_text, prompt)
+                eval_result = evaluate_code_with_error_type(
+                    generated_code,
+                    json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                )
+
+                baseline_code = row['generated_code']
+                code_similarity = calculate_code_similarity(baseline_code, generated_code)
+
+                result = {
+                    'task_id': row['task_id'],
+                    'baseline_passed': row['baseline_passed'],
+                    'steered_correct': eval_result.passed,
+                    'flipped': row['baseline_passed'] != eval_result.passed,
+                    'code_similarity': code_similarity,
+                    'baseline_code': baseline_code,
+                    'steered_code': generated_code
+                }
+                results.append(result)
+
+            finally:
+                hook_handle.remove()
+
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        return {
+            'coefficient': coefficient,
+            'steering_type': steering_type,
+            'results': results,
+            'n_problems': len(results)
+        }
+
+
+class RefinementOrchestrator:
+    """
+    Orchestrates golden section refinement (sequential or parallel).
+
+    Golden section is adaptive - each new point depends on previous evaluations.
+    The orchestrator controls the algorithm while the evaluator handles parallel
+    evaluation at each step.
+    """
+
+    def __init__(self, config: Config, n_gpus: int = 1):
+        """Initialize orchestrator."""
+        self.config = config
+        self.n_gpus = n_gpus
+
+        # Direction source
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source == 'probe_mass_mean'
+
+        # Golden ratio constants
+        self.phi = (1 + math.sqrt(5)) / 2
+        self.resphi = 2 - self.phi
+
+        # Output directory
+        self.output_dir = Path(get_phase_output_dir("4.6", config))
+        if self.use_probe:
+            self.output_dir = self.output_dir.parent / (self.output_dir.name + "_probe")
+        ensure_directory_exists(self.output_dir)
+
+        # Load Phase 4.5 results
+        self._load_phase4_5_results()
+
+        logger.info(f"RefinementOrchestrator: {n_gpus} GPU(s)")
+
+    def _load_phase4_5_results(self):
+        """Load Phase 4.5 results for search bounds."""
+        phase4_5_output = discover_latest_phase_output("4.5", config=self.config)
+        phase4_5_dir = Path(phase4_5_output).parent
+        if self.use_probe:
+            probe_dir = phase4_5_dir.parent / (phase4_5_dir.name + "_probe")
+            if probe_dir.exists():
+                phase4_5_dir = probe_dir
+
+        self.phase4_5_dir = phase4_5_dir
+        self.phase4_5_results = load_json(phase4_5_dir / "coefficient_analysis.json")
+        self.selected_coefficients = load_json(phase4_5_dir / "selected_coefficients.json")
+
+        self.search_bounds = {}
+        self.cached_scores = {'correct': {}, 'incorrect': {}}
+
+        for steering_type in ['correct', 'incorrect']:
+            steering_key = f'{steering_type}_steering'
+            if steering_key not in self.phase4_5_results:
+                continue
+
+            results = self.phase4_5_results[steering_key]
+            optimal_coeff = results['optimal_coefficient']
+
+            # Cache Phase 4.5 scores
+            for hist_item in results.get('search_history', []):
+                coeff = hist_item['coefficient']
+                if steering_type == 'correct':
+                    score = hist_item['metrics'].get('correction_rate', 0)
+                else:
+                    score = hist_item['metrics'].get('composite_score', 0)
+                self.cached_scores[steering_type][coeff] = score
+
+            # Determine bounds
+            if optimal_coeff >= 100:
+                extension = 100
+            else:
+                extension = 10
+            lower = max(1.0, optimal_coeff - extension)
+            upper = optimal_coeff + extension
+
+            self.search_bounds[steering_type] = {
+                'lower': lower,
+                'upper': upper,
+                'optimal_from_phase4_5': optimal_coeff
+            }
+
+    def run(self) -> dict:
+        """Run golden section refinement."""
+        if self.n_gpus == 1:
+            return self._run_sequential()
+        else:
+            return self._run_parallel()
+
+    def _run_sequential(self) -> dict:
+        """Sequential execution using existing GoldenSectionCoefficientRefiner."""
+        refiner = GoldenSectionCoefficientRefiner(self.config, gpu_id=0, n_gpus=1)
+        return refiner.run()
+
+    def _run_parallel(self) -> dict:
+        """Parallel execution - orchestrator controls golden section algorithm."""
+        from common.iterative_parallel_runner import IterativeParallelRunner
+        from common.phase_discovery import write_phase_output
+
+        logger.info(f"Starting parallel golden section refinement with {self.n_gpus} GPUs")
+
+        mode = getattr(self.config, 'phase4_6_experiment_mode', 'all')
+        refined_coefficients = {}
+
+        if mode in ('all', 'correction') and 'correct' in self.search_bounds:
+            optimal, history = self._golden_section_search_parallel('correct')
+            refined_coefficients['correct'] = {
+                'refined_coefficient': optimal,
+                'phase4_5_coefficient': self.search_bounds['correct']['optimal_from_phase4_5'],
+                'improvement': optimal - self.search_bounds['correct']['optimal_from_phase4_5'],
+                'search_iterations': len(history),
+                'best_score': self.cached_scores['correct'].get(optimal, 0)
+            }
+
+        if mode in ('all', 'corruption') and 'incorrect' in self.search_bounds:
+            optimal, history = self._golden_section_search_parallel('incorrect')
+            refined_coefficients['incorrect'] = {
+                'refined_coefficient': optimal,
+                'phase4_5_coefficient': self.search_bounds['incorrect']['optimal_from_phase4_5'],
+                'improvement': optimal - self.search_bounds['incorrect']['optimal_from_phase4_5'],
+                'search_iterations': len(history),
+                'best_score': self.cached_scores['incorrect'].get(optimal, 0)
+            }
+
+        # Save results
+        save_json(refined_coefficients, self.output_dir / "refined_coefficients.json")
+
+        # Write manifest
+        write_phase_output(
+            phase="4.6",
+            outputs={
+                "primary": "refined_coefficients.json"
+            },
+            config=self.config,
+            output_dir=str(self.output_dir)
+        )
+
+        logger.info(f"Results saved to: {self.output_dir}")
+        return {'refined_coefficients': refined_coefficients}
+
+    def _golden_section_search_parallel(self, steering_type: str) -> tuple[int, list]:
+        """Run golden section search with parallel evaluation."""
+        from common.iterative_parallel_runner import IterativeParallelRunner
+
+        bounds = self.search_bounds[steering_type]
+        a = int(bounds['lower'])
+        b = int(bounds['upper'])
+        tolerance = int(self.config.phase4_6_tolerance)
+        history = []
+
+        logger.info(f"Golden section search for {steering_type}: bounds=[{a}, {b}]")
+
+        # Initial points
+        x1 = int(a + self.resphi * (b - a))
+        x2 = int(a + (1 - self.resphi) * (b - a))
+        if x1 == x2:
+            x2 = x1 + 1
+
+        # Evaluate initial points
+        f1 = self._evaluate_coefficient_parallel(x1, steering_type)
+        f2 = self._evaluate_coefficient_parallel(x2, steering_type)
+
+        best_score = max(f1, f2)
+        best_coeff = x1 if f1 > f2 else x2
+
+        history.append({
+            'iteration': 0,
+            'bounds': [a, b],
+            'points': [x1, x2],
+            'scores': [f1, f2]
+        })
+
+        iteration = 0
+        while b - a > tolerance:
+            iteration += 1
+
+            if f1 > f2:
+                b = x2
+                x2 = x1
+                f2 = f1
+                x1 = int(a + self.resphi * (b - a))
+                if x1 == x2 and x1 > a:
+                    x1 = x1 - 1
+                f1 = self._evaluate_coefficient_parallel(x1, steering_type)
+            else:
+                a = x1
+                x1 = x2
+                f1 = f2
+                x2 = int(b - self.resphi * (b - a))
+                if x2 == x1 and x2 < b:
+                    x2 = x2 + 1
+                f2 = self._evaluate_coefficient_parallel(x2, steering_type)
+
+            current_best = max(f1, f2)
+            if current_best > best_score:
+                best_score = current_best
+                best_coeff = x1 if f1 > f2 else x2
+
+            history.append({
+                'iteration': iteration,
+                'bounds': [a, b],
+                'best_score': best_score,
+                'best_coefficient': best_coeff
+            })
+
+            logger.info(f"  Iteration {iteration}: [{a}, {b}], best={best_coeff}={best_score:.1f}%")
+
+        return best_coeff, history
+
+    def _evaluate_coefficient_parallel(self, coefficient: int, steering_type: str) -> float:
+        """Evaluate a single coefficient using parallel workers."""
+        # Check cache first
+        if coefficient in self.cached_scores[steering_type]:
+            score = self.cached_scores[steering_type][coefficient]
+            logger.info(f"  Using cached score for {coefficient}: {score:.1f}%")
+            return score
+
+        from common.iterative_parallel_runner import IterativeParallelRunner
+
+        runner = IterativeParallelRunner(
+            phase_evaluator_class=RefinementEvaluator,
+            config=self.config,
+            n_gpus=self.n_gpus,
+            values_to_test=[(coefficient, steering_type)],
+            merge_fn=self._merge_refinement_results,
+            checkpoint_dir=self.output_dir / f"parallel_checkpoints_{steering_type}"
+        )
+
+        result = runner.run()
+        score = result['optimal_score']
+
+        # Cache result
+        self.cached_scores[steering_type][coefficient] = score
+        logger.info(f"  Evaluated {coefficient}: {score:.1f}%")
+
+        return score
+
+    def _merge_refinement_results(self, gpu_results: list[dict]) -> dict:
+        """Merge refinement results from all GPUs."""
+        all_results = []
+        for r in gpu_results:
+            all_results.extend(r.get('results', []))
+
+        steering_type = gpu_results[0]['steering_type'] if gpu_results else 'correct'
+
+        if steering_type == 'correct':
+            score = calculate_correction_rate(all_results) if all_results else 0.0
+        else:
+            corruption_rate = calculate_corruption_rate(all_results) if all_results else 0.0
+            avg_similarity = np.mean([r['code_similarity'] for r in all_results]) * 100 if all_results else 100
+            score = (corruption_rate + avg_similarity) / 2
+
+        return {
+            'results': all_results,
+            'score': score,
+            'n_problems': len(all_results)
+        }

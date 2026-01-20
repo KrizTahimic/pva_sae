@@ -904,3 +904,377 @@ class SteeringCoefficientSelector:
             logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
 
         return summary
+
+
+# =============================================================================
+# Iterative Parallel Support Classes
+# =============================================================================
+
+class CoefficientEvaluator:
+    """
+    Evaluates ONE coefficient on a subset of tasks.
+
+    Used by IterativeParallelRunner for parallel coefficient grid search.
+    Each GPU runs one CoefficientEvaluator instance.
+    """
+
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+        """Initialize and load model (called once per worker)."""
+        self.config = config
+        self.gpu_id = gpu_id
+        self.n_gpus = n_gpus
+        self.device = detect_device()
+
+        # Determine direction source
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source == 'probe_mass_mean'
+
+        logger.info(f"CoefficientEvaluator GPU {gpu_id}: Initializing...")
+
+        # Load model and tokenizer
+        self.model, self.tokenizer = load_model_and_tokenizer(
+            config.model_name,
+            device=self.device,
+            trust_remote_code=config.model_trust_remote_code
+        )
+        self.model.eval()
+
+        # Load dependencies
+        self._load_dependencies()
+
+        logger.info(f"CoefficientEvaluator GPU {gpu_id}: Initialization complete")
+
+    def _load_dependencies(self):
+        """Load steering directions and baseline data."""
+        from common.steering_setup import (
+            load_steering_latents, load_sae_and_directions,
+            load_baseline_data, split_by_correctness,
+            load_probe_directions_for_steering
+        )
+        from common.parallel_runner import filter_dataframe_for_gpu
+
+        if self.use_probe:
+            self.probe = load_probe_directions_for_steering(
+                self.config, self.device, self.model, method="mass_mean"
+            )
+            self.correct_latent_direction = self.probe.correct_direction
+            self.incorrect_latent_direction = self.probe.incorrect_direction
+            self.probe_layer = self.probe.layer
+            self.top_latents = None
+            self.best_correct_latent = None
+            self.best_incorrect_latent = None
+        else:
+            latents = load_steering_latents(self.config)
+            self.top_latents = latents.top_latents
+            self.best_correct_latent = latents.best_correct_latent
+            self.best_incorrect_latent = latents.best_incorrect_latent
+
+            sae = load_sae_and_directions(
+                self.config, self.device, self.model,
+                self.best_correct_latent, self.best_incorrect_latent
+            )
+            self.correct_latent_direction = sae.correct_direction
+            self.incorrect_latent_direction = sae.incorrect_direction
+
+        # Load baseline data
+        self.baseline_data, _ = load_baseline_data(
+            self.config, "3.6", "dataset_hyperparams_temp_0_0.parquet"
+        )
+
+        self.initially_correct_data, self.initially_incorrect_data = \
+            split_by_correctness(self.baseline_data)
+
+        # Filter for this GPU
+        self.initially_correct_data = filter_dataframe_for_gpu(
+            self.initially_correct_data, self.gpu_id, self.n_gpus
+        )
+        self.initially_incorrect_data = filter_dataframe_for_gpu(
+            self.initially_incorrect_data, self.gpu_id, self.n_gpus
+        )
+
+        logger.info(f"GPU {self.gpu_id}: Processing {len(self.initially_correct_data)} correct, "
+                   f"{len(self.initially_incorrect_data)} incorrect tasks")
+
+    def evaluate_single_value(self, coefficient: int) -> dict:
+        """Evaluate ONE coefficient on this GPU's problems."""
+        logger.info(f"GPU {self.gpu_id}: Evaluating coefficient={coefficient}")
+
+        # Get experiment mode
+        mode = getattr(self.config, 'phase4_5_experiment_mode', 'all')
+
+        results = {}
+
+        if mode in ('all', 'correction'):
+            # Correct steering on incorrect problems
+            correction_results = self._evaluate_steering(
+                coefficient, self.initially_incorrect_data, 'correct'
+            )
+            correction_rate = calculate_correction_rate(correction_results) if correction_results else 0.0
+            results['correct_steering'] = {
+                'coefficient': coefficient,
+                'steering_type': 'correct',
+                'results': correction_results,
+                'metrics': {'correction_rate': correction_rate},
+                'n_problems': len(correction_results)
+            }
+
+        if mode in ('all', 'corruption'):
+            # Incorrect steering on correct problems
+            corruption_results = self._evaluate_steering(
+                coefficient, self.initially_correct_data, 'incorrect'
+            )
+            corruption_rate = calculate_corruption_rate(corruption_results) if corruption_results else 0.0
+            avg_similarity = np.mean([r['code_similarity'] for r in corruption_results]) * 100 if corruption_results else 100
+            composite_score = (corruption_rate + avg_similarity) / 2
+
+            results['incorrect_steering'] = {
+                'coefficient': coefficient,
+                'steering_type': 'incorrect',
+                'results': corruption_results,
+                'metrics': {
+                    'corruption_rate': corruption_rate,
+                    'avg_similarity': avg_similarity,
+                    'composite_score': composite_score
+                },
+                'n_problems': len(corruption_results)
+            }
+
+        return {
+            'coefficient': coefficient,
+            'results': results
+        }
+
+    def _evaluate_steering(self, coefficient: float, problems_df: pd.DataFrame, steering_type: str) -> list[dict]:
+        """Evaluate steering on problems."""
+        if steering_type == 'correct':
+            latent_direction = self.correct_latent_direction
+            target_layer = self.probe_layer if self.use_probe else self.best_correct_latent['layer']
+        else:
+            latent_direction = self.incorrect_latent_direction
+            target_layer = self.probe_layer if self.use_probe else self.best_incorrect_latent['layer']
+
+        results = []
+
+        for _, row in problems_df.iterrows():
+            hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
+            target_module = self.model.model.layers[target_layer]
+            hook_handle = target_module.register_forward_pre_hook(hook_fn)
+
+            try:
+                prompt = row['prompt']
+                inputs = self.tokenizer(
+                    prompt,
+                    return_tensors="pt",
+                    truncation=True,
+                    max_length=self.config.activation_max_length
+                ).to(self.device)
+
+                with torch.no_grad():
+                    outputs = self.model.generate(
+                        **inputs,
+                        max_new_tokens=self.config.model_max_new_tokens,
+                        temperature=0.0,
+                        do_sample=False,
+                        pad_token_id=self.tokenizer.pad_token_id
+                    )
+
+                generated_text = self.tokenizer.decode(
+                    outputs[0][inputs['input_ids'].shape[1]:],
+                    skip_special_tokens=True
+                )
+                generated_code = extract_code(generated_text, prompt)
+
+                test_list = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                eval_result = evaluate_code_with_error_type(generated_code, test_list)
+
+                baseline_passed = row['baseline_passed']
+                steered_correct = eval_result.passed
+                baseline_code = row['generated_code']
+                code_similarity = calculate_code_similarity(baseline_code, generated_code)
+
+                result = {
+                    'task_id': row['task_id'],
+                    'baseline_passed': baseline_passed,
+                    'steered_correct': steered_correct,
+                    'flipped': baseline_passed != steered_correct,
+                    'code_similarity': code_similarity,
+                    'baseline_code': baseline_code,
+                    'steered_code': generated_code
+                }
+                results.append(result)
+
+            except Exception as e:
+                logger.error(f"GPU {self.gpu_id}: Task {row['task_id']} failed: {e}")
+
+            finally:
+                hook_handle.remove()
+
+            # Memory cleanup
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        return results
+
+
+class CoefficientOrchestrator:
+    """
+    Orchestrates coefficient grid search (sequential or parallel).
+
+    In parallel mode, uses IterativeParallelRunner to coordinate
+    evaluation across GPUs with proper merging for early stopping.
+    """
+
+    def __init__(self, config: Config, n_gpus: int = 1):
+        """Initialize orchestrator."""
+        self.config = config
+        self.n_gpus = n_gpus
+
+        # Direction source
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source == 'probe_mass_mean'
+
+        # Output directory
+        self.output_dir = Path(get_phase_output_dir("4.5", config))
+        if self.use_probe:
+            self.output_dir = self.output_dir.parent / (self.output_dir.name + "_probe")
+        ensure_directory_exists(self.output_dir)
+
+        # Grid points
+        self.correct_coefficients = config.phase4_5_correct_coefficients
+        self.incorrect_coefficients = config.phase4_5_incorrect_coefficients
+
+        logger.info(f"CoefficientOrchestrator: {n_gpus} GPU(s)")
+
+    def run(self) -> dict:
+        """Run coefficient grid search."""
+        if self.n_gpus == 1:
+            return self._run_sequential()
+        else:
+            return self._run_parallel()
+
+    def _run_sequential(self) -> dict:
+        """Sequential execution using existing SteeringCoefficientSelector."""
+        selector = SteeringCoefficientSelector(self.config, gpu_id=0, n_gpus=1)
+        return selector.run()
+
+    def _run_parallel(self) -> dict:
+        """Parallel execution using IterativeParallelRunner."""
+        from common.iterative_parallel_runner import IterativeParallelRunner
+        from common.phase_discovery import write_phase_output
+
+        logger.info(f"Starting parallel coefficient search with {self.n_gpus} GPUs")
+
+        mode = getattr(self.config, 'phase4_5_experiment_mode', 'all')
+        all_results = {}
+        selected_coefficients = {}
+
+        if mode in ('all', 'correction'):
+            runner = IterativeParallelRunner(
+                phase_evaluator_class=CoefficientEvaluator,
+                config=self.config,
+                n_gpus=self.n_gpus,
+                values_to_test=self.correct_coefficients,
+                early_stop_fn=self._should_early_stop_correction,
+                merge_fn=self._merge_correction_results,
+                checkpoint_dir=self.output_dir / "parallel_checkpoints_correct"
+            )
+            result = runner.run()
+            all_results['correct_steering'] = self._format_history(result, 'correct')
+            selected_coefficients['correct'] = {
+                'coefficient': result['optimal_value'],
+                'correction_rate': result['optimal_score']
+            }
+
+        if mode in ('all', 'corruption'):
+            runner = IterativeParallelRunner(
+                phase_evaluator_class=CoefficientEvaluator,
+                config=self.config,
+                n_gpus=self.n_gpus,
+                values_to_test=self.incorrect_coefficients,
+                early_stop_fn=self._should_early_stop_corruption,
+                merge_fn=self._merge_corruption_results,
+                checkpoint_dir=self.output_dir / "parallel_checkpoints_incorrect"
+            )
+            result = runner.run()
+            all_results['incorrect_steering'] = self._format_history(result, 'incorrect')
+            selected_coefficients['incorrect'] = {
+                'coefficient': result['optimal_value'],
+                'composite_score': result['optimal_score']
+            }
+
+        # Save results
+        save_json(all_results, self.output_dir / "coefficient_analysis.json")
+        save_json(selected_coefficients, self.output_dir / "selected_coefficients.json")
+
+        # Write manifest
+        write_phase_output(
+            phase="4.5",
+            outputs={
+                "primary": "coefficient_analysis.json",
+                "selected_coefficients": "selected_coefficients.json"
+            },
+            config=self.config,
+            output_dir=str(self.output_dir)
+        )
+
+        logger.info(f"Results saved to: {self.output_dir}")
+        return {'selected_coefficients': selected_coefficients, 'results': all_results}
+
+    def _merge_correction_results(self, gpu_results: list[dict]) -> dict:
+        """Merge correction results from all GPUs."""
+        all_results = []
+        for r in gpu_results:
+            steering_results = r.get('results', {}).get('correct_steering', {})
+            all_results.extend(steering_results.get('results', []))
+
+        correction_rate = calculate_correction_rate(all_results) if all_results else 0.0
+
+        return {
+            'results': all_results,
+            'score': correction_rate,
+            'correction_rate': correction_rate,
+            'n_problems': len(all_results)
+        }
+
+    def _merge_corruption_results(self, gpu_results: list[dict]) -> dict:
+        """Merge corruption results from all GPUs."""
+        all_results = []
+        for r in gpu_results:
+            steering_results = r.get('results', {}).get('incorrect_steering', {})
+            all_results.extend(steering_results.get('results', []))
+
+        corruption_rate = calculate_corruption_rate(all_results) if all_results else 0.0
+        avg_similarity = np.mean([r['code_similarity'] for r in all_results]) * 100 if all_results else 100
+        composite_score = (corruption_rate + avg_similarity) / 2
+
+        return {
+            'results': all_results,
+            'score': composite_score,
+            'corruption_rate': corruption_rate,
+            'avg_similarity': avg_similarity,
+            'composite_score': composite_score,
+            'n_problems': len(all_results)
+        }
+
+    def _should_early_stop_correction(self, current: dict, history: list[dict]) -> bool:
+        """Early stop if correction rate dropped."""
+        if len(history) < 2:
+            return False
+        best_score = max(h.get('score', 0) for h in history[:-1])
+        return current.get('score', 0) < best_score
+
+    def _should_early_stop_corruption(self, current: dict, history: list[dict]) -> bool:
+        """Early stop if composite score dropped."""
+        if len(history) < 2:
+            return False
+        best_score = max(h.get('score', 0) for h in history[:-1])
+        return current.get('score', 0) < best_score
+
+    def _format_history(self, result: dict, steering_type: str) -> dict:
+        """Format runner history for output."""
+        return {
+            'optimal_coefficient': result['optimal_value'],
+            'best_result': result['history'][-1] if result['history'] else None,
+            'search_history': result['history']
+        }

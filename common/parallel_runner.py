@@ -55,23 +55,31 @@ from common.phase_discovery import write_phase_output
 logger = get_logger(__name__)
 
 
-# Phases that support multi-GPU parallelization via task_subset
+# One-shot parallelization: distribute problems, merge at end
 # These phases iterate over tasks and can split work across GPUs
-PARALLELIZABLE_PHASES = {
+DATA_PARALLEL_PHASES = {
     "1",     # Code generation + activation extraction
-    "3.5",   # Temperature robustness
     "3.6",   # Hyperparameter baseline
-    "4.5",   # Coefficient grid search
-    "4.6",   # Golden section refinement
-    "4.8",   # Steering effect analysis
+    "4.8",   # Steering effect analysis (fixed coefficient)
     "4.12",  # Zero-disc steering
     "5.3",   # Weight orthogonalization
     "5.6",   # Zero-disc orthogonalization
     "7.3",   # Instruct baseline
     "7.6",   # Instruct steering
-    # "8.2" removed - outputs JSON (not parquet), doesn't parallelize well (grid search)
-    "8.3",   # Selective steering
+    "8.3",   # Selective steering (fixed threshold)
 }
+
+# Iterative parallelization: distribute problems, merge after each value
+# Used for grid search phases where early stopping needs full data
+ITERATIVE_PARALLEL_PHASES = {
+    "3.5",   # Temperature robustness (iterate over temperatures)
+    "4.5",   # Coefficient grid search (iterate over coefficients)
+    "4.6",   # Golden section (iterate over refinement points)
+    "8.2",   # Threshold optimizer (iterate over percentiles)
+}
+
+# Backward compatibility - all phases that support parallelization
+PARALLELIZABLE_PHASES = DATA_PARALLEL_PHASES | ITERATIVE_PARALLEL_PHASES
 
 
 def _get_gpu_task_indices(total_tasks: int, n_gpus: int, gpu_id: int) -> list[int]:
@@ -172,9 +180,10 @@ def run_phase_parallel(phase_id: str, config: Config, n_gpus: int) -> dict:
 
     This function:
     1. Validates the phase supports parallelization
-    2. Spawns worker processes (one per GPU)
-    3. Each worker processes its subset of tasks
-    4. Merges results after all workers complete
+    2. Routes to appropriate parallelization strategy:
+       - Data-parallel: distribute problems, merge at end
+       - Iterative-parallel: distribute problems, merge after each value
+    3. Merges results after all workers complete
 
     Args:
         phase_id: Phase to run
@@ -186,6 +195,12 @@ def run_phase_parallel(phase_id: str, config: Config, n_gpus: int) -> dict:
     """
     if phase_id not in PARALLELIZABLE_PHASES:
         raise ValueError(f"Phase {phase_id} does not support parallel execution")
+
+    # Route iterative phases to the iterative parallel runner
+    if phase_id in ITERATIVE_PARALLEL_PHASES:
+        logger.info(f"Using iterative parallelization for Phase {phase_id}")
+        from common.iterative_parallel_runner import run_iterative_parallel
+        return run_iterative_parallel(phase_id, config, n_gpus)
 
     logger.info(f"Starting parallel execution for Phase {phase_id} with {n_gpus} GPUs")
 

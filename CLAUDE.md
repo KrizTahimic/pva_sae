@@ -94,14 +94,37 @@ python3 run.py phase 1 --parallel 4
 python3 run.py phase 1 --parallel 4 --start 0 --end 40
 ```
 
-**How it works:**
-- Tasks distributed round-robin: GPU 0 gets tasks [0,4,8...], GPU 1 gets [1,5,9...]
-- Each GPU saves `results_gpu{N}.parquet`
-- Orchestrator merges results after completion
+**Two parallelization types:**
 
-**Supported phases:** 1, 3.5, 3.6, 4.5, 4.6, 4.8, 4.12, 5.3, 5.6, 7.3, 7.6, 8.2, 8.3
+| Type | Phases | Pattern | Merge |
+|------|--------|---------|-------|
+| Data-parallel | 1, 3.6, 4.8, 4.12, 5.3, 5.6, 7.3, 7.6, 8.3 | Problems distributed | Once at end |
+| Iterative-parallel | 3.5, 4.5, 4.6, 8.2 | Problems distributed, iterate over values | After each value |
 
-See `common/parallel_runner.py` for implementation details.
+**Data-parallel:** Each GPU processes different problems independently.
+Best for phases with fixed parameters (coefficient, threshold).
+
+**Iterative-parallel:** Each GPU processes different problems, but all GPUs
+test the same value simultaneously. Results merged after each value to enable
+early stopping based on FULL data. Used for grid search phases.
+
+```
+Orchestrator (controls iteration)
+    │
+    │  Round 1: "Test value=X"
+    │  ┌──────────┼──────────┐
+    ▼  ▼          ▼          ▼
+  GPU 0        GPU 1       GPU 2       GPU 3
+  (1/4 probs)  (1/4 probs) (1/4 probs) (1/4 probs)
+    │             │           │           │
+    └─────────────┴───────────┴───────────┘
+                      │
+    Merge → combined metrics for X (ALL problems)
+                      │
+    Early stop decision (based on FULL data)
+```
+
+See `common/parallel_runner.py` and `common/iterative_parallel_runner.py` for implementation.
 
 ### Checkpointing
 
