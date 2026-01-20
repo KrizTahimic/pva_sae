@@ -1620,11 +1620,15 @@ class RefinementOrchestrator:
 
             # Cache Phase 4.5 scores
             for hist_item in results.get('search_history', []):
-                coeff = hist_item['coefficient']
+                # Handle both old format (coefficient, metrics) and new format (value, top-level metrics)
+                coeff = hist_item.get('coefficient') or hist_item.get('value')
+                if coeff is None:
+                    continue
                 if steering_type == 'correct':
-                    score = hist_item['metrics'].get('correction_rate', 0)
+                    # Try new format first, then old format
+                    score = hist_item.get('correction_rate') or hist_item.get('metrics', {}).get('correction_rate', 0)
                 else:
-                    score = hist_item['metrics'].get('composite_score', 0)
+                    score = hist_item.get('composite_score') or hist_item.get('metrics', {}).get('composite_score', 0)
                 self.cached_scores[steering_type][coeff] = score
 
             # Determine bounds

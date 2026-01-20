@@ -1014,11 +1014,24 @@ Current Phase 9.1 implementation should be deleted and redesigned. Instead of a 
 
 - [ ] Delete current Phase 9.1 implementation
 - [ ] Add error type statistics to each phase's output:
-  - Phase 1: `baseline_error_type_distribution`
-  - Phase 3.5, 3.10: `temperature_error_type_distribution`
-  - Phase 4.8, 7.6: `steered_error_type_distribution`
-  - Phase 5.3, 5.6: `orthogonalized_error_type_distribution`
+  - **Baseline generation phases:**
+    - Phase 1: `baseline_error_type_distribution`
+    - Phase 3.5: `temperature_error_type_distribution`
+    - Phase 3.6: `baseline_error_type_distribution`
+    - Phase 7.3: `instruct_baseline_error_type_distribution`
+  - **Steering phases:**
+    - Phase 4.5: `steered_error_type_distribution` (grid search)
+    - Phase 4.6: `steered_error_type_distribution` (golden section)
+    - Phase 4.8: `steered_error_type_distribution`
+    - Phase 4.12: `steered_error_type_distribution` (zero-disc)
+    - Phase 7.6: `instruct_steered_error_type_distribution`
+    - Phase 8.2: `steered_error_type_distribution` (threshold optimizer)
+    - Phase 8.3: `steered_error_type_distribution` (selective)
+  - **Orthogonalization phases:**
+    - Phase 5.3: `orthogonalized_error_type_distribution`
+    - Phase 5.6: `orthogonalized_error_type_distribution` (zero-disc)
 - [ ] Create summary visualization that reads from all phases' built-in stats
+
 
 ---
 
