@@ -52,8 +52,17 @@ class ThresholdCalculator:
         self.config = config
         self.device = torch.device(detect_device())
 
+        # Direction source detection (SAE or probe)
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source in ('probe_logreg', 'probe_mass_mean')
+
         # Create output directory
         self.output_dir = Path(get_phase_output_dir("8.1", config))
+
+        # Add probe suffix if using probe directions
+        if self.use_probe:
+            self.output_dir = self.output_dir.parent / (self.output_dir.name + "_probe")
+
         ensure_directory_exists(self.output_dir)
 
         logger.info(f"Initializing Threshold Calculator")
@@ -69,22 +78,61 @@ class ThresholdCalculator:
         """Load Phase 3.8 latent info and Phase 3.6 activation data."""
         logger.info("Loading dependencies...")
 
-        # === LOAD PHASE 3.8 LATENT INFO ===
-        logger.info("Loading incorrect-predicting latent info from Phase 3.8...")
-        phase3_8_output = discover_latest_phase_output("3.8")
-        if not phase3_8_output:
-            raise FileNotFoundError("Phase 3.8 output not found. Run Phase 3.8 first.")
+        if self.use_probe:
+            # === PROBE MODE: Load probe direction from Phase 2.6 ===
+            logger.info("PROBE MODE: Loading probe direction from Phase 2.6")
 
-        phase3_8_results = load_json(Path(phase3_8_output).parent / "auroc_f1_results.json")
+            from common.steering_setup import load_probe_directions_for_predicting
 
-        # Extract incorrect-predicting latent info
-        incorrect_pred_info = phase3_8_results['incorrect_predicting_latent']
-        self.latent_layer = incorrect_pred_info['layer']
-        self.latent_idx = incorrect_pred_info['latent_idx']
-        self.phase3_8_threshold = incorrect_pred_info['hyperparameter_split']['threshold']
+            self.probe = load_probe_directions_for_predicting(
+                self.config, self.device, method="logreg"
+            )
+            self.latent_layer = self.probe.layer
+            self.latent_idx = None  # Not used in probe mode
+            self.probe_direction = self.probe.incorrect_direction
+            self.probe_bias = self.probe.bias
 
-        logger.info(f"Incorrect-predicting latent: Layer {self.latent_layer}, Latent {self.latent_idx}")
-        logger.info(f"Phase 3.8 optimal threshold (reference): {self.phase3_8_threshold:.4f}")
+            logger.info(f"Predicting probe: Layer {self.latent_layer}, bias={self.probe_bias:.4f}")
+
+            # Load Phase 3.8 probe threshold for reference
+            phase3_8_output = discover_latest_phase_output("3.8")
+            if phase3_8_output:
+                phase3_8_dir = Path(phase3_8_output).parent
+                probe_dir = phase3_8_dir.parent / (phase3_8_dir.name + "_probe")
+                if probe_dir.exists():
+                    phase3_8_results = load_json(probe_dir / "auroc_f1_results.json")
+                    self.phase3_8_threshold = phase3_8_results['incorrect_predicting_latent']['hyperparameter_split']['threshold']
+                    logger.info(f"Phase 3.8 probe threshold (reference): {self.phase3_8_threshold:.4f}")
+                else:
+                    self.phase3_8_threshold = 0.0
+                    logger.warning(f"Phase 3.8 probe output not found at {probe_dir}")
+            else:
+                self.phase3_8_threshold = 0.0
+                logger.warning("Phase 3.8 output not found")
+
+            # No SAE needed in probe mode
+            self.sae = None
+        else:
+            # === SAE MODE: Load from Phase 3.8 ===
+            logger.info("SAE MODE: Loading incorrect-predicting latent info from Phase 3.8...")
+            phase3_8_output = discover_latest_phase_output("3.8")
+            if not phase3_8_output:
+                raise FileNotFoundError("Phase 3.8 output not found. Run Phase 3.8 first.")
+
+            phase3_8_results = load_json(Path(phase3_8_output).parent / "auroc_f1_results.json")
+
+            # Extract incorrect-predicting latent info
+            incorrect_pred_info = phase3_8_results['incorrect_predicting_latent']
+            self.latent_layer = incorrect_pred_info['layer']
+            self.latent_idx = incorrect_pred_info['latent_idx']
+            self.phase3_8_threshold = incorrect_pred_info['hyperparameter_split']['threshold']
+
+            logger.info(f"Incorrect-predicting latent: Layer {self.latent_layer}, Latent {self.latent_idx}")
+            logger.info(f"Phase 3.8 optimal threshold (reference): {self.phase3_8_threshold:.4f}")
+
+            # Not used in SAE mode
+            self.probe_direction = None
+            self.probe_bias = 0.0
 
         # === LOAD PHASE 3.6 DATASET ===
         logger.info("Loading Phase 3.6 hyperparameter dataset...")
@@ -118,10 +166,11 @@ class ThresholdCalculator:
 
         logger.info(f"Activation directory: {self.activation_dir}")
 
-        # === LOAD SAE FOR DECOMPOSITION ===
-        logger.info(f"Loading SAE for Layer {self.latent_layer}...")
-        self.sae = load_sae_for_config(self.config, self.latent_layer, self.device)
-        logger.info(f"✓ SAE loaded for Layer {self.latent_layer}")
+        # === LOAD SAE FOR DECOMPOSITION (SAE mode only) ===
+        if not self.use_probe:
+            logger.info(f"Loading SAE for Layer {self.latent_layer}...")
+            self.sae = load_sae_for_config(self.config, self.latent_layer, self.device)
+            logger.info(f"✓ SAE loaded for Layer {self.latent_layer}")
 
         logger.info("Dependencies loaded successfully")
 
@@ -137,7 +186,10 @@ class ThresholdCalculator:
         logger.info("="*60)
 
         # === EXTRACT ACTIVATIONS FROM SAFETENSORS FILES ===
-        logger.info(f"Extracting L{self.latent_layer}-{self.latent_idx} activations from safetensors files...")
+        if self.use_probe:
+            logger.info(f"PROBE MODE: Extracting L{self.latent_layer} probe scores from safetensors files...")
+        else:
+            logger.info(f"SAE MODE: Extracting L{self.latent_layer}-{self.latent_idx} activations from safetensors files...")
 
         activations = []
         missing_files = []
@@ -156,17 +208,18 @@ class ThresholdCalculator:
                 # Load activation (preserves bfloat16)
                 raw_tensor = load_activation(activation_file, self.device)
 
-                # Apply SAE decomposition to get features (16384 dim)
                 with torch.no_grad():
-                    # Ensure dtype matches SAE parameters
-                    raw_tensor = raw_tensor.to(dtype=self.sae.W_enc.dtype)
-
-                    # Encode through SAE to get feature activations
-                    latent_activations = self.sae.encode(raw_tensor)  # Shape: (1, 16384)
-
-                    # Extract specific feature
-                    latent_activation = latent_activations[0, self.latent_idx].item()
-                    activations.append(float(latent_activation))
+                    if self.use_probe:
+                        # Probe mode: direct dot product scoring
+                        activation_float = raw_tensor.to(dtype=self.probe_direction.dtype)
+                        score = (activation_float @ self.probe_direction).item() + self.probe_bias
+                        activations.append(float(score))
+                    else:
+                        # SAE mode: encode then extract latent activation
+                        raw_tensor = raw_tensor.to(dtype=self.sae.W_enc.dtype)
+                        latent_activations = self.sae.encode(raw_tensor)  # Shape: (1, 16384)
+                        latent_activation = latent_activations[0, self.latent_idx].item()
+                        activations.append(float(latent_activation))
 
             except Exception as e:
                 logger.warning(f"Task {task_id}: Error processing activation: {e}")
@@ -230,12 +283,14 @@ class ThresholdCalculator:
         summary = {
             'phase': '8.1',
             'timestamp': datetime.now().isoformat(),
+            'direction_source': self.direction_source,
             'source_phase': '3.6',
             'source_dataset': 'tuning',
             'latent_info': {
                 'layer': self.latent_layer,
                 'latent_idx': self.latent_idx,
-                'description': 'Incorrect-predicting feature from Phase 3.8'
+                'probe_bias': self.probe_bias if self.use_probe else None,
+                'description': 'Incorrect-predicting probe' if self.use_probe else 'Incorrect-predicting SAE latent from Phase 3.8'
             },
             'activation_statistics': statistics,
             'percentile_thresholds': thresholds,

@@ -1027,3 +1027,5 @@ Current Phase 9.1 implementation should be deleted and redesigned. Instead of a 
 FINAL
 - [ ] Add here the ICML LaTeX.
 - [ ] Improve the aesthetic of my visualization.
+
+- [ ] How did we implement logreg threshold?
