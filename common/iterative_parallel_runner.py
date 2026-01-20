@@ -50,6 +50,25 @@ logger = get_logger(__name__)
 DEFAULT_WORKER_TIMEOUT = 600
 
 
+def _no_early_stop(*args) -> bool:
+    """Default early stop function that never stops."""
+    return False
+
+
+def _default_merge_fn(gpu_results: list[dict]) -> dict:
+    """Default merge function - combines results from all GPUs."""
+    all_results = []
+    for r in gpu_results:
+        if 'results' in r:
+            all_results.extend(r['results'])
+
+    return {
+        'n_gpus': len(gpu_results),
+        'n_problems': len(all_results),
+        'results': all_results
+    }
+
+
 @runtime_checkable
 class PhaseEvaluator(Protocol):
     """Protocol for phases supporting iterative parallelization."""
@@ -119,8 +138,8 @@ class IterativeParallelRunner:
         self.config = config
         self.n_gpus = n_gpus
         self.values_to_test = values_to_test
-        self.early_stop_fn = early_stop_fn or (lambda *args: False)
-        self.merge_fn = merge_fn or self._default_merge
+        self.early_stop_fn = early_stop_fn or _no_early_stop
+        self.merge_fn = merge_fn or _default_merge_fn
         self.timeout = timeout_per_iteration
         self.checkpoint_dir = checkpoint_dir
 
@@ -340,19 +359,6 @@ class IterativeParallelRunner:
                 p.join(timeout=5)
 
         logger.info("All workers shut down")
-
-    def _default_merge(self, gpu_results: list[dict]) -> dict:
-        """Default merge function - combines results from all GPUs."""
-        all_results = []
-        for r in gpu_results:
-            if 'results' in r:
-                all_results.extend(r['results'])
-
-        return {
-            'n_gpus': len(gpu_results),
-            'n_problems': len(all_results),
-            'results': all_results
-        }
 
     def _load_checkpoint(self) -> set:
         """Load checkpoint to get completed values."""

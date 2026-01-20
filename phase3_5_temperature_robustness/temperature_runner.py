@@ -1136,7 +1136,7 @@ class TemperatureOrchestrator:
             config=self.config,
             n_gpus=self.n_gpus,
             values_to_test=self.config.temperature_variation_temps,
-            early_stop_fn=lambda *args: False,  # No early stopping for temperature
+            early_stop_fn=None,  # No early stopping for temperature
             merge_fn=self._merge_temperature_results,
             checkpoint_dir=self.output_dir / "parallel_checkpoints"
         )
