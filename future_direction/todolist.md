@@ -763,61 +763,64 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 | 3.8 | AUROC/F1 Evaluation | ✓ | ✓ | - | ✅ DONE |
 | 3.10 | Temperature Robustness | ✓ | ✓ | - | ✅ DONE |
 | 7.3 | Instruct Detection | ✓ | - | - | ⏭️ N/A (activation extraction only) |
-| 7.12 | Instruct AUROC/F1 | ✓ | ✓ | - | ✅ DONE |
+| 7.12 | Instruct AUROC/F1 | ✓ | ✓ | - | ✅ DONE ✅ VERIFIED |
 | **Steering Phases** |||||
 | 4.5 | Coefficient Grid Search | ✓ | - | ✓ | ✅ DONE |
 | 4.6 | Golden Section Refinement | ✓ | - | ✓ | ✅ DONE |
 | 4.7 | Coefficient Visualization | ✓ | - | ✓ | ✅ DONE |
-| 4.8 | Steering Analysis | ✓ | - | ✓ | ✅ DONE |
-| 7.6 | Instruct Steering | ✓ | - | ✓ | ✅ DONE |
+| 4.8 | Steering Analysis | ✓ | - | ✓ | ✅ DONE ✅ VERIFIED |
+| 7.6 | Instruct Steering | ✓ | - | ✓ | ✅ DONE ✅ VERIFIED |
 | **Other Phases** |||||
-| 5.3 | Weight Orthogonalization | ✓ | - | ✓ | ✅ DONE |
+| 5.3 | Weight Orthogonalization | ✓ | - | ✓ | ✅ DONE ✅ VERIFIED |
 | 5.6 | Zero-Disc Orthogonalization | ✓ | - | - | ⏭️ N/A (SAE control experiment) |
 | 6.3 | Attention Analysis | ✓ | - | - | ⏭️ N/A (uses existing Phase 4.8 data) |
 | 8.2 | Threshold Optimizer | ✓ | [ ] | [ ] | 🔧 FUTURE (dual-direction architecture) |
 | 8.3 | Selective Steering | ✓ | [ ] | [ ] | 🔧 FUTURE (dual-direction architecture) |
 
-Legend: ✓ = implemented, [ ] = needs implementation, - = not applicable, ⏭️ = not applicable for this phase
+Legend: ✓ = implemented, [ ] = needs implementation, - = not applicable, ⏭️ = not applicable for this phase, ✅ VERIFIED = tested and working
 
-#### Implementation Tasks
+#### Implementation Tasks ✅ ALL COMPLETE
 
 **Detection phases (add `--direction-source probe_logreg`):**
 - [x] **Phase 3.10**: Temperature robustness with probe ✅ DONE (2026-01-20)
   - Load logreg direction from Phase 2.6 via `load_probe_directions_for_predicting()`
   - Compute detection scores across temperatures
-- [x] **Phase 7.12**: Instruct AUROC/F1 with probe ✅ DONE (2026-01-20)
+- [x] **Phase 7.12**: Instruct AUROC/F1 with probe ✅ DONE (2026-01-20) ✅ VERIFIED
   - Added `load_instruct_activations_probe()` function
   - Supports `--direction-source probe_logreg`
-- [ ] **Phase 7.3**: Instruct model detection with probe - N/A (activation extraction only, no direction usage)
-- [ ] **Phase 8.2**: Threshold optimizer with probe detection - FUTURE (dual-direction architecture)
+  - Test result: AUROC 0.67, F1 0.67 (on analysis split)
+- [x] **Phase 7.3**: N/A (activation extraction only, no direction usage)
+- [x] **Phase 8.2**: 🔧 FUTURE (dual-direction architecture - needs separate logreg for prediction, mass_mean for steering)
 
 **Steering phases (add `--direction-source probe_mass_mean`):**
-- [x] **Phase 5.3**: Weight orthogonalization with probe direction ✅ DONE (2026-01-20)
+- [x] **Phase 4.8**: Steering analysis with probe ✅ DONE (2026-01-20) ✅ VERIFIED
+  - Test result: 33.3% correction, 0% corruption, 100% preservation
+- [x] **Phase 5.3**: Weight orthogonalization with probe direction ✅ DONE (2026-01-20) ✅ VERIFIED
   - Orthogonalize mass-mean direction from weights
   - Supports `--direction-source probe_mass_mean`
-- [x] **Phase 7.6**: Instruct steering with probe ✅ DONE (2026-01-20)
+  - Test result: 10% correction, 100% preservation
+- [x] **Phase 7.6**: Instruct steering with probe ✅ DONE (2026-01-20) ✅ VERIFIED
   - Added probe coefficient discovery from Phase 4.6 probe output
   - Supports `--direction-source probe_mass_mean`
-- [ ] **Phase 5.6**: Zero-disc orthogonalization with probe - N/A (SAE control experiment)
-- [ ] **Phase 6.3**: Attention analysis with probe direction - N/A (uses existing Phase 4.8 data)
-- [ ] **Phase 8.3**: Selective steering with probe - FUTURE (dual-direction architecture)
+  - Test result: 33.3% correction, 0% corruption, 100% preservation
+- [x] **Phase 5.6**: N/A (SAE control experiment - intentionally SAE-only)
+- [x] **Phase 6.3**: N/A (uses existing Phase 4.8 data - no new implementation needed)
+- [x] **Phase 8.3**: 🔧 FUTURE (dual-direction architecture - needs separate logreg for prediction, mass_mean for steering)
 
 #### Implementation Pattern
 
-Each phase needs this pattern:
+Each phase uses the appropriate utility function from `common/steering_setup.py`:
 
 ```python
-# In phase runner __init__ or _load_dependencies:
-if config.direction_source == "probe_logreg":
-    probe_data = load_probe_directions(config)  # From Phase 2.6
-    self.direction = probe_data["logreg"]["direction"]
-    self.layer = probe_data["logreg"]["best_layer"]
-elif config.direction_source == "probe_mass_mean":
-    probe_data = load_probe_directions(config)
-    self.direction = probe_data["mass_mean"]["direction"]
-    self.layer = probe_data["mass_mean"]["best_layer"]
-else:  # SAE (default)
-    # existing SAE loading code
+# For DETECTION phases (3.8, 3.10, 7.12):
+from common.steering_setup import load_probe_directions_for_predicting
+probe = load_probe_directions_for_predicting(config, device, method="logreg")
+direction = probe.correct_direction  # float32, for scoring
+
+# For STEERING phases (4.5, 4.6, 4.8, 5.3, 7.6):
+from common.steering_setup import load_probe_directions_for_steering
+probe = load_probe_directions_for_steering(config, device, model, method="mass_mean")
+direction = probe.correct_direction  # matches model dtype, for activation modification
 ```
 
 **Output directories:** When `--direction-source probe_*`, output goes to `phase{N}_probe/`

@@ -972,8 +972,7 @@ class InstructSteeringAnalyzer:
                     'score': self.best_incorrect_latent.get('separation_score', self.best_incorrect_latent.get('t_statistic'))
                 }
             }
-        }
-        
+
         save_json(summary, self.output_dir / "phase_7_6_summary.json")
         
         logger.info(f"Saved results to {self.output_dir}")

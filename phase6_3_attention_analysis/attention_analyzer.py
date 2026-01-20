@@ -36,9 +36,18 @@ class AttentionAnalyzer:
         """Initialize with configuration, discover dependencies."""
         self.config = config
         self.device = detect_device()
-        
+
+        # Direction source detection (SAE or probe)
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source in ('probe_logreg', 'probe_mass_mean')
+
         # Output directories with dataset suffix
         self.output_dir = Path(get_phase_output_dir('6.3', config))
+
+        # Add probe suffix if using probe directions
+        if self.use_probe:
+            self.output_dir = self.output_dir.parent / (self.output_dir.name + "_probe")
+
         ensure_directory_exists(self.output_dir)
         logger.info(f"Output directory: {self.output_dir}")
         
@@ -58,18 +67,28 @@ class AttentionAnalyzer:
         logger.info("AttentionAnalyzer initialized successfully")
         
     def _load_pva_features(self) -> None:
-        """Load steering latents from Phase 2.5 (separation score selection)."""
-        from common.steering_setup import load_steering_latents
-        pva_latents = load_steering_latents(self.config)
+        """Load steering latents from Phase 2.5 or probe layer from Phase 2.6."""
+        if self.use_probe:
+            # Probe mode: Load probe layer from Phase 2.6
+            from common.steering_setup import load_probe_directions_for_predicting
 
-        self.best_correct_latent = pva_latents.top_latents['correct'][0]
-        self.best_incorrect_latent = pva_latents.top_latents['incorrect'][0]
+            probe = load_probe_directions_for_predicting(self.config, self.device, method="mass_mean")
+            self.best_correct_layer = probe.layer
+            self.best_incorrect_layer = probe.layer  # Same layer for probes
+            logger.info(f"PROBE MODE: Using probe layer {probe.layer} for attention analysis")
+        else:
+            # SAE mode: Load from Phase 2.5
+            from common.steering_setup import load_steering_latents
+            pva_latents = load_steering_latents(self.config)
 
-        # Extract layer indices
-        self.best_correct_layer = self.best_correct_latent['layer']
-        self.best_incorrect_layer = self.best_incorrect_latent['layer']
+            self.best_correct_latent = pva_latents.top_latents['correct'][0]
+            self.best_incorrect_latent = pva_latents.top_latents['incorrect'][0]
 
-        logger.info(f"Loaded best latents - Correct: Layer {self.best_correct_layer}, Incorrect: Layer {self.best_incorrect_layer}")
+            # Extract layer indices
+            self.best_correct_layer = self.best_correct_latent['layer']
+            self.best_incorrect_layer = self.best_incorrect_latent['layer']
+
+            logger.info(f"SAE MODE: Correct Layer {self.best_correct_layer}, Incorrect Layer {self.best_incorrect_layer}")
         
     def _discover_phase_directories(self) -> None:
         """Discover Phase 3.5 and Phase 4.8 output directories."""
@@ -77,26 +96,39 @@ class AttentionAnalyzer:
         phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
         if not phase3_5_output:
             raise FileNotFoundError("Phase 3.5 output not found. Please run Phase 3.5 first.")
-        
+
         self.phase3_5_dir = Path(phase3_5_output).parent
         self.baseline_attention_dir = self.phase3_5_dir / "activations" / "attention_patterns"
-        
+
         if not self.baseline_attention_dir.exists():
             raise FileNotFoundError(f"Baseline attention patterns not found at {self.baseline_attention_dir}")
-        
+
         # Discover Phase 4.8 (steered attention)
         phase4_8_output = discover_latest_phase_output("4.8", config=self.config)
         if not phase4_8_output:
             raise FileNotFoundError("Phase 4.8 output not found. Please run Phase 4.8 first.")
-        
+
         self.phase4_8_dir = Path(phase4_8_output).parent
+
+        # In probe mode, look for _probe suffix on Phase 4.8 directory
+        if self.use_probe:
+            probe_dir = self.phase4_8_dir.parent / (self.phase4_8_dir.name + "_probe")
+            if probe_dir.exists():
+                self.phase4_8_dir = probe_dir
+                logger.info(f"PROBE MODE: Using Phase 4.8 probe output at {probe_dir}")
+            else:
+                raise FileNotFoundError(
+                    f"Phase 4.8 probe output not found at {probe_dir}\n"
+                    f"Run: python3 run.py phase 4.8 --direction-source probe_mass_mean"
+                )
+
         self.steered_attention_dir = self.phase4_8_dir / "attention_patterns"
-        
+
         if not self.steered_attention_dir.exists():
             logger.warning(f"Steered attention patterns not found at {self.steered_attention_dir}")
             # Check alternative location
             self.steered_attention_dir = self.phase4_8_dir
-        
+
         logger.info(f"Discovered Phase 3.5 dir: {self.phase3_5_dir}")
         logger.info(f"Discovered Phase 4.8 dir: {self.phase4_8_dir}")
         

@@ -49,8 +49,8 @@ class Phase712Runner:
         self.logger.info("This phase evaluates PVA features on instruction-tuned model outputs")
         self.logger.info("\n" + self.config.dump(phase="7.12"))
 
-        # main() creates its own Config internally
-        return main()
+        # Run the evaluation using self.config (not main() which has its own argparse)
+        return run_evaluation(self.config)
 
 def calculate_metrics(
     y_true: np.ndarray,
@@ -458,17 +458,15 @@ def load_instruct_activations_probe(
 
     return np.array(labels), np.array(scores)
 
-def main():
-    parser = argparse.ArgumentParser(description="Phase 7.12: AUROC and F1 Evaluation for Instruction-Tuned Model")
-    parser.add_argument("--phase0-1-dir", type=str, help="Path to Phase 0.1 output directory")
-    parser.add_argument("--phase7-3-dir", type=str, help="Path to Phase 7.3 output directory")
-    parser.add_argument("--output-dir", type=str, default=None,
-                       help="Output directory for results")
-    args = parser.parse_args()
+def run_evaluation(config):
+    """Run Phase 7.12 evaluation with provided config.
 
-    # Use seed from config
-    from common.config import Config
-    config = Config()
+    This function is called by Phase712Runner.run() and contains the core
+    evaluation logic. It uses the passed config object instead of argparse.
+
+    Args:
+        config: Config object with all settings
+    """
     np.random.seed(config.evaluation_random_seed)
     torch.manual_seed(config.evaluation_random_seed)
 
@@ -482,41 +480,32 @@ def main():
         logger.info("PROBE MODE: Using LogReg probe from Phase 2.6")
         logger.info("=" * 60)
 
-    # Auto-discover phase outputs if not provided (with dataset suffix support)
-    if not args.phase0_1_dir:
-        if config.dataset_name == "humaneval":
-            # HumanEval uses Phase 0.2
-            phase0_1_dir = Path("data/phase0_2_humaneval")
-            logger.info(f"Using HumanEval data from Phase 0.2: {phase0_1_dir}")
-        else:
-            latest_output = discover_latest_phase_output("0.1")
-            if latest_output:
-                phase0_1_dir = Path(latest_output).parent
-                logger.info(f"Auto-discovered Phase 0.1 output: {phase0_1_dir}")
-            else:
-                raise FileNotFoundError("No Phase 0.1 output found. Please run Phase 0.1 first.")
+    # Auto-discover phase outputs (with dataset suffix support)
+    if config.dataset_name == "humaneval":
+        # HumanEval uses Phase 0.2
+        phase0_1_dir = Path("data/phase0_2_humaneval")
+        logger.info(f"Using HumanEval data from Phase 0.2: {phase0_1_dir}")
     else:
-        phase0_1_dir = Path(args.phase0_1_dir)
-
-    if not args.phase7_3_dir:
-        # Use config-aware Phase 7.3 directory discovery
-        latest_output = discover_latest_phase_output("7.3", config=config)
+        latest_output = discover_latest_phase_output("0.1")
         if latest_output:
-            phase7_3_dir = Path(latest_output).parent
-            logger.info(f"Auto-discovered Phase 7.3 output: {phase7_3_dir}")
+            phase0_1_dir = Path(latest_output).parent
+            logger.info(f"Auto-discovered Phase 0.1 output: {phase0_1_dir}")
         else:
-            raise FileNotFoundError("No Phase 7.3 output found. Please run Phase 7.3 first.")
+            raise FileNotFoundError("No Phase 0.1 output found. Please run Phase 0.1 first.")
+
+    # Use config-aware Phase 7.3 directory discovery
+    latest_output = discover_latest_phase_output("7.3", config=config)
+    if latest_output:
+        phase7_3_dir = Path(latest_output).parent
+        logger.info(f"Auto-discovered Phase 7.3 output: {phase7_3_dir}")
     else:
-        phase7_3_dir = Path(args.phase7_3_dir)
+        raise FileNotFoundError("No Phase 7.3 output found. Please run Phase 7.3 first.")
 
     # Create output directory with dataset suffix (add "_probe" suffix for probe mode)
-    if args.output_dir:
-        output_dir = Path(args.output_dir)
-    else:
-        from common.phase_discovery import get_phase_output_dir
-        output_dir = Path(get_phase_output_dir('7.12', config))
-        if use_probe:
-            output_dir = output_dir.parent / (output_dir.name + "_probe")
+    from common.phase_discovery import get_phase_output_dir
+    output_dir = Path(get_phase_output_dir('7.12', config))
+    if use_probe:
+        output_dir = output_dir.parent / (output_dir.name + "_probe")
     ensure_directory_exists(output_dir)
     logger.info(f"Output directory: {output_dir}")
 
@@ -774,6 +763,27 @@ def main():
         config=config,
         output_dir=str(output_dir)
     )
+
+def main():
+    """Entry point for running Phase 7.12 directly via command line."""
+    parser = argparse.ArgumentParser(description="Phase 7.12: AUROC and F1 Evaluation for Instruction-Tuned Model")
+    parser.add_argument("--phase0-1-dir", type=str, help="Path to Phase 0.1 output directory")
+    parser.add_argument("--phase7-3-dir", type=str, help="Path to Phase 7.3 output directory")
+    parser.add_argument("--output-dir", type=str, default=None,
+                       help="Output directory for results")
+    parser.add_argument("--direction-source", type=str, default="sae",
+                       choices=["sae", "probe_logreg"],
+                       help="Direction source: sae (default) or probe_logreg")
+    args = parser.parse_args()
+
+    # Create config with CLI overrides
+    from common.config import Config
+    config = Config()
+    if args.direction_source:
+        config.direction_source = args.direction_source
+
+    run_evaluation(config)
+
 
 if __name__ == "__main__":
     main()

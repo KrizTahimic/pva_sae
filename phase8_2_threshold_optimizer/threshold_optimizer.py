@@ -95,8 +95,17 @@ class ThresholdOptimizer:
         self.n_gpus = n_gpus
         self.device = torch.device(detect_device())
 
+        # Direction source detection (SAE or probe)
+        self.direction_source = getattr(config, 'direction_source', 'sae')
+        self.use_probe = self.direction_source in ('probe_logreg', 'probe_mass_mean')
+
         # Create output directory
         self.output_dir = Path(get_phase_output_dir("8.2", config))
+
+        # Add probe suffix if using probe directions
+        if self.use_probe:
+            self.output_dir = self.output_dir.parent / (self.output_dir.name + "_probe")
+
         ensure_directory_exists(self.output_dir)
 
         # Create checkpoint directory
@@ -128,61 +137,115 @@ class ThresholdOptimizer:
         )
         logger.info(f"Model loaded: {self.config.model_name}")
 
-        # === LOAD PHASE 3.8 FEATURE INFO ===
-        logger.info("Loading incorrect-predicting feature info from Phase 3.8...")
-        phase3_8_output = discover_latest_phase_output("3.8")
-        if not phase3_8_output:
-            raise FileNotFoundError("Phase 3.8 output not found. Run Phase 3.8 first.")
+        if self.use_probe:
+            # === PROBE MODE: Load probe directions from Phase 2.6 ===
+            logger.info("PROBE MODE: Loading probe directions from Phase 2.6")
 
-        phase3_8_results = load_json(Path(phase3_8_output).parent / "auroc_f1_results.json")
+            from common.steering_setup import (
+                load_probe_directions_for_predicting,
+                load_probe_directions_for_steering
+            )
 
-        # Extract incorrect-predicting latent info
-        incorrect_pred_info = phase3_8_results['incorrect_predicting_latent']
-        self.incorrect_pred_layer = incorrect_pred_info['layer']
-        self.incorrect_pred_latent = incorrect_pred_info['latent_idx']
+            # Prediction: logreg (optimal for AUROC/F1)
+            self.predicting_probe = load_probe_directions_for_predicting(
+                self.config, self.device, method="logreg"
+            )
+            self.incorrect_pred_layer = self.predicting_probe.layer
+            self.predicting_direction = self.predicting_probe.incorrect_direction
+            self.predicting_bias = self.predicting_probe.bias
 
-        logger.info(f"Incorrect-predicting latent: Layer {self.incorrect_pred_layer}, "
-                   f"Latent {self.incorrect_pred_latent}")
+            logger.info(f"Predicting probe: Layer {self.incorrect_pred_layer}, "
+                       f"bias={self.predicting_bias:.4f}")
 
-        # === LOAD STEERING LATENTS (for correct-steering direction) ===
-        from common.steering_setup import load_steering_latents
-        pva_latents = load_steering_latents(self.config)
-        top_latents = pva_latents.top_latents
+            # Steering: mass_mean (optimal for causal intervention)
+            self.steering_probe = load_probe_directions_for_steering(
+                self.config, self.device, self.model, method="mass_mean"
+            )
+            self.correct_steer_layer = self.steering_probe.layer
+            self.correct_latent_direction = self.steering_probe.correct_direction
 
-        # Get best correct-steering latent
-        self.best_correct_latent = top_latents['correct'][0]
-        self.correct_steer_layer = self.best_correct_latent['layer']
-        self.correct_steer_latent = self.best_correct_latent['latent_idx']
+            logger.info(f"Steering probe: Layer {self.correct_steer_layer}")
 
-        correct_score = self.best_correct_latent.get('separation_score', self.best_correct_latent.get('t_statistic', 0))
-        logger.info(f"Correct-steering latent: Layer {self.correct_steer_layer}, "
-                   f"Latent {self.correct_steer_latent}, "
-                   f"Score {correct_score:.4f}")
+            # No SAE needed in probe mode
+            self.predicting_sae = None
+            self.steering_sae = None
+            self.incorrect_pred_latent = None
+            self.correct_steer_latent = None
+        else:
+            # === SAE MODE: Load from Phase 3.8 + Phase 2.5 ===
+            logger.info("SAE MODE: Loading feature info from Phase 3.8 and 2.5...")
+            phase3_8_output = discover_latest_phase_output("3.8")
+            if not phase3_8_output:
+                raise FileNotFoundError("Phase 3.8 output not found. Run Phase 3.8 first.")
 
-        # === LOAD SAEs ===
-        logger.info("Loading SAE models...")
+            phase3_8_results = load_json(Path(phase3_8_output).parent / "auroc_f1_results.json")
 
-        # SAE for incorrect-predicting threshold check
-        self.predicting_sae = load_sae_for_config(self.config, self.incorrect_pred_layer, self.device)
-        logger.info(f"Loaded SAE for Layer {self.incorrect_pred_layer} (threshold checking)")
+            # Extract incorrect-predicting latent info
+            incorrect_pred_info = phase3_8_results['incorrect_predicting_latent']
+            self.incorrect_pred_layer = incorrect_pred_info['layer']
+            self.incorrect_pred_latent = incorrect_pred_info['latent_idx']
 
-        # SAE for correct-steering
-        self.steering_sae = load_sae_for_config(self.config, self.correct_steer_layer, self.device)
-        logger.info(f"Loaded SAE for Layer {self.correct_steer_layer} (steering)")
+            logger.info(f"Incorrect-predicting latent: Layer {self.incorrect_pred_layer}, "
+                       f"Latent {self.incorrect_pred_latent}")
 
-        # Extract latent direction for steering
-        self.correct_latent_direction = self.steering_sae.W_dec[self.correct_steer_latent].detach()
+            # === LOAD STEERING LATENTS (for correct-steering direction) ===
+            from common.steering_setup import load_steering_latents
+            pva_latents = load_steering_latents(self.config)
+            top_latents = pva_latents.top_latents
 
-        # Ensure latent direction is in the same dtype as the model
-        model_dtype = next(self.model.parameters()).dtype
-        self.correct_latent_direction = self.correct_latent_direction.to(dtype=model_dtype)
-        logger.info(f"Latent direction converted to model dtype: {model_dtype}")
+            # Get best correct-steering latent
+            self.best_correct_latent = top_latents['correct'][0]
+            self.correct_steer_layer = self.best_correct_latent['layer']
+            self.correct_steer_latent = self.best_correct_latent['latent_idx']
+
+            correct_score = self.best_correct_latent.get('separation_score', self.best_correct_latent.get('t_statistic', 0))
+            logger.info(f"Correct-steering latent: Layer {self.correct_steer_layer}, "
+                       f"Latent {self.correct_steer_latent}, "
+                       f"Score {correct_score:.4f}")
+
+            # === LOAD SAEs ===
+            logger.info("Loading SAE models...")
+
+            # SAE for incorrect-predicting threshold check
+            self.predicting_sae = load_sae_for_config(self.config, self.incorrect_pred_layer, self.device)
+            logger.info(f"Loaded SAE for Layer {self.incorrect_pred_layer} (threshold checking)")
+
+            # SAE for correct-steering
+            self.steering_sae = load_sae_for_config(self.config, self.correct_steer_layer, self.device)
+            logger.info(f"Loaded SAE for Layer {self.correct_steer_layer} (steering)")
+
+            # Extract latent direction for steering
+            self.correct_latent_direction = self.steering_sae.W_dec[self.correct_steer_latent].detach()
+
+            # Ensure latent direction is in the same dtype as the model
+            model_dtype = next(self.model.parameters()).dtype
+            self.correct_latent_direction = self.correct_latent_direction.to(dtype=model_dtype)
+            logger.info(f"Latent direction converted to model dtype: {model_dtype}")
+
+            # Not used in SAE mode
+            self.predicting_direction = None
+            self.predicting_bias = 0.0
 
         # === LOAD PHASE 4.6 REFINED COEFFICIENT ===
         phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
         if not phase4_6_output:
             raise FileNotFoundError("Phase 4.6 output not found. Run Phase 4.6 first.")
-        refined_coefficients = load_json(Path(phase4_6_output).parent / "refined_coefficients.json")
+
+        phase4_6_dir = Path(phase4_6_output).parent
+
+        # In probe mode, look for _probe suffix on Phase 4.6 directory
+        if self.use_probe:
+            probe_dir = phase4_6_dir.parent / (phase4_6_dir.name + "_probe")
+            if probe_dir.exists():
+                phase4_6_dir = probe_dir
+                logger.info(f"PROBE MODE: Using Phase 4.6 probe output at {probe_dir}")
+            else:
+                raise FileNotFoundError(
+                    f"Phase 4.6 probe output not found at {probe_dir}\n"
+                    f"Run: python3 run.py phase 4.6 --direction-source probe_mass_mean"
+                )
+
+        refined_coefficients = load_json(phase4_6_dir / "refined_coefficients.json")
         self.steering_coefficient = refined_coefficients['correct']['refined_coefficient']
         logger.info(f"Using Phase 4.6 refined coefficient: {self.steering_coefficient}")
 
@@ -270,7 +333,21 @@ class ThresholdOptimizer:
                 "Phase 8.1 calculates percentile thresholds from Phase 3.6 activations."
             )
 
-        phase8_1_results = load_json(Path(phase8_1_output).parent / "percentile_thresholds.json")
+        phase8_1_dir = Path(phase8_1_output).parent
+
+        # In probe mode, look for _probe suffix on Phase 8.1 directory
+        if self.use_probe:
+            probe_dir = phase8_1_dir.parent / (phase8_1_dir.name + "_probe")
+            if probe_dir.exists():
+                phase8_1_dir = probe_dir
+                logger.info(f"PROBE MODE: Using Phase 8.1 probe output at {probe_dir}")
+            else:
+                raise FileNotFoundError(
+                    f"Phase 8.1 probe output not found at {probe_dir}\n"
+                    f"Run: python3 run.py phase 8.1 --direction-source probe_logreg"
+                )
+
+        phase8_1_results = load_json(phase8_1_dir / "percentile_thresholds.json")
         self.percentile_thresholds = phase8_1_results['percentile_thresholds']
 
         logger.info(f"Loaded {len(self.percentile_thresholds)} percentile thresholds from Phase 8.1")
@@ -450,22 +527,28 @@ class ThresholdOptimizer:
         # Create shared steering state
         steering_state = SteeringState(prompt_length)
 
-        # === HOOK 1: L19 Activation Monitor (Threshold Checking) ===
+        # === HOOK 1: Activation Monitor (Threshold Checking) ===
         def activation_monitor_hook(module, input):
-            """Capture L19 activation and decide whether to steer."""
+            """Capture activation and decide whether to steer."""
             # Only process first new token
             if steering_state.first_token_checked:
                 return
 
             # Get activation at the last position from input (pre-forward)
             residual = input[0]  # (batch, seq_len, hidden_dim)
-            raw_activation = residual[:, -1, :]  # (batch, 2304)
+            raw_activation = residual[:, -1, :]  # (batch, hidden_dim)
 
-            # Decompose via SAE - match SAE dtype (bfloat16)
             with torch.no_grad():
-                activation_bf16 = raw_activation.to(dtype=self.predicting_sae.W_enc.dtype, device=self.device)
-                latent_activations = self.predicting_sae.encode(activation_bf16)  # (batch, 2304) -> (batch, 16384)
-                incorrect_pred_activation = latent_activations[0, self.incorrect_pred_latent].item()
+                if self.use_probe:
+                    # Probe mode: direct dot product scoring
+                    activation_float = raw_activation.to(dtype=self.predicting_direction.dtype)
+                    score = (activation_float @ self.predicting_direction).item() + self.predicting_bias
+                    incorrect_pred_activation = score
+                else:
+                    # SAE mode: encode then extract latent activation
+                    activation_bf16 = raw_activation.to(dtype=self.predicting_sae.W_enc.dtype, device=self.device)
+                    latent_activations = self.predicting_sae.encode(activation_bf16)
+                    incorrect_pred_activation = latent_activations[0, self.incorrect_pred_latent].item()
 
             # Store activation value
             steering_state.incorrect_pred_activation = float(incorrect_pred_activation)
@@ -1027,12 +1110,16 @@ class ThresholdOptimizer:
             'feature_info': {
                 'layer': self.incorrect_pred_layer,
                 'latent_idx': self.incorrect_pred_latent,
-                'description': 'Incorrect-predicting feature'
+                'description': 'Incorrect-predicting feature',
+                'direction_source': self.direction_source,
+                'probe_bias': self.predicting_bias if self.use_probe else None
             },
             'steering_info': {
                 'layer': self.correct_steer_layer,
+                'latent_idx': self.correct_steer_latent,
                 'coefficient': self.steering_coefficient,
-                'description': 'From Phase 4.8 optimal steering'
+                'description': 'From Phase 4.6 optimal steering',
+                'direction_source': self.direction_source
             }
         }
 
