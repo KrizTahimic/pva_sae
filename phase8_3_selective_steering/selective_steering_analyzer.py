@@ -1066,6 +1066,37 @@ class SelectiveSteeringAnalyzer:
         save_json(preservation_results, preservation_file)
         logger.info(f"✓ Saved {len(preservation_results)} preservation results to {preservation_file.name}")
 
+        # === PARALLEL MODE: Save parquet for merge and return early ===
+        if self.n_gpus > 1:
+            # Combine results with experiment_type column
+            for r in correction_results:
+                r['experiment_type'] = 'correction'
+            for r in preservation_results:
+                r['experiment_type'] = 'preservation'
+
+            all_results = correction_results + preservation_results
+            results_df = pd.DataFrame(all_results)
+
+            # Save as parquet (parallel_runner will merge)
+            parquet_file = self.output_dir / f"results_gpu{self.gpu_id}.parquet"
+            results_df.to_parquet(parquet_file, index=False)
+            logger.info(f"GPU {self.gpu_id}: Saved {len(results_df)} results to {parquet_file.name}")
+
+            # Clean up JSON files (orchestrator will recreate from merged data)
+            correction_file.unlink()
+            preservation_file.unlink()
+
+            # Cleanup checkpoints for this GPU
+            self.cleanup_all_checkpoints()
+
+            # Return minimal summary (full summary computed after merge)
+            return {
+                'gpu_id': self.gpu_id,
+                'n_correction': len(correction_results),
+                'n_preservation': len(preservation_results)
+            }
+
+        # === SEQUENTIAL MODE: Continue with existing JSON output ===
         # === CALCULATE METRICS ===
         logger.info("\n" + "="*60)
         logger.info("Calculating metrics...")

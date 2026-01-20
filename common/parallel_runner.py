@@ -66,7 +66,7 @@ DATA_PARALLEL_PHASES = {
     "5.6",   # Zero-disc orthogonalization
     "7.3",   # Instruct baseline
     "7.6",   # Instruct steering
-    "8.3",   # Selective steering (fixed threshold)
+    "8.3",   # Selective steering (outputs parquet in parallel mode)
 }
 
 # Iterative parallelization: distribute problems, merge after each value
@@ -212,7 +212,8 @@ def run_phase_parallel(phase_id: str, config: Config, n_gpus: int) -> dict:
     output_dir = get_phase_output_dir(phase_id, config)
 
     # Add _probe suffix for probe-based steering phases
-    if phase_id in ("4.5", "4.6", "4.7", "4.8") and getattr(config, 'direction_source', 'sae') == 'probe_mass_mean':
+    direction_source = getattr(config, 'direction_source', 'sae')
+    if phase_id in ("4.5", "4.6", "4.7", "4.8", "8.2", "8.3") and direction_source in ('probe_mass_mean', 'probe_logreg'):
         output_dir = str(Path(output_dir).parent / (Path(output_dir).name + "_probe"))
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -533,6 +534,191 @@ def _merge_phase4_5_json_results(
     }
 
 
+def _merge_phase8_3_results(
+    output_path: Path,
+    n_gpus: int,
+    config: Config
+) -> dict:
+    """
+    Merge Phase 8.3 selective steering results from parallel workers.
+
+    Phase 8.3 produces results_gpu{N}.parquet files with columns:
+    - task_id, baseline_passed, steered, incorrect_pred_activation
+    - steered_correct, steered_code, baseline_code, source, experiment_type
+
+    This function:
+    1. Loads all per-GPU parquet files
+    2. Splits by experiment_type (correction vs preservation)
+    3. Recalculates metrics from merged data
+    4. Saves JSON outputs and merged parquet
+    """
+    from datetime import datetime
+    from common.utils import save_json
+
+    # Find per-GPU parquet files
+    gpu_files = sorted(output_path.glob("results_gpu*.parquet"))
+    if not gpu_files:
+        raise RuntimeError(f"No results_gpu*.parquet files found in {output_path}")
+
+    logger.info(f"Found {len(gpu_files)} GPU parquet files to merge")
+
+    # Load and merge
+    dfs = [pd.read_parquet(f) for f in gpu_files]
+    merged_df = pd.concat(dfs, ignore_index=True)
+    logger.info(f"Merged {len(merged_df)} total results from {len(gpu_files)} GPUs")
+
+    # Split by experiment type
+    correction_df = merged_df[merged_df['experiment_type'] == 'correction']
+    preservation_df = merged_df[merged_df['experiment_type'] == 'preservation']
+
+    # Convert to records (matching original JSON format)
+    correction_results = correction_df.to_dict('records')
+    preservation_results = preservation_df.to_dict('records')
+
+    # === CALCULATE CORRECTION METRICS ===
+    n_correction = len(correction_results)
+    valid_correction = [r for r in correction_results if r.get('steered_correct') is not None]
+    n_valid_correction = len(valid_correction)
+
+    n_steered_correction = sum(1 for r in valid_correction if r.get('steered', False))
+    n_not_steered_correction = n_valid_correction - n_steered_correction
+    steering_trigger_rate = n_steered_correction / n_valid_correction if n_valid_correction > 0 else 0
+
+    n_corrected = sum(1 for r in valid_correction
+                     if not r.get('baseline_passed', True) and r.get('steered_correct', False))
+    correction_rate = n_corrected / n_valid_correction if n_valid_correction > 0 else 0
+    correction_efficiency = n_corrected / n_steered_correction if n_steered_correction > 0 else 0
+
+    # Activation stats for correction
+    correction_activations = [r.get('incorrect_pred_activation') for r in valid_correction
+                             if r.get('incorrect_pred_activation') is not None]
+    correction_activation_stats = {
+        'mean': sum(correction_activations) / len(correction_activations) if correction_activations else None,
+        'min': min(correction_activations) if correction_activations else None,
+        'max': max(correction_activations) if correction_activations else None
+    }
+
+    correction_metrics = {
+        'total_problems': n_correction,
+        'valid_problems': n_valid_correction,
+        'n_steered': n_steered_correction,
+        'n_not_steered': n_not_steered_correction,
+        'steering_trigger_rate': round(steering_trigger_rate, 4),
+        'n_corrected': n_corrected,
+        'correction_rate': round(correction_rate, 4),
+        'correction_efficiency': round(correction_efficiency, 4),
+        'activation_stats': correction_activation_stats
+    }
+
+    # === CALCULATE PRESERVATION METRICS ===
+    n_preservation = len(preservation_results)
+    valid_preservation = [r for r in preservation_results if r.get('steered_correct') is not None]
+    n_valid_preservation = len(valid_preservation)
+
+    n_steered_preservation = sum(1 for r in valid_preservation if r.get('steered', False))
+    n_not_steered_preservation = n_valid_preservation - n_steered_preservation
+    steering_avoidance_rate = n_not_steered_preservation / n_valid_preservation if n_valid_preservation > 0 else 0
+
+    n_preserved = sum(1 for r in valid_preservation
+                     if r.get('baseline_passed', False) and r.get('steered_correct', False))
+    n_corrupted = sum(1 for r in valid_preservation
+                     if r.get('baseline_passed', False) and not r.get('steered_correct', True))
+    preservation_rate = n_preserved / n_valid_preservation if n_valid_preservation > 0 else 0
+    corruption_rate = n_corrupted / n_valid_preservation if n_valid_preservation > 0 else 0
+
+    # Activation stats for preservation
+    preservation_activations = [r.get('incorrect_pred_activation') for r in valid_preservation
+                               if r.get('incorrect_pred_activation') is not None]
+    preservation_activation_stats = {
+        'mean': sum(preservation_activations) / len(preservation_activations) if preservation_activations else None,
+        'min': min(preservation_activations) if preservation_activations else None,
+        'max': max(preservation_activations) if preservation_activations else None
+    }
+
+    preservation_metrics = {
+        'total_problems': n_preservation,
+        'valid_problems': n_valid_preservation,
+        'n_steered': n_steered_preservation,
+        'n_not_steered': n_not_steered_preservation,
+        'steering_avoidance_rate': round(steering_avoidance_rate, 4),
+        'n_preserved': n_preserved,
+        'n_corrupted': n_corrupted,
+        'preservation_rate': round(preservation_rate, 4),
+        'corruption_rate': round(corruption_rate, 4),
+        'activation_stats': preservation_activation_stats
+    }
+
+    # === COMBINED METRICS ===
+    total_problems = n_valid_correction + n_valid_preservation
+    total_steered = n_steered_correction + n_steered_preservation
+    overall_steering_rate = total_steered / total_problems if total_problems > 0 else 0
+
+    combined_metrics = {
+        'total_problems': total_problems,
+        'total_steered': total_steered,
+        'overall_steering_rate': round(overall_steering_rate, 4)
+    }
+
+    # Save JSON files (same format as sequential mode)
+    save_json(correction_results, output_path / "all_selective_correction_results.json")
+    save_json(preservation_results, output_path / "all_selective_preservation_results.json")
+    logger.info(f"Saved {len(correction_results)} correction and {len(preservation_results)} preservation results")
+
+    # Build and save summary
+    summary = {
+        'phase': '8.3',
+        'timestamp': datetime.now().isoformat(),
+        'parallel_merge': True,
+        'n_gpus': n_gpus,
+        'correction_experiment': correction_metrics,
+        'preservation_experiment': preservation_metrics,
+        'combined_metrics': combined_metrics
+    }
+    save_json(summary, output_path / "selective_steering_summary.json")
+    logger.info(f"Saved selective_steering_summary.json")
+
+    # Save merged parquet
+    timestamp = get_timestamp()
+    merged_file = output_path / f"dataset_merged_{timestamp}.parquet"
+    merged_df.to_parquet(merged_file, index=False)
+    logger.info(f"Saved merged dataset: {merged_file}")
+
+    # Write manifest
+    write_phase_output(
+        phase="8.3",
+        outputs={
+            "primary": "selective_steering_summary.json",
+            "correction_results": "all_selective_correction_results.json",
+            "preservation_results": "all_selective_preservation_results.json"
+        },
+        config=config,
+        output_dir=str(output_path)
+    )
+    logger.info("Wrote phase_output.json manifest")
+
+    # Cleanup per-GPU files
+    for f in gpu_files:
+        f.unlink()
+        logger.info(f"  Cleaned up {f.name}")
+
+    # Print summary
+    logger.info("="*60)
+    logger.info("PHASE 8.3 PARALLEL MERGE COMPLETE")
+    logger.info("="*60)
+    logger.info(f"Correction: {n_corrected}/{n_valid_correction} ({correction_rate*100:.2f}%)")
+    logger.info(f"Preservation: {n_preserved}/{n_valid_preservation} ({preservation_rate*100:.2f}%)")
+    logger.info(f"Corruption: {n_corrupted}/{n_valid_preservation} ({corruption_rate*100:.2f}%)")
+    logger.info(f"Overall steering rate: {overall_steering_rate*100:.1f}%")
+
+    return {
+        'merged_file': str(merged_file),
+        'total_results': len(merged_df),
+        'correction_rate': correction_rate,
+        'preservation_rate': preservation_rate,
+        'corruption_rate': corruption_rate
+    }
+
+
 def _merge_parallel_results(
     phase_id: str,
     output_dir: str,
@@ -559,6 +745,10 @@ def _merge_parallel_results(
     # Phase 4.5/4.6 use JSON output format, not parquet
     if phase_id in ("4.5", "4.6"):
         return _merge_phase4_5_json_results(output_path, n_gpus, config, phase_id)
+
+    # Phase 8.3 needs custom merge (JSON summary recalculated from parquet)
+    if phase_id == "8.3":
+        return _merge_phase8_3_results(output_path, n_gpus, config)
 
     # Find per-GPU result files
     # Phase 3.5 uses a different pattern for temperature experiments
