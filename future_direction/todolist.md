@@ -1008,42 +1008,379 @@ Phases 8.2 and 8.3 use dual-direction architecture (logreg for prediction, mass_
 
 **Key insight:** Both probes used internally regardless of `--direction-source` flag. Tested successfully with `--parallel 4 --end 11`.
 
-### Phase 9 Redesign
+### Phase 9 Redesign ✅ COMPLETE (2026-01-20)
 
-Current Phase 9.1 implementation should be deleted and redesigned. Instead of a separate analysis phase, add error type statistics directly to each phase's output:
-
-- [ ] Delete current Phase 9.1 implementation
-- [ ] Add error type statistics to each phase's output:
-  - **Baseline generation phases:**
-    - Phase 1: `baseline_error_type_distribution`
-    - Phase 3.5: `temperature_error_type_distribution`
-    - Phase 3.6: `baseline_error_type_distribution`
-    - Phase 7.3: `instruct_baseline_error_type_distribution`
-  - **Steering phases:**
-    - Phase 4.5: `steered_error_type_distribution` (grid search)
-    - Phase 4.6: `steered_error_type_distribution` (golden section)
-    - Phase 4.8: `steered_error_type_distribution`
-    - Phase 4.12: `steered_error_type_distribution` (zero-disc)
-    - Phase 7.6: `instruct_steered_error_type_distribution`
-    - Phase 8.2: `steered_error_type_distribution` (threshold optimizer)
-    - Phase 8.3: `steered_error_type_distribution` (selective)
-  - **Orthogonalization phases:**
-    - Phase 5.3: `orthogonalized_error_type_distribution`
-    - Phase 5.6: `orthogonalized_error_type_distribution` (zero-disc)
-- [ ] Create summary visualization that reads from all phases' built-in stats. Maybe make this the new phase 9.5? I'm not sure. Let's discuss
-
-
-- maybe generate visualization also. What is a good visualization? Pie chart?
-
+- [x] Delete current Phase 9.1 implementation
+- [x] Add error type statistics to all 13 generation phases (commit `40d7ce03d`)
+- [x] Create Phase 9.5 summary aggregator (visualizes cross-phase distributions)
+- [x] Fix parallel runner to create `phase_1_summary.json` (commit `5bfb8766b`)
 
 ---
 
-FINAL
-- [ ] Add here the ICML LaTeX.
-- [ ] Improve the aesthetic of my visualization.
+## 📋 CONSOLIDATED UNDONE TODO LIST (Reordered 2026-01-20)
 
-- [ ] How did we implement logreg threshold?
-- [ ] Consider also doing selective steering and weight orthognalization.
-- [ ] Maybe create a slash command with 
-  Let's do this todolist. Include me in decision making. Use explore agents. Feel free to stop and ask me questions.
-  Make sure to never do bandaid fix. and always do a proper good practice fix that is easy to maintain and read. Base it on @CLAUDE.md guidelines.
+### 🧪 PRIORITY 0: Test Run + Code Review (Before Full Run)
+
+**Purpose:** Test each phase with small subset (`--end 19`) and review ALL code/logic before committing to full GPU run. This is ICML paper - no bugs allowed.
+
+**Test command pattern:**
+```bash
+# SAE direction
+python3 run.py phase {N} --parallel 4 --end 19
+
+# Probe direction (where applicable)
+python3 run.py phase {N} --parallel 4 --end 19 --direction-source probe_mass_mean
+```
+
+---
+
+#### 📁 Code Review: Core Infrastructure
+
+##### run.py & Config
+- [ ] Review: `run.py` - CLI entry point, phase routing
+- [ ] Review: `common/config.py` - All configuration fields, MODEL_CONFIGS
+- [ ] Review: `common/phase_registry.py` - Phase definitions, patterns
+- [ ] Review: `common/phase_runner.py` - Base runner class
+
+##### Model & SAE Loading
+- [ ] Review: `common/model_loader.py` - Model loading logic
+- [ ] Review: `common/model_registry.py` - Model configurations
+- [ ] Review: `common/sae_loader.py` - GemmaScope/LlamaScope loading, JumpReLU/TopK
+- [ ] Review: `common/initialization.py` - Startup initialization
+
+##### Activation & Steering
+- [ ] Review: `common/activation_hooks.py` - PyTorch hooks for activation capture
+- [ ] Review: `common/steering_setup.py` - Direction loading (SAE + probe)
+- [ ] Review: `common/steering_metrics.py` - Correction/corruption/preservation calculations
+- [ ] Review: `common/weight_orthogonalization.py` - Weight modification logic
+- [ ] Review: `common/weight_utils.py` - Weight manipulation utilities
+
+##### Data & Discovery
+- [ ] Review: `common/phase_discovery.py` - Auto-discovery, output paths, manifest reading
+- [ ] Review: `common/dataset_utils.py` - Dataset loading, code extraction, evaluation
+- [ ] Review: `common/dataset_registry.py` - Dataset configurations
+- [ ] Review: `common/tensor_utils.py` - Safetensors save/load
+- [ ] Review: `common/checkpoint_manager.py` - Checkpointing logic
+
+##### Parallelization
+- [ ] Review: `common/parallel_runner.py` - Multi-GPU data parallelization
+- [ ] Review: `common/iterative_parallel_runner.py` - Grid search parallelization
+- [ ] Review: `common/gpu_utils.py` - GPU utilities
+
+##### Utilities
+- [ ] Review: `common/utils.py` - General utilities, save_json
+- [ ] Review: `common/logging.py` - Logging setup, tqdm wrapper
+- [ ] Review: `common/memory_utils.py` - Memory management
+- [ ] Review: `common/metrics_utils.py` - Metric calculations
+- [ ] Review: `common/statistics_utils.py` - Statistical utilities
+- [ ] Review: `common/prompt_utils.py` - Prompt building
+- [ ] Review: `common/retry_utils.py` - Retry logic
+- [ ] Review: `common/pile_filter_utils.py` - Pile frequency filtering
+- [ ] Review: `common/search_optimization.py` - Golden section, grid search
+- [ ] Review: `common/viz_utils.py` - Visualization utilities
+
+---
+
+#### 📁 Code Review: Phase 0 (Data Preparation)
+
+##### Phase 0: Difficulty Analysis
+- [ ] Review: `phase0_difficulty_analysis/`
+- [ ] Verify: `data/phase0/` has difficulty mappings
+
+##### Phase 0.1: Problem Splitting
+- [ ] Review: `phase0_1_problem_splitting/problem_splitter.py`
+- [ ] Verify: `data/phase0_1/` has selection/tuning/analysis parquets
+
+##### Phase 0.2-0.3: HumanEval Preprocessing (skip if MBPP only)
+- [ ] Review: `phase0_2_humaneval_preprocessing/`
+- [ ] Review: `phase0_3_humaneval_imports/`
+
+---
+
+#### 📁 Phase 1: Dataset Building
+- [ ] Test: `python3 run.py phase 1 --parallel 4 --end 19`
+- [ ] Review: `phase1_latent_selection_dataset/runner.py`
+- [ ] Verify: `phase_1_summary.json` created with `baseline_error_type_distribution`
+- [ ] Verify: Activations saved to `data/phase1_0/activations/`
+
+---
+
+#### 📁 Phase 2.x: Feature Analysis
+
+##### Phase 2.2: Pile Caching (expensive, already done)
+- [ ] Review: `phase2_2_pile_caching/pile_cacher.py`
+- [ ] Verify: `data/phase2_2/` has pile activations
+
+##### Phase 2.3: Pile Frequencies
+- [ ] Review: `phase2_3_pile_frequencies/pile_frequency_computer.py`
+- [ ] Verify: `data/phase2_3/` has frequency data
+
+##### Phase 2.5: SAE Separation Score Analysis
+- [ ] Test: `python3 run.py phase 2.5`
+- [ ] Review: `phase2_5_separation_score_analysis/sae_analyzer.py`
+- [ ] Verify: `top_20_latents.json` has correct/incorrect latents with layers
+
+##### Phase 2.6: Probe Direction Computation
+- [ ] Test: `python3 run.py phase 2.6`
+- [ ] Review: `phase2_6_probe_directions/probe_trainer.py`
+- [ ] Verify: `probe_directions.safetensors` saved with mass_mean and logreg directions
+
+##### Phase 2.7: Direction Similarity Analysis
+- [ ] Test: `python3 run.py phase 2.7`
+- [ ] Review: `phase2_7_direction_similarity/similarity_analyzer.py`
+- [ ] Verify: Cosine similarity computed between SAE and probe directions
+
+##### Phase 2.10: SAE t-statistic Analysis
+- [ ] Test: `python3 run.py phase 2.10`
+- [ ] Review: `phase2_10_t_statistic_latent_selector/t_statistic_selector.py`
+- [ ] Verify: `top_20_latents.json` has t-statistic ranked latents
+
+##### Phase 2.13: Threshold Sensitivity
+- [ ] Test: `python3 run.py phase 2.13`
+- [ ] Review: `phase2_13_threshold_sensitivity/threshold_sensitivity_analyzer.py`
+- [ ] Verify: Sensitivity analysis output
+
+##### Phase 2.15: Layerwise Visualization
+- [ ] Test: `python3 run.py phase 2.15`
+- [ ] Review: `phase2_15_layerwise_visualization/layerwise_visualizer.py`
+- [ ] Verify: Layerwise plots generated
+
+##### Phase 2.20: Latent Landscape
+- [ ] Test: `python3 run.py phase 2.20`
+- [ ] Review: `phase2_20_latent_landscape/latent_landscape_visualizer.py`
+- [ ] Verify: Scatter plot of latent landscape
+
+---
+
+#### 📁 Phase 3.x: Detection & Validation
+
+##### Phase 3.5: Temperature Robustness
+- [ ] Test: `python3 run.py phase 3.5 --parallel 4 --end 19`
+- [ ] Review: `phase3_5_temperature_robustness/temperature_runner.py`
+- [ ] Verify: Results for multiple temperatures, `temperature_error_type_distribution`
+
+##### Phase 3.6: Hyperparameter Baseline
+- [ ] Test: `python3 run.py phase 3.6 --parallel 4 --end 19`
+- [ ] Review: `phase3_6_hyperparameter_baseline/hyperparameter_runner.py`
+- [ ] Verify: `baseline_error_type_distribution` in summary
+
+##### Phase 3.8: AUROC/F1 Evaluation (SAE + Probe)
+- [ ] Test SAE: `python3 run.py phase 3.8`
+- [ ] Test Probe: `python3 run.py phase 3.8 --direction-source probe_logreg`
+- [ ] Review: `phase3_8_auroc_f1_evaluation/auroc_f1_evaluator.py`
+- [ ] Verify: AUROC/F1 metrics for correct/incorrect predicting directions
+
+##### Phase 3.10: Temperature AUROC/F1
+- [ ] Test: `python3 run.py phase 3.10`
+- [ ] Review: `phase3_10_temperature_auroc_f1/temperature_evaluator.py`
+- [ ] Verify: AUROC/F1 across temperatures
+
+##### Phase 3.11: Temperature Trends
+- [ ] Test: `python3 run.py phase 3.11`
+- [ ] Review: `phase3_11_temperature_trends_updated/temperature_trends_visualizer.py`
+- [ ] Verify: Trend visualizations
+
+##### Phase 3.12: Difficulty AUROC/F1
+- [ ] Test: `python3 run.py phase 3.12`
+- [ ] Review: `phase3_12_difficulty_auroc_f1/difficulty_evaluator.py`
+- [ ] Verify: AUROC/F1 by difficulty
+
+---
+
+#### 📁 Phase 4.x: Steering
+
+##### Phase 4.5: Coefficient Grid Search (SAE + Probe)
+- [ ] Test SAE: `python3 run.py phase 4.5 --parallel 4 --end 19`
+- [ ] Test Probe: `python3 run.py phase 4.5 --parallel 4 --end 19 --direction-source probe_mass_mean`
+- [ ] Review: `phase4_5_coefficient_grid_search/steering_coefficient_selector.py`
+- [ ] Verify: `selected_coefficients.json` and `steered_error_type_distribution`
+
+##### Phase 4.6: Golden Section Refinement (SAE + Probe)
+- [ ] Test SAE: `python3 run.py phase 4.6 --parallel 4 --end 19`
+- [ ] Test Probe: `python3 run.py phase 4.6 --parallel 4 --end 19 --direction-source probe_mass_mean`
+- [ ] Review: `phase4_6_golden_section_refinement/golden_section_refiner.py`
+- [ ] Verify: `refined_coefficients.json` with optimized values
+
+##### Phase 4.7: Coefficient Visualization
+- [ ] Test SAE: `python3 run.py phase 4.7`
+- [ ] Test Probe: `python3 run.py phase 4.7 --direction-source probe_mass_mean`
+- [ ] Review: `phase4_7_coefficient_visualization/coefficient_visualizer.py`
+- [ ] Verify: Visualization plots generated
+
+##### Phase 4.8: Steering Effect Analysis (SAE + Probe)
+- [ ] Test SAE: `python3 run.py phase 4.8 --parallel 4 --end 19`
+- [ ] Test Probe: `python3 run.py phase 4.8 --parallel 4 --end 19 --direction-source probe_mass_mean`
+- [ ] Review: `phase4_8_steering_analysis/steering_effect_analyzer.py`
+- [ ] Verify: Correction/corruption/preservation rates, `steered_error_type_distribution`
+
+##### Phase 4.10: Zero Discrimination Analysis
+- [ ] Test: `python3 run.py phase 4.10`
+- [ ] Review: `phase4_10_zero_discrimination/zero_disc_analyzer.py`
+- [ ] Verify: Zero-discrimination coefficient found
+
+##### Phase 4.12: Zero-Disc Steering
+- [ ] Test: `python3 run.py phase 4.12 --parallel 4 --end 19`
+- [ ] Review: `phase4_12_zero_disc_steering/zero_disc_steering_generator.py`
+- [ ] Verify: `steered_error_type_distribution`
+
+##### Phase 4.14: Statistical Significance
+- [ ] Test: `python3 run.py phase 4.14`
+- [ ] Review: `phase4_14_statistical_significance/significance_tester.py`
+- [ ] Verify: p-values and significance tests
+
+##### Phase 4.16: Difficulty Steering
+- [ ] Test: `python3 run.py phase 4.16 --parallel 4 --end 19`
+- [ ] Review: `phase4_16_difficulty_steering/difficulty_steering_analyzer.py`
+- [ ] Verify: Steering by difficulty level
+
+---
+
+#### 📁 Phase 5.x: Weight Orthogonalization
+
+##### Phase 5.3: Weight Orthogonalization (SAE + Probe)
+- [ ] Test SAE: `python3 run.py phase 5.3 --parallel 4 --end 19`
+- [ ] Test Probe: `python3 run.py phase 5.3 --parallel 4 --end 19 --direction-source probe_mass_mean`
+- [ ] Review: `phase5_3_weight_orthogonalization/weight_orthogonalizer.py`
+- [ ] Verify: `orthogonalized_error_type_distribution`
+
+##### Phase 5.6: Zero-Disc Orthogonalization
+- [ ] Test: `python3 run.py phase 5.6 --parallel 4 --end 19`
+- [ ] Review: `phase5_6_zero_disc_orthogonalization/zero_disc_weight_orthogonalizer.py`
+- [ ] Verify: `orthogonalized_error_type_distribution`
+
+##### Phase 5.9: Orthogonalization Significance
+- [ ] Test: `python3 run.py phase 5.9`
+- [ ] Review: `phase5_9_orthogonalization_significance/orthogonalization_significance_tester.py`
+- [ ] Verify: Statistical significance of orthogonalization
+
+---
+
+#### 📁 Phase 6.x: Attention Analysis
+
+##### Phase 6.3: Attention Analysis
+- [ ] Test: `python3 run.py phase 6.3`
+- [ ] Review: `phase6_3_attention_analysis/attention_analyzer.py`
+- [ ] Verify: Attention pattern analysis output
+
+---
+
+#### 📁 Phase 7.x: Instruct Model
+
+##### Phase 7.3: Instruct Baseline
+- [ ] Test: `python3 run.py phase 7.3 --parallel 4 --end 19`
+- [ ] Review: `phase7_3_instruct_baseline/instruct_baseline_runner.py`
+- [ ] Verify: Activations saved for instruct model, `instruct_baseline_error_type_distribution`
+
+##### Phase 7.6: Instruct Steering (SAE + Probe)
+- [ ] Test SAE: `python3 run.py phase 7.6 --parallel 4 --end 19`
+- [ ] Test Probe: `python3 run.py phase 7.6 --parallel 4 --end 19 --direction-source probe_mass_mean`
+- [ ] Review: `phase7_6_instruct_steering/instruct_steering_analyzer.py`
+- [ ] Verify: Steering results, `instruct_steered_error_type_distribution`
+
+##### Phase 7.9: Universality Analysis
+- [ ] Test: `python3 run.py phase 7.9`
+- [ ] Review: `phase7_9_universality_analysis/universality_analyzer.py`
+- [ ] Verify: Cross-model universality metrics
+
+##### Phase 7.12: Instruct AUROC/F1 (SAE + Probe)
+- [ ] Test SAE: `python3 run.py phase 7.12`
+- [ ] Test Probe: `python3 run.py phase 7.12 --direction-source probe_logreg`
+- [ ] Review: `phase7_12_instruct_auroc_f1/instruct_auroc_f1_evaluator.py`
+- [ ] Verify: AUROC/F1 for instruct model
+
+---
+
+#### 📁 Phase 8.x: Selective Steering
+
+##### Phase 8.1: Threshold Calculator
+- [ ] Test SAE: `python3 run.py phase 8.1`
+- [ ] Test Probe: `python3 run.py phase 8.1 --direction-source probe_logreg`
+- [ ] Review: `phase8_1_threshold_calculator/threshold_calculator.py`
+- [ ] Verify: Percentile thresholds computed
+
+##### Phase 8.2: Threshold Optimizer
+- [ ] Test: `python3 run.py phase 8.2 --parallel 4 --end 19`
+- [ ] Review: `phase8_2_threshold_optimizer/threshold_optimizer.py`
+- [ ] Verify: Optimal percentile found (dual-direction: logreg + mass_mean)
+
+##### Phase 8.3: Selective Steering
+- [ ] Test: `python3 run.py phase 8.3 --parallel 4 --end 19`
+- [ ] Review: `phase8_3_selective_steering/selective_steering_analyzer.py`
+- [ ] Verify: Correction/preservation metrics, `steered_error_type_distribution`
+
+##### Phase 8.7: Threshold Visualization
+- [ ] Test: `python3 run.py phase 8.7`
+- [ ] Review: `phase8_7_threshold_visualization/threshold_visualizer.py`
+- [ ] Verify: Threshold search plots
+
+---
+
+#### 📁 Phase 9.x: Summary & Visualization
+
+##### Phase 9.5: Error Type Summary
+- [ ] Test: `python3 run.py phase 9.5`
+- [ ] Review: `phase9_5_error_summary/error_summary_visualizer.py`
+- [ ] Verify: Aggregates error distributions from all phases
+
+---
+
+#### ✅ Final Verification Checklist
+- [ ] All phases complete without errors
+- [ ] All `phase_*_summary.json` files have error type distributions
+- [ ] Phase 9.5 shows complete data from all generation phases
+- [ ] All common/ modules reviewed - no logic bugs
+- [ ] All phase runners reviewed - correct methodology
+- [ ] Parallelization logic verified (merge, summary creation)
+- [ ] Direction loading verified (SAE vs probe paths)
+- [ ] Code review complete - ready for ICML
+
+---
+
+### 🚀 PRIORITY 1: Run Full Pipeline (After Test Run Passes)
+
+Run the full pipeline with all 489 selection problems.
+
+- [ ] **Run all SAE phases with `--parallel 4`** for Gemma-2B + MBPP
+- [ ] **Run all Probe phases with `--parallel 4 --direction-source probe_*`**
+- [ ] **Verify Phase 9.5** shows complete error distributions after full run
+
+### 🔬 PRIORITY 2: Multi-Model Experiments (After Gemma-2B Verified)
+
+| Model | Dataset | Phases | Status |
+|-------|---------|--------|--------|
+| Gemma-2B | MBPP | All | Ready to run |
+| Gemma-9B | MBPP | All | Config ready |
+| Gemma-9B-IT | MBPP | All | Config ready |
+| LLaMA-8B | MBPP | All | Config ready |
+| LLaMA-8B-IT | MBPP | All | Config ready |
+| Gemma-2B | HumanEval | Core (1→4.8) | Transfer validation |
+| Gemma-9B | HumanEval | Core | Transfer validation |
+| LLaMA-8B | HumanEval | Core | Transfer validation |
+
+### 📊 PRIORITY 3: Visualization & Paper Polish
+
+- [ ] **Phase 9.5 enhancement:** Chart showing which error types are corrected by steering
+- [ ] Improve visualization aesthetics across all phases
+- [ ] Cleanup mock test data: `data/phase8_2_llama/`, `data/phase8_7_llama/`
+
+### 🧪 PRIORITY 4: Validation & Verification
+
+- [ ] Production test: Run full SAE vs probe steering comparison on all models
+- [ ] Validate continuous vs prompt-only steering with SAE directions (not just probe)
+- [ ] Test run all 10 records end-to-end
+- [ ] Code review manually (read all phase code, verify correctness)
+
+### ⚡ PRIORITY 5: Optimizations (Nice to Have)
+
+- [ ] Golden section early stopping: If performance plateau, use lower coefficient
+- [ ] Job queue pattern (`scripts/job_queue.py`) for multi-GPU efficiency
+- [ ] Consider condensing steering phases into shared functions
+
+### 📝 PRIORITY 6: Documentation & ICML
+
+- [ ] Add ICML LaTeX draft
+- [ ] Document logreg threshold implementation (for paper methods section)
+
+---
+
+**STATUS:** Code infrastructure complete. Ready to run full experiments.
