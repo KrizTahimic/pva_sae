@@ -683,109 +683,151 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 
 **Note:** Visualization tasks moved to Step 5.1 for smoother refactoring flow.
 
-### Paper Narrative Framing
+### Paper Narrative Framing (UPDATED 2026-01-20)
 
-- [ ] **Decide: MechInterp-focused framing** (not SAE-focused)
+- [x] **DECIDED: Linear Representation Hypothesis framing**
 
   **Core claim:** "Code correctness is linearly represented in LLMs"
 
-  **Why MechInterp > SAE framing:**
-  - Results show SAE and probes find ~similar directions (converging evidence)
-  - Linear representation is the discovery; SAE/probes are tools to find it
-  - Handles negative results gracefully (if probes beat SAE → "probes stronger but SAE found it unsupervised")
-  - Stronger ICML positioning (linear representation hypothesis is hot topic)
+  **Key experimental finding (2026-01-20):**
+  - Phase 2.7 direction similarity: **LOW cosine similarity** (directions are NOT similar)
+  - Probe steering: **13.3% correction rate** (4/30 problems, L11, coeff=34)
+  - SAE steering: **0% correction rate** (0/30 problems, L16, coeff=30)
+  - Probes OUTPERFORM SAE for steering
 
-  **SAE's unique value (still important):**
-  | Property | SAE | Probes |
-  |----------|-----|--------|
-  | Supervision needed | No | Yes |
-  | Interpretable | Yes | Limited |
-  | Hyperparameter tuning | None | Critical (C=0.0001) |
+  **Updated framing (after results):**
+  - Original plan: "Similar directions → converging evidence" ❌
+  - Actual finding: Different directions but **same middle-layer region** → converging evidence ✓
+  - Linear representation exists in middle layers; SAE and probes find different projections of it
 
-  **Narrative arc:**
+  **Why Linear Representation > SAE framing:**
+  - Probes beating SAE is awkward if paper is "about SAE"
+  - Probes beating SAE is FINE if paper is "about linear representations"
+  - Both methods validate the representation exists; they have different strengths
+
+  **Complementary strengths (key narrative):**
+  | Method | Strength | Weakness | Best For |
+  |--------|----------|----------|----------|
+  | SAE | Unsupervised, interpretable | Lower steering effect | Detection (F1=0.82) |
+  | Probe | Higher steering effect | Supervised, less interpretable | Intervention |
+
+  **Narrative arc (revised):**
   1. Intro: LLMs generate buggy code. Can we understand how they represent correctness?
   2. Core claim: Correctness is encoded as a linear direction in activation space
-  3. Evidence: SAE finds it unsupervised, probes recover similar direction, both enable steering
-  4. Key insight: Converging evidence from supervised and unsupervised methods
+  3. SAE evidence: Unsupervised discovery → F1=0.82 detection, middle layers (L16-17)
+  4. Probe evidence: Supervised validation → 13.3% correction, middle layers (L11-18)
+  5. Key insight: Both find middle layers despite different directions → robust evidence for linear representation
 
-  **One-liner:** "We show code correctness is linearly represented in LLMs, validated by converging evidence from SAE and probe methods"
+  **One-liner:** "We show code correctness is linearly represented in LLMs, with SAE providing unsupervised detection (F1=0.82) and probes enabling causal intervention (13.3% correction)"
 
-### Linear Probe Baseline Comparison
+  **ICML rewriting note:** Focus on the LINEAR REPRESENTATION HYPOTHESIS, not the specific method. SAE is one tool, probes are another. The discovery is the representation, not the tool.
 
-**Purpose:** Converging evidence for the linear representation hypothesis (NOT competition).
-**Framing:** Multiple methods find similar directions → validates representation is real.
+### Linear Probe Baseline Comparison (FULLY SYMMETRIC - Option A)
+
+**Decision (2026-01-20):** Run ALL phases with BOTH SAE and Probe methods.
+**Purpose:** Converging evidence for the Linear Representation Hypothesis.
 **Reference:** `future_direction/linear_probe_vs_sae_comparison.md`
-**MVP code:** `experiments/linear_probe_sanity_check/`
+
+#### Key Results (Test Run 2026-01-20)
+
+| Task | Method | Best Layer | Key Metric |
+|------|--------|------------|------------|
+| Detection | LogReg | L18 | AUROC 0.89 |
+| | SAE | L17 | F1 0.82 |
+| Steering | Mass-mean | L11 | Corr **13.3%** |
+| | SAE | L16 | Corr 0% |
+
+**Direction Similarity (Phase 2.7):** LOW cosine similarity → directions are different
+**Layer Convergence:** Both methods find middle layers (L11-L18) → validates linear representation
 
 #### Theoretical Pairing
 
-| Baseline | SAE Direction | Why it fits |
-|----------|---------------|-------------|
-| LogReg | Predicting (t-stat) | Both optimize for classification |
-| Mass-mean | Steering (separation) | Both for causal intervention (Marks & Tegmark 2023) |
+| Probe Type | SAE Equivalent | Use Case |
+|------------|----------------|----------|
+| LogReg | t-statistic latent (Phase 2.10) | Detection/Prediction |
+| Mass-mean | separation score latent (Phase 2.5) | Steering/Intervention |
 
-#### Experimental Design
+#### Implementation Status
 
-**Search all layers independently** — don't force same layer comparison.
-- Layer convergence IS the evidence (both find middle layers → same representation)
-- Forcing same layer would handicap probes and lose convergence evidence
+**Infrastructure (DONE):**
+- [x] Phase 2.6: Probe Direction Computation (mass-mean + logreg per layer)
+- [x] Phase 2.7: Direction Similarity Analysis
+- [x] `--direction-source` CLI flag in run.py
+- [x] `config.direction_source` field
 
-**Only detection + steering needed** for baseline comparison:
-- Orthogonalization/attention/temperature test THE DIRECTION, not the method
-- If directions are similar (check via cosine similarity), SAE results transfer to probes
-- Per Nanda: "Should this update beliefs?" — redundant experiments don't
+**Phase Support Status:**
 
-#### Phases Needed
+| Phase | Description | SAE | `probe_logreg` | `probe_mass_mean` | Status |
+|-------|-------------|:---:|:--------------:|:-----------------:|--------|
+| **Detection Phases** |||||
+| 3.8 | AUROC/F1 Evaluation | ✓ | ✓ | - | ✅ DONE |
+| 3.10 | Temperature Robustness | ✓ | [ ] | - | 🔧 TODO |
+| 7.3 | Instruct Detection | ✓ | [ ] | - | 🔧 TODO |
+| 7.12 | Instruct AUROC/F1 | ✓ | [ ] | - | 🔧 TODO |
+| **Steering Phases** |||||
+| 4.5 | Coefficient Grid Search | ✓ | - | ✓ | ✅ DONE |
+| 4.6 | Golden Section Refinement | ✓ | - | ✓ | ✅ DONE |
+| 4.7 | Coefficient Visualization | ✓ | - | ✓ | ✅ DONE |
+| 4.8 | Steering Analysis | ✓ | - | ✓ | ✅ DONE |
+| 7.6 | Instruct Steering | ✓ | - | [ ] | 🔧 TODO |
+| **Other Phases** |||||
+| 5.3 | Weight Orthogonalization | ✓ | - | [ ] | 🔧 TODO |
+| 5.6 | Zero-Disc Orthogonalization | ✓ | - | [ ] | 🔧 TODO |
+| 6.3 | Attention Analysis | ✓ | - | [ ] | 🔧 TODO |
+| 8.2 | Threshold Optimizer | ✓ | [ ] | - | 🔧 TODO |
+| 8.3 | Selective Steering | ✓ | - | [ ] | 🔧 TODO |
 
-- [ ] **Direction Similarity Check** (do first)
-  - [ ] Cosine similarity: LogReg direction vs SAE predicting direction
-  - [ ] Cosine similarity: Mass-mean direction vs SAE steering direction
-  - [ ] If high (>0.7): Skip redundant experiments (ortho/attention/temp)
-  - [ ] If low (<0.5): Consider additional validation on probe directions
+Legend: ✓ = implemented, [ ] = needs implementation, - = not applicable
 
-- [ ] **Detection Comparison** (LogReg vs SAE predicting)
-  - [ ] Search all layers, find optimal per method
-  - [ ] Report: AUROC, F1, best layer
-  - [ ] Already done in MVP — just need to finalize numbers
+#### Implementation Tasks
 
-- [ ] **Steering Comparison** (Mass-mean vs SAE steering)
-  - [ ] Coefficient search for mass-mean direction
-  - [ ] Correction rate, corruption rate, preservation rate
-  - [ ] Continuous mode (not prompt-only)
+**Detection phases (add `--direction-source probe_logreg`):**
+- [ ] **Phase 3.10**: Temperature robustness with probe
+  - Load logreg direction from Phase 2.6
+  - Compute detection scores across temperatures
+- [ ] **Phase 7.3**: Instruct model detection with probe
+- [ ] **Phase 7.12**: Instruct AUROC/F1 with probe
+- [ ] **Phase 8.2**: Threshold optimizer with probe detection
 
-#### What NOT to do for probes
+**Steering phases (add `--direction-source probe_mass_mean`):**
+- [ ] **Phase 5.3**: Weight orthogonalization with probe direction
+  - Orthogonalize mass-mean direction from weights
+  - Test if steering effect is removed
+- [ ] **Phase 5.6**: Zero-disc orthogonalization with probe
+- [ ] **Phase 6.3**: Attention analysis with probe direction
+- [ ] **Phase 7.6**: Instruct steering with probe
+- [ ] **Phase 8.3**: Selective steering with probe
 
-- ❌ Weight orthogonalization (redundant if directions similar)
-- ❌ Attention analysis (redundant if directions similar)
-- ❌ Temperature robustness (tests direction, not method)
-- ❌ Force same-layer comparison (loses convergence evidence)
+#### Implementation Pattern
 
-#### Main Paper Presentation
+Each phase needs this pattern:
 
-**One table:**
-| Use Case | Method | Best Layer | Key Metric | Supervised |
-|----------|--------|------------|------------|------------|
-| Detection | LogReg | L18 | AUROC 0.73 | ✓ |
-| | SAE | L17 | AUROC 0.67 | ✗ |
-| Steering | Mass-mean | L17 | Corr 6% | ✓ |
-| | SAE | L16 | Corr 4% | ✗ |
+```python
+# In phase runner __init__ or _load_dependencies:
+if config.direction_source == "probe_logreg":
+    probe_data = load_probe_directions(config)  # From Phase 2.6
+    self.direction = probe_data["logreg"]["direction"]
+    self.layer = probe_data["logreg"]["best_layer"]
+elif config.direction_source == "probe_mass_mean":
+    probe_data = load_probe_directions(config)
+    self.direction = probe_data["mass_mean"]["direction"]
+    self.layer = probe_data["mass_mean"]["best_layer"]
+else:  # SAE (default)
+    # existing SAE loading code
+```
 
-**One paragraph:**
-> "Both supervised (LogReg L18, Mass-mean L17) and unsupervised (SAE L17) methods identify middle layers as encoding code correctness. This independent convergence, combined with high cosine similarity between directions (0.XX), provides robust evidence that the linear representation exists regardless of detection method."
+**Output directories:** When `--direction-source probe_*`, output goes to `phase{N}_probe/`
 
-#### MVP Results So Far (2025-12-17)
+#### Methodology Note (vs Marks & Tegmark 2023)
 
-| Model | LogReg Best | SAE Best | Convergence |
-|-------|-------------|----------|-------------|
-| Gemma-2B | L18 | L17 | ✓ Adjacent |
-| Gemma-9B | L19 | L23 | ~ 4 layers apart |
-| LLaMA-8B | L16 | L17 | ✓ Adjacent |
+**Their approach:** Expensive causal patching → layer selection
+**Our approach:** Separation score (cheap) → layer selection, Phase 4 steering = causal validation
 
-**Detection:** SAE competitive with regularized LogReg (ties or wins on 2/3 models)
-**Steering:** Probe steering works; continuous mode needed for correction
-**Interpretation:** Layer convergence = converging evidence for linear representation
+This is valid because:
+1. Separation score is a cheap proxy for causal relevance
+2. If it picks a bad layer, steering shows 0% correction → we'd know
+3. Actual steering experiments ARE the ground truth causal validation
 
-- [ ] Try improving linear probe like what is the right regularization.
 ---
 
 - [x] **Selective steering implementation** (Reviewers RXZd, vRko) - DONE
@@ -891,7 +933,7 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
     - [ ] Code review manually. With CC help ofcourse but read all code manually. Make sure I understand and it is correct. Make it a rule for me to actually read the code before testing.
     - [ ] Understand the methods especially the linear algebra. Visualize etc. Enter learning mode. Learn to code. Get used to it.
 - [x] Consider batching or not since one problem already do 50% GPU usage?
-- [ ] and running all four gpu at once. 
+- [x] and running all four gpu at once. 
 - [x] Consider learning and implementing other optimization.
 - [x] **Gemma-2-9B Support Added:**
     - Added `GEMMA_9B_SPARSITY` dict (42 layers) to `common/config.py`
