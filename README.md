@@ -129,6 +129,8 @@ python3 run.py phase 8.3     # Threshold-based steering
 | `probe_logreg` | Logistic regression from Phase 2.6 | Detection (AUROC/F1) |
 | `probe_mass_mean` | Mean difference from Phase 2.6 | Steering (correction/corruption) |
 
+**Note:** Phases 8.2/8.3 use dual-direction architecture—logreg for threshold prediction, mass_mean for steering—regardless of which probe flag is passed.
+
 ## Methodology
 
 The project follows a systematic experimental pipeline:

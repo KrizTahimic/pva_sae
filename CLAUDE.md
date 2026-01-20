@@ -188,6 +188,8 @@ The fundamental pattern across all phases:
 | Probe LogReg (Phase 2.6) | Supervised | Detection (AUROC/F1) | `--direction-source probe_logreg` |
 | Probe Mass-Mean (Phase 2.6) | Supervised | Steering (correction) | `--direction-source probe_mass_mean` |
 
+**Phases 8.2/8.3 dual-direction:** These phases use both probes internally—logreg for threshold prediction, mass_mean for steering—regardless of which probe flag is passed.
+
 **SAE Latent Selection** (legacy, still used):
 
 | Use Case | Source | Metric | Used By |
