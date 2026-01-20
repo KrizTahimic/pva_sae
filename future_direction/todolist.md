@@ -1033,6 +1033,9 @@ Current Phase 9.1 implementation should be deleted and redesigned. Instead of a 
 - [ ] Create summary visualization that reads from all phases' built-in stats. Maybe make this the new phase 9.5? I'm not sure. Let's discuss
 
 
+- maybe generate visualization also. What is a good visualization? Pie chart?
+
+
 ---
 
 FINAL

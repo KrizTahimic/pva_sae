@@ -77,15 +77,25 @@ class ErrorSummaryVisualizer:
 
     def _discover_phase_summary(self, phase_id: str) -> Optional[Path]:
         """Discover the summary file for a phase."""
-        # Try phase discovery first
+        # Get base directory
+        base_dir = Path(get_phase_output_dir(phase_id, self.config))
+
+        # Check probe directory first (if it exists)
+        probe_dir = Path(str(base_dir) + "_probe")
+        if probe_dir.exists():
+            # Check if probe dir has the summary file
+            summary_file, _ = PHASE_ERROR_SOURCES.get(phase_id, (None, None))
+            if summary_file and (probe_dir / summary_file).exists():
+                return probe_dir
+
+        # Try phase discovery
         latest_output = discover_latest_phase_output(phase_id, config=self.config)
         if latest_output:
             return Path(latest_output).parent
 
         # Fallback to direct path
-        phase_dir = Path(get_phase_output_dir(phase_id, self.config))
-        if phase_dir.exists():
-            return phase_dir
+        if base_dir.exists():
+            return base_dir
 
         return None
 
