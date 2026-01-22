@@ -809,9 +809,14 @@ def _merge_parallel_results(
 
     merged_df = pd.concat(dfs, ignore_index=True)
 
-    # Sort by task_id if present
+    # Deduplicate and sort by task_id if present
+    # This handles cross-run checkpointing where GPUs may load overlapping records
     if 'task_id' in merged_df.columns:
+        before_dedup = len(merged_df)
+        merged_df = merged_df.drop_duplicates(subset=['task_id'], keep='last')
         merged_df = merged_df.sort_values('task_id').reset_index(drop=True)
+        if before_dedup != len(merged_df):
+            logger.info(f"  Deduplicated: {before_dedup} -> {len(merged_df)} rows")
 
     # Save merged result
     timestamp = get_timestamp()
