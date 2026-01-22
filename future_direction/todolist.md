@@ -1034,6 +1034,45 @@ python3 run.py phase {N} --parallel 4 --end 19 --direction-source probe_mass_mea
 
 ---
 
+#### 🎯 Execution Strategy (Smart & Efficient)
+
+**Principle:** Review critical infrastructure first, then run+review in pipeline order. GPU never sits idle.
+
+##### Step 1: Review Critical Infrastructure First (30-45 min)
+These modules are used by almost every phase. A bug here wastes hours.
+
+- [ ] `common/config.py` - All phases read this
+- [ ] `common/phase_discovery.py` - All phases use auto-discovery
+- [ ] `common/parallel_runner.py` - All `--parallel 4` phases
+- [ ] `common/steering_setup.py` - All steering phases
+- [ ] `common/dataset_utils.py` - Code extraction, evaluation
+- [ ] `common/sae_loader.py` - SAE loading for all phases
+
+##### Step 2: Run + Review in Pipeline Order
+While GPU runs one phase, review the NEXT phase's code.
+
+| Step | GPU Running | You Review | Est. Time |
+|------|-------------|------------|-----------|
+| 2a | Phase 1 | Phase 2.5, 2.6, 2.10 code | ~15 min |
+| 2b | Phase 2.5/2.6/2.10 | Phase 3.5, 3.6, 3.8 code | ~5 min |
+| 2c | Phase 3.5/3.6 | Phase 4.5, 4.6, 4.8 code | ~10 min |
+| 2d | Phase 4.5/4.6 (SAE) | Phase 5.x, 7.x code | ~15 min |
+| 2e | Phase 4.5/4.6 (Probe) | Phase 8.x code | ~15 min |
+| 2f | Phase 4.8, 5.3, 7.x | Remaining phases | ~20 min |
+| 2g | Phase 8.x | Final verification | ~15 min |
+
+##### Step 3: Batch Quick Analysis Phases
+These don't do generation (fast, CPU-only). Run together at the end.
+
+```bash
+python3 run.py phase 2.13 && python3 run.py phase 2.15 && python3 run.py phase 2.20
+python3 run.py phase 3.10 && python3 run.py phase 3.11 && python3 run.py phase 3.12
+python3 run.py phase 4.7 && python3 run.py phase 4.10 && python3 run.py phase 4.14
+python3 run.py phase 9.5
+```
+
+---
+
 #### 📁 Code Review: Core Infrastructure
 
 ##### run.py & Config

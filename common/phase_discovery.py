@@ -74,10 +74,10 @@ def get_phase_output_dir(phase: str, config: 'Config') -> str:
     # Build suffix based on model and dataset using registries
     suffix_parts = []
 
-    # Phases 0, 0.1, 0.2, 0.3 are data preprocessing - no model suffix
-    # Only phases that do model inference should have model suffixes
-    data_preprocessing_phases = {'0', '0.1', '0.2', '0.3'}
-    if phase not in data_preprocessing_phases:
+    # Only add model suffix for phases that depend on model choice
+    # Data preprocessing phases (category="data_prep") don't need model suffixes
+    from common.phase_registry import is_model_dependent
+    if is_model_dependent(phase):
         model_name = getattr(config, 'model_name', 'google/gemma-2-2b')
         model_suffix = registry_model_suffix(model_name)
         if model_suffix:

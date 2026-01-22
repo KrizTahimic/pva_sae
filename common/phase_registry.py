@@ -585,3 +585,21 @@ def get_phase_patterns(phase_id: str) -> Union[str, list[str]]:
         Glob pattern(s) for finding phase output files
     """
     return get_phase(phase_id).patterns
+
+
+def is_model_dependent(phase_id: str) -> bool:
+    """
+    Check if a phase's output depends on model choice.
+
+    Data preprocessing phases (category="data_prep") produce the same output
+    regardless of which model will be used later. Their directories don't
+    need model suffixes like "_llama" or "_gemma9b".
+
+    Args:
+        phase_id: Phase ID as string
+
+    Returns:
+        True if phase output varies by model, False for data-only phases
+    """
+    phase = get_phase(phase_id)
+    return phase.category != "data_prep"
