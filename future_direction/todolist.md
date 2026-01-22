@@ -1251,7 +1251,15 @@ python3 run.py phase 9.5
 - [ ] Verify: AUROC 0.6-0.9, F1 reasonable
 
 ##### Phase 3.10-3.12: Analysis (batch at end)
-- [ ] `python3 run.py phase 3.10 && python3 run.py phase 3.11 && python3 run.py phase 3.12`
+- [ ] `python3 run.py phase 3.10 && python3 run.py phase 3.11`
+- [x] **Phase 3.12**: Fixed argparse conflict (2026-01-22)
+  - Bug: `main()` had its own argparse that conflicted with `run.py` CLI
+  - Fix: Refactored to follow Phase 3.8 pattern (`run_evaluation(config)` + auto-discovery)
+  - Commit: `39b2ce91f`
+- [x] Test: `python3 run.py phase 3.12` ✅
+- [x] Verify: Results show AUROC trends by difficulty (Easy/Medium/Hard)
+  - Correct-predicting: AUROC 0.66→0.67→0.61 (decreasing trend)
+  - Incorrect-predicting: AUROC 0.61→0.53→0.53 (decreasing trend)
 
 ---
 
