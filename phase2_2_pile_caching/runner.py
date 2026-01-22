@@ -23,15 +23,17 @@ from .utils import find_word_position, validate_pile_sample
 # Module logger
 logger = get_logger("pile_caching", phase="2.2")
 
-def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
+def run_phase2_2_caching(config: Config, gpu_id: int = 0, n_gpus: int = 1, device: str = "cuda") -> None:
     """
     Cache pile dataset activations for filtering.
-    
+
     Processes texts one at a time for simplicity (KISS principle).
     Supports multi-GPU via index-based work splitting.
-    
+
     Args:
         config: Configuration object
+        gpu_id: GPU worker ID (0-indexed) for parallel execution
+        n_gpus: Total number of GPUs for parallel execution
         device: Device to use for model
     """
     # Setup output directory (uses model/dataset-aware path)
@@ -66,9 +68,24 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
     
     # Handle start/end indices for multi-GPU processing
     # Get start_idx for filename tracking before filtering
-    start_idx, _ = get_dataset_range(config, len(texts))
+    start_idx, end_idx = get_dataset_range(config, len(texts))
     texts = filter_by_range(texts, config, "pile samples")
     substrings = substrings[start_idx:start_idx + len(texts)]
+
+    # Filter texts by GPU (round-robin distribution)
+    if n_gpus > 1:
+        from common.parallel_runner import _get_gpu_task_indices
+        gpu_indices = _get_gpu_task_indices(len(texts), n_gpus, gpu_id)
+        texts = [texts[i] for i in gpu_indices]
+        substrings = [substrings[i] for i in gpu_indices]
+        # Store original indices for filename generation
+        original_indices = [start_idx + i for i in gpu_indices]
+        # Update end_idx for logging
+        end_idx = start_idx + len(texts)
+        logger.info(f"GPU {gpu_id}/{n_gpus}: Processing {len(texts)} samples")
+    else:
+        # Single GPU mode: sequential indices
+        original_indices = list(range(start_idx, start_idx + len(texts)))
 
     # Process each text individually
     processed_count = 0
@@ -78,7 +95,7 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
     for local_idx, (text, random_word) in tqdm_with_logging(
         enumerate(zip(texts, substrings)), logger, desc="Processing pile samples", total=len(texts)
     ):
-        idx = start_idx + local_idx  # Original index for filename
+        idx = original_indices[local_idx]  # Original index for filename
         
         if random_word is None:
             skipped_count += 1
@@ -123,7 +140,10 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
                     
                     # Save activation if extracted (preserves bfloat16)
                     if hook.activation is not None:
-                        save_path = output_dir / f"{idx}_layer_{layer_idx}.safetensors"
+                        if n_gpus > 1:
+                            save_path = output_dir / f"gpu{gpu_id}_{idx}_layer_{layer_idx}.safetensors"
+                        else:
+                            save_path = output_dir / f"{idx}_layer_{layer_idx}.safetensors"
                         save_activation(hook.activation, save_path)
                 finally:
                     # Always remove hook
@@ -142,17 +162,18 @@ def run_phase2_2_caching(config: Config, device: str = "cuda") -> None:
     logger.info(f"Completed: {processed_count} processed, {skipped_count} skipped from range [{start_idx}, {end_idx})")
     logger.info(f"Activations saved to: {output_dir}")
 
-    # Write phase_output.json manifest
-    from common.phase_discovery import write_phase_output
+    # Write phase_output.json manifest (skip in parallel mode - orchestrator writes combined manifest)
+    if n_gpus == 1:
+        from common.phase_discovery import write_phase_output
 
-    phase_output_dir = output_dir.parent  # phase2_2 dir, not pile_activations subdir
-    write_phase_output(
-        phase="2.2",
-        outputs={
-            "primary": "pile_activations/",
-        },
-        config=config,
-        output_dir=str(phase_output_dir),
-        config_keys=['model_name', 'pile_samples', 'activation_layers']
-    )
-    logger.info(f"Saved phase_output.json manifest to {phase_output_dir}")
+        phase_output_dir = output_dir.parent  # phase2_2 dir, not pile_activations subdir
+        write_phase_output(
+            phase="2.2",
+            outputs={
+                "primary": "pile_activations/",
+            },
+            config=config,
+            output_dir=str(phase_output_dir),
+            config_keys=['model_name', 'pile_samples', 'activation_layers']
+        )
+        logger.info(f"Saved phase_output.json manifest to {phase_output_dir}")

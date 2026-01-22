@@ -59,6 +59,7 @@ logger = get_logger(__name__)
 # These phases iterate over tasks and can split work across GPUs
 DATA_PARALLEL_PHASES = {
     "1",     # Code generation + activation extraction
+    "2.2",   # Pile activation caching
     "3.6",   # Hyperparameter baseline
     "4.8",   # Steering effect analysis (fixed coefficient)
     "4.12",  # Zero-disc steering
@@ -741,6 +742,22 @@ def _merge_parallel_results(
         Merged result dict
     """
     output_path = Path(output_dir)
+
+    # Phase 2.2: No file merge needed - activations are independent .safetensors files
+    # Just write combined manifest for downstream discovery
+    if phase_id == "2.2":
+        # Count total activations across all GPUs
+        activation_dir = output_path / "pile_activations"
+        activation_count = len(list(activation_dir.glob("*.safetensors")))
+
+        write_phase_output(
+            phase="2.2",
+            outputs={"primary": "pile_activations/", "activation_count": str(activation_count)},
+            config=config,
+            output_dir=str(output_path)
+        )
+        logger.info(f"Phase 2.2 parallel complete - {activation_count} activations in pile_activations/")
+        return {"activation_count": activation_count, "n_gpus": n_gpus}
 
     # Phase 4.5/4.6 use JSON output format, not parquet
     if phase_id in ("4.5", "4.6"):
