@@ -775,6 +775,17 @@ def _merge_parallel_results(
         gpu_result_files = sorted(output_path.glob("results_gpu*.parquet"))
 
     if not gpu_result_files:
+        # Phase 1: Check if all tasks were checkpointed (activations already exist)
+        if phase_id == "1":
+            activation_dir = output_path / "activations"
+            correct_files = list((activation_dir / "correct").glob("*_layer_*.safetensors"))
+            incorrect_files = list((activation_dir / "incorrect").glob("*_layer_*.safetensors"))
+            if correct_files or incorrect_files:
+                logger.info("All tasks already have activations - cross-run checkpointing detected")
+                logger.info("No new results to merge. Using existing dataset.")
+                # Return indicator that nothing needed to be done
+                return {"checkpointed": True, "message": "All tasks already processed"}
+
         raise RuntimeError(
             f"No per-GPU result files found in {output_dir}. "
             f"Expected pattern: results_gpu*.parquet. "
