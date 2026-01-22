@@ -326,6 +326,25 @@ class Phase1Runner:
                         all_excluded.append(excl)
                         processed_task_ids.add(excl['task_id'])
 
+        # Cross-run checkpointing: load from existing dataset files
+        # (from completed partial runs, e.g., --end 99 then --end 199)
+        # Use sorted() to process oldest to newest, so newer data overwrites
+        dataset_files = sorted(output_dir.glob("dataset_*.parquet"))
+        for dataset_file in dataset_files:
+            # Skip GPU-specific files (pattern: dataset_*_gpu*.parquet)
+            if '_gpu' in dataset_file.stem:
+                continue
+            try:
+                existing_df = pd.read_parquet(dataset_file)
+                for _, row in existing_df.iterrows():
+                    task_id = row['task_id']
+                    if task_id not in processed_task_ids:
+                        all_results.append(row.to_dict())
+                        processed_task_ids.add(task_id)
+                logger.info(f"Loaded {len(existing_df)} records from {dataset_file.name}")
+            except Exception as e:
+                logger.warning(f"Failed to load {dataset_file}: {e}")
+
         if processed_task_ids:
             logger.info(f"Total: {len(all_results)} results and {len(all_excluded)} exclusions from previous runs")
 
@@ -402,7 +421,14 @@ class Phase1Runner:
             logger.info(f"Skipping {len(processed_task_ids)} already processed tasks")
             df = df[~df['task_id'].isin(processed_task_ids)]
             logger.info(f"Remaining tasks to process: {len(df)}")
-        
+
+            # Early exit if all tasks already processed
+            if len(df) == 0:
+                logger.info("All tasks already processed - nothing new to process")
+                logger.info("Cross-run checkpointing: skipping dataset creation (already exists)")
+                self.activation_extractor.remove_hooks()
+                return None
+
         # Process tasks with progress bar (uses tqdm_with_logging for milestone tracking)
         # Initialize with checkpoint data
         results = []  # Current batch results
@@ -412,7 +438,6 @@ class Phase1Runner:
 
         checkpoint_counter = len(list(output_dir.glob("checkpoint_*.parquet")))
         tasks_since_checkpoint = 0
-        checkpoint_count = 0  # Track tasks skipped due to existing activations
 
         # Calculate total attempted BEFORE the loop (needed for logging)
         total_attempted = len(df) + len(processed_task_ids)
@@ -421,15 +446,6 @@ class Phase1Runner:
             # Log which task we're about to process (helps identify hanging tasks)
             task_number = len(all_results) + len(results) + 1  # Current position in overall processing
             logger.info(f"Starting task {task_number}/{total_attempted}: {task['task_id']}")
-
-            # Cross-run checkpointing: skip if activation files already exist
-            first_layer = self.config.activation_layers[0]
-            activation_filename = create_activation_filename(task['task_id'], first_layer)
-            correct_path = activation_dir / "correct" / activation_filename
-            incorrect_path = activation_dir / "incorrect" / activation_filename
-            if correct_path.exists() or incorrect_path.exists():
-                checkpoint_count += 1
-                continue
 
             # Check memory before processing
             memory_percent = self.check_memory_usage()
@@ -508,14 +524,6 @@ class Phase1Runner:
         n_included = len(all_results)
         
         if n_included == 0:
-            # Check if all tasks were skipped due to existing activations
-            if checkpoint_count > 0:
-                logger.info(f"All {checkpoint_count} tasks already have activations - nothing to process")
-                logger.info("Cross-run checkpointing: skipping dataset creation (already exists)")
-                # Cleanup hooks and exit early
-                self.activation_extractor.remove_hooks()
-                return None
-
             logger.error("No tasks were successfully processed! All tasks failed.")
             # Still save the exclusion info for debugging
             if excluded_tasks:
@@ -584,8 +592,6 @@ class Phase1Runner:
         logger.info(f"Tasks attempted: {total_attempted}")
         logger.info(f"Tasks included in dataset: {n_included}")
         logger.info(f"Tasks excluded: {n_excluded} ({n_excluded/total_attempted*100:.1f}%)")
-        if checkpoint_count > 0:
-            logger.info(f"Tasks checkpointed (activations existed): {checkpoint_count}")
         logger.info(f"Correct solutions: {n_correct} ({pass_rate:.1f}%)")
         logger.info(f"Incorrect solutions: {n_incorrect} ({100-pass_rate:.1f}%)")
         logger.info(f"\nDataset saved to: {output_file}")
