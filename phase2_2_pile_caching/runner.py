@@ -90,13 +90,23 @@ def run_phase2_2_caching(config: Config, gpu_id: int = 0, n_gpus: int = 1, devic
     # Process each text individually
     processed_count = 0
     skipped_count = 0
+    checkpoint_count = 0
 
     # Progress bar - use enumerate with start offset for correct filenames
     for local_idx, (text, random_word) in tqdm_with_logging(
         enumerate(zip(texts, substrings)), logger, desc="Processing pile samples", total=len(texts)
     ):
         idx = original_indices[local_idx]  # Original index for filename
-        
+
+        # Checkpointing: skip if all layer files already exist for this sample
+        if n_gpus > 1:
+            first_layer_path = output_dir / f"gpu{gpu_id}_{idx}_layer_{config.activation_layers[0]}.safetensors"
+        else:
+            first_layer_path = output_dir / f"{idx}_layer_{config.activation_layers[0]}.safetensors"
+        if first_layer_path.exists():
+            checkpoint_count += 1
+            continue
+
         if random_word is None:
             skipped_count += 1
             continue
@@ -159,7 +169,7 @@ def run_phase2_2_caching(config: Config, gpu_id: int = 0, n_gpus: int = 1, devic
     # Final cleanup
     torch.cuda.empty_cache()
 
-    logger.info(f"Completed: {processed_count} processed, {skipped_count} skipped from range [{start_idx}, {end_idx})")
+    logger.info(f"Completed: {processed_count} processed, {skipped_count} skipped, {checkpoint_count} checkpointed from range [{start_idx}, {end_idx})")
     logger.info(f"Activations saved to: {output_dir}")
 
     # Write phase_output.json manifest (skip in parallel mode - orchestrator writes combined manifest)
