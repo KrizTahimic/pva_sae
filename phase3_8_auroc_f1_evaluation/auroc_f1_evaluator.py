@@ -698,7 +698,12 @@ def load_split_probe_activations(
     # Select the correct directory based on split type
     if split_name == 'tuning':
         activation_dir = phase3_6_dir
-        temp_data = pd.read_parquet(phase3_6_dir / 'dataset_hyperparams_temp_0_0.parquet')
+        # Try merged file first (parallel runs), then original pattern
+        merged_files = list(phase3_6_dir.glob('dataset_merged_*.parquet'))
+        if merged_files:
+            temp_data = pd.read_parquet(sorted(merged_files)[-1])  # Latest merged file
+        else:
+            temp_data = pd.read_parquet(phase3_6_dir / 'dataset_hyperparams_temp_0_0.parquet')
     else:
         activation_dir = phase3_5_dir
         temp_data = pd.read_parquet(phase3_5_dir / 'dataset_temp_0_0.parquet')
@@ -771,8 +776,12 @@ def load_split_activations(
     if split_name == 'tuning':
         # Use Phase 3.6 directory for tuning split
         activation_dir = phase3_6_dir
-        # Load temperature 0.0 dataset from Phase 3.6
-        temp_data = pd.read_parquet(phase3_6_dir / 'dataset_hyperparams_temp_0_0.parquet')
+        # Try merged file first (parallel runs), then original pattern
+        merged_files = list(phase3_6_dir.glob('dataset_merged_*.parquet'))
+        if merged_files:
+            temp_data = pd.read_parquet(sorted(merged_files)[-1])
+        else:
+            temp_data = pd.read_parquet(phase3_6_dir / 'dataset_hyperparams_temp_0_0.parquet')
     else:  # analysis
         # Use Phase 3.5 directory for analysis split
         activation_dir = phase3_5_dir

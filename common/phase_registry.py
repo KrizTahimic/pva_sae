@@ -213,7 +213,7 @@ PHASES: dict[str, PhaseInfo] = {
         runner="HyperparameterDataRunner",
         runner_type="class",
         category="validation",
-        patterns=["dataset_hyperparams_temp_0_0.parquet", "metadata.json"],
+        patterns=["dataset_merged_*.parquet", "dataset_hyperparams_temp_0_0.parquet", "metadata.json"],
     ),
     "3.8": PhaseInfo(
         id="3.8",

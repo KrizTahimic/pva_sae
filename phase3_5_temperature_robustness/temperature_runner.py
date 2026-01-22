@@ -864,6 +864,11 @@ class TemperatureEvaluator:
         self.n_gpus = n_gpus
         self.device = detect_device()
 
+        # Set up output directory for activation saving
+        self.output_dir = Path(get_phase_output_dir("3.5", config))
+        self.activation_dir = self.output_dir / "activations" / "task_activations"
+        self.activation_dir.mkdir(parents=True, exist_ok=True)
+
         logger.info(f"TemperatureEvaluator GPU {gpu_id}: Initializing...")
 
         # Load model and tokenizer
@@ -998,7 +1003,7 @@ class TemperatureEvaluator:
         }
 
     def _generate_temp0_with_activations(self, row, prompt: str) -> dict:
-        """Generate at temperature 0 with activation extraction."""
+        """Generate at temperature 0 with activation extraction and saving."""
         start_time = time.time()
 
         self.activation_extractor.setup_hooks()
@@ -1025,6 +1030,21 @@ class TemperatureEvaluator:
                     output_attentions=True,
                     return_dict_in_generate=True
                 )
+
+            # Capture activations at position -1 (last prompt token) before clearing
+            from einops import rearrange
+            task_activations = {}
+            for layer_num, acts in self.activation_extractor.activations.items():
+                if len(acts) > 0:
+                    # Get activation at last prompt position, keep 2D shape [1, d_model]
+                    act = acts[-1].cpu()
+                    if act.dim() == 1:
+                        act = rearrange(act, 'd -> 1 d')
+                    task_activations[layer_num] = act
+
+            # Save activations for this task
+            if len(task_activations) > 0:
+                self._save_task_activations(row['task_id'], task_activations)
 
             generated_text = self.tokenizer.decode(
                 outputs.sequences[0][inputs['input_ids'].shape[1]:],
@@ -1099,6 +1119,12 @@ class TemperatureEvaluator:
             'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
         }
 
+    def _save_task_activations(self, task_id: str, activations: dict[int, torch.Tensor]) -> None:
+        """Save activations for all layers for this task."""
+        for layer_num, layer_activations in activations.items():
+            save_path = self.activation_dir / f"{task_id}_layer_{layer_num}.safetensors"
+            save_activation(layer_activations, save_path)
+
 
 class TemperatureOrchestrator:
     """
@@ -1145,6 +1171,7 @@ class TemperatureOrchestrator:
             values_to_test=self.config.temperature_variation_temps,
             early_stop_fn=None,  # No early stopping for temperature
             merge_fn=self._merge_temperature_results,
+            timeout_per_iteration=1200,  # 20 minutes (some GPUs are slower)
             checkpoint_dir=self.output_dir / "parallel_checkpoints"
         )
 

@@ -23,7 +23,7 @@ This file provides guidance to Claude Code when working with this repository.
    source ~/miniconda3/etc/profile.d/conda.sh && conda activate sae_cc
    ```
 
-5. **Use screen for long tasks** - Provide screen instructions for user to run manually. Do NOT execute screen commands via Claude Code.
+5. **Use screen for long tasks** - You may execute screen commands directly via Claude Code for long-running tasks.
 
 ---
 
