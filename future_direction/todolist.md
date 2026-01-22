@@ -1040,6 +1040,53 @@ python3 run.py phase {N} --parallel 4 --direction-source probe_mass_mean
 
 ---
 
+### 🔄 Standard Testing Routine (Per-Phase Checklist)
+
+Use this checklist when testing each phase. Run `/test-phase` for interactive guidance.
+
+#### 1. Small Subset Test (Verify it runs)
+```bash
+python3 run.py phase {N} --parallel 4 --end 39
+```
+- [ ] Runs without errors
+- [ ] Output directory created with correct suffix (`_llama`, `_humaneval`, etc.)
+- [ ] `phase_output.json` manifest created
+
+#### 2. Dependency Check (Verify inputs discovered)
+- [ ] Check logs for "Found {X} from phase {Y}" messages
+- [ ] No "FileNotFoundError" for missing dependencies
+- [ ] Auto-discovery working (not hardcoded paths)
+
+#### 3. Cross-Run Checkpointing (Verify resume works)
+```bash
+# Re-run same command - should skip already-processed tasks
+python3 run.py phase {N} --parallel 4 --end 39
+```
+- [ ] "Tasks checkpointed (activations existed): X" in logs (for Phase 1)
+- [ ] OR "Skipping X already processed tasks" (for other phases)
+- [ ] Completes in seconds (not re-processing)
+
+#### 4. Parallel Execution (Verify multi-GPU works)
+- [ ] All 4 GPUs utilized (check `nvidia-smi`)
+- [ ] Results merged correctly (`dataset_merged_*.parquet`)
+- [ ] Per-GPU files cleaned up after merge
+
+#### 5. Output Verification
+- [ ] Summary JSON has expected metrics (pass rate, AUROC, correction rate, etc.)
+- [ ] Error type distributions present (if applicable)
+- [ ] Results in expected ranges (see sanity check table below)
+
+#### 6. Multi-Model Test (If changing models)
+```bash
+# Edit config.py: model_name = "meta-llama/Llama-3.1-8B"
+python3 run.py phase {N} --parallel 4 --end 39
+```
+- [ ] Output goes to correct directory (`phase{N}_llama/`)
+- [ ] Model loads without errors
+- [ ] Results comparable to Gemma (within reason)
+
+---
+
 #### 🎯 Execution Strategy (Pragmatic - ICML Deadline Jan 28)
 
 **Principle:** Run first, verify via results. Wrong logic → wrong numbers. Trust the tests.
@@ -1137,10 +1184,23 @@ python3 run.py phase 9.5
 
 ---
 
-#### 📁 Phase 1: Dataset Building - DONE (Gemma 2B)
+#### 📁 Phase 1: Dataset Building - DONE (Gemma 2B + LLAMA 8B)
+
+**Gemma 2B:**
 - [x] Test: `python3 run.py phase 1 --parallel 4 --end 79` (80 tasks)
 - [x] Verify: `phase_1_summary.json` created - pass rate 31.25% ✅
 - [x] Verify: Activations saved to `data/phase1_0/activations/`
+
+**LLAMA 8B:**
+- [x] Test: `python3 run.py phase 1 --parallel 4 --end 39` (40 tasks)
+- [x] Verify: `data/phase1_0_llama/dataset_merged_*.parquet` created ✅
+- [x] Verify: Activations saved to `data/phase1_0_llama/activations/` ✅
+
+**Cross-run Checkpointing (2026-01-22):**
+- [x] Implemented: Skip tasks where activation files already exist
+- [x] Test Gemma: Re-run `--end 79` → all 80 tasks skipped in <1s ✅
+- [x] Test LLAMA: Re-run `--end 39` → all 40 tasks skipped in <1s ✅
+- [x] Test mixed scenario: Delete 2 activations, re-run → 2 processed, 78 skipped ✅
 
 ---
 
