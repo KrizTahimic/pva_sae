@@ -12,8 +12,6 @@ import seaborn as sns
 from pathlib import Path
 from datetime import datetime
 
-import argparse
-
 from sklearn.metrics import (
     roc_auc_score, f1_score, precision_score, recall_score,
     confusion_matrix, roc_curve
@@ -24,8 +22,8 @@ from sklearn.metrics import (
 
 from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists
-from common.config import PLOT_DPI, PLOT_STYLE
-from common.phase_discovery import discover_latest_phase_output
+from common.config import PLOT_DPI, PLOT_STYLE, Config
+from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
 from common.utils import save_json, load_json
 from common.sae_loader import load_sae_for_config
@@ -47,8 +45,8 @@ class Phase312Runner:
         self.logger.info("This phase evaluates PVA features across different problem difficulty levels")
         self.logger.info("\n" + self.config.dump(phase="3.12"))
 
-        # main() creates its own Config internally, so just call it
-        return main()
+        # Run the main evaluation logic with our config
+        return run_evaluation(self.config)
 
 def group_by_difficulty(validation_data: pd.DataFrame) -> dict[str, pd.DataFrame]:
     """Group validation tasks by cyclomatic complexity into Easy/Medium/Hard.
@@ -420,48 +418,37 @@ def plot_auroc_trends(
     plt.savefig(output_dir / 'auroc_trends_by_difficulty.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
 
-def main():
-    parser = argparse.ArgumentParser(description="Phase 3.12: Difficulty-Based AUROC Analysis")
-    parser.add_argument("--phase3-5-dir", type=str, help="Path to Phase 3.5 output directory")
-    parser.add_argument("--phase3-8-dir", type=str, help="Path to Phase 3.8 output directory")
-    parser.add_argument("--output-dir", type=str, default=None, 
-                       help="Output directory for results")
-    args = parser.parse_args()
-    
-    # Use seed from config
-    from common.config import Config
-    config = Config()
+def run_evaluation(config: Config) -> dict:
+    """Core evaluation logic extracted from main().
+
+    Args:
+        config: Config object
+
+    Returns:
+        Dictionary containing analysis results
+    """
+    # Set random seeds
     np.random.seed(config.evaluation_random_seed)
     torch.manual_seed(config.evaluation_random_seed)
-    
-    # Auto-discover phase outputs if not provided
-    if not args.phase3_5_dir:
-        latest_output = discover_latest_phase_output("3.5")
-        if latest_output:
-            phase3_5_dir = Path(latest_output).parent
-            logger.info(f"Auto-discovered Phase 3.5 output: {phase3_5_dir}")
-        else:
-            raise FileNotFoundError("No Phase 3.5 output found. Please run Phase 3.5 first.")
-    else:
-        phase3_5_dir = Path(args.phase3_5_dir)
-    
-    if not args.phase3_8_dir:
-        latest_output = discover_latest_phase_output("3.8")
-        if latest_output:
-            phase3_8_dir = Path(latest_output).parent
-            logger.info(f"Auto-discovered Phase 3.8 output: {phase3_8_dir}")
-        else:
-            raise FileNotFoundError("No Phase 3.8 output found. Please run Phase 3.8 first.")
-    else:
-        phase3_8_dir = Path(args.phase3_8_dir)
-    
-    # Create output directory
-    if args.output_dir:
-        output_dir = Path(args.output_dir)
-    else:
-        from common.utils import get_phase_dir
-        output_dir = Path(get_phase_dir('3.12'))
+
+    # Autodiscover Phase 3.5 (uses config for model/dataset-aware path)
+    phase3_5_path = discover_latest_phase_output("3.5", config=config)
+    if not phase3_5_path:
+        raise FileNotFoundError("No Phase 3.5 output found. Please run Phase 3.5 first.")
+    phase3_5_dir = Path(phase3_5_path).parent
+    logger.info(f"Using Phase 3.5 output: {phase3_5_dir}")
+
+    # Autodiscover Phase 3.8
+    phase3_8_path = discover_latest_phase_output("3.8", config=config)
+    if not phase3_8_path:
+        raise FileNotFoundError("No Phase 3.8 output found. Please run Phase 3.8 first.")
+    phase3_8_dir = Path(phase3_8_path).parent
+    logger.info(f"Using Phase 3.8 output: {phase3_8_dir}")
+
+    # Setup output directory (with dataset suffix if needed)
+    output_dir = Path(get_phase_output_dir("3.12", config))
     ensure_directory_exists(output_dir)
+    logger.info(f"Output directory: {output_dir}")
 
     # Handle --viz-only mode
     if config.viz_only:
@@ -797,6 +784,16 @@ def main():
         config_keys=['model_name', 'dataset_name']
     )
     logger.info(f"Saved phase_output.json manifest to {output_dir}")
+
+    return results
+
+
+def main():
+    """Legacy entry point for running directly. Uses Phase312Runner."""
+    config = Config()
+    runner = Phase312Runner(config)
+    runner.run()
+
 
 if __name__ == "__main__":
     main()
