@@ -536,12 +536,19 @@ class Phase1Runner:
         
         # Create results dataframe from all successful tasks (including checkpoints)
         results_df = pd.DataFrame(all_results)
-        
+
         # Merge with original data (only successful tasks)
         # Need to reload full dataset to get all original data including checkpointed tasks
         full_df = load_dataset_split(split_name, Path(phase0_1_dir), self.config)
         full_df = filter_by_range(full_df, self.config, "original data")
-        
+
+        # Check if results_df already has original columns (from cross-run checkpointing)
+        # If so, only keep Phase 1 generated columns to avoid merge conflicts
+        phase1_columns = ['task_id', 'generated_code', 'raw_output', 'baseline_passed', 'baseline_error_type']
+        if 'text' in results_df.columns:
+            # Data loaded from previous merged dataset - extract only Phase 1 columns
+            results_df = results_df[phase1_columns]
+
         successful_task_ids = set(results_df['task_id'])
         successful_original_data = full_df[full_df['task_id'].isin(successful_task_ids)].copy()
         final_df = successful_original_data.merge(results_df, on='task_id', how='inner')
