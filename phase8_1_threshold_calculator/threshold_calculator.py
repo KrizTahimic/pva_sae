@@ -143,15 +143,20 @@ class ThresholdCalculator:
                 "Phase 3.6 generates the hyperparameter dataset."
             )
 
-        # Load dataset (task IDs)
+        # Load dataset (task IDs) - try expected filename, then merged pattern
         phase3_6_dir = Path(phase3_6_output).parent
         dataset_file = phase3_6_dir / "dataset_hyperparams_temp_0_0.parquet"
 
         if not dataset_file.exists():
-            raise FileNotFoundError(
-                f"Dataset file not found: {dataset_file}\n"
-                f"Phase 3.6 should generate dataset_hyperparams_temp_0_0.parquet"
-            )
+            merged_files = sorted(phase3_6_dir.glob("dataset_merged_*.parquet"))
+            if merged_files:
+                dataset_file = merged_files[-1]
+                logger.info(f"Using merged dataset: {dataset_file.name}")
+            else:
+                raise FileNotFoundError(
+                    f"Dataset file not found: {dataset_file}\n"
+                    f"Phase 3.6 should generate dataset_hyperparams_temp_0_0.parquet or dataset_merged_*.parquet"
+                )
 
         self.dataset = pd.read_parquet(dataset_file)
         logger.info(f"Loaded {len(self.dataset)} samples from Phase 3.6")

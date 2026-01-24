@@ -1058,8 +1058,10 @@ Issues encountered during Phase 3.5 parallel mode that may affect other phases:
 **Test Results (2026-01-24):**
 - [x] Phase 4.5 --parallel 4 --end 19 ✅ (timeout fix + discovery fix)
 - [x] Phase 4.6 --parallel 4 --end 19 ✅ (timeout fix + discovery fix)
-- [ ] Phase 8.2 --parallel 4 (blocked: requires Phase 8.1)
-- [ ] Phase 8.3 --parallel 4 (blocked: requires Phase 8.1 → 8.2)
+- [x] Phase 8.1 ✅ (merged parquet discovery fix)
+- [x] Phase 8.2 --parallel 4 --end 19 ✅ (timeout fix + discovery fix)
+- [x] Phase 8.3 --parallel 4 --end 19 ✅ (deduplication fix verified)
+- [x] Phase 8.3 --parallel 4 --end 39 ✅ (cross-run checkpointing verified - no duplicate rows)
 
 ---
 
