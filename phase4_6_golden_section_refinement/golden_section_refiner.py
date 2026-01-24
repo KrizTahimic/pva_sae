@@ -1741,6 +1741,23 @@ class RefinementOrchestrator:
 
         logger.info(f"Golden section search for {steering_type}: bounds=[{a}, {b}]")
 
+        # Handle small ranges directly - test all candidates
+        if b - a <= 2:
+            logger.info(f"  Small range [{a}, {b}], testing all candidates directly")
+            candidates = list(range(a, b + 1))
+            scores = [self._evaluate_coefficient_parallel(c, steering_type) for c in candidates]
+            best_coeff, best_score = max(zip(candidates, scores), key=lambda x: x[1])
+            history.append({
+                'iteration': 0,
+                'bounds': [a, b],
+                'candidates': candidates,
+                'scores': scores,
+                'best_coefficient': best_coeff,
+                'best_score': best_score
+            })
+            logger.info(f"  Best: {best_coeff}={best_score:.1f}%")
+            return best_coeff, history
+
         # Initial points
         x1 = int(a + self.resphi * (b - a))
         x2 = int(a + (1 - self.resphi) * (b - a))
@@ -1764,6 +1781,26 @@ class RefinementOrchestrator:
         iteration = 0
         while b - a > tolerance:
             iteration += 1
+
+            # Special case: width=2 - test all 3 points to avoid oscillation
+            if b - a == 2:
+                logger.info(f"  Final step: testing all 3 points in [{a}, {b}]")
+                candidates = [a, a + 1, b]
+                scores = [self._evaluate_coefficient_parallel(c, steering_type) for c in candidates]
+                local_best_coeff, local_best_score = max(zip(candidates, scores), key=lambda x: x[1])
+                if local_best_score > best_score:
+                    best_score = local_best_score
+                    best_coeff = local_best_coeff
+                history.append({
+                    'iteration': iteration,
+                    'bounds': [a, b],
+                    'final_candidates': candidates,
+                    'final_scores': scores,
+                    'best_coefficient': best_coeff,
+                    'best_score': best_score
+                })
+                logger.info(f"  Final: {best_coeff}={best_score:.1f}%")
+                break
 
             if f1 > f2:
                 b = x2

@@ -122,7 +122,7 @@ class Config:
     sae_dtype: str = "bfloat16"  # SAE weight dtype: "bfloat16" (faster) or "float32" (original)
     
     # === PILE FILTERING (Phase 2) ===
-    pile_filter_enabled: bool = False  # Disabled for LLAMA (no Phase 2.3 data)
+    pile_filter_enabled: bool = True  # Enable for Gemma (has Phase 2.2/2.3 data)
     pile_threshold: float = 0.02
     pile_samples: int = 10000
     
@@ -149,12 +149,12 @@ class Config:
     
     # === STEERING COEFFICIENT SELECTION (Phase 4.5) ===
     # Both SAE and probe directions are L2-normalized to unit norm
-    # Quick test: single coefficient
-    phase4_5_correct_coefficients: list[float] = field(default_factory=lambda: [30.0])
-    phase4_5_incorrect_coefficients: list[float] = field(default_factory=lambda: [30.0])
-    # Full grid search (uncomment for thorough testing):
-    # phase4_5_correct_coefficients: list[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
-    # phase4_5_incorrect_coefficients: list[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
+    # Quick test: single coefficient (uncomment for testing)
+    # phase4_5_correct_coefficients: list[float] = field(default_factory=lambda: [30.0])
+    # phase4_5_incorrect_coefficients: list[float] = field(default_factory=lambda: [30.0])
+    # Full grid search (production):
+    phase4_5_correct_coefficients: list[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
+    phase4_5_incorrect_coefficients: list[float] = field(default_factory=lambda: [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0])
 
     
     phase4_5_search_tolerance: float = 2.0  # Stop binary search when range < tolerance
@@ -165,9 +165,9 @@ class Config:
     # === GOLDEN SECTION SEARCH COEFFICIENT REFINEMENT (Phase 4.6) ===
     # Stopping tolerance: stop when search range < tolerance
     # Quick test: stop early (range < 10)
-    phase4_6_tolerance: float = 10.0
+    # phase4_6_tolerance: float = 10.0
     # Production: search to convergence (range < 1 = consecutive integers)
-    # phase4_6_tolerance: float = 1.0
+    phase4_6_tolerance: float = 1.0
 
     phase4_6_experiment_mode: str = 'all'  # 'all', 'correction', 'corruption'
 
@@ -188,9 +188,9 @@ class Config:
     phase8_2_refinement_radius: int = 10  # ±10 percentiles around coarse optimal
     # Stopping tolerance: stop when search range < tolerance
     # Quick test: stop early (range < 10)
-    phase8_2_tolerance: int = 10
+    # phase8_2_tolerance: int = 10
     # Production: search to convergence (range < 1 = consecutive integers)
-    # phase8_2_tolerance: int = 1
+    phase8_2_tolerance: int = 1
 
     # === SELECTIVE STEERING BASED ON THRESHOLD (Phase 8.3) ===
     phase8_3_use_percentile_threshold: bool = True  # Use percentile-based threshold

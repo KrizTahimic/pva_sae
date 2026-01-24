@@ -288,6 +288,25 @@ def run_evaluation(config):
     # Generate combined F1 threshold plot
     plot_combined_f1_thresholds(hp_metrics_correct, hp_metrics_incorrect, output_dir)
 
+    # Generate comparative metrics plot
+    viz_results = {
+        'correct_predicting_latent': {
+            'validation_metrics': {
+                'metrics': val_metrics_correct
+            }
+        },
+        'incorrect_predicting_latent': {
+            'validation_metrics': {
+                'metrics': val_metrics_incorrect
+            }
+        }
+    }
+    plot_comparative_metrics(
+        viz_results, output_dir,
+        y_true_val_correct, scores_val_correct,
+        y_true_val_incorrect, scores_val_incorrect
+    )
+
     # Save results
     # For probe mode, latent_idx is None (not applicable)
     correct_latent_idx = None if use_probe else correct_latent_idx
