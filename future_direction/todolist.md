@@ -1015,6 +1015,52 @@ Phases 8.2 and 8.3 use dual-direction architecture (logreg for prediction, mass_
 - [x] Create Phase 9.5 summary aggregator (visualizes cross-phase distributions)
 - [x] Fix parallel runner to create `phase_1_summary.json` (commit `5bfb8766b`)
 
+### Phase 3.5 Parallel Issues - Verify in Other Phases (2026-01-22)
+
+Issues encountered during Phase 3.5 parallel mode that may affect other phases:
+
+**All Parallelizable Phases:**
+
+| Type | Phases | Description |
+|------|--------|-------------|
+| Data-parallel | 1, 2.2, 3.6, 4.8, 4.12, 5.3, 5.6, 7.3, 7.6, 8.3 | Distribute problems, merge at end |
+| Iterative-parallel | 3.5, 4.5, 4.6, 8.2 | Distribute problems, merge after each value |
+
+**Issues Verified (2026-01-23):**
+
+- [x] **Issue 1: Activations not saved in parallel mode** (`b34278ad6`)
+  - Phase 3.5 wasn't saving activations when running with `--parallel`
+  - Fix: Added activation capture and saving in runner
+  - **Result**: ✅ NO ISSUES - Phases 3.6/7.3 correctly save inside generate loop. Others don't save by design.
+
+- [x] **Issue 2: Duplicate columns on merge** (`8826c3765`)
+  - Cross-run checkpointing loads existing data with columns like `text`, `test_list`
+  - Merging caused pandas suffix conflicts (`text_x`, `text_y`)
+  - Fix: Extract only Phase-generated columns before merging
+  - **Result**: ✅ NO ISSUES - Only Phase 1 has cross-run checkpointing, already fixed.
+
+- [x] **Issue 3: Duplicate rows** (`055ba84be`)
+  - Each GPU loads existing records and saves them with new results
+  - Without deduplication, merged parquet had inflated row counts
+  - Fix: Deduplicate by `task_id` in `parallel_runner.py`
+  - **Result**: ⚠️ FIXED Phase 8.3 - Added deduplication to `_merge_phase8_3_results`
+
+- [x] **Issue 4: Timeout too short** (`b34278ad6`)
+  - Original 600s timeout insufficient for slower GPUs
+  - Fix: Increased to 1200s
+  - **Result**: ⚠️ FIXED Phases 4.5, 4.6, 8.2 - Added `timeout_per_iteration=1200`
+
+- [x] **Issue 5: Merged parquet discovery** (2026-01-24)
+  - Phase 3.6 outputs `dataset_merged_*.parquet` in parallel mode
+  - Phases 4.5, 4.6, 8.2 expected old filename `dataset_hyperparams_temp_0_0.parquet`
+  - **Fix**: Updated `load_baseline_data()` in steering_setup.py and direct file loads in 4.6, 8.2
+
+**Test Results (2026-01-24):**
+- [x] Phase 4.5 --parallel 4 --end 19 ✅ (timeout fix + discovery fix)
+- [x] Phase 4.6 --parallel 4 --end 19 ✅ (timeout fix + discovery fix)
+- [ ] Phase 8.2 --parallel 4 (blocked: requires Phase 8.1)
+- [ ] Phase 8.3 --parallel 4 (blocked: requires Phase 8.1 → 8.2)
+
 ---
 
 ## 📋 CONSOLIDATED UNDONE TODO LIST (Reordered 2026-01-20)

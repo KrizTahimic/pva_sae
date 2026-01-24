@@ -283,9 +283,15 @@ class ThresholdOptimizer:
             )
 
         # Load baseline results (full dataset including generated_code for baseline returns)
-        baseline_file = Path(phase3_6_output).parent / "dataset_hyperparams_temp_0_0.parquet"
+        phase3_6_dir = Path(phase3_6_output).parent
+        baseline_file = phase3_6_dir / "dataset_hyperparams_temp_0_0.parquet"
         if not baseline_file.exists():
-            raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
+            merged_files = sorted(phase3_6_dir.glob("dataset_merged_*.parquet"))
+            if merged_files:
+                baseline_file = merged_files[-1]
+                logger.info(f"Using merged dataset: {baseline_file.name}")
+            else:
+                raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
 
         phase3_6_baseline = pd.read_parquet(baseline_file)
         # Phase 3.6 outputs baseline_passed column
@@ -1355,9 +1361,17 @@ class ThresholdEvaluator:
                     lambda x: json.loads(x) if isinstance(x, str) else x
                 )
 
-        # Load Phase 3.6 baseline
+        # Load Phase 3.6 baseline - try expected filename, then merged pattern
         phase3_6_output = discover_latest_phase_output("3.6")
-        baseline_file = Path(phase3_6_output).parent / "dataset_hyperparams_temp_0_0.parquet"
+        phase3_6_dir = Path(phase3_6_output).parent
+        baseline_file = phase3_6_dir / "dataset_hyperparams_temp_0_0.parquet"
+        if not baseline_file.exists():
+            merged_files = sorted(phase3_6_dir.glob("dataset_merged_*.parquet"))
+            if merged_files:
+                baseline_file = merged_files[-1]
+                logger.info(f"Using merged dataset: {baseline_file.name}")
+            else:
+                raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
         phase3_6_baseline = pd.read_parquet(baseline_file)
 
         if 'test_list' in phase3_6_baseline.columns:
@@ -1652,7 +1666,8 @@ class ThresholdOrchestrator:
             values_to_test=self.percentiles_to_test,
             early_stop_fn=self._should_early_stop,
             merge_fn=self._merge_percentile_results,
-            checkpoint_dir=self.output_dir / "parallel_checkpoints"
+            checkpoint_dir=self.output_dir / "parallel_checkpoints",
+            timeout_per_iteration=1200,  # 20 minutes (some GPUs are slower)
         )
 
         result = runner.run()

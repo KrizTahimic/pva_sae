@@ -400,10 +400,15 @@ class GoldenSectionCoefficientRefiner:
             raise FileNotFoundError("Phase 3.6 output not found. Run Phase 3.6 first.")
         self.phase3_6_dir = Path(phase3_6_output).parent
 
-        # Load hyperparameter dataset
+        # Load hyperparameter dataset - try expected filename, then merged pattern
         baseline_file = self.phase3_6_dir / "dataset_hyperparams_temp_0_0.parquet"
         if not baseline_file.exists():
-            raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
+            merged_files = sorted(self.phase3_6_dir.glob("dataset_merged_*.parquet"))
+            if merged_files:
+                baseline_file = merged_files[-1]
+                logger.info(f"Using merged dataset: {baseline_file.name}")
+            else:
+                raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
 
         self.baseline_data = pd.read_parquet(baseline_file)
         logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.6 baseline")
@@ -1472,10 +1477,17 @@ class RefinementEvaluator:
                 self.best_incorrect_latent['latent_idx']
             ].detach()
 
-        # Load baseline data
+        # Load baseline data - try expected filename, then merged pattern
         phase3_6_output = discover_latest_phase_output("3.6", config=self.config)
         phase3_6_dir = Path(phase3_6_output).parent
         baseline_file = phase3_6_dir / "dataset_hyperparams_temp_0_0.parquet"
+        if not baseline_file.exists():
+            merged_files = sorted(phase3_6_dir.glob("dataset_merged_*.parquet"))
+            if merged_files:
+                baseline_file = merged_files[-1]
+                logger.info(f"Using merged dataset: {baseline_file.name}")
+            else:
+                raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
         self.baseline_data = pd.read_parquet(baseline_file)
         self.baseline_data = filter_by_range(self.baseline_data, self.config, "baseline data")
 
@@ -1802,7 +1814,8 @@ class RefinementOrchestrator:
             n_gpus=self.n_gpus,
             values_to_test=[(coefficient, steering_type)],
             merge_fn=self._merge_refinement_results,
-            checkpoint_dir=self.output_dir / f"parallel_checkpoints_{steering_type}"
+            checkpoint_dir=self.output_dir / f"parallel_checkpoints_{steering_type}",
+            timeout_per_iteration=1200,  # 20 minutes (some GPUs are slower)
         )
 
         result = runner.run()

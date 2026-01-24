@@ -1189,7 +1189,8 @@ class CoefficientOrchestrator:
                 values_to_test=self.correct_coefficients,
                 early_stop_fn=self._should_early_stop_correction,
                 merge_fn=self._merge_correction_results,
-                checkpoint_dir=self.output_dir / "parallel_checkpoints_correct"
+                checkpoint_dir=self.output_dir / "parallel_checkpoints_correct",
+                timeout_per_iteration=1200,  # 20 minutes (some GPUs are slower)
             )
             result = runner.run()
             all_results['correct_steering'] = self._format_history(result, 'correct')
@@ -1206,7 +1207,8 @@ class CoefficientOrchestrator:
                 values_to_test=self.incorrect_coefficients,
                 early_stop_fn=self._should_early_stop_corruption,
                 merge_fn=self._merge_corruption_results,
-                checkpoint_dir=self.output_dir / "parallel_checkpoints_incorrect"
+                checkpoint_dir=self.output_dir / "parallel_checkpoints_incorrect",
+                timeout_per_iteration=1200,  # 20 minutes (some GPUs are slower)
             )
             result = runner.run()
             all_results['incorrect_steering'] = self._format_history(result, 'incorrect')

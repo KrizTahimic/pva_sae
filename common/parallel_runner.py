@@ -568,6 +568,15 @@ def _merge_phase8_3_results(
     merged_df = pd.concat(dfs, ignore_index=True)
     logger.info(f"Merged {len(merged_df)} total results from {len(gpu_files)} GPUs")
 
+    # Deduplicate by task_id + experiment_type (handles cross-run checkpointing)
+    if 'task_id' in merged_df.columns:
+        before_dedup = len(merged_df)
+        merged_df = merged_df.drop_duplicates(
+            subset=['task_id', 'experiment_type'], keep='last'
+        )
+        if before_dedup != len(merged_df):
+            logger.info(f"  Deduplicated: {before_dedup} -> {len(merged_df)} rows")
+
     # Split by experiment type
     correction_df = merged_df[merged_df['experiment_type'] == 'correction']
     preservation_df = merged_df[merged_df['experiment_type'] == 'preservation']

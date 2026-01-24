@@ -422,10 +422,17 @@ def load_baseline_data(
     phase_dir = str(Path(phase_output).parent)
     logger.info(f"Using Phase {phase} output: {phase_dir}")
 
-    # Load baseline dataset
-    baseline_file = Path(phase_output).parent / filename
+    # Load baseline dataset - try expected filename first, then merged pattern
+    phase_path = Path(phase_output).parent
+    baseline_file = phase_path / filename
     if not baseline_file.exists():
-        raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
+        # Try merged pattern from parallel execution (e.g., dataset_merged_*.parquet)
+        merged_files = sorted(phase_path.glob("dataset_merged_*.parquet"))
+        if merged_files:
+            baseline_file = merged_files[-1]  # Use most recent
+            logger.info(f"Using merged dataset: {baseline_file.name}")
+        else:
+            raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
 
     baseline_data = pd.read_parquet(baseline_file)
     logger.info(f"Loaded {len(baseline_data)} problems from Phase {phase} baseline")
