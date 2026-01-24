@@ -97,8 +97,9 @@ class ZeroDiscSteeringGenerator:
         phase4_10_output = discover_latest_phase_output("4.10")
         if not phase4_10_output:
             raise FileNotFoundError("Phase 4.10 output not found. Run Phase 4.10 first.")
-        
-        features_file = Path(phase4_10_output).parent / "zero_discrimination_features.json"
+
+        self.phase4_10_dir = Path(phase4_10_output).parent
+        features_file = self.phase4_10_dir / "zero_discrimination_features.json"
         if not features_file.exists():
             raise FileNotFoundError(f"Zero-discrimination features not found at {features_file}. Run Phase 4.10 first.")
         
@@ -110,9 +111,10 @@ class ZeroDiscSteeringGenerator:
         phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
         if not phase3_5_output:
             raise FileNotFoundError("Phase 3.5 output not found. Please run Phase 3.5 first.")
-        
+
+        self.phase3_5_dir = Path(phase3_5_output).parent
         # Use temperature 0.0 dataset for consistency
-        baseline_file = Path(phase3_5_output).parent / "dataset_temp_0_0.parquet"
+        baseline_file = self.phase3_5_dir / "dataset_temp_0_0.parquet"
         if not baseline_file.exists():
             raise FileNotFoundError(f"Baseline data not found at {baseline_file}")
         

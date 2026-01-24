@@ -87,9 +87,11 @@ class ZeroDiscWeightOrthogonalizer:
         phase4_10_output = discover_latest_phase_output("4.10")
         if not phase4_10_output:
             raise FileNotFoundError("Phase 4.10 output not found. Run Phase 4.10 first.")
-        
+
+        self.phase4_10_dir = Path(phase4_10_output).parent
+
         # Load zero-discrimination features
-        features_file = Path(phase4_10_output).parent / "zero_discrimination_features.json"
+        features_file = self.phase4_10_dir / "zero_discrimination_features.json"
         if not features_file.exists():
             raise FileNotFoundError(f"Zero-discrimination features not found: {features_file}")
         
@@ -111,9 +113,11 @@ class ZeroDiscWeightOrthogonalizer:
         phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
         if not phase3_5_output:
             raise FileNotFoundError("Phase 3.5 output not found. Please run Phase 3.5 first.")
-        
+
+        self.phase3_5_dir = Path(phase3_5_output).parent
+
         # Load validation dataset at temperature 0.0
-        baseline_file = Path(phase3_5_output).parent / "dataset_temp_0_0.parquet"
+        baseline_file = self.phase3_5_dir / "dataset_temp_0_0.parquet"
         if not baseline_file.exists():
             raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
         

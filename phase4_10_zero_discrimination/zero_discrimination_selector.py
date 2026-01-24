@@ -14,8 +14,10 @@ import gc
 import psutil
 import torch
 
+from safetensors.torch import load_file as load_safetensors
+
 from common.logging import get_logger, tqdm_with_logging
-from common.utils import ensure_directory_exists, load_json, save_json, load_activations
+from common.utils import ensure_directory_exists, load_json, save_json
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.config import Config
 from common.sae_loader import load_sae_for_config
@@ -46,7 +48,7 @@ class ZeroDiscriminationSelector:
         self.features_per_layer = 16384
         
         logger.info(f"ZeroDiscriminationSelector initialized")
-        logger.info(f"Will select {self.n_features} features with separation < {self.separation_threshold}")
+        logger.info(f"Will select {self.n_features} features with lowest separation scores")
         
     def load_phase1_activations(self) -> tuple[dict, dict]:
         """Load Phase 1 activation data for all features."""
@@ -94,9 +96,9 @@ class ZeroDiscriminationSelector:
         correct_activations = np.zeros((actual_n_correct, self.features_per_layer))
         for i, file in enumerate(sorted(correct_files[:actual_n_correct])):
             try:
-                # Load activation (preserves bfloat16)
-                activations_dict = load_activations(file, "cpu")
-                residual_tensor = activations_dict[layer]  # Shape: (1, 2304)
+                # Load activation directly (key is 'activation', not 'layer_N')
+                data = load_safetensors(str(file))
+                residual_tensor = data['activation'].to("cpu")  # Shape: (1, 2304)
 
                 # Apply SAE to get feature activations
                 with torch.no_grad():
@@ -113,9 +115,9 @@ class ZeroDiscriminationSelector:
         incorrect_activations = np.zeros((actual_n_incorrect, self.features_per_layer))
         for i, file in enumerate(sorted(incorrect_files[:actual_n_incorrect])):
             try:
-                # Load activation (preserves bfloat16)
-                activations_dict = load_activations(file, "cpu")
-                residual_tensor = activations_dict[layer]  # Shape: (1, 2304)
+                # Load activation directly (key is 'activation', not 'layer_N')
+                data = load_safetensors(str(file))
+                residual_tensor = data['activation'].to("cpu")  # Shape: (1, 2304)
 
                 # Apply SAE
                 with torch.no_grad():
@@ -205,26 +207,25 @@ class ZeroDiscriminationSelector:
             # Calculate frequencies for this layer
             latent_freqs = self.calculate_feature_frequencies(layer)
             
-            # Filter candidates
+            # Collect all candidates (no threshold filtering - we'll sort and pick lowest)
             for latent_idx, stats in latent_freqs.items():
                 latent_id = f"L{layer}F{latent_idx}"
 
-                # Skip if in excluded list
+                # Skip if in excluded list (discriminative features from Phase 2.5)
                 if latent_id in excluded_features:
                     continue
 
-                # Check zero-discrimination criteria
-                if stats['separation_score'] < self.separation_threshold:
-                    all_candidates.append({
-                        'layer': layer,
-                        'latent_idx': latent_idx,
-                        'latent_id': latent_id,
-                        'separation_score': stats['separation_score'],
-                        'freq_correct': stats['freq_correct'],
-                        'freq_incorrect': stats['freq_incorrect']
-                    })
+                # Add all features - we'll sort by separation and pick the lowest N
+                all_candidates.append({
+                    'layer': layer,
+                    'latent_idx': latent_idx,
+                    'latent_id': latent_id,
+                    'separation_score': stats['separation_score'],
+                    'freq_correct': stats['freq_correct'],
+                    'freq_incorrect': stats['freq_incorrect']
+                })
             
-            logger.info(f"Layer {layer}: Found {len([c for c in all_candidates if c['layer'] == layer])} zero-discrimination candidates")
+            logger.info(f"Layer {layer}: Found {len([c for c in all_candidates if c['layer'] == layer])} candidates")
         
         # Sort by separation score (ascending - most zero first)
         all_candidates.sort(key=lambda x: x['separation_score'])
@@ -252,14 +253,15 @@ class ZeroDiscriminationSelector:
         results = {
             'metadata': {
                 'phase': '4.10',
-                'description': 'Zero-discrimination PVA features for baseline control',
-                'selection_criteria': 'Minimum absolute separation between correct/incorrect',
-                'separation_threshold': self.separation_threshold,
+                'description': 'Low-discrimination PVA features for baseline control',
+                'selection_criteria': 'Lowest N features by absolute separation (no threshold)',
                 'min_activation_freq': self.min_activation_freq,
                 'n_features_requested': self.n_features,
                 'n_features_selected': len(selected_latents),
                 'n_candidates_evaluated': len(all_candidates),
                 'n_discriminative_excluded': len(excluded_features),
+                'min_separation_selected': selected_latents[0]['separation_score'] if selected_latents else None,
+                'max_separation_selected': selected_latents[-1]['separation_score'] if selected_latents else None,
                 'timestamp': datetime.now().isoformat()
             },
             'features': selected_latents,
