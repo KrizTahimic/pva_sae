@@ -211,16 +211,23 @@ class IterativeParallelRunner:
             # Iterate through values
             for value in self.values_to_test:
                 if value in completed_values:
-                    logger.info(f"Skipping value={value} (already completed)")
-                    # Load and add to history
-                    merged = self._merge_value_results(value)
-                    if merged:
-                        history.append(merged)
-                        score = merged.get('score', merged.get('net_benefit', 0.0))
-                        if score > optimal_score:
-                            optimal_score = score
-                            optimal_value = value
-                    continue
+                    # Check if there are actually remaining tasks (task set may have changed)
+                    remaining_task_ids = self._get_remaining_tasks_for_value(value)
+                    if not remaining_task_ids:
+                        # Truly complete - skip
+                        logger.info(f"Skipping value={value} (already completed, 0 remaining)")
+                        merged = self._merge_value_results(value)
+                        if merged:
+                            history.append(merged)
+                            score = merged.get('score', merged.get('net_benefit', 0.0))
+                            if score > optimal_score:
+                                optimal_score = score
+                                optimal_value = value
+                        continue
+                    else:
+                        # Task set changed - need to process remaining
+                        logger.info(f"Value={value} marked complete but {len(remaining_task_ids)} tasks remain")
+                        # Fall through to normal processing below
 
                 logger.info(f"\n{'='*60}")
                 logger.info(f"Evaluating value: {value}")
@@ -520,36 +527,79 @@ class IterativeParallelRunner:
         return self.checkpoint_dir / f"value_{value_str}"
 
     def _save_gpu_checkpoint(self, value: Any, gpu_id: int, result: dict):
-        """Save per-GPU checkpoint immediately after evaluation completes."""
+        """Save per-GPU checkpoint, merging with any existing data."""
         if not self.checkpoint_dir:
             return
 
         value_dir = self._get_value_checkpoint_dir(value)
         value_dir.mkdir(parents=True, exist_ok=True)
 
-        # Extract results and task_ids
-        results = result.get('results', [])
-        processed_task_ids = [r.get('task_id') for r in results if r.get('task_id')]
+        parquet_file = value_dir / f"gpu_{gpu_id}_results.parquet"
+        meta_file = value_dir / f"gpu_{gpu_id}_results.meta.json"
 
-        # Save results as parquet
-        if results:
-            results_df = pd.DataFrame(results)
-            parquet_file = value_dir / f"gpu_{gpu_id}_results.parquet"
+        # Get new results
+        new_results = result.get('results', [])
+        new_task_ids = {r.get('task_id') for r in new_results if r.get('task_id')}
+
+        # Load existing data (if any)
+        existing_results = []
+        existing_task_ids = set()
+
+        if meta_file.exists():
+            try:
+                with open(meta_file, 'r') as f:
+                    old_meta = json.load(f)
+                existing_task_ids = set(old_meta.get('processed_task_ids', []))
+            except Exception as e:
+                logger.warning(f"Failed to load existing metadata: {e}")
+
+        if parquet_file.exists() and existing_task_ids:
+            try:
+                old_df = pd.read_parquet(parquet_file)
+                existing_results = old_df.to_dict('records')
+            except Exception as e:
+                logger.warning(f"Failed to load existing parquet: {e}")
+
+        # Merge: old results + new results (deduplicate by task_id)
+        combined_results = []
+        seen_task_ids = set()
+
+        # Add old results first (will be overwritten by new if duplicate)
+        for r in existing_results:
+            task_id = r.get('task_id')
+            if task_id and task_id not in new_task_ids:
+                combined_results.append(r)
+                seen_task_ids.add(task_id)
+
+        # Add new results (these take priority)
+        for r in new_results:
+            task_id = r.get('task_id')
+            if task_id and task_id not in seen_task_ids:
+                combined_results.append(r)
+                seen_task_ids.add(task_id)
+
+        # Merge task_ids
+        combined_task_ids = list(existing_task_ids | new_task_ids)
+
+        # Save merged parquet
+        if combined_results:
+            results_df = pd.DataFrame(combined_results)
             results_df.to_parquet(parquet_file, index=False)
 
-        # Save metadata
+        # Save merged metadata
         meta = {
             'gpu_id': gpu_id,
             'value': value,
-            'processed_task_ids': processed_task_ids,
-            'n_results': len(results),
+            'processed_task_ids': combined_task_ids,
+            'n_results': len(combined_results),
             'timestamp': datetime.now().isoformat()
         }
-        meta_file = value_dir / f"gpu_{gpu_id}_results.meta.json"
         with open(meta_file, 'w') as f:
             json.dump(meta, f, indent=2, default=str)
 
-        logger.debug(f"Saved checkpoint for GPU {gpu_id}, value={value}: {len(results)} results")
+        logger.debug(f"Saved checkpoint for GPU {gpu_id}, value={value}: "
+                     f"{len(new_results)} new + {len(existing_results)} existing = "
+                     f"{len(combined_results)} total results")
 
     def _get_remaining_tasks_for_value(self, value: Any) -> list[str]:
         """Load existing checkpoints and return unprocessed task_ids."""
@@ -613,8 +663,9 @@ class IterativeParallelRunner:
             return None
 
         # Use the custom merge function to compute metrics
-        # Wrap results in expected format
-        merged = self.merge_fn([{'results': all_results}])
+        # Wrap results in expected format, including value for phase-specific merge functions
+        # (e.g., temperature_runner expects 'temperature' key)
+        merged = self.merge_fn([{'results': all_results, 'value': value, 'temperature': value}])
         merged['value'] = value
         merged['n_problems'] = len(all_results)
 
