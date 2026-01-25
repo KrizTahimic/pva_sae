@@ -178,7 +178,9 @@ class WeightOrthogonalizer:
                 experiment_name=key,
                 frequency=CHECKPOINT_FREQUENCY_DEFAULT,
                 keep_last=3,
-                memory_threshold=float(MEMORY_CRITICAL_PERCENT)
+                memory_threshold=float(MEMORY_CRITICAL_PERCENT),
+                gpu_id=self.gpu_id,
+                n_gpus=self.n_gpus
             )
         return self._checkpoint_managers[key]
 
@@ -186,8 +188,12 @@ class WeightOrthogonalizer:
         """Remove all checkpoint files after successful completion."""
         for key in ['incorrect_ortho_incorrect', 'incorrect_ortho_correct',
                     'correct_ortho_correct', 'correct_ortho_incorrect']:
-            manager = self._get_checkpoint_manager(*key.rsplit('_', 1))
-            manager.cleanup_all()
+            try:
+                manager = self._get_checkpoint_manager(*key.rsplit('_', 1))
+                manager.cleanup_all()
+            except FileNotFoundError:
+                # In parallel mode, files may already be cleaned up
+                logger.debug(f"Checkpoint cleanup for {key}: files already removed")
                    
     def _generate_with_model(self, model, tokenizer, prompt: str) -> str:
         """Generate code using the model."""
@@ -852,24 +858,25 @@ class WeightOrthogonalizer:
         logger.info(f"Results saved to: {self.output_dir}")
         logger.info("="*60)
 
-        # Write phase_output.json manifest
-        from common.phase_discovery import write_phase_output
+        # Write phase_output.json manifest (skip in parallel mode - orchestrator handles it)
+        if self.n_gpus == 1:
+            from common.phase_discovery import write_phase_output
 
-        write_phase_output(
-            phase="5.3",
-            outputs={
-                "primary": "phase_5_3_summary.json",
-                "orthogonalization_results": "orthogonalization_results.json",
-                "weight_changes": "weight_changes.json",
-            },
-            config=self.config,
-            output_dir=str(self.output_dir),
-            dependencies={
-                "2.5": str(self.phase2_5_dir),
-                "3.5": str(self.phase3_5_dir),
-            },
-            config_keys=['model_name', 'dataset_name']
-        )
-        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+            write_phase_output(
+                phase="5.3",
+                outputs={
+                    "primary": "phase_5_3_summary.json",
+                    "orthogonalization_results": "orthogonalization_results.json",
+                    "weight_changes": "weight_changes.json",
+                },
+                config=self.config,
+                output_dir=str(self.output_dir),
+                dependencies={
+                    "2.5": str(self.phase2_5_dir),
+                    "3.5": str(self.phase3_5_dir),
+                },
+                config_keys=['model_name', 'dataset_name']
+            )
+            logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
 
         return results

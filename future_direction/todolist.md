@@ -1055,6 +1055,18 @@ Issues encountered during Phase 3.5 parallel mode that may affect other phases:
   - Phases 4.5, 4.6, 8.2 expected old filename `dataset_hyperparams_temp_0_0.parquet`
   - **Fix**: Updated `load_baseline_data()` in steering_setup.py and direct file loads in 4.6, 8.2
 
+- [x] **Issue 6: Subprocess crash not detected** (2026-01-25) (`cc91c7f8a`)
+  - Worker 3 crashed silently, `future.result()` blocked indefinitely after `as_completed()` reported done
+  - Root cause: `signal.SIGALRM` timeout doesn't work in spawned subprocess workers
+  - **Fixes applied:**
+    1. Check `future.exception()` before `future.result()` to detect crashed subprocesses
+    2. Skip SIGALRM timeout in subprocesses (detect via `mp.current_process().name`)
+    3. Pass `gpu_id`/`n_gpus` to CheckpointManager for GPU-specific checkpoint files
+    4. Add defensive FileNotFoundError handling in `_cleanup_all_checkpoints()`
+    5. Make `phase_output.json` writing conditional on `n_gpus == 1`
+  - **Files modified:** `parallel_runner.py`, `retry_utils.py`, `dataset_utils.py`, `zero_disc_weight_orthogonalizer.py`
+  - **Result**: ⚠️ VERIFY - Need to check if similar patterns exist in other phases
+
 **Test Results (2026-01-24):**
 - [x] Phase 4.5 --parallel 4 --end 19 ✅ (timeout fix + discovery fix)
 - [x] Phase 4.6 --parallel 4 --end 19 ✅ (timeout fix + discovery fix)
@@ -1062,6 +1074,42 @@ Issues encountered during Phase 3.5 parallel mode that may affect other phases:
 - [x] Phase 8.2 --parallel 4 --end 19 ✅ (timeout fix + discovery fix)
 - [x] Phase 8.3 --parallel 4 --end 19 ✅ (deduplication fix verified)
 - [x] Phase 8.3 --parallel 4 --end 39 ✅ (cross-run checkpointing verified - no duplicate rows)
+
+**Test Results (2026-01-25):**
+- [x] Phase 5.6 --parallel 4 --end 19 ✅ (subprocess crash detection + checkpoint fix)
+
+### Issue 6 Verification Checklist (2026-01-25)
+
+Verify Issue 6 fixes don't need to be applied to other phases. The core fixes are in `parallel_runner.py` (shared), but phase-specific fixes may be needed.
+
+**Core fixes (already applied globally):**
+- [x] `parallel_runner.py`: Check `future.exception()` before `future.result()` ✅
+- [x] `retry_utils.py`: Skip SIGALRM in subprocesses ✅
+- [x] `dataset_utils.py`: Skip timeout context manager in subprocesses ✅
+
+**Phase-specific fixes needed (CheckpointManager + phase_output.json):**
+
+| Phase | Uses CheckpointManager | Passes gpu_id/n_gpus | Conditional manifest | Status |
+|-------|------------------------|----------------------|----------------------|--------|
+| 1 | ❌ (custom checkpointing) | N/A | N/A | ✅ N/A |
+| 3.5 | ❌ | N/A | N/A | ✅ N/A |
+| 3.6 | ❌ | N/A | ✅ (parallel_runner handles) | ✅ OK |
+| 4.5 | ❌ | N/A | ✅ (iterative_parallel handles) | ✅ OK |
+| 4.6 | ❌ | N/A | ✅ (iterative_parallel handles) | ✅ OK |
+| 4.8 | ❌ | N/A | ✅ (parallel_runner handles) | ✅ OK |
+| 4.12 | ❌ | N/A | ✅ (parallel_runner handles) | ✅ OK |
+| 5.3 | ✅ | ✅ Fixed | ✅ Fixed | ✅ DONE |
+| 5.6 | ✅ | ✅ Fixed | ✅ Fixed | ✅ DONE |
+| 7.3 | ❌ | N/A | ✅ (parallel_runner handles) | ✅ OK |
+| 7.6 | ❌ | N/A | ✅ (parallel_runner handles) | ✅ OK |
+| 8.2 | ❌ | N/A | ✅ (iterative_parallel handles) | ✅ OK |
+| 8.3 | ❌ | N/A | ✅ (parallel_runner handles) | ✅ OK |
+
+**Action items:**
+- [x] Verify Phase 5.3 CheckpointManager usage - same fixes as 5.6 applied ✅
+- [ ] **Phase 5.3 parallel merge:** May need `_merge_phase5_3_json_results()` function in parallel_runner.py
+  - Phase 5.3 outputs JSON (like 5.6), but doesn't have per-GPU output or custom merge
+  - Test with `--parallel 4 --end 19` to verify it works or fails gracefully
 
 ---
 
