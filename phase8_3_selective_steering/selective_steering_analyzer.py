@@ -34,7 +34,8 @@ import pandas as pd
 import numpy as np
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from common.config import Config
+from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT
+from common.checkpoint_manager import CheckpointManager
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device, ensure_directory_exists, get_timestamp, save_json, load_json
 from common.phase_discovery import (
@@ -110,6 +111,21 @@ class SelectiveSteeringAnalyzer:
         self.checkpoint_dir = self.output_dir / "checkpoints"
         ensure_directory_exists(self.checkpoint_dir)
 
+        # Checkpoint configuration
+        self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
+
+        # Initialize checkpoint managers for each experiment type
+        self.checkpoint_managers = {
+            experiment_type: CheckpointManager(
+                checkpoint_dir=self.checkpoint_dir,
+                experiment_name=experiment_type,
+                frequency=self.checkpoint_frequency,
+                gpu_id=gpu_id,
+                n_gpus=n_gpus
+            )
+            for experiment_type in ['correction', 'preservation']
+        }
+
         logger.info(f"Initializing Selective Steering Analyzer")
         logger.info(f"Device: {self.device}")
         logger.info(f"Output directory: {self.output_dir}")
@@ -118,26 +134,6 @@ class SelectiveSteeringAnalyzer:
         self._load_dependencies()
 
         logger.info("Initialization complete")
-
-    def _get_checkpoint_pattern(self, experiment_type: str, timestamp: str = None, for_glob: bool = False) -> str:
-        """Get checkpoint filename pattern."""
-        if self.n_gpus > 1:
-            if for_glob:
-                return f"checkpoint_{experiment_type}_gpu{self.gpu_id}_*.json"
-            else:
-                return f"checkpoint_{experiment_type}_gpu{self.gpu_id}_{timestamp}.json"
-        else:
-            if for_glob:
-                return f"checkpoint_{experiment_type}_*.json"
-            else:
-                return f"checkpoint_{experiment_type}_{timestamp}.json"
-
-    def _get_all_checkpoint_pattern(self, for_glob: bool = True) -> str:
-        """Get pattern for all checkpoints (for cleanup)."""
-        if self.n_gpus > 1:
-            return f"checkpoint_*_gpu{self.gpu_id}_*.json"
-        else:
-            return "checkpoint_*.json"
 
     def _load_dependencies(self):
         """Load all required dependencies from previous phases."""
@@ -608,14 +604,15 @@ class SelectiveSteeringAnalyzer:
         total_problems = len(problems_df)
 
         # Check for existing checkpoint
-        checkpoint_data = self.load_checkpoint(experiment_type)
+        checkpoint_mgr = self.checkpoint_managers[experiment_type]
+        checkpoint_data = checkpoint_mgr.load()
         if checkpoint_data:
-            results = checkpoint_data['results']
-            excluded_tasks = checkpoint_data['excluded_tasks']
-            start_idx = checkpoint_data['last_processed_idx'] + 1
+            results = checkpoint_data.results
+            processed_task_ids = checkpoint_data.processed_task_ids
+            excluded_task_ids = checkpoint_data.excluded_task_ids
 
             # Check if experiment was already completed
-            if start_idx >= total_problems:
+            if len(processed_task_ids) >= total_problems:
                 logger.info(f"\n{'='*60}")
                 logger.info(f"EXPERIMENT: {experiment_type.upper()}")
                 logger.info(f"{'='*60}")
@@ -625,11 +622,11 @@ class SelectiveSteeringAnalyzer:
                 logger.info(f"{'='*60}\n")
                 return results
 
-            logger.info(f"Resuming from checkpoint at index {start_idx}")
+            logger.info(f"Resuming: {len(processed_task_ids)} processed, {len(excluded_task_ids)} excluded")
         else:
             results = []
-            excluded_tasks = []
-            start_idx = 0
+            processed_task_ids = set()
+            excluded_task_ids = set()
 
         # Detailed experiment start logging
         logger.info(f"\n{'='*60}")
@@ -650,14 +647,13 @@ class SelectiveSteeringAnalyzer:
         # Process with tqdm progress bar
         problems_list = list(problems_df.iterrows())
 
-        for enum_idx, (_, row) in enumerate(tqdm_with_logging(problems_list[start_idx:],
+        for enum_idx, (_, row) in enumerate(tqdm_with_logging(problems_list,
                                              logger, desc=f"{experiment_type.capitalize()} experiment",
-                                             total=total_problems),
-                                        start=start_idx):
+                                             total=total_problems)):
             task_id = row['task_id']
 
-            # Skip if already processed (shouldn't happen but safety check)
-            if enum_idx < start_idx:
+            # Skip if already processed
+            if task_id in processed_task_ids:
                 continue
 
             try:
@@ -674,6 +670,7 @@ class SelectiveSteeringAnalyzer:
                 )
 
                 results.append(result)
+                processed_task_ids.add(task_id)
 
                 # Per-task status logging (every task for visibility)
                 status_emoji = "✓" if result['steered_correct'] else "✗"
@@ -685,11 +682,7 @@ class SelectiveSteeringAnalyzer:
                 logger.error(f"  [{enum_idx+1}/{total_problems}] Task {task_id}: ERROR - {e}")
 
                 # Add to excluded tasks
-                excluded_tasks.append({
-                    'task_id': task_id,
-                    'error': str(e),
-                    'experiment_type': experiment_type
-                })
+                excluded_task_ids.add(task_id)
 
                 # Add error result (still include in results for tracking)
                 results.append({
@@ -723,12 +716,16 @@ class SelectiveSteeringAnalyzer:
                     logger.info(f"     Steered: {n_steered}, Preserved: {n_preserved}, Corrupted: {n_corrupted}, Errors: {n_errors}")
                     logger.info(f"     Avg L{self.incorrect_pred_layer}-{self.incorrect_pred_latent} activation: {avg_activation:.2f}\n")
 
-            # Milestone markers every 50 tasks
-            if (enum_idx + 1) % 50 == 0:
-                logger.info(f"  ✓ Milestone: {enum_idx+1}/{total_problems} tasks completed\n")
+            # Milestone markers and autosave every checkpoint frequency
+            if checkpoint_mgr.should_save(len(processed_task_ids)):
+                logger.info(f"  ✓ Milestone: {len(processed_task_ids)}/{total_problems} tasks completed\n")
                 # Autosave checkpoint
-                logger.info(f"Autosaving at task {enum_idx + 1}/{total_problems}")
-                self.save_checkpoint(experiment_type, results, excluded_tasks, enum_idx, total_problems)
+                logger.info(f"Autosaving: {len(processed_task_ids)} processed")
+                checkpoint_mgr.save(
+                    results=results,
+                    processed_ids=processed_task_ids,
+                    excluded_ids=excluded_task_ids
+                )
 
             # Memory cleanup every 10 tasks
             if (enum_idx + 1) % 10 == 0:
@@ -739,7 +736,7 @@ class SelectiveSteeringAnalyzer:
                     torch.mps.synchronize()
 
         # Detailed results summary
-        n_errors = len(excluded_tasks)
+        n_errors = len(excluded_task_ids)
         n_valid = len(results) - n_errors
         n_steered = sum(1 for r in results if r.get('steered', False) and r.get('source') != 'error')
         n_not_steered = n_valid - n_steered
@@ -770,17 +767,20 @@ class SelectiveSteeringAnalyzer:
 
         logger.info(f"{'='*60}\n")
 
-        # Save excluded tasks if any
-        if excluded_tasks:
+        # Save excluded task IDs if any
+        if excluded_task_ids:
             excluded_file = self.output_dir / f"excluded_tasks_{experiment_type}.json"
-            save_json(excluded_tasks, excluded_file)
-            logger.warning(f"⚠️  {len(excluded_tasks)} tasks excluded due to errors")
+            save_json(list(excluded_task_ids), excluded_file)
+            logger.warning(f"⚠️  {len(excluded_task_ids)} tasks excluded due to errors")
             logger.info(f"   Saved to: {excluded_file.name}\n")
 
         # Save final checkpoint (allows resuming or skipping on re-run)
-        final_idx = total_problems - 1
         logger.info(f"Saving final checkpoint for {experiment_type} experiment")
-        self.save_checkpoint(experiment_type, results, excluded_tasks, final_idx, total_problems)
+        checkpoint_mgr.save(
+            results=results,
+            processed_ids=processed_task_ids,
+            excluded_ids=excluded_task_ids
+        )
 
         return results
 
@@ -949,80 +949,6 @@ class SelectiveSteeringAnalyzer:
             save_json(preserved_steered_examples, preserved_file)
             logger.info(f"✓ Saved {len(preserved_steered_examples)} preserved steered examples to {preserved_file.name}")
 
-    def save_checkpoint(
-        self,
-        experiment_type: str,
-        results: list[dict],
-        excluded_tasks: list[dict],
-        last_idx: int,
-        total_tasks: int
-    ) -> None:
-        """Save checkpoint for current experiment."""
-        checkpoint_data = {
-            'experiment_type': experiment_type,
-            'results': results,
-            'excluded_tasks': excluded_tasks,
-            'last_processed_idx': last_idx,
-            'total_tasks': total_tasks,
-            'timestamp': datetime.now().isoformat(),
-            'checkpoint_version': 1
-        }
-
-        # Create checkpoint filename with timestamp (GPU-specific when parallel)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        checkpoint_file = self.checkpoint_dir / self._get_checkpoint_pattern(experiment_type, timestamp)
-
-        # Save checkpoint
-        save_json(checkpoint_data, checkpoint_file)
-        logger.info(f"Saved {experiment_type} checkpoint at index {last_idx}/{total_tasks-1}")
-
-        # Clean up old checkpoints (keep only last 3)
-        self.cleanup_old_checkpoints(experiment_type)
-
-    def load_checkpoint(self, experiment_type: str) -> Optional[dict]:
-        """Load most recent checkpoint for experiment type if available."""
-        # Use GPU-specific pattern when running in parallel
-        checkpoint_pattern = self._get_checkpoint_pattern(experiment_type, for_glob=True)
-        checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
-
-        if not checkpoint_files:
-            return None
-
-        # Load most recent checkpoint
-        latest_checkpoint = checkpoint_files[-1]
-        logger.info(f"Loading checkpoint from {latest_checkpoint.name}")
-
-        try:
-            checkpoint_data = load_json(latest_checkpoint)
-            logger.info(f"Resuming {experiment_type} experiment from index "
-                       f"{checkpoint_data['last_processed_idx']}/{checkpoint_data['total_tasks']-1}")
-            return checkpoint_data
-        except Exception as e:
-            logger.error(f"Failed to load checkpoint: {e}")
-            return None
-
-    def cleanup_old_checkpoints(self, experiment_type: str, keep_last: int = 3) -> None:
-        """Remove old checkpoint files, keeping only the most recent ones."""
-        # Use GPU-specific pattern when running in parallel
-        checkpoint_pattern = self._get_checkpoint_pattern(experiment_type, for_glob=True)
-        checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
-
-        if len(checkpoint_files) > keep_last:
-            for old_checkpoint in checkpoint_files[:-keep_last]:
-                old_checkpoint.unlink()
-                logger.debug(f"Removed old checkpoint: {old_checkpoint.name}")
-
-    def cleanup_all_checkpoints(self) -> None:
-        """Remove all checkpoint files after successful completion."""
-        # Use GPU-specific pattern when running in parallel
-        checkpoint_files = list(self.checkpoint_dir.glob(self._get_all_checkpoint_pattern()))
-        for checkpoint_file in checkpoint_files:
-            checkpoint_file.unlink()
-            logger.debug(f"Removed checkpoint: {checkpoint_file.name}")
-
-        if checkpoint_files:
-            logger.info(f"Cleaned up {len(checkpoint_files)} checkpoint files")
-
     def run(self) -> dict:
         """Main execution: Run TWO separate experiments following Phase 4.8 pattern.
 
@@ -1087,7 +1013,8 @@ class SelectiveSteeringAnalyzer:
             preservation_file.unlink()
 
             # Cleanup checkpoints for this GPU
-            self.cleanup_all_checkpoints()
+            for experiment_type in ['correction', 'preservation']:
+                self.checkpoint_managers[experiment_type].cleanup_all()
 
             # Return minimal summary (full summary computed after merge)
             return {

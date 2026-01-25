@@ -39,6 +39,7 @@ from common.model_loader import load_model_and_tokenizer
 from common.utils import load_json, save_json
 from common.dataset_utils import evaluate_code_with_error_type, extract_code, compute_error_type_distribution
 from common.sae_loader import load_sae_for_config
+from common.checkpoint_manager import CheckpointManager
 
 logger = get_logger("phase4_5.steering_evaluator")
 
@@ -88,48 +89,6 @@ class SteeringCoefficientSelector:
         self._load_dependencies()
         
         logger.info("SteeringCoefficientSelector initialized successfully")
-
-    def _get_checkpoint_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
-        """Get checkpoint filename pattern.
-
-        Args:
-            checkpoint_num: Specific checkpoint number (ignored if for_glob=True)
-            for_glob: If True, returns glob pattern for finding files
-
-        Returns:
-            Filename pattern string
-        """
-        if self.n_gpus > 1:
-            if for_glob:
-                return f"checkpoint_gpu{self.gpu_id}_*.parquet"
-            else:
-                return f"checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}.parquet"
-        else:
-            if for_glob:
-                return "checkpoint_*.parquet"
-            else:
-                return f"checkpoint_{checkpoint_num:04d}.parquet"
-
-    def _get_exclusion_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
-        """Get exclusion filename pattern.
-
-        Args:
-            checkpoint_num: Specific checkpoint number (ignored if for_glob=True)
-            for_glob: If True, returns glob pattern for finding files
-
-        Returns:
-            Filename pattern string
-        """
-        if self.n_gpus > 1:
-            if for_glob:
-                return f"checkpoint_gpu{self.gpu_id}_*_exclusions.json"
-            else:
-                return f"checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}_exclusions.json"
-        else:
-            if for_glob:
-                return "checkpoint_*_exclusions.json"
-            else:
-                return f"checkpoint_{checkpoint_num:04d}_exclusions.json"
 
     def _load_dependencies(self) -> None:
         """Load all dependencies from previous phases using shared utilities."""
@@ -201,55 +160,7 @@ class SteeringCoefficientSelector:
                        f"{len(self.initially_incorrect_data)} incorrect tasks (parallel mode)")
 
         logger.info("Dependencies loaded successfully")
-    
-    def save_checkpoint(self, results: list, excluded_tasks: list,
-                       checkpoint_num: int, checkpoint_dir: Path) -> None:
-        """Save checkpoint to disk and clear memory."""
-        if not results:
-            return
 
-        # Save current results to checkpoint file (GPU-specific when parallel)
-        checkpoint_file = checkpoint_dir / self._get_checkpoint_pattern(checkpoint_num)
-        pd.DataFrame(results).to_parquet(checkpoint_file, index=False)
-        logger.info(f"Saved checkpoint {checkpoint_num} with {len(results)} results to {checkpoint_file}")
-
-        # Save exclusions if any
-        if excluded_tasks:
-            exclusion_file = checkpoint_dir / self._get_exclusion_pattern(checkpoint_num)
-            save_json(excluded_tasks, exclusion_file)
-
-    def load_checkpoints(self, checkpoint_dir: Path) -> tuple[list, list, set]:
-        """Load existing checkpoints if any."""
-        if not checkpoint_dir.exists():
-            return [], [], set()
-
-        # Use GPU-specific pattern when running in parallel
-        checkpoint_files = sorted(checkpoint_dir.glob(self._get_checkpoint_pattern(for_glob=True)))
-        
-        if not checkpoint_files:
-            return [], [], set()
-        
-        logger.info(f"Found {len(checkpoint_files)} existing checkpoint(s) in {checkpoint_dir}")
-        
-        all_results = []
-        all_excluded = []
-        processed_task_ids = set()
-        
-        for checkpoint_file in checkpoint_files:
-            df = pd.read_parquet(checkpoint_file)
-            all_results.extend(df.to_dict('records'))
-            processed_task_ids.update(df['task_id'].tolist())
-            
-            # Load exclusions if they exist
-            exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
-            if exclusion_file.exists():
-                exclusions = load_json(exclusion_file)
-                all_excluded.extend(exclusions)
-                processed_task_ids.update([e['task_id'] for e in exclusions])
-        
-        logger.info(f"Loaded {len(all_results)} results and {len(all_excluded)} exclusions from checkpoints")
-        return all_results, all_excluded, processed_task_ids
-    
     def check_memory_usage(self) -> float:
         """Check current memory usage and warn if high."""
         memory_percent = psutil.virtual_memory().percent
@@ -259,42 +170,55 @@ class SteeringCoefficientSelector:
         
         return memory_percent
         
-    def evaluate_single_dataset(self, coefficient: float, 
+    def evaluate_single_dataset(self, coefficient: float,
                                problems_df: pd.DataFrame,
                                steering_type: str,
                                show_progress: bool = True) -> list[dict]:
         """
         Evaluate a single coefficient on one dataset.
-        
+
         Args:
             coefficient: Steering coefficient to evaluate
             problems_df: Dataset to test on
             steering_type: 'correct' or 'incorrect'
             show_progress: Whether to show progress bar
-            
+
         Returns:
             List of result dictionaries for each problem
         """
         # Create checkpoint directory for this specific coefficient
-        # Use GPU-specific directory in parallel mode to avoid race conditions
-        if self.n_gpus > 1:
-            checkpoint_dir = self.output_dir / f"checkpoints_{steering_type}_coeff_{int(coefficient)}_gpu{self.gpu_id}"
-        else:
-            checkpoint_dir = self.output_dir / f"checkpoints_{steering_type}_coeff_{int(coefficient)}"
-        ensure_directory_exists(checkpoint_dir)
-        
+        checkpoint_dir = self.output_dir / f"checkpoints_{steering_type}_coeff_{int(coefficient)}"
+
+        # Initialize CheckpointManager
+        checkpoint_mgr = CheckpointManager(
+            checkpoint_dir=checkpoint_dir,
+            experiment_name=f"{steering_type}_coeff_{int(coefficient)}",
+            frequency=self.checkpoint_frequency,
+            gpu_id=self.gpu_id,
+            n_gpus=self.n_gpus,
+            output_format="parquet"
+        )
+
         # Load existing checkpoints if any
-        checkpoint_results, checkpoint_excluded, processed_task_ids = self.load_checkpoints(checkpoint_dir)
-        
+        checkpoint_data = checkpoint_mgr.load_all_parquet_checkpoints()
+        if checkpoint_data:
+            all_results = checkpoint_data.results_df.to_dict('records')
+            processed_task_ids = checkpoint_data.processed_task_ids
+            all_excluded = checkpoint_mgr.load_excluded_tasks()
+        else:
+            all_results = []
+            processed_task_ids = set()
+            all_excluded = []
+
         # Filter out already processed tasks
         original_len = len(problems_df)
         if processed_task_ids:
             logger.info(f"Skipping {len(processed_task_ids)} already processed tasks")
             problems_df = problems_df[~problems_df['task_id'].isin(processed_task_ids)]
             logger.info(f"Remaining tasks to process: {len(problems_df)} out of {original_len}")
-        
+
         logger.info(f"Evaluating on {len(problems_df)} problems...")
-        
+
         # Select latent direction and target layer
         if steering_type == 'correct':
             latent_direction = self.correct_latent_direction
@@ -302,14 +226,10 @@ class SteeringCoefficientSelector:
         else:
             latent_direction = self.incorrect_latent_direction
             target_layer = self.probe_layer if self.use_probe else self.best_incorrect_latent['layer']
-        
+
         # Initialize with checkpoint data
         results = []  # Current batch
         excluded_tasks = []  # Current batch exclusions
-        all_results = checkpoint_results  # All results including checkpoints
-        all_excluded = checkpoint_excluded  # All exclusions including checkpoints
-        
-        checkpoint_counter = len(list(checkpoint_dir.glob(self._get_checkpoint_pattern(for_glob=True))))
         tasks_since_checkpoint = 0
         
         iterator = problems_df.iterrows()
@@ -435,57 +355,61 @@ class SteeringCoefficientSelector:
             memory_percent = self.check_memory_usage()
             if memory_percent > MEMORY_CRITICAL_PERCENT:
                 logger.error(f"Critical memory usage: {memory_percent:.1f}%. Saving checkpoint and exiting.")
-                self.save_checkpoint(results, excluded_tasks, checkpoint_counter + 1, checkpoint_dir)
+                # Save checkpoint using CheckpointManager
+                results_df = pd.DataFrame(all_results + results)
+                current_processed = processed_task_ids | {r['task_id'] for r in results}
+                current_excluded = {e['task_id'] for e in all_excluded + excluded_tasks}
+                checkpoint_mgr.save_parquet(results_df, current_processed, current_excluded, all_excluded + excluded_tasks)
                 raise MemoryError(f"RAM usage critical: {memory_percent:.1f}%")
-            
+
             # Save checkpoint periodically
-            if tasks_since_checkpoint >= self.checkpoint_frequency and results:
-                checkpoint_counter += 1
-                self.save_checkpoint(results, excluded_tasks, checkpoint_counter, checkpoint_dir)
-                
-                # Add to all results and clear current batch
+            if checkpoint_mgr.should_save(tasks_since_checkpoint, memory_percent) and results:
+                # Add to all results
                 all_results.extend(results)
                 all_excluded.extend(excluded_tasks)
+
+                # Save using CheckpointManager
+                results_df = pd.DataFrame(all_results)
+                current_processed = processed_task_ids | {r['task_id'] for r in all_results}
+                current_excluded = {e['task_id'] for e in all_excluded}
+                checkpoint_mgr.save_parquet(results_df, current_processed, current_excluded, all_excluded)
+
+                # Clear current batch
                 results = []
                 excluded_tasks = []
                 tasks_since_checkpoint = 0
-                
+
                 # Force garbage collection to free memory
                 gc.collect()
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
                 elif hasattr(torch, 'mps') and torch.backends.mps.is_available():
                     torch.mps.empty_cache()
-                
+
                 logger.info(f"Memory after checkpoint: {psutil.virtual_memory().percent:.1f}%")
-        
+
         # Save final checkpoint if there are remaining results
         if results:
-            checkpoint_counter += 1
-            self.save_checkpoint(results, excluded_tasks, checkpoint_counter, checkpoint_dir)
             all_results.extend(results)
             all_excluded.extend(excluded_tasks)
-        
+
+            # Final save
+            results_df = pd.DataFrame(all_results)
+            current_processed = processed_task_ids | {r['task_id'] for r in all_results}
+            current_excluded = {e['task_id'] for e in all_excluded}
+            checkpoint_mgr.save_parquet(results_df, current_processed, current_excluded, all_excluded)
+
         # Log exclusions
         if all_excluded:
             logger.warning(f"Excluded {len(all_excluded)} tasks from {steering_type} steering "
                           f"(coefficient {coefficient}): {[t['task_id'] for t in all_excluded]}")
-        
+
         logger.info(f"Successfully evaluated {len(all_results)}/{original_len} problems "
                    f"({len(all_excluded)} excluded)")
-        
+
         # Clean up checkpoint files after successful completion
-        # Use GPU-specific pattern when running in parallel
-        checkpoint_files = list(checkpoint_dir.glob(self._get_checkpoint_pattern(for_glob=True)))
-        exclusion_files = list(checkpoint_dir.glob(self._get_exclusion_pattern(for_glob=True)))
-        if checkpoint_files:
-            logger.info(f"Cleaning up {len(checkpoint_files)} checkpoint files...")
-            for checkpoint_file in checkpoint_files:
-                checkpoint_file.unlink()
-        if exclusion_files:
-            for exclusion_file in exclusion_files:
-                exclusion_file.unlink()
-        
+        checkpoint_mgr.cleanup_all_parquet()
+
         return all_results
     
     def evaluate_coefficient_correction_only(self, coefficient: float, 

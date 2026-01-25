@@ -33,6 +33,7 @@ from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir, filter_by_range
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
+from common.checkpoint_manager import CheckpointManager
 
 # Module-level logger
 logger = get_logger("temperature_runner", phase="3.5")
@@ -185,48 +186,6 @@ class TemperatureRobustnessRunner:
         if not config.temperature_samples_per_temp or config.temperature_samples_per_temp < 1:
             raise ValueError("temperature_samples_per_temp must be >= 1")
 
-    def _get_checkpoint_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
-        """Get checkpoint filename pattern.
-
-        Args:
-            checkpoint_num: Specific checkpoint number (ignored if for_glob=True)
-            for_glob: If True, returns glob pattern for finding files
-
-        Returns:
-            Filename pattern string
-        """
-        if self.n_gpus > 1:
-            if for_glob:
-                return f"checkpoint_gpu{self.gpu_id}_*.parquet"
-            else:
-                return f"checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}.parquet"
-        else:
-            if for_glob:
-                return "checkpoint_*.parquet"
-            else:
-                return f"checkpoint_{checkpoint_num:04d}.parquet"
-
-    def _get_exclusion_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
-        """Get exclusion filename pattern.
-
-        Args:
-            checkpoint_num: Specific checkpoint number (ignored if for_glob=True)
-            for_glob: If True, returns glob pattern for finding files
-
-        Returns:
-            Filename pattern string
-        """
-        if self.n_gpus > 1:
-            if for_glob:
-                return f"checkpoint_gpu{self.gpu_id}_*_exclusions.json"
-            else:
-                return f"checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}_exclusions.json"
-        else:
-            if for_glob:
-                return "checkpoint_*_exclusions.json"
-            else:
-                return f"checkpoint_{checkpoint_num:04d}_exclusions.json"
-
     def generate_temp0_with_activations(self, prompt: str) -> tuple[str, dict[int, torch.Tensor], dict[int, torch.Tensor]]:
         """
         Generate at temperature 0, extracting both activations and attention patterns.
@@ -365,17 +324,9 @@ class TemperatureRobustnessRunner:
             logger.info(f"Saved exclusion summary to {exclusion_file}")
         
         # Clean up checkpoint files after successful completion
-        # Use GPU-specific pattern when running in parallel
-        checkpoint_files = list(self.output_dir.glob(self._get_checkpoint_pattern(for_glob=True)))
-        exclusion_files = list(self.output_dir.glob(self._get_exclusion_pattern(for_glob=True)))
-        if checkpoint_files:
-            logger.info(f"Cleaning up {len(checkpoint_files)} checkpoint files...")
-            for checkpoint_file in checkpoint_files:
-                checkpoint_file.unlink()
-        if exclusion_files:
-            for exclusion_file in exclusion_files:
-                exclusion_file.unlink()
-        
+        if hasattr(self, 'checkpoint_mgr'):
+            self.checkpoint_mgr.cleanup_all_parquet()
+
         logger.info("Phase 3.5 completed successfully")
         return metadata
     
@@ -425,52 +376,6 @@ class TemperatureRobustnessRunner:
         
         return output_dir
     
-    def save_checkpoint(self, results: list, excluded_tasks: list,
-                       checkpoint_num: int, output_dir: Path) -> None:
-        """Save checkpoint to disk and clear memory."""
-        if not results:
-            return
-
-        # Save current results to checkpoint file (GPU-specific when parallel)
-        checkpoint_file = output_dir / self._get_checkpoint_pattern(checkpoint_num)
-        pd.DataFrame(results).to_parquet(checkpoint_file, index=False)
-        logger.info(f"Saved checkpoint {checkpoint_num} with {len(results)} results to {checkpoint_file}")
-
-        # Save exclusions if any
-        if excluded_tasks:
-            exclusion_file = output_dir / self._get_exclusion_pattern(checkpoint_num)
-            save_json(excluded_tasks, exclusion_file)
-    
-    def load_checkpoints(self, output_dir: Path) -> tuple[list, list, set]:
-        """Load existing checkpoints if any."""
-        # Use GPU-specific pattern when running in parallel
-        checkpoint_files = sorted(output_dir.glob(self._get_checkpoint_pattern(for_glob=True)))
-        
-        if not checkpoint_files:
-            return [], [], set()
-        
-        logger.info(f"Found {len(checkpoint_files)} existing checkpoint(s)")
-        
-        all_results = []
-        all_excluded = []
-        processed_task_ids = set()
-        
-        for checkpoint_file in checkpoint_files:
-            df = pd.read_parquet(checkpoint_file)
-            all_results.extend(df.to_dict('records'))
-            # Extract unique task IDs from this checkpoint
-            processed_task_ids.update(df['task_id'].unique())
-            
-            # Load exclusions if they exist
-            exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
-            if exclusion_file.exists():
-                exclusions = load_json(exclusion_file)
-                all_excluded.extend(exclusions)
-                processed_task_ids.update([e['task_id'] for e in exclusions])
-        
-        logger.info(f"Loaded {len(all_results)} results from {len(processed_task_ids)} tasks")
-        return all_results, all_excluded, processed_task_ids
-    
     def check_memory_usage(self) -> float:
         """Check current memory usage and warn if high."""
         memory_percent = psutil.virtual_memory().percent
@@ -482,30 +387,44 @@ class TemperatureRobustnessRunner:
     
     def _process_all_tasks(self, validation_data: pd.DataFrame) -> tuple[list[dict], list[dict]]:
         """Process all validation tasks with retry logic.
-        
+
         Returns:
             Tuple of (all_results, excluded_tasks)
         """
         # Get output directory (needs to be set before loading checkpoints)
         output_dir = self.output_dir if hasattr(self, 'output_dir') else self._setup_output_directories()
-        
+
+        # Initialize CheckpointManager (task ID-based tracking)
+        self.checkpoint_mgr = CheckpointManager(
+            checkpoint_dir=output_dir / "checkpoints",
+            experiment_name="temperature",
+            frequency=self.checkpoint_frequency,
+            gpu_id=self.gpu_id,
+            n_gpus=self.n_gpus,
+            output_format="parquet"
+        )
+
         # Load existing checkpoints if any
-        checkpoint_results, checkpoint_excluded, processed_task_ids = self.load_checkpoints(output_dir)
-        
+        checkpoint_data = self.checkpoint_mgr.load_all_parquet_checkpoints()
+        if checkpoint_data:
+            all_results = checkpoint_data.results_df.to_dict('records')
+            processed_task_ids = checkpoint_data.processed_task_ids
+            all_excluded = self.checkpoint_mgr.load_excluded_tasks()
+        else:
+            all_results = []
+            processed_task_ids = set()
+            all_excluded = []
+
         # Filter out already processed tasks
         original_len = len(validation_data)
         if processed_task_ids:
             logger.info(f"Skipping {len(processed_task_ids)} already processed tasks: {sorted(processed_task_ids)}")
             validation_data = validation_data[~validation_data['task_id'].isin(processed_task_ids)]
             logger.info(f"Remaining tasks to process: {len(validation_data)} out of {original_len}")
-        
+
         # Initialize with checkpoint data
         results = []  # Current batch results
         excluded_tasks = []  # Current batch exclusions
-        all_results = checkpoint_results  # All results including checkpoints
-        all_excluded = checkpoint_excluded  # All exclusions including checkpoints
-        
-        checkpoint_counter = len(list(output_dir.glob(self._get_checkpoint_pattern(for_glob=True))))
         tasks_since_checkpoint = 0
 
         # Progress bar with milestone logging (tracks tasks, not individual samples)
@@ -617,36 +536,51 @@ class TemperatureRobustnessRunner:
             memory_percent = self.check_memory_usage()
             if memory_percent > MEMORY_CRITICAL_PERCENT:
                 logger.error(f"Critical memory usage: {memory_percent:.1f}%. Saving checkpoint and exiting.")
-                self.save_checkpoint(results, excluded_tasks, checkpoint_counter + 1, output_dir)
+                if results:
+                    all_results.extend(results)
+                    all_excluded.extend(excluded_tasks)
+                    results_df = pd.DataFrame(all_results)
+                    current_processed = processed_task_ids | {r['task_id'] for r in all_results}
+                    current_excluded = {e['task_id'] for e in all_excluded}
+                    self.checkpoint_mgr.save_parquet(results_df, current_processed, current_excluded, all_excluded)
                 raise MemoryError(f"RAM usage critical: {memory_percent:.1f}%")
-            
+
             # Save checkpoint periodically (after completing N tasks)
             if tasks_since_checkpoint >= self.checkpoint_frequency and results:
-                checkpoint_counter += 1
-                self.save_checkpoint(results, excluded_tasks, checkpoint_counter, output_dir)
-                
-                # Add to all results and clear current batch
+                # Update all_results with current batch
                 all_results.extend(results)
                 all_excluded.extend(excluded_tasks)
+
+                # Save checkpoint with all accumulated results
+                results_df = pd.DataFrame(all_results)
+                current_processed = processed_task_ids | {r['task_id'] for r in all_results}
+                current_excluded = {e['task_id'] for e in all_excluded}
+                self.checkpoint_mgr.save_parquet(results_df, current_processed, current_excluded, all_excluded)
+
+                # Clear current batch
                 results = []
                 excluded_tasks = []
                 tasks_since_checkpoint = 0
-                
+
                 # Force garbage collection to free memory
                 gc.collect()
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
                 elif hasattr(torch, 'mps') and torch.backends.mps.is_available():
                     torch.mps.empty_cache()
-                
+
                 logger.info(f"Memory after checkpoint: {psutil.virtual_memory().percent:.1f}%")
 
         # Save final checkpoint if there are remaining results
         if results:
-            checkpoint_counter += 1
-            self.save_checkpoint(results, excluded_tasks, checkpoint_counter, output_dir)
             all_results.extend(results)
             all_excluded.extend(excluded_tasks)
+
+            # Save final checkpoint
+            results_df = pd.DataFrame(all_results)
+            current_processed = processed_task_ids | {r['task_id'] for r in all_results}
+            current_excluded = {e['task_id'] for e in all_excluded}
+            self.checkpoint_mgr.save_parquet(results_df, current_processed, current_excluded, all_excluded)
         
         # Log summary including exclusions
         n_attempted = original_len  # Use original count before filtering

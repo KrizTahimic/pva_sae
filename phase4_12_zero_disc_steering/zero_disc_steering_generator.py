@@ -26,6 +26,7 @@ from common.phase_discovery import (
 from common.config import (
     Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_HIGH_PERCENT, MEMORY_WARNING_PERCENT
 )
+from common.checkpoint_manager import CheckpointManager
 from common.steering_metrics import (
     create_last_position_steering_hook,
     calculate_correction_rate,
@@ -65,10 +66,21 @@ class ZeroDiscSteeringGenerator:
         
         self.checkpoint_dir = self.output_dir / "checkpoints"
         ensure_directory_exists(self.checkpoint_dir)
-        
+
         # Checkpointing configuration
         self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
-        self.resume_from_checkpoint = True
+
+        # Initialize checkpoint managers for each steering type
+        self.checkpoint_managers = {
+            steering_type: CheckpointManager(
+                checkpoint_dir=self.checkpoint_dir,
+                experiment_name=steering_type,
+                frequency=self.checkpoint_frequency,
+                gpu_id=gpu_id,
+                n_gpus=n_gpus
+            )
+            for steering_type in ['correction', 'corruption', 'preservation']
+        }
         
         # Load steering coefficients from Phase 4.6
         from common.phase_discovery import discover_steering_coefficients
@@ -157,50 +169,6 @@ class ZeroDiscSteeringGenerator:
 
         return selected_feature
 
-    def _get_checkpoint_pattern(self, steering_type: str, index: int = None, for_glob: bool = False) -> str:
-        """Get checkpoint filename pattern."""
-        if self.n_gpus > 1:
-            if for_glob:
-                return f"{steering_type}_checkpoint_gpu{self.gpu_id}_*.json"
-            else:
-                return f"{steering_type}_checkpoint_gpu{self.gpu_id}_{index}.json"
-        else:
-            if for_glob:
-                return f"{steering_type}_checkpoint_*.json"
-            else:
-                return f"{steering_type}_checkpoint_{index}.json"
-
-    def _save_checkpoint(self, results: list[dict], steering_type: str, index: int) -> None:
-        """Save checkpoint of current results."""
-        checkpoint_file = self.checkpoint_dir / self._get_checkpoint_pattern(steering_type, index)
-        checkpoint_data = {
-            'results': results,
-            'last_index': index,
-            'steering_type': steering_type,
-            'timestamp': datetime.now().isoformat()
-        }
-        save_json(checkpoint_data, checkpoint_file)
-        logger.debug(f"Saved checkpoint at index {index} to {checkpoint_file}")
-
-    def _load_checkpoint(self, steering_type: str) -> tuple[list[dict], int]:
-        """Load latest checkpoint if exists."""
-        checkpoints = list(self.checkpoint_dir.glob(self._get_checkpoint_pattern(steering_type, for_glob=True)))
-        if not checkpoints:
-            return [], 0
-
-        # Find latest checkpoint by index number
-        latest_checkpoint = max(checkpoints, key=lambda p: int(p.stem.split('_')[-1]))
-        checkpoint_data = load_json(latest_checkpoint)
-        logger.info(f"Resuming from checkpoint: {latest_checkpoint.name} (index {checkpoint_data['last_index']})")
-        return checkpoint_data['results'], checkpoint_data['last_index']
-
-    def _cleanup_checkpoints(self, steering_type: str) -> None:
-        """Remove checkpoint files after successful completion."""
-        checkpoints = list(self.checkpoint_dir.glob(self._get_checkpoint_pattern(steering_type, for_glob=True)))
-        for checkpoint_file in checkpoints:
-            checkpoint_file.unlink()
-        logger.debug(f"Cleaned up {len(checkpoints)} checkpoint files for {steering_type}")
-        
     def _check_memory_usage(self) -> None:
         """Check current memory usage and log warnings if high."""
         memory = psutil.virtual_memory()
@@ -221,15 +189,21 @@ class ZeroDiscSteeringGenerator:
         else:
             logger.debug(f"Memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
         
-    def _apply_zero_disc_steering(self, problems: pd.DataFrame, feature: dict, 
+    def _apply_zero_disc_steering(self, problems: pd.DataFrame, feature: dict,
                                   coefficient: float, steering_type: str) -> list[dict]:
         """Apply zero-discrimination steering to problems."""
-        excluded_tasks = []
-        
+        excluded_task_ids = set()
+
         # Try to load checkpoint
-        results, start_index = [], 0
-        if self.resume_from_checkpoint:
-            results, start_index = self._load_checkpoint(steering_type)
+        checkpoint_mgr = self.checkpoint_managers[steering_type]
+        checkpoint_data = checkpoint_mgr.load()
+        if checkpoint_data:
+            results = checkpoint_data.results
+            processed_task_ids = checkpoint_data.processed_task_ids
+            excluded_task_ids = checkpoint_data.excluded_task_ids
+        else:
+            results = []
+            processed_task_ids = set()
         
         # Load SAE for the latent's layer
         layer = feature['layer']
@@ -243,17 +217,20 @@ class ZeroDiscSteeringGenerator:
             latent_direction = torch.tensor(feature['latent_direction'], device=self.device)
         else:
             latent_direction = sae.W_dec[latent_idx].detach()
-        
+
         total_problems = len(problems)
-        if start_index > 0:
-            logger.info(f"Resuming {steering_type} steering from index {start_index}/{total_problems}")
-            problems = problems.iloc[start_index:]
+        if processed_task_ids:
+            logger.info(f"Resuming {steering_type} steering: {len(processed_task_ids)}/{total_problems} already processed")
         else:
             logger.info(f"Applying {steering_type} steering to {total_problems} problems...")
         
         for idx, (_, row) in enumerate(tqdm_with_logging(problems.iterrows(), logger, total=len(problems),
-                                           desc=f"{steering_type} steering"),
-                                       start=start_index):
+                                           desc=f"{steering_type} steering")):
+            task_id = row['task_id']
+
+            # Skip already processed tasks
+            if task_id in processed_task_ids:
+                continue
             # Create steering hook
             hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
             target_module = self.model.model.layers[layer]
@@ -311,7 +288,7 @@ class ZeroDiscSteeringGenerator:
                 
                 if success:
                     result = {
-                        'task_id': row['task_id'],
+                        'task_id': task_id,
                         'baseline_passed': row['baseline_passed'],
                         'steered_correct': generation_result['steered_correct'],
                         'steered_error_type': generation_result['steered_error_type'],
@@ -324,12 +301,10 @@ class ZeroDiscSteeringGenerator:
                         'coefficient': coefficient
                     }
                     results.append(result)
+                    processed_task_ids.add(task_id)
                 else:
-                    excluded_tasks.append({
-                        'task_id': row['task_id'],
-                        'error': error_msg
-                    })
-                    logger.warning(f"Excluding task {row['task_id']} from results")
+                    excluded_task_ids.add(task_id)
+                    logger.warning(f"Excluding task {task_id} from results")
                     
             finally:
                 # Always remove hook
@@ -348,13 +323,17 @@ class ZeroDiscSteeringGenerator:
                 gc.collect()
             
             # Save checkpoint periodically
-            if (idx + 1) % self.checkpoint_frequency == 0:
-                self._save_checkpoint(results, steering_type, idx + 1)
-                logger.info(f"Checkpoint saved at index {idx + 1}")
-        
-        if excluded_tasks:
-            logger.info(f"Excluded {len(excluded_tasks)} tasks due to errors")
-        
+            if checkpoint_mgr.should_save(len(processed_task_ids)):
+                checkpoint_mgr.save(
+                    results=results,
+                    processed_ids=processed_task_ids,
+                    excluded_ids=excluded_task_ids
+                )
+                logger.info(f"Checkpoint saved: {len(processed_task_ids)} processed")
+
+        if excluded_task_ids:
+            logger.info(f"Excluded {len(excluded_task_ids)} tasks due to errors")
+
         return results
         
     def run(self) -> dict:
@@ -455,9 +434,8 @@ class ZeroDiscSteeringGenerator:
         self._save_examples(correction_results[:3], corruption_results[:3], preservation_results[:3])
         
         # Clean up checkpoints after successful completion
-        self._cleanup_checkpoints('correction')
-        self._cleanup_checkpoints('corruption')
-        self._cleanup_checkpoints('preservation')
+        for steering_type in ['correction', 'corruption', 'preservation']:
+            self.checkpoint_managers[steering_type].cleanup_all()
         logger.info("Cleaned up all checkpoint files")
         
         # Log summary

@@ -44,6 +44,7 @@ from common.phase_discovery import (
     write_phase_output,
     filter_by_range
 )
+from common.checkpoint_manager import CheckpointManager
 from common.dataset_utils import extract_code, evaluate_code_with_error_type, compute_error_type_distribution
 from common.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_last_position_steering_hook
@@ -111,6 +112,12 @@ class ThresholdOptimizer:
         # Create checkpoint directory
         self.checkpoint_dir = self.output_dir / "checkpoints"
         ensure_directory_exists(self.checkpoint_dir)
+
+        # Checkpointing configuration
+        self.checkpoint_frequency = 50
+
+        # Cache for checkpoint managers (created lazily per percentile/experiment)
+        self._checkpoint_managers: dict[str, CheckpointManager] = {}
 
         logger.info(f"Initializing Percentile Threshold Optimizer")
         logger.info(f"Device: {self.device}")
@@ -390,114 +397,38 @@ class ThresholdOptimizer:
         logger.info(f"  Initially incorrect: {n_incorrect} ({n_incorrect/total*100:.1f}%)")
         logger.info(f"  Initially correct: {n_correct} ({n_correct/total*100:.1f}%)")
 
-    def _get_checkpoint_dir(self, percentile: int, dataset_type: str) -> Path:
-        """Get checkpoint directory for specific percentile + dataset type."""
-        # Use GPU-specific directory in parallel mode to avoid race conditions
-        if self.n_gpus > 1:
-            return self.checkpoint_dir / f"p{percentile}_{dataset_type}_gpu{self.gpu_id}"
-        return self.checkpoint_dir / f"p{percentile}_{dataset_type}"
-
-    def _save_checkpoint(
-        self,
-        percentile: int,
-        threshold: float,
-        dataset_type: str,
-        last_index: int,
-        results: list[dict],
-        total_problems: int
-    ):
-        """Save checkpoint for current grid search iteration."""
-        checkpoint_dir = self._get_checkpoint_dir(percentile, dataset_type)
-        ensure_directory_exists(checkpoint_dir)
-
-        checkpoint_file = checkpoint_dir / f"checkpoint_{last_index}.json"
-
-        # Calculate cumulative metrics
-        n_steered = sum(1 for r in results if r.get('was_steered', False))
-
-        if dataset_type == 'correction':
-            n_corrected = sum(1 for r in results if r.get('corrected', False))
-            cumulative_metrics = {
-                'n_steered': n_steered,
-                'n_corrected': n_corrected,
-                'n_problems_processed': len(results)
-            }
-        else:  # preservation
-            n_corrupted = sum(1 for r in results if r.get('corrupted', False))
-            n_preserved = sum(1 for r in results if r.get('preserved', False))
-            cumulative_metrics = {
-                'n_steered': n_steered,
-                'n_preserved': n_preserved,
-                'n_corrupted': n_corrupted,
-                'n_problems_processed': len(results)
-            }
-
-        checkpoint_data = {
-            'percentile': percentile,
-            'threshold': threshold,
-            'dataset_type': dataset_type,
-            'last_completed_index': last_index,
-            'total_problems': total_problems,
-            'results': results,
-            'cumulative_metrics': cumulative_metrics,
-            'timestamp': datetime.now().isoformat()
-        }
-
-        save_json(checkpoint_data, checkpoint_file)
-        logger.debug(f"✓ Checkpoint saved: {checkpoint_file.name}")
-
-    def _load_checkpoint(self, percentile: int, dataset_type: str) -> Optional[dict]:
-        """Load most recent checkpoint for percentile + dataset type."""
-        checkpoint_dir = self._get_checkpoint_dir(percentile, dataset_type)
-
-        if not checkpoint_dir.exists():
-            return None
-
-        # Find latest checkpoint
-        checkpoints = sorted(checkpoint_dir.glob("checkpoint_*.json"))
-
-        if not checkpoints:
-            return None
-
-        latest_checkpoint = checkpoints[-1]
-        logger.info(f"Found checkpoint: {latest_checkpoint.name}")
-
-        try:
-            checkpoint_data = load_json(latest_checkpoint)
-            logger.info(f"Resuming from index {checkpoint_data['last_completed_index']} "
-                       f"({checkpoint_data['last_completed_index'] + 1}/{checkpoint_data['total_problems']} problems)")
-            return checkpoint_data
-        except Exception as e:
-            logger.error(f"Failed to load checkpoint: {e}")
-            return None
+    def _get_checkpoint_manager(self, percentile: int, dataset_type: str) -> CheckpointManager:
+        """Get or create a checkpoint manager for a specific percentile + dataset type."""
+        key = f"p{percentile}_{dataset_type}"
+        if key not in self._checkpoint_managers:
+            self._checkpoint_managers[key] = CheckpointManager(
+                checkpoint_dir=self.checkpoint_dir,
+                experiment_name=key,
+                frequency=self.checkpoint_frequency,
+                gpu_id=self.gpu_id,
+                n_gpus=self.n_gpus
+            )
+        return self._checkpoint_managers[key]
 
     def _is_percentile_completed(self, percentile: int) -> bool:
         """Check if both correction and preservation are complete for percentile."""
-        correction_dir = self._get_checkpoint_dir(percentile, 'correction')
-        preservation_dir = self._get_checkpoint_dir(percentile, 'preservation')
+        correction_mgr = self._get_checkpoint_manager(percentile, 'correction')
+        preservation_mgr = self._get_checkpoint_manager(percentile, 'preservation')
 
         # Check if both experiments have completed checkpoints
-        correction_complete = self._is_experiment_complete(correction_dir, len(self.incorrect_problems))
-        preservation_complete = self._is_experiment_complete(preservation_dir, len(self.correct_problems))
+        correction_complete = self._is_experiment_complete(correction_mgr, len(self.incorrect_problems))
+        preservation_complete = self._is_experiment_complete(preservation_mgr, len(self.correct_problems))
 
         return correction_complete and preservation_complete
 
-    def _is_experiment_complete(self, checkpoint_dir: Path, total_problems: int) -> bool:
+    def _is_experiment_complete(self, checkpoint_mgr: CheckpointManager, total_problems: int) -> bool:
         """Check if experiment has checkpoint for all problems."""
-        if not checkpoint_dir.exists():
+        checkpoint_data = checkpoint_mgr.load()
+        if not checkpoint_data:
             return False
 
-        checkpoints = list(checkpoint_dir.glob("checkpoint_*.json"))
-
-        if not checkpoints:
-            return False
-
-        # Load latest checkpoint
-        latest = sorted(checkpoints)[-1]
-        data = load_json(latest)
-
-        # Experiment is complete if last_completed_index == total_problems - 1
-        return data['last_completed_index'] >= total_problems - 1
+        # Experiment is complete if all problems have been processed
+        return len(checkpoint_data.processed_task_ids) >= total_problems
 
     def _generate_with_selective_steering(
         self,
@@ -702,8 +633,8 @@ class ThresholdOptimizer:
             threshold: Threshold value to test
             percentile: Percentile this threshold represents
             dataset_type: 'correction' or 'preservation'
-            start_idx: Starting index for resume
-            previous_results: Previous results from checkpoint
+            start_idx: Starting index for resume (deprecated, uses task IDs now)
+            previous_results: Previous results from checkpoint (deprecated)
 
         Returns:
             dict with metrics
@@ -714,23 +645,35 @@ class ThresholdOptimizer:
         else:
             dataset = self.correct_problems
 
-        # Initialize results
-        results = previous_results if previous_results else []
+        # Get checkpoint manager for this percentile/experiment combination
+        checkpoint_mgr = self._get_checkpoint_manager(percentile, dataset_type)
 
-        # Process problems (starting from start_idx for resume)
+        # Try to load checkpoint
+        checkpoint_data = checkpoint_mgr.load()
+        if checkpoint_data:
+            results = checkpoint_data.results
+            processed_task_ids = checkpoint_data.processed_task_ids
+            excluded_task_ids = checkpoint_data.excluded_task_ids
+            logger.info(f"Resuming: {len(processed_task_ids)} processed, {len(excluded_task_ids)} excluded")
+        else:
+            results = []
+            processed_task_ids = set()
+            excluded_task_ids = set()
+
+        # Process problems
         problems_list = list(dataset.iterrows())
         total_problems = len(problems_list)
 
         # Create progress bar description
         desc = f"p{percentile} {dataset_type}"
 
-        for idx in tqdm_with_logging(range(start_idx, total_problems),
-                       logger, desc=desc,
-                       total=total_problems - start_idx):
-            _, row = problems_list[idx]
-
+        for idx, (_, row) in enumerate(tqdm_with_logging(problems_list, logger, desc=desc, total=total_problems)):
             task_id = row['task_id']
             baseline_passed = row['baseline_passed']
+
+            # Skip already processed tasks
+            if task_id in processed_task_ids:
+                continue
 
             try:
                 # Build prompt using PromptBuilder
@@ -758,6 +701,7 @@ class ThresholdOptimizer:
                 )
 
                 results.append(result)
+                processed_task_ids.add(task_id)
 
                 # Per-task logging
                 if result['was_steered']:
@@ -791,18 +735,17 @@ class ThresholdOptimizer:
                     'execution_result': None,
                     'error': str(e)
                 })
+                processed_task_ids.add(task_id)
+                excluded_task_ids.add(task_id)
 
-            # Save checkpoint every 50 problems
-            if (idx + 1) % 50 == 0:
-                self._save_checkpoint(
-                    percentile=percentile,
-                    threshold=threshold,
-                    dataset_type=dataset_type,
-                    last_index=idx,
+            # Save checkpoint periodically
+            if checkpoint_mgr.should_save(len(processed_task_ids)):
+                checkpoint_mgr.save(
                     results=results,
-                    total_problems=total_problems
+                    processed_ids=processed_task_ids,
+                    excluded_ids=excluded_task_ids
                 )
-                logger.info(f"  Checkpoint: {idx+1}/{total_problems} problems")
+                logger.info(f"  Checkpoint: {len(processed_task_ids)}/{total_problems} processed")
 
             # Memory cleanup and progress summary every 10 tasks
             if (idx + 1) % 10 == 0:
@@ -831,14 +774,11 @@ class ThresholdOptimizer:
                 if self.device.type == "cuda":
                     torch.cuda.empty_cache()
 
-        # Final checkpoint
-        self._save_checkpoint(
-            percentile=percentile,
-            threshold=threshold,
-            dataset_type=dataset_type,
-            last_index=total_problems - 1,
+        # Final checkpoint save
+        checkpoint_mgr.save(
             results=results,
-            total_problems=total_problems
+            processed_ids=processed_task_ids,
+            excluded_ids=excluded_task_ids
         )
 
         # Calculate final metrics
@@ -980,25 +920,11 @@ class ThresholdOptimizer:
         # === CORRECTION EXPERIMENT ===
         logger.info(f"\n--- Correction Experiment (p{pct}) ---")
 
-        # Try to resume from checkpoint
-        correction_checkpoint = self._load_checkpoint(pct, 'correction')
-
-        if correction_checkpoint:
-            logger.info(f"Resuming correction experiment from checkpoint...")
-            correction_results = correction_checkpoint['results']
-            start_idx = correction_checkpoint['last_completed_index'] + 1
-        else:
-            logger.info(f"Starting correction experiment from beginning...")
-            correction_results = []
-            start_idx = 0
-
-        # Run correction experiment (with resume)
+        # Run correction experiment (checkpoint manager handles resume internally)
         correction_metrics = self._run_selective_steering_for_threshold(
             threshold=threshold,
             percentile=pct,
-            dataset_type='correction',
-            start_idx=start_idx,
-            previous_results=correction_results
+            dataset_type='correction'
         )
 
         logger.info(f"\n Correction complete:")
@@ -1009,25 +935,11 @@ class ThresholdOptimizer:
         # === PRESERVATION EXPERIMENT ===
         logger.info(f"\n--- Preservation Experiment (p{pct}) ---")
 
-        # Try to resume from checkpoint
-        preservation_checkpoint = self._load_checkpoint(pct, 'preservation')
-
-        if preservation_checkpoint:
-            logger.info(f"Resuming preservation experiment from checkpoint...")
-            preservation_results = preservation_checkpoint['results']
-            start_idx = preservation_checkpoint['last_completed_index'] + 1
-        else:
-            logger.info(f"Starting preservation experiment from beginning...")
-            preservation_results = []
-            start_idx = 0
-
-        # Run preservation experiment (with resume)
+        # Run preservation experiment (checkpoint manager handles resume internally)
         preservation_metrics = self._run_selective_steering_for_threshold(
             threshold=threshold,
             percentile=pct,
-            dataset_type='preservation',
-            start_idx=start_idx,
-            previous_results=preservation_results
+            dataset_type='preservation'
         )
 
         logger.info(f"\n Preservation complete:")
@@ -1055,17 +967,19 @@ class ThresholdOptimizer:
     def _load_percentile_results(self, percentile: int, threshold: float) -> dict:
         """Load results for a completed percentile from checkpoints."""
         # Load correction checkpoint
-        correction_checkpoint = self._load_checkpoint(percentile, 'correction')
+        correction_mgr = self._get_checkpoint_manager(percentile, 'correction')
+        correction_data = correction_mgr.load()
         correction_metrics = self._calculate_metrics(
-            correction_checkpoint['results'],
+            correction_data.results,
             'correction',
             len(self.incorrect_problems)
         )
 
         # Load preservation checkpoint
-        preservation_checkpoint = self._load_checkpoint(percentile, 'preservation')
+        preservation_mgr = self._get_checkpoint_manager(percentile, 'preservation')
+        preservation_data = preservation_mgr.load()
         preservation_metrics = self._calculate_metrics(
-            preservation_checkpoint['results'],
+            preservation_data.results,
             'preservation',
             len(self.correct_problems)
         )

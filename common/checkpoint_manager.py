@@ -3,12 +3,18 @@
 This module provides a standardized way to save, load, and manage checkpoints
 across all phases of the SAE-Code-Correctness project. It uses task ID tracking (not index)
 for robustness against --start/--end argument variations.
+
+Supports two output formats:
+- JSON: For phases with lightweight results (steering experiments, metrics)
+- Parquet: For phases with heavy data (code generation, activations)
 """
 
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Literal
+
+import pandas as pd
 
 from common.logging import get_logger
 from common.utils import save_json, load_json
@@ -18,10 +24,18 @@ logger = get_logger(__name__)
 
 @dataclass
 class CheckpointData:
-    """Data loaded from a checkpoint."""
+    """Data loaded from a JSON checkpoint."""
     processed_task_ids: set[str]
     excluded_task_ids: set[str]
     results: list[dict]
+
+
+@dataclass
+class ParquetCheckpointData:
+    """Data loaded from a parquet checkpoint."""
+    processed_task_ids: set[str]
+    excluded_task_ids: set[str]
+    results_df: pd.DataFrame
 
 
 class CheckpointManager:
@@ -75,7 +89,8 @@ class CheckpointManager:
         keep_last: int = 3,
         memory_threshold: float = 95.0,
         gpu_id: int = 0,
-        n_gpus: int = 1
+        n_gpus: int = 1,
+        output_format: Literal["json", "parquet"] = "json"
     ):
         """Initialize the checkpoint manager.
 
@@ -87,6 +102,7 @@ class CheckpointManager:
             memory_threshold: Force save when RAM usage exceeds this percentage
             gpu_id: GPU index for multi-GPU parallelization (default: 0)
             n_gpus: Total number of GPUs (default: 1, single-GPU mode)
+            output_format: Output format - "json" (default) or "parquet"
         """
         self.checkpoint_dir = Path(checkpoint_dir)
         self.experiment_name = experiment_name
@@ -95,10 +111,35 @@ class CheckpointManager:
         self.memory_threshold = memory_threshold
         self.gpu_id = gpu_id
         self.n_gpus = n_gpus
+        self.output_format = output_format
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-    def _get_checkpoint_pattern(self, for_glob: bool = True) -> str:
+    def _get_checkpoint_pattern(self, for_glob: bool = True, file_format: str = None) -> str:
         """Get the checkpoint filename pattern.
+
+        Args:
+            for_glob: If True, returns glob pattern with wildcard.
+                      If False, returns format string for saving.
+            file_format: Override format extension ("json" or "parquet").
+                        If None, uses self.output_format.
+
+        Returns:
+            Pattern string
+        """
+        ext = file_format or self.output_format
+        if self.n_gpus > 1:
+            if for_glob:
+                return f"checkpoint_{self.experiment_name}_gpu{self.gpu_id}_*.{ext}"
+            else:
+                return f"checkpoint_{self.experiment_name}_gpu{self.gpu_id}_{{timestamp}}.{ext}"
+        else:
+            if for_glob:
+                return f"checkpoint_{self.experiment_name}_*.{ext}"
+            else:
+                return f"checkpoint_{self.experiment_name}_{{timestamp}}.{ext}"
+
+    def _get_exclusion_pattern(self, for_glob: bool = True) -> str:
+        """Get the exclusion filename pattern (always JSON).
 
         Args:
             for_glob: If True, returns glob pattern with wildcard.
@@ -109,14 +150,14 @@ class CheckpointManager:
         """
         if self.n_gpus > 1:
             if for_glob:
-                return f"checkpoint_{self.experiment_name}_gpu{self.gpu_id}_*.json"
+                return f"checkpoint_{self.experiment_name}_gpu{self.gpu_id}_*_exclusions.json"
             else:
-                return f"checkpoint_{self.experiment_name}_gpu{self.gpu_id}_{{timestamp}}.json"
+                return f"checkpoint_{self.experiment_name}_gpu{self.gpu_id}_{{timestamp}}_exclusions.json"
         else:
             if for_glob:
-                return f"checkpoint_{self.experiment_name}_*.json"
+                return f"checkpoint_{self.experiment_name}_*_exclusions.json"
             else:
-                return f"checkpoint_{self.experiment_name}_{{timestamp}}.json"
+                return f"checkpoint_{self.experiment_name}_{{timestamp}}_exclusions.json"
 
     def should_save(self, count: int, memory_percent: float = None) -> bool:
         """Check if we should save a checkpoint.
@@ -241,3 +282,228 @@ class CheckpointManager:
         """Check if any checkpoint exists for this experiment."""
         pattern = self._get_checkpoint_pattern(for_glob=True)
         return any(self.checkpoint_dir.glob(pattern))
+
+    # ==================== PARQUET FORMAT METHODS ====================
+
+    def save_parquet(
+        self,
+        results_df: pd.DataFrame,
+        processed_ids: set[str],
+        excluded_ids: set[str] = None,
+        excluded_tasks: list[dict] = None
+    ) -> Path:
+        """Save checkpoint in parquet format for data-heavy phases.
+
+        Args:
+            results_df: DataFrame with results (must have 'task_id' column)
+            processed_ids: Set of task IDs that have been processed
+            excluded_ids: Set of task IDs that were excluded/failed (optional)
+            excluded_tasks: List of excluded task dicts with error info (optional)
+
+        Returns:
+            Path to the saved checkpoint file
+        """
+        if excluded_ids is None:
+            excluded_ids = set()
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Save main results as parquet
+        pattern = self._get_checkpoint_pattern(for_glob=False, file_format="parquet")
+        checkpoint_file = self.checkpoint_dir / pattern.format(timestamp=timestamp)
+        results_df.to_parquet(checkpoint_file, index=False)
+
+        # Save metadata as JSON sidecar (same name but .json)
+        metadata = {
+            "version": self.VERSION,
+            "experiment_name": self.experiment_name,
+            "processed_task_ids": list(processed_ids),
+            "excluded_task_ids": list(excluded_ids),
+            "n_results": len(results_df),
+            "n_processed": len(processed_ids),
+            "n_excluded": len(excluded_ids),
+            "timestamp": datetime.now().isoformat()
+        }
+        metadata_file = checkpoint_file.with_suffix(".meta.json")
+        save_json(metadata, metadata_file)
+
+        # Save exclusions if provided
+        if excluded_tasks:
+            exclusion_pattern = self._get_exclusion_pattern(for_glob=False)
+            exclusion_file = self.checkpoint_dir / exclusion_pattern.format(timestamp=timestamp)
+            save_json(excluded_tasks, exclusion_file)
+
+        logger.info(f"Saved parquet checkpoint: {len(results_df)} results, {len(excluded_ids)} excluded")
+
+        # Clean up old checkpoints
+        self._cleanup_old_parquet()
+        return checkpoint_file
+
+    def load_parquet(self) -> Optional[ParquetCheckpointData]:
+        """Load most recent parquet checkpoint, validating version.
+
+        Returns:
+            ParquetCheckpointData if a valid checkpoint exists, None otherwise
+
+        Raises:
+            ValueError: If checkpoint version doesn't match current VERSION
+        """
+        pattern = self._get_checkpoint_pattern(for_glob=True, file_format="parquet")
+        files = sorted(self.checkpoint_dir.glob(pattern))
+
+        if not files:
+            return None
+
+        latest = files[-1]
+        logger.info(f"Loading parquet checkpoint from {latest.name}")
+
+        # Load metadata from JSON sidecar
+        metadata_file = latest.with_suffix(".meta.json")
+        if not metadata_file.exists():
+            raise ValueError(
+                f"Metadata file not found for checkpoint {latest.name}. "
+                f"Expected: {metadata_file.name}"
+            )
+
+        metadata = load_json(metadata_file)
+
+        # Version validation
+        checkpoint_version = metadata.get("version")
+        if checkpoint_version != self.VERSION:
+            raise ValueError(
+                f"Checkpoint version mismatch (got {checkpoint_version}, need {self.VERSION}). "
+                f"Delete old checkpoints and restart:\n"
+                f"  rm -rf {self.checkpoint_dir}/checkpoint_{self.experiment_name}_*.parquet"
+            )
+
+        # Load results DataFrame
+        results_df = pd.read_parquet(latest)
+
+        processed_ids = set(str(tid) for tid in metadata.get("processed_task_ids", []))
+        excluded_ids = set(str(tid) for tid in metadata.get("excluded_task_ids", []))
+
+        logger.info(f"Resuming: {len(processed_ids)} processed, {len(excluded_ids)} excluded")
+
+        return ParquetCheckpointData(
+            processed_task_ids=processed_ids,
+            excluded_task_ids=excluded_ids,
+            results_df=results_df
+        )
+
+    def load_all_parquet_checkpoints(self) -> Optional[ParquetCheckpointData]:
+        """Load and merge all parquet checkpoints (for cross-run resumption).
+
+        This is useful when resuming from multiple checkpoint files that may
+        have been saved at different times (e.g., from previous partial runs).
+
+        Returns:
+            ParquetCheckpointData with merged results, None if no checkpoints exist
+        """
+        pattern = self._get_checkpoint_pattern(for_glob=True, file_format="parquet")
+        files = sorted(self.checkpoint_dir.glob(pattern))
+
+        if not files:
+            return None
+
+        all_dfs = []
+        all_processed = set()
+        all_excluded = set()
+
+        for checkpoint_file in files:
+            metadata_file = checkpoint_file.with_suffix(".meta.json")
+            if not metadata_file.exists():
+                logger.warning(f"Skipping checkpoint without metadata: {checkpoint_file.name}")
+                continue
+
+            metadata = load_json(metadata_file)
+            df = pd.read_parquet(checkpoint_file)
+
+            all_dfs.append(df)
+            all_processed.update(str(tid) for tid in metadata.get("processed_task_ids", []))
+            all_excluded.update(str(tid) for tid in metadata.get("excluded_task_ids", []))
+
+        if not all_dfs:
+            return None
+
+        # Merge and deduplicate by task_id (keep latest)
+        merged_df = pd.concat(all_dfs, ignore_index=True)
+        if 'task_id' in merged_df.columns:
+            merged_df = merged_df.drop_duplicates(subset=['task_id'], keep='last')
+
+        logger.info(f"Loaded {len(files)} checkpoint(s): {len(all_processed)} processed, {len(all_excluded)} excluded")
+
+        return ParquetCheckpointData(
+            processed_task_ids=all_processed,
+            excluded_task_ids=all_excluded,
+            results_df=merged_df
+        )
+
+    def load_excluded_tasks(self) -> list[dict]:
+        """Load all excluded task records from checkpoint exclusion files.
+
+        Returns:
+            List of excluded task dicts with error info
+        """
+        pattern = self._get_exclusion_pattern(for_glob=True)
+        files = sorted(self.checkpoint_dir.glob(pattern))
+
+        all_excluded = []
+        seen_ids = set()
+
+        for exclusion_file in files:
+            try:
+                exclusions = load_json(exclusion_file)
+                for excl in exclusions:
+                    if excl['task_id'] not in seen_ids:
+                        all_excluded.append(excl)
+                        seen_ids.add(excl['task_id'])
+            except Exception as e:
+                logger.warning(f"Failed to load exclusion file {exclusion_file.name}: {e}")
+
+        return all_excluded
+
+    def _cleanup_old_parquet(self) -> None:
+        """Keep only last N parquet checkpoints (and their metadata)."""
+        pattern = self._get_checkpoint_pattern(for_glob=True, file_format="parquet")
+        files = sorted(self.checkpoint_dir.glob(pattern))
+
+        if len(files) > self.keep_last:
+            for old_file in files[:-self.keep_last]:
+                # Remove parquet file
+                old_file.unlink()
+                logger.debug(f"Removed old checkpoint: {old_file.name}")
+
+                # Remove metadata sidecar
+                metadata_file = old_file.with_suffix(".meta.json")
+                if metadata_file.exists():
+                    metadata_file.unlink()
+
+        # Also cleanup old exclusion files
+        excl_pattern = self._get_exclusion_pattern(for_glob=True)
+        excl_files = sorted(self.checkpoint_dir.glob(excl_pattern))
+        if len(excl_files) > self.keep_last:
+            for old_excl in excl_files[:-self.keep_last]:
+                old_excl.unlink()
+
+    def cleanup_all_parquet(self) -> None:
+        """Remove all parquet checkpoints and metadata after successful completion."""
+        # Remove parquet files
+        parquet_pattern = self._get_checkpoint_pattern(for_glob=True, file_format="parquet")
+        parquet_files = list(self.checkpoint_dir.glob(parquet_pattern))
+
+        for f in parquet_files:
+            f.unlink()
+            # Remove metadata sidecar
+            metadata_file = f.with_suffix(".meta.json")
+            if metadata_file.exists():
+                metadata_file.unlink()
+
+        # Remove exclusion files
+        excl_pattern = self._get_exclusion_pattern(for_glob=True)
+        excl_files = list(self.checkpoint_dir.glob(excl_pattern))
+        for f in excl_files:
+            f.unlink()
+
+        total_cleaned = len(parquet_files) + len(excl_files)
+        if total_cleaned:
+            logger.info(f"Cleaned up {total_cleaned} parquet checkpoint file(s)")

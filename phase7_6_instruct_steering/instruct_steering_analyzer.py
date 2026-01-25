@@ -30,7 +30,8 @@ from common.phase_discovery import (
     write_phase_output,
     get_dataset_range
 )
-from common.config import Config, MEMORY_HIGH_PERCENT, MEMORY_WARNING_PERCENT, PLOT_DPI, PLOT_STYLE
+from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_HIGH_PERCENT, MEMORY_WARNING_PERCENT, PLOT_DPI, PLOT_STYLE
+from common.checkpoint_manager import CheckpointManager
 from common.steering_metrics import (
     create_last_position_steering_hook,
     calculate_correction_rate,
@@ -106,12 +107,23 @@ class InstructSteeringAnalyzer:
         # Split baseline data by correctness
         self._split_baseline_by_correctness()
         
-        # Checkpoint tracking
+        # Checkpoint configuration
         self.checkpoint_dir = self.output_dir / "checkpoints"
         ensure_directory_exists(self.checkpoint_dir)
-        self.checkpoint_counter = 0
-        self.autosave_counter = 0
-        
+        self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
+
+        # Initialize checkpoint managers for each steering type
+        self.checkpoint_managers = {
+            steering_type: CheckpointManager(
+                checkpoint_dir=self.checkpoint_dir,
+                experiment_name=steering_type,
+                frequency=self.checkpoint_frequency,
+                gpu_id=gpu_id,
+                n_gpus=n_gpus
+            )
+            for steering_type in ['correct', 'incorrect', 'preservation']
+        }
+
         logger.info("InstructSteeringAnalyzer initialized successfully")
         
     def _load_dependencies(self) -> None:
@@ -202,95 +214,6 @@ class InstructSteeringAnalyzer:
             self.incorrect_coefficient = coefficients["incorrect"]
             logger.info(f"Loaded SAE coefficients from Phase 4.6: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
 
-    def _get_checkpoint_pattern(self, steering_type: str, timestamp: str = None, for_glob: bool = False) -> str:
-        """Get checkpoint filename pattern."""
-        if self.n_gpus > 1:
-            if for_glob:
-                return f"checkpoint_{steering_type}_gpu{self.gpu_id}_*.json"
-            else:
-                return f"checkpoint_{steering_type}_gpu{self.gpu_id}_{timestamp}.json"
-        else:
-            if for_glob:
-                return f"checkpoint_{steering_type}_*.json"
-            else:
-                return f"checkpoint_{steering_type}_{timestamp}.json"
-
-    def _get_all_checkpoint_pattern(self, for_glob: bool = True) -> str:
-        """Get pattern for all checkpoints (for cleanup)."""
-        if self.n_gpus > 1:
-            return f"checkpoint_*_gpu{self.gpu_id}_*.json"
-        else:
-            return "checkpoint_*.json"
-
-    def save_checkpoint(self, steering_type: str, results: list[dict], 
-                       excluded_tasks: list[dict], last_idx: int, 
-                       total_tasks: int) -> None:
-        """Save checkpoint for current steering experiment."""
-        checkpoint_data = {
-            'steering_type': steering_type,
-            'results': results,
-            'excluded_tasks': excluded_tasks,
-            'last_processed_idx': last_idx,
-            'total_tasks': total_tasks,
-            'timestamp': datetime.now().isoformat(),
-            'checkpoint_version': 1
-        }
-        
-        # Create checkpoint filename with timestamp (GPU-specific when parallel)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        checkpoint_file = self.checkpoint_dir / self._get_checkpoint_pattern(steering_type, timestamp)
-        
-        # Save checkpoint
-        save_json(checkpoint_data, checkpoint_file)
-        logger.info(f"Saved {steering_type} checkpoint at index {last_idx}/{total_tasks-1}")
-        
-        # Clean up old checkpoints (keep only last 3)
-        self.cleanup_old_checkpoints(steering_type)
-    
-    def load_checkpoint(self, steering_type: str) -> Optional[dict]:
-        """Load most recent checkpoint for steering type if available."""
-        # Use GPU-specific pattern when running in parallel
-        checkpoint_pattern = self._get_checkpoint_pattern(steering_type, for_glob=True)
-        checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
-        
-        if not checkpoint_files:
-            return None
-        
-        # Load most recent checkpoint
-        latest_checkpoint = checkpoint_files[-1]
-        logger.info(f"Loading checkpoint from {latest_checkpoint}")
-        
-        try:
-            checkpoint_data = load_json(latest_checkpoint)
-            logger.info(f"Resuming {steering_type} steering from index "
-                       f"{checkpoint_data['last_processed_idx']}/{checkpoint_data['total_tasks']-1}")
-            return checkpoint_data
-        except Exception as e:
-            logger.error(f"Failed to load checkpoint: {e}")
-            return None
-    
-    def cleanup_old_checkpoints(self, steering_type: str, keep_last: int = 3) -> None:
-        """Remove old checkpoint files, keeping only the most recent ones."""
-        # Use GPU-specific pattern when running in parallel
-        checkpoint_pattern = self._get_checkpoint_pattern(steering_type, for_glob=True)
-        checkpoint_files = sorted(self.checkpoint_dir.glob(checkpoint_pattern))
-        
-        if len(checkpoint_files) > keep_last:
-            for old_checkpoint in checkpoint_files[:-keep_last]:
-                old_checkpoint.unlink()
-                logger.debug(f"Removed old checkpoint: {old_checkpoint}")
-    
-    def cleanup_all_checkpoints(self) -> None:
-        """Remove all checkpoint files after successful completion."""
-        # Use GPU-specific pattern when running in parallel
-        checkpoint_files = list(self.checkpoint_dir.glob(self._get_all_checkpoint_pattern()))
-        for checkpoint_file in checkpoint_files:
-            checkpoint_file.unlink()
-            logger.debug(f"Removed checkpoint: {checkpoint_file}")
-        
-        if checkpoint_files:
-            logger.info(f"Cleaned up {len(checkpoint_files)} checkpoint files")
-    
     def check_memory_usage(self) -> None:
         """Check current memory usage and log warnings if high."""
         memory = psutil.virtual_memory()
@@ -367,25 +290,30 @@ class InstructSteeringAnalyzer:
                 raise ValueError(f"Invalid steering_type: {steering_type}. Must be 'correct', 'preservation', or 'incorrect'")
         
         # Check for existing checkpoint
-        checkpoint_data = self.load_checkpoint(steering_type)
+        checkpoint_mgr = self.checkpoint_managers[steering_type]
+        checkpoint_data = checkpoint_mgr.load()
         if checkpoint_data:
-            results = checkpoint_data['results']
-            excluded_tasks = checkpoint_data['excluded_tasks']
-            start_idx = checkpoint_data['last_processed_idx'] + 1
-            logger.info(f"Resuming from checkpoint at index {start_idx}")
+            results = checkpoint_data.results
+            processed_task_ids = checkpoint_data.processed_task_ids
+            excluded_task_ids = checkpoint_data.excluded_task_ids
+            logger.info(f"Resuming: {len(processed_task_ids)} processed, {len(excluded_task_ids)} excluded")
         else:
             results = []
-            excluded_tasks = []
-            start_idx = 0
-        
-        # Process tasks with index tracking
+            processed_task_ids = set()
+            excluded_task_ids = set()
+
+        # Process tasks with task ID tracking
         problems_list = list(problems_df.iterrows())
         total_tasks = len(problems_list)
-        
-        for enum_idx, (_, row) in enumerate(tqdm_with_logging(problems_list[start_idx:],
+
+        for enum_idx, (_, row) in enumerate(tqdm_with_logging(problems_list,
                                                    logger, total=total_tasks,
-                                                   desc=f"{steering_type.capitalize()} steering (instruct)"),
-                                              start=start_idx):
+                                                   desc=f"{steering_type.capitalize()} steering (instruct)")):
+            task_id = row['task_id']
+
+            # Skip already processed tasks
+            if task_id in processed_task_ids:
+                continue
             
             # Setup hook for this specific task
             hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
@@ -451,7 +379,7 @@ class InstructSteeringAnalyzer:
                     flipped = baseline_passed != steered_correct
 
                     result = {
-                        'task_id': row['task_id'],
+                        'task_id': task_id,
                         'baseline_passed': baseline_passed,  # unsteered version
                         'steered_correct': steered_correct,
                         'steered_error_type': generation_result['steered_error_type'],
@@ -464,13 +392,11 @@ class InstructSteeringAnalyzer:
                     }
 
                     results.append(result)
+                    processed_task_ids.add(task_id)
                 else:
                     # Task failed after all retries - exclude from dataset
-                    excluded_tasks.append({
-                        'task_id': row['task_id'],
-                        'error': error_msg
-                    })
-                    logger.warning(f"Excluding task {row['task_id']} from {steering_type} steering results")
+                    excluded_task_ids.add(task_id)
+                    logger.warning(f"Excluding task {task_id} from {steering_type} steering results")
                 
             finally:
                 # Always remove hooks after each task to ensure isolation
@@ -488,28 +414,32 @@ class InstructSteeringAnalyzer:
                 self.check_memory_usage()
                 gc.collect()
             
-            # Autosave every 50 tasks  
-            if (enum_idx + 1) % 50 == 0:
-                logger.info(f"Autosaving at task {enum_idx + 1}/{total_tasks}")
-                self.save_checkpoint(steering_type, results, excluded_tasks, enum_idx, total_tasks)
+            # Autosave every 50 tasks
+            if checkpoint_mgr.should_save(len(processed_task_ids)):
+                logger.info(f"Autosaving: {len(processed_task_ids)} processed")
+                checkpoint_mgr.save(
+                    results=results,
+                    processed_ids=processed_task_ids,
+                    excluded_ids=excluded_task_ids
+                )
             
         # Log results summary including exclusions
         n_flipped = sum(r['flipped'] for r in results)
         n_successful = len(results)
         n_attempted = len(problems_df)
-        n_excluded = len(excluded_tasks)
-        
+        n_excluded = len(excluded_task_ids)
+
         logger.info(f"Completed {steering_type} steering on instruction-tuned model: {n_flipped} flipped out of {n_successful} successful "
                    f"({n_attempted} attempted, {n_excluded} excluded)")
-        
-        if excluded_tasks:
+
+        if excluded_task_ids:
             logger.warning(f"Excluded {n_excluded} tasks from {steering_type} steering: "
-                          f"{[t['task_id'] for t in excluded_tasks]}")
-        
-        # Save excluded tasks for debugging
-        if excluded_tasks:
+                          f"{list(excluded_task_ids)}")
+
+        # Save excluded task IDs for debugging
+        if excluded_task_ids:
             excluded_file = self.output_dir / f"excluded_tasks_{steering_type}_steering.json"
-            save_json(excluded_tasks, excluded_file)
+            save_json(list(excluded_task_ids), excluded_file)
             logger.info(f"Saved excluded tasks to {excluded_file}")
         
         # Convert results to DataFrame
@@ -586,7 +516,8 @@ class InstructSteeringAnalyzer:
             logger.info(f"Saved {len(preservation_data)} preservation steering results")
         
         # Clean up checkpoints after successful completion
-        self.cleanup_all_checkpoints()
+        for steering_type in ['correct', 'incorrect', 'preservation']:
+            self.checkpoint_managers[steering_type].cleanup_all()
         
         # Calculate exclusion summary
         correction_excluded = n_initially_incorrect - len(correction_results)

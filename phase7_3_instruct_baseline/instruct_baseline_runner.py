@@ -30,6 +30,7 @@ from common.prompt_utils import PromptBuilder
 from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_WARNING_PERCENT
 from common.logging import get_logger, tqdm_with_logging
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
+from common.checkpoint_manager import CheckpointManager
 
 # Module-level logger
 logger = get_logger("instruct_baseline_runner", phase="7.3")
@@ -140,48 +141,6 @@ class InstructBaselineRunner:
         
         # Setup activation extraction layers (copying Phase 3.5's elegant same/different layer handling)
         self._setup_activation_extraction()
-
-    def _get_checkpoint_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
-        """Get checkpoint filename pattern.
-
-        Args:
-            checkpoint_num: Specific checkpoint number (ignored if for_glob=True)
-            for_glob: If True, returns glob pattern for finding files
-
-        Returns:
-            Filename pattern string
-        """
-        if self.n_gpus > 1:
-            if for_glob:
-                return f"checkpoint_gpu{self.gpu_id}_*.parquet"
-            else:
-                return f"checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}.parquet"
-        else:
-            if for_glob:
-                return "checkpoint_*.parquet"
-            else:
-                return f"checkpoint_{checkpoint_num:04d}.parquet"
-
-    def _get_exclusion_pattern(self, checkpoint_num: int = None, for_glob: bool = False) -> str:
-        """Get exclusion filename pattern.
-
-        Args:
-            checkpoint_num: Specific checkpoint number (ignored if for_glob=True)
-            for_glob: If True, returns glob pattern for finding files
-
-        Returns:
-            Filename pattern string
-        """
-        if self.n_gpus > 1:
-            if for_glob:
-                return f"checkpoint_gpu{self.gpu_id}_*_exclusions.json"
-            else:
-                return f"checkpoint_gpu{self.gpu_id}_{checkpoint_num:04d}_exclusions.json"
-        else:
-            if for_glob:
-                return "checkpoint_*_exclusions.json"
-            else:
-                return f"checkpoint_{checkpoint_num:04d}_exclusions.json"
 
     def _setup_activation_extraction(self):
         """
@@ -360,51 +319,6 @@ class InstructBaselineRunner:
             logger.warning(f"Task {row['task_id']} failed after {self.config.max_retries} attempts: {error_msg}")
             return None
     
-    def save_checkpoint(self, results: list, excluded_tasks: list,
-                       checkpoint_num: int, output_dir: Path) -> None:
-        """Save checkpoint to disk and clear memory."""
-        if not results:
-            return
-
-        # Save current results to checkpoint file (GPU-specific when parallel)
-        checkpoint_file = output_dir / self._get_checkpoint_pattern(checkpoint_num)
-        pd.DataFrame(results).to_parquet(checkpoint_file, index=False)
-        logger.info(f"Saved checkpoint {checkpoint_num} with {len(results)} tasks to {checkpoint_file}")
-
-        # Save exclusions if any
-        if excluded_tasks:
-            exclusion_file = output_dir / self._get_exclusion_pattern(checkpoint_num)
-            save_json(excluded_tasks, exclusion_file)
-
-    def load_checkpoints(self, output_dir: Path) -> tuple[list, list, set]:
-        """Load existing checkpoints if any."""
-        # Use GPU-specific pattern when running in parallel
-        checkpoint_files = sorted(output_dir.glob(self._get_checkpoint_pattern(for_glob=True)))
-        
-        if not checkpoint_files:
-            return [], [], set()
-        
-        logger.info(f"Found {len(checkpoint_files)} existing checkpoint(s)")
-        
-        all_results = []
-        all_excluded = []
-        processed_task_ids = set()
-        
-        for checkpoint_file in checkpoint_files:
-            df = pd.read_parquet(checkpoint_file)
-            all_results.extend(df.to_dict('records'))
-            processed_task_ids.update(df['task_id'].tolist())
-            
-            # Load exclusions if they exist
-            exclusion_file = checkpoint_file.parent / f"{checkpoint_file.stem}_exclusions.json"
-            if exclusion_file.exists():
-                exclusions = load_json(exclusion_file)
-                all_excluded.extend(exclusions)
-                processed_task_ids.update([e['task_id'] for e in exclusions])
-        
-        logger.info(f"Loaded {len(all_results)} results and {len(all_excluded)} exclusions from checkpoints")
-        return all_results, all_excluded, processed_task_ids
-    
     def check_memory_usage(self) -> float:
         """Check current memory usage and warn if high."""
         memory_percent = psutil.virtual_memory().percent
@@ -436,22 +350,36 @@ class InstructBaselineRunner:
         # Setup output directories
         self.output_dir = self._setup_output_directories()
 
+        # Initialize CheckpointManager
+        self.checkpoint_mgr = CheckpointManager(
+            checkpoint_dir=self.output_dir / "checkpoints",
+            experiment_name="instruct_baseline",
+            frequency=self.checkpoint_frequency,
+            gpu_id=self.gpu_id,
+            n_gpus=self.n_gpus,
+            output_format="parquet"
+        )
+
         # Load existing checkpoints if any
-        checkpoint_results, checkpoint_excluded, processed_task_ids = self.load_checkpoints(self.output_dir)
+        checkpoint_data = self.checkpoint_mgr.load_all_parquet_checkpoints()
+        if checkpoint_data:
+            all_results = checkpoint_data.results_df.to_dict('records')
+            processed_task_ids = checkpoint_data.processed_task_ids
+            all_excluded = self.checkpoint_mgr.load_excluded_tasks()
+        else:
+            all_results = []
+            processed_task_ids = set()
+            all_excluded = []
 
         # Filter out already processed tasks
         if processed_task_ids:
             logger.info(f"Skipping {len(processed_task_ids)} already processed tasks")
             analysis_data = analysis_data[~analysis_data['task_id'].isin(processed_task_ids)]
             logger.info(f"Remaining tasks to process: {len(analysis_data)}")
-        
-        # Initialize with checkpoint data
+
+        # Initialize current batch tracking
         results = []  # Current batch results
         excluded_tasks = []  # Current batch exclusions
-        all_results = checkpoint_results  # All results including checkpoints
-        all_excluded = checkpoint_excluded  # All exclusions including checkpoints
-        
-        checkpoint_counter = len(list(self.output_dir.glob(self._get_checkpoint_pattern(for_glob=True))))
         tasks_since_checkpoint = 0
         
         # Calculate total attempted BEFORE the loop (needed for logging)
@@ -467,7 +395,11 @@ class InstructBaselineRunner:
             memory_percent = self.check_memory_usage()
             if memory_percent > 95:
                 logger.error(f"Critical memory usage: {memory_percent:.1f}%. Saving checkpoint and exiting.")
-                self.save_checkpoint(results, excluded_tasks, checkpoint_counter + 1, self.output_dir)
+                # Save checkpoint using CheckpointManager
+                results_df = pd.DataFrame(all_results + results)
+                current_processed = processed_task_ids | {r['task_id'] for r in results}
+                current_excluded = {e['task_id'] for e in all_excluded + excluded_tasks}
+                self.checkpoint_mgr.save_parquet(results_df, current_processed, current_excluded, all_excluded + excluded_tasks)
                 raise MemoryError(f"RAM usage critical: {memory_percent:.1f}%")
             
             # Process task with retry logic
@@ -487,32 +419,41 @@ class InstructBaselineRunner:
             tasks_since_checkpoint += 1
 
             # Save checkpoint periodically
-            if tasks_since_checkpoint >= self.checkpoint_frequency and results:
-                checkpoint_counter += 1
-                self.save_checkpoint(results, excluded_tasks, checkpoint_counter, self.output_dir)
-                
-                # Add to all results and clear current batch
+            if self.checkpoint_mgr.should_save(tasks_since_checkpoint, memory_percent) and results:
+                # Add to all results
                 all_results.extend(results)
                 all_excluded.extend(excluded_tasks)
+
+                # Save using CheckpointManager
+                results_df = pd.DataFrame(all_results)
+                current_processed = processed_task_ids | {r['task_id'] for r in all_results}
+                current_excluded = {e['task_id'] for e in all_excluded}
+                self.checkpoint_mgr.save_parquet(results_df, current_processed, current_excluded, all_excluded)
+
+                # Clear current batch
                 results = []
                 excluded_tasks = []
                 tasks_since_checkpoint = 0
-                
+
                 # Force garbage collection to free memory
                 gc.collect()
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
                 elif hasattr(torch, 'mps') and torch.backends.mps.is_available():
                     torch.mps.empty_cache()
-                
+
                 logger.info(f"Memory after checkpoint: {psutil.virtual_memory().percent:.1f}%")
 
         # Save final checkpoint if there are remaining results
         if results:
-            checkpoint_counter += 1
-            self.save_checkpoint(results, excluded_tasks, checkpoint_counter, self.output_dir)
             all_results.extend(results)
             all_excluded.extend(excluded_tasks)
+
+            # Final save
+            results_df = pd.DataFrame(all_results)
+            current_processed = processed_task_ids | {r['task_id'] for r in all_results}
+            current_excluded = {e['task_id'] for e in all_excluded}
+            self.checkpoint_mgr.save_parquet(results_df, current_processed, current_excluded, all_excluded)
         
         # Handle case where no tasks succeeded
         if not all_results:
@@ -560,16 +501,7 @@ class InstructBaselineRunner:
         logger.info(f"Activations saved to: {self.output_dir / 'activations'}/")
         
         # Clean up checkpoint files after successful completion
-        # Use GPU-specific pattern when running in parallel
-        checkpoint_files = list(self.output_dir.glob(self._get_checkpoint_pattern(for_glob=True)))
-        exclusion_files = list(self.output_dir.glob(self._get_exclusion_pattern(for_glob=True)))
-        if checkpoint_files:
-            logger.info(f"Cleaning up {len(checkpoint_files)} checkpoint files...")
-            for checkpoint_file in checkpoint_files:
-                checkpoint_file.unlink()
-        if exclusion_files:
-            for exclusion_file in exclusion_files:
-                exclusion_file.unlink()
+        self.checkpoint_mgr.cleanup_all_parquet()
         
         if all_excluded:
             logger.warning(f"Excluded tasks: {[t['task_id'] for t in all_excluded]}")
