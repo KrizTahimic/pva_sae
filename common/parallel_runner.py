@@ -1022,6 +1022,12 @@ def _merge_parallel_results(
         if before_dedup != len(merged_df):
             logger.info(f"  Deduplicated: {before_dedup} -> {len(merged_df)} rows")
 
+    # Clean up old merged files before saving new one (prevents duplicate counts)
+    old_merged_files = list(output_path.glob("dataset_merged_*.parquet"))
+    for old_file in old_merged_files:
+        old_file.unlink()
+        logger.info(f"  Cleaned up old merged file: {old_file.name}")
+
     # Save merged result
     timestamp = get_timestamp()
     merged_file = output_path / f"dataset_merged_{timestamp}.parquet"

@@ -1510,3 +1510,69 @@ Run the full pipeline with all 489 selection problems.
 ---
 
 **STATUS:** Code infrastructure complete. Ready to run full experiments.
+
+---
+
+## 🚨 PRIORITY 0: Verify Checkpointing After Refactor (2025-01-25)
+
+**Status:** IN PROGRESS
+
+### Context
+After standardizing checkpointing across all 13 parallel phases (commit `1da0e175c`), we discovered that previous runs had issues:
+- Phase 1 had 120 duplicate records (489 unique but 609 total)
+- This confirms the old index-based checkpointing was buggy
+
+### Action Items
+
+1. **Delete existing data and rerun phases**
+   ```bash
+   # Backup if needed
+   mv data/ data_backup_$(date +%Y%m%d)/
+
+   # Rerun from Phase 0
+   python3 run.py phase 0
+   python3 run.py phase 0.1
+   python3 run.py phase 1 --parallel 4
+   # ... continue with other phases
+   ```
+
+2. **Verify checkpointing works correctly**
+   - Run `--parallel 4 --end 19` first
+   - Then run `--parallel 4` (full dataset)
+   - Check for duplicates using `scripts/verify_phase_outputs.py`
+   - Expected: 0 duplicates, correct task counts
+
+3. **Test resume after interruption**
+   - Start a phase with `--parallel 4`
+   - Kill it mid-run (Ctrl+C)
+   - Resume with same command
+   - Verify no duplicates or missing tasks
+
+### Phases to Rerun (in order)
+| Phase | Command | Estimated Time |
+|-------|---------|----------------|
+| 0 | `python3 run.py phase 0` | ~1 min |
+| 0.1 | `python3 run.py phase 0.1` | ~1 min |
+| 1 | `python3 run.py phase 1 --parallel 4` | ~2 hours |
+| 2.2 | `python3 run.py phase 2.2` | ~30 min |
+| 2.5 | `python3 run.py phase 2.5` | ~10 min |
+| 2.6 | `python3 run.py phase 2.6` | ~10 min |
+| 2.10 | `python3 run.py phase 2.10` | ~10 min |
+| 3.5 | `python3 run.py phase 3.5 --parallel 4` | ~1 hour |
+| 3.6 | `python3 run.py phase 3.6 --parallel 4` | ~30 min |
+| 3.8 | `python3 run.py phase 3.8` | ~10 min |
+| 4.5 | `python3 run.py phase 4.5 --parallel 4` | ~2 hours |
+| 4.6 | `python3 run.py phase 4.6 --parallel 4` | ~1 hour |
+| 4.8 | `python3 run.py phase 4.8 --parallel 4` | ~2 hours |
+
+### Success Criteria
+- [ ] All phases complete without errors
+- [ ] `scripts/verify_phase_outputs.py` shows 0 issues
+- [ ] No duplicate records in any phase
+- [ ] Resume after interruption works correctly
+- [ ] `--start/--end` variations don't cause gaps or duplicates
+
+### Notes
+- The new CheckpointManager uses task ID-based tracking (not index-based)
+- Checkpoints are now stored in `<phase_dir>/checkpoints/` subdirectory
+- Each checkpoint has a `.meta.json` sidecar with version and task ID tracking
