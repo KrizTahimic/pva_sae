@@ -238,20 +238,53 @@ def run_phase_parallel(phase_id: str, config: Config, n_gpus: int) -> dict:
             for args in worker_args
         }
 
+        logger.info(f"Submitted {len(futures)} worker tasks, waiting for completion...")
+        completed_count = 0
+
+        from concurrent.futures import TimeoutError as FuturesTimeoutError
+
         for future in as_completed(futures):
             gpu_id = futures[future]
+            completed_count += 1
+
+            # Check if subprocess crashed (future has exception instead of result)
             try:
-                worker_result = future.result()
+                exc = future.exception(timeout=5)
+            except (TimeoutError, FuturesTimeoutError):
+                exc = TimeoutError("Timeout checking for exception")
+
+            if exc is not None:
+                logger.error(f"GPU {gpu_id}: Worker subprocess crashed - {exc}")
+                failed_gpus.append(gpu_id)
+                results.append({
+                    'gpu_id': gpu_id,
+                    'status': 'error',
+                    'error': f"Subprocess crashed: {exc}"
+                })
+                continue
+
+            try:
+                worker_result = future.result(timeout=30)
                 results.append(worker_result)
 
                 if worker_result['status'] == 'success':
                     logger.info(f"GPU {gpu_id}: Completed successfully")
                 else:
                     logger.error(f"GPU {gpu_id}: Failed - {worker_result.get('error', 'Unknown error')}")
+                    if 'traceback' in worker_result:
+                        logger.error(f"GPU {gpu_id} traceback:\n{worker_result['traceback']}")
                     failed_gpus.append(gpu_id)
 
+            except (TimeoutError, FuturesTimeoutError) as e:
+                logger.error(f"GPU {gpu_id}: Timeout waiting for result")
+                failed_gpus.append(gpu_id)
+                results.append({
+                    'gpu_id': gpu_id,
+                    'status': 'error',
+                    'error': 'Timeout waiting for subprocess result'
+                })
             except Exception as e:
-                logger.error(f"GPU {gpu_id}: Exception - {e}")
+                logger.error(f"GPU {gpu_id}: Exception - {type(e).__name__}: {e}")
                 failed_gpus.append(gpu_id)
                 results.append({
                     'gpu_id': gpu_id,
@@ -535,6 +568,164 @@ def _merge_phase4_5_json_results(
     }
 
 
+def _merge_phase5_6_json_results(
+    output_path: Path,
+    n_gpus: int,
+    config: Config
+) -> dict:
+    """
+    Merge Phase 5.6 zero-disc orthogonalization results from parallel workers.
+
+    Phase 5.6 produces zero_disc_orthogonalization_results_gpu{N}.json files with:
+    - config: metadata
+    - zero_disc_orthogonalization:
+      - latent: the zero-disc latent info (same for all GPUs)
+      - weight_changes: how weights changed (same for all GPUs)
+      - metrics: correction/preservation/corruption rates (recalculated)
+      - incorrect_results: list of per-problem results
+      - correct_results: {corrected, preserved, corrupted} lists
+
+    This function merges by combining result lists and recalculating metrics.
+    """
+    from datetime import datetime
+    from common.utils import save_json
+    import numpy as np
+
+    # Find per-GPU JSON files
+    json_files = sorted(output_path.glob("zero_disc_orthogonalization_results_gpu*.json"))
+    if not json_files:
+        raise RuntimeError(
+            f"No zero_disc_orthogonalization_results_gpu*.json files found in {output_path}"
+        )
+
+    logger.info(f"Found {len(json_files)} GPU JSON files to merge for Phase 5.6")
+
+    # Load all per-GPU results
+    gpu_results = []
+    for json_file in json_files:
+        with open(json_file) as f:
+            gpu_results.append(json.load(f))
+        logger.info(f"  Loaded {json_file.name}")
+
+    # Use first GPU's latent and weight_changes (same for all)
+    base_result = gpu_results[0]
+    latent_info = base_result['zero_disc_orthogonalization']['latent']
+    weight_changes = base_result['zero_disc_orthogonalization']['weight_changes']
+
+    # Merge result lists from all GPUs
+    all_incorrect_results = []
+    all_corrected = []
+    all_preserved = []
+    all_corrupted = []
+
+    for gpu_data in gpu_results:
+        ortho = gpu_data['zero_disc_orthogonalization']
+
+        # Merge incorrect results
+        if 'incorrect_results' in ortho:
+            all_incorrect_results.extend(ortho['incorrect_results'])
+
+        # Merge correct results
+        if 'correct_results' in ortho:
+            cr = ortho['correct_results']
+            all_corrected.extend(cr.get('corrected', []))
+            all_preserved.extend(cr.get('preserved', []))
+            all_corrupted.extend(cr.get('corrupted', []))
+
+    # Deduplicate by task_id
+    def dedupe_by_task_id(results_list):
+        seen = set()
+        deduped = []
+        for r in results_list:
+            tid = r.get('task_id')
+            if tid not in seen:
+                seen.add(tid)
+                deduped.append(r)
+        return deduped
+
+    all_incorrect_results = dedupe_by_task_id(all_incorrect_results)
+    all_corrected = dedupe_by_task_id(all_corrected)
+    all_preserved = dedupe_by_task_id(all_preserved)
+    all_corrupted = dedupe_by_task_id(all_corrupted)
+
+    # Recalculate metrics from merged data
+    n_incorrect = len(all_incorrect_results)
+    n_corrected = sum(1 for r in all_incorrect_results if r.get('orthogonalized_correct', False))
+    n_correct = len(all_preserved) + len(all_corrupted)
+    n_preserved = len(all_preserved)
+    n_corrupted = len(all_corrupted)
+
+    correction_rate = (n_corrected / n_incorrect * 100) if n_incorrect > 0 else 0.0
+    preservation_rate = (n_preserved / n_correct * 100) if n_correct > 0 else 0.0
+    corruption_rate = (n_corrupted / n_correct * 100) if n_correct > 0 else 0.0
+
+    # Calculate average similarity from preserved results
+    similarity_scores = [r.get('similarity', 1.0) for r in all_preserved]
+    avg_similarity = float(np.mean(similarity_scores)) if similarity_scores else 0.0
+
+    logger.info(f"  Merged: {n_incorrect} incorrect, {n_correct} correct results")
+    logger.info(f"  Correction: {correction_rate:.1f}%, Preservation: {preservation_rate:.1f}%, "
+               f"Corruption: {corruption_rate:.1f}%")
+
+    # Build merged result
+    merged = {
+        'timestamp': datetime.now().isoformat(),
+        'parallel_merge': True,
+        'n_gpus': n_gpus,
+        'config': {
+            'model': config.model_name,
+            'target_weights': config.orthogonalization_target_weights,
+            'n_validation_problems': n_incorrect + n_correct,
+            'n_correct_baseline': n_correct,
+            'n_incorrect_baseline': n_incorrect
+        },
+        'zero_disc_orthogonalization': {
+            'latent': latent_info,
+            'weight_changes': weight_changes,
+            'metrics': {
+                'correction_rate': correction_rate,
+                'preservation_rate': preservation_rate,
+                'corruption_rate': corruption_rate,
+                'avg_similarity_score': avg_similarity,
+                'n_incorrect_baseline': n_incorrect,
+                'n_corrected': n_corrected,
+                'n_correct_baseline': n_correct,
+                'n_preserved': n_preserved,
+                'n_corrupted': n_corrupted
+            },
+            'incorrect_results': all_incorrect_results,
+            'correct_results': {
+                'corrected': all_corrected,
+                'preserved': all_preserved,
+                'corrupted': all_corrupted
+            }
+        }
+    }
+
+    # Save merged result
+    merged_file = output_path / "zero_disc_orthogonalization_results.json"
+    save_json(merged, merged_file)
+    logger.info(f"Saved merged results: {merged_file}")
+
+    # Write phase_output.json manifest
+    write_phase_output(
+        phase="5.6",
+        outputs={"primary": "zero_disc_orthogonalization_results.json"},
+        config=config,
+        output_dir=str(output_path)
+    )
+    logger.info("Wrote phase_output.json manifest")
+
+    return {
+        'merged_file': str(merged_file),
+        'n_incorrect': n_incorrect,
+        'n_correct': n_correct,
+        'correction_rate': correction_rate,
+        'preservation_rate': preservation_rate,
+        'n_gpus': n_gpus
+    }
+
+
 def _merge_phase8_3_results(
     output_path: Path,
     n_gpus: int,
@@ -775,6 +966,10 @@ def _merge_parallel_results(
     # Phase 8.3 needs custom merge (JSON summary recalculated from parquet)
     if phase_id == "8.3":
         return _merge_phase8_3_results(output_path, n_gpus, config)
+
+    # Phase 5.6 uses JSON output format (zero-disc orthogonalization)
+    if phase_id == "5.6":
+        return _merge_phase5_6_json_results(output_path, n_gpus, config)
 
     # Find per-GPU result files
     # Phase 3.5 uses a different pattern for temperature experiments

@@ -340,20 +340,35 @@ def extract_code(generated_text: str, prompt: str) -> str:
 def timeout(seconds):
     """
     Context manager for timeout protection.
-    Note: Only works on Unix/Mac systems (uses SIGALRM).
-    """
-    def timeout_handler(signum, frame):
-        raise TimeoutError(f"Code execution exceeded {seconds} seconds")
 
-    # Set up the timeout
-    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(seconds)
-    try:
+    In main process: Uses SIGALRM for reliable timeout of CPU-bound code.
+    In subprocess (parallel workers): Yields without timeout - relies on
+    higher-level retry_with_timeout for timeout handling.
+
+    Note: SIGALRM doesn't work reliably in multiprocessing child processes,
+    so we skip the timeout setup there and let retry_with_timeout handle it.
+    """
+    import multiprocessing as mp
+
+    # Check if signal-based timeout will work (main process only)
+    is_main_process = mp.current_process().name == 'MainProcess'
+
+    if is_main_process:
+        # Use signal-based timeout (works in main process)
+        def timeout_handler(signum, frame):
+            raise TimeoutError(f"Code execution exceeded {seconds} seconds")
+
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(seconds)
+        try:
+            yield
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
+    else:
+        # In subprocess: signals don't work reliably, just yield
+        # Timeout protection comes from retry_with_timeout at higher level
         yield
-    finally:
-        # Restore previous handler and cancel alarm
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old_handler)
 
 
 def _classify_exception(exc: Exception) -> tuple[str, str]:

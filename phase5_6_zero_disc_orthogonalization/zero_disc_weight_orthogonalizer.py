@@ -174,15 +174,21 @@ class ZeroDiscWeightOrthogonalizer:
                 experiment_name=key,
                 frequency=CHECKPOINT_FREQUENCY_DEFAULT,
                 keep_last=3,
-                memory_threshold=float(MEMORY_CRITICAL_PERCENT)
+                memory_threshold=float(MEMORY_CRITICAL_PERCENT),
+                gpu_id=self.gpu_id,
+                n_gpus=self.n_gpus
             )
         return self._checkpoint_managers[key]
 
     def _cleanup_all_checkpoints(self) -> None:
         """Remove all checkpoint files after successful completion."""
         for key in ['zero_disc_ortho_incorrect', 'zero_disc_ortho_correct']:
-            manager = self._get_checkpoint_manager(*key.rsplit('_', 1))
-            manager.cleanup_all()
+            try:
+                manager = self._get_checkpoint_manager(*key.rsplit('_', 1))
+                manager.cleanup_all()
+            except FileNotFoundError:
+                # In parallel mode, files may already be cleaned up
+                logger.debug(f"Checkpoint cleanup for {key}: files already removed")
                    
     def _generate_with_model(self, model, tokenizer, prompt: str) -> str:
         """Generate code using the model."""
@@ -322,7 +328,7 @@ class ZeroDiscWeightOrthogonalizer:
                 # Checkpoint using CheckpointManager
                 if checkpoint_mgr_incorrect.should_save(len(incorrect_results), check_memory_usage()):
                     checkpoint_mgr_incorrect.save(incorrect_results, processed_incorrect_ids)
-        
+
         # Test on correct baseline (expect minimal corruptions)
         logger.info("\nTesting on initially correct problems...")
 
@@ -450,7 +456,14 @@ class ZeroDiscWeightOrthogonalizer:
                 'not_corrected': [r for r in incorrect_results if not r['orthogonalized_correct']][:5],
                 'preserved': [r for r in correct_results if r['orthogonalized_correct']][:5],
                 'corrupted': [r for r in correct_results if not r['orthogonalized_correct']][:5]
-            }
+            },
+            # Full results for parallel merge (only included in parallel mode)
+            'incorrect_results': incorrect_results if self.n_gpus > 1 else [],
+            'correct_results': {
+                'corrected': [r for r in incorrect_results if r['orthogonalized_correct']],
+                'preserved': [r for r in correct_results if r['orthogonalized_correct']],
+                'corrupted': [r for r in correct_results if not r['orthogonalized_correct']]
+            } if self.n_gpus > 1 else {}
         }
         
         logger.info(f"\nResults for ZERO-DISC orthogonalization:")
@@ -581,13 +594,13 @@ class ZeroDiscWeightOrthogonalizer:
         
         # Apply zero-disc orthogonalization
         self.results = self.apply_zero_disc_orthogonalization()
-        
+
         # Clean up checkpoints after successful completion
         self._cleanup_all_checkpoints()
 
         # Create visualizations
         self.create_visualizations()
-        
+
         # Save examples
         self.save_examples()
         
@@ -605,8 +618,12 @@ class ZeroDiscWeightOrthogonalizer:
             'runtime_seconds': time.time() - start_time
         }
         
-        # Save main results
-        save_json(final_results, self.output_dir / "zero_disc_orthogonalization_results.json")
+        # Save main results (per-GPU in parallel mode, single file otherwise)
+        if self.n_gpus > 1:
+            results_filename = f"zero_disc_orthogonalization_results_gpu{self.gpu_id}.json"
+        else:
+            results_filename = "zero_disc_orthogonalization_results.json"
+        save_json(final_results, self.output_dir / results_filename)
         
         # Save weight changes separately
         weight_changes = {
@@ -661,24 +678,25 @@ class ZeroDiscWeightOrthogonalizer:
         logger.info(f"Results saved to: {self.output_dir}")
         logger.info("="*60)
 
-        # Write phase_output.json manifest
-        from common.phase_discovery import write_phase_output
+        # Write phase_output.json manifest (skip in parallel mode - orchestrator handles it)
+        if self.n_gpus == 1:
+            from common.phase_discovery import write_phase_output
 
-        write_phase_output(
-            phase="5.6",
-            outputs={
-                "primary": "phase_5_6_summary.json",
-                "orthogonalization_results": "zero_disc_orthogonalization_results.json",
-                "weight_changes": "weight_changes.json",
-            },
-            config=self.config,
-            output_dir=str(self.output_dir),
-            dependencies={
-                "4.10": str(self.phase4_10_dir),
-                "3.5": str(self.phase3_5_dir),
-            },
-            config_keys=['model_name', 'dataset_name']
-        )
-        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+            write_phase_output(
+                phase="5.6",
+                outputs={
+                    "primary": "phase_5_6_summary.json",
+                    "orthogonalization_results": "zero_disc_orthogonalization_results.json",
+                    "weight_changes": "weight_changes.json",
+                },
+                config=self.config,
+                output_dir=str(self.output_dir),
+                dependencies={
+                    "4.10": str(self.phase4_10_dir),
+                    "3.5": str(self.phase3_5_dir),
+                },
+                config_keys=['model_name', 'dataset_name']
+            )
+            logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
 
         return final_results
