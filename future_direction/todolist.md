@@ -1096,7 +1096,7 @@ Verify Issue 6 fixes don't need to be applied to other phases. The core fixes ar
 | 3.6 | ❌ | N/A | ✅ (parallel_runner handles) | ✅ OK |
 | 4.5 | ❌ | N/A | ✅ (iterative_parallel handles) | ✅ OK |
 | 4.6 | ❌ | N/A | ✅ (iterative_parallel handles) | ✅ OK |
-| 4.8 | ❌ | N/A | ✅ (parallel_runner handles) | ✅ OK |
+| 4.8 | ✅ | ✅ Fixed | ✅ Already conditional | ✅ DONE |
 | 4.12 | ❌ | N/A | ✅ (parallel_runner handles) | ✅ OK |
 | 5.3 | ✅ | ✅ Fixed | ✅ Fixed | ✅ DONE |
 | 5.6 | ✅ | ✅ Fixed | ✅ Fixed | ✅ DONE |

@@ -202,15 +202,21 @@ class SteeringEffectAnalyzer:
                 experiment_name=steering_type,
                 frequency=CHECKPOINT_FREQUENCY_DEFAULT,
                 keep_last=3,
-                memory_threshold=float(MEMORY_CRITICAL_PERCENT)
+                memory_threshold=float(MEMORY_CRITICAL_PERCENT),
+                gpu_id=self.gpu_id,
+                n_gpus=self.n_gpus
             )
         return self._checkpoint_managers[steering_type]
 
     def _cleanup_all_checkpoints(self) -> None:
         """Remove all checkpoint files after successful completion."""
         for steering_type in ['correct', 'incorrect', 'preservation']:
-            manager = self._get_checkpoint_manager(steering_type)
-            manager.cleanup_all()
+            try:
+                manager = self._get_checkpoint_manager(steering_type)
+                manager.cleanup_all()
+            except FileNotFoundError:
+                # In parallel mode, files may already be cleaned up
+                logger.debug(f"Checkpoint cleanup for {steering_type}: files already removed")
     
     def _split_baseline_by_correctness(self) -> None:
         """Split baseline data into initially correct and incorrect subsets."""
