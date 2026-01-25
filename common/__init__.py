@@ -91,7 +91,6 @@ from .dataset_utils import (
     load_dataset_split,
     extract_code,
     evaluate_code,
-    timeout,
     load_and_encode_activation,
     load_raw_activation
 )
@@ -216,7 +215,6 @@ __all__ = [
     'load_dataset_split',
     'extract_code',
     'evaluate_code',
-    'timeout',
     'load_and_encode_activation',
     'load_raw_activation',
 

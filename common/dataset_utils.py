@@ -337,38 +337,24 @@ def extract_code(generated_text: str, prompt: str) -> str:
 
 
 @contextlib.contextmanager
-def timeout(seconds):
+def _signal_timeout(seconds: int):
     """
-    Context manager for timeout protection.
+    Signal-based timeout context manager for main process only.
 
-    In main process: Uses SIGALRM for reliable timeout of CPU-bound code.
-    In subprocess (parallel workers): Yields without timeout - relies on
-    higher-level retry_with_timeout for timeout handling.
-
-    Note: SIGALRM doesn't work reliably in multiprocessing child processes,
-    so we skip the timeout setup there and let retry_with_timeout handle it.
+    Uses SIGALRM for reliable timeout of CPU-bound code.
+    Only works in the main process; subprocess workers must use
+    subprocess-based execution instead.
     """
-    import multiprocessing as mp
+    def timeout_handler(signum, frame):
+        raise TimeoutError(f"Code execution exceeded {seconds} seconds")
 
-    # Check if signal-based timeout will work (main process only)
-    is_main_process = mp.current_process().name == 'MainProcess'
-
-    if is_main_process:
-        # Use signal-based timeout (works in main process)
-        def timeout_handler(signum, frame):
-            raise TimeoutError(f"Code execution exceeded {seconds} seconds")
-
-        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(seconds)
-        try:
-            yield
-        finally:
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, old_handler)
-    else:
-        # In subprocess: signals don't work reliably, just yield
-        # Timeout protection comes from retry_with_timeout at higher level
+    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(seconds)
+    try:
         yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
 
 
 def _classify_exception(exc: Exception) -> tuple[str, str]:
@@ -400,17 +386,13 @@ def _classify_exception(exc: Exception) -> tuple[str, str]:
     return "runtime", exc_class
 
 
-def _prepare_namespace() -> dict:
+def _get_import_code() -> Optional[str]:
     """
-    Create namespace with pre-imported modules for code execution.
+    Get import code string for code execution.
 
     Returns:
-        Namespace dict with common imports loaded
+        Import statements as a string, or None if not available
     """
-    namespace = {}
-
-    # Pre-import dataset-specific imports
-    # For HumanEval: load from Phase 0.3, For MBPP: load from Phase 0.4
     try:
         from common.config import Config
         config = Config()
@@ -425,44 +407,43 @@ def _prepare_namespace() -> dict:
             import json
             with open(import_file) as f:
                 imports_data = json.load(f)
-                import_code = '\n'.join(imports_data['imports'])
-                # Execute imports in namespace
-                exec(import_code, namespace)
-        # If file doesn't exist yet, silently continue
+                return '\n'.join(imports_data['imports'])
     except Exception:
-        # If config loading fails, continue without pre-imports
         pass
+
+    return None
+
+
+def _prepare_namespace() -> dict:
+    """
+    Create namespace with pre-imported modules for code execution.
+
+    Returns:
+        Namespace dict with common imports loaded
+    """
+    namespace = {}
+    import_code = _get_import_code()
+
+    if import_code:
+        try:
+            exec(import_code, namespace)
+        except Exception:
+            # Import failures are non-fatal
+            pass
 
     return namespace
 
 
-def evaluate_code_with_error_type(
+def _evaluate_with_signal_timeout(
     code: str,
     test_list: list[str],
     timeout_seconds: int = 5
 ) -> EvaluationResult:
     """
-    Evaluate generated code against test cases with detailed error type classification.
+    Evaluate code using signal-based timeout (main process only).
 
-    Algorithm:
-    1. compile() check -> syntax error
-    2. exec(code) -> name/type/runtime/timeout
-    3. exec(test) -> logic (AssertionError) or other
-    4. All pass -> passed
-
-    Args:
-        code: Generated code to test
-        test_list: List of test assertion strings
-        timeout_seconds: Timeout per execution step (default: 5)
-
-    Returns:
-        EvaluationResult with passed status, error_type, error_message, and exception_class
-
-    Example:
-        >>> result = evaluate_code_with_error_type("def foo(", [])
-        >>> assert result.error_type == "syntax"
-        >>> result = evaluate_code_with_error_type("def foo(): return 1", ["assert foo() == 2"])
-        >>> assert result.error_type == "logic"
+    This is faster than subprocess-based execution but only works in the
+    main process where SIGALRM is available.
     """
     # Step 1: Compile check (catches syntax errors without execution)
     try:
@@ -481,7 +462,7 @@ def evaluate_code_with_error_type(
 
     # Step 2: Execute the code definition
     try:
-        with timeout(timeout_seconds):
+        with _signal_timeout(timeout_seconds):
             exec(code, namespace)
     except TimeoutError as e:
         return EvaluationResult(
@@ -502,7 +483,7 @@ def evaluate_code_with_error_type(
     # Step 3: Run each test
     for test in test_list:
         try:
-            with timeout(timeout_seconds):
+            with _signal_timeout(timeout_seconds):
                 exec(test, namespace)
         except TimeoutError as e:
             return EvaluationResult(
@@ -527,6 +508,62 @@ def evaluate_code_with_error_type(
         error_message=None,
         exception_class=None
     )
+
+
+def evaluate_code_with_error_type(
+    code: str,
+    test_list: list[str],
+    timeout_seconds: int = 5
+) -> EvaluationResult:
+    """
+    Evaluate generated code against test cases with detailed error type classification.
+
+    Automatically selects the appropriate timeout mechanism:
+    - Main process: Signal-based timeout (faster, no subprocess overhead)
+    - Worker process: Subprocess-based timeout (reliable hard kill for infinite loops)
+
+    Algorithm:
+    1. compile() check -> syntax error
+    2. exec(code) -> name/type/runtime/timeout
+    3. exec(test) -> logic (AssertionError) or other
+    4. All pass -> passed
+
+    Args:
+        code: Generated code to test
+        test_list: List of test assertion strings
+        timeout_seconds: Timeout per execution step (default: 5)
+
+    Returns:
+        EvaluationResult with passed status, error_type, error_message, and exception_class
+
+    Example:
+        >>> result = evaluate_code_with_error_type("def foo(", [])
+        >>> assert result.error_type == "syntax"
+        >>> result = evaluate_code_with_error_type("def foo(): return 1", ["assert foo() == 2"])
+        >>> assert result.error_type == "logic"
+    """
+    import multiprocessing as mp
+
+    is_main_process = mp.current_process().name == 'MainProcess'
+
+    if is_main_process:
+        # Signal-based timeout (faster, no subprocess overhead)
+        return _evaluate_with_signal_timeout(code, test_list, timeout_seconds)
+    else:
+        # Subprocess-based timeout (works in parallel workers)
+        from common.subprocess_executor import execute_code_with_hard_timeout
+
+        import_code = _get_import_code()
+        result = execute_code_with_hard_timeout(
+            code, test_list, timeout_seconds, import_code
+        )
+
+        return EvaluationResult(
+            passed=result.passed,
+            error_type=result.error_type,
+            error_message=result.error_message,
+            exception_class=result.exception_class
+        )
 
 
 def evaluate_code(code: str, test_list: list[str]) -> bool:
