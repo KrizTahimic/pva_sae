@@ -1401,24 +1401,36 @@ class RefinementEvaluator:
         logger.info(f"GPU {self.gpu_id}: Processing {len(self.initially_correct_data)} correct, "
                    f"{len(self.initially_incorrect_data)} incorrect tasks")
 
-    def evaluate_single_value(self, value: tuple) -> dict:
+    def evaluate_single_value(self, value: tuple, task_ids: list[str] | None = None) -> dict:
         """
         Evaluate a coefficient for a given steering type.
 
         Args:
             value: Tuple of (coefficient, steering_type)
+            task_ids: Optional list of specific task_ids to process. If None,
+                     use the GPU's pre-filtered data (legacy/sequential mode).
+
+        Returns:
+            dict with coefficient, steering_type, results, and n_problems
         """
         coefficient, steering_type = value
         logger.info(f"GPU {self.gpu_id}: Evaluating coefficient={coefficient}, type={steering_type}")
 
         if steering_type == 'correct':
-            eval_data = self.initially_incorrect_data
+            base_data = self.initially_incorrect_data
             latent_direction = self.correct_latent_direction
             target_layer = self.probe_layer if self.use_probe else self.best_correct_latent['layer']
         else:
-            eval_data = self.initially_correct_data
+            base_data = self.initially_correct_data
             latent_direction = self.incorrect_latent_direction
             target_layer = self.probe_layer if self.use_probe else self.best_incorrect_latent['layer']
+
+        # Filter to specific task_ids if provided
+        if task_ids is not None:
+            eval_data = base_data[base_data['task_id'].isin(task_ids)]
+            logger.info(f"GPU {self.gpu_id}: Filtered to {len(eval_data)} tasks from task_ids")
+        else:
+            eval_data = base_data
 
         results = []
 

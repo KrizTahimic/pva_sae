@@ -888,14 +888,30 @@ class TemperatureEvaluator:
 
         return pd.read_parquet(analysis_file)
 
-    def evaluate_single_value(self, temperature: float) -> dict:
-        """Generate and evaluate at ONE temperature for all tasks on this GPU."""
+    def evaluate_single_value(self, temperature: float, task_ids: list[str] | None = None) -> dict:
+        """Generate and evaluate at ONE temperature for tasks on this GPU.
+
+        Args:
+            temperature: Temperature value to evaluate
+            task_ids: Optional list of specific task_ids to process. If None,
+                     use the GPU's pre-filtered data (legacy/sequential mode).
+
+        Returns:
+            dict with temperature, results, and metrics
+        """
         logger.info(f"GPU {self.gpu_id}: Evaluating temperature={temperature}")
+
+        # Filter to specific task_ids if provided
+        if task_ids is not None:
+            data = self.analysis_data[self.analysis_data['task_id'].isin(task_ids)]
+            logger.info(f"GPU {self.gpu_id}: Filtered to {len(data)} tasks from task_ids")
+        else:
+            data = self.analysis_data
 
         results = []
         excluded_tasks = []
 
-        for _, row in self.analysis_data.iterrows():
+        for _, row in data.iterrows():
             # Build prompt
             test_cases_str = "\n".join([
                 test.strip() if test.strip().startswith('assert ') else f"assert {test.strip()}"

@@ -1332,21 +1332,44 @@ class ThresholdEvaluator:
         phase8_1_results = load_json(phase8_1_dir / "percentile_thresholds.json")
         self.percentile_thresholds = phase8_1_results['percentile_thresholds']
 
-    def evaluate_single_value(self, percentile: int) -> dict:
-        """Evaluate ONE percentile on this GPU's problems."""
+    def evaluate_single_value(self, percentile: int, task_ids: list[str] | None = None) -> dict:
+        """Evaluate ONE percentile on this GPU's problems.
+
+        Args:
+            percentile: Percentile value to evaluate
+            task_ids: Optional list of specific task_ids to process. If None,
+                     use the GPU's pre-filtered data (legacy/sequential mode).
+
+        Returns:
+            dict with percentile, threshold, results, and metrics
+        """
         pct_key = f'p{percentile}'
         threshold = self.percentile_thresholds[pct_key]['threshold']
 
         logger.info(f"GPU {self.gpu_id}: Evaluating p{percentile} (threshold={threshold:.4f})")
 
+        # Filter to specific task_ids if provided
+        if task_ids is not None:
+            correct_data = self.correct_problems[
+                self.correct_problems['task_id'].isin(task_ids)
+            ]
+            incorrect_data = self.incorrect_problems[
+                self.incorrect_problems['task_id'].isin(task_ids)
+            ]
+            logger.info(f"GPU {self.gpu_id}: Filtered to {len(correct_data)} correct, "
+                       f"{len(incorrect_data)} incorrect tasks from task_ids")
+        else:
+            correct_data = self.correct_problems
+            incorrect_data = self.incorrect_problems
+
         # Run correction experiment
         correction_results = self._run_experiment(
-            self.incorrect_problems, threshold, 'correction'
+            incorrect_data, threshold, 'correction'
         )
 
         # Run preservation experiment
         preservation_results = self._run_experiment(
-            self.correct_problems, threshold, 'preservation'
+            correct_data, threshold, 'preservation'
         )
 
         # Calculate local metrics

@@ -931,9 +931,32 @@ class CoefficientEvaluator:
         logger.info(f"GPU {self.gpu_id}: Processing {len(self.initially_correct_data)} correct, "
                    f"{len(self.initially_incorrect_data)} incorrect tasks")
 
-    def evaluate_single_value(self, coefficient: int) -> dict:
-        """Evaluate ONE coefficient on this GPU's problems."""
+    def evaluate_single_value(self, coefficient: int, task_ids: list[str] | None = None) -> dict:
+        """Evaluate ONE coefficient on this GPU's problems.
+
+        Args:
+            coefficient: Steering coefficient to evaluate
+            task_ids: Optional list of specific task_ids to process. If None,
+                     use the GPU's pre-filtered data (legacy/sequential mode).
+
+        Returns:
+            dict with coefficient, results, and metrics
+        """
         logger.info(f"GPU {self.gpu_id}: Evaluating coefficient={coefficient}")
+
+        # Filter to specific task_ids if provided
+        if task_ids is not None:
+            correct_data = self.initially_correct_data[
+                self.initially_correct_data['task_id'].isin(task_ids)
+            ]
+            incorrect_data = self.initially_incorrect_data[
+                self.initially_incorrect_data['task_id'].isin(task_ids)
+            ]
+            logger.info(f"GPU {self.gpu_id}: Filtered to {len(correct_data)} correct, "
+                       f"{len(incorrect_data)} incorrect tasks from task_ids")
+        else:
+            correct_data = self.initially_correct_data
+            incorrect_data = self.initially_incorrect_data
 
         # Get experiment mode
         mode = getattr(self.config, 'phase4_5_experiment_mode', 'all')
@@ -943,7 +966,7 @@ class CoefficientEvaluator:
         if mode in ('all', 'correction'):
             # Correct steering on incorrect problems
             correction_results = self._evaluate_steering(
-                coefficient, self.initially_incorrect_data, 'correct'
+                coefficient, incorrect_data, 'correct'
             )
             correction_rate = calculate_correction_rate(correction_results) if correction_results else 0.0
             results['correct_steering'] = {
@@ -957,7 +980,7 @@ class CoefficientEvaluator:
         if mode in ('all', 'corruption'):
             # Incorrect steering on correct problems
             corruption_results = self._evaluate_steering(
-                coefficient, self.initially_correct_data, 'incorrect'
+                coefficient, correct_data, 'incorrect'
             )
             corruption_rate = calculate_corruption_rate(corruption_results) if corruption_results else 0.0
             avg_similarity = np.mean([r['code_similarity'] for r in corruption_results]) * 100 if corruption_results else 100

@@ -22,6 +22,12 @@ Architecture:
         Round 2: "Test value=Y"
         ...
 
+Per-GPU-Per-Value Checkpointing:
+    - Each GPU saves results immediately when it completes (not waiting for merge)
+    - Track completed task_ids (strings, not indices)
+    - On restart: redistribute ONLY remaining tasks across ALL available GPUs
+    - Require all tasks complete before proceeding to next value
+
 Supported phases:
     - 3.5: Temperature robustness (iterate over temperatures)
     - 4.5: Coefficient grid search (iterate over coefficients)
@@ -29,15 +35,18 @@ Supported phases:
     - 8.2: Threshold optimizer (iterate over percentiles)
 """
 
+import json
 import os
 import gc
 import queue
 import traceback
 from dataclasses import dataclass
+from datetime import datetime
 from multiprocessing import Process, Queue, get_context
 from pathlib import Path
 from typing import Any, Callable, Protocol, runtime_checkable
 
+import pandas as pd
 import torch
 
 from common.config import Config
@@ -77,12 +86,17 @@ class PhaseEvaluator(Protocol):
         """Initialize and load model (called once per worker)."""
         ...
 
-    def evaluate_single_value(self, value: Any) -> dict:
+    def evaluate_single_value(self, value: Any, task_ids: list[str] | None = None) -> dict:
         """Evaluate ONE value on this GPU's subset of problems.
+
+        Args:
+            value: The value to evaluate (temperature, coefficient, percentile, etc.)
+            task_ids: Optional list of specific task_ids to process. If None,
+                     use the GPU's pre-filtered data (legacy/sequential mode).
 
         Returns dict with at least:
         - 'value': the value tested
-        - 'results': list of per-problem results
+        - 'results': list of per-problem results (each must have 'task_id')
         - 'metrics': calculated metrics for this subset
         """
         ...
@@ -120,6 +134,7 @@ class IterativeParallelRunner:
         merge_fn: Callable[[list[dict]], dict] | None = None,
         timeout_per_iteration: int = DEFAULT_WORKER_TIMEOUT,
         checkpoint_dir: Path | None = None,
+        all_task_ids: list[str] | None = None,
     ):
         """
         Initialize iterative parallel runner.
@@ -133,6 +148,7 @@ class IterativeParallelRunner:
             merge_fn: Optional function(gpu_results) -> merged_result
             timeout_per_iteration: Max time per iteration in seconds
             checkpoint_dir: Optional directory for iteration checkpoints
+            all_task_ids: Optional list of all task_ids to process (discovered from evaluator if not provided)
         """
         self.evaluator_class = phase_evaluator_class
         self.config = config
@@ -142,6 +158,7 @@ class IterativeParallelRunner:
         self.merge_fn = merge_fn or _default_merge_fn
         self.timeout = timeout_per_iteration
         self.checkpoint_dir = checkpoint_dir
+        self.all_task_ids = all_task_ids  # Will be discovered if not provided
 
     def run(self) -> dict:
         """
@@ -174,13 +191,19 @@ class IterativeParallelRunner:
             workers.append(p)
             logger.info(f"Started worker for GPU {gpu_id} (PID: {p.pid})")
 
+        # Discover all task_ids if not provided
+        if self.all_task_ids is None:
+            logger.info("Discovering all task_ids from workers...")
+            self.all_task_ids = self._discover_task_ids(task_queues, result_queues)
+            logger.info(f"Discovered {len(self.all_task_ids)} total task_ids")
+
         # Track optimization progress
         history: list[dict] = []
         optimal_value = None
         optimal_score = float('-inf')
 
-        # Load checkpoint if exists
-        completed_values = self._load_checkpoint() if self.checkpoint_dir else set()
+        # Load orchestrator state (completed values)
+        completed_values = self._load_orchestrator_state()
         if completed_values:
             logger.info(f"Resuming from checkpoint, {len(completed_values)} values already completed")
 
@@ -189,26 +212,82 @@ class IterativeParallelRunner:
             for value in self.values_to_test:
                 if value in completed_values:
                     logger.info(f"Skipping value={value} (already completed)")
+                    # Load and add to history
+                    merged = self._merge_value_results(value)
+                    if merged:
+                        history.append(merged)
+                        score = merged.get('score', merged.get('net_benefit', 0.0))
+                        if score > optimal_score:
+                            optimal_score = score
+                            optimal_value = value
                     continue
 
                 logger.info(f"\n{'='*60}")
                 logger.info(f"Evaluating value: {value}")
                 logger.info(f"{'='*60}")
 
-                # Send value to all workers
-                for q in task_queues:
-                    q.put(('evaluate', value))
+                # Check what's already done for this value
+                remaining_task_ids = self._get_remaining_tasks_for_value(value)
 
-                # Collect results from all workers with timeout
+                if not remaining_task_ids:
+                    # All done for this value - just merge and continue
+                    logger.info(f"All tasks complete for value={value}, merging results")
+                    merged = self._merge_value_results(value)
+                    if merged:
+                        merged['value'] = value
+                        score = merged.get('score', merged.get('net_benefit', 0.0))
+                        merged['score'] = score
+                        if score > optimal_score:
+                            optimal_score = score
+                            optimal_value = value
+                            logger.info(f"New optimal: value={value}, score={score:.4f}")
+                        history.append(merged)
+                        self._save_orchestrator_state(value, merged)
+                        if self.early_stop_fn(merged, history):
+                            logger.info(f"Early stopping triggered at value={value}")
+                            break
+                    continue
+
+                logger.info(f"Remaining tasks for value={value}: {len(remaining_task_ids)}")
+
+                # Distribute remaining tasks across GPUs
+                task_assignments = self._distribute_tasks(remaining_task_ids, self.n_gpus)
+
+                # Send (value, task_ids) to workers
+                for gpu_id, tq in enumerate(task_queues):
+                    assigned_tasks = task_assignments.get(gpu_id, [])
+                    tq.put(('evaluate', value, assigned_tasks))
+                    logger.debug(f"Sent {len(assigned_tasks)} tasks to GPU {gpu_id}")
+
+                # Collect results from all workers (workers save their own checkpoints)
                 gpu_results = self._collect_results(result_queues, value)
 
                 if gpu_results is None:
-                    # One or more workers failed - abort
-                    logger.error(f"Worker failure during value={value}, aborting")
-                    break
+                    # One or more workers failed - but we have checkpoints, so continue
+                    logger.warning(f"Some workers failed during value={value}, checking checkpoints")
+                    # Check if we now have all tasks complete
+                    remaining_after_failure = self._get_remaining_tasks_for_value(value)
+                    if remaining_after_failure:
+                        logger.error(f"Still {len(remaining_after_failure)} tasks incomplete for value={value}")
+                        logger.error("Run will resume these on restart")
+                        # Don't break - save what we have and continue to next value
+                        # Or you could choose to retry here
+                    else:
+                        logger.info(f"Despite failures, all tasks are complete for value={value}")
 
-                # Merge results from all GPUs
-                merged = self.merge_fn(gpu_results)
+                # Check if all tasks now complete
+                remaining_check = self._get_remaining_tasks_for_value(value)
+                if remaining_check:
+                    logger.warning(f"Value {value}: {len(remaining_check)} tasks still incomplete")
+                    # Continue to next value - incomplete values will be retried on restart
+                    continue
+
+                # Merge results from all GPU checkpoints
+                merged = self._merge_value_results(value)
+                if merged is None:
+                    logger.error(f"Failed to merge results for value={value}")
+                    continue
+
                 merged['value'] = value
 
                 # Extract score (support both 'score' and 'net_benefit')
@@ -223,9 +302,8 @@ class IterativeParallelRunner:
 
                 history.append(merged)
 
-                # Save checkpoint after each iteration
-                if self.checkpoint_dir:
-                    self._save_checkpoint(value, merged)
+                # Save orchestrator state after each completed value
+                self._save_orchestrator_state(value, merged)
 
                 # Check early stopping (on FULL merged data)
                 if self.early_stop_fn(merged, history):
@@ -257,29 +335,56 @@ class IterativeParallelRunner:
         worker_logger.info(f"Worker {gpu_id}: Initializing on GPU {gpu_id}")
 
         try:
-            # Load model ONCE
+            # Load model ONCE - pass n_gpus=1 so evaluator doesn't filter data
+            # We'll handle task distribution explicitly via task_ids
             evaluator = self.evaluator_class(
                 config=self.config,
                 gpu_id=gpu_id,
-                n_gpus=self.n_gpus
+                n_gpus=1  # Don't pre-filter - we pass task_ids explicitly
             )
             worker_logger.info(f"Worker {gpu_id}: Model loaded successfully")
 
             # Process tasks until shutdown
             while True:
                 try:
-                    cmd, value = task_queue.get(timeout=self.timeout)
+                    msg = task_queue.get(timeout=self.timeout)
+
+                    # Handle different message formats
+                    if isinstance(msg, tuple) and len(msg) == 2:
+                        cmd, value = msg
+                        task_ids = None  # Legacy format
+                    elif isinstance(msg, tuple) and len(msg) == 3:
+                        cmd, value, task_ids = msg
+                    else:
+                        worker_logger.error(f"Worker {gpu_id}: Invalid message format: {msg}")
+                        continue
 
                     if cmd == 'shutdown':
                         worker_logger.info(f"Worker {gpu_id}: Received shutdown signal")
                         break
 
+                    if cmd == 'get_task_ids':
+                        # Return all task_ids this evaluator knows about
+                        all_ids = self._get_evaluator_task_ids(evaluator)
+                        result_queue.put({
+                            'status': 'task_ids',
+                            'task_ids': all_ids,
+                            'gpu_id': gpu_id
+                        })
+                        continue
+
                     if cmd == 'evaluate':
-                        worker_logger.info(f"Worker {gpu_id}: Evaluating value={value}")
+                        worker_logger.info(f"Worker {gpu_id}: Evaluating value={value} "
+                                          f"with {len(task_ids) if task_ids else 'all'} tasks")
                         try:
-                            result = evaluator.evaluate_single_value(value)
+                            # Pass task_ids to evaluator
+                            result = evaluator.evaluate_single_value(value, task_ids=task_ids)
                             result['gpu_id'] = gpu_id
                             result['status'] = 'success'
+
+                            # Save checkpoint immediately (before reporting to orchestrator)
+                            self._save_gpu_checkpoint(value, gpu_id, result)
+
                             result_queue.put(result)
                             worker_logger.info(f"Worker {gpu_id}: Completed value={value}")
                         except Exception as e:
@@ -312,9 +417,46 @@ class IterativeParallelRunner:
                 'error': str(e)
             })
 
+    def _get_evaluator_task_ids(self, evaluator) -> list[str]:
+        """Extract all task_ids from an evaluator's data."""
+        task_ids = []
+
+        # Try common data attribute patterns
+        for attr in ['analysis_data', 'dataset', 'baseline_data', 'data']:
+            if hasattr(evaluator, attr):
+                data = getattr(evaluator, attr)
+                if hasattr(data, 'task_id'):
+                    task_ids.extend(data['task_id'].tolist())
+                    break
+
+        # Also check split datasets (for phases that have correct/incorrect splits)
+        for attr in ['incorrect_problems', 'correct_problems',
+                     'initially_incorrect_data', 'initially_correct_data']:
+            if hasattr(evaluator, attr):
+                data = getattr(evaluator, attr)
+                if hasattr(data, 'task_id'):
+                    task_ids.extend(data['task_id'].tolist())
+
+        return list(set(task_ids))  # Deduplicate
+
+    def _discover_task_ids(self, task_queues: list[Queue], result_queues: list[Queue]) -> list[str]:
+        """Discover all task_ids from workers."""
+        # Ask first worker for task_ids
+        task_queues[0].put(('get_task_ids', None, None))
+
+        try:
+            result = result_queues[0].get(timeout=self.timeout)
+            if result.get('status') == 'task_ids':
+                return result['task_ids']
+        except queue.Empty:
+            logger.warning("Timeout getting task_ids from worker")
+
+        return []
+
     def _collect_results(self, result_queues: list[Queue], value: Any) -> list[dict] | None:
         """Collect results from all workers with timeout and error handling."""
         gpu_results = []
+        had_errors = False
 
         for i, rq in enumerate(result_queues):
             try:
@@ -324,20 +466,26 @@ class IterativeParallelRunner:
                     logger.error(f"GPU {i} error on value={value}: {result.get('error')}")
                     if 'traceback' in result:
                         logger.error(f"Traceback: {result['traceback']}")
-                    return None
+                    had_errors = True
+                    continue  # Continue collecting other GPUs' results
 
                 if result.get('status') == 'fatal_error':
                     logger.error(f"GPU {i} fatal error: {result.get('error')}")
-                    return None
+                    had_errors = True
+                    continue
 
                 gpu_results.append(result)
                 logger.info(f"GPU {i}: Received results for value={value}")
 
             except queue.Empty:
                 logger.error(f"GPU {i} timed out on value={value}")
-                return None
+                had_errors = True
+                continue
 
-        return gpu_results
+        if had_errors and not gpu_results:
+            return None  # Total failure
+
+        return gpu_results if gpu_results else None
 
     def _shutdown_workers(self, workers: list[Process], task_queues: list[Queue]):
         """Shutdown workers gracefully, with fallback to terminate."""
@@ -346,7 +494,7 @@ class IterativeParallelRunner:
         # Send shutdown signal
         for q in task_queues:
             try:
-                q.put(('shutdown', None), timeout=5)
+                q.put(('shutdown', None, None), timeout=5)
             except Exception:
                 pass
 
@@ -360,36 +508,164 @@ class IterativeParallelRunner:
 
         logger.info("All workers shut down")
 
-    def _load_checkpoint(self) -> set:
-        """Load checkpoint to get completed values."""
+    # =========================================================================
+    # Per-GPU-Per-Value Checkpoint Methods
+    # =========================================================================
+
+    def _get_value_checkpoint_dir(self, value: Any) -> Path:
+        """Get checkpoint directory for a specific value."""
+        if not self.checkpoint_dir:
+            return None
+        value_str = str(value).replace('.', '_').replace('-', 'neg')
+        return self.checkpoint_dir / f"value_{value_str}"
+
+    def _save_gpu_checkpoint(self, value: Any, gpu_id: int, result: dict):
+        """Save per-GPU checkpoint immediately after evaluation completes."""
+        if not self.checkpoint_dir:
+            return
+
+        value_dir = self._get_value_checkpoint_dir(value)
+        value_dir.mkdir(parents=True, exist_ok=True)
+
+        # Extract results and task_ids
+        results = result.get('results', [])
+        processed_task_ids = [r.get('task_id') for r in results if r.get('task_id')]
+
+        # Save results as parquet
+        if results:
+            results_df = pd.DataFrame(results)
+            parquet_file = value_dir / f"gpu_{gpu_id}_results.parquet"
+            results_df.to_parquet(parquet_file, index=False)
+
+        # Save metadata
+        meta = {
+            'gpu_id': gpu_id,
+            'value': value,
+            'processed_task_ids': processed_task_ids,
+            'n_results': len(results),
+            'timestamp': datetime.now().isoformat()
+        }
+        meta_file = value_dir / f"gpu_{gpu_id}_results.meta.json"
+        with open(meta_file, 'w') as f:
+            json.dump(meta, f, indent=2, default=str)
+
+        logger.debug(f"Saved checkpoint for GPU {gpu_id}, value={value}: {len(results)} results")
+
+    def _get_remaining_tasks_for_value(self, value: Any) -> list[str]:
+        """Load existing checkpoints and return unprocessed task_ids."""
+        if not self.checkpoint_dir or not self.all_task_ids:
+            return self.all_task_ids or []
+
+        value_dir = self._get_value_checkpoint_dir(value)
+        if not value_dir or not value_dir.exists():
+            return self.all_task_ids
+
+        # Collect all processed task_ids from existing GPU checkpoints
+        processed_task_ids = set()
+
+        for meta_file in value_dir.glob("gpu_*_results.meta.json"):
+            try:
+                with open(meta_file, 'r') as f:
+                    meta = json.load(f)
+                processed_task_ids.update(meta.get('processed_task_ids', []))
+            except Exception as e:
+                logger.warning(f"Failed to load checkpoint metadata {meta_file}: {e}")
+
+        # Return task_ids that haven't been processed
+        remaining = [tid for tid in self.all_task_ids if tid not in processed_task_ids]
+        return remaining
+
+    def _distribute_tasks(self, task_ids: list[str], n_gpus: int) -> dict[int, list[str]]:
+        """Distribute tasks across GPUs using round-robin."""
+        assignments = {i: [] for i in range(n_gpus)}
+
+        for idx, task_id in enumerate(task_ids):
+            gpu_id = idx % n_gpus
+            assignments[gpu_id].append(task_id)
+
+        return assignments
+
+    def _merge_value_results(self, value: Any) -> dict | None:
+        """Merge all GPU checkpoint files for a value, deduplicating by task_id."""
+        if not self.checkpoint_dir:
+            return None
+
+        value_dir = self._get_value_checkpoint_dir(value)
+        if not value_dir or not value_dir.exists():
+            return None
+
+        # Load all parquet files for this value
+        all_results = []
+        seen_task_ids = set()
+
+        for parquet_file in value_dir.glob("gpu_*_results.parquet"):
+            try:
+                df = pd.read_parquet(parquet_file)
+                for _, row in df.iterrows():
+                    task_id = row.get('task_id')
+                    if task_id and task_id not in seen_task_ids:
+                        all_results.append(row.to_dict())
+                        seen_task_ids.add(task_id)
+            except Exception as e:
+                logger.warning(f"Failed to load checkpoint {parquet_file}: {e}")
+
+        if not all_results:
+            return None
+
+        # Use the custom merge function to compute metrics
+        # Wrap results in expected format
+        merged = self.merge_fn([{'results': all_results}])
+        merged['value'] = value
+        merged['n_problems'] = len(all_results)
+
+        return merged
+
+    def _all_tasks_complete(self, value: Any) -> bool:
+        """Check if all tasks are complete for a value."""
+        remaining = self._get_remaining_tasks_for_value(value)
+        return len(remaining) == 0
+
+    def _load_orchestrator_state(self) -> set:
+        """Load orchestrator state to get completed values."""
         if not self.checkpoint_dir or not self.checkpoint_dir.exists():
             return set()
 
-        checkpoint_file = self.checkpoint_dir / "iteration_progress.json"
-        if not checkpoint_file.exists():
+        state_file = self.checkpoint_dir / "orchestrator_state.json"
+        if not state_file.exists():
             return set()
 
-        from common.utils import load_json
         try:
-            data = load_json(checkpoint_file)
-            return set(data.get('completed_values', []))
+            with open(state_file, 'r') as f:
+                data = json.load(f)
+            # Handle various value types (int, float, string)
+            completed = set()
+            for v in data.get('completed_values', []):
+                # Try to preserve original type
+                if isinstance(v, (int, float)):
+                    completed.add(v)
+                else:
+                    completed.add(v)
+            return completed
         except Exception as e:
-            logger.warning(f"Failed to load checkpoint: {e}")
+            logger.warning(f"Failed to load orchestrator state: {e}")
             return set()
 
-    def _save_checkpoint(self, value: Any, result: dict):
-        """Save checkpoint after completing a value."""
+    def _save_orchestrator_state(self, value: Any, result: dict):
+        """Save orchestrator state after completing a value."""
         if not self.checkpoint_dir:
             return
 
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-        # Load existing progress
-        checkpoint_file = self.checkpoint_dir / "iteration_progress.json"
-        from common.utils import load_json, save_json
+        state_file = self.checkpoint_dir / "orchestrator_state.json"
 
-        if checkpoint_file.exists():
-            data = load_json(checkpoint_file)
+        # Load existing state
+        if state_file.exists():
+            try:
+                with open(state_file, 'r') as f:
+                    data = json.load(f)
+            except Exception:
+                data = {'completed_values': [], 'results': {}}
         else:
             data = {'completed_values': [], 'results': {}}
 
@@ -400,11 +676,14 @@ class IterativeParallelRunner:
         # Store result summary (not full results to save space)
         data['results'][str(value)] = {
             'score': result.get('score', 0),
-            'n_problems': result.get('n_problems', 0)
+            'n_problems': result.get('n_problems', 0),
+            'timestamp': datetime.now().isoformat()
         }
 
-        save_json(data, checkpoint_file)
-        logger.debug(f"Checkpoint saved for value={value}")
+        with open(state_file, 'w') as f:
+            json.dump(data, f, indent=2, default=str)
+
+        logger.debug(f"Orchestrator state saved for value={value}")
 
 
 def run_iterative_parallel(
