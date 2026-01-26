@@ -217,7 +217,7 @@ The fundamental pattern across all phases:
 
 | Use Case | Source | Metric | Used By |
 |----------|--------|--------|---------|
-| Validation | Phase 2.10 | t-statistic | Phases 3.x (AUROC/F1) |
+| Predicting | Phase 2.10 | t-statistic | Phases 3.x (AUROC/F1) |
 | Steering | Phase 2.5 | separation score | Phases 4.x, 5.x, 6.x, 7.x |
 
 **Probe vs SAE:** Different projections of the same linear representation. Probes find directions optimized for the task; SAE finds unsupervised latents with interpretability benefits.
