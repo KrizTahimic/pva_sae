@@ -1628,7 +1628,8 @@ class RefinementOrchestrator:
         write_phase_output(
             phase="4.6",
             outputs={
-                "primary": "refined_coefficients.json"
+                "primary": "refined_coefficients.json",
+                "refined_coefficients": "refined_coefficients.json"
             },
             config=self.config,
             output_dir=str(self.output_dir)

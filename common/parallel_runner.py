@@ -920,6 +920,198 @@ def _merge_phase8_3_results(
     }
 
 
+def _merge_phase4_8_results(
+    output_path: Path,
+    n_gpus: int,
+    config: Config
+) -> dict:
+    """
+    Merge Phase 4.8 steering effect analysis results from parallel workers.
+
+    Phase 4.8 produces steering_effect_analysis_gpu{N}.json files containing:
+    - correction_rate, corruption_rate, preservation_rate
+    - detailed_results with correction/corruption/preservation lists
+    - coefficients, n_problems, exclusion_summary
+
+    This function:
+    1. Loads all per-GPU JSON files
+    2. Combines detailed_results across GPUs (dedup by task_id)
+    3. Recalculates aggregate metrics from merged data
+    4. Saves unified JSON outputs and phase manifest
+    """
+    from datetime import datetime
+    from common.utils import save_json
+    from common.steering_metrics import calculate_correction_rate, calculate_corruption_rate
+
+    # Find per-GPU JSON files
+    gpu_files = sorted(output_path.glob("steering_effect_analysis_gpu*.json"))
+    if not gpu_files:
+        raise RuntimeError(f"No steering_effect_analysis_gpu*.json files found in {output_path}")
+
+    logger.info(f"Found {len(gpu_files)} GPU JSON files to merge")
+
+    # Load all per-GPU results
+    gpu_data = []
+    for f in gpu_files:
+        with open(f) as fh:
+            import json
+            gpu_data.append(json.load(fh))
+        logger.info(f"  Loaded {f.name}")
+
+    # Merge detailed_results across GPUs
+    merged_correction = []
+    merged_corruption = []
+    merged_preservation = []
+
+    for data in gpu_data:
+        detailed = data.get('detailed_results', {})
+        merged_correction.extend(detailed.get('correction', []))
+        merged_corruption.extend(detailed.get('corruption', []))
+        merged_preservation.extend(detailed.get('preservation', []))
+
+    # Deduplicate by task_id within each experiment type
+    def dedup_by_task_id(results: list) -> list:
+        seen = set()
+        deduped = []
+        for r in results:
+            tid = r.get('task_id')
+            if tid not in seen:
+                seen.add(tid)
+                deduped.append(r)
+        return deduped
+
+    merged_correction = dedup_by_task_id(merged_correction)
+    merged_corruption = dedup_by_task_id(merged_corruption)
+    merged_preservation = dedup_by_task_id(merged_preservation)
+
+    logger.info(f"Merged results: {len(merged_correction)} correction, "
+                f"{len(merged_corruption)} corruption, {len(merged_preservation)} preservation")
+
+    # Recalculate rates from merged data
+    correction_rate = calculate_correction_rate(merged_correction)
+    corruption_rate = calculate_corruption_rate(merged_corruption)
+
+    # Preservation rate: correct→correct
+    if merged_preservation:
+        preserved = sum(1 for r in merged_preservation
+                       if r.get('baseline_passed', False) and r.get('steered_correct', False))
+        total_correct = sum(1 for r in merged_preservation
+                          if r.get('baseline_passed', False))
+        preservation_rate = (preserved / total_correct * 100) if total_correct > 0 else 0.0
+    else:
+        preservation_rate = 0.0
+
+    # Use first GPU's metadata for coefficients, direction_source, etc.
+    ref = gpu_data[0]
+
+    # Sum up n_problems across GPUs
+    total_initially_correct = sum(d.get('n_problems', {}).get('initially_correct', 0) for d in gpu_data)
+    total_initially_incorrect = sum(d.get('n_problems', {}).get('initially_incorrect', 0) for d in gpu_data)
+
+    # Build merged metrics (same format as single-GPU output)
+    merged_metrics = {
+        'correction_rate': correction_rate,
+        'corruption_rate': corruption_rate,
+        'preservation_rate': preservation_rate,
+        'direction_source': ref.get('direction_source', 'sae'),
+        'coefficients': ref.get('coefficients', {}),
+        'n_problems': {
+            'initially_correct': total_initially_correct,
+            'initially_incorrect': total_initially_incorrect,
+            'total': ref.get('n_problems', {}).get('total', 0)
+        },
+        'parallel_merge': True,
+        'n_gpus': n_gpus,
+        'detailed_results': {
+            'correction': merged_correction,
+            'corruption': merged_corruption,
+            'preservation': merged_preservation
+        }
+    }
+
+    # Save merged analysis JSON
+    save_json(merged_metrics, output_path / "steering_effect_analysis.json")
+    logger.info("Saved merged steering_effect_analysis.json")
+
+    # Collect all steered results for error distribution
+    all_steered_results = merged_correction + merged_corruption + merged_preservation
+
+    # Compute error type distribution
+    from common.dataset_utils import compute_error_type_distribution
+    error_dist = compute_error_type_distribution(
+        all_steered_results, 'steered_error_type'
+    ) if all_steered_results else None
+
+    # Build and save summary (same format as single-GPU phase_4_8_summary.json)
+    summary = {
+        'phase': '4.8',
+        'description': 'Steering Effect Analysis',
+        'timestamp': datetime.now().isoformat(),
+        'parallel_merge': True,
+        'n_gpus': n_gpus,
+        'config': ref.get('coefficients', {}),
+        'results': {
+            'correction_rate': correction_rate,
+            'corruption_rate': corruption_rate,
+            'preservation_rate': preservation_rate,
+        },
+        'steered_error_type_distribution': error_dist,
+    }
+
+    # Carry over latent/probe info from reference GPU
+    if 'latents_used' in ref:
+        summary['latents_used'] = ref['latents_used']
+    if 'probe_info' in ref:
+        summary['probe_info'] = ref['probe_info']
+
+    save_json(summary, output_path / "phase_4_8_summary.json")
+    logger.info("Saved merged phase_4_8_summary.json")
+
+    # Save merged all_*_results.json (matching single-GPU format)
+    save_json(merged_correction, output_path / "all_correction_results.json")
+    save_json(merged_corruption, output_path / "all_corruption_results.json")
+    save_json(merged_preservation, output_path / "all_preservation_results.json")
+    logger.info("Saved merged all_*_results.json files")
+
+    # Write phase manifest
+    write_phase_output(
+        phase="4.8",
+        outputs={
+            "primary": "phase_4_8_summary.json",
+            "steering_analysis": "steering_effect_analysis.json",
+            "correction_results": "all_correction_results.json",
+            "corruption_results": "all_corruption_results.json",
+            "preservation_results": "all_preservation_results.json",
+        },
+        config=config,
+        output_dir=str(output_path)
+    )
+    logger.info("Wrote phase_output.json manifest")
+
+    # Cleanup per-GPU files
+    for f in gpu_files:
+        f.unlink()
+        logger.info(f"  Cleaned up {f.name}")
+    for f in sorted(output_path.glob("phase_4_8_summary_gpu*.json")):
+        f.unlink()
+        logger.info(f"  Cleaned up {f.name}")
+
+    # Print summary
+    logger.info("=" * 60)
+    logger.info("PHASE 4.8 PARALLEL MERGE COMPLETE")
+    logger.info("=" * 60)
+    logger.info(f"Correction: {correction_rate:.1f}%")
+    logger.info(f"Corruption: {corruption_rate:.1f}%")
+    logger.info(f"Preservation: {preservation_rate:.1f}%")
+
+    return {
+        'correction_rate': correction_rate,
+        'corruption_rate': corruption_rate,
+        'preservation_rate': preservation_rate,
+        'n_gpus': n_gpus
+    }
+
+
 def _merge_parallel_results(
     phase_id: str,
     output_dir: str,
@@ -962,6 +1154,10 @@ def _merge_parallel_results(
     # Phase 4.5/4.6 use JSON output format, not parquet
     if phase_id in ("4.5", "4.6"):
         return _merge_phase4_5_json_results(output_path, n_gpus, config, phase_id)
+
+    # Phase 4.8 uses JSON output format (steering effect analysis)
+    if phase_id == "4.8":
+        return _merge_phase4_8_results(output_path, n_gpus, config)
 
     # Phase 8.3 needs custom merge (JSON summary recalculated from parquet)
     if phase_id == "8.3":
