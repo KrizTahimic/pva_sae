@@ -739,7 +739,12 @@ def plot_candidate_comparison(
                     transform=ax.transAxes)
             continue
 
-        labels = [f"L{c['layer']}-{c['latent_idx']}" for c in candidates]
+        labels = [
+            f"#{c['rank']+1}: L{c['layer']}-{c['latent_idx']}\n(t = {c['t_statistic']:.2f})"
+            if c.get('t_statistic') is not None
+            else f"#{c['rank']+1}: L{c['layer']}-{c['latent_idx']}"
+            for c in candidates
+        ]
         aurocs = [c['validation_split']['auroc'] for c in candidates]
         f1s = [c['validation_split']['f1'] for c in candidates]
         selected_flags = [c.get('selected', False) for c in candidates]
@@ -1084,6 +1089,7 @@ def evaluate_candidates_and_select_best(
 
         if result is not None:
             result['rank'] = rank
+            result['t_statistic'] = candidate.get('t_statistic')
             results.append(result)
         else:
             logger.warning(f"  Candidate {rank} (L{layer}-{latent_idx}): SKIPPED (missing layer data)")
@@ -1116,6 +1122,7 @@ def evaluate_candidates_and_select_best(
             'rank': r['rank'],
             'layer': r['layer'],
             'latent_idx': r['latent_idx'],
+            't_statistic': r.get('t_statistic'),
             'hyperparameter_split': r['hyperparameter_split'],
             'validation_split': r['validation_split'],
             'selected': (r is best),
