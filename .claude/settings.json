@@ -5,5 +5,54 @@
       "WebSearch",
       "WebFetch"
     ]
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "msg=$(jq -r '.message // \"Needs attention\"' 2>/dev/null || echo 'Needs attention'); curl -sf -d \"Claude: $msg\" ntfy.sh/${NTFY_TOPIC:-sae-cc-kriz-8eb523ea} >/dev/null 2>&1; printf '\\a' > /dev/tty 2>/dev/null; true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -sf -d 'Claude finished task' ntfy.sh/${NTFY_TOPIC:-sae-cc-kriz-8eb523ea} >/dev/null 2>&1; printf '\\a' > /dev/tty 2>/dev/null; true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "fp=$(jq -r '.tool_input.file_path // empty'); [[ \"$fp\" == *.py ]] && ruff format --quiet \"$fp\" 2>/dev/null; true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.command // empty' | grep -qE 'rm\\s+(-[a-zA-Z]*r[a-zA-Z]*|--recursive).*data/' && { echo 'BLOCKED: Cannot recursively delete data/ directory. This protects phase outputs that take hours of GPU time to regenerate.' >&2; exit 2; } || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }

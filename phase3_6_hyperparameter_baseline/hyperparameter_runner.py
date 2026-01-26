@@ -28,7 +28,7 @@ from common.config import (
 )
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device, ensure_directory_exists
-from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir, filter_by_range
+from common.phase_discovery import get_phase_output_dir, filter_by_range
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common.checkpoint_manager import CheckpointManager
 
@@ -37,61 +37,6 @@ logger = get_logger("hyperparameter_runner", phase="3.6")
 
 class HyperparameterDataRunner:
     """Hyperparameter split processing with best layer activation extraction."""
-    
-    def _discover_best_latents(self) -> dict[str, int]:
-        """
-        Discover best latents from Phase 2.10 (required).
-
-        Returns:
-            dict with 'correct' and 'incorrect' latent info (layer and latent_idx)
-        """
-        # Use Phase 2.10 (t-statistic selection) - no fallback
-        phase_2_10_dir = Path(get_phase_output_dir("2.10", self.config))
-        top_latents_file = phase_2_10_dir / "top_20_latents.json"
-
-        if not top_latents_file.exists():
-            # Try auto-discovery for Phase 2.10
-            latest_output = discover_latest_phase_output("2.10")
-            if latest_output:
-                # Extract directory from the discovered file
-                output_dir = Path(latest_output).parent
-                top_latents_file = output_dir / "top_20_latents.json"
-
-        if not top_latents_file.exists():
-            raise FileNotFoundError(
-                f"top_20_latents.json not found in Phase 2.10. "
-                "Please run Phase 2.10 first."
-            )
-
-        logger.info(f"Using latents from Phase 2.10: {top_latents_file}")
-
-        # Read top latents and extract index 0 for each category
-        with open(top_latents_file, 'r') as f:
-            top_latents = json.load(f)
-
-        # Validate structure
-        if 'correct' not in top_latents or 'incorrect' not in top_latents:
-            raise ValueError("Missing 'correct' or 'incorrect' in top_20_latents.json")
-
-        if not top_latents['correct'] or not top_latents['incorrect']:
-            raise ValueError("Empty latent list in top_20_latents.json")
-
-        # Get the best (index 0) latents
-        best_correct = top_latents['correct'][0]
-        best_incorrect = top_latents['incorrect'][0]
-
-        # Build the return format compatible with existing code
-        best_latents = {
-            'correct': best_correct['layer'],
-            'incorrect': best_incorrect['layer'],
-            'correct_latent_idx': best_correct['latent_idx'],
-            'incorrect_latent_idx': best_incorrect['latent_idx']
-        }
-
-        logger.info(f"Discovered best latents from Phase 2.10 - Correct: layer {best_latents['correct']} (latent {best_latents['correct_latent_idx']}), "
-                   f"Incorrect: layer {best_latents['incorrect']} (latent {best_latents['incorrect_latent_idx']})")
-
-        return best_latents
     
     def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
         """Initialize with configuration.
@@ -124,24 +69,19 @@ class HyperparameterDataRunner:
         else:
             logger.info(f"Model successfully loaded on {actual_device}")
         
-        # Discover best latents from Phase 2.10
-        self.best_latents = self._discover_best_latents()
+        # Discover top-N latent candidates from Phase 2.10
+        from common.phase_discovery import discover_top_n_latents
+        self.best_latents = discover_top_n_latents(config, logger)
 
         # Setup activation extraction layers (copying Phase 3.5's elegant same/different layer handling)
         self._setup_activation_extraction()
 
     def _setup_activation_extraction(self):
         """
-        Setup activation extraction layers, handling same/different layer cases.
+        Setup activation extraction layers for all top-N candidate layers.
         """
-        # Determine unique layers to extract from (same logic as Phase 3.5)
-        unique_layers = list(set([self.best_latents['correct'], self.best_latents['incorrect']]))
-        self.extraction_layers = unique_layers
-
-        if len(unique_layers) == 1:
-            logger.info(f"Both correct and incorrect latents use the same layer: {unique_layers[0]}")
-        else:
-            logger.info(f"Using different layers - Correct: {self.best_latents['correct']}, Incorrect: {self.best_latents['incorrect']}")
+        self.extraction_layers = self.best_latents['all_layers']
+        logger.info(f"Extracting activations from {len(self.extraction_layers)} layers: {self.extraction_layers}")
         
         # Initialize activation extractor for unique layers only
         self.activation_extractor = ActivationExtractor(
@@ -514,10 +454,9 @@ class HyperparameterDataRunner:
         metadata = {
             "creation_timestamp": datetime.now().isoformat(),
             "best_latents": {
-                "correct": self.best_latents['correct'],
-                "incorrect": self.best_latents['incorrect'],
-                "correct_latent_idx": self.best_latents['correct_latent_idx'],
-                "incorrect_latent_idx": self.best_latents['incorrect_latent_idx']
+                "correct_candidates": self.best_latents['correct'],
+                "incorrect_candidates": self.best_latents['incorrect'],
+                "all_layers": self.best_latents['all_layers']
             },
             "extraction_layers": self.extraction_layers,
             "temperature": 0.0,

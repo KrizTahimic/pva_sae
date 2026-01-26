@@ -31,7 +31,7 @@ from common.config import (
 )
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device
-from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir, filter_by_range
+from common.phase_discovery import get_phase_output_dir, filter_by_range
 from common.retry_utils import retry_with_timeout, create_exclusion_summary
 from common.checkpoint_manager import CheckpointManager
 
@@ -40,61 +40,6 @@ logger = get_logger("temperature_runner", phase="3.5")
 
 class TemperatureRobustnessRunner:
     """Temperature robustness testing with single-layer activation extraction."""
-    
-    def _discover_best_latents(self) -> dict[str, int]:
-        """
-        Discover best latents from Phase 2.10 (required).
-
-        Returns:
-            dict with 'correct' and 'incorrect' latent info (layer and latent_idx)
-        """
-        # Use Phase 2.10 (t-statistic selection) - no fallback
-        phase_2_10_dir = Path(get_phase_output_dir("2.10", self.config))
-        top_latents_file = phase_2_10_dir / "top_20_latents.json"
-
-        if not top_latents_file.exists():
-            # Try auto-discovery for Phase 2.10
-            latest_output = discover_latest_phase_output("2.10")
-            if latest_output:
-                # Extract directory from the discovered file
-                output_dir = Path(latest_output).parent
-                top_latents_file = output_dir / "top_20_latents.json"
-
-        if not top_latents_file.exists():
-            raise FileNotFoundError(
-                f"top_20_latents.json not found in Phase 2.10. "
-                "Please run Phase 2.10 first."
-            )
-
-        logger.info(f"Using latents from Phase 2.10: {top_latents_file}")
-
-        # Read top latents and extract index 0 for each category
-        with open(top_latents_file, 'r') as f:
-            top_latents = json.load(f)
-
-        # Validate structure
-        if 'correct' not in top_latents or 'incorrect' not in top_latents:
-            raise ValueError("Missing 'correct' or 'incorrect' in top_20_latents.json")
-
-        if not top_latents['correct'] or not top_latents['incorrect']:
-            raise ValueError("Empty latent list in top_20_latents.json")
-
-        # Get the best (index 0) latents
-        best_correct = top_latents['correct'][0]
-        best_incorrect = top_latents['incorrect'][0]
-
-        # Build the return format compatible with existing code
-        best_latents = {
-            'correct': best_correct['layer'],
-            'incorrect': best_incorrect['layer'],
-            'correct_latent_idx': best_correct['latent_idx'],
-            'incorrect_latent_idx': best_incorrect['latent_idx']
-        }
-
-        logger.info(f"Discovered best latents from Phase 2.10 - Correct: layer {best_latents['correct']} (latent {best_latents['correct_latent_idx']}), "
-                   f"Incorrect: layer {best_latents['incorrect']} (latent {best_latents['incorrect_latent_idx']})")
-
-        return best_latents
     
     def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
         """Initialize with configuration.
@@ -147,17 +92,10 @@ class TemperatureRobustnessRunner:
 
         # Only setup extraction if temperature 0.0 is in config
         if 0.0 in config.temperature_variation_temps:
-            # Discover best latents from Phase 2.10
-            self.best_latents = self._discover_best_latents()
-
-            # Determine unique layers to extract from
-            unique_layers = list(set([self.best_latents['correct'], self.best_latents['incorrect']]))
-            self.extraction_layers = unique_layers
-
-            if len(unique_layers) == 1:
-                logger.info(f"Both correct and incorrect latents use the same layer: {unique_layers[0]}")
-            else:
-                logger.info(f"Using different layers - Correct: {self.best_latents['correct']}, Incorrect: {self.best_latents['incorrect']}")
+            # Discover top-N latent candidates from Phase 2.10
+            from common.phase_discovery import discover_top_n_latents
+            self.best_latents = discover_top_n_latents(config, logger)
+            self.extraction_layers = self.best_latents['all_layers']
 
             # Initialize activation extractor but don't setup hooks yet
             # We'll only setup hooks when generating at temperature 0
@@ -709,10 +647,9 @@ class TemperatureRobustnessRunner:
         metadata = {
             "creation_timestamp": datetime.now().isoformat(),
             "best_latents": {
-                "correct": self.best_latents['correct'] if self.best_latents else None,
-                "incorrect": self.best_latents['incorrect'] if self.best_latents else None,
-                "correct_latent_idx": self.best_latents.get('correct_latent_idx') if self.best_latents else None,
-                "incorrect_latent_idx": self.best_latents.get('incorrect_latent_idx') if self.best_latents else None
+                "correct_candidates": self.best_latents['correct'],
+                "incorrect_candidates": self.best_latents['incorrect'],
+                "all_layers": self.best_latents['all_layers']
             } if self.best_latents else None,
             "extraction_layers": self.extraction_layers,
             "temperatures": self.config.temperature_variation_temps,
@@ -819,11 +756,11 @@ class TemperatureEvaluator:
         random.seed(config.evaluation_random_seed)
         np.random.seed(config.evaluation_random_seed)
 
-        # Discover best latents from Phase 2.10 (if temp 0.0 in config)
+        # Discover top-N latent candidates from Phase 2.10 (if temp 0.0 in config)
         if 0.0 in config.temperature_variation_temps:
-            self.best_latents = self._discover_best_latents()
-            unique_layers = list(set([self.best_latents['correct'], self.best_latents['incorrect']]))
-            self.extraction_layers = unique_layers
+            from common.phase_discovery import discover_top_n_latents
+            self.best_latents = discover_top_n_latents(config, logger)
+            self.extraction_layers = self.best_latents['all_layers']
             self.activation_extractor = ActivationExtractor(self.model, layers=self.extraction_layers)
             self.attention_extractor = AttentionExtractor(self.model, layers=self.extraction_layers, position=-1)
         else:
@@ -845,35 +782,6 @@ class TemperatureEvaluator:
         )
 
         logger.info(f"TemperatureEvaluator GPU {gpu_id}: Processing {len(self.analysis_data)} tasks")
-
-    def _discover_best_latents(self) -> dict[str, int]:
-        """Discover best latents from Phase 2.10."""
-        from common.phase_discovery import get_phase_output_dir, discover_latest_phase_output
-
-        phase_2_10_dir = Path(get_phase_output_dir("2.10", self.config))
-        top_latents_file = phase_2_10_dir / "top_20_latents.json"
-
-        if not top_latents_file.exists():
-            latest_output = discover_latest_phase_output("2.10")
-            if latest_output:
-                output_dir = Path(latest_output).parent
-                top_latents_file = output_dir / "top_20_latents.json"
-
-        if not top_latents_file.exists():
-            raise FileNotFoundError("top_20_latents.json not found in Phase 2.10")
-
-        with open(top_latents_file, 'r') as f:
-            top_latents = json.load(f)
-
-        best_correct = top_latents['correct'][0]
-        best_incorrect = top_latents['incorrect'][0]
-
-        return {
-            'correct': best_correct['layer'],
-            'incorrect': best_incorrect['layer'],
-            'correct_latent_idx': best_correct['latent_idx'],
-            'incorrect_latent_idx': best_incorrect['latent_idx']
-        }
 
     def _load_analysis_data(self) -> pd.DataFrame:
         """Load analysis split data."""

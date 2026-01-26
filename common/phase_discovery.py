@@ -397,6 +397,72 @@ def discover_steering_coefficients(config: 'Config') -> dict[str, float]:
     }
 
 
+def discover_top_n_latents(config: 'Config', log=None) -> dict:
+    """
+    Discover top-N latent candidates from Phase 2.10 (t-statistic selection).
+
+    Reads top_20_latents.json and returns the top config.phase3_8_n_candidates
+    from each category, plus the sorted unique layers needed for extraction.
+
+    Args:
+        config: Config object with phase3_8_n_candidates
+        log: Optional logger (uses module logger if None)
+
+    Returns:
+        dict with:
+            'correct': list of candidate dicts (layer, latent_idx, t_statistic, ...)
+            'incorrect': list of candidate dicts
+            'all_layers': sorted list of unique layers across all candidates
+    """
+    from common.utils import load_json
+
+    log = log or logger
+    n = getattr(config, 'phase3_8_n_candidates', 5)
+
+    # Locate Phase 2.10 output
+    phase_2_10_dir = Path(get_phase_output_dir("2.10", config))
+    top_latents_file = phase_2_10_dir / "top_20_latents.json"
+
+    if not top_latents_file.exists():
+        latest_output = discover_latest_phase_output("2.10")
+        if latest_output:
+            top_latents_file = Path(latest_output).parent / "top_20_latents.json"
+
+    if not top_latents_file.exists():
+        raise FileNotFoundError(
+            "top_20_latents.json not found in Phase 2.10. "
+            "Please run Phase 2.10 first."
+        )
+
+    log.info(f"Loading top-{n} latent candidates from: {top_latents_file}")
+    top_latents = load_json(top_latents_file)
+
+    if 'correct' not in top_latents or 'incorrect' not in top_latents:
+        raise ValueError("Missing 'correct' or 'incorrect' in top_20_latents.json")
+    if not top_latents['correct'] or not top_latents['incorrect']:
+        raise ValueError("Empty latent list in top_20_latents.json")
+
+    correct_candidates = top_latents['correct'][:n]
+    incorrect_candidates = top_latents['incorrect'][:n]
+
+    # Collect unique layers across all candidates
+    all_layers = sorted(set(
+        c['layer'] for c in correct_candidates + incorrect_candidates
+    ))
+
+    log.info(f"Top-{n} correct candidates: "
+             + ", ".join(f"L{c['layer']}-{c['latent_idx']}" for c in correct_candidates))
+    log.info(f"Top-{n} incorrect candidates: "
+             + ", ".join(f"L{c['layer']}-{c['latent_idx']}" for c in incorrect_candidates))
+    log.info(f"Unique layers needed for extraction: {all_layers}")
+
+    return {
+        'correct': correct_candidates,
+        'incorrect': incorrect_candidates,
+        'all_layers': all_layers,
+    }
+
+
 def discover_optimal_percentile(config: 'Config') -> dict:
     """
     Load optimal percentile from Phase 8.2 via manifest system.

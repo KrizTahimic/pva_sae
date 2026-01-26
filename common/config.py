@@ -204,6 +204,7 @@ class Config:
     
     # === EVALUATION (Phase 3.8) ===
     evaluation_random_seed: int = 42
+    phase3_8_n_candidates: int = 5  # Number of top-N latent candidates to evaluate (N=1 reproduces legacy behavior)
 
     # === PROBE BASELINE SETTINGS (Phase 2.6) ===
     # Reference: Kantamneni et al. (2025) "Are Sparse Autoencoders Useful?" arXiv:2502.16681

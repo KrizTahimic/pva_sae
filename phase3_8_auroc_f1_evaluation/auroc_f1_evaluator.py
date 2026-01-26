@@ -142,148 +142,148 @@ def run_evaluation(config):
         phase2_10_dir = Path(probe.phase_dir)  # For dependency tracking
 
     else:
-        # === SAE MODE (default) ===
-        # Phase 1: Load best latents from Phase 2.10 (t-statistic based selection)
-        logger.info("Loading best latents from Phase 2.10...")
+        # === SAE MODE (default) — Top-N candidate evaluation ===
+        from common.phase_discovery import discover_top_n_latents
+        top_n = discover_top_n_latents(config, logger)
 
-        # Auto-discover Phase 2.10 output
         phase2_10_dir = discover_latest_phase_output("2.10")
         if not phase2_10_dir:
             raise FileNotFoundError("No Phase 2.10 output found. Please run Phase 2.10 first.")
         phase2_10_dir = Path(phase2_10_dir).parent
 
-        # Load best latents from Phase 2.10
-        top_latents_file = phase2_10_dir / 'top_20_latents.json'
-        if not top_latents_file.exists():
-            raise FileNotFoundError(f"top_20_latents.json not found in {phase2_10_dir}. Please run Phase 2.10 first.")
+    # Evaluation: separate paths for probe vs SAE top-N
+    all_correct_candidates = None
+    all_incorrect_candidates = None
 
-        top_latents = load_json(top_latents_file)
-
-        # Validate structure
-        if 'correct' not in top_latents or 'incorrect' not in top_latents:
-            raise ValueError("Missing 'correct' or 'incorrect' in top_20_latents.json")
-
-        if not top_latents['correct'] or not top_latents['incorrect']:
-            raise ValueError("Empty latent list in top_20_latents.json")
-
-        # Get the best (index 0) latents
-        best_correct = top_latents['correct'][0]
-        best_incorrect = top_latents['incorrect'][0]
-
-        correct_layer = best_correct['layer']
-        correct_latent_idx = best_correct['latent_idx']
-        incorrect_layer = best_incorrect['layer']
-        incorrect_latent_idx = best_incorrect['latent_idx']
-
-        logger.info(f"Best correct-predicting latent: idx {correct_latent_idx} at layer {correct_layer}")
-        logger.info(f"Best incorrect-predicting latent: idx {incorrect_latent_idx} at layer {incorrect_layer}")
-
-    # Phase 2: Evaluate Correct-Predicting Feature
-    logger.info("\n" + "="*60)
-    logger.info(f"EVALUATING CORRECT-PREDICTING {'PROBE' if use_probe else 'FEATURE'}")
-    logger.info("="*60)
-
-    # Load tuning split for correct latent
     if use_probe:
+        # === PROBE EVALUATION (single direction per category) ===
+        logger.info("\n" + "="*60)
+        logger.info("EVALUATING CORRECT-PREDICTING PROBE")
+        logger.info("="*60)
+
         y_true_hp_correct, scores_hp_correct = load_split_probe_activations(
             'tuning', probe_layer, probe_direction, probe_bias, 'correct',
             phase3_5_dir, phase3_6_dir, config
         )
-    else:
-        y_true_hp_correct, scores_hp_correct = load_split_activations(
-            'tuning', correct_layer, correct_latent_idx, 'correct',
-            phase3_5_dir, phase3_6_dir, config
+
+        logger.info(f"Correct-predicting probe (tuning split):")
+        logger.info(f"  Total samples: {len(y_true_hp_correct)}")
+        logger.info(f"  Positive class (correct code): {sum(y_true_hp_correct == 1)}")
+        logger.info(f"  Negative class (incorrect code): {sum(y_true_hp_correct == 0)}")
+
+        optimal_threshold_correct, hp_metrics_correct = find_optimal_threshold(
+            y_true_hp_correct, scores_hp_correct, 'correct', output_dir
         )
 
-    logger.info(f"Correct-predicting feature (tuning split):")
-    logger.info(f"  Total samples: {len(y_true_hp_correct)}")
-    logger.info(f"  Positive class (correct code): {sum(y_true_hp_correct == 1)}")
-    logger.info(f"  Negative class (incorrect code): {sum(y_true_hp_correct == 0)}")
-
-    # Find optimal threshold
-    optimal_threshold_correct, hp_metrics_correct = find_optimal_threshold(
-        y_true_hp_correct,
-        scores_hp_correct,
-        'correct',
-        output_dir
-    )
-
-    # Load analysis split
-    if use_probe:
         y_true_val_correct, scores_val_correct = load_split_probe_activations(
             'analysis', probe_layer, probe_direction, probe_bias, 'correct',
             phase3_5_dir, phase3_6_dir, config
         )
-    else:
-        y_true_val_correct, scores_val_correct = load_split_activations(
-            'analysis', correct_layer, correct_latent_idx, 'correct',
-            phase3_5_dir, phase3_6_dir, config
+
+        logger.info(f"\nCorrect-predicting probe (analysis split):")
+        logger.info(f"  Total samples: {len(y_true_val_correct)}")
+        logger.info(f"  Positive class (correct code): {sum(y_true_val_correct == 1)}")
+        logger.info(f"  Negative class (incorrect code): {sum(y_true_val_correct == 0)}")
+
+        val_metrics_correct = calculate_metrics(
+            y_true_val_correct, scores_val_correct,
+            optimal_threshold_correct, 'correct_validation', output_dir
         )
 
-    logger.info(f"\nCorrect-predicting feature (analysis split):")
-    logger.info(f"  Total samples: {len(y_true_val_correct)}")
-    logger.info(f"  Positive class (correct code): {sum(y_true_val_correct == 1)}")
-    logger.info(f"  Negative class (incorrect code): {sum(y_true_val_correct == 0)}")
+        logger.info("\n" + "="*60)
+        logger.info("EVALUATING INCORRECT-PREDICTING PROBE")
+        logger.info("="*60)
 
-    # Evaluate on validation using hyperparameter threshold
-    val_metrics_correct = calculate_metrics(
-        y_true_val_correct, scores_val_correct,
-        optimal_threshold_correct, 'correct_validation', output_dir
-    )
-
-    # Phase 3: Evaluate Incorrect-Predicting Feature
-    logger.info("\n" + "="*60)
-    logger.info(f"EVALUATING INCORRECT-PREDICTING {'PROBE' if use_probe else 'FEATURE'}")
-    logger.info("="*60)
-
-    # Load tuning split for incorrect latent
-    if use_probe:
-        # For incorrect prediction with probe, negate the direction
         y_true_hp_incorrect, scores_hp_incorrect = load_split_probe_activations(
             'tuning', probe_layer, -probe_direction, -probe_bias, 'incorrect',
             phase3_5_dir, phase3_6_dir, config
         )
-    else:
-        y_true_hp_incorrect, scores_hp_incorrect = load_split_activations(
-            'tuning', incorrect_layer, incorrect_latent_idx, 'incorrect',
-            phase3_5_dir, phase3_6_dir, config
+
+        logger.info(f"Incorrect-predicting probe (tuning split):")
+        logger.info(f"  Total samples: {len(y_true_hp_incorrect)}")
+        logger.info(f"  Positive class (incorrect code): {sum(y_true_hp_incorrect == 1)}")
+        logger.info(f"  Negative class (correct code): {sum(y_true_hp_incorrect == 0)}")
+
+        optimal_threshold_incorrect, hp_metrics_incorrect = find_optimal_threshold(
+            y_true_hp_incorrect, scores_hp_incorrect, 'incorrect', output_dir
         )
 
-    logger.info(f"Incorrect-predicting feature (tuning split):")
-    logger.info(f"  Total samples: {len(y_true_hp_incorrect)}")
-    logger.info(f"  Positive class (incorrect code): {sum(y_true_hp_incorrect == 1)}")
-    logger.info(f"  Negative class (correct code): {sum(y_true_hp_incorrect == 0)}")
-
-    # Find optimal threshold (for incorrect-predicting, high activation = incorrect)
-    optimal_threshold_incorrect, hp_metrics_incorrect = find_optimal_threshold(
-        y_true_hp_incorrect,
-        scores_hp_incorrect,
-        'incorrect',
-        output_dir
-    )
-
-    # Load analysis split
-    if use_probe:
         y_true_val_incorrect, scores_val_incorrect = load_split_probe_activations(
             'analysis', probe_layer, -probe_direction, -probe_bias, 'incorrect',
             phase3_5_dir, phase3_6_dir, config
         )
-    else:
-        y_true_val_incorrect, scores_val_incorrect = load_split_activations(
-            'analysis', incorrect_layer, incorrect_latent_idx, 'incorrect',
-            phase3_5_dir, phase3_6_dir, config
+
+        logger.info(f"\nIncorrect-predicting probe (analysis split):")
+        logger.info(f"  Total samples: {len(y_true_val_incorrect)}")
+        logger.info(f"  Positive class (incorrect code): {sum(y_true_val_incorrect == 1)}")
+        logger.info(f"  Negative class (correct code): {sum(y_true_val_incorrect == 0)}")
+
+        val_metrics_incorrect = calculate_metrics(
+            y_true_val_incorrect, scores_val_incorrect,
+            optimal_threshold_incorrect, 'incorrect_validation', output_dir
         )
 
-    logger.info(f"\nIncorrect-predicting feature (analysis split):")
-    logger.info(f"  Total samples: {len(y_true_val_incorrect)}")
-    logger.info(f"  Positive class (incorrect code): {sum(y_true_val_incorrect == 1)}")
-    logger.info(f"  Negative class (correct code): {sum(y_true_val_incorrect == 0)}")
+    else:
+        # === SAE TOP-N CANDIDATE EVALUATION ===
+        logger.info("\n" + "="*60)
+        logger.info("EVALUATING CORRECT-PREDICTING CANDIDATES")
+        logger.info("="*60)
 
-    # Evaluate on validation using hyperparameter threshold
-    val_metrics_incorrect = calculate_metrics(
-        y_true_val_incorrect, scores_val_incorrect,
-        optimal_threshold_incorrect, 'incorrect_validation', output_dir
-    )
+        best_correct_result, all_correct_candidates = evaluate_candidates_and_select_best(
+            top_n['correct'], 'correct', phase3_5_dir, phase3_6_dir, config
+        )
+
+        correct_layer = best_correct_result['layer']
+        correct_latent_idx = best_correct_result['latent_idx']
+        hp_metrics_correct = best_correct_result['hyperparameter_split']
+        val_metrics_correct = best_correct_result['validation_split']
+        y_true_val_correct = best_correct_result['_y_true_val']
+        scores_val_correct = best_correct_result['_scores_val']
+
+        # Generate confusion matrices for best correct candidate
+        plot_confusion_matrix(
+            best_correct_result['_y_true_hp'],
+            (best_correct_result['_scores_hp'] >= hp_metrics_correct['threshold']).astype(int),
+            'correct', output_dir
+        )
+        plot_confusion_matrix(
+            y_true_val_correct,
+            (scores_val_correct >= val_metrics_correct['threshold']).astype(int),
+            'correct_validation', output_dir
+        )
+
+        logger.info(f"\nSelected best correct: L{correct_layer}-{correct_latent_idx} "
+                     f"(val AUROC={val_metrics_correct['auroc']:.4f})")
+
+        logger.info("\n" + "="*60)
+        logger.info("EVALUATING INCORRECT-PREDICTING CANDIDATES")
+        logger.info("="*60)
+
+        best_incorrect_result, all_incorrect_candidates = evaluate_candidates_and_select_best(
+            top_n['incorrect'], 'incorrect', phase3_5_dir, phase3_6_dir, config
+        )
+
+        incorrect_layer = best_incorrect_result['layer']
+        incorrect_latent_idx = best_incorrect_result['latent_idx']
+        hp_metrics_incorrect = best_incorrect_result['hyperparameter_split']
+        val_metrics_incorrect = best_incorrect_result['validation_split']
+        y_true_val_incorrect = best_incorrect_result['_y_true_val']
+        scores_val_incorrect = best_incorrect_result['_scores_val']
+
+        # Generate confusion matrices for best incorrect candidate
+        plot_confusion_matrix(
+            best_incorrect_result['_y_true_hp'],
+            (best_incorrect_result['_scores_hp'] >= hp_metrics_incorrect['threshold']).astype(int),
+            'incorrect', output_dir
+        )
+        plot_confusion_matrix(
+            y_true_val_incorrect,
+            (scores_val_incorrect >= val_metrics_incorrect['threshold']).astype(int),
+            'incorrect_validation', output_dir
+        )
+
+        logger.info(f"\nSelected best incorrect: L{incorrect_layer}-{incorrect_latent_idx} "
+                     f"(val AUROC={val_metrics_incorrect['auroc']:.4f})")
 
     # Generate combined F1 threshold plot
     plot_combined_f1_thresholds(hp_metrics_correct, hp_metrics_incorrect, output_dir)
@@ -331,7 +331,13 @@ def run_evaluation(config):
             'phase3_5_dir': str(phase3_5_dir),
             'phase3_6_dir': str(phase3_6_dir),
             'phase2_10_dir' if not use_probe else 'phase2_6_dir': str(phase2_10_dir)
-        }
+        },
+        'candidate_evaluation': {
+            'correct': all_correct_candidates,
+            'incorrect': all_incorrect_candidates,
+            'selection_criterion': 'validation_auroc',
+            'n_candidates': getattr(config, 'phase3_8_n_candidates', 5)
+        } if all_correct_candidates is not None else None
     }
     if use_probe:
         results['probe_info'] = {
@@ -865,6 +871,175 @@ def load_split_activations(
         torch.cuda.empty_cache()
 
     return np.array(labels), np.array(activations)
+
+def evaluate_single_latent(
+    layer: int,
+    latent_idx: int,
+    latent_type: str,
+    phase3_5_dir: Path,
+    phase3_6_dir: Path,
+    config: Config
+) -> Optional[dict]:
+    """Evaluate one latent candidate on tuning + analysis splits (no plots).
+
+    Args:
+        layer: SAE layer number
+        latent_idx: Latent index within the SAE
+        latent_type: 'correct' or 'incorrect'
+        phase3_5_dir: Phase 3.5 output directory (analysis split)
+        phase3_6_dir: Phase 3.6 output directory (tuning split)
+        config: Configuration object
+
+    Returns:
+        dict with metrics and raw data, or None if evaluation fails
+    """
+    try:
+        # Tuning split: find optimal threshold
+        y_true_hp, scores_hp = load_split_activations(
+            'tuning', layer, latent_idx, latent_type,
+            phase3_5_dir, phase3_6_dir, config
+        )
+
+        if len(y_true_hp) == 0:
+            logger.warning(f"No tuning samples for L{layer}-{latent_idx}")
+            return None
+
+        # Grid search for F1-optimal threshold (same logic as find_optimal_threshold)
+        thresholds = np.linspace(scores_hp.min(), scores_hp.max(), 102)[1:-1]
+        f1_scores = [
+            f1_score(y_true_hp, (scores_hp >= t).astype(int), zero_division=0)
+            for t in thresholds
+        ]
+        optimal_idx = np.argmax(f1_scores)
+        optimal_threshold = float(thresholds[optimal_idx])
+
+        # Tuning metrics
+        hp_auroc = float(roc_auc_score(y_true_hp, scores_hp))
+        y_pred_hp = (scores_hp >= optimal_threshold).astype(int)
+        hp_metrics = {
+            'auroc': hp_auroc,
+            'f1': float(f1_score(y_true_hp, y_pred_hp, zero_division=0)),
+            'precision': float(precision_score(y_true_hp, y_pred_hp, zero_division=0)),
+            'recall': float(recall_score(y_true_hp, y_pred_hp, zero_division=0)),
+            'threshold': optimal_threshold,
+            'threshold_range': (float(scores_hp.min()), float(scores_hp.max())),
+            'f1_curve': {'thresholds': thresholds.tolist(), 'f1_scores': f1_scores}
+        }
+
+        # Analysis (validation) split
+        y_true_val, scores_val = load_split_activations(
+            'analysis', layer, latent_idx, latent_type,
+            phase3_5_dir, phase3_6_dir, config
+        )
+
+        if len(y_true_val) == 0:
+            logger.warning(f"No analysis samples for L{layer}-{latent_idx}")
+            return None
+
+        val_auroc = float(roc_auc_score(y_true_val, scores_val))
+        y_pred_val = (scores_val >= optimal_threshold).astype(int)
+        val_metrics = {
+            'auroc': val_auroc,
+            'f1': float(f1_score(y_true_val, y_pred_val, zero_division=0)),
+            'precision': float(precision_score(y_true_val, y_pred_val, zero_division=0)),
+            'recall': float(recall_score(y_true_val, y_pred_val, zero_division=0)),
+            'threshold': optimal_threshold
+        }
+
+        logger.info(f"  L{layer}-{latent_idx}: val AUROC={val_auroc:.4f}, val F1={val_metrics['f1']:.4f}")
+
+        return {
+            'layer': layer,
+            'latent_idx': latent_idx,
+            'hyperparameter_split': hp_metrics,
+            'validation_split': val_metrics,
+            '_y_true_hp': y_true_hp,
+            '_scores_hp': scores_hp,
+            '_y_true_val': y_true_val,
+            '_scores_val': scores_val,
+        }
+    except Exception as e:
+        logger.warning(f"Failed to evaluate L{layer}-{latent_idx} ({latent_type}): {e}")
+        return None
+
+
+def evaluate_candidates_and_select_best(
+    candidates: list[dict],
+    latent_type: str,
+    phase3_5_dir: Path,
+    phase3_6_dir: Path,
+    config: Config
+) -> tuple[dict, list[dict]]:
+    """Evaluate top-N candidates and select best by validation AUROC.
+
+    Args:
+        candidates: List of candidate dicts from Phase 2.10 (layer, latent_idx, ...)
+        latent_type: 'correct' or 'incorrect'
+        phase3_5_dir: Phase 3.5 output directory (analysis split)
+        phase3_6_dir: Phase 3.6 output directory (tuning split)
+        config: Configuration object
+
+    Returns:
+        Tuple of (best_result, all_results_for_json)
+
+    Raises:
+        RuntimeError: If all candidates fail evaluation
+    """
+    logger.info(f"Evaluating {len(candidates)} {latent_type}-predicting candidates:")
+
+    results = []
+    for rank, candidate in enumerate(candidates):
+        layer = candidate['layer']
+        latent_idx = candidate['latent_idx']
+        logger.info(f"  Candidate {rank}: L{layer}-{latent_idx}")
+
+        result = evaluate_single_latent(
+            layer, latent_idx, latent_type,
+            phase3_5_dir, phase3_6_dir, config
+        )
+
+        if result is not None:
+            result['rank'] = rank
+            results.append(result)
+        else:
+            logger.warning(f"  Candidate {rank} (L{layer}-{latent_idx}): SKIPPED (missing layer data)")
+
+    if not results:
+        raise RuntimeError(
+            f"All {len(candidates)} {latent_type}-predicting candidates failed. "
+            f"Re-run Phases 3.5/3.6 to extract activations for the needed layers."
+        )
+
+    # Select best by validation AUROC
+    best = max(results, key=lambda r: r['validation_split']['auroc'])
+
+    # Log comparison table
+    logger.info(f"\n{latent_type.upper()}-PREDICTING CANDIDATE COMPARISON:")
+    logger.info(f"{'Rank':<6} {'Latent':<14} {'Val AUROC':<12} {'Val F1':<10} {'HP AUROC':<12} {'HP F1':<10} {'Selected'}")
+    logger.info("-" * 78)
+    for r in results:
+        selected = " <-- BEST" if r is best else ""
+        logger.info(
+            f"{r['rank']:<6} L{r['layer']}-{r['latent_idx']:<6} "
+            f"{r['validation_split']['auroc']:<12.4f} {r['validation_split']['f1']:<10.4f} "
+            f"{r['hyperparameter_split']['auroc']:<12.4f} {r['hyperparameter_split']['f1']:<10.4f}"
+            f"{selected}"
+        )
+
+    # Build JSON-serializable candidate list (without numpy arrays)
+    all_for_json = [
+        {
+            'rank': r['rank'],
+            'layer': r['layer'],
+            'latent_idx': r['latent_idx'],
+            'hyperparameter_split': r['hyperparameter_split'],
+            'validation_split': r['validation_split'],
+        }
+        for r in results
+    ]
+
+    return best, all_for_json
+
 
 def main():
     """Legacy entry point for running directly. Uses Phase38Runner."""
