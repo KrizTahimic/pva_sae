@@ -404,7 +404,7 @@ def calculate_metrics(
     auroc = roc_auc_score(y_true, scores)
 
     # Apply threshold for binary predictions
-    y_pred = (scores > threshold).astype(int)
+    y_pred = (scores >= threshold).astype(int)
 
     # Calculate threshold-dependent metrics
     precision = precision_score(y_true, y_pred, zero_division=0)
@@ -446,7 +446,7 @@ def find_optimal_threshold(
         Tuple of (optimal_threshold, metrics_dict)
     """
     # Grid search for F1-Optimal Threshold
-    thresholds = np.linspace(scores.min(), scores.max(), 100)
+    thresholds = np.linspace(scores.min(), scores.max(), 102)[1:-1]
     f1_scores = [
         f1_score(y_true, (scores >= threshold).astype(int), zero_division=0)
         for threshold in thresholds
