@@ -1029,7 +1029,7 @@ class TemperatureOrchestrator:
             values_to_test=self.config.temperature_variation_temps,
             early_stop_fn=None,  # No early stopping for temperature
             merge_fn=self._merge_temperature_results,
-            timeout_per_iteration=1200,  # 20 minutes (some GPUs are slower)
+            timeout_per_iteration=2400,  # 40 minutes (8-layer extraction needs more time)
             checkpoint_dir=self.output_dir / "parallel_checkpoints"
         )
 
