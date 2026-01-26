@@ -112,6 +112,10 @@ def run_evaluation(config):
         }
         plot_comparative_metrics(viz_results, output_dir)
 
+        # Regenerate candidate comparison plot if candidate data exists
+        if results.get('candidate_evaluation') is not None:
+            plot_candidate_comparison(results['candidate_evaluation'], output_dir)
+
         logger.info("Visualization regeneration complete")
         logger.info("Note: Confusion matrices and PR curves require full rerun to regenerate")
         return results
@@ -308,6 +312,7 @@ def run_evaluation(config):
     )
 
     # Save results
+    # (Build results dict first so candidate_evaluation is available for plotting)
     # For probe mode, latent_idx is None (not applicable)
     correct_latent_idx = None if use_probe else correct_latent_idx
     incorrect_latent_idx = None if use_probe else incorrect_latent_idx
@@ -346,6 +351,10 @@ def run_evaluation(config):
             'bias': probe_bias,
         }
 
+    # Plot candidate comparison chart (SAE mode only)
+    if results.get('candidate_evaluation') is not None:
+        plot_candidate_comparison(results['candidate_evaluation'], output_dir)
+
     results_path = output_dir / 'auroc_f1_results.json'
     save_json(results, results_path)
     logger.info(f"\nResults saved to: {results_path}")
@@ -373,6 +382,7 @@ def run_evaluation(config):
             "confusion_correct": "confusion_matrix_correct.png",
             "confusion_incorrect": "confusion_matrix_incorrect.png",
             "comparative_metrics": "comparative_metrics.png",
+            "candidate_comparison": "candidate_comparison.png",
         },
         config=config,
         output_dir=str(output_dir),
@@ -694,6 +704,80 @@ def plot_precision_recall_curves(
     plt.close()
 
     logger.info(f"Saved precision-recall curves to {output_path}")
+
+
+def plot_candidate_comparison(
+    candidate_evaluation: dict,
+    output_dir: Path
+) -> None:
+    """Create grouped bar chart comparing all evaluated candidates (AUROC + F1).
+
+    Produces a 1x2 figure: left panel for correct-predicting candidates,
+    right panel for incorrect-predicting candidates. The selected (best)
+    candidate is highlighted with a bold edge.
+
+    Args:
+        candidate_evaluation: The 'candidate_evaluation' dict from results JSON,
+            containing 'correct' and 'incorrect' lists with per-candidate metrics.
+        output_dir: Directory to save the plot.
+    """
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    palette = sns.color_palette()
+    color_auroc = palette[0]
+    color_f1 = palette[1]
+
+    categories = [
+        ('correct', 'Correct-Predicting Candidates', axes[0]),
+        ('incorrect', 'Incorrect-Predicting Candidates', axes[1]),
+    ]
+
+    for cat_key, title, ax in categories:
+        candidates = candidate_evaluation.get(cat_key)
+        if not candidates:
+            ax.set_title(title)
+            ax.text(0.5, 0.5, 'No candidates', ha='center', va='center',
+                    transform=ax.transAxes)
+            continue
+
+        labels = [f"L{c['layer']}-{c['latent_idx']}" for c in candidates]
+        aurocs = [c['validation_split']['auroc'] for c in candidates]
+        f1s = [c['validation_split']['f1'] for c in candidates]
+        selected_flags = [c.get('selected', False) for c in candidates]
+
+        x = np.arange(len(labels))
+        width = 0.35
+
+        bars_auroc = ax.bar(x - width / 2, aurocs, width, label='AUROC', color=color_auroc)
+        bars_f1 = ax.bar(x + width / 2, f1s, width, label='F1', color=color_f1)
+
+        # Highlight selected candidate with bold edge
+        for i, is_selected in enumerate(selected_flags):
+            if is_selected:
+                for bar_group in [bars_auroc, bars_f1]:
+                    bar_group[i].set_edgecolor('black')
+                    bar_group[i].set_linewidth(2.5)
+                # Star marker above the taller bar
+                peak = max(aurocs[i], f1s[i])
+                ax.plot(x[i], peak + 0.04, '*', color='black', markersize=14,
+                        zorder=5)
+
+        ax.axhline(y=0.5, color='grey', linestyle='--', alpha=0.6, linewidth=1)
+        ax.set_xlabel('Candidate Latent')
+        ax.set_ylabel('Score')
+        ax.set_title(title)
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=30, ha='right')
+        ax.set_ylim(0, 1.15)
+        ax.legend(loc='upper right')
+        ax.grid(axis='y', alpha=0.3)
+
+    plt.tight_layout()
+    output_path = output_dir / 'candidate_comparison.png'
+    plt.savefig(output_path, dpi=PLOT_DPI, bbox_inches='tight')
+    plt.close()
+
+    logger.info(f"Saved candidate comparison plot to {output_path}")
+
 
 def load_split_probe_activations(
     split_name: str,
@@ -1034,6 +1118,7 @@ def evaluate_candidates_and_select_best(
             'latent_idx': r['latent_idx'],
             'hyperparameter_split': r['hyperparameter_split'],
             'validation_split': r['validation_split'],
+            'selected': (r is best),
         }
         for r in results
     ]

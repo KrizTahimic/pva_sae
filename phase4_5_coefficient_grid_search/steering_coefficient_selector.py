@@ -961,42 +961,25 @@ class CoefficientEvaluator:
         # Get experiment mode
         mode = getattr(self.config, 'phase4_5_experiment_mode', 'all')
 
-        results = {}
+        results = []
 
         if mode in ('all', 'correction'):
             # Correct steering on incorrect problems
             correction_results = self._evaluate_steering(
                 coefficient, incorrect_data, 'correct'
             )
-            correction_rate = calculate_correction_rate(correction_results) if correction_results else 0.0
-            results['correct_steering'] = {
-                'coefficient': coefficient,
-                'steering_type': 'correct',
-                'results': correction_results,
-                'metrics': {'correction_rate': correction_rate},
-                'n_problems': len(correction_results)
-            }
+            for r in correction_results:
+                r['steering_type'] = 'correct'
+            results.extend(correction_results)
 
         if mode in ('all', 'corruption'):
             # Incorrect steering on correct problems
             corruption_results = self._evaluate_steering(
                 coefficient, correct_data, 'incorrect'
             )
-            corruption_rate = calculate_corruption_rate(corruption_results) if corruption_results else 0.0
-            avg_similarity = np.mean([r['code_similarity'] for r in corruption_results]) * 100 if corruption_results else 100
-            composite_score = (corruption_rate + avg_similarity) / 2
-
-            results['incorrect_steering'] = {
-                'coefficient': coefficient,
-                'steering_type': 'incorrect',
-                'results': corruption_results,
-                'metrics': {
-                    'corruption_rate': corruption_rate,
-                    'avg_similarity': avg_similarity,
-                    'composite_score': composite_score
-                },
-                'n_problems': len(corruption_results)
-            }
+            for r in corruption_results:
+                r['steering_type'] = 'incorrect'
+            results.extend(corruption_results)
 
         return {
             'coefficient': coefficient,
@@ -1186,8 +1169,10 @@ class CoefficientOrchestrator:
         """Merge correction results from all GPUs."""
         all_results = []
         for r in gpu_results:
-            steering_results = r.get('results', {}).get('correct_steering', {})
-            all_results.extend(steering_results.get('results', []))
+            all_results.extend(
+                rec for rec in r.get('results', [])
+                if rec.get('steering_type') == 'correct'
+            )
 
         correction_rate = calculate_correction_rate(all_results) if all_results else 0.0
 
@@ -1202,8 +1187,10 @@ class CoefficientOrchestrator:
         """Merge corruption results from all GPUs."""
         all_results = []
         for r in gpu_results:
-            steering_results = r.get('results', {}).get('incorrect_steering', {})
-            all_results.extend(steering_results.get('results', []))
+            all_results.extend(
+                rec for rec in r.get('results', [])
+                if rec.get('steering_type') == 'incorrect'
+            )
 
         corruption_rate = calculate_corruption_rate(all_results) if all_results else 0.0
         avg_similarity = np.mean([r['code_similarity'] for r in all_results]) * 100 if all_results else 100
