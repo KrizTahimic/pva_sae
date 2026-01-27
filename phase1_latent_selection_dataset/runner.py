@@ -482,7 +482,6 @@ class Phase1Runner:
             if excluded_tasks:
                 exclusion_file = output_dir / "excluded_tasks.json"
                 exclusion_summary = create_exclusion_summary(excluded_tasks, total_attempted)
-                from common.utils import save_json
                 save_json(exclusion_summary, exclusion_file)
                 logger.info(f"Saved exclusion summary to {exclusion_file}")
             raise RuntimeError("Phase 1 failed: no tasks were successfully processed")
@@ -534,7 +533,6 @@ class Phase1Runner:
         # Save exclusion summary for transparency
         if all_excluded:
             exclusion_summary = create_exclusion_summary(all_excluded, total_attempted)
-            from common.utils import save_json
             exclusion_file = output_dir / "excluded_tasks.json"
             save_json(exclusion_summary, exclusion_file)
             logger.info(f"Saved exclusion summary to {exclusion_file}")
