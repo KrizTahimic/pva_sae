@@ -397,6 +397,36 @@ def discover_steering_coefficients(config: 'Config') -> dict[str, float]:
     }
 
 
+def _discover_probe_best_layers(config: 'Config', log=None) -> list[int]:
+    """
+    Discover best layers from Phase 2.6 probe directions.
+
+    Returns sorted unique layers from both mass_mean and logreg probes,
+    or [] if Phase 2.6 hasn't been run.
+    """
+    from common.utils import load_json
+
+    log = log or logger
+
+    try:
+        phase_2_6_dir = get_phase_output_dir("2.6", config)
+        probe_file = Path(phase_2_6_dir) / "best_probe_directions.json"
+
+        if not probe_file.exists():
+            return []
+
+        best_probes = load_json(probe_file)
+        layers = set()
+        for method in ('mass_mean', 'logreg'):
+            if method in best_probes and 'best_layer' in best_probes[method]:
+                layers.add(best_probes[method]['best_layer'])
+
+        return sorted(layers)
+    except Exception as e:
+        log.warning(f"Could not load Phase 2.6 probe layers: {e}")
+        return []
+
+
 def discover_top_n_latents(config: 'Config', log=None) -> dict:
     """
     Discover top-N latent candidates from Phase 2.10 (t-statistic selection).
@@ -445,21 +475,29 @@ def discover_top_n_latents(config: 'Config', log=None) -> dict:
     correct_candidates = top_latents['correct'][:n]
     incorrect_candidates = top_latents['incorrect'][:n]
 
-    # Collect unique layers across all candidates
-    all_layers = sorted(set(
+    # Collect unique layers from top-N SAE candidates only
+    top_n_sae_layers = sorted(set(
         c['layer'] for c in correct_candidates + incorrect_candidates
     ))
+
+    # Include probe best layers from Phase 2.6 (if available)
+    probe_layers = _discover_probe_best_layers(config, log)
+    all_layers = sorted(set(top_n_sae_layers) | set(probe_layers))
 
     log.info(f"Top-{n} correct candidates: "
              + ", ".join(f"L{c['layer']}-{c['latent_idx']}" for c in correct_candidates))
     log.info(f"Top-{n} incorrect candidates: "
              + ", ".join(f"L{c['layer']}-{c['latent_idx']}" for c in incorrect_candidates))
-    log.info(f"Unique layers needed for extraction: {all_layers}")
+    log.info(f"SAE top-{n} layers: {top_n_sae_layers}")
+    if probe_layers:
+        log.info(f"Probe best layers: {probe_layers}")
+    log.info(f"Combined extraction layers: {all_layers}")
 
     return {
         'correct': correct_candidates,
         'incorrect': incorrect_candidates,
         'all_layers': all_layers,
+        'probe_layers': probe_layers,
     }
 
 

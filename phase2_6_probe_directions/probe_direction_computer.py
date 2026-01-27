@@ -476,8 +476,8 @@ class ProbeDirectionComputer:
             raise ValueError("No layers successfully processed")
 
         # Find best layers for each method
-        # Mass-mean: best by CV AUROC (for steering)
-        best_mass_mean = max(results.items(), key=lambda x: x[1].mass_mean_cv_auroc)
+        # Mass-mean: best by separation score (for steering)
+        best_mass_mean = max(results.items(), key=lambda x: x[1].mass_mean_separation)
 
         # LogReg: best by CV AUROC (for prediction)
         best_logreg = max(results.items(), key=lambda x: x[1].logreg_cv_auroc)
@@ -491,8 +491,8 @@ class ProbeDirectionComputer:
         self.logger.info("PROBE COMPUTATION SUMMARY")
         self.logger.info("="*60)
 
-        self.logger.info("\nBest layers by CV AUROC:")
-        self.logger.info(f"  Mass-Mean: Layer {best_mass_mean[0]} (AUROC={best_mass_mean[1].mass_mean_cv_auroc:.3f})")
+        self.logger.info("\nBest layers:")
+        self.logger.info(f"  Mass-Mean: Layer {best_mass_mean[0]} (separation={best_mass_mean[1].mass_mean_separation:.3f})")
         self.logger.info(f"  LogReg:    Layer {best_logreg[0]} (AUROC={best_logreg[1].logreg_cv_auroc:.3f})")
 
         self.logger.info("\nBest layers by |t-statistic|:")
