@@ -93,10 +93,10 @@ class SteeringCoefficientSelector:
     def _load_dependencies(self) -> None:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
-            load_steering_latents, load_sae_and_directions,
-            load_baseline_data, split_by_correctness,
+            load_steering_latents, load_baseline_data, split_by_correctness,
             load_probe_directions_for_steering
         )
+        from common.phase_discovery import discover_top_n_steering_latents
 
         if self.use_probe:
             # === PROBE MODE ===
@@ -113,30 +113,39 @@ class SteeringCoefficientSelector:
             self.probe_layer = self.probe.layer
             self.phase2_5_output = self.probe.phase_dir  # For manifest (actually Phase 2.6)
 
-            # Probe mode doesn't use SAE
-            self.top_latents = None
-            self.correct_sae = None
-            self.incorrect_sae = None
+            # Probe mode doesn't use SAE or multi-candidate selection
+            self.correct_candidates = None
+            self.incorrect_candidates = None
+            self.sae_cache = {}
 
             logger.info(f"Mass-mean probe layer: {self.probe.layer}")
         else:
-            # === SAE MODE (default) ===
-            # Load steering latents from Phase 2.5 (separation score selection)
+            # === SAE MODE (default) - Multi-Candidate Selection ===
+            logger.info("=" * 60)
+            logger.info("SAE MODE: Testing top-N latent candidates")
+            logger.info("=" * 60)
+
+            # Load top-N candidates from Phase 2.5
+            n_candidates = getattr(self.config, 'phase4_n_candidates', 5)
+            candidates = discover_top_n_steering_latents(self.config)
+            self.correct_candidates = candidates['correct']
+            self.incorrect_candidates = candidates['incorrect']
+
+            # For backward compatibility: set "best" to first candidate
             latents = load_steering_latents(self.config)
-            self.top_latents = latents.top_latents
             self.best_correct_latent = latents.best_correct_latent
             self.best_incorrect_latent = latents.best_incorrect_latent
             self.phase2_5_output = latents.phase_dir  # Used in manifest
 
-            # Load SAE models and extract latent directions
-            sae = load_sae_and_directions(
-                self.config, self.device, self.model,
-                self.best_correct_latent, self.best_incorrect_latent
-            )
-            self.correct_sae = sae.correct_sae
-            self.incorrect_sae = sae.incorrect_sae
-            self.correct_latent_direction = sae.correct_direction
-            self.incorrect_latent_direction = sae.incorrect_direction
+            # Cache SAEs by layer to avoid reloading (SAEs are expensive to load)
+            self.sae_cache = {}
+            all_layers = candidates['all_layers']
+            for layer in all_layers:
+                logger.info(f"Loading SAE for layer {layer}...")
+                self.sae_cache[layer] = load_sae_for_config(self.config, layer, self.device)
+
+            logger.info(f"Loaded {len(self.sae_cache)} SAEs for layers: {all_layers}")
+            logger.info(f"Testing {n_candidates} correct and {n_candidates} incorrect candidates")
 
         # Load baseline data from Phase 3.6 (hyperparameter tuning set)
         self.baseline_data, self.phase3_6_output = load_baseline_data(
@@ -170,10 +179,28 @@ class SteeringCoefficientSelector:
         
         return memory_percent
         
+    def _get_latent_direction(self, latent: dict) -> torch.Tensor:
+        """Get the decoder direction for a latent from cached SAE.
+
+        Args:
+            latent: dict with 'layer' and 'latent_idx'
+
+        Returns:
+            Latent direction tensor
+        """
+        sae = self.sae_cache[latent['layer']]
+        direction = sae.W_dec[latent['latent_idx']].detach()
+        # Match model dtype
+        model_dtype = next(self.model.parameters()).dtype
+        return direction.to(dtype=model_dtype)
+
     def evaluate_single_dataset(self, coefficient: float,
                                problems_df: pd.DataFrame,
                                steering_type: str,
-                               show_progress: bool = True) -> list[dict]:
+                               show_progress: bool = True,
+                               latent_direction: Optional[torch.Tensor] = None,
+                               target_layer: Optional[int] = None,
+                               candidate_id: Optional[str] = None) -> list[dict]:
         """
         Evaluate a single coefficient on one dataset.
 
@@ -182,17 +209,21 @@ class SteeringCoefficientSelector:
             problems_df: Dataset to test on
             steering_type: 'correct' or 'incorrect'
             show_progress: Whether to show progress bar
+            latent_direction: Optional override for latent direction (for multi-candidate mode)
+            target_layer: Optional override for target layer (for multi-candidate mode)
+            candidate_id: Optional identifier for checkpoint naming (e.g., "L25_4691")
 
         Returns:
             List of result dictionaries for each problem
         """
         # Create checkpoint directory for this specific coefficient
-        checkpoint_dir = self.output_dir / f"checkpoints_{steering_type}_coeff_{int(coefficient)}"
+        ckpt_suffix = f"_{candidate_id}" if candidate_id else ""
+        checkpoint_dir = self.output_dir / f"checkpoints_{steering_type}_coeff_{int(coefficient)}{ckpt_suffix}"
 
         # Initialize CheckpointManager
         checkpoint_mgr = CheckpointManager(
             checkpoint_dir=checkpoint_dir,
-            experiment_name=f"{steering_type}_coeff_{int(coefficient)}",
+            experiment_name=f"{steering_type}_coeff_{int(coefficient)}{ckpt_suffix}",
             frequency=self.checkpoint_frequency,
             gpu_id=self.gpu_id,
             n_gpus=self.n_gpus,
@@ -220,7 +251,11 @@ class SteeringCoefficientSelector:
         logger.info(f"Evaluating on {len(problems_df)} problems...")
 
         # Select latent direction and target layer
-        if steering_type == 'correct':
+        # Use provided overrides (multi-candidate mode) or fall back to class attributes (probe mode)
+        if latent_direction is not None and target_layer is not None:
+            # Multi-candidate mode: use provided direction and layer
+            pass
+        elif steering_type == 'correct':
             latent_direction = self.correct_latent_direction
             target_layer = self.probe_layer if self.use_probe else self.best_correct_latent['layer']
         else:
@@ -522,13 +557,170 @@ class SteeringCoefficientSelector:
             'mean_length_ratio': np.mean(length_ratios)
         }
         
+    def grid_search_for_candidate(
+        self,
+        candidate: dict,
+        steering_type: str
+    ) -> dict:
+        """
+        Run grid search for a single latent candidate.
+
+        Args:
+            candidate: dict with 'layer', 'latent_idx', 'separation_score'
+            steering_type: 'correct' or 'incorrect'
+
+        Returns:
+            dict with optimal coefficient and search results for this candidate
+        """
+        layer = candidate['layer']
+        latent_idx = candidate['latent_idx']
+        candidate_id = f"L{layer}_{latent_idx}"
+        sep_score = candidate.get('separation_score', 0)
+
+        logger.info(f"\n{'='*60}")
+        logger.info(f"Grid search for {steering_type} candidate: {candidate_id}")
+        logger.info(f"Separation score: {sep_score:.4f}")
+        logger.info(f"{'='*60}")
+
+        # Get latent direction from cached SAE
+        latent_direction = self._get_latent_direction(candidate)
+
+        # Use appropriate grid points
+        if steering_type == 'correct':
+            grid_points = self.config.phase4_5_correct_coefficients
+            eval_data = self.initially_incorrect_data
+        else:
+            grid_points = self.config.phase4_5_incorrect_coefficients
+            eval_data = self.initially_correct_data
+
+        logger.info(f"Testing coefficients: {grid_points[:5]}... ({len(grid_points)} total)")
+        logger.info(f"Evaluating on {len(eval_data)} problems")
+
+        # Evaluate each coefficient
+        search_results = []
+        best_coefficient = grid_points[0]
+        best_score = 0
+        best_result = None
+        found_peak = False
+
+        for coeff in grid_points:
+            logger.info(f"  Evaluating coefficient {coeff} for {candidate_id}...")
+
+            # Evaluate on the dataset
+            results = self.evaluate_single_dataset(
+                coefficient=coeff,
+                problems_df=eval_data,
+                steering_type=steering_type,
+                show_progress=True,
+                latent_direction=latent_direction,
+                target_layer=layer,
+                candidate_id=candidate_id
+            )
+
+            # Calculate metrics
+            if steering_type == 'correct':
+                correction_rate = calculate_correction_rate(results) if results else 0.0
+                score = correction_rate
+                metric_name = "correction_rate"
+                metrics = {'correction_rate': correction_rate}
+            else:
+                corruption_rate = calculate_corruption_rate(results) if results else 0.0
+                avg_similarity = np.mean([r['code_similarity'] for r in results]) * 100 if results else 100
+                composite_score = (corruption_rate + avg_similarity) / 2
+                score = composite_score
+                metric_name = "composite_score"
+                metrics = {
+                    'corruption_rate': corruption_rate,
+                    'avg_similarity': avg_similarity,
+                    'composite_score': composite_score
+                }
+
+            result = {
+                'coefficient': coeff,
+                'steering_type': steering_type,
+                'metrics': metrics,
+                'divergence': self.calculate_generation_divergence(results),
+                'n_problems': len(results),
+                'results': results
+            }
+            search_results.append(result)
+
+            logger.info(f"    {candidate_id} coeff={coeff}: {metric_name}={score:.1f}%")
+
+            if best_result is None:
+                best_result = result
+
+            if score > best_score:
+                best_score = score
+                best_coefficient = coeff
+                best_result = result
+                found_peak = True
+
+            # Early stopping
+            if found_peak and score < best_score:
+                logger.info(f"    Early stopping for {candidate_id}: score dropped from {best_score:.1f}% to {score:.1f}%")
+                break
+
+        logger.info(f"\n{candidate_id}: Optimal coefficient={best_coefficient}, best {metric_name}={best_score:.1f}%")
+
+        return {
+            'candidate': candidate,
+            'candidate_id': candidate_id,
+            'optimal_coefficient': best_coefficient,
+            'best_score': best_score,
+            'best_result': best_result,
+            'search_history': search_results,
+            'n_coefficients_tested': len(search_results),
+            'early_stopped': len(search_results) < len(grid_points)
+        }
+
+    def multi_candidate_grid_search(self, steering_type: str) -> list[dict]:
+        """
+        Run grid search for all top-N candidates of a given steering type.
+
+        Args:
+            steering_type: 'correct' or 'incorrect'
+
+        Returns:
+            List of candidate results, sorted by best score (descending)
+        """
+        candidates = self.correct_candidates if steering_type == 'correct' else self.incorrect_candidates
+
+        logger.info(f"\n{'='*80}")
+        logger.info(f"MULTI-CANDIDATE GRID SEARCH: {steering_type.upper()} steering")
+        logger.info(f"Testing {len(candidates)} candidates")
+        logger.info(f"{'='*80}")
+
+        all_candidate_results = []
+        for rank, candidate in enumerate(candidates):
+            candidate_result = self.grid_search_for_candidate(candidate, steering_type)
+            candidate_result['rank'] = rank
+            all_candidate_results.append(candidate_result)
+
+            # Memory cleanup between candidates
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        # Sort by best score (descending)
+        all_candidate_results.sort(key=lambda x: x['best_score'], reverse=True)
+
+        # Log summary
+        logger.info(f"\n{'='*60}")
+        logger.info(f"MULTI-CANDIDATE SUMMARY ({steering_type} steering)")
+        logger.info(f"{'='*60}")
+        for i, r in enumerate(all_candidate_results):
+            logger.info(f"  #{i+1}: {r['candidate_id']} - coeff={r['optimal_coefficient']}, score={r['best_score']:.1f}%")
+
+        return all_candidate_results
+
     def simple_grid_search(self, steering_type: str) -> tuple[float, dict]:
         """
         Simple grid search for optimal coefficient from 10 to 100 in increments of 10.
-        
+
         Args:
             steering_type: 'correct' or 'incorrect'
-            
+
         Returns:
             Tuple of (optimal_coefficient, full_results_dict)
         """
@@ -641,184 +833,216 @@ class SteeringCoefficientSelector:
             save_json(all_results, coeff_dir / "all_results.json")
         
     def run(self) -> dict:
-        """Run simple grid search and save results."""
+        """Run grid search for all latent candidates and save results."""
         start_time = time.time()
-        logger.info("Starting Phase 4.5: Simple Grid Search Coefficient Selection")
+        logger.info("Starting Phase 4.5: Multi-Candidate Grid Search Coefficient Selection")
+
         if self.use_probe:
-            logger.info("PROBE BASELINE MODE: Using Mass-Mean probe directions")
-        logger.info(f"Using ALL problems from hyperparameter tuning set")
-        logger.info("SIMPLIFIED: Only measuring correction rate, NOT preservation rate")
-        
-        # Get experiment mode from config (single source of truth)
+            logger.info("PROBE BASELINE MODE: Using Mass-Mean probe directions (single candidate)")
+            return self._run_probe_mode()
+        else:
+            logger.info("SAE MODE: Testing top-N latent candidates")
+            n_candidates = getattr(self.config, 'phase4_n_candidates', 5)
+            logger.info(f"Testing {n_candidates} candidates per steering type")
+            return self._run_multi_candidate_mode()
+
+    def _run_probe_mode(self) -> dict:
+        """Run single-candidate grid search for probe mode (backward compatible)."""
+        start_time = time.time()
+
         experiment_mode = self.config.phase4_5_experiment_mode
         logger.info(f"Running experiments in '{experiment_mode}' mode")
-        
-        # Determine which steering types to evaluate
+
         if experiment_mode == 'correction':
             steering_types = ['correct']
         elif experiment_mode == 'corruption':
             steering_types = ['incorrect']
         else:
             steering_types = ['correct', 'incorrect']
-        
+
         all_results = {}
         selected_coefficients = {}
-        
-        # Run simple grid search for selected steering types
+
         for steering_type in steering_types:
-            logger.info(f"\n{'='*80}")
-            logger.info(f"Evaluating {steering_type.upper()} steering")
-            logger.info(f"{'='*80}")
-            
-            # Run simple grid search
             optimal_coeff, search_results = self.simple_grid_search(steering_type)
-            
-            # Save results
             all_results[f'{steering_type}_steering'] = search_results
-            
-            # Determine primary metric based on steering type
+
             if steering_type == 'correct':
                 primary_metric = 'correction_rate'
                 metric_value = search_results['best_result']['metrics']['correction_rate']
             else:
-                # Use composite_score as primary metric for incorrect steering (used for early stopping)
                 primary_metric = 'composite_score'
                 metric_value = search_results['best_result']['metrics']['composite_score']
-            
-            # Save selected coefficient with metadata
-            coeff_lookup = {'correct': self.config.phase4_5_correct_coefficients, 'incorrect': self.config.phase4_5_incorrect_coefficients}
-
-            if self.use_probe:
-                # Probe mode: use probe layer
-                layer = self.probe.layer
-                latent_idx = None  # Not applicable for probes
-            else:
-                # SAE mode: use latent info
-                latent_lookup = {'correct': self.best_correct_latent, 'incorrect': self.best_incorrect_latent}
-                best_latent = latent_lookup[steering_type]
-                layer = best_latent['layer']
-                latent_idx = best_latent['latent_idx']
 
             selected_coefficients[steering_type] = {
                 'coefficient': optimal_coeff,
-                'layer': layer,
-                'latent_idx': latent_idx,
+                'layer': self.probe.layer,
+                'latent_idx': None,
                 primary_metric: metric_value,
                 'metrics': search_results['best_result']['metrics'],
-                'n_problems_evaluated': search_results['best_result']['n_problems'],
-                'n_coefficients_tested': len(search_results['search_history']),
-                'early_stopped': len(search_results['search_history']) < len(coeff_lookup[steering_type]),
-                'rationale': f"Optimal coefficient found via simple grid search with {primary_metric} {metric_value:.1f}%"
             }
-            
-            # Save examples for the optimal coefficient
-            self.save_coefficient_examples(
-                optimal_coeff,
-                steering_type,
-                search_results['best_result'].get('results', {})
-            )
-            
-            # Save the evaluation dataset used
-            if steering_type == 'correct':
-                eval_data = self.initially_incorrect_data
-            else:
-                eval_data = self.initially_correct_data
-            
-            subset_filename = f"selected_problems_{steering_type}_steering.parquet"
-            eval_data.to_parquet(self.output_dir / subset_filename)
-            logger.info(f"Saved {len(eval_data)} evaluation problems to {subset_filename}")
-            
-            # Clear GPU cache
-            if self.device.type == "cuda":
-                torch.cuda.empty_cache()
-            elif self.device.type == "mps":
-                torch.mps.synchronize()
-        
-        # Save all results (use GPU-specific names in parallel mode)
-        if self.n_gpus > 1:
-            save_json(all_results, self.output_dir / f"coefficient_analysis_gpu{self.gpu_id}.json")
-            save_json(selected_coefficients, self.output_dir / f"selected_coefficients_gpu{self.gpu_id}.json")
+
+        # Save results
+        save_json(all_results, self.output_dir / "coefficient_analysis.json")
+        save_json(selected_coefficients, self.output_dir / "selected_coefficients.json")
+
+        summary = {
+            'phase': '4.5',
+            'description': 'Probe Grid Search Coefficient Selection',
+            'timestamp': datetime.now().isoformat(),
+            'duration_seconds': time.time() - start_time,
+            'method': 'probe_grid_search',
+            'direction_source': self.direction_source,
+            'probe_info': {'method': 'mass_mean', 'layer': self.probe.layer},
+            'results': {'selected_coefficients': selected_coefficients},
+        }
+        save_json(summary, self.output_dir / "phase_4_5_summary.json")
+
+        # Write manifest
+        from common.phase_discovery import write_phase_output
+        write_phase_output(
+            phase="4.5",
+            outputs={
+                "primary": "phase_4_5_summary.json",
+                "selected_coefficients": "selected_coefficients.json",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+        )
+
+        logger.info(f"Phase 4.5 (probe mode) completed in {time.time() - start_time:.1f} seconds")
+        return summary
+
+    def _run_multi_candidate_mode(self) -> dict:
+        """Run multi-candidate grid search for SAE mode."""
+        start_time = time.time()
+
+        experiment_mode = self.config.phase4_5_experiment_mode
+        logger.info(f"Running experiments in '{experiment_mode}' mode")
+
+        if experiment_mode == 'correction':
+            steering_types = ['correct']
+        elif experiment_mode == 'corruption':
+            steering_types = ['incorrect']
         else:
-            save_json(all_results, self.output_dir / "coefficient_analysis.json")
-            save_json(selected_coefficients, self.output_dir / "selected_coefficients.json")
-        
-        # Collect all steered results from the best coefficient evaluations
-        all_steered_results = []
+            steering_types = ['correct', 'incorrect']
+
+        # Store results for all candidates
+        all_candidate_results = {}
+        selected_coefficients = {}
+
         for steering_type in steering_types:
-            steering_key = f'{steering_type}_steering'
-            if steering_key in all_results and 'best_result' in all_results[steering_key]:
-                best_result = all_results[steering_key]['best_result']
-                if 'results' in best_result:
-                    all_steered_results.extend(best_result['results'])
+            logger.info(f"\n{'='*80}")
+            logger.info(f"MULTI-CANDIDATE GRID SEARCH: {steering_type.upper()} steering")
+            logger.info(f"{'='*80}")
+
+            # Run grid search for all candidates
+            candidate_results = self.multi_candidate_grid_search(steering_type)
+            all_candidate_results[steering_type] = candidate_results
+
+            # Build the selected_coefficients list (new format for Phase 4.6+)
+            selected_coefficients[steering_type] = []
+            for rank, cr in enumerate(candidate_results):
+                candidate = cr['candidate']
+                if steering_type == 'correct':
+                    primary_metric = 'correction_rate'
+                    primary_value = cr['best_result']['metrics'].get('correction_rate', 0)
+                else:
+                    primary_metric = 'composite_score'
+                    primary_value = cr['best_result']['metrics'].get('composite_score', 0)
+
+                selected_coefficients[steering_type].append({
+                    'rank': rank,
+                    'layer': candidate['layer'],
+                    'latent_idx': candidate['latent_idx'],
+                    'separation_score': candidate.get('separation_score', 0),
+                    'coefficient': cr['optimal_coefficient'],
+                    primary_metric: primary_value,
+                    'n_coefficients_tested': cr['n_coefficients_tested'],
+                    'early_stopped': cr['early_stopped'],
+                })
+
+            # Save examples for top candidate
+            if candidate_results:
+                top = candidate_results[0]
+                self.save_coefficient_examples(
+                    top['optimal_coefficient'],
+                    steering_type,
+                    top['best_result'].get('results', [])
+                )
+
+        # Save full candidate results
+        if self.n_gpus > 1:
+            suffix = f"_gpu{self.gpu_id}"
+        else:
+            suffix = ""
+
+        # Convert candidate results to serializable format (exclude 'results' lists to save space)
+        serializable_results = {}
+        for st, crs in all_candidate_results.items():
+            serializable_results[f'{st}_steering'] = {
+                'candidates': [
+                    {
+                        'candidate_id': cr['candidate_id'],
+                        'candidate': cr['candidate'],
+                        'optimal_coefficient': cr['optimal_coefficient'],
+                        'best_score': cr['best_score'],
+                        'n_coefficients_tested': cr['n_coefficients_tested'],
+                        'early_stopped': cr['early_stopped'],
+                        'search_history': [
+                            {k: v for k, v in h.items() if k != 'results'}
+                            for h in cr['search_history']
+                        ]
+                    }
+                    for cr in crs
+                ]
+            }
+
+        save_json(serializable_results, self.output_dir / f"coefficient_analysis{suffix}.json")
+        save_json(selected_coefficients, self.output_dir / f"selected_coefficients{suffix}.json")
 
         # Create phase summary
         summary = {
             'phase': '4.5',
-            'description': 'Simple Grid Search Coefficient Selection',
+            'description': 'Multi-Candidate Grid Search Coefficient Selection',
             'timestamp': datetime.now().isoformat(),
             'duration_seconds': time.time() - start_time,
-            'method': 'simple_grid_search_with_early_stopping',
+            'method': 'multi_candidate_grid_search',
             'direction_source': self.direction_source,
             'config': {
+                'n_candidates': getattr(self.config, 'phase4_n_candidates', 5),
                 'correct_grid_points': self.config.phase4_5_correct_coefficients,
                 'incorrect_grid_points': self.config.phase4_5_incorrect_coefficients,
                 'model': self.config.model_name,
                 'initially_correct_count': len(self.initially_correct_data),
                 'initially_incorrect_count': len(self.initially_incorrect_data),
-                'simplified_approach': 'correction_rate_only',
-                'early_stopping_enabled': True
             },
             'results': {
                 'selected_coefficients': selected_coefficients,
+                'correct_candidates': self.correct_candidates,
+                'incorrect_candidates': self.incorrect_candidates,
             },
-            'steered_error_type_distribution': compute_error_type_distribution(
-                all_steered_results, 'steered_error_type'
-            ) if all_steered_results else None
         }
-        if self.use_probe:
-            summary['probe_info'] = {
-                'method': 'mass_mean',
-                'layer': self.probe.layer,
-            }
-        else:
-            summary['results']['best_correct_latent'] = self.best_correct_latent
-            summary['results']['best_incorrect_latent'] = self.best_incorrect_latent
-        
-        # Save summary (use GPU-specific name in parallel mode)
-        if self.n_gpus > 1:
-            save_json(summary, self.output_dir / f"phase_4_5_summary_gpu{self.gpu_id}.json")
-        else:
-            save_json(summary, self.output_dir / "phase_4_5_summary.json")
 
-        # Log final summary (only for sequential or first GPU in parallel)
+        save_json(summary, self.output_dir / f"phase_4_5_summary{suffix}.json")
+
+        # Log final summary
         if self.n_gpus == 1 or self.gpu_id == 0:
             logger.info(f"\n{'='*80}")
-            logger.info("PHASE 4.5 RESULTS SUMMARY")
+            logger.info("PHASE 4.5 RESULTS SUMMARY (Multi-Candidate Mode)")
             logger.info(f"{'='*80}")
-            if 'correct' in selected_coefficients:
-                logger.info(f"Correct steering:")
-                logger.info(f"  - Optimal coefficient: {selected_coefficients['correct']['coefficient']}")
-                if 'correction_rate' in selected_coefficients['correct']:
-                    logger.info(f"  - Correction rate: {selected_coefficients['correct']['correction_rate']:.1f}%")
-                elif 'correction_rate' in selected_coefficients['correct']['metrics']:
-                    logger.info(f"  - Correction rate: {selected_coefficients['correct']['metrics']['correction_rate']:.1f}%")
-                logger.info("  - NOTE: Preservation rate NOT measured in simplified approach")
 
-            if 'incorrect' in selected_coefficients:
-                logger.info(f"\nIncorrect steering:")
-                logger.info(f"  - Optimal coefficient: {selected_coefficients['incorrect']['coefficient']}")
-                if 'corruption_rate' in selected_coefficients['incorrect']:
-                    logger.info(f"  - Corruption rate: {selected_coefficients['incorrect']['corruption_rate']:.1f}%")
-                elif 'corruption_rate' in selected_coefficients['incorrect']['metrics']:
-                    logger.info(f"  - Corruption rate: {selected_coefficients['incorrect']['metrics']['corruption_rate']:.1f}%")
-                    if 'avg_similarity' in selected_coefficients['incorrect']['metrics']:
-                        logger.info(f"  - Avg similarity: {selected_coefficients['incorrect']['metrics']['avg_similarity']:.1f}%")
+            for steering_type in steering_types:
+                logger.info(f"\n{steering_type.upper()} steering candidates:")
+                for entry in selected_coefficients.get(steering_type, [])[:3]:
+                    metric_key = 'correction_rate' if steering_type == 'correct' else 'composite_score'
+                    logger.info(f"  #{entry['rank']+1}: L{entry['layer']}-{entry['latent_idx']}, "
+                               f"coeff={entry['coefficient']}, {metric_key}={entry.get(metric_key, 0):.1f}%")
 
         logger.info(f"\nPhase 4.5 completed in {time.time() - start_time:.1f} seconds")
         logger.info(f"Results saved to: {self.output_dir}")
-        logger.info(f"{'='*80}\n")
 
-        # Write phase_output.json manifest (skip in parallel mode - orchestrator handles it)
+        # Write phase_output.json manifest (skip in parallel mode)
         if self.n_gpus == 1:
             from common.phase_discovery import write_phase_output
 
@@ -835,7 +1059,8 @@ class SteeringCoefficientSelector:
                     "2.5": str(Path(self.phase2_5_output).parent),
                     "3.6": str(self.phase3_6_output),
                 },
-                config_keys=['model_name', 'dataset_name', 'phase4_5_correct_coefficients', 'phase4_5_incorrect_coefficients']
+                config_keys=['model_name', 'dataset_name', 'phase4_5_correct_coefficients',
+                            'phase4_5_incorrect_coefficients', 'phase4_n_candidates']
             )
             logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
 

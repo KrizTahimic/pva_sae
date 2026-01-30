@@ -110,6 +110,7 @@ class SteeringEffectAnalyzer:
             load_steering_latents, load_sae_and_directions, load_baseline_data,
             load_probe_directions_for_steering
         )
+        from common.phase_discovery import discover_top_n_steering_latents
 
         if self.use_probe:
             # === PROBE MODE ===
@@ -126,22 +127,43 @@ class SteeringEffectAnalyzer:
             self.probe_layer = self.probe.layer
             self.phase2_5_dir = self.probe.phase_dir  # Actually Phase 2.6
 
-            # Probe mode doesn't use SAE
+            # Probe mode doesn't use SAE or multi-candidate
             self.top_latents = None
             self.correct_sae = None
             self.incorrect_sae = None
+            self.correct_candidates = None
+            self.incorrect_candidates = None
+            self.sae_cache = {}
 
             logger.info(f"Mass-mean probe layer: {self.probe.layer}")
         else:
-            # === SAE MODE (default) ===
-            # Load steering latents from Phase 2.5 (separation score selection)
+            # === SAE MODE (default) - Multi-Candidate ===
+            logger.info("=" * 60)
+            logger.info("SAE MODE: Evaluating top-N latent candidates")
+            logger.info("=" * 60)
+
+            # Load top-N candidates from Phase 2.5
+            candidates = discover_top_n_steering_latents(self.config)
+            self.correct_candidates = candidates['correct']
+            self.incorrect_candidates = candidates['incorrect']
+
+            # For backward compatibility, also set best_correct/incorrect_latent
             latents = load_steering_latents(self.config)
             self.top_latents = latents.top_latents
             self.best_correct_latent = latents.best_correct_latent
             self.best_incorrect_latent = latents.best_incorrect_latent
             self.phase2_5_dir = latents.phase_dir
 
-            # Load SAE models and extract latent directions
+            # Cache SAEs by layer for multi-candidate mode
+            self.sae_cache = {}
+            all_layers = candidates['all_layers']
+            for layer in all_layers:
+                logger.info(f"Loading SAE for layer {layer}...")
+                self.sae_cache[layer] = load_sae_for_config(self.config, layer, self.device)
+
+            logger.info(f"Loaded {len(self.sae_cache)} SAEs for layers: {all_layers}")
+
+            # Also load SAE for legacy mode compatibility
             sae = load_sae_and_directions(
                 self.config, self.device, self.model,
                 self.best_correct_latent, self.best_incorrect_latent
@@ -187,12 +209,48 @@ class SteeringEffectAnalyzer:
             coefficients_data = load_json(coefficients_file)
             self.correct_coefficient = coefficients_data.get("correct", {}).get("refined_coefficient", 30)
             self.incorrect_coefficient = coefficients_data.get("incorrect", {}).get("refined_coefficient", 100)
+            self.is_multi_candidate = False
+            self.candidate_coefficients = None
             logger.info(f"Loaded probe coefficients from {probe_dir}: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
         else:
-            coefficients = discover_steering_coefficients(self.config)
-            self.correct_coefficient = coefficients["correct"]
-            self.incorrect_coefficient = coefficients["incorrect"]
-            logger.info(f"Loaded SAE coefficients from Phase 4.6: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
+            # Load Phase 4.6 refined coefficients
+            phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
+            if not phase4_6_output:
+                raise FileNotFoundError("Phase 4.6 output not found. Run Phase 4.6 first.")
+            self.phase4_6_dir = Path(phase4_6_output).parent
+
+            coefficients_file = self.phase4_6_dir / "refined_coefficients.json"
+            if not coefficients_file.exists():
+                raise FileNotFoundError(f"Refined coefficients not found: {coefficients_file}")
+
+            coefficients_data = load_json(coefficients_file)
+
+            # Detect format: multi-candidate (list) vs single-candidate (dict)
+            sample_value = next(iter(coefficients_data.values()))
+            self.is_multi_candidate = isinstance(sample_value, list)
+
+            if self.is_multi_candidate:
+                logger.info("Detected multi-candidate format from Phase 4.6")
+                self.candidate_coefficients = coefficients_data
+                # For backward compatibility, also set single best coefficient
+                if coefficients_data.get('correct'):
+                    self.correct_coefficient = coefficients_data['correct'][0]['coefficient']
+                else:
+                    self.correct_coefficient = 30
+                if coefficients_data.get('incorrect'):
+                    self.incorrect_coefficient = coefficients_data['incorrect'][0]['coefficient']
+                else:
+                    self.incorrect_coefficient = 100
+
+                logger.info(f"Loaded {len(coefficients_data.get('correct', []))} correct candidates, "
+                           f"{len(coefficients_data.get('incorrect', []))} incorrect candidates")
+            else:
+                logger.info("Detected single-candidate format from Phase 4.6")
+                self.candidate_coefficients = None
+                coefficients = discover_steering_coefficients(self.config)
+                self.correct_coefficient = coefficients["correct"]
+                self.incorrect_coefficient = coefficients["incorrect"]
+                logger.info(f"Loaded SAE coefficients: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
         
     def _get_checkpoint_manager(self, steering_type: str) -> CheckpointManager:
         """Get or create checkpoint manager for a steering type."""
@@ -298,6 +356,21 @@ class SteeringEffectAnalyzer:
         
         logger.debug(f"Saved {steering_type} steering attention for task {task_id} in {len(attention_patterns)} layers")
         
+    def _get_latent_direction(self, layer: int, latent_idx: int) -> torch.Tensor:
+        """Get the decoder direction for a latent from cached SAE.
+
+        Args:
+            layer: Layer number
+            latent_idx: Latent index
+
+        Returns:
+            Latent direction tensor in model dtype
+        """
+        sae = self.sae_cache[layer]
+        direction = sae.W_dec[latent_idx].detach()
+        model_dtype = next(self.model.parameters()).dtype
+        return direction.to(dtype=model_dtype)
+
     def _get_steering_params(self, steering_type: str) -> tuple[torch.Tensor, int]:
         """Get latent direction and target layer for steering type.
 
@@ -538,7 +611,187 @@ class SteeringEffectAnalyzer:
 
         attention_extractor.remove_hooks()
         return self._finalize_steering_results(results, excluded_tasks, original_problems_df, steering_type)
-        
+
+    def evaluate_candidate(
+        self,
+        candidate: dict,
+        steering_type: str,
+        coefficient: float
+    ) -> dict:
+        """
+        Evaluate a single candidate latent for steering.
+
+        Args:
+            candidate: Dict with 'layer', 'latent_idx', etc.
+            steering_type: 'correct' or 'incorrect'
+            coefficient: Steering coefficient
+
+        Returns:
+            Dict with candidate info and evaluation metrics
+        """
+        layer = candidate['layer']
+        latent_idx = candidate['latent_idx']
+        candidate_id = f"L{layer}_{latent_idx}"
+
+        logger.info(f"Evaluating {steering_type} candidate {candidate_id} with coefficient {coefficient}")
+
+        # Get latent direction
+        latent_direction = self._get_latent_direction(layer, latent_idx)
+
+        # Select appropriate data
+        if steering_type == 'correct':
+            problems_df = self.initially_incorrect_data.copy()
+        else:
+            problems_df = self.initially_correct_data.copy()
+
+        # Process each task
+        results = []
+        excluded_tasks = []
+
+        for _, row in tqdm_with_logging(problems_df.iterrows(), logger, total=len(problems_df),
+                                        desc=f"{steering_type} {candidate_id}"):
+
+            hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
+            target_module = self.model.model.layers[layer]
+            hook_handle = target_module.register_forward_pre_hook(hook_fn)
+
+            try:
+                test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                prompt = row['prompt']
+
+                inputs = self.tokenizer(
+                    prompt,
+                    return_tensors="pt",
+                    truncation=True,
+                    max_length=self.config.activation_max_length
+                ).to(self.device)
+
+                with torch.no_grad():
+                    outputs = self.model.generate(
+                        **inputs,
+                        max_new_tokens=self.config.model_max_new_tokens,
+                        temperature=0.0,
+                        do_sample=False,
+                        pad_token_id=self.tokenizer.pad_token_id,
+                        eos_token_id=self.tokenizer.eos_token_id
+                    )
+
+                generated_text = self.tokenizer.decode(
+                    outputs[0][inputs['input_ids'].shape[1]:],
+                    skip_special_tokens=True
+                )
+                generated_code = extract_code(generated_text, prompt)
+                eval_result = evaluate_code_with_error_type(generated_code, test_cases)
+
+                baseline_passed = row['baseline_passed']
+                steered_correct = eval_result.passed
+
+                results.append({
+                    'task_id': row['task_id'],
+                    'baseline_passed': baseline_passed,
+                    'steered_correct': steered_correct,
+                    'flipped': baseline_passed != steered_correct,
+                    'steered_error_type': eval_result.error_type
+                })
+
+            except Exception as e:
+                excluded_tasks.append({'task_id': row['task_id'], 'error': str(e)})
+                logger.warning(f"Error processing {row['task_id']}: {e}")
+
+            finally:
+                hook_handle.remove()
+                if self.device.type == "cuda":
+                    torch.cuda.empty_cache()
+
+        # Calculate metrics
+        if steering_type == 'correct':
+            # Correction rate: incorrect → correct
+            n_corrected = sum(1 for r in results if not r['baseline_passed'] and r['steered_correct'])
+            n_total = len(results)
+            rate = (n_corrected / n_total * 100) if n_total > 0 else 0.0
+            metric_name = 'correction_rate'
+        else:
+            # Corruption rate: correct → incorrect
+            n_corrupted = sum(1 for r in results if r['baseline_passed'] and not r['steered_correct'])
+            n_total = len(results)
+            rate = (n_corrupted / n_total * 100) if n_total > 0 else 0.0
+            metric_name = 'corruption_rate'
+
+        # Also calculate preservation rate for correct steering candidates
+        if steering_type == 'correct':
+            # Test on initially correct data for preservation
+            preservation_results = self._quick_evaluate_preservation(latent_direction, layer, coefficient)
+            preservation_rate = preservation_results['preservation_rate']
+        else:
+            preservation_rate = None
+
+        return {
+            'layer': layer,
+            'latent_idx': latent_idx,
+            'coefficient': coefficient,
+            metric_name: rate,
+            'preservation_rate': preservation_rate,
+            'n_total': n_total,
+            'n_excluded': len(excluded_tasks),
+            'separation_score': candidate.get('separation_score'),
+        }
+
+    def _quick_evaluate_preservation(
+        self,
+        latent_direction: torch.Tensor,
+        target_layer: int,
+        coefficient: float
+    ) -> dict:
+        """Quick preservation evaluation (no attention capture)."""
+        problems_df = self.initially_correct_data.copy()
+        preserved = 0
+        total = 0
+
+        for _, row in problems_df.iterrows():
+            hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
+            target_module = self.model.model.layers[target_layer]
+            hook_handle = target_module.register_forward_pre_hook(hook_fn)
+
+            try:
+                test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                prompt = row['prompt']
+
+                inputs = self.tokenizer(
+                    prompt, return_tensors="pt", truncation=True,
+                    max_length=self.config.activation_max_length
+                ).to(self.device)
+
+                with torch.no_grad():
+                    outputs = self.model.generate(
+                        **inputs,
+                        max_new_tokens=self.config.model_max_new_tokens,
+                        temperature=0.0,
+                        do_sample=False,
+                        pad_token_id=self.tokenizer.pad_token_id
+                    )
+
+                generated_text = self.tokenizer.decode(
+                    outputs[0][inputs['input_ids'].shape[1]:],
+                    skip_special_tokens=True
+                )
+                generated_code = extract_code(generated_text, prompt)
+                eval_result = evaluate_code_with_error_type(generated_code, test_cases)
+
+                if row['baseline_passed'] and eval_result.passed:
+                    preserved += 1
+                total += 1
+
+            except Exception:
+                pass
+
+            finally:
+                hook_handle.remove()
+                if self.device.type == "cuda":
+                    torch.cuda.empty_cache()
+
+        preservation_rate = (preserved / total * 100) if total > 0 else 0.0
+        return {'preservation_rate': preservation_rate, 'preserved': preserved, 'total': total}
+
     def evaluate_steering_effects(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
         """Evaluate correct and incorrect steering effects, including preservation."""
         logger.info("Evaluating steering effects...")
@@ -928,11 +1181,21 @@ class SteeringEffectAnalyzer:
             logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
         
     def run(self) -> dict:
-        """Run full steering effect analysis pipeline."""
+        """Run steering effect analysis pipeline."""
         # Handle --viz-only mode
         if handle_viz_only_mode(self, "steering_effect_analysis.json", self.create_visualizations):
             return {}
 
+        # Dispatch based on mode
+        if self.use_probe:
+            return self._run_probe_mode()
+        elif self.is_multi_candidate:
+            return self._run_multi_candidate_mode()
+        else:
+            return self._run_probe_mode()  # Legacy single-candidate SAE mode
+
+    def _run_probe_mode(self) -> dict:
+        """Run single-candidate steering effect analysis (probe or legacy SAE)."""
         start_time = time.time()
         logger.info("Starting Phase 4.8: Steering Effect Analysis")
         if self.use_probe:
@@ -1017,3 +1280,131 @@ class SteeringEffectAnalyzer:
         logger.info(f"Phase 4.8 completed in {duration:.1f} seconds")
 
         return metrics
+
+    def _run_multi_candidate_mode(self) -> dict:
+        """Run multi-candidate steering effect analysis (SAE mode with top-N candidates)."""
+        start_time = time.time()
+        logger.info("=" * 80)
+        logger.info("Phase 4.8: MULTI-CANDIDATE Steering Effect Analysis")
+        logger.info("=" * 80)
+
+        experiment_mode = self.config.phase4_8_experiment_mode
+        logger.info(f"Experiment mode: {experiment_mode}")
+
+        # Determine steering types to process
+        if experiment_mode == 'correction':
+            steering_types = ['correct']
+        elif experiment_mode == 'corruption':
+            steering_types = ['incorrect']
+        else:
+            steering_types = ['correct', 'incorrect']
+
+        # Output structure: list of candidates per steering type
+        candidate_results = {'correct': [], 'incorrect': []}
+
+        for steering_type in steering_types:
+            candidates = self.candidate_coefficients.get(steering_type, [])
+            n_candidates = len(candidates)
+
+            if n_candidates == 0:
+                logger.warning(f"No {steering_type} candidates found in Phase 4.6 output")
+                continue
+
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Evaluating {n_candidates} {steering_type.upper()} candidates")
+            logger.info(f"{'='*60}")
+
+            for rank, candidate_entry in enumerate(candidates):
+                layer = candidate_entry['layer']
+                latent_idx = candidate_entry['latent_idx']
+                coefficient = candidate_entry['coefficient']
+                candidate_id = f"L{layer}_{latent_idx}"
+
+                logger.info(f"\n--- Candidate {rank+1}/{n_candidates}: {candidate_id} (coeff={coefficient}) ---")
+
+                # Evaluate this candidate
+                result = self.evaluate_candidate(
+                    candidate={'layer': layer, 'latent_idx': latent_idx,
+                              'separation_score': candidate_entry.get('separation_score')},
+                    steering_type=steering_type,
+                    coefficient=coefficient
+                )
+
+                # Add rank to result
+                result['rank'] = rank
+
+                candidate_results[steering_type].append(result)
+
+                # Log result
+                metric_key = 'correction_rate' if steering_type == 'correct' else 'corruption_rate'
+                logger.info(f"Candidate {candidate_id}: {metric_key}={result[metric_key]:.1f}%")
+                if result.get('preservation_rate') is not None:
+                    logger.info(f"  preservation_rate={result['preservation_rate']:.1f}%")
+
+                # Memory cleanup between candidates
+                gc.collect()
+                if self.device.type == "cuda":
+                    torch.cuda.empty_cache()
+
+        # Save results
+        save_json(candidate_results, self.output_dir / "steering_effect_analysis.json")
+
+        # Create summary
+        summary = {
+            'phase': '4.8',
+            'description': 'Multi-Candidate Steering Effect Analysis',
+            'timestamp': datetime.now().isoformat(),
+            'duration_seconds': time.time() - start_time,
+            'direction_source': self.direction_source,
+            'mode': 'multi_candidate',
+            'n_candidates_per_type': self.config.phase4_n_candidates,
+            'config': {
+                'model': self.config.model_name,
+                'initially_correct_count': len(self.initially_correct_data),
+                'initially_incorrect_count': len(self.initially_incorrect_data),
+            },
+            'results': {
+                'correct_candidates': len(candidate_results.get('correct', [])),
+                'incorrect_candidates': len(candidate_results.get('incorrect', [])),
+            }
+        }
+        save_json(summary, self.output_dir / "phase_4_8_summary.json")
+
+        # Write manifest
+        from common.phase_discovery import write_phase_output
+        write_phase_output(
+            phase="4.8",
+            outputs={
+                "primary": "phase_4_8_summary.json",
+                "steering_analysis": "steering_effect_analysis.json",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "2.5": str(self.phase2_5_dir),
+                "3.5": str(self.phase3_5_dir),
+                "4.6": str(self.phase4_6_dir),
+            },
+            config_keys=['model_name', 'dataset_name']
+        )
+
+        # Log summary
+        logger.info(f"\n{'='*80}")
+        logger.info("PHASE 4.8 MULTI-CANDIDATE RESULTS")
+        logger.info(f"{'='*80}")
+
+        for steering_type in steering_types:
+            results = candidate_results.get(steering_type, [])
+            if results:
+                metric_key = 'correction_rate' if steering_type == 'correct' else 'corruption_rate'
+                logger.info(f"\n{steering_type.capitalize()} candidates ({len(results)}):")
+                for entry in results:
+                    pres_str = f", preservation={entry['preservation_rate']:.1f}%" if entry.get('preservation_rate') is not None else ""
+                    logger.info(f"  Rank {entry['rank']}: L{entry['layer']}_{entry['latent_idx']} "
+                               f"coeff={entry['coefficient']} ({metric_key}={entry[metric_key]:.1f}%{pres_str})")
+
+        logger.info(f"\nCompleted in {time.time() - start_time:.1f} seconds")
+        logger.info(f"Results saved to: {self.output_dir}")
+        logger.info(f"{'='*80}\n")
+
+        return summary

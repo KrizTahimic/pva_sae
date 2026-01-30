@@ -311,6 +311,16 @@ PHASES: dict[str, PhaseInfo] = {
             "flags": [("preservation_only", "preservation"), ("correction_only", "correction"), ("corruption_only", "corruption")],
         },
     ),
+    "4.9": PhaseInfo(
+        id="4.9",
+        name="Best Latent Selection",
+        output_dir="data/phase4_9",
+        module="phase4_9_latent_selection.latent_selector",
+        runner="LatentSelector",
+        runner_type="class",
+        category="steering",
+        patterns=["best_latent_selection.json", "refined_coefficients.json"],
+    ),
     "4.10": PhaseInfo(
         id="4.10",
         name="Zero-Discrimination Feature Selection",

@@ -376,7 +376,10 @@ def get_phase_output_file(phase: str, output_key: str = "primary", phase_dir: Op
 
 def discover_steering_coefficients(config: 'Config') -> dict[str, float]:
     """
-    Load refined steering coefficients from Phase 4.6 via manifest system.
+    Load refined steering coefficients from Phase 4.9 (preferred) or 4.6 (fallback).
+
+    Phase 4.9 contains the best latent selection from top-N candidates.
+    Phase 4.6 is the fallback for single-candidate runs.
 
     Args:
         config: Config object for model/dataset-aware directory lookup
@@ -385,12 +388,26 @@ def discover_steering_coefficients(config: 'Config') -> dict[str, float]:
         dict with 'correct' and 'incorrect' coefficient values
 
     Raises:
-        FileNotFoundError: If Phase 4.6 hasn't been run (no phase_output.json)
+        FileNotFoundError: If neither Phase 4.9 nor 4.6 has been run
     """
     from common.utils import load_json
 
+    # Try Phase 4.9 first (multi-candidate best selection)
+    try:
+        coeff_file = get_phase_output_file("4.9", "refined_coefficients", config=config)
+        data = load_json(coeff_file)
+        logger.info("Using coefficients from Phase 4.9 (best latent selection)")
+        return {
+            "correct": data["correct"]["refined_coefficient"],
+            "incorrect": data["incorrect"]["refined_coefficient"],
+        }
+    except (FileNotFoundError, KeyError):
+        pass
+
+    # Fall back to Phase 4.6
     coeff_file = get_phase_output_file("4.6", "refined_coefficients", config=config)
     data = load_json(coeff_file)
+    logger.info("Using coefficients from Phase 4.6 (golden section refinement)")
     return {
         "correct": data["correct"]["refined_coefficient"],
         "incorrect": data["incorrect"]["refined_coefficient"],
@@ -498,6 +515,72 @@ def discover_top_n_latents(config: 'Config', log=None) -> dict:
         'incorrect': incorrect_candidates,
         'all_layers': all_layers,
         'probe_layers': probe_layers,
+    }
+
+
+def discover_top_n_steering_latents(config: 'Config', log=None) -> dict:
+    """
+    Discover top-N latent candidates from Phase 2.5 (separation score selection).
+
+    Reads top_20_latents.json and returns the top config.phase4_n_candidates
+    from each category, plus the sorted unique layers needed for extraction.
+
+    Args:
+        config: Config object with phase4_n_candidates
+        log: Optional logger (uses module logger if None)
+
+    Returns:
+        dict with:
+            'correct': list of candidate dicts (layer, latent_idx, separation_score, ...)
+            'incorrect': list of candidate dicts
+            'all_layers': sorted list of unique layers across all candidates
+    """
+    from common.utils import load_json
+
+    log = log or logger
+    n = getattr(config, 'phase4_n_candidates', 5)
+
+    # Locate Phase 2.5 output (separation score selection for steering)
+    phase_2_5_dir = Path(get_phase_output_dir("2.5", config))
+    top_latents_file = phase_2_5_dir / "top_20_latents.json"
+
+    if not top_latents_file.exists():
+        latest_output = discover_latest_phase_output("2.5", config=config)
+        if latest_output:
+            top_latents_file = Path(latest_output).parent / "top_20_latents.json"
+
+    if not top_latents_file.exists():
+        raise FileNotFoundError(
+            "top_20_latents.json not found in Phase 2.5. "
+            "Please run Phase 2.5 first."
+        )
+
+    log.info(f"Loading top-{n} steering latent candidates from: {top_latents_file}")
+    top_latents = load_json(top_latents_file)
+
+    if 'correct' not in top_latents or 'incorrect' not in top_latents:
+        raise ValueError("Missing 'correct' or 'incorrect' in top_20_latents.json")
+    if not top_latents['correct'] or not top_latents['incorrect']:
+        raise ValueError("Empty latent list in top_20_latents.json")
+
+    correct_candidates = top_latents['correct'][:n]
+    incorrect_candidates = top_latents['incorrect'][:n]
+
+    # Collect unique layers from top-N candidates
+    all_layers = sorted(set(
+        c['layer'] for c in correct_candidates + incorrect_candidates
+    ))
+
+    log.info(f"Top-{n} correct candidates: "
+             + ", ".join(f"L{c['layer']}-{c['latent_idx']}" for c in correct_candidates))
+    log.info(f"Top-{n} incorrect candidates: "
+             + ", ".join(f"L{c['layer']}-{c['latent_idx']}" for c in incorrect_candidates))
+    log.info(f"Extraction layers: {all_layers}")
+
+    return {
+        'correct': correct_candidates,
+        'incorrect': incorrect_candidates,
+        'all_layers': all_layers,
     }
 
 

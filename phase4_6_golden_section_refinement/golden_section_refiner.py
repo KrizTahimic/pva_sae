@@ -170,6 +170,7 @@ class GoldenSectionCoefficientRefiner:
     def _load_dependencies(self) -> None:
         """Load features from Phase 2.5/2.6 and baseline data from Phase 3.6."""
         from common.steering_setup import load_probe_directions_for_steering
+        from common.phase_discovery import discover_top_n_steering_latents
 
         if self.use_probe:
             # === PROBE MODE ===
@@ -185,40 +186,37 @@ class GoldenSectionCoefficientRefiner:
             self.incorrect_latent_direction = self.probe.incorrect_direction
             self.probe_layer = self.probe.layer
 
-            # Probe mode doesn't use SAE
-            self.top_latents = None
-            self.correct_sae = None
-            self.incorrect_sae = None
+            # Probe mode doesn't use SAE or multi-candidate
+            self.correct_candidates = None
+            self.incorrect_candidates = None
+            self.sae_cache = {}
 
             logger.info(f"Mass-mean probe layer: {self.probe.layer}")
         else:
-            # === SAE MODE (default) ===
-            # Load steering latents from Phase 2.5 (separation score selection)
+            # === SAE MODE (default) - Multi-Candidate ===
+            logger.info("=" * 60)
+            logger.info("SAE MODE: Refining top-N latent candidates")
+            logger.info("=" * 60)
+
+            # Load top-N candidates from Phase 2.5
+            n_candidates = getattr(self.config, 'phase4_n_candidates', 5)
+            candidates = discover_top_n_steering_latents(self.config)
+            self.correct_candidates = candidates['correct']
+            self.incorrect_candidates = candidates['incorrect']
+
+            # For backward compatibility
             pva_latents = load_steering_latents(self.config)
-            self.top_latents = pva_latents.top_latents
             self.best_correct_latent = pva_latents.best_correct_latent
             self.best_incorrect_latent = pva_latents.best_incorrect_latent
 
-            # Load SAEs for both latents
-            logger.info("Loading SAE models...")
-            self.correct_sae = load_sae_for_config(
-                self.config,
-                self.best_correct_latent['layer'],
-                self.device
-            )
-            self.incorrect_sae = load_sae_for_config(
-                self.config,
-                self.best_incorrect_latent['layer'],
-                self.device
-            )
+            # Cache SAEs by layer
+            self.sae_cache = {}
+            all_layers = candidates['all_layers']
+            for layer in all_layers:
+                logger.info(f"Loading SAE for layer {layer}...")
+                self.sae_cache[layer] = load_sae_for_config(self.config, layer, self.device)
 
-            # Extract latent directions
-            self.correct_latent_direction = self.correct_sae.W_dec[
-                self.best_correct_latent['latent_idx']
-            ].detach()
-            self.incorrect_latent_direction = self.incorrect_sae.W_dec[
-                self.best_incorrect_latent['latent_idx']
-            ].detach()
+            logger.info(f"Loaded {len(self.sae_cache)} SAEs for layers: {all_layers}")
 
         # Load Phase 3.6 baseline data
         logger.info("Loading baseline data from Phase 3.6...")
@@ -283,52 +281,117 @@ class GoldenSectionCoefficientRefiner:
                     f"Run Phase 4.5 with --direction-source probe_mass_mean first."
                 )
 
-        # Load coefficient analysis
+        # Load selected coefficients (new multi-candidate format)
+        selected_coeff_file = self.phase4_5_dir / "selected_coefficients.json"
+        if not selected_coeff_file.exists():
+            raise FileNotFoundError(f"Phase 4.5 selected_coefficients.json not found: {selected_coeff_file}")
+
+        self.phase4_5_selected = load_json(selected_coeff_file)
+
+        # Detect format: multi-candidate (list) vs single-candidate (dict)
+        sample_value = next(iter(self.phase4_5_selected.values()))
+        self.is_multi_candidate = isinstance(sample_value, list)
+
+        if self.is_multi_candidate:
+            logger.info("Detected multi-candidate format from Phase 4.5")
+            self._load_multi_candidate_results()
+        else:
+            logger.info("Detected single-candidate format from Phase 4.5")
+            self._load_single_candidate_results()
+
+    def _load_multi_candidate_results(self) -> None:
+        """Load Phase 4.5 results in multi-candidate format (list of candidates per type)."""
+        # Store candidate-specific search bounds: {steering_type: {candidate_id: bounds}}
+        self.candidate_search_bounds = {'correct': {}, 'incorrect': {}}
+        self.cached_scores = {'correct': {}, 'incorrect': {}}
+
+        for steering_type in ['correct', 'incorrect']:
+            if steering_type not in self.phase4_5_selected:
+                logger.warning(f"No {steering_type} candidates in Phase 4.5")
+                continue
+
+            for candidate_entry in self.phase4_5_selected[steering_type]:
+                layer = candidate_entry['layer']
+                latent_idx = candidate_entry['latent_idx']
+                candidate_id = f"L{layer}_{latent_idx}"
+                optimal_coeff = candidate_entry['coefficient']
+
+                # Determine search bounds for this candidate
+                lower, upper = self._determine_search_bounds(optimal_coeff, steering_type)
+
+                self.candidate_search_bounds[steering_type][candidate_id] = {
+                    'layer': layer,
+                    'latent_idx': latent_idx,
+                    'lower': lower,
+                    'upper': upper,
+                    'optimal_from_phase4_5': optimal_coeff,
+                    'phase4_5_entry': candidate_entry,
+                }
+
+                logger.info(f"{steering_type.capitalize()} candidate {candidate_id}: "
+                           f"bounds=[{lower}, {upper}] (Phase 4.5 optimal: {optimal_coeff})")
+
+        # Also set up legacy search_bounds for backward compatibility with probe mode
+        self.search_bounds = {}
+
+    def _load_single_candidate_results(self) -> None:
+        """Load Phase 4.5 results in single-candidate format (backward compatible)."""
+        # Also load coefficient_analysis.json for search history (if available)
         analysis_file = self.phase4_5_dir / "coefficient_analysis.json"
-        if not analysis_file.exists():
-            raise FileNotFoundError(f"Phase 4.5 analysis not found: {analysis_file}")
-        
-        self.phase4_5_results = load_json(analysis_file)
-        
-        # Extract search bounds and cache scores for each steering type
+        if analysis_file.exists():
+            self.phase4_5_results = load_json(analysis_file)
+        else:
+            self.phase4_5_results = {}
+
         self.search_bounds = {}
         self.cached_scores = {'correct': {}, 'incorrect': {}}
-        
+
         for steering_type in ['correct', 'incorrect']:
-            steering_key = f'{steering_type}_steering'
-            if steering_key not in self.phase4_5_results:
-                logger.warning(f"No {steering_key} results in Phase 4.5")
+            if steering_type not in self.phase4_5_selected:
+                logger.warning(f"No {steering_type} in Phase 4.5 selected coefficients")
                 continue
-                
-            results = self.phase4_5_results[steering_key]
-            
-            # Get optimal coefficient and search history
-            optimal_coeff = results['optimal_coefficient']
-            search_history = results['search_history']
-            
-            # Cache all previously evaluated coefficients and their scores
-            for hist_item in search_history:
-                coeff = self._round_coefficient(hist_item['coefficient'])
-                if steering_type == 'correct':
-                    score = hist_item['metrics'].get('correction_rate', 0)
-                else:
-                    score = hist_item['metrics'].get('composite_score', 
-                                                   hist_item['metrics'].get('corruption_rate', 0))
-                self.cached_scores[steering_type][coeff] = score
-                logger.debug(f"Cached {steering_type} coefficient {coeff}: {score:.1f}%")
-            
-            # Determine search bounds based on steering type
+
+            entry = self.phase4_5_selected[steering_type]
+            optimal_coeff = entry.get('coefficient', entry.get('refined_coefficient', 30))
+
+            # Cache scores from search history if available
+            steering_key = f'{steering_type}_steering'
+            if steering_key in self.phase4_5_results:
+                results = self.phase4_5_results[steering_key]
+                for hist_item in results.get('search_history', []):
+                    coeff = self._round_coefficient(hist_item.get('coefficient', 0))
+                    if steering_type == 'correct':
+                        score = hist_item.get('metrics', {}).get('correction_rate', 0)
+                    else:
+                        score = hist_item.get('metrics', {}).get('composite_score', 0)
+                    if coeff > 0:
+                        self.cached_scores[steering_type][coeff] = score
+
             lower, upper = self._determine_search_bounds(optimal_coeff, steering_type)
-            
             self.search_bounds[steering_type] = {
                 'lower': lower,
                 'upper': upper,
                 'optimal_from_phase4_5': optimal_coeff
             }
-            
+
             logger.info(f"{steering_type.capitalize()} steering search bounds: "
                        f"[{lower}, {upper}] (Phase 4.5 optimal: {optimal_coeff})")
     
+    def _get_latent_direction(self, layer: int, latent_idx: int) -> torch.Tensor:
+        """Get the decoder direction for a latent from cached SAE.
+
+        Args:
+            layer: Layer number
+            latent_idx: Latent index
+
+        Returns:
+            Latent direction tensor in model dtype
+        """
+        sae = self.sae_cache[layer]
+        direction = sae.W_dec[latent_idx].detach()
+        model_dtype = next(self.model.parameters()).dtype
+        return direction.to(dtype=model_dtype)
+
     def _determine_search_bounds(self, optimal_coeff: float, steering_type: str) -> tuple[float, float]:
         """Determine search bounds based on coefficient magnitude."""
 
@@ -401,7 +464,10 @@ class GoldenSectionCoefficientRefiner:
                             problems_df: pd.DataFrame,
                             steering_type: str,
                             show_progress: bool = False,
-                            return_full_results: bool = False) -> Union[float, dict]:
+                            return_full_results: bool = False,
+                            latent_direction: Optional[torch.Tensor] = None,
+                            target_layer: Optional[int] = None,
+                            candidate_id: Optional[str] = None) -> Union[float, dict]:
         """
         Evaluate a single coefficient and return the score or full results.
 
@@ -411,17 +477,21 @@ class GoldenSectionCoefficientRefiner:
             steering_type: 'correct' or 'incorrect'
             show_progress: Whether to show progress bar
             return_full_results: If True, return full results dict; if False, just score
+            latent_direction: Optional override for latent direction (for multi-candidate mode)
+            target_layer: Optional override for target layer (for multi-candidate mode)
+            candidate_id: Optional identifier for checkpoint naming
 
         Returns:
             Score (float) or full results dictionary including score, results list, and metrics
         """
         # Create checkpoint directory for this evaluation
-        checkpoint_dir = self.output_dir / f"eval_checkpoints_{steering_type}_coeff_{int(coefficient)}"
+        ckpt_suffix = f"_{candidate_id}" if candidate_id else ""
+        checkpoint_dir = self.output_dir / f"eval_checkpoints_{steering_type}_coeff_{int(coefficient)}{ckpt_suffix}"
 
         # Initialize CheckpointManager for evaluation checkpoints
         eval_checkpoint_mgr = CheckpointManager(
             checkpoint_dir=checkpoint_dir,
-            experiment_name=f"eval_{steering_type}_coeff_{int(coefficient)}",
+            experiment_name=f"eval_{steering_type}_coeff_{int(coefficient)}{ckpt_suffix}",
             frequency=self.evaluation_checkpoint_frequency,
             gpu_id=self.gpu_id,
             n_gpus=self.n_gpus,
@@ -447,7 +517,10 @@ class GoldenSectionCoefficientRefiner:
             logger.debug(f"Remaining tasks: {len(problems_df)} out of {original_len}")
 
         # Select decoder direction and target layer
-        if steering_type == 'correct':
+        # Use provided overrides (multi-candidate mode) or fall back to class attributes
+        if latent_direction is not None and target_layer is not None:
+            pass  # Use provided values
+        elif steering_type == 'correct':
             latent_direction = self.correct_latent_direction
             target_layer = self.probe_layer if self.use_probe else self.best_correct_latent['layer']
         else:
@@ -1047,23 +1120,226 @@ class GoldenSectionCoefficientRefiner:
         }
         save_json(summary, coeff_dir / "summary.json")
     
+    def golden_section_search_for_candidate(
+        self,
+        steering_type: str,
+        candidate_id: str,
+        bounds: dict
+    ) -> tuple[int, list[dict], float]:
+        """
+        Integer-aware golden section search for a single candidate.
+
+        Args:
+            steering_type: 'correct' or 'incorrect'
+            candidate_id: Candidate identifier (e.g., "L25_4691")
+            bounds: Dict with 'lower', 'upper', 'layer', 'latent_idx', 'optimal_from_phase4_5'
+
+        Returns:
+            Tuple of (optimal_coefficient, search_history, best_score)
+        """
+        logger.info(f"\n{'='*60}")
+        logger.info(f"Golden section search for {steering_type} candidate {candidate_id}")
+        logger.info(f"{'='*60}")
+
+        lower_bound = bounds['lower']
+        upper_bound = bounds['upper']
+        layer = bounds['layer']
+        latent_idx = bounds['latent_idx']
+
+        # Get latent direction for this candidate
+        latent_direction = self._get_latent_direction(layer, latent_idx)
+
+        logger.info(f"Initial bounds: [{lower_bound}, {upper_bound}]")
+        logger.info(f"Using layer {layer}, latent {latent_idx}")
+
+        # Initialize candidate-specific cache
+        candidate_cache_key = f"{steering_type}_{candidate_id}"
+        if candidate_cache_key not in self.cached_scores:
+            self.cached_scores[candidate_cache_key] = {}
+
+        # Select evaluation data
+        if steering_type == 'correct':
+            eval_data = self.initially_incorrect_data
+        else:
+            eval_data = self.initially_correct_data
+
+        # Helper to get/compute score
+        def get_score(coeff: int) -> float:
+            cache_key = float(coeff)
+            if cache_key in self.cached_scores[candidate_cache_key]:
+                logger.info(f"  Using cached score for {coeff}: {self.cached_scores[candidate_cache_key][cache_key]:.1f}%")
+                return self.cached_scores[candidate_cache_key][cache_key]
+
+            logger.info(f"  Evaluating coefficient {coeff}...")
+            score = self.evaluate_coefficient(
+                coeff, eval_data, steering_type,
+                show_progress=True,
+                latent_direction=latent_direction,
+                target_layer=layer,
+                candidate_id=candidate_id
+            )
+            self.cached_scores[candidate_cache_key][cache_key] = score
+            logger.info(f"  Result: {score:.1f}%")
+            return score
+
+        # Convert to integer bounds
+        a_int = self._round_to_integer(lower_bound)
+        b_int = self._round_to_integer(upper_bound)
+        search_history = []
+        tolerance = int(self.config.phase4_6_tolerance)
+
+        # Handle very small ranges
+        if b_int - a_int <= 1:
+            logger.info(f"Bounds already at consecutive integers [{a_int}, {b_int}]")
+            if a_int == b_int:
+                score = get_score(a_int)
+                return a_int, [], score
+
+            score_a = get_score(a_int)
+            score_b = get_score(b_int)
+            optimal = a_int if score_a >= score_b else b_int
+            best_score = max(score_a, score_b)
+            logger.info(f"Best integer coefficient: {optimal} with {best_score:.1f}%")
+            return optimal, [], best_score
+
+        logger.info(f"Integer bounds: [{a_int}, {b_int}] (width: {b_int - a_int})")
+
+        # Calculate initial golden section points
+        x1, x2 = self._get_integer_golden_points(a_int, b_int)
+        logger.info(f"Initial golden points: x1={x1}, x2={x2}")
+
+        f1 = get_score(x1)
+        f2 = get_score(x2)
+
+        best_score = max(f1, f2)
+        best_coeff = x1 if f1 > f2 else x2
+
+        search_history.append({
+            'iteration': 0,
+            'bounds': [a_int, b_int],
+            'points': [x1, x2],
+            'scores': [f1, f2],
+            'best_score': best_score,
+            'best_coefficient': best_coeff
+        })
+
+        logger.info(f"Initial: f({x1})={f1:.1f}%, f({x2})={f2:.1f}%, best={best_coeff}")
+
+        # Golden section iterations
+        iteration = 0
+        no_improvement_count = 0
+        PLATEAU_THRESHOLD = 3
+
+        while b_int - a_int > tolerance:
+            iteration += 1
+
+            # Special case: width=2, test all 3 points
+            if b_int - a_int == 2:
+                logger.info(f"  Final step: testing all 3 points in [{a_int}, {b_int}]")
+                test_points = [a_int, a_int + 1, b_int]
+                scores = [get_score(p) for p in test_points]
+
+                best_local_coeff, best_local_score = max(zip(test_points, scores), key=lambda x: x[1])
+                if best_local_score > best_score:
+                    best_score = best_local_score
+                    best_coeff = best_local_coeff
+
+                search_history.append({
+                    'iteration': iteration,
+                    'bounds': [a_int, b_int],
+                    'special_case': 'final_width_2',
+                    'tested_points': test_points,
+                    'scores': scores,
+                    'best_score': best_score,
+                    'best_coefficient': best_coeff
+                })
+                break
+
+            # Normal golden section step
+            if f1 > f2:
+                b_int = x2
+                x2 = x1
+                f2 = f1
+                x1, _ = self._get_integer_golden_points(a_int, b_int)
+                if x1 == x2 and x1 > a_int:
+                    x1 = x1 - 1
+                f1 = get_score(x1)
+                new_point, new_score = x1, f1
+            else:
+                a_int = x1
+                x1 = x2
+                f1 = f2
+                _, x2 = self._get_integer_golden_points(a_int, b_int)
+                if x2 == x1 and x2 < b_int:
+                    x2 = x2 + 1
+                f2 = get_score(x2)
+                new_point, new_score = x2, f2
+
+            current_best = max(f1, f2)
+            current_best_coeff = x1 if f1 > f2 else x2
+
+            if current_best > best_score:
+                best_score = current_best
+                best_coeff = current_best_coeff
+                no_improvement_count = 0
+            else:
+                no_improvement_count += 1
+
+            logger.info(f"Iter {iteration}: [{a_int}, {b_int}], tested {new_point}={new_score:.1f}%")
+
+            search_history.append({
+                'iteration': iteration,
+                'bounds': [a_int, b_int],
+                'new_point': new_point,
+                'new_score': new_score,
+                'best_score': best_score,
+                'best_coefficient': best_coeff
+            })
+
+            # Early stopping on plateau
+            if no_improvement_count >= PLATEAU_THRESHOLD:
+                logger.info(f"Plateau detected after {no_improvement_count} iterations")
+                break
+
+            self.check_memory_usage()
+            self.clear_gpu_memory()
+
+        # Final evaluation of remaining candidates
+        final_candidates = [(c, get_score(c)) for c in range(a_int, b_int + 1)]
+        optimal_coeff, optimal_score = max(final_candidates, key=lambda x: x[1])
+
+        logger.info(f"\nSearch complete for {candidate_id}")
+        logger.info(f"Optimal: {optimal_coeff} with {optimal_score:.1f}%")
+
+        return optimal_coeff, search_history, optimal_score
+
     def run(self) -> dict:
-        """Run golden section search refinement for both steering types."""
+        """Run golden section search refinement."""
+        if self.use_probe:
+            return self._run_probe_mode()
+        elif self.is_multi_candidate:
+            return self._run_multi_candidate_mode()
+        else:
+            # Single-candidate SAE mode (backward compatibility)
+            return self._run_probe_mode()
+
+    def _run_probe_mode(self) -> dict:
+        """Run single-candidate mode (probe or legacy SAE)."""
         start_time = time.time()
         logger.info("Starting Phase 4.6: Golden Section Search Coefficient Refinement")
         if self.use_probe:
             logger.info("PROBE BASELINE MODE: Using Mass-Mean probe directions")
         logger.info("Will refine coefficients found in Phase 4.5 using golden section search")
-        
+
         # Get experiment mode from config (single source of truth)
         experiment_mode = self.config.phase4_6_experiment_mode
         logger.info(f"Running experiments in '{experiment_mode}' mode")
-        
+
         # Load any existing intermediate results
         existing_results = self.load_existing_results()
         refinement_results = existing_results.copy() if existing_results else {}
         refined_coefficients = {}
-        
+
         # Determine which steering types to check based on experiment mode
         if experiment_mode == 'correction':
             steering_types_to_check = ['correct']
@@ -1071,7 +1347,7 @@ class GoldenSectionCoefficientRefiner:
             steering_types_to_check = ['incorrect']
         else:
             steering_types_to_check = ['correct', 'incorrect']
-        
+
         # Determine which steering types need to be processed
         steering_types_to_process = []
         for steering_type in steering_types_to_check:
@@ -1106,32 +1382,32 @@ class GoldenSectionCoefficientRefiner:
                 }
             else:
                 steering_types_to_process.append(steering_type)
-        
+
         # Run refinement for steering types that haven't been completed
         for steering_type in steering_types_to_process:
             logger.info(f"\n{'='*80}")
             logger.info(f"Refining {steering_type.upper()} steering coefficient")
             logger.info(f"{'='*80}")
-            
+
             # Run golden section search
             optimal_coeff, search_history = self.golden_section_search(steering_type)
-            
+
             if optimal_coeff is None:
                 logger.warning(f"Could not refine {steering_type} steering coefficient")
                 continue
-            
+
             # Get full evaluation results for the optimal coefficient
             if steering_type == 'correct':
                 eval_data = self.initially_incorrect_data
             else:
                 eval_data = self.initially_correct_data
-            
+
             # Get final score and full results
             final_evaluation = self.evaluate_coefficient(
-                optimal_coeff, eval_data, steering_type, 
+                optimal_coeff, eval_data, steering_type,
                 show_progress=False, return_full_results=True
             )
-            
+
             # Save results
             refinement_results[f'{steering_type}_steering'] = {
                 'optimal_coefficient': optimal_coeff,
@@ -1140,18 +1416,18 @@ class GoldenSectionCoefficientRefiner:
                 'metrics': final_evaluation['metrics'],
                 'method': 'golden_section_search'
             }
-            
+
             # Save intermediate results after this steering type completes
             self.save_intermediate_results(steering_type, refinement_results[f'{steering_type}_steering'])
-            
+
             # Save example generations
             self.save_refinement_examples(optimal_coeff, steering_type, final_evaluation['results'])
-            
+
             # Save the problems dataset
             problems_filename = f"selected_problems_{steering_type}_steering.parquet"
             eval_data.to_parquet(self.output_dir / problems_filename)
             logger.info(f"Saved {len(eval_data)} problems to {problems_filename}")
-            
+
             # Get layer/latent info for metadata
             if self.use_probe:
                 layer = self.probe.layer
@@ -1180,11 +1456,11 @@ class GoldenSectionCoefficientRefiner:
                 'search_bounds': self.search_bounds[steering_type],
                 'method': 'golden_section_search'
             }
-            
+
             # Clear GPU cache after processing each steering type
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-        
+
         # Save all results (use GPU-specific names in parallel mode)
         if self.n_gpus > 1:
             save_json(refinement_results, self.output_dir / f"refinement_analysis_gpu{self.gpu_id}.json")
@@ -1192,7 +1468,7 @@ class GoldenSectionCoefficientRefiner:
         else:
             save_json(refinement_results, self.output_dir / "refinement_analysis.json")
             save_json(refined_coefficients, self.output_dir / "refined_coefficients.json")
-        
+
         # Clean up all checkpoints now that both steering types are complete
         logger.info("Cleaning up checkpoints after successful completion")
         for steering_type in ['correct', 'incorrect']:
@@ -1206,13 +1482,13 @@ class GoldenSectionCoefficientRefiner:
                 output_format="json"
             )
             iter_checkpoint_mgr.cleanup_all()
-        
+
         # Remove intermediate results file since we're done
         intermediate_file = self.output_dir / "intermediate_results.json"
         if intermediate_file.exists():
             intermediate_file.unlink()
             logger.info("Removed intermediate results file")
-        
+
         # Collect all steered results from refinement evaluations for error distribution
         all_steered_results = []
         for steering_type in ['correct', 'incorrect']:
@@ -1253,7 +1529,7 @@ class GoldenSectionCoefficientRefiner:
                 'method': 'mass_mean',
                 'layer': self.probe_layer,
             }
-        
+
         # Save summary (use GPU-specific name in parallel mode)
         if self.n_gpus > 1:
             save_json(summary, self.output_dir / f"phase_4_6_summary_gpu{self.gpu_id}.json")
@@ -1298,6 +1574,156 @@ class GoldenSectionCoefficientRefiner:
                 config_keys=['model_name', 'dataset_name']
             )
             logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+
+        return summary
+
+    def _run_multi_candidate_mode(self) -> dict:
+        """Run multi-candidate golden section refinement (SAE mode with top-N candidates)."""
+        start_time = time.time()
+        logger.info("=" * 80)
+        logger.info("Phase 4.6: MULTI-CANDIDATE Golden Section Refinement")
+        logger.info("=" * 80)
+
+        experiment_mode = self.config.phase4_6_experiment_mode
+        logger.info(f"Experiment mode: {experiment_mode}")
+
+        # Determine steering types to process
+        if experiment_mode == 'correction':
+            steering_types = ['correct']
+        elif experiment_mode == 'corruption':
+            steering_types = ['incorrect']
+        else:
+            steering_types = ['correct', 'incorrect']
+
+        # Output structure: list of candidates per steering type
+        refined_coefficients = {'correct': [], 'incorrect': []}
+        refinement_analysis = {'correct': [], 'incorrect': []}
+
+        for steering_type in steering_types:
+            if steering_type not in self.candidate_search_bounds:
+                logger.warning(f"No candidates for {steering_type} steering")
+                continue
+
+            candidates = self.candidate_search_bounds[steering_type]
+            n_candidates = len(candidates)
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Refining {n_candidates} {steering_type.upper()} candidates")
+            logger.info(f"{'='*60}")
+
+            for rank, (candidate_id, bounds) in enumerate(candidates.items()):
+                logger.info(f"\n--- Candidate {rank+1}/{n_candidates}: {candidate_id} ---")
+                logger.info(f"Phase 4.5 optimal: {bounds['optimal_from_phase4_5']}")
+                logger.info(f"Search bounds: [{bounds['lower']}, {bounds['upper']}]")
+
+                # Run golden section search for this candidate
+                optimal_coeff, history, best_score = self.golden_section_search_for_candidate(
+                    steering_type, candidate_id, bounds
+                )
+
+                # Get Phase 4.5 entry for additional metadata
+                phase4_5_entry = bounds['phase4_5_entry']
+
+                # Store result
+                result_entry = {
+                    'rank': rank,
+                    'layer': bounds['layer'],
+                    'latent_idx': bounds['latent_idx'],
+                    'coefficient': optimal_coeff,
+                    'phase4_5_coefficient': bounds['optimal_from_phase4_5'],
+                    'improvement': optimal_coeff - bounds['optimal_from_phase4_5'],
+                    'best_score': best_score,
+                    'search_iterations': len(history),
+                    # Carry forward Phase 4.5 metrics
+                    'separation_score': phase4_5_entry.get('separation_score'),
+                }
+
+                # Add type-specific score name
+                if steering_type == 'correct':
+                    result_entry['correction_rate'] = best_score
+                else:
+                    result_entry['composite_score'] = best_score
+
+                refined_coefficients[steering_type].append(result_entry)
+
+                # Store full analysis
+                refinement_analysis[steering_type].append({
+                    'candidate_id': candidate_id,
+                    'layer': bounds['layer'],
+                    'latent_idx': bounds['latent_idx'],
+                    'optimal_coefficient': optimal_coeff,
+                    'search_history': history,
+                    'best_score': best_score,
+                    'phase4_5_coefficient': bounds['optimal_from_phase4_5'],
+                })
+
+                logger.info(f"Candidate {candidate_id}: refined {bounds['optimal_from_phase4_5']} → {optimal_coeff} "
+                           f"(score: {best_score:.1f}%)")
+
+                # Memory cleanup between candidates
+                self.clear_gpu_memory()
+                gc.collect()
+
+        # Save results
+        save_json(refined_coefficients, self.output_dir / "refined_coefficients.json")
+        save_json(refinement_analysis, self.output_dir / "refinement_analysis.json")
+
+        # Create summary
+        summary = {
+            'phase': '4.6',
+            'description': 'Multi-Candidate Golden Section Refinement',
+            'timestamp': datetime.now().isoformat(),
+            'duration_seconds': time.time() - start_time,
+            'method': 'golden_section_search',
+            'direction_source': self.direction_source,
+            'mode': 'multi_candidate',
+            'n_candidates_per_type': self.config.phase4_n_candidates,
+            'config': {
+                'tolerance': self.config.phase4_6_tolerance,
+                'model': self.config.model_name,
+                'initially_correct_count': len(self.initially_correct_data),
+                'initially_incorrect_count': len(self.initially_incorrect_data),
+            },
+            'results': {
+                'correct_candidates': len(refined_coefficients.get('correct', [])),
+                'incorrect_candidates': len(refined_coefficients.get('incorrect', [])),
+            }
+        }
+        save_json(summary, self.output_dir / "phase_4_6_summary.json")
+
+        # Write manifest
+        from common.phase_discovery import write_phase_output
+        write_phase_output(
+            phase="4.6",
+            outputs={
+                "primary": "phase_4_6_summary.json",
+                "refined_coefficients": "refined_coefficients.json",
+                "refinement_analysis": "refinement_analysis.json",
+            },
+            config=self.config,
+            output_dir=str(self.output_dir),
+            dependencies={
+                "4.5": str(self.phase4_5_dir),
+                "3.6": str(self.phase3_6_dir),
+            },
+            config_keys=['model_name', 'dataset_name']
+        )
+
+        # Log summary
+        logger.info(f"\n{'='*80}")
+        logger.info("PHASE 4.6 MULTI-CANDIDATE RESULTS")
+        logger.info(f"{'='*80}")
+
+        for steering_type in steering_types:
+            if refined_coefficients.get(steering_type):
+                logger.info(f"\n{steering_type.capitalize()} candidates ({len(refined_coefficients[steering_type])}):")
+                for entry in refined_coefficients[steering_type]:
+                    score_key = 'correction_rate' if steering_type == 'correct' else 'composite_score'
+                    logger.info(f"  Rank {entry['rank']}: L{entry['layer']}_{entry['latent_idx']} "
+                               f"coeff={entry['coefficient']} ({score_key}={entry[score_key]:.1f}%)")
+
+        logger.info(f"\nCompleted in {time.time() - start_time:.1f} seconds")
+        logger.info(f"Results saved to: {self.output_dir}")
+        logger.info(f"{'='*80}\n")
 
         return summary
 

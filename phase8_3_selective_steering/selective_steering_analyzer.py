@@ -360,28 +360,31 @@ class SelectiveSteeringAnalyzer:
             self.threshold = phase3_8_threshold
             logger.info(f"Using Phase 3.8 classification threshold: {self.threshold:.4f}")
 
-        # === LOAD STEERING COEFFICIENTS FROM PHASE 4.6 ===
-        phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
-        if not phase4_6_output:
-            raise FileNotFoundError("Phase 4.6 output not found. Run Phase 4.6 first.")
+        # === LOAD STEERING COEFFICIENTS FROM PHASE 4.9/4.6 ===
+        from common.phase_discovery import discover_steering_coefficients
 
-        phase4_6_dir = Path(phase4_6_output).parent
-
-        # In probe mode, look for _probe suffix on Phase 4.6 directory
         if self.use_probe:
+            # For probe mode, look in the _probe directory
+            phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
+            if not phase4_6_output:
+                raise FileNotFoundError("Phase 4.6 output not found. Run Phase 4.6 first.")
+            phase4_6_dir = Path(phase4_6_output).parent
             probe_dir = phase4_6_dir.parent / (phase4_6_dir.name + "_probe")
-            if probe_dir.exists():
-                phase4_6_dir = probe_dir
-                logger.info(f"PROBE MODE: Using Phase 4.6 probe output at {probe_dir}")
-            else:
+
+            if not probe_dir.exists():
                 raise FileNotFoundError(
                     f"Phase 4.6 probe output not found at {probe_dir}\n"
                     f"Run: python3 run.py phase 4.6 --direction-source probe_mass_mean"
                 )
 
-        refined_coefficients = load_json(phase4_6_dir / "refined_coefficients.json")
-        self.correct_coefficient = refined_coefficients['correct']['refined_coefficient']
-        logger.info(f"Loaded steering coefficient from Phase 4.6: {self.correct_coefficient}")
+            refined_coefficients = load_json(probe_dir / "refined_coefficients.json")
+            self.correct_coefficient = refined_coefficients['correct']['refined_coefficient']
+            logger.info(f"PROBE MODE: Loaded steering coefficient from {probe_dir}: {self.correct_coefficient}")
+        else:
+            # SAE mode: use discover_steering_coefficients which tries 4.9 first, then 4.6
+            coefficients = discover_steering_coefficients(self.config)
+            self.correct_coefficient = coefficients["correct"]
+            logger.info(f"Loaded steering coefficient: {self.correct_coefficient}")
 
         logger.info("Dependencies loaded successfully")
 

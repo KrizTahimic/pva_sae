@@ -212,7 +212,7 @@ class InstructSteeringAnalyzer:
             coefficients = discover_steering_coefficients(self.config)
             self.correct_coefficient = coefficients["correct"]
             self.incorrect_coefficient = coefficients["incorrect"]
-            logger.info(f"Loaded SAE coefficients from Phase 4.6: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
+            logger.info(f"Loaded SAE coefficients: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
 
     def check_memory_usage(self) -> None:
         """Check current memory usage and log warnings if high."""
