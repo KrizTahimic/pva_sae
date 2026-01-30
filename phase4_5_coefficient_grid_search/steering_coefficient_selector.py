@@ -1080,11 +1080,12 @@ class SteeringCoefficientSelector:
                         'candidate': cr['candidate'],
                         'optimal_coefficient': cr['optimal_coefficient'],
                         'best_score': cr['best_score'],
-                        'n_coefficients_tested': cr['n_coefficients_tested'],
-                        'early_stopped': cr['early_stopped'],
+                        'n_coefficients_tested': cr.get('n_coefficients_tested', 0),
+                        'early_stopped': cr.get('early_stopped', False),
+                        'from_checkpoint': cr.get('from_checkpoint', False),
                         'search_history': [
                             {k: v for k, v in h.items() if k != 'results'}
-                            for h in cr['search_history']
+                            for h in cr.get('search_history', [])
                         ]
                     }
                     for cr in crs
