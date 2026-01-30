@@ -1171,6 +1171,9 @@ class CoefficientEvaluator:
 
     Used by IterativeParallelRunner for parallel coefficient grid search.
     Each GPU runs one CoefficientEvaluator instance.
+
+    In multi-candidate mode, the orchestrator sets current_candidate and
+    steering_type before each grid search iteration.
     """
 
     def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
@@ -1183,6 +1186,12 @@ class CoefficientEvaluator:
         # Determine direction source
         self.direction_source = getattr(config, 'direction_source', 'sae')
         self.use_probe = self.direction_source == 'probe_mass_mean'
+
+        # Multi-candidate mode: set by orchestrator before each candidate's grid search
+        self.current_candidate = None
+        self.current_steering_type = None
+        self.current_latent_direction = None
+        self.current_target_layer = None
 
         logger.info(f"CoefficientEvaluator GPU {gpu_id}: Initializing...")
 
@@ -1200,13 +1209,13 @@ class CoefficientEvaluator:
         logger.info(f"CoefficientEvaluator GPU {gpu_id}: Initialization complete")
 
     def _load_dependencies(self):
-        """Load steering directions and baseline data."""
+        """Load steering directions, SAEs, and baseline data."""
         from common.steering_setup import (
             load_steering_latents, load_sae_and_directions,
             load_baseline_data, split_by_correctness,
             load_probe_directions_for_steering
         )
-        from common.parallel_runner import filter_dataframe_for_gpu
+        from common.phase_discovery import discover_top_n_steering_latents
 
         if self.use_probe:
             self.probe = load_probe_directions_for_steering(
@@ -1218,12 +1227,32 @@ class CoefficientEvaluator:
             self.top_latents = None
             self.best_correct_latent = None
             self.best_incorrect_latent = None
+            self.sae_cache = {}
+            self.correct_candidates = None
+            self.incorrect_candidates = None
         else:
+            # Load top-N candidates for multi-candidate mode
+            n_candidates = getattr(self.config, 'phase4_n_candidates', 5)
+            candidates = discover_top_n_steering_latents(self.config)
+            self.correct_candidates = candidates['correct']
+            self.incorrect_candidates = candidates['incorrect']
+
+            # For backward compatibility: single best latent
             latents = load_steering_latents(self.config)
             self.top_latents = latents.top_latents
             self.best_correct_latent = latents.best_correct_latent
             self.best_incorrect_latent = latents.best_incorrect_latent
 
+            # Pre-load SAEs for ALL candidate layers (cached for reuse)
+            self.sae_cache = {}
+            all_layers = candidates['all_layers']
+            for layer in all_layers:
+                logger.info(f"GPU {self.gpu_id}: Loading SAE for layer {layer}...")
+                self.sae_cache[layer] = load_sae_for_config(self.config, layer, self.device)
+
+            logger.info(f"GPU {self.gpu_id}: Loaded {len(self.sae_cache)} SAEs for layers: {all_layers}")
+
+            # Load single SAE directions for backward compatibility (single-latent mode)
             sae = load_sae_and_directions(
                 self.config, self.device, self.model,
                 self.best_correct_latent, self.best_incorrect_latent
@@ -1231,7 +1260,7 @@ class CoefficientEvaluator:
             self.correct_latent_direction = sae.correct_direction
             self.incorrect_latent_direction = sae.incorrect_direction
 
-        # Load baseline data
+        # Load baseline data (not filtered - we use task_ids for distribution)
         self.baseline_data, _ = load_baseline_data(
             self.config, "3.6", "dataset_hyperparams_temp_0_0.parquet"
         )
@@ -1239,16 +1268,81 @@ class CoefficientEvaluator:
         self.initially_correct_data, self.initially_incorrect_data = \
             split_by_correctness(self.baseline_data)
 
-        # Filter for this GPU
-        self.initially_correct_data = filter_dataframe_for_gpu(
-            self.initially_correct_data, self.gpu_id, self.n_gpus
-        )
-        self.initially_incorrect_data = filter_dataframe_for_gpu(
-            self.initially_incorrect_data, self.gpu_id, self.n_gpus
-        )
+        logger.info(f"GPU {self.gpu_id}: Loaded {len(self.initially_correct_data)} correct, "
+                   f"{len(self.initially_incorrect_data)} incorrect tasks (unfiltered)")
 
-        logger.info(f"GPU {self.gpu_id}: Processing {len(self.initially_correct_data)} correct, "
-                   f"{len(self.initially_incorrect_data)} incorrect tasks")
+        # Check for current_candidate.json (written by orchestrator for parallel multi-candidate mode)
+        # This allows workers to know which candidate to evaluate
+        output_dir = Path(get_phase_output_dir("4.5", self.config))
+        if self.use_probe:
+            output_dir = output_dir.parent / (output_dir.name + "_probe")
+        candidate_file = output_dir / "current_candidate.json"
+
+        if candidate_file.exists() and not self.use_probe:
+            try:
+                candidate_info = load_json(candidate_file)
+                candidate = candidate_info['candidate']
+                steering_type = candidate_info['steering_type']
+                logger.info(f"GPU {self.gpu_id}: Found current_candidate.json, setting candidate {candidate_info['candidate_id']}")
+                self.set_candidate(candidate, steering_type)
+            except Exception as e:
+                logger.warning(f"GPU {self.gpu_id}: Failed to load current_candidate.json: {e}")
+
+    def set_candidate(self, candidate: dict, steering_type: str):
+        """Set the current candidate for multi-candidate mode.
+
+        Called by orchestrator before each candidate's grid search.
+
+        Args:
+            candidate: dict with 'layer', 'latent_idx', 'separation_score'
+            steering_type: 'correct' or 'incorrect'
+        """
+        self.current_candidate = candidate
+        self.current_steering_type = steering_type
+
+        # Get direction from cached SAE
+        layer = candidate['layer']
+        latent_idx = candidate['latent_idx']
+        sae = self.sae_cache[layer]
+        direction = sae.W_dec[latent_idx].detach()
+
+        # Match model dtype
+        model_dtype = next(self.model.parameters()).dtype
+        self.current_latent_direction = direction.to(dtype=model_dtype)
+        self.current_target_layer = layer
+
+        candidate_id = f"L{layer}_{latent_idx}"
+        logger.info(f"GPU {self.gpu_id}: Set candidate {candidate_id} ({steering_type})")
+
+    def get_relevant_task_ids(self) -> list[str]:
+        """Get task_ids that will actually be evaluated.
+
+        This is used by IterativeParallelRunner to discover task_ids.
+        Returns only the task_ids for problems that will be evaluated based
+        on the current steering type (set via set_candidate).
+
+        Returns:
+            List of task_ids to evaluate
+        """
+        # Multi-candidate mode: use current_steering_type
+        if self.current_steering_type is not None:
+            if self.current_steering_type == 'correct':
+                # Correction: evaluate on incorrect problems
+                return self.initially_incorrect_data['task_id'].tolist()
+            else:
+                # Corruption: evaluate on correct problems
+                return self.initially_correct_data['task_id'].tolist()
+
+        # Legacy mode: return based on experiment_mode config
+        mode = getattr(self.config, 'phase4_5_experiment_mode', 'all')
+        task_ids = []
+
+        if mode in ('all', 'correction'):
+            task_ids.extend(self.initially_incorrect_data['task_id'].tolist())
+        if mode in ('all', 'corruption'):
+            task_ids.extend(self.initially_correct_data['task_id'].tolist())
+
+        return list(set(task_ids))
 
     def evaluate_single_value(self, coefficient: int, task_ids: list[str] | None = None) -> dict:
         """Evaluate ONE coefficient on this GPU's problems.
@@ -1277,7 +1371,21 @@ class CoefficientEvaluator:
             correct_data = self.initially_correct_data
             incorrect_data = self.initially_incorrect_data
 
-        # Get experiment mode
+        # Multi-candidate mode: use current_steering_type set by orchestrator
+        if self.current_candidate is not None and self.current_steering_type is not None:
+            steering_type = self.current_steering_type
+            if steering_type == 'correct':
+                results = self._evaluate_steering(coefficient, incorrect_data, 'correct')
+            else:
+                results = self._evaluate_steering(coefficient, correct_data, 'incorrect')
+            for r in results:
+                r['steering_type'] = steering_type
+            return {
+                'coefficient': coefficient,
+                'results': results
+            }
+
+        # Legacy single-latent mode: use experiment_mode
         mode = getattr(self.config, 'phase4_5_experiment_mode', 'all')
 
         results = []
@@ -1307,7 +1415,11 @@ class CoefficientEvaluator:
 
     def _evaluate_steering(self, coefficient: float, problems_df: pd.DataFrame, steering_type: str) -> list[dict]:
         """Evaluate steering on problems."""
-        if steering_type == 'correct':
+        # Multi-candidate mode: use current candidate's direction and layer
+        if self.current_candidate is not None and self.current_latent_direction is not None:
+            latent_direction = self.current_latent_direction
+            target_layer = self.current_target_layer
+        elif steering_type == 'correct':
             latent_direction = self.correct_latent_direction
             target_layer = self.probe_layer if self.use_probe else self.best_correct_latent['layer']
         else:
@@ -1384,6 +1496,9 @@ class CoefficientOrchestrator:
 
     In parallel mode, uses IterativeParallelRunner to coordinate
     evaluation across GPUs with proper merging for early stopping.
+
+    Supports multi-candidate mode: outer loop over candidates, inner loop
+    over coefficients (parallelized).
     """
 
     def __init__(self, config: Config, n_gpus: int = 1):
@@ -1412,19 +1527,22 @@ class CoefficientOrchestrator:
         if self.n_gpus == 1:
             return self._run_sequential()
         else:
-            return self._run_parallel()
+            if self.use_probe:
+                return self._run_parallel_single_latent()
+            else:
+                return self._run_parallel_multi_candidate()
 
     def _run_sequential(self) -> dict:
         """Sequential execution using existing SteeringCoefficientSelector."""
         selector = SteeringCoefficientSelector(self.config, gpu_id=0, n_gpus=1)
         return selector.run()
 
-    def _run_parallel(self) -> dict:
-        """Parallel execution using IterativeParallelRunner."""
+    def _run_parallel_single_latent(self) -> dict:
+        """Parallel execution for probe mode (single latent per steering type)."""
         from common.iterative_parallel_runner import IterativeParallelRunner
         from common.phase_discovery import write_phase_output
 
-        logger.info(f"Starting parallel coefficient search with {self.n_gpus} GPUs")
+        logger.info(f"Starting parallel coefficient search (single-latent mode) with {self.n_gpus} GPUs")
 
         mode = getattr(self.config, 'phase4_5_experiment_mode', 'all')
         all_results = {}
@@ -1439,7 +1557,7 @@ class CoefficientOrchestrator:
                 early_stop_fn=self._should_early_stop_correction,
                 merge_fn=self._merge_correction_results,
                 checkpoint_dir=self.output_dir / "parallel_checkpoints_correct",
-                timeout_per_iteration=1200,  # 20 minutes (some GPUs are slower)
+                timeout_per_iteration=1200,
             )
             result = runner.run()
             all_results['correct_steering'] = self._format_history(result, 'correct')
@@ -1457,7 +1575,7 @@ class CoefficientOrchestrator:
                 early_stop_fn=self._should_early_stop_corruption,
                 merge_fn=self._merge_corruption_results,
                 checkpoint_dir=self.output_dir / "parallel_checkpoints_incorrect",
-                timeout_per_iteration=1200,  # 20 minutes (some GPUs are slower)
+                timeout_per_iteration=1200,
             )
             result = runner.run()
             all_results['incorrect_steering'] = self._format_history(result, 'incorrect')
@@ -1483,6 +1601,332 @@ class CoefficientOrchestrator:
 
         logger.info(f"Results saved to: {self.output_dir}")
         return {'selected_coefficients': selected_coefficients, 'results': all_results}
+
+    def _run_parallel_multi_candidate(self) -> dict:
+        """Parallel execution with outer candidate loop, inner coefficient loop.
+
+        Architecture:
+            Orchestrator (candidate loop)
+                |
+                |  For each candidate:
+                |  +------------------------------------------+
+                |  |  IterativeParallelRunner (coeff loop)   |
+                |  |  +----------+----------+                |
+                |  |  v          v          v                |
+                |  | GPU 0     GPU 1     GPU 2    GPU 3      |
+                |  | (1/4)     (1/4)     (1/4)    (1/4)       |
+                |  |  |          |          |       |        |
+                |  |  +----------+----------+-------+        |
+                |  |              |                          |
+                |  |  Merge -> coefficient result (full)     |
+                |  |  Early stop check                       |
+                |  +------------------------------------------+
+                |  Save candidate checkpoint
+                |
+                +-- Next candidate
+        """
+        from common.iterative_parallel_runner import IterativeParallelRunner
+        from common.phase_discovery import write_phase_output, discover_top_n_steering_latents
+
+        start_time = time.time()
+        logger.info(f"Starting parallel multi-candidate coefficient search with {self.n_gpus} GPUs")
+
+        # Load candidates
+        candidates = discover_top_n_steering_latents(self.config)
+        n_candidates = getattr(self.config, 'phase4_n_candidates', 5)
+        logger.info(f"Testing {n_candidates} candidates per steering type")
+
+        mode = getattr(self.config, 'phase4_5_experiment_mode', 'all')
+
+        # Load partial results for candidate-level checkpointing
+        selected_coefficients = self._load_partial_results()
+        all_candidate_results = {}
+
+        if mode in ('all', 'correction'):
+            steering_type = 'correct'
+            candidate_list = candidates['correct']
+            completed_ids = self._get_completed_candidate_ids(selected_coefficients, steering_type)
+
+            logger.info(f"\n{'='*80}")
+            logger.info(f"MULTI-CANDIDATE PARALLEL: {steering_type.upper()} steering")
+            logger.info(f"Candidates: {len(candidate_list)}, Completed: {len(completed_ids)}")
+            logger.info(f"{'='*80}")
+
+            candidate_results = []
+
+            for rank, candidate in enumerate(candidate_list):
+                candidate_id = f"L{candidate['layer']}_{candidate['latent_idx']}"
+
+                if candidate_id in completed_ids:
+                    logger.info(f"Skipping completed candidate: {candidate_id}")
+                    # Reconstruct result from checkpoint
+                    existing = next(
+                        (e for e in selected_coefficients.get(steering_type, [])
+                         if f"L{e['layer']}_{e['latent_idx']}" == candidate_id),
+                        None
+                    )
+                    if existing:
+                        candidate_results.append({
+                            'candidate_id': candidate_id,
+                            'candidate': candidate,
+                            'rank': rank,
+                            'optimal_coefficient': existing['coefficient'],
+                            'best_score': existing.get('correction_rate', 0),
+                            'from_checkpoint': True
+                        })
+                    continue
+
+                logger.info(f"\n--- Processing candidate {rank+1}/{len(candidate_list)}: {candidate_id} ---")
+
+                # Run parallel coefficient grid search for THIS candidate
+                result = self._run_candidate_grid_search(candidate, steering_type, rank)
+
+                candidate_results.append(result)
+
+                # Build entry and save incremental checkpoint
+                entry = {
+                    'rank': rank,
+                    'layer': candidate['layer'],
+                    'latent_idx': candidate['latent_idx'],
+                    'separation_score': candidate.get('separation_score', 0),
+                    'coefficient': result['optimal_coefficient'],
+                    'correction_rate': result['best_score'],
+                    'n_coefficients_tested': result.get('n_coefficients_tested', 0),
+                    'early_stopped': result.get('early_stopped', False),
+                }
+
+                if steering_type not in selected_coefficients:
+                    selected_coefficients[steering_type] = []
+                selected_coefficients[steering_type].append(entry)
+                self._save_incremental_results(selected_coefficients)
+
+                # Memory cleanup
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+
+            all_candidate_results['correct'] = candidate_results
+
+        if mode in ('all', 'corruption'):
+            steering_type = 'incorrect'
+            candidate_list = candidates['incorrect']
+            completed_ids = self._get_completed_candidate_ids(selected_coefficients, steering_type)
+
+            logger.info(f"\n{'='*80}")
+            logger.info(f"MULTI-CANDIDATE PARALLEL: {steering_type.upper()} steering")
+            logger.info(f"Candidates: {len(candidate_list)}, Completed: {len(completed_ids)}")
+            logger.info(f"{'='*80}")
+
+            candidate_results = []
+
+            for rank, candidate in enumerate(candidate_list):
+                candidate_id = f"L{candidate['layer']}_{candidate['latent_idx']}"
+
+                if candidate_id in completed_ids:
+                    logger.info(f"Skipping completed candidate: {candidate_id}")
+                    existing = next(
+                        (e for e in selected_coefficients.get(steering_type, [])
+                         if f"L{e['layer']}_{e['latent_idx']}" == candidate_id),
+                        None
+                    )
+                    if existing:
+                        candidate_results.append({
+                            'candidate_id': candidate_id,
+                            'candidate': candidate,
+                            'rank': rank,
+                            'optimal_coefficient': existing['coefficient'],
+                            'best_score': existing.get('composite_score', 0),
+                            'from_checkpoint': True
+                        })
+                    continue
+
+                logger.info(f"\n--- Processing candidate {rank+1}/{len(candidate_list)}: {candidate_id} ---")
+
+                result = self._run_candidate_grid_search(candidate, steering_type, rank)
+
+                candidate_results.append(result)
+
+                entry = {
+                    'rank': rank,
+                    'layer': candidate['layer'],
+                    'latent_idx': candidate['latent_idx'],
+                    'separation_score': candidate.get('separation_score', 0),
+                    'coefficient': result['optimal_coefficient'],
+                    'composite_score': result['best_score'],
+                    'n_coefficients_tested': result.get('n_coefficients_tested', 0),
+                    'early_stopped': result.get('early_stopped', False),
+                }
+
+                if steering_type not in selected_coefficients:
+                    selected_coefficients[steering_type] = []
+                selected_coefficients[steering_type].append(entry)
+                self._save_incremental_results(selected_coefficients)
+
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+
+            all_candidate_results['incorrect'] = candidate_results
+
+        # Save final results
+        serializable_results = {}
+        for st, crs in all_candidate_results.items():
+            serializable_results[f'{st}_steering'] = {
+                'candidates': [
+                    {
+                        'candidate_id': cr['candidate_id'],
+                        'candidate': cr['candidate'],
+                        'optimal_coefficient': cr['optimal_coefficient'],
+                        'best_score': cr['best_score'],
+                        'n_coefficients_tested': cr.get('n_coefficients_tested', 0),
+                        'early_stopped': cr.get('early_stopped', False),
+                        'from_checkpoint': cr.get('from_checkpoint', False),
+                    }
+                    for cr in crs
+                ]
+            }
+
+        save_json(serializable_results, self.output_dir / "coefficient_analysis.json")
+        save_json(selected_coefficients, self.output_dir / "selected_coefficients.json")
+
+        # Summary
+        summary = {
+            'phase': '4.5',
+            'description': 'Multi-Candidate Parallel Grid Search',
+            'timestamp': datetime.now().isoformat(),
+            'duration_seconds': time.time() - start_time,
+            'method': 'parallel_multi_candidate',
+            'n_gpus': self.n_gpus,
+            'config': {
+                'n_candidates': n_candidates,
+                'correct_grid_points': self.correct_coefficients,
+                'incorrect_grid_points': self.incorrect_coefficients,
+            },
+            'results': {
+                'selected_coefficients': selected_coefficients,
+                'correct_candidates': candidates['correct'],
+                'incorrect_candidates': candidates['incorrect'],
+            },
+        }
+
+        save_json(summary, self.output_dir / "phase_4_5_summary.json")
+
+        # Write manifest
+        write_phase_output(
+            phase="4.5",
+            outputs={
+                "primary": "phase_4_5_summary.json",
+                "selected_coefficients": "selected_coefficients.json",
+                "coefficient_analysis": "coefficient_analysis.json"
+            },
+            config=self.config,
+            output_dir=str(self.output_dir)
+        )
+
+        logger.info(f"\n{'='*80}")
+        logger.info("PHASE 4.5 PARALLEL MULTI-CANDIDATE COMPLETE")
+        logger.info(f"Duration: {time.time() - start_time:.1f}s")
+        logger.info(f"Results saved to: {self.output_dir}")
+        logger.info(f"{'='*80}")
+
+        return summary
+
+    def _run_candidate_grid_search(self, candidate: dict, steering_type: str, rank: int) -> dict:
+        """Run parallel coefficient grid search for a single candidate.
+
+        Args:
+            candidate: dict with 'layer', 'latent_idx', 'separation_score'
+            steering_type: 'correct' or 'incorrect'
+            rank: Candidate rank (0-indexed)
+
+        Returns:
+            dict with optimal_coefficient, best_score, search history
+        """
+        from common.iterative_parallel_runner import IterativeParallelRunner
+
+        candidate_id = f"L{candidate['layer']}_{candidate['latent_idx']}"
+        coefficients = self.correct_coefficients if steering_type == 'correct' else self.incorrect_coefficients
+
+        # Write candidate info to file for workers to read
+        # (Can't pass via closure because multiprocessing can't pickle local classes)
+        candidate_file = self.output_dir / "current_candidate.json"
+        save_json({
+            'candidate': candidate,
+            'steering_type': steering_type,
+            'candidate_id': candidate_id
+        }, candidate_file)
+        logger.info(f"Wrote candidate info to {candidate_file}")
+
+        # Early stop and merge functions
+        if steering_type == 'correct':
+            early_stop_fn = self._should_early_stop_correction
+            merge_fn = self._merge_correction_results
+        else:
+            early_stop_fn = self._should_early_stop_corruption
+            merge_fn = self._merge_corruption_results
+
+        # Create runner for this candidate
+        checkpoint_dir = self.output_dir / f"parallel_checkpoints_{steering_type}_{candidate_id}"
+
+        runner = IterativeParallelRunner(
+            phase_evaluator_class=CoefficientEvaluator,
+            config=self.config,
+            n_gpus=self.n_gpus,
+            values_to_test=coefficients,
+            early_stop_fn=early_stop_fn,
+            merge_fn=merge_fn,
+            checkpoint_dir=checkpoint_dir,
+            timeout_per_iteration=1200,
+        )
+
+        result = runner.run()
+
+        # Clean up candidate file
+        if candidate_file.exists():
+            candidate_file.unlink()
+
+        return {
+            'candidate_id': candidate_id,
+            'candidate': candidate,
+            'rank': rank,
+            'optimal_coefficient': result['optimal_value'],
+            'best_score': result['optimal_score'],
+            'n_coefficients_tested': len(result['history']),
+            'early_stopped': len(result['history']) < len(coefficients),
+            'search_history': result['history'],
+        }
+
+    def _load_partial_results(self) -> dict:
+        """Load existing partial results for candidate-level checkpointing."""
+        results_file = self.output_dir / "selected_coefficients.json"
+
+        if results_file.exists():
+            try:
+                existing = load_json(results_file)
+                if existing and isinstance(next(iter(existing.values()), None), list):
+                    logger.info(f"Loaded partial results: "
+                               f"{len(existing.get('correct', []))} correct, "
+                               f"{len(existing.get('incorrect', []))} incorrect candidates")
+                    return existing
+            except Exception as e:
+                logger.warning(f"Could not load partial results: {e}")
+
+        return {'correct': [], 'incorrect': []}
+
+    def _get_completed_candidate_ids(self, partial_results: dict, steering_type: str) -> set:
+        """Get set of candidate IDs that are already completed."""
+        completed = set()
+        for entry in partial_results.get(steering_type, []):
+            candidate_id = f"L{entry['layer']}_{entry['latent_idx']}"
+            completed.add(candidate_id)
+        return completed
+
+    def _save_incremental_results(self, selected_coefficients: dict) -> None:
+        """Save results incrementally after each candidate completes."""
+        save_json(selected_coefficients, self.output_dir / "selected_coefficients.json")
+        logger.info(f"Saved incremental checkpoint: "
+                   f"{len(selected_coefficients.get('correct', []))} correct, "
+                   f"{len(selected_coefficients.get('incorrect', []))} incorrect")
 
     def _merge_correction_results(self, gpu_results: list[dict]) -> dict:
         """Merge correction results from all GPUs."""

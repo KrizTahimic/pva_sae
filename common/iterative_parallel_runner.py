@@ -425,7 +425,17 @@ class IterativeParallelRunner:
             })
 
     def _get_evaluator_task_ids(self, evaluator) -> list[str]:
-        """Extract all task_ids from an evaluator's data."""
+        """Extract task_ids from an evaluator's data.
+
+        If the evaluator has a `get_relevant_task_ids()` method, use that
+        (this allows evaluators to return only task_ids that will actually
+        be evaluated based on experiment mode/steering type).
+        """
+        # Preferred: use evaluator's own method if available
+        if hasattr(evaluator, 'get_relevant_task_ids'):
+            return evaluator.get_relevant_task_ids()
+
+        # Fallback: extract from common data attributes
         task_ids = []
 
         # Try common data attribute patterns
