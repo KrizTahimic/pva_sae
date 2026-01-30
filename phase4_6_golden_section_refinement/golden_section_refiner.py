@@ -376,7 +376,52 @@ class GoldenSectionCoefficientRefiner:
 
             logger.info(f"{steering_type.capitalize()} steering search bounds: "
                        f"[{lower}, {upper}] (Phase 4.5 optimal: {optimal_coeff})")
-    
+
+    def _load_partial_results(self) -> dict:
+        """Load existing partial results for candidate-level checkpointing.
+
+        Returns:
+            dict with 'correct' and 'incorrect' lists of completed candidate entries
+        """
+        results_file = self.output_dir / "refined_coefficients.json"
+
+        if results_file.exists():
+            try:
+                existing = load_json(results_file)
+                # Validate it's multi-candidate format (list values)
+                if existing and isinstance(next(iter(existing.values()), None), list):
+                    logger.info(f"Loaded partial results: "
+                               f"{len(existing.get('correct', []))} correct, "
+                               f"{len(existing.get('incorrect', []))} incorrect candidates completed")
+                    return existing
+            except Exception as e:
+                logger.warning(f"Could not load partial results: {e}")
+
+        return {'correct': [], 'incorrect': []}
+
+    def _get_completed_candidate_ids(self, partial_results: dict, steering_type: str) -> set:
+        """Get set of candidate IDs that are already completed.
+
+        Args:
+            partial_results: Dict from _load_partial_results
+            steering_type: 'correct' or 'incorrect'
+
+        Returns:
+            Set of candidate_id strings (e.g., {"L25_4691", "L18_1234"})
+        """
+        completed = set()
+        for entry in partial_results.get(steering_type, []):
+            candidate_id = f"L{entry['layer']}_{entry['latent_idx']}"
+            completed.add(candidate_id)
+        return completed
+
+    def _save_incremental_results(self, refined_coefficients: dict) -> None:
+        """Save results incrementally after each candidate completes."""
+        save_json(refined_coefficients, self.output_dir / "refined_coefficients.json")
+        logger.info(f"Saved incremental checkpoint: "
+                   f"{len(refined_coefficients.get('correct', []))} correct, "
+                   f"{len(refined_coefficients.get('incorrect', []))} incorrect")
+
     def _get_latent_direction(self, layer: int, latent_idx: int) -> torch.Tensor:
         """Get the decoder direction for a latent from cached SAE.
 
@@ -1595,8 +1640,8 @@ class GoldenSectionCoefficientRefiner:
         else:
             steering_types = ['correct', 'incorrect']
 
-        # Output structure: list of candidates per steering type
-        refined_coefficients = {'correct': [], 'incorrect': []}
+        # Load any existing partial results (candidate-level checkpointing)
+        refined_coefficients = self._load_partial_results()
         refinement_analysis = {'correct': [], 'incorrect': []}
 
         for steering_type in steering_types:
@@ -1604,13 +1649,25 @@ class GoldenSectionCoefficientRefiner:
                 logger.warning(f"No candidates for {steering_type} steering")
                 continue
 
+            # Get already-completed candidates for this steering type
+            completed_ids = self._get_completed_candidate_ids(refined_coefficients, steering_type)
+
             candidates = self.candidate_search_bounds[steering_type]
             n_candidates = len(candidates)
+            n_to_skip = sum(1 for cid in candidates if cid in completed_ids)
+            n_to_process = n_candidates - n_to_skip
+
             logger.info(f"\n{'='*60}")
-            logger.info(f"Refining {n_candidates} {steering_type.upper()} candidates")
+            logger.info(f"Refining {steering_type.upper()} candidates")
+            logger.info(f"Total: {n_candidates}, Already completed: {n_to_skip}, To process: {n_to_process}")
             logger.info(f"{'='*60}")
 
             for rank, (candidate_id, bounds) in enumerate(candidates.items()):
+                # Skip already-completed candidates
+                if candidate_id in completed_ids:
+                    logger.info(f"Skipping {candidate_id} (already completed)")
+                    continue
+
                 logger.info(f"\n--- Candidate {rank+1}/{n_candidates}: {candidate_id} ---")
                 logger.info(f"Phase 4.5 optimal: {bounds['optimal_from_phase4_5']}")
                 logger.info(f"Search bounds: [{bounds['lower']}, {bounds['upper']}]")
@@ -1644,6 +1701,9 @@ class GoldenSectionCoefficientRefiner:
                     result_entry['composite_score'] = best_score
 
                 refined_coefficients[steering_type].append(result_entry)
+
+                # Save incrementally after each candidate
+                self._save_incremental_results(refined_coefficients)
 
                 # Store full analysis
                 refinement_analysis[steering_type].append({

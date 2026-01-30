@@ -792,6 +792,51 @@ class SteeringEffectAnalyzer:
         preservation_rate = (preserved / total * 100) if total > 0 else 0.0
         return {'preservation_rate': preservation_rate, 'preserved': preserved, 'total': total}
 
+    def _load_partial_results(self) -> dict:
+        """Load existing partial results for candidate-level checkpointing.
+
+        Returns:
+            dict with 'correct' and 'incorrect' lists of completed candidate entries
+        """
+        results_file = self.output_dir / "steering_effect_analysis.json"
+
+        if results_file.exists():
+            try:
+                existing = load_json(results_file)
+                # Validate it's multi-candidate format (dict with list values for correct/incorrect)
+                if existing and isinstance(existing.get('correct', None), list):
+                    logger.info(f"Loaded partial results: "
+                               f"{len(existing.get('correct', []))} correct, "
+                               f"{len(existing.get('incorrect', []))} incorrect candidates completed")
+                    return existing
+            except Exception as e:
+                logger.warning(f"Could not load partial results: {e}")
+
+        return {'correct': [], 'incorrect': []}
+
+    def _get_completed_candidate_ids(self, partial_results: dict, steering_type: str) -> set:
+        """Get set of candidate IDs that are already completed.
+
+        Args:
+            partial_results: Dict from _load_partial_results
+            steering_type: 'correct' or 'incorrect'
+
+        Returns:
+            Set of candidate_id strings (e.g., {"L25_4691", "L18_1234"})
+        """
+        completed = set()
+        for entry in partial_results.get(steering_type, []):
+            candidate_id = f"L{entry['layer']}_{entry['latent_idx']}"
+            completed.add(candidate_id)
+        return completed
+
+    def _save_incremental_results(self, candidate_results: dict) -> None:
+        """Save results incrementally after each candidate completes."""
+        save_json(candidate_results, self.output_dir / "steering_effect_analysis.json")
+        logger.info(f"Saved incremental checkpoint: "
+                   f"{len(candidate_results.get('correct', []))} correct, "
+                   f"{len(candidate_results.get('incorrect', []))} incorrect")
+
     def evaluate_steering_effects(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
         """Evaluate correct and incorrect steering effects, including preservation."""
         logger.info("Evaluating steering effects...")
@@ -1299,19 +1344,25 @@ class SteeringEffectAnalyzer:
         else:
             steering_types = ['correct', 'incorrect']
 
-        # Output structure: list of candidates per steering type
-        candidate_results = {'correct': [], 'incorrect': []}
+        # Load any existing partial results (candidate-level checkpointing)
+        candidate_results = self._load_partial_results()
 
         for steering_type in steering_types:
+            # Get already-completed candidates for this steering type
+            completed_ids = self._get_completed_candidate_ids(candidate_results, steering_type)
+
             candidates = self.candidate_coefficients.get(steering_type, [])
             n_candidates = len(candidates)
+            n_to_skip = sum(1 for c in candidates if f"L{c['layer']}_{c['latent_idx']}" in completed_ids)
+            n_to_process = n_candidates - n_to_skip
 
             if n_candidates == 0:
                 logger.warning(f"No {steering_type} candidates found in Phase 4.6 output")
                 continue
 
             logger.info(f"\n{'='*60}")
-            logger.info(f"Evaluating {n_candidates} {steering_type.upper()} candidates")
+            logger.info(f"Evaluating {steering_type.upper()} candidates")
+            logger.info(f"Total: {n_candidates}, Already completed: {n_to_skip}, To process: {n_to_process}")
             logger.info(f"{'='*60}")
 
             for rank, candidate_entry in enumerate(candidates):
@@ -1319,6 +1370,11 @@ class SteeringEffectAnalyzer:
                 latent_idx = candidate_entry['latent_idx']
                 coefficient = candidate_entry['coefficient']
                 candidate_id = f"L{layer}_{latent_idx}"
+
+                # Skip already-completed candidates
+                if candidate_id in completed_ids:
+                    logger.info(f"Skipping {candidate_id} (already completed)")
+                    continue
 
                 logger.info(f"\n--- Candidate {rank+1}/{n_candidates}: {candidate_id} (coeff={coefficient}) ---")
 
@@ -1334,6 +1390,9 @@ class SteeringEffectAnalyzer:
                 result['rank'] = rank
 
                 candidate_results[steering_type].append(result)
+
+                # Save incrementally after each candidate
+                self._save_incremental_results(candidate_results)
 
                 # Log result
                 metric_key = 'correction_rate' if steering_type == 'correct' else 'corruption_rate'

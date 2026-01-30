@@ -674,28 +674,137 @@ class SteeringCoefficientSelector:
             'early_stopped': len(search_results) < len(grid_points)
         }
 
-    def multi_candidate_grid_search(self, steering_type: str) -> list[dict]:
+    def _load_partial_results(self) -> dict:
+        """Load existing partial results for candidate-level checkpointing.
+
+        Returns:
+            dict with 'correct' and 'incorrect' lists of completed candidate entries
+        """
+        suffix = f"_gpu{self.gpu_id}" if self.n_gpus > 1 else ""
+        results_file = self.output_dir / f"selected_coefficients{suffix}.json"
+
+        if results_file.exists():
+            try:
+                existing = load_json(results_file)
+                # Validate it's multi-candidate format (list values)
+                if existing and isinstance(next(iter(existing.values()), None), list):
+                    logger.info(f"Loaded partial results: "
+                               f"{len(existing.get('correct', []))} correct, "
+                               f"{len(existing.get('incorrect', []))} incorrect candidates completed")
+                    return existing
+            except Exception as e:
+                logger.warning(f"Could not load partial results: {e}")
+
+        return {'correct': [], 'incorrect': []}
+
+    def _get_completed_candidate_ids(self, partial_results: dict, steering_type: str) -> set:
+        """Get set of candidate IDs that are already completed.
+
+        Args:
+            partial_results: Dict from _load_partial_results
+            steering_type: 'correct' or 'incorrect'
+
+        Returns:
+            Set of candidate_id strings (e.g., {"L25_4691", "L18_1234"})
+        """
+        completed = set()
+        for entry in partial_results.get(steering_type, []):
+            candidate_id = f"L{entry['layer']}_{entry['latent_idx']}"
+            completed.add(candidate_id)
+        return completed
+
+    def _save_incremental_results(self, selected_coefficients: dict) -> None:
+        """Save results incrementally after each candidate completes."""
+        suffix = f"_gpu{self.gpu_id}" if self.n_gpus > 1 else ""
+        save_json(selected_coefficients, self.output_dir / f"selected_coefficients{suffix}.json")
+        logger.info(f"Saved incremental checkpoint: "
+                   f"{len(selected_coefficients.get('correct', []))} correct, "
+                   f"{len(selected_coefficients.get('incorrect', []))} incorrect")
+
+    def multi_candidate_grid_search(
+        self,
+        steering_type: str,
+        completed_ids: set = None,
+        selected_coefficients: dict = None
+    ) -> list[dict]:
         """
         Run grid search for all top-N candidates of a given steering type.
 
         Args:
             steering_type: 'correct' or 'incorrect'
+            completed_ids: Set of candidate IDs already completed (for checkpointing)
+            selected_coefficients: Dict to update incrementally (for checkpointing)
 
         Returns:
             List of candidate results, sorted by best score (descending)
         """
         candidates = self.correct_candidates if steering_type == 'correct' else self.incorrect_candidates
+        completed_ids = completed_ids or set()
+
+        # Count how many to skip
+        n_to_skip = sum(1 for c in candidates if f"L{c['layer']}_{c['latent_idx']}" in completed_ids)
+        n_to_process = len(candidates) - n_to_skip
 
         logger.info(f"\n{'='*80}")
         logger.info(f"MULTI-CANDIDATE GRID SEARCH: {steering_type.upper()} steering")
-        logger.info(f"Testing {len(candidates)} candidates")
+        logger.info(f"Total candidates: {len(candidates)}, Already completed: {n_to_skip}, To process: {n_to_process}")
         logger.info(f"{'='*80}")
 
         all_candidate_results = []
         for rank, candidate in enumerate(candidates):
+            candidate_id = f"L{candidate['layer']}_{candidate['latent_idx']}"
+
+            # Skip already-completed candidates
+            if candidate_id in completed_ids:
+                logger.info(f"Skipping {candidate_id} (already completed)")
+                # Reconstruct minimal result for sorting
+                existing_entry = next(
+                    (e for e in selected_coefficients.get(steering_type, [])
+                     if f"L{e['layer']}_{e['latent_idx']}" == candidate_id),
+                    None
+                )
+                if existing_entry:
+                    all_candidate_results.append({
+                        'candidate_id': candidate_id,
+                        'candidate': candidate,
+                        'rank': rank,
+                        'optimal_coefficient': existing_entry['coefficient'],
+                        'best_score': existing_entry.get('correction_rate', existing_entry.get('composite_score', 0)),
+                        'from_checkpoint': True
+                    })
+                continue
+
+            # Run grid search for this candidate
+            logger.info(f"\n--- Processing candidate {rank+1}/{len(candidates)}: {candidate_id} ---")
             candidate_result = self.grid_search_for_candidate(candidate, steering_type)
             candidate_result['rank'] = rank
             all_candidate_results.append(candidate_result)
+
+            # Build entry for selected_coefficients
+            if steering_type == 'correct':
+                primary_metric = 'correction_rate'
+                primary_value = candidate_result['best_result']['metrics'].get('correction_rate', 0)
+            else:
+                primary_metric = 'composite_score'
+                primary_value = candidate_result['best_result']['metrics'].get('composite_score', 0)
+
+            entry = {
+                'rank': rank,
+                'layer': candidate['layer'],
+                'latent_idx': candidate['latent_idx'],
+                'separation_score': candidate.get('separation_score', 0),
+                'coefficient': candidate_result['optimal_coefficient'],
+                primary_metric: primary_value,
+                'n_coefficients_tested': candidate_result['n_coefficients_tested'],
+                'early_stopped': candidate_result['early_stopped'],
+            }
+
+            # Update selected_coefficients incrementally
+            if selected_coefficients is not None:
+                if steering_type not in selected_coefficients:
+                    selected_coefficients[steering_type] = []
+                selected_coefficients[steering_type].append(entry)
+                self._save_incremental_results(selected_coefficients)
 
             # Memory cleanup between candidates
             gc.collect()
@@ -710,7 +819,8 @@ class SteeringCoefficientSelector:
         logger.info(f"MULTI-CANDIDATE SUMMARY ({steering_type} steering)")
         logger.info(f"{'='*60}")
         for i, r in enumerate(all_candidate_results):
-            logger.info(f"  #{i+1}: {r['candidate_id']} - coeff={r['optimal_coefficient']}, score={r['best_score']:.1f}%")
+            ckpt_marker = " [from checkpoint]" if r.get('from_checkpoint') else ""
+            logger.info(f"  #{i+1}: {r['candidate_id']} - coeff={r['optimal_coefficient']}, score={r['best_score']:.1f}%{ckpt_marker}")
 
         return all_candidate_results
 
@@ -927,49 +1037,32 @@ class SteeringCoefficientSelector:
         else:
             steering_types = ['correct', 'incorrect']
 
-        # Store results for all candidates
+        # Load any existing partial results (candidate-level checkpointing)
+        selected_coefficients = self._load_partial_results()
         all_candidate_results = {}
-        selected_coefficients = {}
 
         for steering_type in steering_types:
-            logger.info(f"\n{'='*80}")
-            logger.info(f"MULTI-CANDIDATE GRID SEARCH: {steering_type.upper()} steering")
-            logger.info(f"{'='*80}")
+            # Get already-completed candidates for this steering type
+            completed_ids = self._get_completed_candidate_ids(selected_coefficients, steering_type)
 
-            # Run grid search for all candidates
-            candidate_results = self.multi_candidate_grid_search(steering_type)
+            # Run grid search with checkpointing
+            candidate_results = self.multi_candidate_grid_search(
+                steering_type,
+                completed_ids=completed_ids,
+                selected_coefficients=selected_coefficients
+            )
             all_candidate_results[steering_type] = candidate_results
 
-            # Build the selected_coefficients list (new format for Phase 4.6+)
-            selected_coefficients[steering_type] = []
-            for rank, cr in enumerate(candidate_results):
-                candidate = cr['candidate']
-                if steering_type == 'correct':
-                    primary_metric = 'correction_rate'
-                    primary_value = cr['best_result']['metrics'].get('correction_rate', 0)
-                else:
-                    primary_metric = 'composite_score'
-                    primary_value = cr['best_result']['metrics'].get('composite_score', 0)
-
-                selected_coefficients[steering_type].append({
-                    'rank': rank,
-                    'layer': candidate['layer'],
-                    'latent_idx': candidate['latent_idx'],
-                    'separation_score': candidate.get('separation_score', 0),
-                    'coefficient': cr['optimal_coefficient'],
-                    primary_metric: primary_value,
-                    'n_coefficients_tested': cr['n_coefficients_tested'],
-                    'early_stopped': cr['early_stopped'],
-                })
-
-            # Save examples for top candidate
-            if candidate_results:
-                top = candidate_results[0]
-                self.save_coefficient_examples(
-                    top['optimal_coefficient'],
-                    steering_type,
-                    top['best_result'].get('results', [])
-                )
+            # Save examples for top candidate (only if we have fresh results)
+            fresh_results = [cr for cr in candidate_results if not cr.get('from_checkpoint')]
+            if fresh_results:
+                top = fresh_results[0]
+                if 'best_result' in top:
+                    self.save_coefficient_examples(
+                        top['optimal_coefficient'],
+                        steering_type,
+                        top['best_result'].get('results', [])
+                    )
 
         # Save full candidate results
         if self.n_gpus > 1:
