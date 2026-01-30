@@ -204,7 +204,7 @@ class GoldenSectionCoefficientRefiner:
             self.correct_candidates = candidates['correct']
             self.incorrect_candidates = candidates['incorrect']
 
-            # For backward compatibility
+            # Also load single best latent for single-candidate mode
             pva_latents = load_steering_latents(self.config)
             self.best_correct_latent = pva_latents.best_correct_latent
             self.best_incorrect_latent = pva_latents.best_incorrect_latent
@@ -331,11 +331,11 @@ class GoldenSectionCoefficientRefiner:
                 logger.info(f"{steering_type.capitalize()} candidate {candidate_id}: "
                            f"bounds=[{lower}, {upper}] (Phase 4.5 optimal: {optimal_coeff})")
 
-        # Also set up legacy search_bounds for backward compatibility with probe mode
+        # Also set up search_bounds for probe mode
         self.search_bounds = {}
 
     def _load_single_candidate_results(self) -> None:
-        """Load Phase 4.5 results in single-candidate format (backward compatible)."""
+        """Load Phase 4.5 results in single-candidate format."""
         # Also load coefficient_analysis.json for search history (if available)
         analysis_file = self.phase4_5_dir / "coefficient_analysis.json"
         if analysis_file.exists():
@@ -1365,11 +1365,11 @@ class GoldenSectionCoefficientRefiner:
         elif self.is_multi_candidate:
             return self._run_multi_candidate_mode()
         else:
-            # Single-candidate SAE mode (backward compatibility)
+            # Single-candidate SAE mode
             return self._run_probe_mode()
 
     def _run_probe_mode(self) -> dict:
-        """Run single-candidate mode (probe or legacy SAE)."""
+        """Run single-candidate mode (probe or single-latent SAE)."""
         start_time = time.time()
         logger.info("Starting Phase 4.6: Golden Section Search Coefficient Refinement")
         if self.use_probe:
@@ -1798,6 +1798,9 @@ class RefinementEvaluator:
 
     Used by IterativeParallelRunner for parallel golden section refinement.
     Each GPU runs one RefinementEvaluator instance.
+
+    In multi-candidate mode, the orchestrator sets current_candidate and
+    steering_type before each candidate's golden section search.
     """
 
     def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
@@ -1810,6 +1813,12 @@ class RefinementEvaluator:
         # Direction source
         self.direction_source = getattr(config, 'direction_source', 'sae')
         self.use_probe = self.direction_source == 'probe_mass_mean'
+
+        # Multi-candidate mode: set by orchestrator before each candidate's search
+        self.current_candidate = None
+        self.current_steering_type = None
+        self.current_latent_direction = None
+        self.current_target_layer = None
 
         logger.info(f"RefinementEvaluator GPU {gpu_id}: Initializing...")
 
@@ -1827,9 +1836,9 @@ class RefinementEvaluator:
         logger.info(f"RefinementEvaluator GPU {gpu_id}: Initialization complete")
 
     def _load_dependencies(self):
-        """Load steering directions and baseline data."""
+        """Load steering directions, SAEs, and baseline data."""
         from common.steering_setup import load_probe_directions_for_steering
-        from common.parallel_runner import filter_dataframe_for_gpu
+        from common.phase_discovery import discover_top_n_steering_latents
 
         if self.use_probe:
             self.probe = load_probe_directions_for_steering(
@@ -1840,17 +1849,40 @@ class RefinementEvaluator:
             self.probe_layer = self.probe.layer
             self.best_correct_latent = None
             self.best_incorrect_latent = None
+            self.sae_cache = {}
+            self.correct_candidates = None
+            self.incorrect_candidates = None
         else:
+            # Load top-N candidates for multi-candidate mode
+            candidates = discover_top_n_steering_latents(self.config)
+            self.correct_candidates = candidates['correct']
+            self.incorrect_candidates = candidates['incorrect']
+
+            # Pre-load SAEs for ALL candidate layers (cached for reuse)
+            self.sae_cache = {}
+            all_layers = candidates['all_layers']
+            for layer in all_layers:
+                logger.info(f"GPU {self.gpu_id}: Loading SAE for layer {layer}...")
+                self.sae_cache[layer] = load_sae_for_config(self.config, layer, self.device)
+
+            logger.info(f"GPU {self.gpu_id}: Loaded {len(self.sae_cache)} SAEs for layers: {all_layers}")
+
+            # Also load single best latents for single-latent mode
             pva_latents = load_steering_latents(self.config)
             self.best_correct_latent = pva_latents.best_correct_latent
             self.best_incorrect_latent = pva_latents.best_incorrect_latent
 
-            correct_sae = load_sae_for_config(
-                self.config, self.best_correct_latent['layer'], self.device
-            )
-            incorrect_sae = load_sae_for_config(
-                self.config, self.best_incorrect_latent['layer'], self.device
-            )
+            # Get directions from cached SAEs
+            correct_sae = self.sae_cache.get(self.best_correct_latent['layer'])
+            if correct_sae is None:
+                correct_sae = load_sae_for_config(
+                    self.config, self.best_correct_latent['layer'], self.device
+                )
+            incorrect_sae = self.sae_cache.get(self.best_incorrect_latent['layer'])
+            if incorrect_sae is None:
+                incorrect_sae = load_sae_for_config(
+                    self.config, self.best_incorrect_latent['layer'], self.device
+                )
 
             self.correct_latent_direction = correct_sae.W_dec[
                 self.best_correct_latent['latent_idx']
@@ -1859,7 +1891,7 @@ class RefinementEvaluator:
                 self.best_incorrect_latent['latent_idx']
             ].detach()
 
-        # Load baseline data - try expected filename, then merged pattern
+        # Load baseline data - NOT filtered by GPU (use task_ids for distribution)
         phase3_6_output = discover_latest_phase_output("3.6", config=self.config)
         phase3_6_dir = Path(phase3_6_output).parent
         baseline_file = phase3_6_dir / "dataset_hyperparams_temp_0_0.parquet"
@@ -1876,16 +1908,72 @@ class RefinementEvaluator:
         self.initially_correct_data = self.baseline_data[self.baseline_data['baseline_passed'] == True].copy()
         self.initially_incorrect_data = self.baseline_data[self.baseline_data['baseline_passed'] == False].copy()
 
-        # Filter for this GPU
-        self.initially_correct_data = filter_dataframe_for_gpu(
-            self.initially_correct_data, self.gpu_id, self.n_gpus
-        )
-        self.initially_incorrect_data = filter_dataframe_for_gpu(
-            self.initially_incorrect_data, self.gpu_id, self.n_gpus
-        )
+        logger.info(f"GPU {self.gpu_id}: Loaded {len(self.initially_correct_data)} correct, "
+                   f"{len(self.initially_incorrect_data)} incorrect tasks (unfiltered)")
 
-        logger.info(f"GPU {self.gpu_id}: Processing {len(self.initially_correct_data)} correct, "
-                   f"{len(self.initially_incorrect_data)} incorrect tasks")
+        # Check for current_candidate.json (written by orchestrator for parallel multi-candidate mode)
+        output_dir = Path(get_phase_output_dir("4.6", self.config))
+        if self.use_probe:
+            output_dir = output_dir.parent / (output_dir.name + "_probe")
+        candidate_file = output_dir / "current_candidate.json"
+
+        if candidate_file.exists() and not self.use_probe:
+            try:
+                candidate_info = load_json(candidate_file)
+                candidate = candidate_info['candidate']
+                steering_type = candidate_info['steering_type']
+                logger.info(f"GPU {self.gpu_id}: Found current_candidate.json, setting candidate {candidate_info['candidate_id']}")
+                self.set_candidate(candidate, steering_type)
+            except Exception as e:
+                logger.warning(f"GPU {self.gpu_id}: Failed to load current_candidate.json: {e}")
+
+    def set_candidate(self, candidate: dict, steering_type: str):
+        """Set the current candidate for multi-candidate mode.
+
+        Called by orchestrator before each candidate's golden section search.
+
+        Args:
+            candidate: dict with 'layer', 'latent_idx', etc.
+            steering_type: 'correct' or 'incorrect'
+        """
+        self.current_candidate = candidate
+        self.current_steering_type = steering_type
+
+        # Get direction from cached SAE
+        layer = candidate['layer']
+        latent_idx = candidate['latent_idx']
+        sae = self.sae_cache[layer]
+        direction = sae.W_dec[latent_idx].detach()
+
+        # Match model dtype
+        model_dtype = next(self.model.parameters()).dtype
+        self.current_latent_direction = direction.to(dtype=model_dtype)
+        self.current_target_layer = layer
+
+        candidate_id = f"L{layer}_{latent_idx}"
+        logger.info(f"GPU {self.gpu_id}: Set candidate {candidate_id} ({steering_type})")
+
+    def get_relevant_task_ids(self) -> list[str]:
+        """Get task_ids that will actually be evaluated.
+
+        This is used by IterativeParallelRunner to discover task_ids.
+        Returns only the task_ids for problems that will be evaluated based
+        on the current steering type.
+
+        Returns:
+            List of task_ids to evaluate
+        """
+        # Multi-candidate mode: use current_steering_type
+        if self.current_steering_type is not None:
+            if self.current_steering_type == 'correct':
+                # Correction: evaluate on incorrect problems
+                return self.initially_incorrect_data['task_id'].tolist()
+            else:
+                # Corruption: evaluate on correct problems
+                return self.initially_correct_data['task_id'].tolist()
+
+        # Fallback: return all task_ids (will be filtered by steering_type in evaluate)
+        return self.baseline_data['task_id'].tolist()
 
     def evaluate_single_value(self, value: tuple, task_ids: list[str] | None = None) -> dict:
         """
@@ -1894,7 +1982,7 @@ class RefinementEvaluator:
         Args:
             value: Tuple of (coefficient, steering_type)
             task_ids: Optional list of specific task_ids to process. If None,
-                     use the GPU's pre-filtered data (legacy/sequential mode).
+                     use the GPU's pre-filtered data (sequential mode).
 
         Returns:
             dict with coefficient, steering_type, results, and n_problems
@@ -1902,14 +1990,24 @@ class RefinementEvaluator:
         coefficient, steering_type = value
         logger.info(f"GPU {self.gpu_id}: Evaluating coefficient={coefficient}, type={steering_type}")
 
-        if steering_type == 'correct':
-            base_data = self.initially_incorrect_data
-            latent_direction = self.correct_latent_direction
-            target_layer = self.probe_layer if self.use_probe else self.best_correct_latent['layer']
+        # Multi-candidate mode: use current_candidate's direction and layer
+        if self.current_candidate is not None and self.current_latent_direction is not None:
+            if steering_type == 'correct':
+                base_data = self.initially_incorrect_data
+            else:
+                base_data = self.initially_correct_data
+            latent_direction = self.current_latent_direction
+            target_layer = self.current_target_layer
         else:
-            base_data = self.initially_correct_data
-            latent_direction = self.incorrect_latent_direction
-            target_layer = self.probe_layer if self.use_probe else self.best_incorrect_latent['layer']
+            # Single-latent mode
+            if steering_type == 'correct':
+                base_data = self.initially_incorrect_data
+                latent_direction = self.correct_latent_direction
+                target_layer = self.probe_layer if self.use_probe else self.best_correct_latent['layer']
+            else:
+                base_data = self.initially_correct_data
+                latent_direction = self.incorrect_latent_direction
+                target_layer = self.probe_layer if self.use_probe else self.best_incorrect_latent['layer']
 
         # Filter to specific task_ids if provided
         if task_ids is not None:
@@ -2024,9 +2122,64 @@ class RefinementOrchestrator:
                 phase4_5_dir = probe_dir
 
         self.phase4_5_dir = phase4_5_dir
-        self.phase4_5_results = load_json(phase4_5_dir / "coefficient_analysis.json")
         self.selected_coefficients = load_json(phase4_5_dir / "selected_coefficients.json")
 
+        # Detect format: multi-candidate (list) vs single-candidate (dict)
+        sample_value = next(iter(self.selected_coefficients.values()))
+        self.is_multi_candidate = isinstance(sample_value, list)
+
+        if self.is_multi_candidate:
+            logger.info("Detected multi-candidate format from Phase 4.5")
+            self._load_multi_candidate_results()
+        else:
+            logger.info("Detected single-candidate format from Phase 4.5")
+            self._load_single_candidate_results()
+
+    def _load_multi_candidate_results(self):
+        """Load Phase 4.5 results in multi-candidate format."""
+        # Store candidate-specific search bounds: {steering_type: {candidate_id: bounds}}
+        self.candidate_search_bounds = {'correct': {}, 'incorrect': {}}
+        self.cached_scores = {'correct': {}, 'incorrect': {}}
+        self.search_bounds = {}  # Unused in multi-candidate mode
+
+        for steering_type in ['correct', 'incorrect']:
+            if steering_type not in self.selected_coefficients:
+                continue
+
+            candidates = self.selected_coefficients[steering_type]
+            if not candidates:
+                continue
+
+            for candidate_entry in candidates:
+                layer = candidate_entry['layer']
+                latent_idx = candidate_entry['latent_idx']
+                candidate_id = f"L{layer}_{latent_idx}"
+                optimal_coeff = candidate_entry['coefficient']
+
+                # Determine search bounds
+                if optimal_coeff >= 100:
+                    extension = 100
+                else:
+                    extension = 10
+                lower = max(1.0, optimal_coeff - extension)
+                upper = optimal_coeff + extension
+
+                self.candidate_search_bounds[steering_type][candidate_id] = {
+                    'layer': layer,
+                    'latent_idx': latent_idx,
+                    'lower': lower,
+                    'upper': upper,
+                    'optimal_from_phase4_5': optimal_coeff,
+                    'phase4_5_entry': candidate_entry,
+                }
+
+                logger.info(f"{steering_type.capitalize()} candidate {candidate_id}: "
+                           f"bounds=[{lower}, {upper}] (Phase 4.5 optimal: {optimal_coeff})")
+
+    def _load_single_candidate_results(self):
+        """Load Phase 4.5 results in single-candidate format."""
+        self.phase4_5_results = load_json(self.phase4_5_dir / "coefficient_analysis.json")
+        self.candidate_search_bounds = {'correct': {}, 'incorrect': {}}
         self.search_bounds = {}
         self.cached_scores = {'correct': {}, 'incorrect': {}}
 
@@ -2040,12 +2193,10 @@ class RefinementOrchestrator:
 
             # Cache Phase 4.5 scores
             for hist_item in results.get('search_history', []):
-                # Handle both old format (coefficient, metrics) and new format (value, top-level metrics)
                 coeff = hist_item.get('coefficient') or hist_item.get('value')
                 if coeff is None:
                     continue
                 if steering_type == 'correct':
-                    # Try new format first, then old format
                     score = hist_item.get('correction_rate') or hist_item.get('metrics', {}).get('correction_rate', 0)
                 else:
                     score = hist_item.get('composite_score') or hist_item.get('metrics', {}).get('composite_score', 0)
@@ -2079,32 +2230,36 @@ class RefinementOrchestrator:
 
     def _run_parallel(self) -> dict:
         """Parallel execution - orchestrator controls golden section algorithm."""
-        from common.iterative_parallel_runner import IterativeParallelRunner
         from common.phase_discovery import write_phase_output
 
         logger.info(f"Starting parallel golden section refinement with {self.n_gpus} GPUs")
 
+        # Route to multi-candidate or single-candidate parallel mode
+        if self.is_multi_candidate:
+            return self._run_parallel_multi_candidate()
+
+        # Single-candidate parallel mode
         mode = getattr(self.config, 'phase4_6_experiment_mode', 'all')
         refined_coefficients = {}
 
         if mode in ('all', 'correction') and 'correct' in self.search_bounds:
-            optimal, history = self._golden_section_search_parallel('correct')
+            optimal, history, best_score = self._golden_section_search_parallel('correct')
             refined_coefficients['correct'] = {
                 'refined_coefficient': optimal,
                 'phase4_5_coefficient': self.search_bounds['correct']['optimal_from_phase4_5'],
                 'improvement': optimal - self.search_bounds['correct']['optimal_from_phase4_5'],
                 'search_iterations': len(history),
-                'best_score': self.cached_scores['correct'].get(optimal, 0)
+                'best_score': best_score
             }
 
         if mode in ('all', 'corruption') and 'incorrect' in self.search_bounds:
-            optimal, history = self._golden_section_search_parallel('incorrect')
+            optimal, history, best_score = self._golden_section_search_parallel('incorrect')
             refined_coefficients['incorrect'] = {
                 'refined_coefficient': optimal,
                 'phase4_5_coefficient': self.search_bounds['incorrect']['optimal_from_phase4_5'],
                 'improvement': optimal - self.search_bounds['incorrect']['optimal_from_phase4_5'],
                 'search_iterations': len(history),
-                'best_score': self.cached_scores['incorrect'].get(optimal, 0)
+                'best_score': best_score
             }
 
         # Save results
@@ -2124,17 +2279,117 @@ class RefinementOrchestrator:
         logger.info(f"Results saved to: {self.output_dir}")
         return {'refined_coefficients': refined_coefficients}
 
-    def _golden_section_search_parallel(self, steering_type: str) -> tuple[int, list]:
-        """Run golden section search with parallel evaluation."""
-        from common.iterative_parallel_runner import IterativeParallelRunner
+    def _run_parallel_multi_candidate(self) -> dict:
+        """Parallel multi-candidate golden section refinement.
 
-        bounds = self.search_bounds[steering_type]
+        Outer loop: iterate over candidates
+        Inner loop: golden section search with parallel coefficient evaluation
+        """
+        from common.phase_discovery import write_phase_output
+
+        mode = getattr(self.config, 'phase4_6_experiment_mode', 'all')
+        results = {'correct': [], 'incorrect': []}
+
+        # Process each steering type
+        for steering_type in ['correct', 'incorrect']:
+            if mode == 'correction' and steering_type != 'correct':
+                continue
+            if mode == 'corruption' and steering_type != 'incorrect':
+                continue
+
+            candidates = self.candidate_search_bounds.get(steering_type, {})
+            if not candidates:
+                logger.info(f"No {steering_type} candidates to refine")
+                continue
+
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Refining {len(candidates)} {steering_type} candidates")
+            logger.info(f"{'='*60}")
+
+            for idx, (candidate_id, bounds) in enumerate(candidates.items()):
+                logger.info(f"\n--- Candidate {idx+1}/{len(candidates)}: {candidate_id} ---")
+
+                # Write current_candidate.json for workers to read
+                candidate_info = {
+                    'candidate_id': candidate_id,
+                    'candidate': {
+                        'layer': bounds['layer'],
+                        'latent_idx': bounds['latent_idx'],
+                    },
+                    'steering_type': steering_type,
+                }
+                save_json(candidate_info, self.output_dir / "current_candidate.json")
+
+                # Clear cached scores for this candidate (start fresh)
+                self.cached_scores[steering_type] = {}
+
+                # Run golden section search for this candidate
+                optimal, history, best_score = self._golden_section_search_parallel(
+                    steering_type, bounds=bounds, candidate_id=candidate_id
+                )
+
+                results[steering_type].append({
+                    'candidate_id': candidate_id,
+                    'layer': bounds['layer'],
+                    'latent_idx': bounds['latent_idx'],
+                    'refined_coefficient': optimal,
+                    'phase4_5_coefficient': bounds['optimal_from_phase4_5'],
+                    'improvement': optimal - bounds['optimal_from_phase4_5'],
+                    'search_iterations': len(history),
+                    'best_score': best_score,
+                })
+
+                # Save incremental checkpoint
+                save_json(results, self.output_dir / "refined_coefficients.json")
+                logger.info(f"Candidate {candidate_id}: refined {bounds['optimal_from_phase4_5']} -> {optimal}")
+
+        # Clean up current_candidate.json
+        candidate_file = self.output_dir / "current_candidate.json"
+        if candidate_file.exists():
+            candidate_file.unlink()
+
+        # Write manifest
+        write_phase_output(
+            phase="4.6",
+            outputs={
+                "primary": "refined_coefficients.json",
+                "refined_coefficients": "refined_coefficients.json"
+            },
+            config=self.config,
+            output_dir=str(self.output_dir)
+        )
+
+        logger.info(f"\nResults saved to: {self.output_dir}")
+        return {'refined_coefficients': results}
+
+    def _golden_section_search_parallel(
+        self,
+        steering_type: str,
+        bounds: dict = None,
+        candidate_id: str = None
+    ) -> tuple[int, list, float]:
+        """Run golden section search with parallel evaluation.
+
+        Args:
+            steering_type: 'correct' or 'incorrect'
+            bounds: Search bounds dict with 'lower', 'upper', 'optimal_from_phase4_5'.
+                    If None, uses self.search_bounds[steering_type].
+            candidate_id: Optional identifier for logging (e.g., 'L16_11225').
+                          If None, uses steering_type for logging.
+
+        Returns:
+            Tuple of (optimal_coefficient, search_history, best_score)
+        """
+        if bounds is None:
+            bounds = self.search_bounds[steering_type]
+        label = candidate_id or steering_type
+
         a = int(bounds['lower'])
         b = int(bounds['upper'])
         tolerance = int(self.config.phase4_6_tolerance)
         history = []
 
-        logger.info(f"Golden section search for {steering_type}: bounds=[{a}, {b}]")
+        logger.info(f"Golden section search for {label}: bounds=[{a}, {b}]")
 
         # Handle small ranges directly - test all candidates
         if b - a <= 2:
@@ -2151,7 +2406,7 @@ class RefinementOrchestrator:
                 'best_score': best_score
             })
             logger.info(f"  Best: {best_coeff}={best_score:.1f}%")
-            return best_coeff, history
+            return best_coeff, history, best_score
 
         # Initial points
         x1 = int(a + self.resphi * (b - a))
@@ -2228,7 +2483,7 @@ class RefinementOrchestrator:
 
             logger.info(f"  Iteration {iteration}: [{a}, {b}], best={best_coeff}={best_score:.1f}%")
 
-        return best_coeff, history
+        return best_coeff, history, best_score
 
     def _evaluate_coefficient_parallel(self, coefficient: int, steering_type: str) -> float:
         """Evaluate a single coefficient using parallel workers."""
@@ -2265,7 +2520,14 @@ class RefinementOrchestrator:
         for r in gpu_results:
             all_results.extend(r.get('results', []))
 
-        steering_type = gpu_results[0]['steering_type'] if gpu_results else 'correct'
+        # Extract steering_type from value tuple (coefficient, steering_type)
+        # IterativeParallelRunner passes {'results': ..., 'value': (coeff, type)}
+        if gpu_results and 'value' in gpu_results[0]:
+            steering_type = gpu_results[0]['value'][1]
+        elif gpu_results and 'steering_type' in gpu_results[0]:
+            steering_type = gpu_results[0]['steering_type']
+        else:
+            steering_type = 'correct'
 
         if steering_type == 'correct':
             score = calculate_correction_rate(all_results) if all_results else 0.0

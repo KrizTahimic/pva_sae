@@ -131,7 +131,7 @@ class SteeringCoefficientSelector:
             self.correct_candidates = candidates['correct']
             self.incorrect_candidates = candidates['incorrect']
 
-            # For backward compatibility: set "best" to first candidate
+            # Also load single best latent for single-candidate mode
             latents = load_steering_latents(self.config)
             self.best_correct_latent = latents.best_correct_latent
             self.best_incorrect_latent = latents.best_incorrect_latent
@@ -957,7 +957,7 @@ class SteeringCoefficientSelector:
             return self._run_multi_candidate_mode()
 
     def _run_probe_mode(self) -> dict:
-        """Run single-candidate grid search for probe mode (backward compatible)."""
+        """Run single-candidate grid search for probe mode."""
         start_time = time.time()
 
         experiment_mode = self.config.phase4_5_experiment_mode
@@ -1237,7 +1237,7 @@ class CoefficientEvaluator:
             self.correct_candidates = candidates['correct']
             self.incorrect_candidates = candidates['incorrect']
 
-            # For backward compatibility: single best latent
+            # Also load single best latent for single-latent mode
             latents = load_steering_latents(self.config)
             self.top_latents = latents.top_latents
             self.best_correct_latent = latents.best_correct_latent
@@ -1252,7 +1252,7 @@ class CoefficientEvaluator:
 
             logger.info(f"GPU {self.gpu_id}: Loaded {len(self.sae_cache)} SAEs for layers: {all_layers}")
 
-            # Load single SAE directions for backward compatibility (single-latent mode)
+            # Load single SAE directions for single-latent mode
             sae = load_sae_and_directions(
                 self.config, self.device, self.model,
                 self.best_correct_latent, self.best_incorrect_latent
@@ -1333,7 +1333,7 @@ class CoefficientEvaluator:
                 # Corruption: evaluate on correct problems
                 return self.initially_correct_data['task_id'].tolist()
 
-        # Legacy mode: return based on experiment_mode config
+        # Fallback: return based on experiment_mode config
         mode = getattr(self.config, 'phase4_5_experiment_mode', 'all')
         task_ids = []
 
@@ -1350,7 +1350,7 @@ class CoefficientEvaluator:
         Args:
             coefficient: Steering coefficient to evaluate
             task_ids: Optional list of specific task_ids to process. If None,
-                     use the GPU's pre-filtered data (legacy/sequential mode).
+                     use the GPU's pre-filtered data (sequential mode).
 
         Returns:
             dict with coefficient, results, and metrics
@@ -1385,7 +1385,7 @@ class CoefficientEvaluator:
                 'results': results
             }
 
-        # Legacy single-latent mode: use experiment_mode
+        # Single-latent mode: use experiment_mode
         mode = getattr(self.config, 'phase4_5_experiment_mode', 'all')
 
         results = []
