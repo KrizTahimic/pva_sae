@@ -326,6 +326,8 @@ class TestCheckpointCleanup:
 
     def test_keeps_last_n_checkpoints(self, tmp_path):
         """Should only keep last N checkpoints."""
+        from unittest.mock import patch
+
         checkpoint_dir = tmp_path / "checkpoints"
         mgr = CheckpointManager(
             checkpoint_dir=checkpoint_dir,
@@ -334,15 +336,21 @@ class TestCheckpointCleanup:
             keep_last=2
         )
 
-        # Save multiple checkpoints with unique timestamps
-        for i in range(5):
-            mgr.save([{'task_id': f't{i}'}], {f't{i}'})
-            time.sleep(0.1)  # Ensure different timestamps (longer delay)
+        # Mock datetime to produce unique timestamps for each save
+        timestamps = [
+            datetime(2024, 1, 1, 12, 0, i) for i in range(5)
+        ]
 
-        # Should only have keep_last checkpoints (may be 1 or 2 due to timing)
+        for i, ts in enumerate(timestamps):
+            with patch('common.checkpoint_manager.datetime') as mock_dt:
+                mock_dt.now.return_value = ts
+                mock_dt.strftime = datetime.strftime
+                mgr.save([{'task_id': f't{i}'}], {f't{i}'})
+
+        # Should only have keep_last checkpoints
         pattern = mgr._get_checkpoint_pattern(for_glob=True)
         files = list(checkpoint_dir.glob(pattern))
-        assert len(files) <= 2  # At most keep_last
+        assert len(files) == 2  # Exactly keep_last
 
     def test_cleanup_all_removes_everything(self, tmp_path):
         """cleanup_all should remove all checkpoints."""

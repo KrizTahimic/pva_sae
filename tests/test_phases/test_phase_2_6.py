@@ -192,14 +192,15 @@ class TestDirectionOutput:
 
         # Simulate saving probe directions
         layer = 16
-        direction = torch.randn(2304)
+        mass_mean_direction = torch.randn(2304)
+        logreg_direction = torch.randn(2304)  # Different tensor to avoid shared memory
 
         probe_dir = tmp_path / "probe_directions"
         probe_dir.mkdir()
 
         # Save direction
         save_file(
-            {'mass_mean_direction': direction, 'logreg_direction': direction},
+            {'mass_mean_direction': mass_mean_direction, 'logreg_direction': logreg_direction},
             str(probe_dir / f"layer_{layer}_probes.safetensors")
         )
 

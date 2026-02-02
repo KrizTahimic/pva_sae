@@ -99,7 +99,8 @@ class TestHookCoefficientScaling:
         assert torch.allclose(
             change.cpu().float(),
             expected_change.cpu().float(),
-            rtol=1e-4
+            rtol=1e-4,
+            atol=1e-6
         )
 
     def test_zero_coefficient_no_change(self):

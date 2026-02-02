@@ -51,12 +51,13 @@ class TestAUROCCalculation:
         assert auroc == 0.0
 
     def test_auroc_requires_both_classes(self):
-        """AUROC should require samples from both classes."""
+        """AUROC returns nan when only one class is present."""
         y_true = np.array([1, 1, 1])  # Only positive class
         y_scores = np.array([0.9, 0.8, 0.7])
 
-        with pytest.raises(ValueError):
-            roc_auc_score(y_true, y_scores)
+        # sklearn returns nan with a warning instead of raising
+        result = roc_auc_score(y_true, y_scores)
+        assert np.isnan(result)
 
 
 # =============================================================================
