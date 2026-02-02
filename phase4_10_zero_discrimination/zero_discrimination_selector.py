@@ -27,29 +27,55 @@ logger = get_logger("phase4_10.zero_discrimination_selector")
 
 class ZeroDiscriminationSelector:
     """Select SAE latents with zero discrimination between correct/incorrect programs."""
-    
+
     def __init__(self, config: Config):
         """Initialize with configuration."""
         self.config = config
-        
+
         # Phase directories
         self.phase1_dir = Path(get_phase_output_dir("1", config))
         self.phase2_5_dir = Path(get_phase_output_dir("2.5", config))
+        self.phase4_9_dir = Path(get_phase_output_dir("4.9", config))
         self.output_dir = Path(get_phase_output_dir("4.10", config))
         ensure_directory_exists(self.output_dir)
-        
+
         # Feature selection parameters (use config directly - single source of truth)
         self.n_features = config.phase4_10_n_features
         self.separation_threshold = config.phase4_10_separation_threshold
         self.min_activation_freq = config.phase4_10_min_activation_freq
-        
-        # All layers with SAE (1-25 for Gemma-2B)
-        self.layers = list(range(1, 26))
+
+        # Load target layers from Phase 4.9
+        self.layers = self._get_target_layers()
         self.features_per_layer = 16384
-        
+
         logger.info(f"ZeroDiscriminationSelector initialized")
         logger.info(f"Will select {self.n_features} features with lowest separation scores")
-        
+        logger.info(f"Filtering to layers: {sorted(self.layers)} (from Phase 4.9)")
+
+    def _get_target_layers(self) -> list[int]:
+        """Load target layers from Phase 4.9 best latent selection.
+
+        Returns layers used by best discriminative latents to ensure
+        zero-disc controls are layer-matched (per sae_entities paper).
+        """
+        phase4_9_output = discover_latest_phase_output("4.9", phase_dir=self.phase4_9_dir)
+        if phase4_9_output:
+            selection_file = Path(phase4_9_output).parent / "best_latent_selection.json"
+            if selection_file.exists():
+                selection = load_json(selection_file)
+                layers = set()
+                if 'correct' in selection:
+                    layers.add(selection['correct']['layer'])
+                if 'incorrect' in selection:
+                    layers.add(selection['incorrect']['layer'])
+                if layers:
+                    logger.info(f"Loaded target layers from Phase 4.9: {sorted(layers)}")
+                    return sorted(layers)
+
+        # Fallback to layer 15 (typical high-quality layer for steering)
+        logger.warning("Phase 4.9 output not found, falling back to layer 15")
+        return [15]
+
     def load_phase1_activations(self) -> tuple[dict, dict]:
         """Load Phase 1 activation data for all features."""
         logger.info("Loading Phase 1 activations...")
@@ -253,8 +279,9 @@ class ZeroDiscriminationSelector:
         results = {
             'metadata': {
                 'phase': '4.10',
-                'description': 'Low-discrimination PVA features for baseline control',
-                'selection_criteria': 'Lowest N features by absolute separation (no threshold)',
+                'description': 'Low-discrimination PVA features for baseline control (layer-matched)',
+                'selection_criteria': 'Lowest N features by absolute separation from target layers',
+                'target_layers': self.layers,
                 'min_activation_freq': self.min_activation_freq,
                 'n_features_requested': self.n_features,
                 'n_features_selected': len(selected_latents),
@@ -305,6 +332,7 @@ class ZeroDiscriminationSelector:
             output_dir=str(self.output_dir),
             dependencies={
                 "2.5": str(self.phase2_5_dir),
+                "4.9": str(self.phase4_9_dir),
             },
             config_keys=['model_name', 'dataset_name']
         )

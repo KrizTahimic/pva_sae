@@ -67,8 +67,9 @@ class SignificanceTester:
             raise FileNotFoundError(f"Targeted steering results not found at {targeted_file}")
         
         targeted_results = load_json(targeted_file)
+        self.phase4_8_dir = Path(phase4_8_output).parent
         logger.info(f"Loaded targeted steering results")
-        
+
         # Load Phase 4.12 zero-discrimination steering results
         logger.info("Loading Phase 4.12 zero-discrimination steering results...")
         phase4_12_output = discover_latest_phase_output("4.12", config=self.config)
@@ -80,8 +81,9 @@ class SignificanceTester:
             raise FileNotFoundError(f"Zero-discrimination results not found at {zero_disc_file}")
         
         zero_disc_results = load_json(zero_disc_file)
+        self.phase4_12_dir = Path(phase4_12_output).parent
         logger.info(f"Loaded zero-discrimination steering results")
-        
+
         return baseline_data, targeted_results, zero_disc_results
         
     def extract_baseline_metrics(self, baseline_data: pd.DataFrame) -> dict:

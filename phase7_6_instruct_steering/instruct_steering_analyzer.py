@@ -852,8 +852,11 @@ class InstructSteeringAnalyzer:
     
     def save_results(self, metrics: dict, duration: float) -> None:
         """Save all results and create phase summary."""
-        # Save detailed results
-        save_json(metrics, self.output_dir / "steering_effect_analysis.json")
+        # Save detailed results (use GPU-specific names in parallel mode)
+        if self.n_gpus > 1:
+            save_json(metrics, self.output_dir / f"steering_effect_analysis_gpu{self.gpu_id}.json")
+        else:
+            save_json(metrics, self.output_dir / "steering_effect_analysis.json")
 
         # Save cross-model comparison separately
         if 'cross_model_comparison' in metrics:
@@ -913,8 +916,12 @@ class InstructSteeringAnalyzer:
                 }
             }
 
-        save_json(summary, self.output_dir / "phase_7_6_summary.json")
-        
+        # Save summary (use GPU-specific name in parallel mode)
+        if self.n_gpus > 1:
+            save_json(summary, self.output_dir / f"phase_7_6_summary_gpu{self.gpu_id}.json")
+        else:
+            save_json(summary, self.output_dir / "phase_7_6_summary.json")
+
         logger.info(f"Saved results to {self.output_dir}")
         
     def run(self) -> dict:
@@ -967,9 +974,9 @@ class InstructSteeringAnalyzer:
             },
             'exclusion_summary': exclusion_summary,
             'detailed_results': {
-                'correction': correction_results[['task_id', 'baseline_passed', 'steered_correct', 'steered_error_type', 'flipped']].to_dict('records') if (not correction_results.empty and 'steered_error_type' in correction_results.columns) else (correction_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not correction_results.empty else []),
-                'corruption': corruption_results[['task_id', 'baseline_passed', 'steered_correct', 'steered_error_type', 'flipped']].to_dict('records') if (not corruption_results.empty and 'steered_error_type' in corruption_results.columns) else (corruption_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not corruption_results.empty else []),
-                'preservation': preservation_results[['task_id', 'baseline_passed', 'steered_correct', 'steered_error_type', 'flipped']].to_dict('records') if (not preservation_results.empty and 'steered_error_type' in preservation_results.columns) else (preservation_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not preservation_results.empty else [])
+                'correction': correction_results[['task_id', 'baseline_passed', 'steered_correct', 'steered_error_type', 'flipped', 'steered_generated_code']].rename(columns={'steered_generated_code': 'steered_code'}).to_dict('records') if (not correction_results.empty and 'steered_error_type' in correction_results.columns and 'steered_generated_code' in correction_results.columns) else (correction_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not correction_results.empty else []),
+                'corruption': corruption_results[['task_id', 'baseline_passed', 'steered_correct', 'steered_error_type', 'flipped', 'steered_generated_code']].rename(columns={'steered_generated_code': 'steered_code'}).to_dict('records') if (not corruption_results.empty and 'steered_error_type' in corruption_results.columns and 'steered_generated_code' in corruption_results.columns) else (corruption_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not corruption_results.empty else []),
+                'preservation': preservation_results[['task_id', 'baseline_passed', 'steered_correct', 'steered_error_type', 'flipped', 'steered_generated_code']].rename(columns={'steered_generated_code': 'steered_code'}).to_dict('records') if (not preservation_results.empty and 'steered_error_type' in preservation_results.columns and 'steered_generated_code' in preservation_results.columns) else (preservation_results[['task_id', 'baseline_passed', 'steered_correct', 'flipped']].to_dict('records') if not preservation_results.empty else [])
             }
         }
         

@@ -223,11 +223,13 @@ class ThresholdOptimizer:
 
             # Extract latent direction for steering
             self.correct_latent_direction = self.steering_sae.W_dec[self.correct_steer_latent].detach()
+            # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
+            self.correct_latent_direction = self.correct_latent_direction / torch.norm(self.correct_latent_direction)
 
             # Ensure latent direction is in the same dtype as the model
             model_dtype = next(self.model.parameters()).dtype
             self.correct_latent_direction = self.correct_latent_direction.to(dtype=model_dtype)
-            logger.info(f"Latent direction converted to model dtype: {model_dtype}")
+            logger.info(f"Latent direction normalized to unit norm, converted to model dtype: {model_dtype}")
 
             # Not used in SAE mode
             self.predicting_direction = None
@@ -1247,6 +1249,8 @@ class ThresholdEvaluator:
             self.steering_sae = load_sae_for_config(self.config, self.correct_steer_layer, self.device)
 
             self.correct_latent_direction = self.steering_sae.W_dec[self.correct_steer_latent].detach()
+            # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
+            self.correct_latent_direction = self.correct_latent_direction / torch.norm(self.correct_latent_direction)
             model_dtype = next(self.model.parameters()).dtype
             self.correct_latent_direction = self.correct_latent_direction.to(dtype=model_dtype)
 

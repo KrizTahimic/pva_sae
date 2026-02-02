@@ -81,13 +81,12 @@ class ZeroDiscSteeringGenerator:
             )
             for steering_type in ['correction', 'corruption', 'preservation']
         }
-        
-        # Load steering coefficients from Phase 4.6
-        from common.phase_discovery import discover_steering_coefficients
-        coefficients = discover_steering_coefficients(self.config)
-        self.correct_coefficient = coefficients["correct"]
-        self.incorrect_coefficient = coefficients["incorrect"]
-        
+
+        # Load target latent info from Phase 4.9 (layer + coefficient)
+        self.target_latent_info = self._load_target_latent_info()
+        self.correct_coefficient = self.target_latent_info['correct']['coefficient']
+        self.incorrect_coefficient = self.target_latent_info['incorrect']['coefficient']
+
         # Initialize model and tokenizer
         logger.info(f"Loading model: {config.model_name}")
         self.model, self.tokenizer = load_model_and_tokenizer(
@@ -101,7 +100,41 @@ class ZeroDiscSteeringGenerator:
         self._load_dependencies()
         
         logger.info("ZeroDiscSteeringGenerator initialized successfully")
-        
+
+    def _load_target_latent_info(self) -> dict:
+        """Load best latent info from Phase 4.9.
+
+        Returns layer and coefficient for each latent type to ensure
+        zero-disc controls use matched layer and coefficient.
+        """
+        phase4_9_output = discover_latest_phase_output("4.9", config=self.config)
+        if not phase4_9_output:
+            raise FileNotFoundError("Phase 4.9 output not found. Run Phase 4.9 first.")
+
+        selection_file = Path(phase4_9_output).parent / "best_latent_selection.json"
+        if not selection_file.exists():
+            raise FileNotFoundError(f"best_latent_selection.json not found at {selection_file}")
+
+        selection = load_json(selection_file)
+        self.phase4_9_dir = Path(phase4_9_output).parent
+
+        info = {
+            'correct': {
+                'layer': selection['correct']['layer'],
+                'coefficient': selection['correct']['refined_coefficient']
+            },
+            'incorrect': {
+                'layer': selection['incorrect']['layer'],
+                'coefficient': selection['incorrect']['refined_coefficient']
+            }
+        }
+
+        logger.info(f"Loaded Phase 4.9 target latent info:")
+        logger.info(f"  Correct: layer={info['correct']['layer']}, coef={info['correct']['coefficient']}")
+        logger.info(f"  Incorrect: layer={info['incorrect']['layer']}, coef={info['incorrect']['coefficient']}")
+
+        return info
+
     def _load_dependencies(self) -> None:
         """Load zero-discrimination features and validation data."""
         # Load Phase 4.10 zero-discrimination features
@@ -154,20 +187,45 @@ class ZeroDiscSteeringGenerator:
 
         logger.info(f"Split: {len(self.correct_problems)} correct, {len(self.incorrect_problems)} incorrect")
         
-    def _select_best_zero_disc_features(self) -> dict:
-        """Select best zero-discrimination feature for both correction and corruption experiments."""
+    def _select_matched_zero_disc_features(self) -> dict:
+        """Select zero-disc features matched to Phase 4.9 best latents.
+
+        Returns separate features for correction and corruption experiments,
+        each matched to the layer of the corresponding discriminative latent.
+        """
         features = self.zero_disc_features['features']
 
-        # Simply use the first feature (already sorted by separation score in Phase 4.10)
-        selected_feature = features[0]
-        
-        logger.info(f"Selected zero-disc latent for both experiments:")
-        logger.info(f"  Latent: L{selected_feature['layer']}F{selected_feature['latent_idx']} "
-                   f"(separation={selected_feature['separation_score']:.6f})")
-        logger.info(f"  Will use positive coefficient ({self.correct_coefficient}) for correction")
-        logger.info(f"  Will use negative coefficient ({self.incorrect_coefficient}) for corruption")
+        correct_layer = self.target_latent_info['correct']['layer']
+        incorrect_layer = self.target_latent_info['incorrect']['layer']
 
-        return selected_feature
+        # Find best zero-disc feature for correction (matched to correct latent's layer)
+        correction_feature = next(
+            (f for f in features if f['layer'] == correct_layer),
+            None
+        )
+        if not correction_feature:
+            raise ValueError(f"No zero-disc feature found for layer {correct_layer}. "
+                           f"Re-run Phase 4.10 with updated layer filtering.")
+
+        # Find best zero-disc feature for corruption (matched to incorrect latent's layer)
+        corruption_feature = next(
+            (f for f in features if f['layer'] == incorrect_layer),
+            None
+        )
+        if not corruption_feature:
+            raise ValueError(f"No zero-disc feature found for layer {incorrect_layer}. "
+                           f"Re-run Phase 4.10 with updated layer filtering.")
+
+        logger.info(f"Selected layer-matched zero-disc latents:")
+        logger.info(f"  Correction control: L{correction_feature['layer']}F{correction_feature['latent_idx']} "
+                   f"(separation={correction_feature['separation_score']:.6f}, coef={self.correct_coefficient})")
+        logger.info(f"  Corruption control: L{corruption_feature['layer']}F{corruption_feature['latent_idx']} "
+                   f"(separation={corruption_feature['separation_score']:.6f}, coef={self.incorrect_coefficient})")
+
+        return {
+            'correction': correction_feature,
+            'corruption': corruption_feature
+        }
 
     def _check_memory_usage(self) -> None:
         """Check current memory usage and log warnings if high."""
@@ -341,24 +399,24 @@ class ZeroDiscSteeringGenerator:
         logger.info("="*60)
         logger.info("Starting Zero-Discrimination Steering Generation")
         logger.info("="*60)
-        
-        # Select best zero-discrimination feature for both experiments
-        zero_disc_feature = self._select_best_zero_disc_features()
-        
+
+        # Select layer-matched zero-discrimination features
+        zero_disc_features = self._select_matched_zero_disc_features()
+
         # Correction experiments (incorrect→correct steering)
         logger.info("\n" + "="*40)
         logger.info("Running CORRECTION experiments")
         logger.info(f"Problems: {len(self.incorrect_problems)} initially incorrect")
         logger.info(f"Coefficient: {self.correct_coefficient}")
         logger.info("="*40)
-        
+
         correction_results = self._apply_zero_disc_steering(
             self.incorrect_problems,
-            zero_disc_feature,
+            zero_disc_features['correction'],
             self.correct_coefficient,
             'correction'
         )
-        
+
         # Corruption experiments (correct→incorrect steering)
         logger.info("\n" + "="*40)
         logger.info("Running CORRUPTION experiments")
@@ -368,12 +426,13 @@ class ZeroDiscSteeringGenerator:
 
         corruption_results = self._apply_zero_disc_steering(
             self.correct_problems,
-            zero_disc_feature,
+            zero_disc_features['corruption'],
             self.incorrect_coefficient,
             'corruption'
         )
 
         # Preservation experiments (correct→correct steering with positive coefficient)
+        # Use correction feature (same layer as correct-predicting latent)
         logger.info("\n" + "="*40)
         logger.info("Running PRESERVATION experiments")
         logger.info(f"Problems: {len(self.correct_problems)} initially correct")
@@ -382,7 +441,7 @@ class ZeroDiscSteeringGenerator:
 
         preservation_results = self._apply_zero_disc_steering(
             self.correct_problems,
-            zero_disc_feature,
+            zero_disc_features['correction'],
             self.correct_coefficient,
             'preservation'
         )
@@ -393,15 +452,25 @@ class ZeroDiscSteeringGenerator:
         preservation_rate = calculate_preservation_rate(preservation_results)
         
         # Prepare results
+        correction_feature = zero_disc_features['correction']
+        corruption_feature = zero_disc_features['corruption']
         results = {
             'metadata': {
                 'phase': '4.12',
-                'description': 'Zero-discrimination steering generation for baseline control',
+                'description': 'Zero-discrimination steering generation for baseline control (layer-matched)',
                 'coefficients': {
                     'correct': self.correct_coefficient,
                     'incorrect': self.incorrect_coefficient
                 },
-                'zero_disc_latent_used': f"L{zero_disc_feature['layer']}F{zero_disc_feature['latent_idx']}",
+                'zero_disc_latents_used': {
+                    'correction': f"L{correction_feature['layer']}F{correction_feature['latent_idx']}",
+                    'corruption': f"L{corruption_feature['layer']}F{corruption_feature['latent_idx']}",
+                    'preservation': f"L{correction_feature['layer']}F{correction_feature['latent_idx']}"
+                },
+                'layer_matching': {
+                    'correction_layer': correction_feature['layer'],
+                    'corruption_layer': corruption_feature['layer']
+                },
                 'n_problems_tested': {
                     'correction': len(correction_results),
                     'corruption': len(corruption_results),
@@ -442,9 +511,9 @@ class ZeroDiscSteeringGenerator:
         logger.info("\n" + "="*60)
         logger.info("ZERO-DISCRIMINATION STEERING RESULTS")
         logger.info("="*60)
-        logger.info(f"Correction rate: {correction_rate:.2%} (expected: ~2%)")
-        logger.info(f"Corruption rate: {corruption_rate:.2%} (expected: ~1%)")
-        logger.info(f"Preservation rate: {preservation_rate:.2%} (expected: ~99%)")
+        logger.info(f"Correction rate: {correction_rate:.2f}% (expected: ~2%)")
+        logger.info(f"Corruption rate: {corruption_rate:.2f}% (expected: ~1%)")
+        logger.info(f"Preservation rate: {preservation_rate:.2f}% (expected: ~99%)")
         logger.info(f"Total problems tested: {len(correction_results) + len(corruption_results) + len(preservation_results)}")
         logger.info("="*60)
 
@@ -460,6 +529,7 @@ class ZeroDiscSteeringGenerator:
             config=self.config,
             output_dir=str(self.output_dir),
             dependencies={
+                "4.9": str(self.phase4_9_dir),
                 "4.10": str(self.phase4_10_dir),
                 "3.5": str(self.phase3_5_dir),
             },

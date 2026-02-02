@@ -186,10 +186,12 @@ class SteeringCoefficientSelector:
             latent: dict with 'layer' and 'latent_idx'
 
         Returns:
-            Latent direction tensor
+            Latent direction tensor (unit normalized)
         """
         sae = self.sae_cache[latent['layer']]
         direction = sae.W_dec[latent['latent_idx']].detach()
+        # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
+        direction = direction / torch.norm(direction)
         # Match model dtype
         model_dtype = next(self.model.parameters()).dtype
         return direction.to(dtype=model_dtype)
@@ -1305,6 +1307,8 @@ class CoefficientEvaluator:
         latent_idx = candidate['latent_idx']
         sae = self.sae_cache[layer]
         direction = sae.W_dec[latent_idx].detach()
+        # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
+        direction = direction / torch.norm(direction)
 
         # Match model dtype
         model_dtype = next(self.model.parameters()).dtype

@@ -430,10 +430,12 @@ class GoldenSectionCoefficientRefiner:
             latent_idx: Latent index
 
         Returns:
-            Latent direction tensor in model dtype
+            Latent direction tensor in model dtype (unit normalized)
         """
         sae = self.sae_cache[layer]
         direction = sae.W_dec[latent_idx].detach()
+        # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
+        direction = direction / torch.norm(direction)
         model_dtype = next(self.model.parameters()).dtype
         return direction.to(dtype=model_dtype)
 
@@ -1890,6 +1892,9 @@ class RefinementEvaluator:
             self.incorrect_latent_direction = incorrect_sae.W_dec[
                 self.best_incorrect_latent['latent_idx']
             ].detach()
+            # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
+            self.correct_latent_direction = self.correct_latent_direction / torch.norm(self.correct_latent_direction)
+            self.incorrect_latent_direction = self.incorrect_latent_direction / torch.norm(self.incorrect_latent_direction)
 
         # Load baseline data - NOT filtered by GPU (use task_ids for distribution)
         phase3_6_output = discover_latest_phase_output("3.6", config=self.config)
@@ -1944,6 +1949,8 @@ class RefinementEvaluator:
         latent_idx = candidate['latent_idx']
         sae = self.sae_cache[layer]
         direction = sae.W_dec[latent_idx].detach()
+        # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
+        direction = direction / torch.norm(direction)
 
         # Match model dtype
         model_dtype = next(self.model.parameters()).dtype
@@ -2111,6 +2118,22 @@ class RefinementOrchestrator:
         self._load_phase4_5_results()
 
         logger.info(f"RefinementOrchestrator: {n_gpus} GPU(s)")
+
+    def _get_completed_candidate_ids(self, partial_results: dict, steering_type: str) -> set:
+        """Get set of candidate IDs that are already completed.
+
+        Args:
+            partial_results: Dict with 'correct' and 'incorrect' lists
+            steering_type: 'correct' or 'incorrect'
+
+        Returns:
+            Set of candidate_id strings (e.g., {"L25_4691", "L18_1234"})
+        """
+        completed = set()
+        for entry in partial_results.get(steering_type, []):
+            candidate_id = entry.get('candidate_id') or f"L{entry['layer']}_{entry['latent_idx']}"
+            completed.add(candidate_id)
+        return completed
 
     def _load_phase4_5_results(self):
         """Load Phase 4.5 results for search bounds."""
@@ -2288,7 +2311,14 @@ class RefinementOrchestrator:
         from common.phase_discovery import write_phase_output
 
         mode = getattr(self.config, 'phase4_6_experiment_mode', 'all')
-        results = {'correct': [], 'incorrect': []}
+
+        # Load existing results if available (enables resuming with --correction-only or --corruption-only)
+        existing_file = self.output_dir / "refined_coefficients.json"
+        if existing_file.exists():
+            results = load_json(existing_file)
+            logger.info(f"Loaded existing results: {len(results.get('correct', []))} correct, {len(results.get('incorrect', []))} incorrect")
+        else:
+            results = {'correct': [], 'incorrect': []}
 
         # Process each steering type
         for steering_type in ['correct', 'incorrect']:
@@ -2302,11 +2332,23 @@ class RefinementOrchestrator:
                 logger.info(f"No {steering_type} candidates to refine")
                 continue
 
+            # Get already-completed candidates for this steering type
+            completed_ids = self._get_completed_candidate_ids(results, steering_type)
+            n_candidates = len(candidates)
+            n_to_skip = sum(1 for cid in candidates if cid in completed_ids)
+            n_to_process = n_candidates - n_to_skip
+
             logger.info(f"\n{'='*60}")
             logger.info(f"Refining {len(candidates)} {steering_type} candidates")
+            logger.info(f"Total: {n_candidates}, Already completed: {n_to_skip}, To process: {n_to_process}")
             logger.info(f"{'='*60}")
 
             for idx, (candidate_id, bounds) in enumerate(candidates.items()):
+                # Skip already-completed candidates
+                if candidate_id in completed_ids:
+                    logger.info(f"Skipping {candidate_id} (already completed)")
+                    continue
+
                 logger.info(f"\n--- Candidate {idx+1}/{len(candidates)}: {candidate_id} ---")
 
                 # Write current_candidate.json for workers to read
@@ -2321,7 +2363,9 @@ class RefinementOrchestrator:
                 save_json(candidate_info, self.output_dir / "current_candidate.json")
 
                 # Clear cached scores for this candidate (start fresh)
-                self.cached_scores[steering_type] = {}
+                # Use candidate-specific cache key to prevent sharing across candidates
+                cache_key = f"{steering_type}_{candidate_id}"
+                self.cached_scores[cache_key] = {}
 
                 # Run golden section search for this candidate
                 optimal, history, best_score = self._golden_section_search_parallel(
@@ -2395,7 +2439,7 @@ class RefinementOrchestrator:
         if b - a <= 2:
             logger.info(f"  Small range [{a}, {b}], testing all candidates directly")
             candidates = list(range(a, b + 1))
-            scores = [self._evaluate_coefficient_parallel(c, steering_type) for c in candidates]
+            scores = [self._evaluate_coefficient_parallel(c, steering_type, candidate_id) for c in candidates]
             best_coeff, best_score = max(zip(candidates, scores), key=lambda x: x[1])
             history.append({
                 'iteration': 0,
@@ -2415,8 +2459,8 @@ class RefinementOrchestrator:
             x2 = x1 + 1
 
         # Evaluate initial points
-        f1 = self._evaluate_coefficient_parallel(x1, steering_type)
-        f2 = self._evaluate_coefficient_parallel(x2, steering_type)
+        f1 = self._evaluate_coefficient_parallel(x1, steering_type, candidate_id)
+        f2 = self._evaluate_coefficient_parallel(x2, steering_type, candidate_id)
 
         best_score = max(f1, f2)
         best_coeff = x1 if f1 > f2 else x2
@@ -2436,7 +2480,7 @@ class RefinementOrchestrator:
             if b - a == 2:
                 logger.info(f"  Final step: testing all 3 points in [{a}, {b}]")
                 candidates = [a, a + 1, b]
-                scores = [self._evaluate_coefficient_parallel(c, steering_type) for c in candidates]
+                scores = [self._evaluate_coefficient_parallel(c, steering_type, candidate_id) for c in candidates]
                 local_best_coeff, local_best_score = max(zip(candidates, scores), key=lambda x: x[1])
                 if local_best_score > best_score:
                     best_score = local_best_score
@@ -2459,7 +2503,7 @@ class RefinementOrchestrator:
                 x1 = int(a + self.resphi * (b - a))
                 if x1 == x2 and x1 > a:
                     x1 = x1 - 1
-                f1 = self._evaluate_coefficient_parallel(x1, steering_type)
+                f1 = self._evaluate_coefficient_parallel(x1, steering_type, candidate_id)
             else:
                 a = x1
                 x1 = x2
@@ -2467,7 +2511,7 @@ class RefinementOrchestrator:
                 x2 = int(b - self.resphi * (b - a))
                 if x2 == x1 and x2 < b:
                     x2 = x2 + 1
-                f2 = self._evaluate_coefficient_parallel(x2, steering_type)
+                f2 = self._evaluate_coefficient_parallel(x2, steering_type, candidate_id)
 
             current_best = max(f1, f2)
             if current_best > best_score:
@@ -2485,31 +2529,40 @@ class RefinementOrchestrator:
 
         return best_coeff, history, best_score
 
-    def _evaluate_coefficient_parallel(self, coefficient: int, steering_type: str) -> float:
+    def _evaluate_coefficient_parallel(
+        self, coefficient: int, steering_type: str, candidate_id: str = None
+    ) -> float:
         """Evaluate a single coefficient using parallel workers."""
+        # Use candidate-specific cache key to prevent sharing results across candidates
+        cache_key = f"{steering_type}_{candidate_id}" if candidate_id else steering_type
+
         # Check cache first
-        if coefficient in self.cached_scores[steering_type]:
-            score = self.cached_scores[steering_type][coefficient]
+        if cache_key in self.cached_scores and coefficient in self.cached_scores[cache_key]:
+            score = self.cached_scores[cache_key][coefficient]
             logger.info(f"  Using cached score for {coefficient}: {score:.1f}%")
             return score
 
         from common.iterative_parallel_runner import IterativeParallelRunner
 
+        # Per-candidate checkpoint directory to prevent sharing across candidates
+        ckpt_suffix = f"{steering_type}_{candidate_id}" if candidate_id else steering_type
         runner = IterativeParallelRunner(
             phase_evaluator_class=RefinementEvaluator,
             config=self.config,
             n_gpus=self.n_gpus,
             values_to_test=[(coefficient, steering_type)],
             merge_fn=self._merge_refinement_results,
-            checkpoint_dir=self.output_dir / f"parallel_checkpoints_{steering_type}",
+            checkpoint_dir=self.output_dir / f"parallel_checkpoints_{ckpt_suffix}",
             timeout_per_iteration=1200,  # 20 minutes (some GPUs are slower)
         )
 
         result = runner.run()
         score = result['optimal_score']
 
-        # Cache result
-        self.cached_scores[steering_type][coefficient] = score
+        # Cache result with candidate-specific key
+        if cache_key not in self.cached_scores:
+            self.cached_scores[cache_key] = {}
+        self.cached_scores[cache_key][coefficient] = score
         logger.info(f"  Evaluated {coefficient}: {score:.1f}%")
 
         return score

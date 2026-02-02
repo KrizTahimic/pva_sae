@@ -381,12 +381,21 @@ def load_sae_and_directions(
     correct_direction = correct_sae.W_dec[best_correct_latent['latent_idx']].detach()
     incorrect_direction = incorrect_sae.W_dec[best_incorrect_latent['latent_idx']].detach()
 
+    # Log original norms for diagnostics
+    correct_norm = torch.norm(correct_direction).item()
+    incorrect_norm = torch.norm(incorrect_direction).item()
+    logger.info(f"Original W_dec norms - correct: {correct_norm:.4f}, incorrect: {incorrect_norm:.4f}")
+
+    # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
+    correct_direction = correct_direction / torch.norm(correct_direction)
+    incorrect_direction = incorrect_direction / torch.norm(incorrect_direction)
+
     # Ensure latent directions are in the same dtype as the model
     model_dtype = next(model.parameters()).dtype
     correct_direction = correct_direction.to(dtype=model_dtype)
     incorrect_direction = incorrect_direction.to(dtype=model_dtype)
 
-    logger.info(f"Latent directions converted to model dtype: {model_dtype}")
+    logger.info(f"Latent directions normalized to unit norm, converted to model dtype: {model_dtype}")
 
     return SAEDirections(
         correct_sae=correct_sae,

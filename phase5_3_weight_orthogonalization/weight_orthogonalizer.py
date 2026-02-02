@@ -794,8 +794,11 @@ class WeightOrthogonalizer:
                 }
             }
         
-        # Save main results
-        save_json(results, self.output_dir / "orthogonalization_results.json")
+        # Save main results (use GPU-specific names in parallel mode)
+        if self.n_gpus > 1:
+            save_json(results, self.output_dir / f"orthogonalization_results_gpu{self.gpu_id}.json")
+        else:
+            save_json(results, self.output_dir / "orthogonalization_results.json")
         
         # Save weight changes separately
         weight_changes = {
@@ -842,7 +845,11 @@ class WeightOrthogonalizer:
                 all_orthogonalized_results, 'orthogonalized_error_type'
             ) if all_orthogonalized_results else None
         }
-        save_json(summary, self.output_dir / "phase_5_3_summary.json")
+        # Save summary (use GPU-specific name in parallel mode)
+        if self.n_gpus > 1:
+            save_json(summary, self.output_dir / f"phase_5_3_summary_gpu{self.gpu_id}.json")
+        else:
+            save_json(summary, self.output_dir / "phase_5_3_summary.json")
         
         # Log summary
         logger.info("\n" + "="*60)

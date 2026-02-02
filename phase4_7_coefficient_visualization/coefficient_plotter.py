@@ -2,16 +2,18 @@
 Coefficient Optimization Visualization for Phase 4.7.
 
 Visualizes the steering coefficient search process:
-- Correct steering: Grid search finding α=30
-- Incorrect steering: Grid search + golden section refinement finding α=287
+- Correct steering: Grid search finding optimal α
+- Incorrect steering: Grid search + golden section refinement
 
-Shows why incorrect-steering needs 10× larger coefficient magnitude.
+Includes multi-candidate visualizations for all 5 candidates.
 """
 
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+import re
 from pathlib import Path
+from typing import Optional
 
 from common.config import PLOT_DPI
 from common.logging import get_logger
@@ -43,184 +45,404 @@ class CoefficientVisualizer:
 
     def _load_phase4_5_data(self) -> dict:
         """Load coefficient analysis from Phase 4.5."""
-        path = self.phase4_5_dir / "coefficient_analysis.json"
-        with open(path) as f:
-            data = json.load(f)
+        data = {}
 
-        # Also load coefficient_analysis_100.json if it exists (separate run)
-        path_100 = self.phase4_5_dir / "coefficient_analysis_100.json"
-        if path_100.exists():
-            with open(path_100) as f:
-                data_100 = json.load(f)
-                # Add the α=100 data point to incorrect_steering search_history
-                if 'incorrect_steering' in data_100 and 'search_history' in data_100['incorrect_steering']:
-                    if 'incorrect_steering' in data and 'search_history' in data['incorrect_steering']:
-                        # Append the 100 coefficient data
-                        data['incorrect_steering']['search_history'].extend(data_100['incorrect_steering']['search_history'])
+        # Load coefficient_analysis.json
+        analysis_path = self.phase4_5_dir / "coefficient_analysis.json"
+        if analysis_path.exists():
+            with open(analysis_path) as f:
+                raw_data = json.load(f)
+
+            # Build backward-compatible structure using first candidate (rank 0)
+            if 'correct_steering' in raw_data and raw_data['correct_steering'].get('candidates'):
+                top_correct = raw_data['correct_steering']['candidates'][0]
+                data['correct_steering'] = {
+                    'optimal_coefficient': top_correct['optimal_coefficient'],
+                    'best_score': top_correct['best_score'],
+                    'search_history': [],  # No longer stored in this format
+                }
+
+            if 'incorrect_steering' in raw_data and raw_data['incorrect_steering'].get('candidates'):
+                top_incorrect = raw_data['incorrect_steering']['candidates'][0]
+                data['incorrect_steering'] = {
+                    'optimal_coefficient': top_incorrect['optimal_coefficient'],
+                    'best_score': top_incorrect['best_score'],
+                    'search_history': [],
+                }
 
         return data
 
     def _load_phase4_6_data(self) -> dict:
         """Load golden section search history from Phase 4.6."""
-        # Load both correct and incorrect steering refinement data
-        incorrect_path = self.phase4_6_dir / "refinement_analysis.json"
-        with open(incorrect_path) as f:
-            data = json.load(f)
+        data = {}
 
-        # Load correct steering refinement data (check multiple possible locations)
-        # Phase 4.6 correct-only runs may be in a separate directory
-        correct_path = self.phase4_6_dir / "checkpoints_correct" / "checkpoint_iter_5.json"
-        if not correct_path.exists():
-            # Try parent directory with suffix
-            correct_path = self.phase4_6_dir.parent / "phase4_6_correct_only" / "checkpoints_correct" / "checkpoint_iter_5.json"
-        if correct_path.exists():
-            with open(correct_path) as f:
-                correct_data = json.load(f)
-                data['correct_steering'] = correct_data
+        # Load refined_coefficients.json as primary source
+        refined_path = self.phase4_6_dir / "refined_coefficients.json"
+        if refined_path.exists():
+            with open(refined_path) as f:
+                refined = json.load(f)
+
+            # Use first candidate (rank 0) for backward-compatible single-candidate plots
+            if refined.get("correct"):
+                top_correct = refined["correct"][0]
+                data['correct_steering'] = {
+                    'best_coefficient': top_correct['refined_coefficient'],
+                    'best_score': top_correct['best_score'],
+                }
+
+            if refined.get("incorrect"):
+                top_incorrect = refined["incorrect"][0]
+                data['incorrect_steering'] = {
+                    'optimal_coefficient': top_incorrect['refined_coefficient'],
+                    'best_score': top_incorrect['best_score'],
+                    'search_history': [],  # Empty - we'll populate from orchestrator state if needed
+                }
+
+        # Try to load refinement_analysis.json for legacy support
+        legacy_path = self.phase4_6_dir / "refinement_analysis.json"
+        if legacy_path.exists():
+            with open(legacy_path) as f:
+                legacy_data = json.load(f)
+                # Merge legacy data
+                if 'incorrect_steering' in legacy_data and 'incorrect_steering' in data:
+                    data['incorrect_steering']['search_history'] = legacy_data['incorrect_steering'].get('search_history', [])
 
         return data
 
-    def plot_correct_coefficient_search(self) -> None:
-        """
-        Plot correct steering coefficient search combining grid + golden section.
-        Uses blue for all data points, highlights grid max and golden section max.
-        """
-        # Phase 4.5: Grid search data
-        grid_data = self.phase4_5_data['correct_steering']
-        grid_history = grid_data['search_history']
-        grid_coeffs = [entry['coefficient'] for entry in grid_history]
-        grid_rates = [entry['metrics']['correction_rate'] for entry in grid_history]
-        grid_optimal = grid_data['optimal_coefficient']
-        grid_optimal_rate = max(grid_rates)
+    def _load_phase4_5_multi_candidate(self) -> dict:
+        """Load orchestrator_state.json for each of the 5 correct + 5 incorrect candidates."""
+        multi_candidate_data = {"correct": {}, "incorrect": {}}
 
-        # Combine all points for plotting
-        all_coeffs = list(grid_coeffs)
-        all_rates = list(grid_rates)
+        # Load Phase 4.5 summary to get candidate info
+        summary_path = self.phase4_5_dir / "phase_4_5_summary.json"
+        if not summary_path.exists():
+            logger.warning(f"Phase 4.5 summary not found at {summary_path}")
+            return multi_candidate_data
 
-        # Phase 4.6: Golden section search data (if available)
-        golden_optimal = grid_optimal
-        golden_optimal_rate = grid_optimal_rate
-        if 'correct_steering' in self.phase4_6_data:
-            golden_data = self.phase4_6_data['correct_steering']
-            if 'cached_scores' in golden_data:
-                # Extract all tested coefficients from golden section search
-                for coef_str, rate in golden_data['cached_scores'].items():
+        with open(summary_path) as f:
+            summary = json.load(f)
+
+        # Extract candidate info from summary
+        correct_candidates = summary.get("results", {}).get("correct_candidates", [])
+        incorrect_candidates = summary.get("results", {}).get("incorrect_candidates", [])
+
+        # Load orchestrator state for each correct candidate
+        for candidate in correct_candidates:
+            layer = candidate["layer"]
+            latent_idx = candidate["latent_idx"]
+            candidate_id = f"L{layer}_{latent_idx}"
+
+            orch_path = self.phase4_5_dir / f"parallel_checkpoints_correct_{candidate_id}" / "orchestrator_state.json"
+            if orch_path.exists():
+                with open(orch_path) as f:
+                    orch_data = json.load(f)
+                multi_candidate_data["correct"][candidate_id] = {
+                    "layer": layer,
+                    "latent_idx": latent_idx,
+                    "results": orch_data.get("results", {}),
+                }
+
+        # Load orchestrator state for each incorrect candidate
+        for candidate in incorrect_candidates:
+            layer = candidate["layer"]
+            latent_idx = candidate["latent_idx"]
+            candidate_id = f"L{layer}_{latent_idx}"
+
+            orch_path = self.phase4_5_dir / f"parallel_checkpoints_incorrect_{candidate_id}" / "orchestrator_state.json"
+            if orch_path.exists():
+                with open(orch_path) as f:
+                    orch_data = json.load(f)
+                multi_candidate_data["incorrect"][candidate_id] = {
+                    "layer": layer,
+                    "latent_idx": latent_idx,
+                    "results": orch_data.get("results", {}),
+                }
+
+        return multi_candidate_data
+
+    def _load_phase4_6_multi_candidate(self) -> dict:
+        """Load golden section data for all candidates from Phase 4.6."""
+        multi_candidate_data = {"correct": {}, "incorrect": {}}
+
+        # Load refined_coefficients.json for candidate info
+        refined_path = self.phase4_6_dir / "refined_coefficients.json"
+        if not refined_path.exists():
+            logger.warning(f"Refined coefficients not found at {refined_path}")
+            return multi_candidate_data
+
+        with open(refined_path) as f:
+            refined = json.load(f)
+
+        # Correct steering uses a shared orchestrator with keys like (coeff, 'correct')
+        correct_orch_path = self.phase4_6_dir / "parallel_checkpoints_correct" / "orchestrator_state.json"
+        if correct_orch_path.exists():
+            with open(correct_orch_path) as f:
+                correct_orch = json.load(f)
+
+            # Group results by coefficient ranges corresponding to each candidate
+            # Each candidate's golden section search explores ~6-8 coefficients around its Phase 4.5 optimal
+            for candidate in refined.get("correct", []):
+                candidate_id = candidate["candidate_id"]
+                phase4_5_coef = candidate["phase4_5_coefficient"]
+                refined_coef = candidate["refined_coefficient"]
+                best_score = candidate["best_score"]
+
+                # Extract results for this candidate by finding coefficients in range
+                # Golden section explores ±10 around the Phase 4.5 coefficient
+                candidate_results = {}
+                for key, value in correct_orch.get("results", {}).items():
+                    # Parse key like "(72, 'correct')"
+                    match = re.match(r"\((\d+),\s*'correct'\)", key)
+                    if match:
+                        coef = int(match.group(1))
+                        # Check if this coefficient is in the golden section search range
+                        if abs(coef - phase4_5_coef) <= 15 or abs(coef - refined_coef) <= 10:
+                            candidate_results[str(coef)] = value
+
+                multi_candidate_data["correct"][candidate_id] = {
+                    "results": candidate_results,
+                    "refined_coefficient": refined_coef,
+                    "best_score": best_score,
+                }
+
+        # Incorrect steering uses per-candidate orchestrators
+        for candidate in refined.get("incorrect", []):
+            candidate_id = candidate["candidate_id"]
+            orch_path = self.phase4_6_dir / f"parallel_checkpoints_incorrect_{candidate_id}" / "orchestrator_state.json"
+
+            if orch_path.exists():
+                with open(orch_path) as f:
+                    orch_data = json.load(f)
+
+                # Parse results with keys like "(8, 'incorrect')"
+                candidate_results = {}
+                for key, value in orch_data.get("results", {}).items():
+                    match = re.match(r"\((\d+),\s*'incorrect'\)", key)
+                    if match:
+                        coef = int(match.group(1))
+                        candidate_results[str(coef)] = value
+
+                multi_candidate_data["incorrect"][candidate_id] = {
+                    "results": candidate_results,
+                    "refined_coefficient": candidate["refined_coefficient"],
+                    "best_score": candidate["best_score"],
+                }
+
+        return multi_candidate_data
+
+    def plot_all_correct_candidates(self) -> None:
+        """
+        Create single overlay plot showing coefficient curves for all 5 correct candidates.
+        All candidates on one figure with distinct line styles for direct comparison.
+        """
+        # Load multi-candidate data
+        phase4_5_multi = self._load_phase4_5_multi_candidate()
+        phase4_6_multi = self._load_phase4_6_multi_candidate()
+
+        correct_4_5 = phase4_5_multi.get("correct", {})
+        correct_4_6 = phase4_6_multi.get("correct", {})
+
+        if not correct_4_5:
+            logger.warning("No correct candidate data found for multi-candidate plot")
+            return
+
+        # Get ordered list of candidates (maintain rank order from Phase 4.5)
+        summary_path = self.phase4_5_dir / "phase_4_5_summary.json"
+        with open(summary_path) as f:
+            summary = json.load(f)
+
+        candidates_info = summary.get("results", {}).get("selected_coefficients", {}).get("correct", [])
+
+        # Line styles and colors for 5 candidates
+        LINE_STYLES = ['-', '--', '-.', ':', (0, (3, 1, 1, 1))]
+        GREEN_PALETTE = ['#1a5c1a', '#228b22', '#2e8b57', '#3cb371', '#66cdaa']  # dark to light greens
+
+        # Create single overlay plot
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        for idx, candidate in enumerate(candidates_info[:5]):
+            layer = candidate["layer"]
+            latent_idx = candidate["latent_idx"]
+            candidate_id = f"L{layer}_{latent_idx}"
+
+            # Collect all coefficients and scores
+            all_coeffs = []
+            all_scores = []
+
+            # Phase 4.5 grid search data
+            if candidate_id in correct_4_5:
+                grid_results = correct_4_5[candidate_id].get("results", {})
+                for coef_str, result in grid_results.items():
                     coef = float(coef_str)
-                    if coef not in all_coeffs:
-                        all_coeffs.append(coef)
-                        all_rates.append(rate)
+                    score = result.get("score", 0)
+                    all_coeffs.append(coef)
+                    all_scores.append(score)
 
-            # Get golden section optimal
-            if 'best_coefficient' in golden_data:
-                golden_optimal = golden_data['best_coefficient']
-                golden_optimal_rate = golden_data['best_score']
+            # Phase 4.6 golden section data
+            if candidate_id in correct_4_6:
+                golden_results = correct_4_6[candidate_id].get("results", {})
+                refined_coef = correct_4_6[candidate_id].get("refined_coefficient")
+                best_score = correct_4_6[candidate_id].get("best_score")
 
-        # Sort for plotting
-        sorted_data = sorted(zip(all_coeffs, all_rates))
-        all_coeffs_sorted, all_rates_sorted = zip(*sorted_data) if sorted_data else ([], [])
-
-        # Create plot
-        plt.figure(figsize=(7, 5))
-        plt.plot(all_coeffs_sorted, all_rates_sorted, 'o-', color='green', linewidth=2,
-                 markersize=6, label='Coefficient search', alpha=0.7)
-
-        # Highlight grid search optimal
-        plt.plot(grid_optimal, grid_optimal_rate, 's', color='darkgreen', markersize=10,
-                 label=f'Grid max: α={int(grid_optimal)}', zorder=10)
-
-        # Highlight golden section optimal (if different)
-        if golden_optimal != grid_optimal:
-            plt.plot(golden_optimal, golden_optimal_rate, '*', color='darkgreen', markersize=15,
-                     label=f'Golden max: α={int(golden_optimal)}', zorder=11)
-
-        plt.xlabel('Steering Coefficient (α)', fontsize=12)
-        plt.ylabel('Correction Rate (%)', fontsize=12)
-        plt.title('Correct-Steering Coefficient Optimization', fontsize=13, fontweight='bold')
-        plt.grid(True, alpha=0.3)
-        plt.legend(fontsize=10)
-        plt.tight_layout()
-
-        # Save
-        output_path = self.output_dir / "correct_coefficient_search.png"
-        plt.savefig(output_path, dpi=PLOT_DPI, bbox_inches='tight')
-        plt.close()
-        logger.info(f"Saved correct coefficient plot to {output_path}")
-
-    def plot_incorrect_coefficient_search(self) -> None:
-        """
-        Plot incorrect steering coefficient search showing Phase 4.5→4.6 progression.
-        Uses red for all data points, highlights Phase 4.5 and golden section optima.
-        Simplified to avoid messy grid search data from multiple runs.
-        """
-        # Phase 4.5: Use authoritative selected coefficient (skip messy grid search data)
-        selected_coeffs_path = self.phase4_5_dir / "selected_coefficients.json"
-        with open(selected_coeffs_path) as f:
-            selected_data = json.load(f)
-            phase4_5_optimal = selected_data['incorrect']['coefficient']
-            phase4_5_score = selected_data['incorrect']['composite_score']
-
-        # Start with Phase 4.5 selected coefficient
-        all_coeffs = [phase4_5_optimal]
-        all_scores = [phase4_5_score]
-
-        # Phase 4.6: Golden section search data
-        golden_data = self.phase4_6_data['incorrect_steering']
-        golden_history = golden_data['search_history']
-
-        # Extract all tested points during golden section search
-        for entry in golden_history:
-            if 'new_point' in entry and 'new_score' in entry:
-                if entry['new_point'] not in all_coeffs:
-                    all_coeffs.append(entry['new_point'])
-                    all_scores.append(entry['new_score'])
-            elif 'points' in entry and 'scores' in entry:
-                for coef, score in zip(entry['points'], entry['scores']):
+                for coef_str, result in golden_results.items():
+                    coef = float(coef_str)
+                    score = result.get("score", 0)
                     if coef not in all_coeffs:
                         all_coeffs.append(coef)
                         all_scores.append(score)
+            else:
+                refined_coef = candidate.get("coefficient")
+                best_score = candidate.get("correction_rate", 0)
 
-        golden_optimal = golden_data['optimal_coefficient']
-        golden_optimal_score = golden_data['best_score']
+            if not all_coeffs:
+                continue
 
-        # Sort for plotting
-        sorted_data = sorted(zip(all_coeffs, all_scores))
-        all_coeffs_sorted, all_scores_sorted = zip(*sorted_data) if sorted_data else ([], [])
+            # Sort for plotting
+            sorted_data = sorted(zip(all_coeffs, all_scores))
+            coeffs_sorted, scores_sorted = zip(*sorted_data)
 
-        # Create plot
-        plt.figure(figsize=(7, 5))
+            # Plot the curve with distinct style
+            line_style = LINE_STYLES[idx % len(LINE_STYLES)]
+            color = GREEN_PALETTE[idx % len(GREEN_PALETTE)]
 
-        # Plot all data points
-        plt.plot(all_coeffs_sorted, all_scores_sorted, 'o-', color='red', linewidth=2,
-                 markersize=6, label='Coefficient search', alpha=0.7)
+            ax.plot(coeffs_sorted, scores_sorted, linestyle=line_style, color=color,
+                    linewidth=2, marker='o', markersize=4, alpha=0.8,
+                    label=f'{candidate_id}')
 
-        # Highlight Phase 4.5 selected coefficient
-        plt.plot(phase4_5_optimal, phase4_5_score, 's', color='darkred', markersize=10,
-                 label=f'Phase 4.5: α={int(phase4_5_optimal)}', zorder=10)
+            # Star marker at actual curve maximum (not pre-computed best_score)
+            if all_coeffs and all_scores:
+                max_idx = all_scores.index(max(all_scores))
+                actual_best_coef = all_coeffs[max_idx]
+                actual_best_score = all_scores[max_idx]
+                ax.plot(actual_best_coef, actual_best_score, '*', color=color,
+                        markersize=14, markeredgecolor='black', markeredgewidth=0.5, zorder=10)
 
-        # Highlight golden section optimal
-        plt.plot(golden_optimal, golden_optimal_score, '*', color='darkred', markersize=15,
-                 label=f'Golden max: α={int(golden_optimal)}', zorder=11)
-
-        plt.xlabel('Steering Coefficient (α)', fontsize=12)
-        plt.ylabel('Composite Score (%)', fontsize=12)
-        plt.title('Incorrect-Steering Coefficient Optimization', fontsize=13, fontweight='bold')
-        plt.grid(True, alpha=0.3)
-        plt.legend(fontsize=10, loc='lower right')
+        # Labels and formatting
+        ax.set_xlabel('Steering Coefficient (α)', fontsize=12)
+        ax.set_ylabel('Correction Rate (%)', fontsize=12)
+        ax.set_title('Correct-Steering: All Candidates Coefficient Comparison',
+                    fontsize=13, fontweight='bold')
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=10, loc='best', title='Candidate')
 
         plt.tight_layout()
 
         # Save
-        output_path = self.output_dir / "incorrect_coefficient_search.png"
+        output_path = self.output_dir / "all_correct_candidates_coefficients.png"
         plt.savefig(output_path, dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
-        logger.info(f"Saved incorrect coefficient plot to {output_path}")
+        logger.info(f"Saved multi-candidate correct coefficient plot to {output_path}")
+
+    def plot_all_incorrect_candidates(self) -> None:
+        """
+        Create single overlay plot showing coefficient curves for all 5 incorrect candidates.
+        All candidates on one figure with distinct line styles for direct comparison.
+        """
+        # Load multi-candidate data
+        phase4_5_multi = self._load_phase4_5_multi_candidate()
+        phase4_6_multi = self._load_phase4_6_multi_candidate()
+
+        incorrect_4_5 = phase4_5_multi.get("incorrect", {})
+        incorrect_4_6 = phase4_6_multi.get("incorrect", {})
+
+        if not incorrect_4_5:
+            logger.warning("No incorrect candidate data found for multi-candidate plot")
+            return
+
+        # Get ordered list of candidates (maintain rank order from Phase 4.5)
+        summary_path = self.phase4_5_dir / "phase_4_5_summary.json"
+        with open(summary_path) as f:
+            summary = json.load(f)
+
+        candidates_info = summary.get("results", {}).get("selected_coefficients", {}).get("incorrect", [])
+
+        # Line styles and colors for 5 candidates (same styles, red palette)
+        LINE_STYLES = ['-', '--', '-.', ':', (0, (3, 1, 1, 1))]
+        RED_PALETTE = ['#8b0000', '#b22222', '#cd5c5c', '#e9967a', '#f08080']  # dark to light reds
+
+        # Create single overlay plot
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        for idx, candidate in enumerate(candidates_info[:5]):
+            layer = candidate["layer"]
+            latent_idx = candidate["latent_idx"]
+            candidate_id = f"L{layer}_{latent_idx}"
+
+            # Collect all coefficients and scores
+            all_coeffs = []
+            all_scores = []
+
+            # Phase 4.5 grid search data
+            if candidate_id in incorrect_4_5:
+                grid_results = incorrect_4_5[candidate_id].get("results", {})
+                for coef_str, result in grid_results.items():
+                    coef = float(coef_str)
+                    score = result.get("score", 0)
+                    all_coeffs.append(coef)
+                    all_scores.append(score)
+
+            # Phase 4.6 golden section data
+            if candidate_id in incorrect_4_6:
+                golden_results = incorrect_4_6[candidate_id].get("results", {})
+                refined_coef = incorrect_4_6[candidate_id].get("refined_coefficient")
+                best_score = incorrect_4_6[candidate_id].get("best_score")
+
+                for coef_str, result in golden_results.items():
+                    coef = float(coef_str)
+                    score = result.get("score", 0)
+                    if coef not in all_coeffs:
+                        all_coeffs.append(coef)
+                        all_scores.append(score)
+            else:
+                refined_coef = candidate.get("coefficient")
+                best_score = candidate.get("composite_score", 0)
+
+            if not all_coeffs:
+                continue
+
+            # Sort for plotting
+            sorted_data = sorted(zip(all_coeffs, all_scores))
+            coeffs_sorted, scores_sorted = zip(*sorted_data)
+
+            # Plot the curve with distinct style
+            line_style = LINE_STYLES[idx % len(LINE_STYLES)]
+            color = RED_PALETTE[idx % len(RED_PALETTE)]
+
+            ax.plot(coeffs_sorted, scores_sorted, linestyle=line_style, color=color,
+                    linewidth=2, marker='o', markersize=4, alpha=0.8,
+                    label=f'{candidate_id}')
+
+            # Star marker at actual curve maximum (not pre-computed best_score)
+            if all_coeffs and all_scores:
+                max_idx = all_scores.index(max(all_scores))
+                actual_best_coef = all_coeffs[max_idx]
+                actual_best_score = all_scores[max_idx]
+                ax.plot(actual_best_coef, actual_best_score, '*', color=color,
+                        markersize=14, markeredgecolor='black', markeredgewidth=0.5, zorder=10)
+
+        # Labels and formatting
+        ax.set_xlabel('Steering Coefficient (α)', fontsize=12)
+        ax.set_ylabel('Composite Score (%)', fontsize=12)
+        ax.set_title('Incorrect-Steering: All Candidates Coefficient Comparison',
+                    fontsize=13, fontweight='bold')
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=10, loc='best', title='Candidate')
+
+        plt.tight_layout()
+
+        # Save
+        output_path = self.output_dir / "all_incorrect_candidates_coefficients.png"
+        plt.savefig(output_path, dpi=PLOT_DPI, bbox_inches='tight')
+        plt.close()
+        logger.info(f"Saved multi-candidate incorrect coefficient plot to {output_path}")
 
     def generate_all_plots(self) -> None:
         """Generate all coefficient optimization plots."""
         logger.info("Generating coefficient optimization visualizations...")
 
-        self.plot_correct_coefficient_search()
-        self.plot_incorrect_coefficient_search()
+        # Multi-candidate overlay plots
+        self.plot_all_correct_candidates()
+        self.plot_all_incorrect_candidates()
 
         # Get final optimal coefficients
         correct_optimal = self.phase4_5_data['correct_steering']['optimal_coefficient']
@@ -244,8 +466,8 @@ class CoefficientVisualizer:
                 "magnitude_ratio": round(incorrect_optimal / correct_optimal, 1)
             },
             "figures_generated": [
-                "correct_coefficient_search.png",
-                "incorrect_coefficient_search.png"
+                "all_correct_candidates_coefficients.png",
+                "all_incorrect_candidates_coefficients.png"
             ]
         }
 
@@ -330,8 +552,8 @@ class Phase47Runner:
             phase="4.7",
             outputs={
                 "primary": "phase_4_7_summary.json",
-                "correct_plot": "correct_coefficient_search.png",
-                "incorrect_plot": "incorrect_coefficient_search.png",
+                "all_correct_plot": "all_correct_candidates_coefficients.png",
+                "all_incorrect_plot": "all_incorrect_candidates_coefficients.png",
             },
             config=self.config,
             output_dir=str(self.output_dir),

@@ -233,12 +233,15 @@ class SteeringEffectAnalyzer:
                 logger.info("Detected multi-candidate format from Phase 4.6")
                 self.candidate_coefficients = coefficients_data
                 # For backward compatibility, also set single best coefficient
+                # Phase 4.6 uses 'refined_coefficient', Phase 4.5 uses 'coefficient'
                 if coefficients_data.get('correct'):
-                    self.correct_coefficient = coefficients_data['correct'][0]['coefficient']
+                    first_correct = coefficients_data['correct'][0]
+                    self.correct_coefficient = first_correct.get('refined_coefficient', first_correct.get('coefficient', 30))
                 else:
                     self.correct_coefficient = 30
                 if coefficients_data.get('incorrect'):
-                    self.incorrect_coefficient = coefficients_data['incorrect'][0]['coefficient']
+                    first_incorrect = coefficients_data['incorrect'][0]
+                    self.incorrect_coefficient = first_incorrect.get('refined_coefficient', first_incorrect.get('coefficient', 100))
                 else:
                     self.incorrect_coefficient = 100
 
@@ -691,7 +694,8 @@ class SteeringEffectAnalyzer:
                     'baseline_passed': baseline_passed,
                     'steered_correct': steered_correct,
                     'flipped': baseline_passed != steered_correct,
-                    'steered_error_type': eval_result.error_type
+                    'steered_error_type': eval_result.error_type,
+                    'steered_code': generated_code,
                 })
 
             except Exception as e:
@@ -734,6 +738,8 @@ class SteeringEffectAnalyzer:
             'n_total': n_total,
             'n_excluded': len(excluded_tasks),
             'separation_score': candidate.get('separation_score'),
+            'detailed_results': results,  # Per-task outcomes for Phase 4.14
+            'preservation_detailed': preservation_results.get('detailed_results', []) if steering_type == 'correct' else [],
         }
 
     def _quick_evaluate_preservation(
@@ -746,6 +752,7 @@ class SteeringEffectAnalyzer:
         problems_df = self.initially_correct_data.copy()
         preserved = 0
         total = 0
+        detailed_results = []
 
         for _, row in problems_df.iterrows():
             hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
@@ -777,9 +784,22 @@ class SteeringEffectAnalyzer:
                 generated_code = extract_code(generated_text, prompt)
                 eval_result = evaluate_code_with_error_type(generated_code, test_cases)
 
-                if row['baseline_passed'] and eval_result.passed:
+                baseline_passed = row['baseline_passed']
+                steered_correct = eval_result.passed
+                is_preserved = baseline_passed and steered_correct
+
+                if is_preserved:
                     preserved += 1
                 total += 1
+
+                detailed_results.append({
+                    'task_id': row['task_id'],
+                    'baseline_passed': baseline_passed,
+                    'steered_correct': steered_correct,
+                    'steered_error_type': eval_result.error_type,
+                    'flipped': baseline_passed != steered_correct,
+                    'steered_code': generated_code,
+                })
 
             except Exception:
                 pass
@@ -790,7 +810,12 @@ class SteeringEffectAnalyzer:
                     torch.cuda.empty_cache()
 
         preservation_rate = (preserved / total * 100) if total > 0 else 0.0
-        return {'preservation_rate': preservation_rate, 'preserved': preserved, 'total': total}
+        return {
+            'preservation_rate': preservation_rate,
+            'preserved': preserved,
+            'total': total,
+            'detailed_results': detailed_results,
+        }
 
     def _load_partial_results(self) -> dict:
         """Load existing partial results for candidate-level checkpointing.
@@ -1368,7 +1393,8 @@ class SteeringEffectAnalyzer:
             for rank, candidate_entry in enumerate(candidates):
                 layer = candidate_entry['layer']
                 latent_idx = candidate_entry['latent_idx']
-                coefficient = candidate_entry['coefficient']
+                # Phase 4.6 uses 'refined_coefficient', Phase 4.5 uses 'coefficient'
+                coefficient = candidate_entry.get('refined_coefficient', candidate_entry.get('coefficient'))
                 candidate_id = f"L{layer}_{latent_idx}"
 
                 # Skip already-completed candidates
@@ -1405,8 +1431,61 @@ class SteeringEffectAnalyzer:
                 if self.device.type == "cuda":
                     torch.cuda.empty_cache()
 
-        # Save results
-        save_json(candidate_results, self.output_dir / "steering_effect_analysis.json")
+        # Build detailed_results for Phase 4.14 from best candidates
+        detailed_results = {'correction': [], 'corruption': [], 'preservation': []}
+
+        if candidate_results.get('correct'):
+            best_correct = max(candidate_results['correct'], key=lambda x: x.get('correction_rate', 0))
+            detailed_results['correction'] = best_correct.get('detailed_results', [])
+            detailed_results['preservation'] = best_correct.get('preservation_detailed', [])
+            best_correction_rate = best_correct.get('correction_rate', 0)
+            best_preservation_rate = best_correct.get('preservation_rate', 0)
+        else:
+            best_correction_rate = 0.0
+            best_preservation_rate = 0.0
+
+        if candidate_results.get('incorrect'):
+            best_incorrect = max(candidate_results['incorrect'], key=lambda x: x.get('corruption_rate', 0))
+            detailed_results['corruption'] = best_incorrect.get('detailed_results', [])
+            best_corruption_rate = best_incorrect.get('corruption_rate', 0)
+        else:
+            best_corruption_rate = 0.0
+
+        # Compute error type distribution for Phase 9.5
+        steered_error_distribution = {'total': 0}
+        for exp_type in ['correction', 'corruption', 'preservation']:
+            for r in detailed_results.get(exp_type, []):
+                error = r.get('steered_error_type', 'unknown')
+                steered_error_distribution[error] = steered_error_distribution.get(error, 0) + 1
+                steered_error_distribution['total'] += 1
+
+        # Build full output with detailed_results key for Phase 4.14
+        output = {
+            'correct': candidate_results.get('correct', []),
+            'incorrect': candidate_results.get('incorrect', []),
+            'detailed_results': detailed_results,
+            'best_candidates': {
+                'correct': candidate_results['correct'][0] if candidate_results.get('correct') else None,
+                'incorrect': candidate_results['incorrect'][0] if candidate_results.get('incorrect') else None,
+            },
+            # Include n_problems for parallel merge compatibility
+            'n_problems': {
+                'initially_correct': len(self.initially_correct_data),
+                'initially_incorrect': len(self.initially_incorrect_data),
+                'total': len(self.baseline_data),
+            },
+        }
+        # Strip detailed_results from individual candidates to avoid duplication in saved file
+        for steering_type in ['correct', 'incorrect']:
+            for entry in output.get(steering_type, []):
+                entry.pop('detailed_results', None)
+                entry.pop('preservation_detailed', None)
+
+        # Save results (use GPU-specific names in parallel mode)
+        if self.n_gpus > 1:
+            save_json(output, self.output_dir / f"steering_effect_analysis_gpu{self.gpu_id}.json")
+        else:
+            save_json(output, self.output_dir / "steering_effect_analysis.json")
 
         # Create summary
         summary = {
@@ -1423,29 +1502,38 @@ class SteeringEffectAnalyzer:
                 'initially_incorrect_count': len(self.initially_incorrect_data),
             },
             'results': {
+                'correction_rate': best_correction_rate,
+                'corruption_rate': best_corruption_rate,
+                'preservation_rate': best_preservation_rate if best_preservation_rate else 0.0,
                 'correct_candidates': len(candidate_results.get('correct', [])),
                 'incorrect_candidates': len(candidate_results.get('incorrect', [])),
-            }
+            },
+            'steered_error_type_distribution': steered_error_distribution if steered_error_distribution['total'] > 0 else None,
         }
-        save_json(summary, self.output_dir / "phase_4_8_summary.json")
+        # Save summary (use GPU-specific name in parallel mode)
+        if self.n_gpus > 1:
+            save_json(summary, self.output_dir / f"phase_4_8_summary_gpu{self.gpu_id}.json")
+        else:
+            save_json(summary, self.output_dir / "phase_4_8_summary.json")
 
-        # Write manifest
-        from common.phase_discovery import write_phase_output
-        write_phase_output(
-            phase="4.8",
-            outputs={
-                "primary": "phase_4_8_summary.json",
-                "steering_analysis": "steering_effect_analysis.json",
-            },
-            config=self.config,
-            output_dir=str(self.output_dir),
-            dependencies={
-                "2.5": str(self.phase2_5_dir),
-                "3.5": str(self.phase3_5_dir),
-                "4.6": str(self.phase4_6_dir),
-            },
-            config_keys=['model_name', 'dataset_name']
-        )
+        # Write manifest (skip in parallel mode - orchestrator handles it)
+        if self.n_gpus == 1:
+            from common.phase_discovery import write_phase_output
+            write_phase_output(
+                phase="4.8",
+                outputs={
+                    "primary": "phase_4_8_summary.json",
+                    "steering_analysis": "steering_effect_analysis.json",
+                },
+                config=self.config,
+                output_dir=str(self.output_dir),
+                dependencies={
+                    "2.5": str(self.phase2_5_dir),
+                    "3.5": str(self.phase3_5_dir),
+                    "4.6": str(self.phase4_6_dir),
+                },
+                config_keys=['model_name', 'dataset_name']
+            )
 
         # Log summary
         logger.info(f"\n{'='*80}")
