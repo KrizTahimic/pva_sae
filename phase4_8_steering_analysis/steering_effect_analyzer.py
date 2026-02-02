@@ -823,7 +823,11 @@ class SteeringEffectAnalyzer:
         Returns:
             dict with 'correct' and 'incorrect' lists of completed candidate entries
         """
-        results_file = self.output_dir / "steering_effect_analysis.json"
+        # Use GPU-specific filename in parallel mode to avoid race conditions
+        if self.n_gpus > 1:
+            results_file = self.output_dir / f"steering_effect_analysis_gpu{self.gpu_id}.json"
+        else:
+            results_file = self.output_dir / "steering_effect_analysis.json"
 
         if results_file.exists():
             try:
@@ -857,7 +861,12 @@ class SteeringEffectAnalyzer:
 
     def _save_incremental_results(self, candidate_results: dict) -> None:
         """Save results incrementally after each candidate completes."""
-        save_json(candidate_results, self.output_dir / "steering_effect_analysis.json")
+        # Use GPU-specific filename in parallel mode to avoid race conditions
+        if self.n_gpus > 1:
+            results_file = self.output_dir / f"steering_effect_analysis_gpu{self.gpu_id}.json"
+        else:
+            results_file = self.output_dir / "steering_effect_analysis.json"
+        save_json(candidate_results, results_file)
         logger.info(f"Saved incremental checkpoint: "
                    f"{len(candidate_results.get('correct', []))} correct, "
                    f"{len(candidate_results.get('incorrect', []))} incorrect")

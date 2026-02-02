@@ -269,16 +269,18 @@ class TestParallelEquivalence:
         Test Phase 4.8 parallel vs sequential equivalence.
 
         Phase 4.8 is steering effect analysis - a data-parallel phase.
-        Requires Phase 1 data and Phase 4.5/4.6 coefficients to be available.
 
-        NOTE: This test runs actual Phase 4.8 which takes significant time.
-        Skip by default in automated test runs. Run explicitly with:
-            pytest tests/test_integration/ -k test_phase_4_8_equivalence --run-slow-integration
+        NOTE: This test runs the FULL Phase 4.8 (160+ problems) which takes 30+ minutes.
+        Phase 4.8 doesn't support --start/--end limiting, so we can't reduce the problem count.
+
+        For manual verification, use:
+            python3 run.py phase 4.8  # Sequential
+            python3 run.py phase 4.8 --parallel 2  # Parallel
+        Then compare the output files manually.
         """
-        # Skip unless explicitly requested - this test takes minutes to run
         pytest.skip(
-            "Skipping slow integration test. Run with: "
-            "pytest -k test_phase_4_8_equivalence --run-slow-integration"
+            "Skipped: Phase 4.8 equivalence test takes 30+ min (processes full analysis split). "
+            "For manual verification, compare: run.py phase 4.8 vs run.py phase 4.8 --parallel 2"
         )
 
 
