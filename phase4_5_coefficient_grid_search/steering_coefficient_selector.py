@@ -1473,6 +1473,7 @@ class CoefficientEvaluator:
                     'task_id': row['task_id'],
                     'baseline_passed': baseline_passed,
                     'steered_correct': steered_correct,
+                    'steered_error_type': eval_result.error_type,
                     'flipped': baseline_passed != steered_correct,
                     'code_similarity': code_similarity,
                     'baseline_code': baseline_code,

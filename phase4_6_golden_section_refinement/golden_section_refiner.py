@@ -2064,6 +2064,7 @@ class RefinementEvaluator:
                     'task_id': row['task_id'],
                     'baseline_passed': row['baseline_passed'],
                     'steered_correct': eval_result.passed,
+                    'steered_error_type': eval_result.error_type,
                     'flipped': row['baseline_passed'] != eval_result.passed,
                     'code_similarity': code_similarity,
                     'baseline_code': baseline_code,

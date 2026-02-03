@@ -29,6 +29,41 @@ logger = get_logger("common.dataset_utils")
 
 
 # ============================================================================
+# Evaluation Semaphore (for parallel execution)
+# ============================================================================
+
+# Module-level semaphore for serializing CPU-bound code evaluations in parallel mode.
+# When multiple GPU workers evaluate code simultaneously, they compete for CPU,
+# causing spurious timeouts. This semaphore limits concurrent evaluations.
+_eval_semaphore = None
+
+
+def set_eval_semaphore(semaphore) -> None:
+    """
+    Set the module-level evaluation semaphore for this process.
+
+    Called by parallel workers after receiving the shared semaphore from
+    the orchestrator. All subsequent evaluate_code_with_error_type() calls
+    in this process will use this semaphore to serialize CPU-bound work.
+
+    Args:
+        semaphore: A multiprocessing.Manager().Semaphore instance
+    """
+    global _eval_semaphore
+    _eval_semaphore = semaphore
+
+
+def get_eval_semaphore():
+    """
+    Get the module-level evaluation semaphore, if set.
+
+    Returns:
+        The semaphore if set, None otherwise
+    """
+    return _eval_semaphore
+
+
+# ============================================================================
 # Error Type Constants
 # ============================================================================
 
@@ -513,7 +548,8 @@ def _evaluate_with_signal_timeout(
 def evaluate_code_with_error_type(
     code: str,
     test_list: list[str],
-    timeout_seconds: int = 5
+    timeout_seconds: int = 5,
+    eval_semaphore=None
 ) -> EvaluationResult:
     """
     Evaluate generated code against test cases with detailed error type classification.
@@ -532,6 +568,11 @@ def evaluate_code_with_error_type(
         code: Generated code to test
         test_list: List of test assertion strings
         timeout_seconds: Timeout per execution step (default: 5)
+        eval_semaphore: Optional semaphore to limit concurrent evaluations.
+            When provided in worker processes, this serializes CPU-bound
+            evaluations to prevent contention when multiple GPU workers
+            evaluate code simultaneously. This prevents spurious timeouts
+            caused by CPU starvation rather than actual infinite loops.
 
     Returns:
         EvaluationResult with passed status, error_type, error_message, and exception_class
@@ -548,14 +589,19 @@ def evaluate_code_with_error_type(
 
     if is_main_process:
         # Signal-based timeout (faster, no subprocess overhead)
+        # Note: eval_semaphore not needed in main process (no parallel workers)
         return _evaluate_with_signal_timeout(code, test_list, timeout_seconds)
     else:
         # Subprocess-based timeout (works in parallel workers)
         from common.subprocess_executor import execute_code_with_hard_timeout
 
+        # Use explicitly passed semaphore, or fall back to module-level one
+        semaphore = eval_semaphore if eval_semaphore is not None else get_eval_semaphore()
+
         import_code = _get_import_code()
         result = execute_code_with_hard_timeout(
-            code, test_list, timeout_seconds, import_code
+            code, test_list, timeout_seconds, import_code,
+            eval_semaphore=semaphore
         )
 
         return EvaluationResult(

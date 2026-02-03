@@ -103,7 +103,8 @@ def _worker_phase(
     phase_id: str,
     config_dict: dict,
     n_gpus: int,
-    output_dir: str
+    output_dir: str,
+    eval_semaphore=None
 ) -> dict:
     """
     Worker function that runs on a single GPU.
@@ -120,6 +121,7 @@ def _worker_phase(
         config_dict: Config as dictionary (for pickling)
         n_gpus: Total number of GPUs
         output_dir: Directory to save GPU-specific results
+        eval_semaphore: Optional shared semaphore for serializing code evaluations
 
     Returns:
         dict with status and result info
@@ -132,9 +134,16 @@ def _worker_phase(
     from common.phase_registry import get_phase
     from common.config import Config
     from common.logging import get_logger
+    from common.dataset_utils import set_eval_semaphore
 
     worker_logger = get_logger(f"parallel_worker_{gpu_id}")
     worker_logger.info(f"Worker {gpu_id}: Starting on GPU {gpu_id}")
+
+    # Set the evaluation semaphore for this worker process
+    # All evaluate_code_with_error_type() calls will use this semaphore
+    if eval_semaphore is not None:
+        set_eval_semaphore(eval_semaphore)
+        worker_logger.info(f"Worker {gpu_id}: Evaluation semaphore configured")
 
     try:
         # Recreate config from dict
@@ -222,9 +231,18 @@ def run_phase_parallel(phase_id: str, config: Config, n_gpus: int) -> dict:
     # Use spawn context for CUDA compatibility
     ctx = mp.get_context('spawn')
 
+    # Create a shared semaphore to prevent CPU contention during code evaluation.
+    # When multiple GPU workers finish generation simultaneously and all try to
+    # evaluate code, they compete for CPU resources, causing spurious timeouts.
+    # This semaphore limits concurrent evaluations (2 = reasonable parallelism
+    # while avoiding the 4+ concurrent evals that cause problems).
+    manager = ctx.Manager()
+    eval_semaphore = manager.Semaphore(2)
+    logger.info("Created shared evaluation semaphore (max 2 concurrent evals)")
+
     # Prepare worker arguments
     worker_args = [
-        (gpu_id, phase_id, config_dict, n_gpus, str(output_dir))
+        (gpu_id, phase_id, config_dict, n_gpus, str(output_dir), eval_semaphore)
         for gpu_id in range(n_gpus)
     ]
 
@@ -1240,6 +1258,133 @@ def _merge_phase5_3_json_results(
     return merged
 
 
+def _merge_phase4_12_json_results(
+    output_path: Path,
+    n_gpus: int,
+    config: Config
+) -> dict:
+    """
+    Merge Phase 4.12 zero-discrimination steering results from parallel workers.
+
+    Phase 4.12 produces zero_disc_steering_results_gpu{N}.json files containing:
+    - correction_results, corruption_results, preservation_results (dict keyed by task_id)
+    - summary_metrics with correction_rate, corruption_rate, preservation_rate
+    """
+    from datetime import datetime
+    from common.utils import save_json
+    from common.steering_metrics import calculate_correction_rate, calculate_corruption_rate
+    from common.dataset_utils import compute_error_type_distribution
+
+    # Find per-GPU JSON files
+    gpu_files = sorted(output_path.glob("zero_disc_steering_results_gpu*.json"))
+    if not gpu_files:
+        raise RuntimeError(f"No zero_disc_steering_results_gpu*.json files found in {output_path}")
+
+    logger.info(f"Found {len(gpu_files)} GPU JSON files to merge for Phase 4.12")
+
+    # Load all per-GPU results
+    gpu_data = []
+    for f in gpu_files:
+        with open(f) as fh:
+            gpu_data.append(json.load(fh))
+        logger.info(f"  Loaded {f.name}")
+
+    # Merge results across GPUs (Phase 4.12 uses dict keyed by task_id)
+    merged_correction = {}
+    merged_corruption = {}
+    merged_preservation = {}
+
+    for data in gpu_data:
+        # Phase 4.12 stores results as {task_id: result_dict}
+        merged_correction.update(data.get('correction_results', {}))
+        merged_corruption.update(data.get('corruption_results', {}))
+        merged_preservation.update(data.get('preservation_results', {}))
+
+    # Convert to lists for rate calculation
+    correction_list = list(merged_correction.values())
+    corruption_list = list(merged_corruption.values())
+    preservation_list = list(merged_preservation.values())
+
+    logger.info(f"Merged results: {len(correction_list)} correction, "
+                f"{len(corruption_list)} corruption, {len(preservation_list)} preservation")
+
+    # Recalculate rates from merged data
+    correction_rate = calculate_correction_rate(correction_list)
+    corruption_rate = calculate_corruption_rate(corruption_list)
+
+    # Preservation rate: correct→correct
+    if preservation_list:
+        preserved = sum(1 for r in preservation_list
+                       if r.get('baseline_passed', False) and r.get('steered_correct', False))
+        total_correct = sum(1 for r in preservation_list
+                          if r.get('baseline_passed', False))
+        preservation_rate = (preserved / total_correct * 100) if total_correct > 0 else 0.0
+    else:
+        preservation_rate = 0.0
+
+    # Use first GPU's metadata
+    ref = gpu_data[0]
+
+    # Build merged results (same structure as single-GPU output)
+    merged = {
+        'metadata': ref.get('metadata', {}),
+        'correction_results': merged_correction,
+        'corruption_results': merged_corruption,
+        'preservation_results': merged_preservation,
+        'summary_metrics': {
+            'correction_rate': correction_rate,
+            'corruption_rate': corruption_rate,
+            'preservation_rate': preservation_rate,
+            'n_corrected': sum(1 for r in correction_list if r.get('steered_correct') and not r.get('baseline_passed')),
+            'n_corrupted': sum(1 for r in corruption_list if not r.get('steered_correct') and r.get('baseline_passed')),
+            'n_preserved': sum(1 for r in preservation_list if r.get('steered_correct') and r.get('baseline_passed'))
+        },
+        'steered_error_type_distribution': compute_error_type_distribution(
+            correction_list + corruption_list + preservation_list, 'steered_error_type'
+        ),
+        'parallel_merge': True,
+        'n_gpus': n_gpus
+    }
+
+    # Update metadata with merged counts
+    if 'metadata' in merged:
+        merged['metadata']['n_problems_tested'] = {
+            'correction': len(correction_list),
+            'corruption': len(corruption_list),
+            'preservation': len(preservation_list)
+        }
+
+    # Save merged results
+    save_json(merged, output_path / "zero_disc_steering_results.json")
+    logger.info("Saved merged zero_disc_steering_results.json")
+
+    # Write phase manifest
+    write_phase_output(
+        phase="4.12",
+        outputs={
+            "primary": "zero_disc_steering_results.json",
+        },
+        config=config,
+        output_dir=str(output_path)
+    )
+    logger.info("Wrote phase_output.json manifest")
+
+    # Cleanup per-GPU files
+    for f in gpu_files:
+        f.unlink()
+        logger.info(f"  Cleaned up {f.name}")
+
+    # Print summary
+    logger.info("=" * 60)
+    logger.info("PHASE 4.12 PARALLEL MERGE COMPLETE")
+    logger.info("=" * 60)
+    logger.info(f"Correction: {correction_rate:.1f}%")
+    logger.info(f"Corruption: {corruption_rate:.1f}%")
+    logger.info(f"Preservation: {preservation_rate:.1f}%")
+
+    return merged
+
+
 def _merge_phase7_6_json_results(
     output_path: Path,
     n_gpus: int,
@@ -1459,6 +1604,10 @@ def _merge_parallel_results(
     # Phase 7.6 uses JSON output format (instruct steering)
     if phase_id == "7.6":
         return _merge_phase7_6_json_results(output_path, n_gpus, config)
+
+    # Phase 4.12 uses JSON output format (zero-disc steering)
+    if phase_id == "4.12":
+        return _merge_phase4_12_json_results(output_path, n_gpus, config)
 
     # Find per-GPU result files
     # Phase 3.5 uses a different pattern for temperature experiments

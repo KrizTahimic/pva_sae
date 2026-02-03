@@ -176,6 +176,15 @@ class IterativeParallelRunner:
         # Use spawn context for CUDA compatibility
         ctx = get_context('spawn')
 
+        # Create a shared semaphore to prevent CPU contention during code evaluation.
+        # When multiple GPU workers finish generation simultaneously and all try to
+        # evaluate code, they compete for CPU resources, causing spurious timeouts.
+        # This semaphore limits concurrent evaluations.
+        import multiprocessing as mp
+        manager = mp.Manager()
+        self.eval_semaphore = manager.Semaphore(2)
+        logger.info("Created shared evaluation semaphore (max 2 concurrent evals)")
+
         # Create queues for communication
         task_queues: list[Queue] = [ctx.Queue() for _ in range(self.n_gpus)]
         result_queues: list[Queue] = [ctx.Queue() for _ in range(self.n_gpus)]
@@ -337,9 +346,16 @@ class IterativeParallelRunner:
 
         # Import logging after setting GPU
         from common.logging import get_logger
+        from common.dataset_utils import set_eval_semaphore
         worker_logger = get_logger(f"iterative_worker_{gpu_id}")
 
         worker_logger.info(f"Worker {gpu_id}: Initializing on GPU {gpu_id}")
+
+        # Set the evaluation semaphore for this worker process
+        # All evaluate_code_with_error_type() calls will use this semaphore
+        if hasattr(self, 'eval_semaphore') and self.eval_semaphore is not None:
+            set_eval_semaphore(self.eval_semaphore)
+            worker_logger.info(f"Worker {gpu_id}: Evaluation semaphore configured")
 
         try:
             # Load model ONCE - pass n_gpus=1 so evaluator doesn't filter data

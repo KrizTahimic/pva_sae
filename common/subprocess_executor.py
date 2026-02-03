@@ -99,7 +99,8 @@ def execute_code_with_hard_timeout(
     code: str,
     test_list: list[str],
     timeout_seconds: int = 5,
-    import_code: Optional[str] = None
+    import_code: Optional[str] = None,
+    eval_semaphore=None
 ) -> SubprocessResult:
     """
     Execute code with hard timeout using subprocess.
@@ -112,10 +113,45 @@ def execute_code_with_hard_timeout(
         test_list: List of test assertion strings
         timeout_seconds: Maximum execution time before killing the process
         import_code: Optional import statements to execute before code
+        eval_semaphore: Optional semaphore to limit concurrent evaluations.
+            When provided, this function acquires the semaphore before spawning
+            the subprocess and releases it after completion. This prevents CPU
+            contention when multiple GPU workers evaluate code simultaneously.
 
     Returns:
         SubprocessResult with passed status, error_type, error_message, and exception_class
     """
+    # If semaphore provided, use it to serialize evaluations
+    if eval_semaphore is not None:
+        return _execute_with_semaphore(
+            code, test_list, timeout_seconds, import_code, eval_semaphore
+        )
+    else:
+        return _execute_subprocess(code, test_list, timeout_seconds, import_code)
+
+
+def _execute_with_semaphore(
+    code: str,
+    test_list: list[str],
+    timeout_seconds: int,
+    import_code: Optional[str],
+    eval_semaphore
+) -> SubprocessResult:
+    """Execute with semaphore to prevent CPU contention."""
+    eval_semaphore.acquire()
+    try:
+        return _execute_subprocess(code, test_list, timeout_seconds, import_code)
+    finally:
+        eval_semaphore.release()
+
+
+def _execute_subprocess(
+    code: str,
+    test_list: list[str],
+    timeout_seconds: int,
+    import_code: Optional[str]
+) -> SubprocessResult:
+    """Core subprocess execution logic."""
     # Use 'spawn' context to ensure clean process without inherited state
     ctx = mp.get_context('spawn')
     result_queue = ctx.Queue()
