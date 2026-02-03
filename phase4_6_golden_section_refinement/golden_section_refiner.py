@@ -1538,11 +1538,9 @@ class GoldenSectionCoefficientRefiner:
             logger.info("Removed intermediate results file")
 
         # Collect all steered results from refinement evaluations for error distribution
-        # and save dedicated per-task result files (like Phase 4.8)
+        # and save dedicated per-coefficient result files for re-evaluation capability
         all_steered_results = []
-        all_correction_results = []
-        all_corruption_results = []
-        all_preservation_results = []
+        results_by_coefficient = {}  # {coefficient: {'correction': [], 'corruption': [], 'preservation': []}}
 
         if self.n_gpus > 1:
             suffix = f"_gpu{self.gpu_id}"
@@ -1555,31 +1553,58 @@ class GoldenSectionCoefficientRefiner:
                 result_data = refinement_results[steering_key]
                 if 'results' in result_data:
                     results = result_data['results']
+                    coeff = result_data.get('optimal_coefficient', 0)
                     all_steered_results.extend(results)
 
+                    if coeff not in results_by_coefficient:
+                        results_by_coefficient[coeff] = {'correction': [], 'corruption': [], 'preservation': []}
+
                     for r in results:
+                        # Add coefficient to result
+                        r_with_coeff = {**r, 'coefficient': coeff}
                         if steering_type == 'correct':
                             # Correction: incorrect baseline → correct steered
                             if not r.get('baseline_passed', True) and r.get('steered_correct', False):
-                                all_correction_results.append(r)
+                                results_by_coefficient[coeff]['correction'].append(r_with_coeff)
                         else:
                             # Corruption: correct baseline → incorrect steered
                             if r.get('baseline_passed', False) and not r.get('steered_correct', True):
-                                all_corruption_results.append(r)
+                                results_by_coefficient[coeff]['corruption'].append(r_with_coeff)
                             # Preservation: correct baseline → correct steered
                             elif r.get('baseline_passed', False) and r.get('steered_correct', True):
-                                all_preservation_results.append(r)
+                                results_by_coefficient[coeff]['preservation'].append(r_with_coeff)
 
-        # Save dedicated result files for re-evaluation capability
+        # Save per-coefficient result files
+        for coeff, results in results_by_coefficient.items():
+            coeff_str = f"coeff_{int(coeff)}" if coeff == int(coeff) else f"coeff_{coeff}"
+            if results['correction']:
+                save_json(results['correction'], self.output_dir / f"correction_results_{coeff_str}{suffix}.json")
+                logger.info(f"Saved {len(results['correction'])} correction results to correction_results_{coeff_str}{suffix}.json")
+            if results['corruption']:
+                save_json(results['corruption'], self.output_dir / f"corruption_results_{coeff_str}{suffix}.json")
+                logger.info(f"Saved {len(results['corruption'])} corruption results to corruption_results_{coeff_str}{suffix}.json")
+            if results['preservation']:
+                save_json(results['preservation'], self.output_dir / f"preservation_results_{coeff_str}{suffix}.json")
+                logger.info(f"Saved {len(results['preservation'])} preservation results to preservation_results_{coeff_str}{suffix}.json")
+
+        # Also save aggregated files (all_*_results.json) for backward compatibility
+        all_correction_results = []
+        all_corruption_results = []
+        all_preservation_results = []
+        for coeff_results in results_by_coefficient.values():
+            all_correction_results.extend(coeff_results['correction'])
+            all_corruption_results.extend(coeff_results['corruption'])
+            all_preservation_results.extend(coeff_results['preservation'])
+
         if all_correction_results:
             save_json(all_correction_results, self.output_dir / f"all_correction_results{suffix}.json")
-            logger.info(f"Saved {len(all_correction_results)} correction results to all_correction_results{suffix}.json")
+            logger.info(f"Saved {len(all_correction_results)} total correction results to all_correction_results{suffix}.json")
         if all_corruption_results:
             save_json(all_corruption_results, self.output_dir / f"all_corruption_results{suffix}.json")
-            logger.info(f"Saved {len(all_corruption_results)} corruption results to all_corruption_results{suffix}.json")
+            logger.info(f"Saved {len(all_corruption_results)} total corruption results to all_corruption_results{suffix}.json")
         if all_preservation_results:
             save_json(all_preservation_results, self.output_dir / f"all_preservation_results{suffix}.json")
-            logger.info(f"Saved {len(all_preservation_results)} preservation results to all_preservation_results{suffix}.json")
+            logger.info(f"Saved {len(all_preservation_results)} total preservation results to all_preservation_results{suffix}.json")
 
         # Create phase summary
         summary = {
@@ -1644,13 +1669,22 @@ class GoldenSectionCoefficientRefiner:
                 "refined_coefficients": "refined_coefficients.json",
                 "refinement_analysis": "refinement_analysis.json",
             }
-            # Add result files if they exist
+            # Add aggregated result files if they exist
             if all_correction_results:
                 outputs_dict["correction_results"] = "all_correction_results.json"
             if all_corruption_results:
                 outputs_dict["corruption_results"] = "all_corruption_results.json"
             if all_preservation_results:
                 outputs_dict["preservation_results"] = "all_preservation_results.json"
+            # Add per-coefficient result files
+            for coeff in results_by_coefficient.keys():
+                coeff_str = f"coeff_{int(coeff)}" if coeff == int(coeff) else f"coeff_{coeff}"
+                if results_by_coefficient[coeff]['correction']:
+                    outputs_dict[f"correction_results_{coeff_str}"] = f"correction_results_{coeff_str}.json"
+                if results_by_coefficient[coeff]['corruption']:
+                    outputs_dict[f"corruption_results_{coeff_str}"] = f"corruption_results_{coeff_str}.json"
+                if results_by_coefficient[coeff]['preservation']:
+                    outputs_dict[f"preservation_results_{coeff_str}"] = f"preservation_results_{coeff_str}.json"
 
             write_phase_output(
                 phase="4.6",

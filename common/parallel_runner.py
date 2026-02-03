@@ -542,31 +542,11 @@ def _merge_phase4_5_json_results(
         json.dump(merged, f, indent=2)
     logger.info(f"Saved merged analysis: {merged_file}")
 
-    # Save dedicated per-task result files for re-evaluation capability (like Phase 4.8)
-    all_correction_results = []
-    all_corruption_results = []
-    all_preservation_results = []
+    # Merge per-coefficient result files from all GPUs
+    # Pattern: {type}_results_coeff_{N}_gpu{M}.json -> {type}_results_coeff_{N}.json
+    from common.utils import save_json
+    import re
 
-    for steering_key, steering_data in merged.items():
-        steering_type = steering_key.replace('_steering', '')
-        if 'best_result' not in steering_data or 'results' not in steering_data['best_result']:
-            continue
-        results = steering_data['best_result']['results']
-
-        for r in results:
-            if steering_type == 'correct':
-                # Correction: incorrect baseline → correct steered
-                if not r.get('baseline_passed', True) and r.get('steered_correct', False):
-                    all_correction_results.append(r)
-            else:
-                # Corruption: correct baseline → incorrect steered
-                if r.get('baseline_passed', False) and not r.get('steered_correct', True):
-                    all_corruption_results.append(r)
-                # Preservation: correct baseline → correct steered
-                elif r.get('baseline_passed', False) and r.get('steered_correct', True):
-                    all_preservation_results.append(r)
-
-    # Deduplicate by task_id
     def dedupe_by_task_id(results_list):
         seen = set()
         deduped = []
@@ -577,21 +557,69 @@ def _merge_phase4_5_json_results(
                 deduped.append(r)
         return deduped
 
-    all_correction_results = dedupe_by_task_id(all_correction_results)
-    all_corruption_results = dedupe_by_task_id(all_corruption_results)
-    all_preservation_results = dedupe_by_task_id(all_preservation_results)
+    results_by_coefficient = {}  # {coefficient: {'correction': [], 'corruption': [], 'preservation': []}}
+    per_coeff_files_to_cleanup = []
 
-    # Save dedicated result files
-    from common.utils import save_json
+    # Find and merge all per-coefficient files from GPUs
+    for result_type in ['correction', 'corruption', 'preservation']:
+        pattern = f"{result_type}_results_coeff_*_gpu*.json"
+        gpu_files = sorted(output_path.glob(pattern))
+
+        for gpu_file in gpu_files:
+            # Extract coefficient from filename (e.g., "correction_results_coeff_10_gpu0.json" -> "10")
+            match = re.search(r'coeff_([0-9.]+)_gpu', gpu_file.name)
+            if not match:
+                continue
+            coeff_str = match.group(1)
+            coeff = int(coeff_str) if '.' not in coeff_str else float(coeff_str)
+
+            if coeff not in results_by_coefficient:
+                results_by_coefficient[coeff] = {'correction': [], 'corruption': [], 'preservation': []}
+
+            # Load and merge results
+            with open(gpu_file) as f:
+                gpu_results = json.load(f)
+                results_by_coefficient[coeff][result_type].extend(gpu_results)
+
+            per_coeff_files_to_cleanup.append(gpu_file)
+
+    # Save merged per-coefficient files and build aggregated lists
+    all_correction_results = []
+    all_corruption_results = []
+    all_preservation_results = []
+
+    for coeff, results in results_by_coefficient.items():
+        coeff_str = f"coeff_{int(coeff)}" if coeff == int(coeff) else f"coeff_{coeff}"
+
+        # Deduplicate each result type
+        results['correction'] = dedupe_by_task_id(results['correction'])
+        results['corruption'] = dedupe_by_task_id(results['corruption'])
+        results['preservation'] = dedupe_by_task_id(results['preservation'])
+
+        # Save per-coefficient files
+        if results['correction']:
+            save_json(results['correction'], output_path / f"correction_results_{coeff_str}.json")
+            logger.info(f"Saved {len(results['correction'])} correction results to correction_results_{coeff_str}.json")
+            all_correction_results.extend(results['correction'])
+        if results['corruption']:
+            save_json(results['corruption'], output_path / f"corruption_results_{coeff_str}.json")
+            logger.info(f"Saved {len(results['corruption'])} corruption results to corruption_results_{coeff_str}.json")
+            all_corruption_results.extend(results['corruption'])
+        if results['preservation']:
+            save_json(results['preservation'], output_path / f"preservation_results_{coeff_str}.json")
+            logger.info(f"Saved {len(results['preservation'])} preservation results to preservation_results_{coeff_str}.json")
+            all_preservation_results.extend(results['preservation'])
+
+    # Save aggregated result files for backward compatibility
     if all_correction_results:
         save_json(all_correction_results, output_path / "all_correction_results.json")
-        logger.info(f"Saved {len(all_correction_results)} correction results to all_correction_results.json")
+        logger.info(f"Saved {len(all_correction_results)} total correction results to all_correction_results.json")
     if all_corruption_results:
         save_json(all_corruption_results, output_path / "all_corruption_results.json")
-        logger.info(f"Saved {len(all_corruption_results)} corruption results to all_corruption_results.json")
+        logger.info(f"Saved {len(all_corruption_results)} total corruption results to all_corruption_results.json")
     if all_preservation_results:
         save_json(all_preservation_results, output_path / "all_preservation_results.json")
-        logger.info(f"Saved {len(all_preservation_results)} preservation results to all_preservation_results.json")
+        logger.info(f"Saved {len(all_preservation_results)} total preservation results to all_preservation_results.json")
 
     # Also merge and save selected/refined coefficients
     selected_files = sorted(output_path.glob(selected_pattern))
@@ -621,6 +649,15 @@ def _merge_phase4_5_json_results(
         outputs_dict["corruption_results"] = "all_corruption_results.json"
     if all_preservation_results:
         outputs_dict["preservation_results"] = "all_preservation_results.json"
+    # Add per-coefficient result files to manifest
+    for coeff in results_by_coefficient.keys():
+        coeff_str = f"coeff_{int(coeff)}" if coeff == int(coeff) else f"coeff_{coeff}"
+        if results_by_coefficient[coeff]['correction']:
+            outputs_dict[f"correction_results_{coeff_str}"] = f"correction_results_{coeff_str}.json"
+        if results_by_coefficient[coeff]['corruption']:
+            outputs_dict[f"corruption_results_{coeff_str}"] = f"corruption_results_{coeff_str}.json"
+        if results_by_coefficient[coeff]['preservation']:
+            outputs_dict[f"preservation_results_{coeff_str}"] = f"preservation_results_{coeff_str}.json"
 
     write_phase_output(
         phase=phase_id,
@@ -638,9 +675,14 @@ def _merge_phase4_5_json_results(
         f.unlink()
         logger.info(f"  Cleaned up {f.name}")
 
-    # Also clean up per-GPU result files
+    # Also clean up per-GPU result files (aggregated + per-coefficient)
     for pattern in ["all_correction_results_gpu*.json", "all_corruption_results_gpu*.json", "all_preservation_results_gpu*.json"]:
         for f in output_path.glob(pattern):
+            f.unlink()
+            logger.info(f"  Cleaned up {f.name}")
+    # Clean up per-coefficient per-GPU files
+    for f in per_coeff_files_to_cleanup:
+        if f.exists():
             f.unlink()
             logger.info(f"  Cleaned up {f.name}")
 

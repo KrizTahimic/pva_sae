@@ -1094,46 +1094,66 @@ class SteeringCoefficientSelector:
         save_json(serializable_results, self.output_dir / f"coefficient_analysis{suffix}.json")
         save_json(selected_coefficients, self.output_dir / f"selected_coefficients{suffix}.json")
 
-        # Save dedicated per-task result files for re-evaluation capability (like Phase 4.8)
-        # Collect all results from best coefficients across all candidates
-        all_correction_results = []
-        all_corruption_results = []
-        all_preservation_results = []
+        # Save dedicated per-coefficient result files for re-evaluation capability
+        # Group results by coefficient (not just optimal coefficient)
+        results_by_coefficient = {}  # {coefficient: {'correction': [], 'corruption': [], 'preservation': []}}
 
         for st, crs in all_candidate_results.items():
             for cr in crs:
-                if 'best_result' not in cr or 'results' not in cr['best_result']:
-                    continue
-                results = cr['best_result']['results']
-                for r in results:
-                    # Add candidate metadata
-                    r_with_meta = {
-                        **r,
-                        'candidate_id': cr['candidate_id'],
-                        'coefficient': cr['optimal_coefficient'],
-                    }
-                    if st == 'correct':
-                        # Correction: incorrect baseline → correct steered
-                        if not r.get('baseline_passed', True) and r.get('steered_correct', False):
-                            all_correction_results.append(r_with_meta)
-                    else:
-                        # Corruption: correct baseline → incorrect steered
-                        if r.get('baseline_passed', False) and not r.get('steered_correct', True):
-                            all_corruption_results.append(r_with_meta)
-                        # Preservation: correct baseline → correct steered
-                        elif r.get('baseline_passed', False) and r.get('steered_correct', True):
-                            all_preservation_results.append(r_with_meta)
+                # Iterate ALL coefficients in search_history (not just best_result)
+                for hist_entry in cr.get('search_history', []):
+                    if 'results' not in hist_entry:
+                        continue
+                    coeff = hist_entry['coefficient']
+                    if coeff not in results_by_coefficient:
+                        results_by_coefficient[coeff] = {'correction': [], 'corruption': [], 'preservation': []}
 
-        # Save dedicated result files
+                    for r in hist_entry['results']:
+                        r_with_meta = {**r, 'candidate_id': cr['candidate_id'], 'coefficient': coeff}
+
+                        if st == 'correct':
+                            # Correction: incorrect baseline → correct steered
+                            if not r.get('baseline_passed', True) and r.get('steered_correct', False):
+                                results_by_coefficient[coeff]['correction'].append(r_with_meta)
+                        else:
+                            # Corruption: correct baseline → incorrect steered
+                            if r.get('baseline_passed', False) and not r.get('steered_correct', True):
+                                results_by_coefficient[coeff]['corruption'].append(r_with_meta)
+                            # Preservation: correct baseline → correct steered
+                            elif r.get('baseline_passed', False) and r.get('steered_correct', True):
+                                results_by_coefficient[coeff]['preservation'].append(r_with_meta)
+
+        # Save per-coefficient files
+        for coeff, results in results_by_coefficient.items():
+            coeff_str = f"coeff_{int(coeff)}" if coeff == int(coeff) else f"coeff_{coeff}"
+            if results['correction']:
+                save_json(results['correction'], self.output_dir / f"correction_results_{coeff_str}{suffix}.json")
+                logger.info(f"Saved {len(results['correction'])} correction results to correction_results_{coeff_str}{suffix}.json")
+            if results['corruption']:
+                save_json(results['corruption'], self.output_dir / f"corruption_results_{coeff_str}{suffix}.json")
+                logger.info(f"Saved {len(results['corruption'])} corruption results to corruption_results_{coeff_str}{suffix}.json")
+            if results['preservation']:
+                save_json(results['preservation'], self.output_dir / f"preservation_results_{coeff_str}{suffix}.json")
+                logger.info(f"Saved {len(results['preservation'])} preservation results to preservation_results_{coeff_str}{suffix}.json")
+
+        # Also save aggregated files (all_*_results.json) for backward compatibility
+        all_correction_results = []
+        all_corruption_results = []
+        all_preservation_results = []
+        for coeff_results in results_by_coefficient.values():
+            all_correction_results.extend(coeff_results['correction'])
+            all_corruption_results.extend(coeff_results['corruption'])
+            all_preservation_results.extend(coeff_results['preservation'])
+
         if all_correction_results:
             save_json(all_correction_results, self.output_dir / f"all_correction_results{suffix}.json")
-            logger.info(f"Saved {len(all_correction_results)} correction results to all_correction_results{suffix}.json")
+            logger.info(f"Saved {len(all_correction_results)} total correction results to all_correction_results{suffix}.json")
         if all_corruption_results:
             save_json(all_corruption_results, self.output_dir / f"all_corruption_results{suffix}.json")
-            logger.info(f"Saved {len(all_corruption_results)} corruption results to all_corruption_results{suffix}.json")
+            logger.info(f"Saved {len(all_corruption_results)} total corruption results to all_corruption_results{suffix}.json")
         if all_preservation_results:
             save_json(all_preservation_results, self.output_dir / f"all_preservation_results{suffix}.json")
-            logger.info(f"Saved {len(all_preservation_results)} preservation results to all_preservation_results{suffix}.json")
+            logger.info(f"Saved {len(all_preservation_results)} total preservation results to all_preservation_results{suffix}.json")
 
         # Compute error type distribution from all steered results
         all_steered_results = []
@@ -1195,13 +1215,22 @@ class SteeringCoefficientSelector:
                 "selected_coefficients": "selected_coefficients.json",
                 "coefficient_analysis": "coefficient_analysis.json",
             }
-            # Add result files if they exist
+            # Add aggregated result files if they exist
             if all_correction_results:
                 outputs_dict["correction_results"] = "all_correction_results.json"
             if all_corruption_results:
                 outputs_dict["corruption_results"] = "all_corruption_results.json"
             if all_preservation_results:
                 outputs_dict["preservation_results"] = "all_preservation_results.json"
+            # Add per-coefficient result files
+            for coeff in results_by_coefficient.keys():
+                coeff_str = f"coeff_{int(coeff)}" if coeff == int(coeff) else f"coeff_{coeff}"
+                if results_by_coefficient[coeff]['correction']:
+                    outputs_dict[f"correction_results_{coeff_str}"] = f"correction_results_{coeff_str}.json"
+                if results_by_coefficient[coeff]['corruption']:
+                    outputs_dict[f"corruption_results_{coeff_str}"] = f"corruption_results_{coeff_str}.json"
+                if results_by_coefficient[coeff]['preservation']:
+                    outputs_dict[f"preservation_results_{coeff_str}"] = f"preservation_results_{coeff_str}.json"
 
             write_phase_output(
                 phase="4.5",
