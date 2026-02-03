@@ -295,10 +295,13 @@ class ZeroDiscSteeringGenerator:
             hook_handle = target_module.register_forward_pre_hook(hook_fn)
             
             try:
+                # Parse test_list from JSON string if needed (stored as JSON in parquet)
+                test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+
                 # Build prompt
                 prompt = PromptBuilder.build_prompt(
                     problem_description=row['prompt'],
-                    test_cases=row['test_list']
+                    test_cases=test_cases
                 )
                 
                 # Generate with steering
@@ -327,7 +330,7 @@ class ZeroDiscSteeringGenerator:
                     generated_code = extract_code(generated_text, prompt)
 
                     # Evaluate code with error type
-                    eval_result = evaluate_code_with_error_type(generated_code, row['test_list'])
+                    eval_result = evaluate_code_with_error_type(generated_code, test_cases)
 
                     return {
                         'generated_code': generated_code,
@@ -494,19 +497,23 @@ class ZeroDiscSteeringGenerator:
             )
         }
         
-        # Save results
-        output_file = self.output_dir / 'zero_disc_steering_results.json'
+        # Save results (use GPU-specific names in parallel mode)
+        if self.n_gpus > 1:
+            output_file = self.output_dir / f'zero_disc_steering_results_gpu{self.gpu_id}.json'
+        else:
+            output_file = self.output_dir / 'zero_disc_steering_results.json'
         save_json(results, output_file)
         logger.info(f"Saved results to: {output_file}")
-        
-        # Save examples
-        self._save_examples(correction_results[:3], corruption_results[:3], preservation_results[:3])
-        
+
+        # Save examples (skip in parallel mode - orchestrator handles merge)
+        if self.n_gpus == 1:
+            self._save_examples(correction_results[:3], corruption_results[:3], preservation_results[:3])
+
         # Clean up checkpoints after successful completion
         for steering_type in ['correction', 'corruption', 'preservation']:
             self.checkpoint_managers[steering_type].cleanup_all()
         logger.info("Cleaned up all checkpoint files")
-        
+
         # Log summary
         logger.info("\n" + "="*60)
         logger.info("ZERO-DISCRIMINATION STEERING RESULTS")
@@ -517,25 +524,26 @@ class ZeroDiscSteeringGenerator:
         logger.info(f"Total problems tested: {len(correction_results) + len(corruption_results) + len(preservation_results)}")
         logger.info("="*60)
 
-        # Write phase_output.json manifest
-        from common.phase_discovery import write_phase_output
+        # Write phase_output.json manifest (skip in parallel mode - orchestrator handles it)
+        if self.n_gpus == 1:
+            from common.phase_discovery import write_phase_output
 
-        write_phase_output(
-            phase="4.12",
-            outputs={
-                "primary": "zero_disc_steering_results.json",
-                "examples": "examples/zero_disc_examples.json",
-            },
-            config=self.config,
-            output_dir=str(self.output_dir),
-            dependencies={
-                "4.9": str(self.phase4_9_dir),
-                "4.10": str(self.phase4_10_dir),
-                "3.5": str(self.phase3_5_dir),
-            },
-            config_keys=['model_name', 'dataset_name']
-        )
-        logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
+            write_phase_output(
+                phase="4.12",
+                outputs={
+                    "primary": "zero_disc_steering_results.json",
+                    "examples": "examples/zero_disc_examples.json",
+                },
+                config=self.config,
+                output_dir=str(self.output_dir),
+                dependencies={
+                    "4.9": str(self.phase4_9_dir),
+                    "4.10": str(self.phase4_10_dir),
+                    "3.5": str(self.phase3_5_dir),
+                },
+                config_keys=['model_name', 'dataset_name']
+            )
+            logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
 
         return results
         
