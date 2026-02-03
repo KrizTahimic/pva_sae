@@ -1455,13 +1455,14 @@ class GoldenSectionCoefficientRefiner:
                 show_progress=False, return_full_results=True
             )
 
-            # Save results
+            # Save results (include full per-task results for re-evaluation capability)
             refinement_results[f'{steering_type}_steering'] = {
                 'optimal_coefficient': optimal_coeff,
                 'search_history': search_history,
                 'best_score': final_evaluation['score'],
                 'metrics': final_evaluation['metrics'],
-                'method': 'golden_section_search'
+                'method': 'golden_section_search',
+                'results': final_evaluation['results']  # Keep full per-task results
             }
 
             # Save intermediate results after this steering type completes
@@ -1537,15 +1538,48 @@ class GoldenSectionCoefficientRefiner:
             logger.info("Removed intermediate results file")
 
         # Collect all steered results from refinement evaluations for error distribution
+        # and save dedicated per-task result files (like Phase 4.8)
         all_steered_results = []
+        all_correction_results = []
+        all_corruption_results = []
+        all_preservation_results = []
+
+        if self.n_gpus > 1:
+            suffix = f"_gpu{self.gpu_id}"
+        else:
+            suffix = ""
+
         for steering_type in ['correct', 'incorrect']:
             steering_key = f'{steering_type}_steering'
             if steering_key in refinement_results:
-                # Get results from the refinement (if full results were stored)
                 result_data = refinement_results[steering_key]
                 if 'results' in result_data:
-                    # Direct results list
-                    all_steered_results.extend(result_data['results'])
+                    results = result_data['results']
+                    all_steered_results.extend(results)
+
+                    for r in results:
+                        if steering_type == 'correct':
+                            # Correction: incorrect baseline → correct steered
+                            if not r.get('baseline_passed', True) and r.get('steered_correct', False):
+                                all_correction_results.append(r)
+                        else:
+                            # Corruption: correct baseline → incorrect steered
+                            if r.get('baseline_passed', False) and not r.get('steered_correct', True):
+                                all_corruption_results.append(r)
+                            # Preservation: correct baseline → correct steered
+                            elif r.get('baseline_passed', False) and r.get('steered_correct', True):
+                                all_preservation_results.append(r)
+
+        # Save dedicated result files for re-evaluation capability
+        if all_correction_results:
+            save_json(all_correction_results, self.output_dir / f"all_correction_results{suffix}.json")
+            logger.info(f"Saved {len(all_correction_results)} correction results to all_correction_results{suffix}.json")
+        if all_corruption_results:
+            save_json(all_corruption_results, self.output_dir / f"all_corruption_results{suffix}.json")
+            logger.info(f"Saved {len(all_corruption_results)} corruption results to all_corruption_results{suffix}.json")
+        if all_preservation_results:
+            save_json(all_preservation_results, self.output_dir / f"all_preservation_results{suffix}.json")
+            logger.info(f"Saved {len(all_preservation_results)} preservation results to all_preservation_results{suffix}.json")
 
         # Create phase summary
         summary = {
@@ -1605,13 +1639,22 @@ class GoldenSectionCoefficientRefiner:
         if self.n_gpus == 1:
             from common.phase_discovery import write_phase_output
 
+            outputs_dict = {
+                "primary": "phase_4_6_summary.json",
+                "refined_coefficients": "refined_coefficients.json",
+                "refinement_analysis": "refinement_analysis.json",
+            }
+            # Add result files if they exist
+            if all_correction_results:
+                outputs_dict["correction_results"] = "all_correction_results.json"
+            if all_corruption_results:
+                outputs_dict["corruption_results"] = "all_corruption_results.json"
+            if all_preservation_results:
+                outputs_dict["preservation_results"] = "all_preservation_results.json"
+
             write_phase_output(
                 phase="4.6",
-                outputs={
-                    "primary": "phase_4_6_summary.json",
-                    "refined_coefficients": "refined_coefficients.json",
-                    "refinement_analysis": "refinement_analysis.json",
-                },
+                outputs=outputs_dict,
                 config=self.config,
                 output_dir=str(self.output_dir),
                 dependencies={

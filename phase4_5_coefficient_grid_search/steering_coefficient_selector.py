@@ -1072,7 +1072,7 @@ class SteeringCoefficientSelector:
         else:
             suffix = ""
 
-        # Convert candidate results to serializable format (exclude 'results' lists to save space)
+        # Convert candidate results to serializable format (keep 'results' for re-evaluation capability)
         serializable_results = {}
         for st, crs in all_candidate_results.items():
             serializable_results[f'{st}_steering'] = {
@@ -1085,10 +1085,7 @@ class SteeringCoefficientSelector:
                         'n_coefficients_tested': cr.get('n_coefficients_tested', 0),
                         'early_stopped': cr.get('early_stopped', False),
                         'from_checkpoint': cr.get('from_checkpoint', False),
-                        'search_history': [
-                            {k: v for k, v in h.items() if k != 'results'}
-                            for h in cr.get('search_history', [])
-                        ]
+                        'search_history': cr.get('search_history', [])  # Keep full results
                     }
                     for cr in crs
                 ]
@@ -1096,6 +1093,54 @@ class SteeringCoefficientSelector:
 
         save_json(serializable_results, self.output_dir / f"coefficient_analysis{suffix}.json")
         save_json(selected_coefficients, self.output_dir / f"selected_coefficients{suffix}.json")
+
+        # Save dedicated per-task result files for re-evaluation capability (like Phase 4.8)
+        # Collect all results from best coefficients across all candidates
+        all_correction_results = []
+        all_corruption_results = []
+        all_preservation_results = []
+
+        for st, crs in all_candidate_results.items():
+            for cr in crs:
+                if 'best_result' not in cr or 'results' not in cr['best_result']:
+                    continue
+                results = cr['best_result']['results']
+                for r in results:
+                    # Add candidate metadata
+                    r_with_meta = {
+                        **r,
+                        'candidate_id': cr['candidate_id'],
+                        'coefficient': cr['optimal_coefficient'],
+                    }
+                    if st == 'correct':
+                        # Correction: incorrect baseline → correct steered
+                        if not r.get('baseline_passed', True) and r.get('steered_correct', False):
+                            all_correction_results.append(r_with_meta)
+                    else:
+                        # Corruption: correct baseline → incorrect steered
+                        if r.get('baseline_passed', False) and not r.get('steered_correct', True):
+                            all_corruption_results.append(r_with_meta)
+                        # Preservation: correct baseline → correct steered
+                        elif r.get('baseline_passed', False) and r.get('steered_correct', True):
+                            all_preservation_results.append(r_with_meta)
+
+        # Save dedicated result files
+        if all_correction_results:
+            save_json(all_correction_results, self.output_dir / f"all_correction_results{suffix}.json")
+            logger.info(f"Saved {len(all_correction_results)} correction results to all_correction_results{suffix}.json")
+        if all_corruption_results:
+            save_json(all_corruption_results, self.output_dir / f"all_corruption_results{suffix}.json")
+            logger.info(f"Saved {len(all_corruption_results)} corruption results to all_corruption_results{suffix}.json")
+        if all_preservation_results:
+            save_json(all_preservation_results, self.output_dir / f"all_preservation_results{suffix}.json")
+            logger.info(f"Saved {len(all_preservation_results)} preservation results to all_preservation_results{suffix}.json")
+
+        # Compute error type distribution from all steered results
+        all_steered_results = []
+        for st, crs in all_candidate_results.items():
+            for cr in crs:
+                if 'best_result' in cr and 'results' in cr['best_result']:
+                    all_steered_results.extend(cr['best_result']['results'])
 
         # Create phase summary
         summary = {
@@ -1118,6 +1163,9 @@ class SteeringCoefficientSelector:
                 'correct_candidates': self.correct_candidates,
                 'incorrect_candidates': self.incorrect_candidates,
             },
+            'steered_error_type_distribution': compute_error_type_distribution(
+                all_steered_results, 'steered_error_type'
+            ) if all_steered_results else None,
         }
 
         save_json(summary, self.output_dir / f"phase_4_5_summary{suffix}.json")
@@ -1142,13 +1190,22 @@ class SteeringCoefficientSelector:
         if self.n_gpus == 1:
             from common.phase_discovery import write_phase_output
 
+            outputs_dict = {
+                "primary": "phase_4_5_summary.json",
+                "selected_coefficients": "selected_coefficients.json",
+                "coefficient_analysis": "coefficient_analysis.json",
+            }
+            # Add result files if they exist
+            if all_correction_results:
+                outputs_dict["correction_results"] = "all_correction_results.json"
+            if all_corruption_results:
+                outputs_dict["corruption_results"] = "all_corruption_results.json"
+            if all_preservation_results:
+                outputs_dict["preservation_results"] = "all_preservation_results.json"
+
             write_phase_output(
                 phase="4.5",
-                outputs={
-                    "primary": "phase_4_5_summary.json",
-                    "selected_coefficients": "selected_coefficients.json",
-                    "coefficient_analysis": "coefficient_analysis.json",
-                },
+                outputs=outputs_dict,
                 config=self.config,
                 output_dir=str(self.output_dir),
                 dependencies={

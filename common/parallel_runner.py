@@ -542,6 +542,57 @@ def _merge_phase4_5_json_results(
         json.dump(merged, f, indent=2)
     logger.info(f"Saved merged analysis: {merged_file}")
 
+    # Save dedicated per-task result files for re-evaluation capability (like Phase 4.8)
+    all_correction_results = []
+    all_corruption_results = []
+    all_preservation_results = []
+
+    for steering_key, steering_data in merged.items():
+        steering_type = steering_key.replace('_steering', '')
+        if 'best_result' not in steering_data or 'results' not in steering_data['best_result']:
+            continue
+        results = steering_data['best_result']['results']
+
+        for r in results:
+            if steering_type == 'correct':
+                # Correction: incorrect baseline → correct steered
+                if not r.get('baseline_passed', True) and r.get('steered_correct', False):
+                    all_correction_results.append(r)
+            else:
+                # Corruption: correct baseline → incorrect steered
+                if r.get('baseline_passed', False) and not r.get('steered_correct', True):
+                    all_corruption_results.append(r)
+                # Preservation: correct baseline → correct steered
+                elif r.get('baseline_passed', False) and r.get('steered_correct', True):
+                    all_preservation_results.append(r)
+
+    # Deduplicate by task_id
+    def dedupe_by_task_id(results_list):
+        seen = set()
+        deduped = []
+        for r in results_list:
+            tid = r.get('task_id')
+            if tid not in seen:
+                seen.add(tid)
+                deduped.append(r)
+        return deduped
+
+    all_correction_results = dedupe_by_task_id(all_correction_results)
+    all_corruption_results = dedupe_by_task_id(all_corruption_results)
+    all_preservation_results = dedupe_by_task_id(all_preservation_results)
+
+    # Save dedicated result files
+    from common.utils import save_json
+    if all_correction_results:
+        save_json(all_correction_results, output_path / "all_correction_results.json")
+        logger.info(f"Saved {len(all_correction_results)} correction results to all_correction_results.json")
+    if all_corruption_results:
+        save_json(all_corruption_results, output_path / "all_corruption_results.json")
+        logger.info(f"Saved {len(all_corruption_results)} corruption results to all_corruption_results.json")
+    if all_preservation_results:
+        save_json(all_preservation_results, output_path / "all_preservation_results.json")
+        logger.info(f"Saved {len(all_preservation_results)} preservation results to all_preservation_results.json")
+
     # Also merge and save selected/refined coefficients
     selected_files = sorted(output_path.glob(selected_pattern))
     if selected_files:
@@ -562,10 +613,18 @@ def _merge_phase4_5_json_results(
             json.dump(selected, f, indent=2)
         logger.info(f"Saved merged coefficients: {selected_merged_file}")
 
-    # Write phase_output.json manifest
+    # Write phase_output.json manifest with all output files
+    outputs_dict = {"primary": output_filename}
+    if all_correction_results:
+        outputs_dict["correction_results"] = "all_correction_results.json"
+    if all_corruption_results:
+        outputs_dict["corruption_results"] = "all_corruption_results.json"
+    if all_preservation_results:
+        outputs_dict["preservation_results"] = "all_preservation_results.json"
+
     write_phase_output(
         phase=phase_id,
-        outputs={"primary": output_filename},
+        outputs=outputs_dict,
         config=config,
         output_dir=str(output_path)
     )
@@ -578,6 +637,12 @@ def _merge_phase4_5_json_results(
     for f in selected_files:
         f.unlink()
         logger.info(f"  Cleaned up {f.name}")
+
+    # Also clean up per-GPU result files
+    for pattern in ["all_correction_results_gpu*.json", "all_corruption_results_gpu*.json", "all_preservation_results_gpu*.json"]:
+        for f in output_path.glob(pattern):
+            f.unlink()
+            logger.info(f"  Cleaned up {f.name}")
 
     return {
         'merged_file': str(merged_file),
