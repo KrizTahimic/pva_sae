@@ -506,6 +506,14 @@ def _evaluate_with_signal_timeout(
             error_message=str(e),
             exception_class="TimeoutError"
         )
+    except SystemExit as e:
+        # exit() or sys.exit() raises SystemExit (inherits from BaseException, not Exception)
+        return EvaluationResult(
+            passed=False,
+            error_type="runtime",
+            error_message=f"Code called exit(): {e}",
+            exception_class="SystemExit"
+        )
     except Exception as e:
         error_type, exc_class = _classify_exception(e)
         return EvaluationResult(
@@ -526,6 +534,14 @@ def _evaluate_with_signal_timeout(
                 error_type="timeout",
                 error_message=str(e),
                 exception_class="TimeoutError"
+            )
+        except SystemExit as e:
+            # exit() or sys.exit() in test (unlikely but possible)
+            return EvaluationResult(
+                passed=False,
+                error_type="runtime",
+                error_message=f"Test called exit(): {e}",
+                exception_class="SystemExit"
             )
         except Exception as e:
             error_type, exc_class = _classify_exception(e)

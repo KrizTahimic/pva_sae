@@ -73,6 +73,10 @@ def _execute_in_subprocess(code: str, test_list: list[str], import_code: Optiona
         # Step 3: Execute code definition
         try:
             exec(code, namespace)
+        except SystemExit as e:
+            # exit() or sys.exit() was called - treat as runtime error
+            result_queue.put(SubprocessResult(False, "runtime", f"Code called exit(): {e}", "SystemExit"))
+            return
         except Exception as e:
             error_type, exc_class = _classify_exception(e)
             result_queue.put(SubprocessResult(False, error_type, str(e), exc_class))
