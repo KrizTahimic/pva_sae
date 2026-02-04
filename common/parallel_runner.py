@@ -1400,12 +1400,15 @@ def _merge_phase4_12_json_results(
     merged_correction = {}
     merged_corruption = {}
     merged_preservation = {}
+    merged_per_feature = {}
 
     for data in gpu_data:
         # Phase 4.12 stores results as {task_id: result_dict}
         merged_correction.update(data.get('correction_results', {}))
         merged_corruption.update(data.get('corruption_results', {}))
         merged_preservation.update(data.get('preservation_results', {}))
+        # Merge per-feature results (multi-feature mode)
+        merged_per_feature.update(data.get('per_feature_results', {}))
 
     # Convert to lists for rate calculation
     correction_list = list(merged_correction.values())
@@ -1432,12 +1435,35 @@ def _merge_phase4_12_json_results(
     # Use first GPU's metadata
     ref = gpu_data[0]
 
+    # Compute averaged metrics across all features (multi-feature mode)
+    averaged_metrics = {}
+    if merged_per_feature:
+        import numpy as np
+        correction_rates = []
+        corruption_rates = []
+        preservation_rates = []
+        for fid, fdata in merged_per_feature.items():
+            correction_rates.append(fdata.get('correction_rate', 0))
+            corruption_rates.append(fdata.get('corruption_rate', 0))
+            preservation_rates.append(fdata.get('preservation_rate', 0))
+        averaged_metrics = {
+            'correction_rate': float(np.mean(correction_rates)) if correction_rates else 0,
+            'corruption_rate': float(np.mean(corruption_rates)) if corruption_rates else 0,
+            'preservation_rate': float(np.mean(preservation_rates)) if preservation_rates else 0,
+            'std_correction': float(np.std(correction_rates)) if correction_rates else 0,
+            'std_corruption': float(np.std(corruption_rates)) if corruption_rates else 0,
+            'std_preservation': float(np.std(preservation_rates)) if preservation_rates else 0,
+            'n_features': len(merged_per_feature)
+        }
+
     # Build merged results (same structure as single-GPU output)
     merged = {
         'metadata': ref.get('metadata', {}),
         'correction_results': merged_correction,
         'corruption_results': merged_corruption,
         'preservation_results': merged_preservation,
+        'per_feature_results': merged_per_feature,
+        'averaged_metrics': averaged_metrics,
         'summary_metrics': {
             'correction_rate': correction_rate,
             'corruption_rate': corruption_rate,
@@ -1452,6 +1478,13 @@ def _merge_phase4_12_json_results(
         'parallel_merge': True,
         'n_gpus': n_gpus
     }
+
+    # Add std to summary_metrics if available
+    if averaged_metrics:
+        merged['summary_metrics']['std_correction'] = averaged_metrics.get('std_correction', 0)
+        merged['summary_metrics']['std_corruption'] = averaged_metrics.get('std_corruption', 0)
+        merged['summary_metrics']['std_preservation'] = averaged_metrics.get('std_preservation', 0)
+        merged['summary_metrics']['n_features'] = averaged_metrics.get('n_features', 0)
 
     # Update metadata with merged counts
     if 'metadata' in merged:
@@ -1485,9 +1518,17 @@ def _merge_phase4_12_json_results(
     logger.info("=" * 60)
     logger.info("PHASE 4.12 PARALLEL MERGE COMPLETE")
     logger.info("=" * 60)
-    logger.info(f"Correction: {correction_rate:.1f}%")
-    logger.info(f"Corruption: {corruption_rate:.1f}%")
-    logger.info(f"Preservation: {preservation_rate:.1f}%")
+    if averaged_metrics:
+        logger.info(f"Features tested: {averaged_metrics.get('n_features', 0)}")
+        logger.info(f"Averaged Correction: {averaged_metrics.get('correction_rate', 0):.1f}% "
+                   f"(±{averaged_metrics.get('std_correction', 0):.1f}%)")
+        logger.info(f"Averaged Corruption: {averaged_metrics.get('corruption_rate', 0):.1f}% "
+                   f"(±{averaged_metrics.get('std_corruption', 0):.1f}%)")
+        logger.info(f"Averaged Preservation: {averaged_metrics.get('preservation_rate', 0):.1f}% "
+                   f"(±{averaged_metrics.get('std_preservation', 0):.1f}%)")
+    logger.info(f"Problem-level Correction: {correction_rate:.1f}%")
+    logger.info(f"Problem-level Corruption: {corruption_rate:.1f}%")
+    logger.info(f"Problem-level Preservation: {preservation_rate:.1f}%")
 
     return merged
 

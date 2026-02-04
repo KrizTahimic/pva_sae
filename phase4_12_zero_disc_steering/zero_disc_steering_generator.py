@@ -188,43 +188,44 @@ class ZeroDiscSteeringGenerator:
         logger.info(f"Split: {len(self.correct_problems)} correct, {len(self.incorrect_problems)} incorrect")
         
     def _select_matched_zero_disc_features(self) -> dict:
-        """Select zero-disc features matched to Phase 4.9 best latents.
+        """Select ALL zero-disc features matched to Phase 4.9 best latents.
 
-        Returns separate features for correction and corruption experiments,
+        Returns ALL features for correction and corruption experiments,
         each matched to the layer of the corresponding discriminative latent.
+        This allows testing multiple zero-disc latents for more robust control statistics.
         """
         features = self.zero_disc_features['features']
 
         correct_layer = self.target_latent_info['correct']['layer']
         incorrect_layer = self.target_latent_info['incorrect']['layer']
 
-        # Find best zero-disc feature for correction (matched to correct latent's layer)
-        correction_feature = next(
-            (f for f in features if f['layer'] == correct_layer),
-            None
-        )
-        if not correction_feature:
+        # Find ALL zero-disc features for correction (matched to correct latent's layer)
+        correction_features = [f for f in features if f['layer'] == correct_layer]
+        if not correction_features:
             raise ValueError(f"No zero-disc feature found for layer {correct_layer}. "
                            f"Re-run Phase 4.10 with updated layer filtering.")
 
-        # Find best zero-disc feature for corruption (matched to incorrect latent's layer)
-        corruption_feature = next(
-            (f for f in features if f['layer'] == incorrect_layer),
-            None
-        )
-        if not corruption_feature:
+        # Find ALL zero-disc features for corruption (matched to incorrect latent's layer)
+        corruption_features = [f for f in features if f['layer'] == incorrect_layer]
+        if not corruption_features:
             raise ValueError(f"No zero-disc feature found for layer {incorrect_layer}. "
                            f"Re-run Phase 4.10 with updated layer filtering.")
 
-        logger.info(f"Selected layer-matched zero-disc latents:")
-        logger.info(f"  Correction control: L{correction_feature['layer']}F{correction_feature['latent_idx']} "
-                   f"(separation={correction_feature['separation_score']:.6f}, coef={self.correct_coefficient})")
-        logger.info(f"  Corruption control: L{corruption_feature['layer']}F{corruption_feature['latent_idx']} "
-                   f"(separation={corruption_feature['separation_score']:.6f}, coef={self.incorrect_coefficient})")
+        logger.info(f"Selected {len(correction_features)} layer-matched zero-disc latents for correction (layer {correct_layer}):")
+        for f in correction_features[:5]:  # Show first 5
+            logger.info(f"  L{f['layer']}F{f['latent_idx']} (separation={f['separation_score']:.6f})")
+        if len(correction_features) > 5:
+            logger.info(f"  ... and {len(correction_features) - 5} more")
+
+        logger.info(f"Selected {len(corruption_features)} layer-matched zero-disc latents for corruption (layer {incorrect_layer}):")
+        for f in corruption_features[:5]:  # Show first 5
+            logger.info(f"  L{f['layer']}F{f['latent_idx']} (separation={f['separation_score']:.6f})")
+        if len(corruption_features) > 5:
+            logger.info(f"  ... and {len(corruption_features) - 5} more")
 
         return {
-            'correction': correction_feature,
-            'corruption': corruption_feature
+            'correction': correction_features,
+            'corruption': corruption_features
         }
 
     def _check_memory_usage(self) -> None:
@@ -232,7 +233,7 @@ class ZeroDiscSteeringGenerator:
         memory = psutil.virtual_memory()
         memory_percent = memory.percent
         memory_gb = memory.used / (1024**3)
-        
+
         if memory_percent > MEMORY_HIGH_PERCENT:
             logger.critical(f"CRITICAL: Memory usage at {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
             # Force garbage collection
@@ -246,6 +247,51 @@ class ZeroDiscSteeringGenerator:
             logger.warning(f"High memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
         else:
             logger.debug(f"Memory usage: {memory_percent:.1f}% ({memory_gb:.1f}GB used)")
+
+    def _load_partial_results(self) -> dict:
+        """Load existing partial results for feature-level checkpointing.
+
+        Returns:
+            dict with 'per_feature_results' containing completed feature entries
+        """
+        if self.n_gpus > 1:
+            results_file = self.output_dir / f"zero_disc_steering_results_gpu{self.gpu_id}.json"
+        else:
+            results_file = self.output_dir / "zero_disc_steering_results.json"
+
+        if results_file.exists():
+            try:
+                existing = load_json(results_file)
+                # Check for multi-feature format
+                if existing and 'per_feature_results' in existing:
+                    n_completed = len(existing['per_feature_results'])
+                    logger.info(f"Loaded partial results: {n_completed} features completed")
+                    return existing
+            except Exception as e:
+                logger.warning(f"Could not load partial results: {e}")
+
+        return {'per_feature_results': {}}
+
+    def _get_completed_feature_ids(self, partial_results: dict) -> set:
+        """Get set of feature IDs that are already completed.
+
+        Args:
+            partial_results: Dict from _load_partial_results
+
+        Returns:
+            Set of feature_id strings (e.g., {"L15F6623", "L15F1538"})
+        """
+        return set(partial_results.get('per_feature_results', {}).keys())
+
+    def _save_incremental_results(self, results: dict) -> None:
+        """Save results incrementally after each feature completes."""
+        if self.n_gpus > 1:
+            results_file = self.output_dir / f"zero_disc_steering_results_gpu{self.gpu_id}.json"
+        else:
+            results_file = self.output_dir / "zero_disc_steering_results.json"
+        save_json(results, results_file)
+        n_completed = len(results.get('per_feature_results', {}))
+        logger.info(f"Saved incremental checkpoint: {n_completed} features completed")
         
     def _apply_zero_disc_steering(self, problems: pd.DataFrame, feature: dict,
                                   coefficient: float, steering_type: str) -> list[dict]:
@@ -397,132 +443,272 @@ class ZeroDiscSteeringGenerator:
 
         return results
         
+    def _compute_averaged_metrics(self, per_feature_results: dict) -> dict:
+        """Compute averaged metrics across all features.
+
+        Args:
+            per_feature_results: Dict mapping feature_id to results
+
+        Returns:
+            Dict with mean and std for each metric type
+        """
+        if not per_feature_results:
+            return {}
+
+        correction_rates = []
+        corruption_rates = []
+        preservation_rates = []
+
+        for feature_id, feature_data in per_feature_results.items():
+            correction_rates.append(feature_data.get('correction_rate', 0))
+            corruption_rates.append(feature_data.get('corruption_rate', 0))
+            preservation_rates.append(feature_data.get('preservation_rate', 0))
+
+        return {
+            'correction_rate': float(np.mean(correction_rates)),
+            'corruption_rate': float(np.mean(corruption_rates)),
+            'preservation_rate': float(np.mean(preservation_rates)),
+            'std_correction': float(np.std(correction_rates)),
+            'std_corruption': float(np.std(corruption_rates)),
+            'std_preservation': float(np.std(preservation_rates)),
+            'n_features': len(per_feature_results)
+        }
+
     def run(self) -> dict:
-        """Run zero-discrimination steering generation."""
+        """Run zero-discrimination steering generation for ALL zero-disc features."""
         logger.info("="*60)
-        logger.info("Starting Zero-Discrimination Steering Generation")
+        logger.info("Starting Zero-Discrimination Steering Generation (Multi-Feature)")
         logger.info("="*60)
 
-        # Select layer-matched zero-discrimination features
+        # Load partial results for resumability
+        results = self._load_partial_results()
+        completed_ids = self._get_completed_feature_ids(results)
+
+        # Select ALL layer-matched zero-discrimination features
         zero_disc_features = self._select_matched_zero_disc_features()
+        correction_features = zero_disc_features['correction']
+        corruption_features = zero_disc_features['corruption']
 
-        # Correction experiments (incorrect→correct steering)
-        logger.info("\n" + "="*40)
-        logger.info("Running CORRECTION experiments")
-        logger.info(f"Problems: {len(self.incorrect_problems)} initially incorrect")
-        logger.info(f"Coefficient: {self.correct_coefficient}")
-        logger.info("="*40)
+        # Use correction features for all experiments (they're matched to the correct latent's layer)
+        # This ensures consistent layer matching across all three experiment types
+        all_features = correction_features
+        n_total = len(all_features)
 
-        correction_results = self._apply_zero_disc_steering(
-            self.incorrect_problems,
-            zero_disc_features['correction'],
-            self.correct_coefficient,
-            'correction'
-        )
+        logger.info(f"\nWill test {n_total} zero-disc features")
+        logger.info(f"Already completed: {len(completed_ids)} features")
 
-        # Corruption experiments (correct→incorrect steering)
-        logger.info("\n" + "="*40)
-        logger.info("Running CORRUPTION experiments")
-        logger.info(f"Problems: {len(self.correct_problems)} initially correct")
-        logger.info(f"Coefficient: {self.incorrect_coefficient}")
-        logger.info("="*40)
+        # Initialize per_feature_results if not present
+        if 'per_feature_results' not in results:
+            results['per_feature_results'] = {}
 
-        corruption_results = self._apply_zero_disc_steering(
-            self.correct_problems,
-            zero_disc_features['corruption'],
-            self.incorrect_coefficient,
-            'corruption'
-        )
+        # Track all results for backward compatibility
+        all_correction_results = []
+        all_corruption_results = []
+        all_preservation_results = []
 
-        # Preservation experiments (correct→correct steering with positive coefficient)
-        # Use correction feature (same layer as correct-predicting latent)
-        logger.info("\n" + "="*40)
-        logger.info("Running PRESERVATION experiments")
-        logger.info(f"Problems: {len(self.correct_problems)} initially correct")
-        logger.info(f"Coefficient: {self.correct_coefficient} (using correct-predicting coefficient)")
-        logger.info("="*40)
+        for feature_idx, feature in enumerate(all_features):
+            feature_id = f"L{feature['layer']}F{feature['latent_idx']}"
 
-        preservation_results = self._apply_zero_disc_steering(
-            self.correct_problems,
-            zero_disc_features['correction'],
-            self.correct_coefficient,
-            'preservation'
-        )
+            # Skip if already completed
+            if feature_id in completed_ids:
+                logger.info(f"Skipping {feature_id} ({feature_idx + 1}/{n_total}) - already completed")
+                # Load existing results for aggregation
+                existing = results['per_feature_results'].get(feature_id, {})
+                if 'correction_results' in existing:
+                    all_correction_results.extend(existing['correction_results'])
+                if 'corruption_results' in existing:
+                    all_corruption_results.extend(existing['corruption_results'])
+                if 'preservation_results' in existing:
+                    all_preservation_results.extend(existing['preservation_results'])
+                continue
 
-        # Calculate metrics
-        correction_rate = calculate_correction_rate(correction_results)
-        corruption_rate = calculate_corruption_rate(corruption_results)
-        preservation_rate = calculate_preservation_rate(preservation_results)
-        
-        # Prepare results
-        correction_feature = zero_disc_features['correction']
-        corruption_feature = zero_disc_features['corruption']
-        results = {
-            'metadata': {
-                'phase': '4.12',
-                'description': 'Zero-discrimination steering generation for baseline control (layer-matched)',
-                'coefficients': {
-                    'correct': self.correct_coefficient,
-                    'incorrect': self.incorrect_coefficient
+            logger.info("\n" + "="*50)
+            logger.info(f"Processing feature {feature_id} ({feature_idx + 1}/{n_total})")
+            logger.info(f"Separation score: {feature['separation_score']:.6f}")
+            logger.info("="*50)
+
+            # Reset checkpoint managers for this feature
+            for steering_type in ['correction', 'corruption', 'preservation']:
+                self.checkpoint_managers[steering_type] = CheckpointManager(
+                    checkpoint_dir=self.checkpoint_dir,
+                    experiment_name=f"{steering_type}_{feature_id}",
+                    frequency=self.checkpoint_frequency,
+                    gpu_id=self.gpu_id,
+                    n_gpus=self.n_gpus
+                )
+
+            # Run CORRECTION experiment for this feature
+            logger.info(f"\n[{feature_id}] Running CORRECTION experiment")
+            logger.info(f"Problems: {len(self.incorrect_problems)} initially incorrect")
+            correction_results = self._apply_zero_disc_steering(
+                self.incorrect_problems,
+                feature,
+                self.correct_coefficient,
+                'correction'
+            )
+
+            # Run CORRUPTION experiment for this feature
+            # Use the corresponding corruption feature if layers differ
+            corruption_feature = feature  # Same layer by default
+            if correction_features[0]['layer'] != corruption_features[0]['layer']:
+                # Find matching corruption feature by index
+                corruption_feature = corruption_features[min(feature_idx, len(corruption_features) - 1)]
+
+            logger.info(f"\n[{feature_id}] Running CORRUPTION experiment")
+            logger.info(f"Problems: {len(self.correct_problems)} initially correct")
+            corruption_results = self._apply_zero_disc_steering(
+                self.correct_problems,
+                corruption_feature,
+                self.incorrect_coefficient,
+                'corruption'
+            )
+
+            # Run PRESERVATION experiment for this feature
+            logger.info(f"\n[{feature_id}] Running PRESERVATION experiment")
+            logger.info(f"Problems: {len(self.correct_problems)} initially correct")
+            preservation_results = self._apply_zero_disc_steering(
+                self.correct_problems,
+                feature,
+                self.correct_coefficient,
+                'preservation'
+            )
+
+            # Calculate metrics for this feature
+            correction_rate = calculate_correction_rate(correction_results)
+            corruption_rate = calculate_corruption_rate(corruption_results)
+            preservation_rate = calculate_preservation_rate(preservation_results)
+
+            # Store per-feature results
+            results['per_feature_results'][feature_id] = {
+                'feature': {
+                    'layer': feature['layer'],
+                    'latent_idx': feature['latent_idx'],
+                    'separation_score': feature['separation_score']
                 },
-                'zero_disc_latents_used': {
-                    'correction': f"L{correction_feature['layer']}F{correction_feature['latent_idx']}",
-                    'corruption': f"L{corruption_feature['layer']}F{corruption_feature['latent_idx']}",
-                    'preservation': f"L{correction_feature['layer']}F{correction_feature['latent_idx']}"
-                },
-                'layer_matching': {
-                    'correction_layer': correction_feature['layer'],
-                    'corruption_layer': corruption_feature['layer']
-                },
-                'n_problems_tested': {
-                    'correction': len(correction_results),
-                    'corruption': len(corruption_results),
-                    'preservation': len(preservation_results)
-                },
-                'timestamp': datetime.now().isoformat()
-            },
-            'correction_results': {r['task_id']: r for r in correction_results},
-            'corruption_results': {r['task_id']: r for r in corruption_results},
-            'preservation_results': {r['task_id']: r for r in preservation_results},
-            'summary_metrics': {
                 'correction_rate': correction_rate,
                 'corruption_rate': corruption_rate,
                 'preservation_rate': preservation_rate,
+                'n_correction': len(correction_results),
+                'n_corruption': len(corruption_results),
+                'n_preservation': len(preservation_results),
                 'n_corrected': sum(1 for r in correction_results if r['steered_correct'] and not r['baseline_passed']),
                 'n_corrupted': sum(1 for r in corruption_results if not r['steered_correct'] and r['baseline_passed']),
-                'n_preserved': sum(1 for r in preservation_results if r['steered_correct'] and r['baseline_passed'])
+                'n_preserved': sum(1 for r in preservation_results if r['steered_correct'] and r['baseline_passed']),
+                # Store full results for backward compatibility
+                'correction_results': correction_results,
+                'corruption_results': corruption_results,
+                'preservation_results': preservation_results
+            }
+
+            # Aggregate all results
+            all_correction_results.extend(correction_results)
+            all_corruption_results.extend(corruption_results)
+            all_preservation_results.extend(preservation_results)
+
+            # Clean up feature-specific checkpoints
+            for steering_type in ['correction', 'corruption', 'preservation']:
+                self.checkpoint_managers[steering_type].cleanup_all()
+
+            # Save incremental checkpoint after each feature
+            self._save_incremental_results(results)
+            logger.info(f"Checkpoint: {len(results['per_feature_results'])}/{n_total} features completed")
+
+            # Log feature summary
+            logger.info(f"\n[{feature_id}] Feature Summary:")
+            logger.info(f"  Correction rate: {correction_rate:.2f}%")
+            logger.info(f"  Corruption rate: {corruption_rate:.2f}%")
+            logger.info(f"  Preservation rate: {preservation_rate:.2f}%")
+
+        # Compute averaged metrics across all features
+        averaged_metrics = self._compute_averaged_metrics(results['per_feature_results'])
+        results['averaged_metrics'] = averaged_metrics
+
+        # Backward compatibility: use first feature for primary results format
+        first_feature = all_features[0]
+        first_feature_id = f"L{first_feature['layer']}F{first_feature['latent_idx']}"
+
+        # Build backward-compatible results structure
+        results['metadata'] = {
+            'phase': '4.12',
+            'description': 'Zero-discrimination steering generation for baseline control (multi-feature)',
+            'coefficients': {
+                'correct': self.correct_coefficient,
+                'incorrect': self.incorrect_coefficient
             },
-            'steered_error_type_distribution': compute_error_type_distribution(
-                correction_results + corruption_results + preservation_results, 'steered_error_type'
-            )
+            'n_features_tested': len(results['per_feature_results']),
+            'features_tested': list(results['per_feature_results'].keys()),
+            'zero_disc_latents_used': {
+                'correction': first_feature_id,
+                'corruption': f"L{corruption_features[0]['layer']}F{corruption_features[0]['latent_idx']}",
+                'preservation': first_feature_id
+            },
+            'layer_matching': {
+                'correction_layer': first_feature['layer'],
+                'corruption_layer': corruption_features[0]['layer']
+            },
+            'n_problems_tested': {
+                'correction': len(all_correction_results),
+                'corruption': len(all_corruption_results),
+                'preservation': len(all_preservation_results)
+            },
+            'timestamp': datetime.now().isoformat()
         }
-        
-        # Save results (use GPU-specific names in parallel mode)
+
+        # Backward compatibility: aggregate all results into flat dicts
+        results['correction_results'] = {r['task_id']: r for r in all_correction_results}
+        results['corruption_results'] = {r['task_id']: r for r in all_corruption_results}
+        results['preservation_results'] = {r['task_id']: r for r in all_preservation_results}
+
+        # Use averaged metrics for summary (backward compat)
+        results['summary_metrics'] = {
+            'correction_rate': averaged_metrics.get('correction_rate', 0),
+            'corruption_rate': averaged_metrics.get('corruption_rate', 0),
+            'preservation_rate': averaged_metrics.get('preservation_rate', 0),
+            'std_correction': averaged_metrics.get('std_correction', 0),
+            'std_corruption': averaged_metrics.get('std_corruption', 0),
+            'std_preservation': averaged_metrics.get('std_preservation', 0),
+            'n_features': averaged_metrics.get('n_features', 0),
+            # Counts from all results combined
+            'n_corrected': sum(1 for r in all_correction_results if r['steered_correct'] and not r['baseline_passed']),
+            'n_corrupted': sum(1 for r in all_corruption_results if not r['steered_correct'] and r['baseline_passed']),
+            'n_preserved': sum(1 for r in all_preservation_results if r['steered_correct'] and r['baseline_passed'])
+        }
+
+        results['steered_error_type_distribution'] = compute_error_type_distribution(
+            all_correction_results + all_corruption_results + all_preservation_results, 'steered_error_type'
+        )
+
+        # Final save
         if self.n_gpus > 1:
             output_file = self.output_dir / f'zero_disc_steering_results_gpu{self.gpu_id}.json'
         else:
             output_file = self.output_dir / 'zero_disc_steering_results.json'
         save_json(results, output_file)
-        logger.info(f"Saved results to: {output_file}")
+        logger.info(f"Saved final results to: {output_file}")
 
         # Save examples (skip in parallel mode - orchestrator handles merge)
         if self.n_gpus == 1:
-            self._save_examples(correction_results[:3], corruption_results[:3], preservation_results[:3])
+            self._save_examples(all_correction_results[:3], all_corruption_results[:3], all_preservation_results[:3])
 
-        # Clean up checkpoints after successful completion
-        for steering_type in ['correction', 'corruption', 'preservation']:
-            self.checkpoint_managers[steering_type].cleanup_all()
-        logger.info("Cleaned up all checkpoint files")
-
-        # Log summary
+        # Log final summary
         logger.info("\n" + "="*60)
-        logger.info("ZERO-DISCRIMINATION STEERING RESULTS")
+        logger.info("ZERO-DISCRIMINATION STEERING RESULTS (MULTI-FEATURE)")
         logger.info("="*60)
-        logger.info(f"Correction rate: {correction_rate:.2f}% (expected: ~2%)")
-        logger.info(f"Corruption rate: {corruption_rate:.2f}% (expected: ~1%)")
-        logger.info(f"Preservation rate: {preservation_rate:.2f}% (expected: ~99%)")
-        logger.info(f"Total problems tested: {len(correction_results) + len(corruption_results) + len(preservation_results)}")
+        logger.info(f"Features tested: {len(results['per_feature_results'])}")
+        logger.info(f"Averaged Correction rate: {averaged_metrics.get('correction_rate', 0):.2f}% "
+                   f"(±{averaged_metrics.get('std_correction', 0):.2f}%)")
+        logger.info(f"Averaged Corruption rate: {averaged_metrics.get('corruption_rate', 0):.2f}% "
+                   f"(±{averaged_metrics.get('std_corruption', 0):.2f}%)")
+        logger.info(f"Averaged Preservation rate: {averaged_metrics.get('preservation_rate', 0):.2f}% "
+                   f"(±{averaged_metrics.get('std_preservation', 0):.2f}%)")
         logger.info("="*60)
+
+        # Per-feature breakdown
+        logger.info("\nPer-feature breakdown:")
+        for fid, fdata in results['per_feature_results'].items():
+            logger.info(f"  {fid}: corr={fdata['correction_rate']:.1f}%, "
+                       f"corrupt={fdata['corruption_rate']:.1f}%, "
+                       f"pres={fdata['preservation_rate']:.1f}%")
 
         # Write phase_output.json manifest (skip in parallel mode - orchestrator handles it)
         if self.n_gpus == 1:

@@ -7,6 +7,7 @@ These latents serve as rigorous baseline controls for steering experiments.
 
 import json
 import numpy as np
+import random
 from pathlib import Path
 
 from datetime import datetime
@@ -42,14 +43,14 @@ class ZeroDiscriminationSelector:
         # Feature selection parameters (use config directly - single source of truth)
         self.n_features = config.phase4_10_n_features
         self.separation_threshold = config.phase4_10_separation_threshold
-        self.min_activation_freq = config.phase4_10_min_activation_freq
+        self.random_seed = 42  # Fixed seed for reproducible random sampling
 
         # Load target layers from Phase 4.9
         self.layers = self._get_target_layers()
         self.features_per_layer = 16384
 
         logger.info(f"ZeroDiscriminationSelector initialized")
-        logger.info(f"Will select {self.n_features} features with lowest separation scores")
+        logger.info(f"Will select {self.n_features} features with EXACT zero separation score")
         logger.info(f"Filtering to layers: {sorted(self.layers)} (from Phase 4.9)")
 
     def _get_target_layers(self) -> list[int]:
@@ -154,18 +155,17 @@ class ZeroDiscriminationSelector:
                 logger.debug(f"Error processing {file}: {e}")
                 continue
         
-        # Calculate frequencies for each latent
+        # Calculate frequencies for each latent (include ALL latents, no activation filter)
         for latent_idx in range(self.features_per_layer):
             freq_correct = correct_activations[:, latent_idx].mean()
             freq_incorrect = incorrect_activations[:, latent_idx].mean()
 
-            # Only store if latent activates sufficiently
-            if (freq_correct + freq_incorrect) >= self.min_activation_freq:
-                latent_freqs[latent_idx] = {
-                    'freq_correct': float(freq_correct),
-                    'freq_incorrect': float(freq_incorrect),
-                    'separation_score': abs(freq_correct - freq_incorrect)
-                }
+            # Store all latents without filtering
+            latent_freqs[latent_idx] = {
+                'freq_correct': float(freq_correct),
+                'freq_incorrect': float(freq_incorrect),
+                'separation_score': abs(freq_correct - freq_incorrect)
+            }
         
         # Clean up memory
         del correct_activations, incorrect_activations, sae
@@ -252,14 +252,25 @@ class ZeroDiscriminationSelector:
                 })
             
             logger.info(f"Layer {layer}: Found {len([c for c in all_candidates if c['layer'] == layer])} candidates")
-        
-        # Sort by separation score (ascending - most zero first)
-        all_candidates.sort(key=lambda x: x['separation_score'])
-        
-        # Select top N latents
-        selected_latents = all_candidates[:self.n_features]
 
-        logger.info(f"Selected {len(selected_latents)} zero-discrimination latents from {len(all_candidates)} candidates")
+        # Filter for EXACT zero separation score
+        zero_candidates = [c for c in all_candidates if c['separation_score'] == 0.0]
+        n_zero_candidates = len(zero_candidates)
+
+        logger.info(f"Found {n_zero_candidates} latents with EXACT zero separation score")
+
+        # Random sample N from all exact zeros (reproducible via fixed seed)
+        random.seed(self.random_seed)
+        if len(zero_candidates) >= self.n_features:
+            selected_latents = random.sample(zero_candidates, self.n_features)
+            logger.info(f"Randomly sampled {self.n_features} from {n_zero_candidates} zero-separation latents (seed={self.random_seed})")
+        else:
+            selected_latents = zero_candidates  # Use all if fewer than N
+            logger.warning(f"Only {len(zero_candidates)} zero-separation latents available (requested {self.n_features})")
+
+        # Store statistics for metadata
+        self._n_zero_candidates = n_zero_candidates
+        self._n_total_candidates = len(all_candidates)
 
         # Load latent directions for selected latents
         logger.info("Loading latent directions for selected latents...")
@@ -279,16 +290,17 @@ class ZeroDiscriminationSelector:
         results = {
             'metadata': {
                 'phase': '4.10',
-                'description': 'Low-discrimination PVA features for baseline control (layer-matched)',
-                'selection_criteria': 'Lowest N features by absolute separation from target layers',
+                'description': 'Zero-discrimination features for baseline control (layer-matched)',
+                'selection_criteria': 'exact_zero',
+                'selection_method': 'random_sample',
+                'random_seed': self.random_seed,
                 'target_layers': self.layers,
-                'min_activation_freq': self.min_activation_freq,
                 'n_features_requested': self.n_features,
                 'n_features_selected': len(selected_latents),
-                'n_candidates_evaluated': len(all_candidates),
+                'n_zero_candidates': self._n_zero_candidates,
+                'n_total_candidates': self._n_total_candidates,
                 'n_discriminative_excluded': len(excluded_features),
-                'min_separation_selected': selected_latents[0]['separation_score'] if selected_latents else None,
-                'max_separation_selected': selected_latents[-1]['separation_score'] if selected_latents else None,
+                'separation_score_all_selected': 0.0,  # All selected have exact zero
                 'timestamp': datetime.now().isoformat()
             },
             'features': selected_latents,
