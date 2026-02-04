@@ -129,9 +129,9 @@ def setup_argument_parser():
     phase_parser.add_argument(
         '--parallel',
         type=int,
-        default=1,
+        default=4,
         metavar='N',
-        help='Number of GPUs for parallel execution (default: 1 = sequential)'
+        help='Number of GPUs for parallel execution (default: 4)'
     )
 
     # Direction source for probe baseline comparison
