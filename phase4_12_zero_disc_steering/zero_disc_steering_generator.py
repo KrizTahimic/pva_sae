@@ -492,9 +492,13 @@ class ZeroDiscSteeringGenerator:
         # Use correction features for all experiments (they're matched to the correct latent's layer)
         # This ensures consistent layer matching across all three experiment types
         all_features = correction_features
+
+        # Limit to configured number of features
+        n_features_to_test = min(self.config.phase4_12_n_features, len(all_features))
+        all_features = all_features[:n_features_to_test]
         n_total = len(all_features)
 
-        logger.info(f"\nWill test {n_total} zero-disc features")
+        logger.info(f"\nWill test {n_total} zero-disc features (config: phase4_12_n_features={self.config.phase4_12_n_features})")
         logger.info(f"Already completed: {len(completed_ids)} features")
 
         # Initialize per_feature_results if not present
