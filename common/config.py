@@ -181,7 +181,7 @@ class Config:
     # NOTE: phase4_10_min_activation_freq REMOVED - now selects exact zero separation score latents
 
     # === ZERO-DISCRIMINATION STEERING (Phase 4.12) ===
-    phase4_12_n_features: int = 5  # Number of zero-disc features to test (from Phase 4.10 pool)
+    phase4_12_n_features: int = 1  # Number of zero-disc features to test (from Phase 4.10 pool)
 
     # === STATISTICAL SIGNIFICANCE TESTING (Phase 4.14) ===
     phase4_14_significance_level: float = 0.05  # Alpha level for statistical tests
