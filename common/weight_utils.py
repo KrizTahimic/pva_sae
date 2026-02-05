@@ -9,28 +9,29 @@ import torch
 import einops
 from torch import Tensor, FloatTensor
 from typing import Optional
+from common.direction_utils import normalize_direction
 
 
 def get_orthogonalized_matrix(matrix: FloatTensor, vec: FloatTensor) -> FloatTensor:
     """
     Remove projection of matrix rows onto direction vector.
-    
+
     This function orthogonalizes a weight matrix with respect to a given direction,
     effectively removing the component of each weight vector that aligns with the
     target direction while preserving all orthogonal components.
-    
+
     Args:
         matrix: Weight matrix to orthogonalize [..., d_model]
         vec: Direction to project out [d_model]
-    
+
     Returns:
         Orthogonalized matrix with same shape as input
-        
+
     Mathematical formula:
         W_orthogonalized = W - ((W @ d) / ||d||²) × d^T
     """
     # Normalize direction vector to unit length for numerical stability
-    vec = vec / torch.norm(vec)
+    vec = normalize_direction(vec, name="orthogonalization_direction")
     
     # Match device and dtype of the matrix
     vec = vec.to(matrix.device).to(matrix.dtype)

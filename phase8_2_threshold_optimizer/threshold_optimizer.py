@@ -51,6 +51,7 @@ from common.steering_metrics import create_last_position_steering_hook
 from common.prompt_utils import PromptBuilder
 from common.sae_loader import load_sae_for_config
 from common.search_optimization import TwoStageOptimizer
+from common.direction_utils import normalize_direction
 
 logger = get_logger(__name__)
 
@@ -224,7 +225,9 @@ class ThresholdOptimizer:
             # Extract latent direction for steering
             self.correct_latent_direction = self.steering_sae.W_dec[self.correct_steer_latent].detach()
             # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
-            self.correct_latent_direction = self.correct_latent_direction / torch.norm(self.correct_latent_direction)
+            self.correct_latent_direction = normalize_direction(
+                self.correct_latent_direction, name="correct_latent_direction"
+            )
 
             # Ensure latent direction is in the same dtype as the model
             model_dtype = next(self.model.parameters()).dtype

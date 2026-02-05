@@ -47,6 +47,7 @@ from common.activation_hooks import (
 from common.sae_loader import load_sae_for_config
 from common.checkpoint_manager import CheckpointManager
 from common.memory_utils import check_memory_usage, cleanup_memory
+from common.direction_utils import normalize_direction
 
 logger = get_logger("phase4_8.steering_effect_analyzer")
 
@@ -367,10 +368,12 @@ class SteeringEffectAnalyzer:
             latent_idx: Latent index
 
         Returns:
-            Latent direction tensor in model dtype
+            Latent direction tensor (unit normalized, in model dtype)
         """
         sae = self.sae_cache[layer]
         direction = sae.W_dec[latent_idx].detach()
+        # Normalize to unit L2 norm (required by steering hook)
+        direction = normalize_direction(direction, name=f"L{layer}_{latent_idx}")
         model_dtype = next(self.model.parameters()).dtype
         return direction.to(dtype=model_dtype)
 

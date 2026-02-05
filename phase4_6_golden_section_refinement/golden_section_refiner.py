@@ -42,6 +42,7 @@ from common.steering_setup import load_steering_latents
 from common.dataset_utils import evaluate_code_with_error_type, extract_code, compute_error_type_distribution
 from common.sae_loader import load_sae_for_config
 from common.checkpoint_manager import CheckpointManager
+from common.direction_utils import normalize_direction
 
 logger = get_logger("phase4_6.golden_section_refiner")
 
@@ -435,7 +436,7 @@ class GoldenSectionCoefficientRefiner:
         sae = self.sae_cache[layer]
         direction = sae.W_dec[latent_idx].detach()
         # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
-        direction = direction / torch.norm(direction)
+        direction = normalize_direction(direction, name=f"L{layer}_{latent_idx}")
         model_dtype = next(self.model.parameters()).dtype
         return direction.to(dtype=model_dtype)
 
@@ -1970,8 +1971,12 @@ class RefinementEvaluator:
                 self.best_incorrect_latent['latent_idx']
             ].detach()
             # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
-            self.correct_latent_direction = self.correct_latent_direction / torch.norm(self.correct_latent_direction)
-            self.incorrect_latent_direction = self.incorrect_latent_direction / torch.norm(self.incorrect_latent_direction)
+            self.correct_latent_direction = normalize_direction(
+                self.correct_latent_direction, name="correct_latent_direction"
+            )
+            self.incorrect_latent_direction = normalize_direction(
+                self.incorrect_latent_direction, name="incorrect_latent_direction"
+            )
 
         # Load baseline data - NOT filtered by GPU (use task_ids for distribution)
         phase3_6_output = discover_latest_phase_output("3.6", config=self.config)
@@ -2027,7 +2032,7 @@ class RefinementEvaluator:
         sae = self.sae_cache[layer]
         direction = sae.W_dec[latent_idx].detach()
         # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
-        direction = direction / torch.norm(direction)
+        direction = normalize_direction(direction, name=f"L{layer}_{latent_idx}")
 
         # Match model dtype
         model_dtype = next(self.model.parameters()).dtype

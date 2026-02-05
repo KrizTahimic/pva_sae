@@ -40,6 +40,7 @@ from common.utils import load_json, save_json
 from common.dataset_utils import evaluate_code_with_error_type, extract_code, compute_error_type_distribution
 from common.sae_loader import load_sae_for_config
 from common.checkpoint_manager import CheckpointManager
+from common.direction_utils import normalize_direction
 
 logger = get_logger("phase4_5.steering_evaluator")
 
@@ -191,7 +192,7 @@ class SteeringCoefficientSelector:
         sae = self.sae_cache[latent['layer']]
         direction = sae.W_dec[latent['latent_idx']].detach()
         # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
-        direction = direction / torch.norm(direction)
+        direction = normalize_direction(direction, name=f"L{latent['layer']}_{latent['latent_idx']}")
         # Match model dtype
         model_dtype = next(self.model.parameters()).dtype
         return direction.to(dtype=model_dtype)

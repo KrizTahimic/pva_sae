@@ -177,9 +177,9 @@ class TestPhase45To48:
     def test_coefficients_used_in_steering_hook(self):
         """Coefficients should be applied in steering hook."""
         from common.steering_metrics import create_last_position_steering_hook
+        from common.direction_utils import normalize_direction
 
-        direction = torch.randn(2304)
-        direction = direction / torch.norm(direction)
+        direction = normalize_direction(torch.randn(2304))
         coefficient = 47.5
 
         hook = create_last_position_steering_hook(direction, coefficient)

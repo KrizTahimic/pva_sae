@@ -22,6 +22,7 @@ from common.phase_discovery import discover_latest_phase_output, filter_by_range
 from common.sae_loader import load_sae_for_config
 from common.utils import load_json
 from common.logging import get_logger
+from common.direction_utils import normalize_direction
 
 logger = get_logger("steering_setup")
 
@@ -387,8 +388,8 @@ def load_sae_and_directions(
     logger.info(f"Original W_dec norms - correct: {correct_norm:.4f}, incorrect: {incorrect_norm:.4f}")
 
     # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
-    correct_direction = correct_direction / torch.norm(correct_direction)
-    incorrect_direction = incorrect_direction / torch.norm(incorrect_direction)
+    correct_direction = normalize_direction(correct_direction, name="correct_direction")
+    incorrect_direction = normalize_direction(incorrect_direction, name="incorrect_direction")
 
     # Ensure latent directions are in the same dtype as the model
     model_dtype = next(model.parameters()).dtype

@@ -279,3 +279,119 @@ class TestCodeSimilarityTokenization:
         code2 = "def foo(x):\n    return x"
         similarity = calculate_code_similarity(code1, code2)
         assert similarity > 0.9  # Should be very similar
+
+
+# =============================================================================
+# Steering Hook Tests
+# =============================================================================
+
+import torch
+from common.direction_utils import normalize_direction
+
+
+class TestSteeringHookNormalization:
+    """Test that steering hook requires pre-normalized direction.
+
+    Hook validates that directions are unit-normalized, ensuring coefficient
+    directly controls perturbation magnitude. Callers must normalize directions
+    using normalize_direction() before passing to hook.
+    """
+
+    def test_direction_must_be_pre_normalized(self):
+        """Hook should use pre-normalized direction for steering."""
+        # Create pre-normalized direction
+        direction = normalize_direction(torch.tensor([3.0, 4.0]))  # normalized = [0.6, 0.8]
+        coefficient = 10.0
+
+        hook = create_last_position_steering_hook(direction, coefficient)
+
+        # Create mock input: [batch=1, seq_len=2, d_model=2]
+        residual = torch.zeros(1, 2, 2)
+        mock_input = (residual,)
+
+        # Call hook
+        output = hook(None, mock_input)
+        modified_residual = output[0]
+
+        # Expected: direction * coefficient at last position
+        # Since direction is pre-normalized: [0.6, 0.8] * 10 = [6.0, 8.0]
+        expected_steering = torch.tensor([6.0, 8.0])
+
+        actual_steering = modified_residual[0, -1, :]
+        assert torch.allclose(actual_steering, expected_steering, atol=1e-5)
+
+    def test_rejects_non_unit_norm_direction(self):
+        """Hook should reject directions that are not unit-normalized."""
+        # Non-normalized direction
+        direction = torch.tensor([3.0, 4.0])  # norm = 5.0
+        coefficient = 10.0
+
+        with pytest.raises(ValueError, match="not unit-normalized"):
+            create_last_position_steering_hook(direction, coefficient)
+
+    def test_same_coefficient_same_magnitude_for_normalized_directions(self):
+        """Same coefficient should produce same perturbation magnitude for normalized directions."""
+        coefficient = 5.0
+
+        # Both directions normalized to unit norm
+        dir1 = normalize_direction(torch.tensor([1.0, 0.0]))
+        dir2 = normalize_direction(torch.tensor([0.0, 1.0]))
+
+        hook1 = create_last_position_steering_hook(dir1, coefficient)
+        hook2 = create_last_position_steering_hook(dir2, coefficient)
+
+        # Apply both hooks - residual must match d_model=2
+        residual = torch.zeros(1, 2, 2)
+
+        output1 = hook1(None, (residual.clone(),))
+        output2 = hook2(None, (residual.clone(),))
+
+        # Both should have same perturbation magnitude = coefficient
+        perturbation1 = output1[0][0, -1, :].norm()
+        perturbation2 = output2[0][0, -1, :].norm()
+
+        assert perturbation1 == pytest.approx(coefficient, rel=1e-5)
+        assert perturbation2 == pytest.approx(coefficient, rel=1e-5)
+
+    def test_only_last_position_modified(self):
+        """Hook should only modify the last position in sequence."""
+        direction = normalize_direction(torch.tensor([1.0, 0.0]))
+        coefficient = 2.0
+
+        hook = create_last_position_steering_hook(direction, coefficient)
+
+        # Sequence with 5 positions
+        residual = torch.ones(1, 5, 2) * 0.5
+        original_residual = residual.clone()
+
+        output = hook(None, (residual,))
+        modified = output[0]
+
+        # First 4 positions should be unchanged
+        assert torch.allclose(modified[0, :4, :], original_residual[0, :4, :])
+
+        # Last position should be modified
+        assert not torch.allclose(modified[0, -1, :], original_residual[0, -1, :])
+
+    def test_preserves_other_tuple_elements(self):
+        """Hook should preserve other elements in input tuple."""
+        direction = normalize_direction(torch.tensor([1.0]))
+        hook = create_last_position_steering_hook(direction, 1.0)
+
+        residual = torch.zeros(1, 1, 1)
+        extra_arg1 = "extra1"
+        extra_arg2 = {"key": "value"}
+
+        output = hook(None, (residual, extra_arg1, extra_arg2))
+
+        assert len(output) == 3
+        assert output[1] == extra_arg1
+        assert output[2] == extra_arg2
+
+    def test_rejects_zero_norm_direction(self):
+        """Hook should reject zero-norm direction (cannot normalize)."""
+        direction = torch.tensor([0.0, 0.0])
+        coefficient = 10.0
+
+        with pytest.raises(ValueError, match="not unit-normalized"):
+            create_last_position_steering_hook(direction, coefficient)

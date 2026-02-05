@@ -37,6 +37,7 @@ from common.retry_utils import retry_with_timeout
 from common.model_loader import load_model_and_tokenizer
 from common.dataset_utils import evaluate_code_with_error_type, extract_code, compute_error_type_distribution
 from common.sae_loader import load_sae_for_config
+from common.direction_utils import normalize_direction
 
 logger = get_logger("phase4_12.zero_disc_steering_generator")
 
@@ -334,6 +335,9 @@ class ZeroDiscSteeringGenerator:
             latent_direction = torch.tensor(feature['latent_direction'], device=self.device)
         else:
             latent_direction = sae.W_dec[latent_idx].detach()
+
+        # Normalize to unit L2 norm (required by steering hook)
+        latent_direction = normalize_direction(latent_direction, name=f"L{layer}_{latent_idx}")
 
         total_problems = len(problems)
         if processed_task_ids:

@@ -2,6 +2,7 @@
 Tests for direction normalization consistency.
 
 Validates:
+- direction_utils: Centralized normalization utilities
 - phase_4_5_normalization: Directions normalized before coefficient search
 - phase_4_8_normalization: Same normalization as Phase 4.5
 - coefficient_interpretation: Coefficient meaning consistent across phases
@@ -12,6 +13,133 @@ import torch
 from unittest.mock import patch, MagicMock
 
 from common.config import Config
+from common.direction_utils import (
+    normalize_direction,
+    is_normalized,
+    assert_normalized,
+    NORM_EPSILON,
+    NORM_TOLERANCE
+)
+
+
+# =============================================================================
+# direction_utils Tests
+# =============================================================================
+
+class TestNormalizeDirection:
+    """Test normalize_direction utility."""
+
+    def test_normalizes_to_unit_norm(self):
+        """normalize_direction should produce unit L2 norm."""
+        direction = torch.randn(2304) * 5.0
+        normalized = normalize_direction(direction)
+
+        assert torch.norm(normalized).item() == pytest.approx(1.0, rel=1e-5)
+
+    def test_preserves_direction(self):
+        """normalize_direction should preserve direction, only change magnitude."""
+        direction = torch.randn(2304)
+        normalized = normalize_direction(direction)
+
+        # Cosine similarity should be 1.0
+        cosine_sim = torch.dot(direction, normalized) / (
+            torch.norm(direction) * torch.norm(normalized)
+        )
+        assert cosine_sim.item() == pytest.approx(1.0, rel=1e-5)
+
+    def test_preserves_dtype(self):
+        """normalize_direction should preserve input dtype."""
+        for dtype in [torch.float32, torch.float16, torch.bfloat16]:
+            direction = torch.randn(2304, dtype=dtype)
+            normalized = normalize_direction(direction)
+            assert normalized.dtype == dtype
+
+    def test_preserves_device(self):
+        """normalize_direction should preserve input device."""
+        direction = torch.randn(2304)
+        normalized = normalize_direction(direction)
+        assert normalized.device == direction.device
+
+    def test_raises_on_zero_direction(self):
+        """normalize_direction should raise on zero vector."""
+        direction = torch.zeros(2304)
+
+        with pytest.raises(ValueError, match="effectively zero"):
+            normalize_direction(direction)
+
+    def test_raises_on_near_zero_direction(self):
+        """normalize_direction should raise on near-zero vector."""
+        direction = torch.randn(2304) * 1e-10
+
+        with pytest.raises(ValueError, match="effectively zero"):
+            normalize_direction(direction)
+
+    def test_idempotent(self):
+        """Normalizing an already-normalized direction should produce same result."""
+        direction = torch.randn(2304)
+        once = normalize_direction(direction)
+        twice = normalize_direction(once)
+
+        assert torch.allclose(once, twice, rtol=1e-5)
+
+
+class TestIsNormalized:
+    """Test is_normalized check."""
+
+    def test_returns_true_for_unit_norm(self):
+        """is_normalized should return True for unit-norm vectors."""
+        direction = normalize_direction(torch.randn(2304))
+        assert is_normalized(direction) is True
+
+    def test_returns_false_for_non_unit_norm(self):
+        """is_normalized should return False for non-unit-norm vectors."""
+        direction = torch.randn(2304) * 5.0
+        assert is_normalized(direction) is False
+
+    def test_respects_tolerance(self):
+        """is_normalized should respect custom tolerance."""
+        direction = torch.randn(2304)
+        direction = direction / torch.norm(direction) * 1.001  # Slightly off
+
+        assert is_normalized(direction, tolerance=0.01) is True
+        assert is_normalized(direction, tolerance=0.0001) is False
+
+
+class TestAssertNormalized:
+    """Test assert_normalized validation."""
+
+    def test_passes_for_unit_norm(self):
+        """assert_normalized should pass for unit-norm vectors."""
+        direction = normalize_direction(torch.randn(2304))
+
+        # Should not raise
+        assert_normalized(direction)
+
+    def test_raises_for_non_unit_norm(self):
+        """assert_normalized should raise for non-unit-norm vectors."""
+        direction = torch.randn(2304) * 5.0
+
+        with pytest.raises(ValueError, match="not unit-normalized"):
+            assert_normalized(direction)
+
+    def test_includes_name_in_error(self):
+        """assert_normalized should include name in error message."""
+        direction = torch.randn(2304) * 5.0
+
+        with pytest.raises(ValueError, match="my_direction"):
+            assert_normalized(direction, name="my_direction")
+
+    def test_respects_tolerance(self):
+        """assert_normalized should respect custom tolerance."""
+        direction = torch.randn(2304)
+        direction = direction / torch.norm(direction) * 1.001  # Slightly off
+
+        # Should pass with loose tolerance
+        assert_normalized(direction, tolerance=0.01)
+
+        # Should fail with strict tolerance
+        with pytest.raises(ValueError):
+            assert_normalized(direction, tolerance=0.0001)
 
 
 # =============================================================================

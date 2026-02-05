@@ -12,6 +12,7 @@ import tokenize
 import io
 from difflib import SequenceMatcher
 from common.logging import get_logger
+from common.direction_utils import assert_normalized
 
 logger = get_logger("common.steering_metrics")
 
@@ -221,13 +222,25 @@ def create_last_position_steering_hook(latent_direction: torch.Tensor,
     This is more targeted than steering all positions - only affects
     where next-token prediction happens.
 
+    IMPORTANT: The direction MUST be pre-normalized to unit L2 norm by the caller.
+    This ensures the coefficient directly controls perturbation magnitude.
+    Use normalize_direction() from common.direction_utils before calling this function.
+
     Args:
-        latent_direction: Decoder weight vector for a latent [d_model]
+        latent_direction: Unit-normalized decoder weight vector for a latent [d_model].
+                         MUST have L2 norm == 1.0 (validated at creation time).
         coefficient: Scalar multiplier for steering strength
 
     Returns:
         Hook function for forward_pre_hook registration
+
+    Raises:
+        ValueError: If latent_direction is not unit-normalized
     """
+    # Validate that caller has properly normalized the direction
+    # This catches bugs where raw W_dec is passed without normalization
+    assert_normalized(latent_direction, name="latent_direction")
+
     def hook_fn(module, input):
         # input[0] is residual stream: [batch_size, seq_len, d_model]
         residual = input[0]
