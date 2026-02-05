@@ -270,6 +270,19 @@ class ZeroDiscSteeringGenerator:
             except Exception as e:
                 logger.warning(f"Could not load partial results: {e}")
 
+        # Fall back to merged file in parallel mode (GPU files deleted after merge)
+        if self.n_gpus > 1:
+            merged_file = self.output_dir / "zero_disc_steering_results.json"
+            if merged_file.exists():
+                try:
+                    existing = load_json(merged_file)
+                    if existing and 'per_feature_results' in existing:
+                        n_completed = len(existing['per_feature_results'])
+                        logger.info(f"Loaded {n_completed} completed features from merged file")
+                        return existing
+                except Exception as e:
+                    logger.warning(f"Could not load merged results: {e}")
+
         return {'per_feature_results': {}}
 
     def _get_completed_feature_ids(self, partial_results: dict) -> set:
