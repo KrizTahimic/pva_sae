@@ -1396,12 +1396,30 @@ def _merge_phase4_12_json_results(
             gpu_data.append(json.load(fh))
         logger.info(f"  Loaded {f.name}")
 
-    # Merge results across GPUs (Phase 4.12 uses dict keyed by task_id)
-    merged_correction = {}
-    merged_corruption = {}
-    merged_preservation = {}
-    merged_per_feature = {}
+    # Load existing merged file to preserve previously completed features
+    existing_merged_file = output_path / "zero_disc_steering_results.json"
+    if existing_merged_file.exists():
+        try:
+            with open(existing_merged_file) as fh:
+                existing = json.load(fh)
+            merged_correction = existing.get('correction_results', {})
+            merged_corruption = existing.get('corruption_results', {})
+            merged_preservation = existing.get('preservation_results', {})
+            merged_per_feature = existing.get('per_feature_results', {})
+            logger.info(f"Loaded {len(merged_per_feature)} existing features from merged file")
+        except Exception as e:
+            logger.warning(f"Could not load existing merged file: {e}")
+            merged_correction = {}
+            merged_corruption = {}
+            merged_preservation = {}
+            merged_per_feature = {}
+    else:
+        merged_correction = {}
+        merged_corruption = {}
+        merged_preservation = {}
+        merged_per_feature = {}
 
+    # Merge GPU results on top (Phase 4.12 uses dict keyed by task_id)
     for data in gpu_data:
         # Phase 4.12 stores results as {task_id: result_dict}
         merged_correction.update(data.get('correction_results', {}))
