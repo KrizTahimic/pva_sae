@@ -212,11 +212,11 @@ def plot_comparative_metrics(
     # Extract metrics
     metrics = ['AUROC', 'F1', 'Precision', 'Recall']
     correct_vals = [
-        results['correct_predicting_latent']['validation_metrics']['metrics'][m.lower()]
+        results['correct_predicting_latent']['analysis_metrics']['metrics'][m.lower()]
         for m in metrics
     ]
     incorrect_vals = [
-        results['incorrect_predicting_latent']['validation_metrics']['metrics'][m.lower()]
+        results['incorrect_predicting_latent']['analysis_metrics']['metrics'][m.lower()]
         for m in metrics
     ]
 

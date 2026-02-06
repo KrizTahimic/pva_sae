@@ -87,7 +87,7 @@ def extract_description_from_prompt(prompt: str) -> str:
     return description
 
 
-def parse_humaneval_test(test_code: str, entry_point: str) -> List[str]:
+def parse_humaneval_test(test_code: str, entry_point: str) -> list[str]:
     """
     Parse HumanEval test function and extract assertions.
 

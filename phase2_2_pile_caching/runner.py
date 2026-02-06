@@ -52,7 +52,8 @@ def run_phase2_2_caching(config: Config, gpu_id: int = 0, n_gpus: int = 1, devic
     dataset = load_dataset("NeelNanda/pile-10k", split='train')
     texts = dataset['text'][:config.pile_samples]
     
-    # Pre-select random words from each text
+    # Pre-select random words from each text (seeded for reproducibility)
+    random.seed(42)
     logger.info("Selecting random words from texts...")
     substrings = []
     for text in texts:

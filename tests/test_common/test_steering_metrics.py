@@ -395,3 +395,70 @@ class TestSteeringHookNormalization:
 
         with pytest.raises(ValueError, match="not unit-normalized"):
             create_last_position_steering_hook(direction, coefficient)
+
+
+# =============================================================================
+# Missing baseline_passed KeyError Tests
+# =============================================================================
+
+class TestBaselinePassedRequired:
+    """Test that missing 'baseline_passed' key raises KeyError.
+
+    The steering metrics functions require 'baseline_passed' to determine
+    which problems were initially correct/incorrect. If this key is missing
+    (e.g., from malformed data), the functions should raise KeyError rather
+    than silently returning incorrect results.
+    """
+
+    def test_correction_rate_raises_on_missing_baseline(self):
+        """calculate_correction_rate should raise KeyError when baseline_passed is missing."""
+        results = [
+            {'steered_correct': True},   # Missing baseline_passed
+            {'steered_correct': False},  # Missing baseline_passed
+        ]
+
+        with pytest.raises(KeyError):
+            calculate_correction_rate(results)
+
+    def test_corruption_rate_raises_on_missing_baseline(self):
+        """calculate_corruption_rate should raise KeyError when baseline_passed is missing."""
+        results = [
+            {'steered_correct': True},   # Missing baseline_passed
+            {'steered_correct': False},  # Missing baseline_passed
+        ]
+
+        with pytest.raises(KeyError):
+            calculate_corruption_rate(results)
+
+    def test_preservation_rate_raises_on_missing_baseline(self):
+        """calculate_preservation_rate should raise KeyError when baseline_passed is missing.
+
+        Preservation rate delegates to corruption rate, which requires baseline_passed.
+        """
+        results = [
+            {'steered_correct': True},   # Missing baseline_passed
+            {'steered_correct': False},  # Missing baseline_passed
+        ]
+
+        with pytest.raises(KeyError):
+            calculate_preservation_rate(results)
+
+    def test_correction_rate_raises_on_missing_baseline_dataframe(self):
+        """calculate_correction_rate should raise KeyError for DataFrame without baseline_passed."""
+        df = pd.DataFrame([
+            {'steered_correct': True},
+            {'steered_correct': False},
+        ])
+
+        with pytest.raises(KeyError):
+            calculate_correction_rate(df)
+
+    def test_corruption_rate_raises_on_missing_baseline_dataframe(self):
+        """calculate_corruption_rate should raise KeyError for DataFrame without baseline_passed."""
+        df = pd.DataFrame([
+            {'steered_correct': True},
+            {'steered_correct': False},
+        ])
+
+        with pytest.raises(KeyError):
+            calculate_corruption_rate(df)

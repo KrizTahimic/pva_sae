@@ -395,7 +395,7 @@ class ZeroDiscWeightOrthogonalizer:
                     correct_results.append({
                         'task_id': row['task_id'],
                         'baseline_passed': True,
-                        'orthogonalized_correct': True,
+                        'orthogonalized_correct': False,  # Conservative: assume failure on error
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': '',
                         'similarity': 1.0,

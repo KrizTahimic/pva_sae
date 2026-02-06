@@ -73,8 +73,8 @@ def calculate_correction_rate(results: Union[list[dict], pd.DataFrame]) -> float
         corrected = len(results[(results['baseline_passed'] == False) & results[modified_col]])
         total_incorrect = len(results[results['baseline_passed'] == False])
     elif isinstance(results, list):
-        corrected = sum(1 for r in results if not r.get('baseline_passed', False) and r[modified_col])
-        total_incorrect = sum(1 for r in results if not r.get('baseline_passed', False))
+        corrected = sum(1 for r in results if not r['baseline_passed'] and r[modified_col])
+        total_incorrect = sum(1 for r in results if not r['baseline_passed'])
     else:
         raise TypeError(f"Expected list or DataFrame, got {type(results)}")
 
@@ -120,8 +120,8 @@ def calculate_corruption_rate(results: Union[list[dict], pd.DataFrame]) -> float
         corrupted = len(results[results['baseline_passed'] & (results[modified_col] == False)])
         total_correct = len(results[results['baseline_passed']])
     elif isinstance(results, list):
-        corrupted = sum(1 for r in results if r.get('baseline_passed', True) and not r[modified_col])
-        total_correct = sum(1 for r in results if r.get('baseline_passed', True))
+        corrupted = sum(1 for r in results if r['baseline_passed'] and not r[modified_col])
+        total_correct = sum(1 for r in results if r['baseline_passed'])
     else:
         raise TypeError(f"Expected list or DataFrame, got {type(results)}")
 

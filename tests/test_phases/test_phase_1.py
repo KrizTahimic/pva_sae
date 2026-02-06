@@ -2,8 +2,9 @@
 Tests for Phase 1 - Dataset Building (CRITICAL)
 
 Validates:
-- activation_extraction_position: Last prompt token extracted
-- activation_shape: Correct [1, d_model] shape per layer
+- activation_extraction_position: Config specifies last prompt token
+- prompt_building: PromptBuilder produces valid prompts
+- code_extraction: extract_code handles edge cases
 - checkpoint_resume: Resumes from last checkpoint correctly
 - parallel_distribution: Tasks distributed evenly across GPUs
 - parallel_merge: No duplicates, all tasks covered
@@ -16,6 +17,9 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from common.config import Config
+from common.prompt_utils import PromptBuilder
+from common.dataset_utils import extract_code
+from common.activation_hooks import ActivationExtractor
 
 
 # =============================================================================
@@ -23,76 +27,110 @@ from common.config import Config
 # =============================================================================
 
 class TestActivationExtractionPosition:
-    """Test last prompt token extracted."""
+    """Test last prompt token extracted - validates config and hook setup."""
 
     def test_config_specifies_last_position(self):
         """Config should specify position -1 for activation extraction."""
         config = Config()
         assert config.activation_position == -1
 
-    def test_hook_extracts_last_position(self):
-        """Hook should extract activations at last position."""
-        # This test validates the concept - actual hook implementation may differ
-        d_model = 2304
-        seq_len = 10
-        batch_size = 1
+    def test_hook_type_from_config(self):
+        """Config should specify resid_post hook type."""
+        config = Config()
+        assert config.activation_hook_type == "resid_post"
 
-        # Simulate residual stream
-        residual = torch.randn(batch_size, seq_len, d_model)
+    def test_activation_extractor_stores_position(self):
+        """ActivationExtractor should store the position from config."""
+        mock_model = MagicMock()
+        config = Config()
+        extractor = ActivationExtractor(
+            model=mock_model,
+            layers=[1, 2],
+            position=config.activation_position
+        )
+        assert extractor.position == -1
 
-        # Extract at position -1
-        extracted = residual[:, -1, :]
-
-        assert extracted.shape == (1, d_model)
-
-    def test_single_token_extraction(self):
-        """Single token input should work for extraction."""
-        d_model = 2304
-
-        residual = torch.randn(1, 1, d_model)
-        extracted = residual[:, -1, :]
-
-        assert extracted.shape == (1, d_model)
+    def test_activation_layers_from_config(self):
+        """Config should provide activation layers list (skipping layer 0)."""
+        config = Config()
+        assert hasattr(config, 'activation_layers')
+        assert len(config.activation_layers) > 0
+        # Gemma 2B has 26 layers, we skip layer 0
+        expected_layers = list(range(1, 26))
+        assert config.activation_layers == expected_layers
 
 
 # =============================================================================
-# activation_shape Tests
+# prompt_building Tests
 # =============================================================================
 
-class TestActivationShape:
-    """Test correct [1, d_model] shape per layer."""
+class TestPromptBuilding:
+    """Test PromptBuilder produces valid prompts using real production code."""
 
-    def test_gemma_2b_d_model(self):
-        """Gemma 2B should have d_model=2304."""
-        # d_model for Gemma 2B
-        expected_d_model = 2304
+    def test_prompt_includes_problem_description(self):
+        """Prompt should include the problem description."""
+        prompt = PromptBuilder.build_prompt(
+            problem_description="Write a function to add two numbers.",
+            test_cases="assert add(1, 2) == 3"
+        )
+        assert "Write a function to add two numbers." in prompt
 
-        activation = torch.randn(1, expected_d_model)
-        assert activation.shape == (1, 2304)
+    def test_prompt_includes_test_cases(self):
+        """Prompt should include test cases."""
+        prompt = PromptBuilder.build_prompt(
+            problem_description="Write a function.",
+            test_cases="assert func(1) == 1\nassert func(2) == 4"
+        )
+        assert "assert func(1) == 1" in prompt
+        assert "assert func(2) == 4" in prompt
 
-    def test_gemma_9b_d_model(self):
-        """Gemma 9B should have d_model=3584."""
-        expected_d_model = 3584
+    def test_prompt_includes_code_initiator(self):
+        """Prompt should include the code initiator."""
+        prompt = PromptBuilder.build_prompt(
+            problem_description="Write a function.",
+            test_cases="assert func(1) == 1"
+        )
+        # Default initiator is "# Solution:"
+        assert "# Solution:" in prompt
 
-        activation = torch.randn(1, expected_d_model)
-        assert activation.shape == (1, 3584)
+    def test_prompt_custom_code_initiator(self):
+        """Custom code initiator should override default."""
+        prompt = PromptBuilder.build_prompt(
+            problem_description="Write a function.",
+            test_cases="assert func(1) == 1",
+            code_initiator="# Write your function definition here:"
+        )
+        assert "# Write your function definition here:" in prompt
 
-    def test_llama_8b_d_model(self):
-        """LLAMA 8B should have d_model=4096."""
-        expected_d_model = 4096
+    def test_prompt_template_ordering(self):
+        """Problem description should come before test cases."""
+        prompt = PromptBuilder.build_prompt(
+            problem_description="PROBLEM_MARKER",
+            test_cases="TEST_MARKER"
+        )
+        assert prompt.index("PROBLEM_MARKER") < prompt.index("TEST_MARKER")
 
-        activation = torch.randn(1, expected_d_model)
-        assert activation.shape == (1, 4096)
 
-    def test_multi_layer_extraction_shape(self):
-        """Multi-layer extraction should have consistent shape."""
-        d_model = 2304
-        layers = [6, 12, 18]
+# =============================================================================
+# code_extraction Tests
+# =============================================================================
 
-        activations = {layer: torch.randn(1, d_model) for layer in layers}
+class TestCodeExtraction:
+    """Test extract_code handles edge cases using real production code."""
 
-        for layer in layers:
-            assert activations[layer].shape == (1, d_model)
+    def test_extracts_code_after_prompt(self):
+        """Should extract code after the prompt."""
+        prompt = "Write a function.\nassert func(1) == 1\n# Solution:"
+        generated = prompt + "\ndef func(x):\n    return x"
+        code = extract_code(generated, prompt)
+        assert "def func(x)" in code
+
+    def test_empty_generation(self):
+        """Should handle empty generation gracefully."""
+        prompt = "Write a function."
+        code = extract_code(prompt, prompt)
+        # Should return something (possibly empty string) without crashing
+        assert isinstance(code, str)
 
 
 # =============================================================================
@@ -220,22 +258,19 @@ class TestParallelMerge:
 
     def test_merge_deduplicates_by_task_id(self):
         """Merged results should have no duplicate task_ids."""
-        # Simulate GPU results with potential duplicate
         gpu0_results = pd.DataFrame([
             {'task_id': 't0', 'value': 1},
             {'task_id': 't2', 'value': 3},
         ])
         gpu1_results = pd.DataFrame([
             {'task_id': 't1', 'value': 2},
-            {'task_id': 't2', 'value': 99},  # Duplicate (shouldn't happen normally)
+            {'task_id': 't2', 'value': 99},
         ])
 
-        # Merge and deduplicate (keep first occurrence)
         merged = pd.concat([gpu0_results, gpu1_results], ignore_index=True)
         merged = merged.drop_duplicates(subset=['task_id'], keep='first')
 
         assert len(merged) == 3
-        # Should keep gpu0's value for t2
         assert merged[merged['task_id'] == 't2']['value'].iloc[0] == 3
 
     def test_merge_covers_all_tasks(self):
@@ -246,40 +281,4 @@ class TestParallelMerge:
         gpu1_results = pd.DataFrame({'task_id': ['t1', 't3']})
 
         merged = pd.concat([gpu0_results, gpu1_results], ignore_index=True)
-
-        actual_tasks = set(merged['task_id'])
-        assert actual_tasks == expected_tasks
-
-    def test_merge_preserves_columns(self):
-        """Merge should preserve all columns from GPU results."""
-        gpu0_results = pd.DataFrame([
-            {'task_id': 't0', 'code': 'def f(): pass', 'passed': True},
-        ])
-        gpu1_results = pd.DataFrame([
-            {'task_id': 't1', 'code': 'def g(): pass', 'passed': False},
-        ])
-
-        merged = pd.concat([gpu0_results, gpu1_results], ignore_index=True)
-
-        assert set(merged.columns) == {'task_id', 'code', 'passed'}
-
-
-# =============================================================================
-# Activation Hook Tests
-# =============================================================================
-
-class TestActivationHooks:
-    """Test activation extraction hooks."""
-
-    def test_hook_type_from_config(self):
-        """Config should specify resid_post hook type."""
-        config = Config()
-        assert config.activation_hook_type == "resid_post"
-
-    def test_multi_layer_extraction(self):
-        """Should extract from multiple layers."""
-        config = Config()
-
-        # Gemma 2B has 26 layers, we skip layer 0
-        expected_layers = list(range(1, 26))
-        assert config.activation_layers == expected_layers
+        assert set(merged['task_id']) == expected_tasks

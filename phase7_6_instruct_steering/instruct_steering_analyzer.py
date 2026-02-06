@@ -567,62 +567,184 @@ class InstructSteeringAnalyzer:
         
         return correction_results, corruption_results, preservation_results, exclusion_summary
         
-    def run_statistical_tests(self, correction_results: pd.DataFrame, 
+    def _load_instruct_zero_disc_results(self) -> Optional[dict]:
+        """Load Phase 7.7 instruct zero-disc results for triangulation."""
+        try:
+            phase7_7_output = discover_latest_phase_output("7.7", config=self.config)
+            if not phase7_7_output:
+                logger.warning("Phase 7.7 output not found. Falling back to minimal null hypothesis.")
+                return None
+
+            zero_disc_file = Path(phase7_7_output).parent / "zero_disc_steering_results.json"
+            if not zero_disc_file.exists():
+                logger.warning(f"Zero-disc results not found at {zero_disc_file}. "
+                             f"Falling back to minimal null hypothesis.")
+                return None
+
+            zero_disc_results = load_json(zero_disc_file)
+            logger.info("Loaded Phase 7.7 instruct zero-disc results for triangulation")
+            return zero_disc_results
+        except Exception as e:
+            logger.warning(f"Failed to load Phase 7.7 results: {e}. "
+                         f"Falling back to minimal null hypothesis.")
+            return None
+
+    def run_statistical_tests(self, correction_results: pd.DataFrame,
                             corruption_results: pd.DataFrame,
                             preservation_results: pd.DataFrame) -> dict:
-        """Run binomial tests for statistical significance."""
+        """Run binomial tests for statistical significance with triangulation.
+
+        Uses Phase 7.7 instruct zero-disc results as control when available.
+        Performs triangulation following the Phase 4.14 pattern:
+        1. baseline_vs_targeted: Does targeted steering do anything? (rate vs small null)
+        2. targeted_vs_control: Is effect specific to discriminative features? (rate vs zero-disc rate)
+        3. preservation_test: Does steering maintain correctness? (rate vs 0.5)
+        """
         logger.info("Running statistical tests on instruction-tuned model results...")
-        
-        # Test correction effect
-        correction_successes = len(correction_results[(correction_results['baseline_passed'] == False) & correction_results['steered_correct']])
+
+        # Load instruct zero-disc control data from Phase 7.7
+        zero_disc_data = self._load_instruct_zero_disc_results()
+
+        # Extract zero-disc rates if available
+        zero_disc_correction_rate = None
+        zero_disc_corruption_rate = None
+        if zero_disc_data is not None:
+            # Extract correction rate from zero-disc results
+            zero_disc_correction = zero_disc_data.get('correction_results', {})
+            if zero_disc_correction:
+                zd_correction_successes = sum(
+                    1 for r in zero_disc_correction.values()
+                    if r.get('steered_correct') and not r.get('baseline_passed')
+                )
+                zd_correction_total = len(zero_disc_correction)
+                zero_disc_correction_rate = zd_correction_successes / zd_correction_total if zd_correction_total > 0 else 0.0
+                logger.info(f"Zero-disc correction rate: {zero_disc_correction_rate:.4f} "
+                           f"({zd_correction_successes}/{zd_correction_total})")
+
+            # Extract corruption rate from zero-disc results
+            zero_disc_corruption = zero_disc_data.get('corruption_results', {})
+            if zero_disc_corruption:
+                zd_corruption_successes = sum(
+                    1 for r in zero_disc_corruption.values()
+                    if not r.get('steered_correct') and r.get('baseline_passed')
+                )
+                zd_corruption_total = len(zero_disc_corruption)
+                zero_disc_corruption_rate = zd_corruption_successes / zd_corruption_total if zd_corruption_total > 0 else 0.0
+                logger.info(f"Zero-disc corruption rate: {zero_disc_corruption_rate:.4f} "
+                           f"({zd_corruption_successes}/{zd_corruption_total})")
+
+        # === CORRECTION TESTS ===
+        correction_successes = len(correction_results[
+            (correction_results['baseline_passed'] == False) & correction_results['steered_correct']
+        ])
         correction_trials = len(correction_results[correction_results['baseline_passed'] == False])
-        
+
+        correction_tests = {}
         if correction_trials > 0:
-            correction_test = binomtest(correction_successes, correction_trials, p=0, alternative='greater')
-            correction_pvalue = correction_test.pvalue
-            correction_significant = correction_pvalue < 0.05
+            # Test 1: baseline_vs_targeted - does steering do anything?
+            # Use p=1/n as minimal non-zero null (p=0 is meaningless)
+            baseline_null_p = max(1.0 / correction_trials, 1e-10)
+            baseline_test = binomtest(correction_successes, correction_trials,
+                                     p=baseline_null_p, alternative='greater')
+            correction_tests['baseline_vs_targeted'] = {
+                'p_value': baseline_test.pvalue,
+                'significant': baseline_test.pvalue < 0.05,
+                'null_p': baseline_null_p
+            }
+
+            # Test 2: targeted_vs_control - is effect specific to discriminative features?
+            if zero_disc_correction_rate is not None:
+                control_null_p = max(zero_disc_correction_rate, 1e-10)
+                control_test = binomtest(correction_successes, correction_trials,
+                                        p=control_null_p, alternative='greater')
+                correction_tests['targeted_vs_control'] = {
+                    'p_value': control_test.pvalue,
+                    'significant': control_test.pvalue < 0.05,
+                    'control_rate': zero_disc_correction_rate
+                }
+
+            # Primary significance: use targeted_vs_control if available, else baseline_vs_targeted
+            if 'targeted_vs_control' in correction_tests:
+                correction_pvalue = correction_tests['targeted_vs_control']['p_value']
+                correction_significant = correction_tests['targeted_vs_control']['significant']
+            else:
+                correction_pvalue = correction_tests['baseline_vs_targeted']['p_value']
+                correction_significant = correction_tests['baseline_vs_targeted']['significant']
         else:
             correction_pvalue = 1.0
             correction_significant = False
-            
-        # Test corruption effect
-        corruption_successes = len(corruption_results[corruption_results['baseline_passed'] & (corruption_results['steered_correct'] == False)])
+
+        # === CORRUPTION TESTS ===
+        corruption_successes = len(corruption_results[
+            corruption_results['baseline_passed'] & (corruption_results['steered_correct'] == False)
+        ])
         corruption_trials = len(corruption_results[corruption_results['baseline_passed']])
-        
+
+        corruption_tests = {}
         if corruption_trials > 0:
-            corruption_test = binomtest(corruption_successes, corruption_trials, p=0, alternative='greater')
-            corruption_pvalue = corruption_test.pvalue
-            corruption_significant = corruption_pvalue < 0.05
+            # Test 1: baseline_vs_targeted - does steering corrupt?
+            baseline_null_p = max(1.0 / corruption_trials, 1e-10)
+            baseline_test = binomtest(corruption_successes, corruption_trials,
+                                     p=baseline_null_p, alternative='greater')
+            corruption_tests['baseline_vs_targeted'] = {
+                'p_value': baseline_test.pvalue,
+                'significant': baseline_test.pvalue < 0.05,
+                'null_p': baseline_null_p
+            }
+
+            # Test 2: targeted_vs_control - is corruption specific to discriminative features?
+            if zero_disc_corruption_rate is not None:
+                control_null_p = max(zero_disc_corruption_rate, 1e-10)
+                control_test = binomtest(corruption_successes, corruption_trials,
+                                        p=control_null_p, alternative='greater')
+                corruption_tests['targeted_vs_control'] = {
+                    'p_value': control_test.pvalue,
+                    'significant': control_test.pvalue < 0.05,
+                    'control_rate': zero_disc_corruption_rate
+                }
+
+            # Primary significance: use targeted_vs_control if available, else baseline_vs_targeted
+            if 'targeted_vs_control' in corruption_tests:
+                corruption_pvalue = corruption_tests['targeted_vs_control']['p_value']
+                corruption_significant = corruption_tests['targeted_vs_control']['significant']
+            else:
+                corruption_pvalue = corruption_tests['baseline_vs_targeted']['p_value']
+                corruption_significant = corruption_tests['baseline_vs_targeted']['significant']
         else:
             corruption_pvalue = 1.0
             corruption_significant = False
-            
-        # Test preservation effect
-        preservation_successes = len(preservation_results[preservation_results['baseline_passed'] & preservation_results['steered_correct']])
+
+        # === PRESERVATION TEST ===
+        preservation_successes = len(preservation_results[
+            preservation_results['baseline_passed'] & preservation_results['steered_correct']
+        ])
         preservation_trials = len(preservation_results[preservation_results['baseline_passed']])
-        
+
         if preservation_trials > 0:
-            preservation_test = binomtest(preservation_successes, preservation_trials, p=0.5, alternative='greater')
+            preservation_test = binomtest(preservation_successes, preservation_trials,
+                                        p=0.5, alternative='greater')
             preservation_pvalue = preservation_test.pvalue
             preservation_significant = preservation_pvalue < 0.05
         else:
             preservation_pvalue = 1.0
             preservation_significant = False
-            
+
         results = {
             'correction': {
                 'successes': correction_successes,
                 'trials': correction_trials,
                 'rate': (correction_successes / correction_trials * 100) if correction_trials > 0 else 0,
                 'pvalue': correction_pvalue,
-                'significant': correction_significant
+                'significant': correction_significant,
+                'triangulation': correction_tests
             },
             'corruption': {
                 'successes': corruption_successes,
                 'trials': corruption_trials,
                 'rate': (corruption_successes / corruption_trials * 100) if corruption_trials > 0 else 0,
                 'pvalue': corruption_pvalue,
-                'significant': corruption_significant
+                'significant': corruption_significant,
+                'triangulation': corruption_tests
             },
             'preservation': {
                 'successes': preservation_successes,
@@ -630,22 +752,29 @@ class InstructSteeringAnalyzer:
                 'rate': (preservation_successes / preservation_trials * 100) if preservation_trials > 0 else 0,
                 'pvalue': preservation_pvalue,
                 'significant': preservation_significant
-            }
+            },
+            'zero_disc_control_available': zero_disc_data is not None
         }
-        
+
         logger.info(_format_effect_log(
             "Correction", correction_successes, correction_trials,
             results['correction']['rate'], correction_pvalue, correction_significant
         ))
+        if 'targeted_vs_control' in correction_tests:
+            logger.info(f"  Correction vs control: p={correction_tests['targeted_vs_control']['p_value']:.4f}, "
+                       f"control_rate={correction_tests['targeted_vs_control']['control_rate']:.4f}")
         logger.info(_format_effect_log(
             "Corruption", corruption_successes, corruption_trials,
             results['corruption']['rate'], corruption_pvalue, corruption_significant
         ))
+        if 'targeted_vs_control' in corruption_tests:
+            logger.info(f"  Corruption vs control: p={corruption_tests['targeted_vs_control']['p_value']:.4f}, "
+                       f"control_rate={corruption_tests['targeted_vs_control']['control_rate']:.4f}")
         logger.info(_format_effect_log(
             "Preservation", preservation_successes, preservation_trials,
             results['preservation']['rate'], preservation_pvalue, preservation_significant
         ))
-        
+
         return results
 
     def load_base_model_results(self) -> Optional[dict]:

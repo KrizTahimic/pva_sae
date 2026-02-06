@@ -15,7 +15,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import torch
-from common.prompt_utils import PromptBuilder
+
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import ensure_directory_exists, detect_device, load_json, save_json
 from common.phase_discovery import (
@@ -44,27 +44,38 @@ logger = get_logger("phase4_12.zero_disc_steering_generator")
 class ZeroDiscSteeringGenerator:
     """Generate steering results using zero-discrimination features."""
 
-    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
+    def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1,
+                 model_name_override: Optional[str] = None,
+                 output_phase: Optional[str] = None):
         """Initialize with configuration, load dependencies.
 
         Args:
             config: Configuration object
             gpu_id: GPU index for parallel execution (0-indexed)
             n_gpus: Total number of GPUs (1 = sequential)
+            model_name_override: If set, load this model instead of config.model_name.
+                Zero-disc features (from Phase 4.10) still use the base config.
+            output_phase: If set, use this phase ID for output directory (e.g., '7.7').
+                Defaults to '4.12'.
         """
         self.config = config
         self.gpu_id = gpu_id
         self.n_gpus = n_gpus
         self.device = detect_device()
+        self.model_name_override = model_name_override
+        self.output_phase = output_phase or '4.12'
+
+        # Determine which model to load
+        self.active_model_name = model_name_override or config.model_name
 
         # Phase output directories with dataset suffix
-        self.output_dir = Path(get_phase_output_dir('4.12', config))
+        self.output_dir = Path(get_phase_output_dir(self.output_phase, config))
         ensure_directory_exists(self.output_dir)
         logger.info(f"Output directory: {self.output_dir}")
-        
+
         self.examples_dir = self.output_dir / "examples"
         ensure_directory_exists(self.examples_dir)
-        
+
         self.checkpoint_dir = self.output_dir / "checkpoints"
         ensure_directory_exists(self.checkpoint_dir)
 
@@ -88,18 +99,18 @@ class ZeroDiscSteeringGenerator:
         self.correct_coefficient = self.target_latent_info['correct']['coefficient']
         self.incorrect_coefficient = self.target_latent_info['incorrect']['coefficient']
 
-        # Initialize model and tokenizer
-        logger.info(f"Loading model: {config.model_name}")
+        # Initialize model and tokenizer (use override if provided)
+        logger.info(f"Loading model: {self.active_model_name}")
         self.model, self.tokenizer = load_model_and_tokenizer(
-            config.model_name,
+            self.active_model_name,
             device=self.device,
             trust_remote_code=config.model_trust_remote_code
         )
         self.model.eval()
-        
+
         # Load dependencies
         self._load_dependencies()
-        
+
         logger.info("ZeroDiscSteeringGenerator initialized successfully")
 
     def _load_target_latent_info(self) -> dict:
@@ -361,11 +372,8 @@ class ZeroDiscSteeringGenerator:
                 # Parse test_list from JSON string if needed (stored as JSON in parquet)
                 test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
 
-                # Build prompt
-                prompt = PromptBuilder.build_prompt(
-                    problem_description=row['prompt'],
-                    test_cases=test_cases
-                )
+                # Use pre-built prompt from Phase 1 (row['prompt'] already contains full prompt)
+                prompt = row['prompt']
                 
                 # Generate with steering
                 def generate_steered_code():
@@ -650,8 +658,9 @@ class ZeroDiscSteeringGenerator:
 
         # Build backward-compatible results structure
         results['metadata'] = {
-            'phase': '4.12',
-            'description': 'Zero-discrimination steering generation for baseline control (multi-feature)',
+            'phase': self.output_phase,
+            'description': f'Zero-discrimination steering generation for baseline control (multi-feature, model={self.active_model_name})',
+            'model_name': self.active_model_name,
             'coefficients': {
                 'correct': self.correct_coefficient,
                 'incorrect': self.incorrect_coefficient
@@ -736,7 +745,7 @@ class ZeroDiscSteeringGenerator:
             from common.phase_discovery import write_phase_output
 
             write_phase_output(
-                phase="4.12",
+                phase=self.output_phase,
                 outputs={
                     "primary": "zero_disc_steering_results.json",
                     "examples": "examples/zero_disc_examples.json",

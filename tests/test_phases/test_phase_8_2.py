@@ -2,186 +2,303 @@
 Tests for Phase 8.2 - Threshold Optimizer
 
 Validates:
-- percentile_calculation: Correct percentile thresholds
-- dual_direction_architecture: LogReg for detection, mass-mean for steering
+- _calculate_metrics: Production metric calculation for correction/preservation
+- SteeringState: Shared state initialization
+- TwoStageOptimizer: Coarse grid + golden section refinement
+- config: Phase 8.2 configuration values
 """
 
 import pytest
 import numpy as np
 
 from common.config import Config
+from common.search_optimization import TwoStageOptimizer
+from phase8_2_threshold_optimizer.threshold_optimizer import (
+    ThresholdOptimizer,
+    SteeringState,
+)
 
 
 # =============================================================================
-# percentile_calculation Tests
+# SteeringState Tests
 # =============================================================================
 
-class TestPercentileCalculation:
-    """Test correct percentile thresholds."""
+class TestSteeringState:
+    """Test SteeringState initialization and defaults."""
 
-    def test_percentile_interpretation(self):
-        """Percentile should select top X% of incorrect-predicting scores."""
-        scores = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+    def test_initial_state(self):
+        """SteeringState should start with correct defaults."""
+        state = SteeringState(prompt_length=42)
 
-        # 80th percentile threshold
-        percentile = 80
-        threshold = np.percentile(scores, percentile)
+        assert state.prompt_length == 42
+        assert state.first_token_checked is False
+        assert state.incorrect_pred_activation is None
+        assert state.should_steer is False
 
-        # Should select top 20% (scores > 0.8)
-        selected = scores[scores >= threshold]
-        assert len(selected) == 2  # 0.9, 1.0
+    def test_prompt_length_stored(self):
+        """prompt_length should be stored for first-token detection."""
+        state = SteeringState(prompt_length=128)
+        assert state.prompt_length == 128
 
-    def test_refinement_radius_from_config(self):
+    def test_state_mutable(self):
+        """State should be mutable for hook communication."""
+        state = SteeringState(prompt_length=10)
+
+        state.first_token_checked = True
+        state.incorrect_pred_activation = 0.75
+        state.should_steer = True
+
+        assert state.first_token_checked is True
+        assert state.incorrect_pred_activation == 0.75
+        assert state.should_steer is True
+
+
+# =============================================================================
+# _calculate_metrics Tests (using real production code)
+# =============================================================================
+
+class TestCalculateMetrics:
+    """Test ThresholdOptimizer._calculate_metrics with mock result dicts."""
+
+    @pytest.fixture
+    def optimizer(self):
+        """Create a ThresholdOptimizer with mocked dependencies."""
+        opt = object.__new__(ThresholdOptimizer)
+        opt.config = Config()
+        return opt
+
+    def test_correction_metrics_keys(self, optimizer):
+        """Correction metrics should include expected keys."""
+        results = [
+            {'task_id': 't1', 'was_steered': True, 'corrected': True, 'baseline_passed': False},
+            {'task_id': 't2', 'was_steered': True, 'corrected': False, 'baseline_passed': False},
+            {'task_id': 't3', 'was_steered': False, 'corrected': False, 'baseline_passed': False},
+        ]
+
+        metrics = optimizer._calculate_metrics(results, 'correction', total_problems=3)
+
+        expected_keys = ['dataset_type', 'n_problems', 'n_valid', 'n_errors',
+                         'n_steered', 'n_not_steered', 'n_corrected',
+                         'correction_rate', 'steering_rate']
+        for key in expected_keys:
+            assert key in metrics, f"Missing key: {key}"
+
+    def test_correction_rate_calculation(self, optimizer):
+        """correction_rate = n_corrected / total_problems."""
+        results = [
+            {'task_id': 't1', 'was_steered': True, 'corrected': True, 'baseline_passed': False},
+            {'task_id': 't2', 'was_steered': True, 'corrected': False, 'baseline_passed': False},
+            {'task_id': 't3', 'was_steered': True, 'corrected': True, 'baseline_passed': False},
+            {'task_id': 't4', 'was_steered': False, 'corrected': False, 'baseline_passed': False},
+        ]
+
+        metrics = optimizer._calculate_metrics(results, 'correction', total_problems=4)
+
+        assert metrics['n_corrected'] == 2
+        assert metrics['correction_rate'] == pytest.approx(0.5)
+
+    def test_preservation_metrics_keys(self, optimizer):
+        """Preservation metrics should include expected keys."""
+        results = [
+            {'task_id': 't1', 'was_steered': True, 'preserved': True, 'corrupted': False, 'baseline_passed': True},
+            {'task_id': 't2', 'was_steered': True, 'preserved': False, 'corrupted': True, 'baseline_passed': True},
+        ]
+
+        metrics = optimizer._calculate_metrics(results, 'preservation', total_problems=2)
+
+        expected_keys = ['dataset_type', 'n_preserved', 'n_corrupted',
+                         'preservation_rate', 'corruption_rate']
+        for key in expected_keys:
+            assert key in metrics, f"Missing key: {key}"
+
+    def test_corruption_rate_calculation(self, optimizer):
+        """corruption_rate = n_corrupted / total_problems."""
+        results = [
+            {'task_id': 't1', 'was_steered': True, 'preserved': True, 'corrupted': False, 'baseline_passed': True},
+            {'task_id': 't2', 'was_steered': True, 'preserved': False, 'corrupted': True, 'baseline_passed': True},
+            {'task_id': 't3', 'was_steered': False, 'preserved': True, 'corrupted': False, 'baseline_passed': True},
+        ]
+
+        metrics = optimizer._calculate_metrics(results, 'preservation', total_problems=3)
+
+        assert metrics['n_corrupted'] == 1
+        assert metrics['corruption_rate'] == pytest.approx(1 / 3)
+
+    def test_errors_excluded_from_valid_count(self, optimizer):
+        """Results with 'error' key should be excluded from n_valid."""
+        results = [
+            {'task_id': 't1', 'was_steered': True, 'corrected': True, 'baseline_passed': False},
+            {'task_id': 't2', 'was_steered': False, 'corrected': False, 'baseline_passed': False,
+             'error': 'timeout'},
+        ]
+
+        metrics = optimizer._calculate_metrics(results, 'correction', total_problems=2)
+
+        assert metrics['n_valid'] == 1
+        assert metrics['n_errors'] == 1
+
+    def test_zero_problems_no_division_error(self, optimizer):
+        """Should handle empty results without ZeroDivisionError."""
+        metrics = optimizer._calculate_metrics([], 'correction', total_problems=0)
+
+        assert metrics['correction_rate'] == 0.0
+        assert metrics['n_corrected'] == 0
+
+    def test_steering_rate_calculation(self, optimizer):
+        """steering_rate = n_steered / total_problems."""
+        results = [
+            {'task_id': 't1', 'was_steered': True, 'corrected': True, 'baseline_passed': False},
+            {'task_id': 't2', 'was_steered': False, 'corrected': False, 'baseline_passed': False},
+            {'task_id': 't3', 'was_steered': True, 'corrected': False, 'baseline_passed': False},
+        ]
+
+        metrics = optimizer._calculate_metrics(results, 'correction', total_problems=3)
+
+        assert metrics['n_steered'] == 2
+        assert metrics['steering_rate'] == pytest.approx(2 / 3)
+
+
+# =============================================================================
+# TwoStageOptimizer Tests
+# =============================================================================
+
+class TestTwoStageOptimizer:
+    """Test TwoStageOptimizer coarse grid + golden section refinement."""
+
+    def test_finds_optimal_in_simple_case(self):
+        """Should find the optimal value in a simple quadratic."""
+        # Score function: peak at 50
+        def score_fn(x):
+            return -(x - 50) ** 2 + 100
+
+        optimizer = TwoStageOptimizer(
+            evaluate_fn=score_fn,
+            grid_points=[10, 20, 30, 40, 50, 60, 70, 80, 90],
+            refinement_radius=10,
+            tolerance=1,
+            lower_bound=1,
+            upper_bound=99
+        )
+
+        optimal, score, evaluations = optimizer.optimize()
+
+        assert optimal == 50
+        assert score == 100
+
+    def test_cache_prevents_duplicate_evaluations(self):
+        """Should not evaluate the same point twice."""
+        call_count = {}
+
+        def counting_fn(x):
+            call_count[x] = call_count.get(x, 0) + 1
+            return -(x - 50) ** 2
+
+        optimizer = TwoStageOptimizer(
+            evaluate_fn=counting_fn,
+            grid_points=[30, 50, 70],
+            refinement_radius=5,
+            tolerance=1,
+            lower_bound=1,
+            upper_bound=99
+        )
+
+        optimizer.optimize()
+
+        # No point should be evaluated more than once
+        for x, count in call_count.items():
+            assert count == 1, f"Point {x} evaluated {count} times"
+
+    def test_returns_all_evaluations(self):
+        """Should return dict of all evaluated points."""
+        def score_fn(x):
+            return x
+
+        optimizer = TwoStageOptimizer(
+            evaluate_fn=score_fn,
+            grid_points=[10, 20, 30],
+            refinement_radius=5,
+            tolerance=1,
+            lower_bound=1,
+            upper_bound=99
+        )
+
+        optimal, score, evaluations = optimizer.optimize()
+
+        assert isinstance(evaluations, dict)
+        assert len(evaluations) > 0
+
+    def test_discrete_refinement(self):
+        """With available_values, should only test those values."""
+        evaluated = set()
+
+        def tracking_fn(x):
+            evaluated.add(x)
+            return -(x - 45) ** 2
+
+        available = [10, 20, 30, 40, 50, 60, 70, 80, 90]
+        optimizer = TwoStageOptimizer(
+            evaluate_fn=tracking_fn,
+            grid_points=[10, 30, 50, 70, 90],
+            refinement_radius=15,
+            tolerance=1,
+            lower_bound=10,
+            upper_bound=90,
+            available_values=available
+        )
+
+        optimal, score, evaluations = optimizer.optimize()
+
+        # All evaluated points should be in available_values
+        for x in evaluated:
+            assert x in available, f"Evaluated non-available value: {x}"
+
+    def test_coarse_early_stopping(self):
+        """Coarse grid should stop after first score drop from peak."""
+        evaluated = []
+
+        def tracking_fn(x):
+            evaluated.append(x)
+            # Peak at 30, drops at 40
+            scores = {10: 5, 20: 8, 30: 10, 40: 7, 50: 3}
+            return scores.get(x, 0)
+
+        optimizer = TwoStageOptimizer(
+            evaluate_fn=tracking_fn,
+            grid_points=[10, 20, 30, 40, 50],
+            refinement_radius=5,
+            tolerance=1,
+            lower_bound=1,
+            upper_bound=99
+        )
+
+        coarse_optimal, coarse_score = optimizer.coarse_grid_search()
+
+        # Should stop at 40 (first drop after peak at 30)
+        assert coarse_optimal == 30
+        assert 50 not in evaluated  # Should have stopped before 50
+
+
+# =============================================================================
+# Config Tests
+# =============================================================================
+
+class TestPhase82Config:
+    """Test Phase 8.2 configuration values."""
+
+    def test_refinement_radius(self):
         """Config should specify refinement radius."""
         config = Config()
         assert hasattr(config, 'phase8_2_refinement_radius')
         assert config.phase8_2_refinement_radius > 0
 
-    def test_tolerance_from_config(self):
+    def test_tolerance(self):
         """Config should specify tolerance."""
         config = Config()
         assert hasattr(config, 'phase8_2_tolerance')
         assert config.phase8_2_tolerance > 0
 
-    def test_percentile_grid(self):
-        """Should test multiple percentile values."""
-        # Coarse grid: 10, 20, 30, ..., 90
-        coarse_grid = list(range(10, 100, 10))
-
-        assert len(coarse_grid) == 9
-        assert 50 in coarse_grid
-
-    def test_refinement_around_optimal(self):
-        """Should refine around coarse optimal."""
+    def test_probe_methods_available(self):
+        """Config should have both probe methods for dual-direction architecture."""
         config = Config()
-        radius = config.phase8_2_refinement_radius
-
-        coarse_optimal = 70  # Example
-        refined_range = range(
-            max(1, coarse_optimal - radius),
-            min(99, coarse_optimal + radius) + 1
-        )
-
-        # Should include coarse optimal
-        assert coarse_optimal in refined_range
-
-        # Should span radius
-        assert min(refined_range) == coarse_optimal - radius
-        assert max(refined_range) == coarse_optimal + radius
-
-
-# =============================================================================
-# dual_direction_architecture Tests
-# =============================================================================
-
-class TestDualDirectionArchitecture:
-    """Test LogReg for detection, mass-mean for steering."""
-
-    def test_logreg_for_detection(self):
-        """Should use logreg probe for threshold prediction."""
-        # Phase 8.2 uses logreg for deciding when to steer
-        prediction_method = 'logreg'
-
-        # logreg gives calibrated probabilities
-        assert prediction_method == 'logreg'
-
-    def test_mass_mean_for_steering(self):
-        """Should use mass-mean for actual steering."""
-        # Phase 8.2 uses mass_mean for the steering direction
-        steering_method = 'mass_mean'
-
-        assert steering_method == 'mass_mean'
-
-    def test_probe_methods_in_config(self):
-        """Config should have both probe methods available."""
-        config = Config()
-
         assert hasattr(config, 'probe_mass_mean_reg_lambda')
         assert hasattr(config, 'probe_logreg_C_values')
-
-    def test_separate_uses_documented(self):
-        """Both probes should have distinct use cases."""
-        # logreg: optimal for binary classification (detection)
-        # mass_mean: optimal for direction extraction (steering)
-
-        logreg_use = "detection"
-        mass_mean_use = "steering"
-
-        assert logreg_use != mass_mean_use
-
-
-# =============================================================================
-# Optimization Logic Tests
-# =============================================================================
-
-class TestOptimizationLogic:
-    """Test percentile optimization logic."""
-
-    def test_net_benefit_calculation(self):
-        """Net benefit = correction_rate - corruption_rate."""
-        correction_rate = 25.0
-        corruption_rate = 10.0
-
-        net_benefit = correction_rate - corruption_rate
-
-        assert net_benefit == 15.0
-
-    def test_optimal_maximizes_net_benefit(self):
-        """Optimal percentile should maximize net benefit."""
-        results = {
-            50: {'correction': 20, 'corruption': 15, 'net': 5},
-            60: {'correction': 25, 'corruption': 12, 'net': 13},
-            70: {'correction': 30, 'corruption': 10, 'net': 20},  # Best
-            80: {'correction': 28, 'corruption': 15, 'net': 13},
-        }
-
-        optimal = max(results, key=lambda p: results[p]['net'])
-        assert optimal == 70
-
-    def test_handles_all_negative_net_benefits(self):
-        """Should handle case where all nets are negative."""
-        results = {
-            50: {'net': -5},
-            60: {'net': -3},  # "Best" (least negative)
-            70: {'net': -8},
-        }
-
-        optimal = max(results, key=lambda p: results[p]['net'])
-        assert optimal == 60  # Least bad option
-
-
-# =============================================================================
-# Output Format Tests
-# =============================================================================
-
-class TestOutputFormat:
-    """Test Phase 8.2 output format."""
-
-    def test_output_includes_optimal_percentile(self):
-        """Output should include optimal percentile and threshold."""
-        expected_output = {
-            'optimization_summary': {
-                'optimal_percentile': 70,
-                'optimal_threshold': 0.75,
-                'correction_rate': 30.0,
-                'corruption_rate': 10.0,
-                'net_benefit': 20.0
-            }
-        }
-
-        assert 'optimal_percentile' in expected_output['optimization_summary']
-        assert 'optimal_threshold' in expected_output['optimization_summary']
-
-    def test_per_percentile_results(self):
-        """Should include results for each percentile tested."""
-        per_percentile = {
-            50: {'threshold': 0.5, 'correction': 20, 'corruption': 15},
-            60: {'threshold': 0.6, 'correction': 25, 'corruption': 12},
-            70: {'threshold': 0.7, 'correction': 30, 'corruption': 10},
-        }
-
-        assert len(per_percentile) == 3
-        for percentile, results in per_percentile.items():
-            assert 'threshold' in results
-            assert 'correction' in results
-            assert 'corruption' in results

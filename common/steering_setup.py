@@ -173,6 +173,9 @@ def load_probe_directions_for_steering(
     """
     direction, best_layer, bias, phase_dir = _load_probe_base(config, device, method)
 
+    # Normalize to unit L2 norm (consistent coefficient interpretation, matches SAE path)
+    direction = normalize_direction(direction, name=f"probe_{method}_direction")
+
     # Match model dtype for activation modification
     model_dtype = next(model.parameters()).dtype
     direction = direction.to(dtype=model_dtype)
@@ -182,7 +185,7 @@ def load_probe_directions_for_steering(
     correct_direction = direction
     incorrect_direction = -direction  # Negate for incorrect steering
 
-    logger.info(f"Probe direction converted to model dtype: {model_dtype}")
+    logger.info(f"Probe direction normalized and converted to model dtype: {model_dtype}")
 
     return ProbeDirections(
         correct_direction=correct_direction,

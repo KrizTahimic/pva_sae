@@ -118,7 +118,6 @@ class Config:
 
     # === SAE SETTINGS (Phase 2) ===
     # Note: Model-specific SAE settings (repo, width, sparsity) are in MODEL_CONFIGS
-    sae_latent_threshold: float = 0.02
     sae_dtype: str = "bfloat16"  # SAE weight dtype: "bfloat16" (faster) or "float32" (original)
     
     # === PILE FILTERING (Phase 2) ===
@@ -143,6 +142,7 @@ class Config:
     # === INSTRUCTION-TUNED MODEL SETTINGS ===
     phase7_3_model_name: str = "google/gemma-2-2b-it"
     phase7_6_model_name: str = "google/gemma-2-2b-it"
+    phase7_7_model_name: str = "google/gemma-2-2b-it"
 
     # === TEMPERATURE-BASED AUROC ANALYSIS (Phase 3.10) ===
     phase3_10_temperatures: list[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
@@ -181,7 +181,7 @@ class Config:
     # NOTE: phase4_10_min_activation_freq REMOVED - now selects exact zero separation score latents
 
     # === ZERO-DISCRIMINATION STEERING (Phase 4.12) ===
-    phase4_12_n_features: int = 1  # Number of zero-disc features to test (from Phase 4.10 pool)
+    phase4_12_n_features: int = 5  # Matches phase4_n_candidates for fair comparison
 
     # === STATISTICAL SIGNIFICANCE TESTING (Phase 4.14) ===
     phase4_14_significance_level: float = 0.05  # Alpha level for statistical tests

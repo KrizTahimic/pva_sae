@@ -433,6 +433,16 @@ PHASES: dict[str, PhaseInfo] = {
         category="instruct",
         patterns=["steering_effect_analysis.json", "phase_7_6_summary.json"],
     ),
+    "7.7": PhaseInfo(
+        id="7.7",
+        name="Instruction-Tuned Zero-Disc Control",
+        output_dir="data/phase7_7",
+        module="phase7_7_instruct_zero_disc.instruct_zero_disc_runner",
+        runner="InstructZeroDiscRunner",
+        runner_type="class",
+        category="instruct",
+        patterns=["zero_disc_steering_results.json"],
+    ),
     "7.9": PhaseInfo(
         id="7.9",
         name="Universality Analysis",

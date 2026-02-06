@@ -36,13 +36,12 @@ class UniversalityAnalyzer:
         self.output_dir.mkdir(exist_ok=True, parents=True)
         logger.info(f"Output directory: {self.output_dir}")
 
-        # Build dataset-aware phase directories
-        dataset_suffix = f"_{config.dataset_name}" if config.dataset_name != "mbpp" else ""
-        self.phase3_5_dir = self.data_dir / f"phase3_5{dataset_suffix}"
-        self.phase4_8_dir = self.data_dir / f"phase4_8{dataset_suffix}"
-        self.phase4_14_dir = self.data_dir / f"phase4_14{dataset_suffix}"
-        self.phase7_3_dir = self.data_dir / f"phase7_3{dataset_suffix}"
-        self.phase7_6_dir = self.data_dir / f"phase7_6{dataset_suffix}"
+        # Build dataset-aware phase directories using centralized discovery
+        self.phase3_5_dir = Path(get_phase_output_dir('3.5', config))
+        self.phase4_8_dir = Path(get_phase_output_dir('4.8', config))
+        self.phase4_14_dir = Path(get_phase_output_dir('4.14', config))
+        self.phase7_3_dir = Path(get_phase_output_dir('7.3', config))
+        self.phase7_6_dir = Path(get_phase_output_dir('7.6', config))
 
         # Load all relevant data
         self.base_temp0 = None

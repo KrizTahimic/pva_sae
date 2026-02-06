@@ -4,10 +4,13 @@ Tests for Phase 7.6 - Instruct Steering
 Validates:
 - instruct_prompt_format: Correct chat template
 - coefficient_transfer: Uses base model coefficients
+- statistical_tests: _format_effect_log produces correct output
 """
 
 import pytest
+import pandas as pd
 from common.config import Config
+from phase7_6_instruct_steering.instruct_steering_analyzer import _format_effect_log
 
 
 # =============================================================================
@@ -175,3 +178,69 @@ class TestPhase73Integration:
         """Phase 7.3 and 7.6 should use same instruct model."""
         config = Config()
         assert config.phase7_3_model_name == config.phase7_6_model_name
+
+
+# =============================================================================
+# _format_effect_log Tests (imported from production code)
+# =============================================================================
+
+class TestFormatEffectLog:
+    """Test _format_effect_log produces correctly formatted strings."""
+
+    def test_significant_correction_effect(self):
+        """Significant correction should include '(significant)' marker."""
+        result = _format_effect_log(
+            effect_type="correction",
+            successes=5,
+            trials=50,
+            rate=10.0,
+            pvalue=0.001,
+            is_significant=True
+        )
+
+        assert "correction" in result
+        assert "5/50" in result
+        assert "10.0%" in result
+        assert "p=0.0010" in result
+        assert "(significant)" in result
+
+    def test_not_significant_corruption_effect(self):
+        """Non-significant corruption should include '(not significant)' marker."""
+        result = _format_effect_log(
+            effect_type="corruption",
+            successes=2,
+            trials=100,
+            rate=2.0,
+            pvalue=0.45,
+            is_significant=False
+        )
+
+        assert "corruption" in result
+        assert "2/100" in result
+        assert "(not significant)" in result
+
+    def test_includes_instruction_tuned_prefix(self):
+        """Output should mention instruction-tuned model."""
+        result = _format_effect_log(
+            effect_type="preservation",
+            successes=90,
+            trials=100,
+            rate=90.0,
+            pvalue=0.0001,
+            is_significant=True
+        )
+
+        assert "Instruction-tuned model" in result
+
+    def test_returns_string(self):
+        """Should return a string."""
+        result = _format_effect_log(
+            effect_type="test",
+            successes=0,
+            trials=10,
+            rate=0.0,
+            pvalue=1.0,
+            is_significant=False
+        )
+
+        assert isinstance(result, str)

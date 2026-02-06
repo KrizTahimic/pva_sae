@@ -67,6 +67,7 @@ DATA_PARALLEL_PHASES = {
     "5.6",   # Zero-disc orthogonalization
     "7.3",   # Instruct baseline
     "7.6",   # Instruct steering
+    "7.7",   # Instruct zero-disc control
     "8.3",   # Selective steering (outputs parquet in parallel mode)
 }
 
@@ -374,66 +375,7 @@ def _merge_phase4_5_json_results(
             gpu_results.append(json.load(f))
         logger.info(f"  Loaded {json_file.name}")
 
-    # Phase 4.6 has different structure - pick best result from each GPU
-    if phase_id == "4.6":
-        merged = {}
-        for steering_key in ['correct_steering', 'incorrect_steering']:
-            steering_type = steering_key.replace('_steering', '')
-
-            best_coefficient = None
-            best_score = -1
-            best_result = None
-
-            for gpu_data in gpu_results:
-                if steering_key not in gpu_data:
-                    continue
-                gpu_result = gpu_data[steering_key]
-                score = gpu_result.get('best_score', 0)
-                if score > best_score:
-                    best_score = score
-                    best_coefficient = gpu_result.get('optimal_coefficient')
-                    best_result = gpu_result
-
-            if best_result:
-                merged[steering_key] = best_result
-                logger.info(f"  {steering_key}: optimal_coefficient={best_coefficient}, "
-                           f"best_score={best_score:.1f}%")
-            else:
-                logger.warning(f"No {steering_key} results found across GPUs")
-
-        # Save and cleanup handled below
-        merged_file = output_path / output_filename
-        with open(merged_file, 'w') as f:
-            json.dump(merged, f, indent=2)
-        logger.info(f"Saved merged analysis: {merged_file}")
-
-        selected_files = sorted(output_path.glob(selected_pattern))
-        if selected_files:
-            with open(selected_files[0]) as f:
-                selected = json.load(f)
-            for steering_type in ['correct', 'incorrect']:
-                steering_key = f'{steering_type}_steering'
-                if steering_key in merged and steering_type in selected:
-                    selected[steering_type]['coefficient'] = merged[steering_key].get('optimal_coefficient')
-            selected_merged_file = output_path / selected_filename
-            with open(selected_merged_file, 'w') as f:
-                json.dump(selected, f, indent=2)
-            logger.info(f"Saved merged coefficients: {selected_merged_file}")
-
-        write_phase_output(phase=phase_id, outputs={"primary": output_filename},
-                          config=config, output_dir=str(output_path))
-        logger.info("Wrote phase_output.json manifest")
-
-        for f in json_files:
-            f.unlink()
-            logger.info(f"  Cleaned up {f.name}")
-        for f in selected_files:
-            f.unlink()
-            logger.info(f"  Cleaned up {f.name}")
-
-        return {'merged_file': str(merged_file), 'steering_types': list(merged.keys()), 'n_gpus': n_gpus}
-
-    # Phase 4.5 merging - combine per-problem results across GPUs
+    # Phase 4.5/4.6 merging - combine per-problem results across GPUs
     merged = {}
     for steering_key in ['correct_steering', 'incorrect_steering']:
         steering_type = steering_key.replace('_steering', '')
@@ -1323,8 +1265,53 @@ def _merge_phase5_3_json_results(
                         all_examples[ex_key].extend(ex_list)
         merged[key]['examples'] = all_examples
 
-    # Recalculate metrics from merged examples
-    # (simplified - just log the merge for now, metrics can be recomputed if needed)
+    # Recalculate metrics by summing raw counts across GPUs
+    for key in ['incorrect_orthogonalization', 'correct_orthogonalization']:
+        if key not in merged or 'metrics' not in merged[key]:
+            continue
+
+        # Sum raw counts from all GPUs
+        sum_fields = ['n_corrected', 'n_incorrect_baseline', 'n_preserved',
+                      'n_correct_baseline', 'n_corrupted', 'accidental_corrections']
+        for field in sum_fields:
+            total = sum(
+                gpu_data.get(key, {}).get('metrics', {}).get(field, 0)
+                for gpu_data in gpu_results
+            )
+            if field in merged[key]['metrics']:
+                merged[key]['metrics'][field] = total
+
+        metrics = merged[key]['metrics']
+
+        # Recalculate rates from summed counts
+        if key == 'incorrect_orthogonalization':
+            n_incorrect = metrics.get('n_incorrect_baseline', 0)
+            n_corrected = metrics.get('n_corrected', 0)
+            n_correct = metrics.get('n_correct_baseline', 0)
+            n_preserved = metrics.get('n_preserved', 0)
+            metrics['correction_rate'] = (n_corrected / n_incorrect * 100) if n_incorrect > 0 else 0.0
+            metrics['preservation_rate'] = (n_preserved / n_correct * 100) if n_correct > 0 else 0.0
+            logger.info(f"  {key}: correction_rate={metrics['correction_rate']:.1f}% "
+                       f"({n_corrected}/{n_incorrect}), "
+                       f"preservation_rate={metrics['preservation_rate']:.1f}% "
+                       f"({n_preserved}/{n_correct})")
+        else:  # correct_orthogonalization
+            n_correct = metrics.get('n_correct_baseline', 0)
+            n_corrupted = metrics.get('n_corrupted', 0)
+            metrics['corruption_rate'] = (n_corrupted / n_correct * 100) if n_correct > 0 else 0.0
+            # Recalculate avg_similarity from all GPUs
+            all_sims = []
+            for gpu_data in gpu_results:
+                gpu_examples = gpu_data.get(key, {}).get('examples', {})
+                for ex_list in gpu_examples.values():
+                    for ex in ex_list:
+                        if 'similarity' in ex:
+                            all_sims.append(ex['similarity'])
+            if all_sims:
+                metrics['avg_similarity_score'] = sum(all_sims) / len(all_sims)
+            logger.info(f"  {key}: corruption_rate={metrics['corruption_rate']:.1f}% "
+                       f"({n_corrupted}/{n_correct})")
+
     merged['parallel_merge'] = True
     merged['n_gpus'] = n_gpus
 
@@ -1368,12 +1355,13 @@ def _merge_phase5_3_json_results(
 def _merge_phase4_12_json_results(
     output_path: Path,
     n_gpus: int,
-    config: Config
+    config: Config,
+    phase_id: str = "4.12"
 ) -> dict:
     """
-    Merge Phase 4.12 zero-discrimination steering results from parallel workers.
+    Merge Phase 4.12 (or 7.7) zero-discrimination steering results from parallel workers.
 
-    Phase 4.12 produces zero_disc_steering_results_gpu{N}.json files containing:
+    Phase 4.12/7.7 produces zero_disc_steering_results_gpu{N}.json files containing:
     - correction_results, corruption_results, preservation_results (dict keyed by task_id)
     - summary_metrics with correction_rate, corruption_rate, preservation_rate
     """
@@ -1387,7 +1375,7 @@ def _merge_phase4_12_json_results(
     if not gpu_files:
         raise RuntimeError(f"No zero_disc_steering_results_gpu*.json files found in {output_path}")
 
-    logger.info(f"Found {len(gpu_files)} GPU JSON files to merge for Phase 4.12")
+    logger.info(f"Found {len(gpu_files)} GPU JSON files to merge for Phase {phase_id}")
 
     # Load all per-GPU results
     gpu_data = []
@@ -1518,7 +1506,7 @@ def _merge_phase4_12_json_results(
 
     # Write phase manifest
     write_phase_output(
-        phase="4.12",
+        phase=phase_id,
         outputs={
             "primary": "zero_disc_steering_results.json",
         },
@@ -1534,7 +1522,7 @@ def _merge_phase4_12_json_results(
 
     # Print summary
     logger.info("=" * 60)
-    logger.info("PHASE 4.12 PARALLEL MERGE COMPLETE")
+    logger.info(f"PHASE {phase_id} PARALLEL MERGE COMPLETE")
     logger.info("=" * 60)
     if averaged_metrics:
         logger.info(f"Features tested: {averaged_metrics.get('n_features', 0)}")
@@ -1771,9 +1759,9 @@ def _merge_parallel_results(
     if phase_id == "7.6":
         return _merge_phase7_6_json_results(output_path, n_gpus, config)
 
-    # Phase 4.12 uses JSON output format (zero-disc steering)
-    if phase_id == "4.12":
-        return _merge_phase4_12_json_results(output_path, n_gpus, config)
+    # Phase 4.12 and 7.7 use JSON output format (zero-disc steering)
+    if phase_id in ("4.12", "7.7"):
+        return _merge_phase4_12_json_results(output_path, n_gpus, config, phase_id=phase_id)
 
     # Find per-GPU result files
     # Phase 3.5 uses a different pattern for temperature experiments

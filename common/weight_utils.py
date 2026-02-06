@@ -81,7 +81,7 @@ def verify_orthogonalization(
         True if orthogonalization is successful (projections near zero)
     """
     # Normalize direction
-    direction = direction / torch.norm(direction)
+    direction = normalize_direction(direction, name="verify_direction")
     direction = direction.to(matrix.device).to(matrix.dtype)
     
     # Batch dot products: each row of matrix against direction vector

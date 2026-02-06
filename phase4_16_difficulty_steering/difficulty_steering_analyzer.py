@@ -51,8 +51,7 @@ class Phase416Runner:
         self.logger.info("Analyzing whether problem difficulty affects steering success rates")
         self.logger.info("\n" + self.config.dump(phase="4.16"))
 
-        # main() creates its own Config internally
-        return main()
+        return main(config=self.config)
 
 def load_json(path: Path) -> Any:
     """Load JSON file."""
@@ -457,9 +456,9 @@ def generate_summary_text(
 
     return "\n".join(lines)
 
-def main():
+def main(config=None):
     """Main entry point for Phase 4.16."""
-    config = Config()
+    config = config or Config()
 
     # Set random seed for reproducibility
     np.random.seed(config.evaluation_random_seed)

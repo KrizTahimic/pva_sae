@@ -382,7 +382,7 @@ class WeightOrthogonalizer:
                     correct_results.append({
                         'task_id': row['task_id'],
                         'baseline_passed': True,
-                        'orthogonalized_correct': True,  # Assume preserved on error
+                        'orthogonalized_correct': False,  # Conservative: assume failure on error
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': '',
                         'error': error_msg
