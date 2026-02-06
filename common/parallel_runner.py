@@ -67,6 +67,43 @@ def _dedup_by_task_id(results_list: list[dict]) -> list[dict]:
     return deduped
 
 
+def _load_gpu_json_files(output_path: Path, pattern: str) -> list[dict]:
+    """Load and parse GPU JSON result files matching a glob pattern.
+
+    Args:
+        output_path: Directory containing GPU output files
+        pattern: Glob pattern (e.g. "steering_effect_analysis_gpu*.json")
+
+    Returns:
+        List of parsed JSON dicts, one per file
+
+    Raises:
+        RuntimeError: If no files match the pattern
+    """
+    gpu_files = sorted(output_path.glob(pattern))
+    if not gpu_files:
+        raise RuntimeError(f"No {pattern} files found in {output_path}")
+    logger.info(f"Found {len(gpu_files)} GPU files matching {pattern}")
+    results = []
+    for f in gpu_files:
+        with open(f) as fh:
+            results.append(json.load(fh))
+    return results
+
+
+def _cleanup_gpu_files(output_path: Path, patterns: list[str]) -> None:
+    """Remove per-GPU temporary files matching given glob patterns.
+
+    Args:
+        output_path: Directory containing GPU output files
+        patterns: List of glob patterns to clean up
+    """
+    for pattern in patterns:
+        for f in sorted(output_path.glob(pattern)):
+            f.unlink()
+            logger.debug(f"Cleaned up {f.name}")
+
+
 # One-shot parallelization: distribute problems, merge at end
 # These phases iterate over tasks and can split work across GPUs
 DATA_PARALLEL_PHASES = {
@@ -817,7 +854,7 @@ def _merge_phase8_3_results(
     valid_correction = [r for r in correction_results if r.get('steered_correct') is not None]
     n_valid_correction = len(valid_correction)
 
-    n_steered_correction = sum(1 for r in valid_correction if r.get('steered', False))
+    n_steered_correction = sum(1 for r in valid_correction if r.get('was_steered', False))
     n_not_steered_correction = n_valid_correction - n_steered_correction
     steering_trigger_rate = n_steered_correction / n_valid_correction if n_valid_correction > 0 else 0
 
@@ -852,7 +889,7 @@ def _merge_phase8_3_results(
     valid_preservation = [r for r in preservation_results if r.get('steered_correct') is not None]
     n_valid_preservation = len(valid_preservation)
 
-    n_steered_preservation = sum(1 for r in valid_preservation if r.get('steered', False))
+    n_steered_preservation = sum(1 for r in valid_preservation if r.get('was_steered', False))
     n_not_steered_preservation = n_valid_preservation - n_steered_preservation
     steering_avoidance_rate = n_not_steered_preservation / n_valid_preservation if n_valid_preservation > 0 else 0
 

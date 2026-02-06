@@ -714,14 +714,7 @@ class IterativeParallelRunner:
         try:
             with open(state_file, 'r') as f:
                 data = json.load(f)
-            # Handle various value types (int, float, string)
-            completed = set()
-            for v in data.get('completed_values', []):
-                # Try to preserve original type
-                if isinstance(v, (int, float)):
-                    completed.add(v)
-                else:
-                    completed.add(v)
+            completed = set(data.get('completed_values', []))
             return completed
         except Exception as e:
             logger.warning(f"Failed to load orchestrator state: {e}")

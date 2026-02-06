@@ -117,16 +117,21 @@ class SignificanceTester:
                 'confidence_interval': (0.0, 0.0)
             }
         
+        # Guard against p=0 which makes binomtest degenerate (always p=0 for k>0)
+        # Use 1/n as minimum: "at least one success by chance" null hypothesis
+        effective_rate = max(1.0 / n_trials, 1e-10) if baseline_rate == 0.0 else baseline_rate
+
         # Perform binomial test
-        result = binomtest(n_successes, n_trials, p=baseline_rate, alternative=alternative)
-        
+        result = binomtest(n_successes, n_trials, p=effective_rate, alternative=alternative)
+
         observed_rate = n_successes / n_trials
-        
+
         return {
             'n_successes': n_successes,
             'n_trials': n_trials,
             'observed_rate': observed_rate,
             'expected_rate': baseline_rate,
+            'effective_rate': effective_rate,
             'p_value': result.pvalue,
             'significant': result.pvalue < self.alpha,
             'alternative': alternative,
@@ -210,7 +215,7 @@ class SignificanceTester:
         baseline_incorrect = baseline_data[baseline_data['baseline_passed'] == False]
         baseline_n_incorrect = len(baseline_incorrect)
         # Baseline has no steering, so correction rate is 0.
-        # binomtest(p=0) is by design: tests raw improvement from no-steering baseline.
+        # perform_binomial_test guards p=0 with p=max(1/n, 1e-10).
         baseline_correction_rate = 0.0
         
         # Extract targeted correction results from Phase 4.8
@@ -280,7 +285,7 @@ class SignificanceTester:
         baseline_correct = baseline_data[baseline_data['baseline_passed'] == True]
         baseline_n_correct = len(baseline_correct)
         # Baseline has no steering, so corruption rate is 0.
-        # binomtest(p=0) is by design: tests raw improvement from no-steering baseline.
+        # perform_binomial_test guards p=0 with p=max(1/n, 1e-10).
         baseline_corruption_rate = 0.0
         
         # Extract targeted corruption results from Phase 4.8

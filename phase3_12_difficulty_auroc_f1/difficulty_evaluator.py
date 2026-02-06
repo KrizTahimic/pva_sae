@@ -201,7 +201,10 @@ def calculate_difficulty_metrics(
         )
         
         # Calculate AUROC (threshold-independent)
-        auroc = roc_auc_score(y_true, scores)
+        if len(np.unique(y_true)) < 2:
+            auroc = float('nan')
+        else:
+            auroc = roc_auc_score(y_true, scores)
         
         # Calculate F1 using global threshold from Phase 3.8
         y_pred = (scores > global_threshold).astype(int)

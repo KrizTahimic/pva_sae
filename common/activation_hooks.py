@@ -248,12 +248,13 @@ class AttentionExtractor:
     
     def remove_hooks(self) -> None:
         """Remove all registered hooks."""
+        n_hooks = len(self.hooks)
         for hook in self.hooks:
             hook.remove()
         self.hooks.clear()
         self.captured.clear()
         self.attention_patterns.clear()
-        logger.debug(f"Removed {len(self.hooks)} attention hooks")
+        logger.debug(f"Removed {n_hooks} attention hooks")
     
     def __del__(self):
         """Clean up hooks on deletion."""

@@ -453,15 +453,18 @@ def _get_import_code(dataset_name: Optional[str] = None) -> Optional[str]:
     return None
 
 
-def _prepare_namespace() -> dict:
+def _prepare_namespace(dataset_name: Optional[str] = None) -> dict:
     """
     Create namespace with pre-imported modules for code execution.
+
+    Args:
+        dataset_name: Dataset name ("mbpp" or "humaneval"). If None, reads from Config().
 
     Returns:
         Namespace dict with common imports loaded
     """
     namespace = {}
-    import_code = _get_import_code()
+    import_code = _get_import_code(dataset_name=dataset_name)
 
     if import_code:
         try:

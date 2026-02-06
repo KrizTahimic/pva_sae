@@ -48,33 +48,12 @@ from common.checkpoint_manager import CheckpointManager
 from common.dataset_utils import extract_code, evaluate_code_with_error_type, compute_error_type_distribution
 from common.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_last_position_steering_hook
-from common.prompt_utils import PromptBuilder
 from common.sae_loader import load_sae_for_config
 from common.search_optimization import TwoStageOptimizer
 from common.direction_utils import normalize_direction
+from common.selective_steering import SteeringState
 
 logger = get_logger(__name__)
-
-class SteeringState:
-    """
-    Shared state between predicting_sae (activation capture) and steering_sae (steering) hooks.
-
-    Used to enable real-time threshold checking during generation:
-    - predicting_sae hook captures activation on first new token and sets should_steer flag
-    - steering_sae hook applies steering only if should_steer is True
-    """
-
-    def __init__(self, prompt_length: int):
-        """
-        Initialize steering state.
-
-        Args:
-            prompt_length: Length of the prompt (to detect first new token)
-        """
-        self.prompt_length = prompt_length
-        self.first_token_checked = False  # Has predicting activation been captured?
-        self.incorrect_pred_activation = None  # Captured incorrect-predicting latent activation
-        self.should_steer = False  # Should we apply steering?
 
 class ThresholdOptimizer:
     """
@@ -268,7 +247,7 @@ class ThresholdOptimizer:
             raise FileNotFoundError("Phase 0.1 output not found. Run Phase 0.1 first.")
 
         # Load tuning split problems
-        tuning_file = Path(phase0_1_output).parent / "tuning_mbpp.parquet"
+        tuning_file = Path(phase0_1_output).parent / f"tuning_{self.config.dataset_name}.parquet"
         if not tuning_file.exists():
             raise FileNotFoundError(f"Tuning split problems file not found: {tuning_file}")
 
@@ -681,20 +660,7 @@ class ThresholdOptimizer:
                 continue
 
             try:
-                # Build prompt using PromptBuilder
-                # Convert test_list to formatted string
-                if isinstance(row['test_list'], (list, tuple)):
-                    test_cases_str = '\n'.join(f"assert {test}" if not test.startswith('assert') else test
-                                              for test in row['test_list'])
-                else:
-                    # Handle numpy array or other array-like
-                    test_cases_str = '\n'.join(f"assert {test}" if not str(test).startswith('assert') else str(test)
-                                              for test in row['test_list'])
-
-                prompt = PromptBuilder.build_prompt(
-                    problem_description=row['text'],
-                    test_cases=test_cases_str
-                )
+                prompt = row['prompt']
 
                 # Generate with selective steering
                 result = self._generate_with_selective_steering(
@@ -1272,7 +1238,7 @@ class ThresholdEvaluator:
 
         # Load Phase 0.1 problem specifications
         phase0_1_output = discover_latest_phase_output("0.1", config=self.config)
-        tuning_file = Path(phase0_1_output).parent / "tuning_mbpp.parquet"
+        tuning_file = Path(phase0_1_output).parent / f"tuning_{self.config.dataset_name}.parquet"
         self.tuning_problems = pd.read_parquet(tuning_file)
 
         if 'test_list' in self.tuning_problems.columns:
@@ -1404,22 +1370,7 @@ class ThresholdEvaluator:
             baseline_passed = row['baseline_passed']
 
             try:
-                # Build prompt
-                if isinstance(row['test_list'], (list, tuple)):
-                    test_cases_str = '\n'.join(
-                        f"assert {test}" if not test.startswith('assert') else test
-                        for test in row['test_list']
-                    )
-                else:
-                    test_cases_str = '\n'.join(
-                        f"assert {test}" if not str(test).startswith('assert') else str(test)
-                        for test in row['test_list']
-                    )
-
-                prompt = PromptBuilder.build_prompt(
-                    problem_description=row['text'],
-                    test_cases=test_cases_str
-                )
+                prompt = row['prompt']
 
                 result = self._generate_with_selective_steering(
                     task_id, prompt, row['test_list'], threshold, baseline_passed

@@ -49,29 +49,10 @@ from common.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_last_position_steering_hook
 from common.sae_loader import load_sae_for_config
 from common.direction_utils import normalize_direction
+from common.selective_steering import SteeringState
 
 logger = get_logger(__name__)
 
-class SteeringState:
-    """
-    Shared state between L19 (activation capture) and L16 (steering) hooks.
-
-    Used to enable real-time threshold checking during generation:
-    - L19 hook captures activation on first new token and sets should_steer flag
-    - L16 hook applies steering only if should_steer is True
-    """
-
-    def __init__(self, prompt_length: int):
-        """
-        Initialize steering state.
-
-        Args:
-            prompt_length: Length of the prompt (to detect first new token)
-        """
-        self.prompt_length = prompt_length
-        self.first_token_checked = False  # Has predicting activation been captured?
-        self.incorrect_pred_activation = None  # Captured incorrect-predicting latent activation
-        self.should_steer = False  # Should we apply steering?
 
 class SelectiveSteeringAnalyzer:
     """
@@ -312,9 +293,30 @@ class SelectiveSteeringAnalyzer:
                 # Auto-discover optimal percentile from Phase 8.2
                 logger.info("Auto-discovering optimal percentile from Phase 8.2...")
                 try:
-                    from common.phase_discovery import discover_optimal_percentile
-                    optimal = discover_optimal_percentile(self.config)
-                    percentile = optimal["percentile"]
+                    from common.phase_discovery import discover_optimal_percentile, discover_latest_phase_output as _discover
+                    from common.utils import load_json as _load_json
+
+                    if self.use_probe:
+                        # In probe mode, look for _probe suffixed Phase 8.2 directory
+                        phase8_2_output = _discover("8.2", config=self.config)
+                        if phase8_2_output:
+                            phase8_2_dir = Path(phase8_2_output).parent
+                            probe_dir = phase8_2_dir.parent / (phase8_2_dir.name + "_probe")
+                            if probe_dir.exists():
+                                opt_data = _load_json(probe_dir / "optimization_results.json")
+                                summary = opt_data["optimization_summary"]
+                                percentile = summary["optimal_percentile"]
+                                logger.info(f"PROBE MODE: Using Phase 8.2 probe output at {probe_dir}")
+                            else:
+                                raise FileNotFoundError(
+                                    f"Phase 8.2 probe output not found at {probe_dir}\n"
+                                    f"Run: python3 run.py phase 8.2 --direction-source probe_logreg"
+                                )
+                        else:
+                            raise FileNotFoundError("Phase 8.2 output not found")
+                    else:
+                        optimal = discover_optimal_percentile(self.config)
+                        percentile = optimal["percentile"]
                     logger.info(f"✓ Phase 8.2 optimal percentile: {percentile}")
                 except FileNotFoundError:
                     logger.error(

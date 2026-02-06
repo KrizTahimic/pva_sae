@@ -429,14 +429,13 @@ def load_baseline_data(
 def split_by_correctness(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Split data by baseline_passed column.
 
+    Delegates to dataset_utils.split_by_correctness for the actual implementation.
+
     Args:
         data: DataFrame with 'baseline_passed' column
 
     Returns:
         Tuple of (initially_correct, initially_incorrect) DataFrames
     """
-    correct = data[data['baseline_passed'] == True].copy()
-    incorrect = data[data['baseline_passed'] == False].copy()
-    logger.info(f"Split baseline: {len(correct)} initially correct, "
-               f"{len(incorrect)} initially incorrect problems")
-    return correct, incorrect
+    from common.dataset_utils import split_by_correctness as _split
+    return _split(data, correctness_col='baseline_passed')

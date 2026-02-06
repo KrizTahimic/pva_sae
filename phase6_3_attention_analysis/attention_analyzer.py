@@ -209,7 +209,7 @@ class AttentionAnalyzer:
         if not phase0_1_output:
             raise FileNotFoundError("Phase 0.1 output not found")
 
-        analysis_path = Path(phase0_1_output).parent / "analysis_mbpp.parquet"
+        analysis_path = Path(phase0_1_output).parent / f"analysis_{self.config.dataset_name}.parquet"
         analysis_df = pd.read_parquet(analysis_path)
         
         # Load attention for each task
@@ -703,8 +703,10 @@ class AttentionAnalyzer:
         
     def create_head_specific_transformation_plot(self, attention_data: dict, steering_type: str) -> None:
         """Detailed scatter plot showing each head's transformation separately."""
-        fig, axes = plt.subplots(2, 4, figsize=(16, 8))
-        axes = axes.flatten()
+        n_cols = min(4, self.n_heads)
+        n_rows = (self.n_heads + n_cols - 1) // n_cols
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows))
+        axes = np.array(axes).flatten()
         
         steered_key = f'steered_{steering_type}'
         
@@ -770,8 +772,10 @@ class AttentionAnalyzer:
         
     def create_test_last_token_transformation_plot(self, attention_data: dict, steering_type: str) -> None:
         """Scatter plot showing attention to last token of test cases for each head."""
-        fig, axes = plt.subplots(2, 4, figsize=(16, 8))
-        axes = axes.flatten()
+        n_cols = min(4, self.n_heads)
+        n_rows = (self.n_heads + n_cols - 1) // n_cols
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows))
+        axes = np.array(axes).flatten()
         
         steered_key = f'steered_{steering_type}'
         

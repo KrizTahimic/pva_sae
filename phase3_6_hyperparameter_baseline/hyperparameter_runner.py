@@ -91,7 +91,7 @@ class HyperparameterDataRunner:
     
     def _load_tuning_data(self) -> pd.DataFrame:
         """Load tuning split from Phase 0.1."""
-        tuning_file = Path(get_phase_output_dir("0.1", self.config)) / "tuning_mbpp.parquet"
+        tuning_file = Path(get_phase_output_dir("0.1", self.config)) / f"tuning_{self.config.dataset_name}.parquet"
         
         if not tuning_file.exists():
             raise FileNotFoundError(
@@ -503,7 +503,7 @@ class HyperparameterDataRunner:
                 config=self.config,
                 output_dir=str(self.output_dir),
                 dependencies={
-                    "0.1": str(Path(get_phase_output_dir("0.1", self.config)) / "tuning_mbpp.parquet"),
+                    "0.1": str(Path(get_phase_output_dir("0.1", self.config)) / f"tuning_{self.config.dataset_name}.parquet"),
                 },
                 config_keys=['model_name', 'dataset_name']
             )

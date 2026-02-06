@@ -50,7 +50,7 @@ def retry_generation(
             
             return True, result, None
             
-        except (torch.cuda.OutOfMemoryError, ConnectionError, RuntimeError, Exception) as e:
+        except Exception as e:
             last_error = str(e)
             error_type = type(e).__name__
             

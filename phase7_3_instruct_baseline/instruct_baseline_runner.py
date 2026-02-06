@@ -120,8 +120,8 @@ class InstructBaselineRunner:
         self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
         self.memory_warning_threshold = MEMORY_WARNING_PERCENT
 
-        # CRITICAL: Use instruction-tuned model
-        self.model_name = "google/gemma-2-2b-it"
+        # CRITICAL: Use instruction-tuned model from config
+        self.model_name = self.config.phase7_3_model_name
         logger.info(f"Loading INSTRUCTION-TUNED model {self.model_name} on device: {self.device}")
         
         self.model, self.tokenizer = load_model_and_tokenizer(

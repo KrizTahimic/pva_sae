@@ -790,8 +790,17 @@ class SteeringEffectAnalyzer:
                     'steered_code': generated_code,
                 })
 
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Error evaluating preservation for {row['task_id']}: {e}")
+                total += 1
+                detailed_results.append({
+                    'task_id': row['task_id'],
+                    'baseline_passed': row['baseline_passed'],
+                    'steered_correct': False,
+                    'steered_error_type': 'generation_error',
+                    'flipped': True,
+                    'steered_code': None,
+                })
 
             finally:
                 hook_handle.remove()

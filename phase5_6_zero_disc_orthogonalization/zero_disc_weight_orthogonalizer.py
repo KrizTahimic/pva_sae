@@ -20,6 +20,7 @@ import seaborn as sns
 from common.logging import get_logger, tqdm_with_logging
 from common.viz_utils import handle_viz_only_mode
 from common.utils import ensure_directory_exists, detect_device
+from common.direction_utils import normalize_direction
 from common.phase_discovery import (
     discover_latest_phase_output,
     get_phase_output_dir,
@@ -141,7 +142,8 @@ class ZeroDiscWeightOrthogonalizer:
             self.zero_disc_latent_direction = self.zero_disc_latent_direction.to("mps")
         else:
             self.zero_disc_latent_direction = self.zero_disc_latent_direction.to(self.device)
-        
+        self.zero_disc_latent_direction = normalize_direction(self.zero_disc_latent_direction)
+
         logger.info("Zero-disc SAE decoder direction extracted successfully")
         
     def _split_baseline_by_correctness(self) -> None:
