@@ -106,7 +106,7 @@ def load_analysis_with_difficulty(config: Config) -> pd.DataFrame:
     phase0_1_dir = Path(get_phase_output_dir("0.1", config))
     if not phase0_1_dir.exists():
         raise FileNotFoundError(f"Phase 0.1 output not found at {phase0_1_dir}. Run Phase 0.1 first.")
-    analysis_path = phase0_1_dir / "analysis_mbpp.parquet"
+    analysis_path = phase0_1_dir / f"analysis_{config.dataset_name}.parquet"
 
     if not analysis_path.exists():
         # Try alternative naming

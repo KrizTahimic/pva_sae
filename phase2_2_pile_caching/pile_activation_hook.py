@@ -19,24 +19,25 @@ class PileActivationHook:
         self.position = position
         self.activation = None
         
-    def hook_fn(self, module, input, output):
+    def hook_fn(self, module, input):
         """
-        Hook function to extract activation at the specified position.
-        
+        Pre-hook function to extract activation at the specified position.
+
+        Uses register_forward_pre_hook pattern (input[0] = resid_pre) to match
+        Phase 1's activation extraction, ensuring comparable activations.
+
         Args:
             module: The layer being hooked
-            input: Input to the layer (tuple)
-            output: Output from the layer - shape [batch_size, seq_len, d_model]
+            input: Input to the layer (tuple) - input[0] shape: [batch_size, seq_len, d_model]
         """
-        # Handle different output types (some layers return tuples)
-        if isinstance(output, tuple):
-            output = output[0]
-            
+        # input is a tuple; first element is the hidden state (resid_pre)
+        hidden_state = input[0]
+
         # Extract activation at the specific position only
-        # output shape: [batch_size=1, seq_len, d_model]
-        if output.shape[1] > self.position:
+        # hidden_state shape: [batch_size=1, seq_len, d_model]
+        if hidden_state.shape[1] > self.position:
             # Extract and detach to prevent memory issues
-            self.activation = output[0, self.position, :].detach().clone().cpu()
+            self.activation = hidden_state[0, self.position, :].detach().clone().cpu()
         else:
             # Position is out of bounds - this shouldn't happen if preprocessing is correct
             self.activation = None

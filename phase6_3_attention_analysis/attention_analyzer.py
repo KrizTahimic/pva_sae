@@ -61,8 +61,10 @@ class AttentionAnalyzer:
         self._load_pva_features()
         self._discover_phase_directories()
         
-        # Model configuration (Gemma-2-2b)
-        self.n_heads = 8  # From gemma_config.txt
+        # Model configuration
+        from common.model_registry import get_model
+        model_info = get_model(config.model_name)
+        self.n_heads = model_info.n_heads
         
         logger.info("AttentionAnalyzer initialized successfully")
         

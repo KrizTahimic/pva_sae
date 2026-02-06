@@ -7,6 +7,7 @@ helper functions.
 """
 
 import json
+import os
 import torch
 from os import makedirs, path, unlink
 from tempfile import NamedTemporaryFile
@@ -280,14 +281,22 @@ def safe_json_dumps(obj: any, indent: int = 2) -> str:
 # ============================================================================
 
 def save_json(data: dict, filepath: Path) -> None:
-    """Save dictionary to JSON file."""
+    """Save dictionary to JSON file atomically (write to temp, then rename)."""
+    import tempfile
+
     from common.logging import get_logger
     logger = get_logger("common.utils")
 
     filepath = Path(filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
-    with open(filepath, 'w') as f:
-        json.dump(data, f, indent=2, default=str)
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=filepath.parent, suffix='.tmp')
+    try:
+        with os.fdopen(tmp_fd, 'w') as f:
+            json.dump(data, f, indent=2, default=str)
+        os.replace(tmp_path, filepath)
+    except BaseException:
+        os.unlink(tmp_path)
+        raise
     logger.debug(f"Saved JSON to {filepath}")
 
 

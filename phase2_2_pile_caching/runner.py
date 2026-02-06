@@ -141,9 +141,9 @@ def run_phase2_2_caching(config: Config, gpu_id: int = 0, n_gpus: int = 1, devic
                 
                 # Register hook on the appropriate layer
                 if hasattr(model, 'model'):  # Gemma structure
-                    handle = model.model.layers[layer_idx].register_forward_hook(hook.hook_fn)
+                    handle = model.model.layers[layer_idx].register_forward_pre_hook(hook.hook_fn)
                 else:
-                    handle = model.layers[layer_idx].register_forward_hook(hook.hook_fn)
+                    handle = model.layers[layer_idx].register_forward_pre_hook(hook.hook_fn)
                 
                 try:
                     # Run forward pass

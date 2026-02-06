@@ -545,17 +545,17 @@ class WeightOrthogonalizer:
                     processed_task_ids.add(str(row['task_id']))
                 else:
                     logger.warning(f"Skipping task {row['task_id']} due to error: {error_msg}")
-                    # Append a failed result
+                    # Append a failed result (conservative: assume failure)
                     correct_results.append({
                         'task_id': row['task_id'],
                         'baseline_passed': True,
-                        'orthogonalized_correct': True,  # Assume not corrupted on error
+                        'orthogonalized_correct': False,
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': '',
-                        'similarity': 1.0,  # Assume high similarity on error
+                        'similarity': 0.0,
                         'error': error_msg
                     })
-                    similarity_scores.append(1.0)
+                    similarity_scores.append(0.0)
                     processed_task_ids.add(str(row['task_id']))
 
                 # Memory monitoring every 10 tasks

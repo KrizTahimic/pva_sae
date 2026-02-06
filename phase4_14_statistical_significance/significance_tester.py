@@ -348,6 +348,7 @@ class SignificanceTester:
         correction_comps = correction_tri['comparisons']
         corruption_comps = corruption_tri['comparisons']
         preservation_comps = preservation_tri['comparisons']
+        corruption_rates = corruption_tri['rates']
         
         # Check validity conditions with updated comparison structure
         validity_checks = {
@@ -365,7 +366,8 @@ class SignificanceTester:
             interpretation = (
                 "Mixed validation: Targeted PVA steering shows significant effects compared to baseline. "
                 "For correction, targeted features significantly outperform control features. "
-                "However, for corruption, targeted features do NOT exceed control (targeted: 64.66%, control: 100%), "
+                f"However, for corruption, targeted features do NOT exceed control "
+                f"(targeted: {corruption_rates['targeted']:.2%}, control: {corruption_rates['zero_discrimination']:.2%}), "
                 "suggesting that any strong perturbation can break code generation. "
                 "This triangulation robustly validates that PVA features have specific causal effects on program correctness."
             )
@@ -398,7 +400,7 @@ class SignificanceTester:
             'interpretation': interpretation,
             'detailed_findings': {
                 'correction': self._interpret_correction_triangulation(correction_comps),
-                'corruption': self._interpret_corruption_triangulation(corruption_comps),
+                'corruption': self._interpret_corruption_triangulation(corruption_comps, corruption_rates),
                 'preservation': self._interpret_preservation_triangulation(preservation_comps)
             }
         }
@@ -424,23 +426,27 @@ class SignificanceTester:
         
         return " | ".join(findings)
         
-    def _interpret_corruption_triangulation(self, comparisons: dict) -> str:
+    def _interpret_corruption_triangulation(self, comparisons: dict, rates: dict = None) -> str:
         """Generate detailed interpretation for corruption triangulation."""
         findings = []
-        
+
         if comparisons['baseline_vs_targeted']['significant']:
             effect = comparisons['baseline_vs_targeted']['effect_size']
             findings.append(f"Incorrect-predicting latents significantly corrupt ({effect:.1%} corruption, "
                           f"p={comparisons['baseline_vs_targeted']['p_value']:.2e})")
         else:
             findings.append("Incorrect-predicting latents do not significantly corrupt")
-        
+
         if comparisons['targeted_vs_control']['significant']:
             effect = comparisons['targeted_vs_control']['effect_size']
             findings.append(f"Targeted corruption exceeds control (unexpected: {effect:.1%}, "
                           f"p={comparisons['targeted_vs_control']['p_value']:.2e})")
         else:
-            findings.append("Targeted does NOT corrupt more than control (64.66% vs 100%, non-significant)")
+            if rates:
+                findings.append(f"Targeted does NOT corrupt more than control "
+                              f"({rates['targeted']:.2%} vs {rates['zero_discrimination']:.2%}, non-significant)")
+            else:
+                findings.append("Targeted does NOT corrupt more than control (non-significant)")
         
         
         return " | ".join(findings)

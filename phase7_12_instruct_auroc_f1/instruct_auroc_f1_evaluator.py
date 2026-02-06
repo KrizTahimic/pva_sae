@@ -252,14 +252,14 @@ def plot_comparative_metrics(
     # Plot ROC curve for correct-predicting feature if data provided
     if y_true_val_correct is not None and scores_val_correct is not None:
         fpr_correct, tpr_correct, _ = roc_curve(y_true_val_correct, scores_val_correct)
-        auc_correct = results['correct_predicting_latent']['validation_metrics']['metrics']['auroc']
+        auc_correct = results['correct_predicting_latent']['analysis_metrics']['metrics']['auroc']
         ax2.plot(fpr_correct, tpr_correct, color='#2ecc71', linewidth=2,
                 label=f'Correct-Predicting (AUC = {auc_correct:.3f})')
 
     # Plot ROC curve for incorrect-predicting feature if data provided
     if y_true_val_incorrect is not None and scores_val_incorrect is not None:
         fpr_incorrect, tpr_incorrect, _ = roc_curve(y_true_val_incorrect, scores_val_incorrect)
-        auc_incorrect = results['incorrect_predicting_latent']['validation_metrics']['metrics']['auroc']
+        auc_incorrect = results['incorrect_predicting_latent']['analysis_metrics']['metrics']['auroc']
         ax2.plot(fpr_incorrect, tpr_incorrect, color='#e74c3c', linewidth=2,
                 label=f'Incorrect-Predicting (AUC = {auc_incorrect:.3f})')
 

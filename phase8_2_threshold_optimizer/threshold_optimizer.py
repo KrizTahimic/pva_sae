@@ -725,17 +725,17 @@ class ThresholdOptimizer:
             except Exception as e:
                 logger.error(f"  [{idx+1}/{total_problems}] {task_id}: ERROR - {e}")
 
-                # Add error result
+                # Add error result (conservative: assume failure)
                 results.append({
                     'task_id': task_id,
                     'baseline_passed': baseline_passed,
                     'was_steered': False,
                     'incorrect_pred_activation': None,
                     'threshold': threshold,
-                    'steered_correct': baseline_passed,  # Keep baseline
+                    'steered_correct': False,
                     'corrected': False,
-                    'preserved': baseline_passed,
-                    'corrupted': False,
+                    'preserved': False,
+                    'corrupted': baseline_passed,
                     'generated_code': None,
                     'execution_result': None,
                     'error': str(e)
@@ -1251,9 +1251,9 @@ class ThresholdEvaluator:
             self.predicting_sae = load_sae_for_config(self.config, self.incorrect_pred_layer, self.device)
             self.steering_sae = load_sae_for_config(self.config, self.correct_steer_layer, self.device)
 
+            from common.direction_utils import normalize_direction
             self.correct_latent_direction = self.steering_sae.W_dec[self.correct_steer_latent].detach()
-            # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
-            self.correct_latent_direction = self.correct_latent_direction / torch.norm(self.correct_latent_direction)
+            self.correct_latent_direction = normalize_direction(self.correct_latent_direction)
             model_dtype = next(self.model.parameters()).dtype
             self.correct_latent_direction = self.correct_latent_direction.to(dtype=model_dtype)
 
@@ -1432,10 +1432,10 @@ class ThresholdEvaluator:
                     'task_id': task_id,
                     'baseline_passed': baseline_passed,
                     'was_steered': False,
-                    'steered_correct': baseline_passed,
+                    'steered_correct': False,
                     'corrected': False,
-                    'preserved': baseline_passed,
-                    'corrupted': False,
+                    'preserved': False,
+                    'corrupted': baseline_passed,
                     'error': str(e)
                 })
 

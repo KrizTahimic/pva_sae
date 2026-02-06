@@ -133,8 +133,7 @@ class LayerwiseVisualizer:
         """Load latent data from all layer files."""
         layer_data = {}
 
-        # Layers 1-25 (26 total for Gemma-2-2b)
-        for layer_idx in range(1, 26):
+        for layer_idx in self.config.activation_layers:
             filepath = phase_dir / f"layer_{layer_idx}_latents.json"
 
             if not filepath.exists():
@@ -155,10 +154,11 @@ class LayerwiseVisualizer:
 
     def build_heatmap_matrix(self, layer_data: dict[int, dict]) -> np.ndarray:
         """Build matrix for heatmap: [2, n_layers] for correct/incorrect."""
-        n_layers = 25  # Layers 1-25
+        activation_layers = self.config.activation_layers
+        n_layers = len(activation_layers)
         matrix = np.zeros((2, n_layers))
 
-        for layer_idx in range(1, 26):
+        for i, layer_idx in enumerate(activation_layers):
             if layer_idx not in layer_data:
                 continue
 
@@ -177,7 +177,7 @@ class LayerwiseVisualizer:
                         lat.get(metric_key, 0) for lat in correct_latents
                         if isinstance(lat.get(metric_key), (int, float))
                     )
-                    matrix[0, layer_idx - 1] = correct_max
+                    matrix[0, i] = correct_max
 
             # Get maximum metric for incorrect-predicting latents
             incorrect_latents = layer_data[layer_idx]['incorrect']
@@ -194,7 +194,7 @@ class LayerwiseVisualizer:
                         lat.get(metric_key, 0) for lat in incorrect_latents
                         if isinstance(lat.get(metric_key), (int, float))
                     )
-                    matrix[1, layer_idx - 1] = abs(incorrect_max)  # Use absolute value
+                    matrix[1, i] = abs(incorrect_max)  # Use absolute value
 
         return matrix
 

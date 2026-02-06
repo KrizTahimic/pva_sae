@@ -421,21 +421,25 @@ def _classify_exception(exc: Exception) -> tuple[str, str]:
     return "runtime", exc_class
 
 
-def _get_import_code() -> Optional[str]:
+def _get_import_code(dataset_name: Optional[str] = None) -> Optional[str]:
     """
     Get import code string for code execution.
+
+    Args:
+        dataset_name: Dataset name ("mbpp" or "humaneval"). If None, reads from Config().
 
     Returns:
         Import statements as a string, or None if not available
     """
     try:
-        from common.config import Config
-        config = Config()
+        if dataset_name is None:
+            from common.config import Config
+            dataset_name = Config().dataset_name
 
         import_file = None
-        if config.dataset_name == "humaneval":
+        if dataset_name == "humaneval":
             import_file = Path("data/phase0_3_humaneval/required_imports.json")
-        elif config.dataset_name == "mbpp":
+        elif dataset_name == "mbpp":
             import_file = Path("data/phase0_4_mbpp_imports/required_imports.json")
 
         if import_file and import_file.exists():

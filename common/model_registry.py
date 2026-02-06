@@ -19,6 +19,7 @@ class ModelInfo:
     sae_width: int               # SAE latent dimension
     sae_format: str              # 'npz' or 'safetensors'
     sae_activation: str          # 'jumprelu' or 'topk'
+    n_heads: int                 # Number of attention heads
     default_layers: list[int]
     sparsity_map: Optional[dict] = None
     sae_topk: Optional[int] = None
@@ -63,6 +64,7 @@ MODELS: dict[str, ModelInfo] = {
         sae_width=16384,
         sae_format="npz",
         sae_activation="jumprelu",
+        n_heads=8,
         default_layers=list(range(0, 26)),
         sparsity_map=GEMMA_2B_SPARSITY,
         output_suffix="",  # Default model, no suffix
@@ -76,6 +78,7 @@ MODELS: dict[str, ModelInfo] = {
         sae_width=16384,
         sae_format="npz",
         sae_activation="jumprelu",
+        n_heads=8,
         default_layers=list(range(0, 26)),
         sparsity_map=GEMMA_2B_SPARSITY,
         output_suffix="_it",
@@ -89,6 +92,7 @@ MODELS: dict[str, ModelInfo] = {
         sae_width=16384,
         sae_format="npz",
         sae_activation="jumprelu",
+        n_heads=16,
         default_layers=list(range(0, 42)),
         sparsity_map=GEMMA_9B_SPARSITY,
         output_suffix="_gemma9b",
@@ -102,6 +106,7 @@ MODELS: dict[str, ModelInfo] = {
         sae_width=16384,
         sae_format="npz",
         sae_activation="jumprelu",
+        n_heads=16,
         default_layers=list(range(0, 42)),
         sparsity_map=GEMMA_9B_SPARSITY,
         output_suffix="_gemma9b_it",
@@ -115,6 +120,7 @@ MODELS: dict[str, ModelInfo] = {
         sae_width=32768,  # 8x expansion: 4096 * 8
         sae_format="safetensors",
         sae_activation="topk",
+        n_heads=32,
         default_layers=list(range(0, 32)),
         sae_topk=64,
         output_suffix="_llama",
@@ -128,6 +134,7 @@ MODELS: dict[str, ModelInfo] = {
         sae_width=32768,
         sae_format="safetensors",
         sae_activation="topk",
+        n_heads=32,
         default_layers=list(range(0, 32)),
         sae_topk=64,
         output_suffix="_llama_it",

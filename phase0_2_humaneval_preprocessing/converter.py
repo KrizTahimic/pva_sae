@@ -26,10 +26,20 @@ def extract_imports_from_prompt(prompt: str) -> list[str]:
         List of import statement strings (e.g., ['from typing import List'])
     """
     imports = []
+    in_docstring = False
     for line in prompt.split('\n'):
         stripped = line.strip()
-        # Only match actual import statements (not "from" in docstrings)
-        if stripped.startswith('from typing import') or stripped.startswith('import '):
+        # Track docstring boundaries to avoid false positives
+        if '"""' in stripped or "'''" in stripped:
+            # Count triple-quote occurrences (handles open/close on same line)
+            for quote in ['"""', "'''"]:
+                count = stripped.count(quote)
+                if count % 2 == 1:
+                    in_docstring = not in_docstring
+        if in_docstring:
+            continue
+        # Match all import patterns (not just typing)
+        if stripped.startswith('from ') or stripped.startswith('import '):
             imports.append(stripped)
     return imports
 

@@ -63,6 +63,7 @@ class OrthogonalizationSignificanceTester:
         phase5_3_output = discover_latest_phase_output("5.3", config=self.config)
         if not phase5_3_output:
             raise FileNotFoundError("Phase 5.3 output not found. Please run Phase 5.3 first.")
+        self.phase5_3_dir = Path(phase5_3_output).parent
         
         pva_file = Path(phase5_3_output).parent / "orthogonalization_results.json"
         if not pva_file.exists():
@@ -76,6 +77,7 @@ class OrthogonalizationSignificanceTester:
         phase5_6_output = discover_latest_phase_output("5.6", config=self.config)
         if not phase5_6_output:
             raise FileNotFoundError("Phase 5.6 output not found. Please run Phase 5.6 first.")
+        self.phase5_6_dir = Path(phase5_6_output).parent
         
         zero_disc_file = Path(phase5_6_output).parent / "zero_disc_orthogonalization_results.json"
         if not zero_disc_file.exists():
@@ -262,6 +264,7 @@ class OrthogonalizationSignificanceTester:
         """Generate comprehensive interpretation of triangulation results."""
         correction_comps = correction_tri['comparisons']
         corruption_comps = corruption_tri['comparisons']
+        corruption_rates = corruption_tri['rates']
         
         # Check validity conditions
         validity_checks = {
@@ -278,7 +281,8 @@ class OrthogonalizationSignificanceTester:
             interpretation = (
                 "Strong validation: PVA weight orthogonalization shows significant effects compared to baseline. "
                 "For correction, PVA features significantly outperform control features. However, for corruption, "
-                "PVA features do NOT exceed control (PVA: 83.6%, control: 19.0%), suggesting that any weight "
+                f"PVA features do NOT exceed control "
+                f"(PVA: {corruption_rates['pva']:.1%}, control: {corruption_rates['zero_discrimination']:.1%}), suggesting that any weight "
                 "modification can disrupt code generation. This triangulation validates that PVA features have "
                 "specific causal effects on program correctness through weight orthogonalization."
             )

@@ -267,3 +267,55 @@ class TestDirectionSource:
         """probe_mass_mean should be a valid direction source."""
         config = Config(direction_source="probe_mass_mean")
         assert config.direction_source == "probe_mass_mean"
+
+
+# =============================================================================
+# Model Registry n_heads Tests
+# =============================================================================
+
+class TestModelRegistryNHeads:
+    """Test all models in registry have valid n_heads field."""
+
+    def test_all_models_have_n_heads(self):
+        """Every model in registry should have n_heads."""
+        from common.model_registry import MODELS
+        for model_id, info in MODELS.items():
+            assert hasattr(info, 'n_heads'), f"{model_id} missing n_heads"
+            assert isinstance(info.n_heads, int), f"{model_id} n_heads is not int"
+            assert info.n_heads > 0, f"{model_id} n_heads must be positive"
+
+    def test_gemma_2b_n_heads(self):
+        """Gemma 2B should have 8 attention heads."""
+        from common.model_registry import get_model
+        info = get_model("google/gemma-2-2b")
+        assert info.n_heads == 8
+
+    def test_gemma_2b_it_n_heads(self):
+        """Gemma 2B Instruct should have 8 attention heads."""
+        from common.model_registry import get_model
+        info = get_model("google/gemma-2-2b-it")
+        assert info.n_heads == 8
+
+    def test_gemma_9b_n_heads(self):
+        """Gemma 9B should have 16 attention heads."""
+        from common.model_registry import get_model
+        info = get_model("google/gemma-2-9b")
+        assert info.n_heads == 16
+
+    def test_gemma_9b_it_n_heads(self):
+        """Gemma 9B Instruct should have 16 attention heads."""
+        from common.model_registry import get_model
+        info = get_model("google/gemma-2-9b-it")
+        assert info.n_heads == 16
+
+    def test_llama_8b_n_heads(self):
+        """Llama 3.1 8B should have 32 attention heads."""
+        from common.model_registry import get_model
+        info = get_model("meta-llama/Llama-3.1-8B")
+        assert info.n_heads == 32
+
+    def test_llama_8b_it_n_heads(self):
+        """Llama 3.1 8B Instruct should have 32 attention heads."""
+        from common.model_registry import get_model
+        info = get_model("meta-llama/Llama-3.1-8B-Instruct")
+        assert info.n_heads == 32
