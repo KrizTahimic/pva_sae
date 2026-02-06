@@ -133,30 +133,14 @@ class SelectiveSteeringAnalyzer:
             # === PROBE MODE: Load probe directions from Phase 2.6 ===
             logger.info("PROBE MODE: Loading probe directions from Phase 2.6")
 
-            from common.steering_setup import (
-                load_probe_directions_for_predicting,
-                load_probe_directions_for_steering
-            )
+            from common.steering_setup import load_dual_probe_directions
 
-            # Prediction: logreg (optimal for AUROC/F1)
-            self.predicting_probe = load_probe_directions_for_predicting(
-                self.config, self.device, method="logreg"
-            )
-            self.incorrect_pred_layer = self.predicting_probe.layer
-            self.predicting_direction = self.predicting_probe.incorrect_direction
-            self.predicting_bias = self.predicting_probe.bias
-
-            logger.info(f"Predicting probe: Layer {self.incorrect_pred_layer}, "
-                       f"bias={self.predicting_bias:.4f}")
-
-            # Steering: mass_mean (optimal for causal intervention)
-            self.steering_probe = load_probe_directions_for_steering(
-                self.config, self.device, self.model, method="mass_mean"
-            )
-            self.correct_steer_layer = self.steering_probe.layer
-            self.correct_latent_direction = self.steering_probe.correct_direction
-
-            logger.info(f"Steering probe: Layer {self.correct_steer_layer}")
+            dual = load_dual_probe_directions(self.config, self.device, self.model)
+            self.incorrect_pred_layer = dual.predicting_layer
+            self.predicting_direction = dual.predicting_direction
+            self.predicting_bias = dual.predicting_bias
+            self.correct_steer_layer = dual.steering_layer
+            self.correct_latent_direction = dual.correct_latent_direction
 
             # No SAE needed in probe mode
             self.predicting_sae = None
@@ -502,17 +486,16 @@ class SelectiveSteeringAnalyzer:
                 # Extract activation at last position (first new token)
                 activation = residual[0, -1, :]  # Shape: (hidden_dim,)
 
-                with torch.no_grad():
-                    if self.use_probe:
-                        # Probe mode: direct dot product scoring
-                        activation_float = activation.to(dtype=self.predicting_direction.dtype)
-                        score = (activation_float @ self.predicting_direction).item() + self.predicting_bias
-                        state.incorrect_pred_activation = score
-                    else:
-                        # SAE mode: encode then extract latent activation
-                        activation_bf16 = activation.to(dtype=self.predicting_sae.W_enc.dtype, device=self.device)
-                        latent_activations = self.predicting_sae.encode(activation_bf16.unsqueeze(0))
-                        state.incorrect_pred_activation = latent_activations[0, self.incorrect_pred_latent].item()
+                from common.steering_setup import score_activation
+                state.incorrect_pred_activation = score_activation(
+                    activation=activation,
+                    use_probe=self.use_probe,
+                    predicting_direction=self.predicting_direction,
+                    predicting_bias=self.predicting_bias,
+                    predicting_sae=self.predicting_sae,
+                    latent_idx=self.incorrect_pred_latent,
+                    device=self.device,
+                )
 
                 # Check threshold
                 state.should_steer = state.incorrect_pred_activation > self.threshold

@@ -477,7 +477,7 @@ def torch_memory_cleanup(device: Optional[torch.device] = None) -> Generator[Non
                 device = torch.device(device)
             
             if device.type == 'cuda':
-                torch.cuda.empty_cache(device)
+                torch.cuda.empty_cache()
                 torch.cuda.synchronize(device)
         
         # Force garbage collection

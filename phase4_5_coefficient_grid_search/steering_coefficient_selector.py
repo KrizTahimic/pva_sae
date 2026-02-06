@@ -1375,7 +1375,7 @@ class CoefficientEvaluator:
         sae = self.sae_cache[layer]
         direction = sae.W_dec[latent_idx].detach()
         # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
-        direction = direction / torch.norm(direction)
+        direction = normalize_direction(direction, name=f"L{layer}_{latent_idx}")
 
         # Match model dtype
         model_dtype = next(self.model.parameters()).dtype

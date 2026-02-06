@@ -12,6 +12,7 @@ import numpy as np
 import torch
 from pathlib import Path
 
+from tests.conftest import DEFAULT_D_MODEL
 from common.tensor_utils import (
     save_activation,
     load_activation,
@@ -30,7 +31,7 @@ class TestDtypePreservation:
 
     def test_bfloat16_roundtrip(self, tmp_path):
         """bfloat16 tensor should preserve dtype through save/load."""
-        tensor = torch.randn(10, 2304, dtype=torch.bfloat16)
+        tensor = torch.randn(10, DEFAULT_D_MODEL, dtype=torch.bfloat16)
         path = tmp_path / "activation.safetensors"
 
         save_activation(tensor, path)
@@ -40,7 +41,7 @@ class TestDtypePreservation:
 
     def test_float32_roundtrip(self, tmp_path):
         """float32 tensor should preserve dtype through save/load."""
-        tensor = torch.randn(10, 2304, dtype=torch.float32)
+        tensor = torch.randn(10, DEFAULT_D_MODEL, dtype=torch.float32)
         path = tmp_path / "activation.safetensors"
 
         save_activation(tensor, path)
@@ -50,7 +51,7 @@ class TestDtypePreservation:
 
     def test_float16_roundtrip(self, tmp_path):
         """float16 tensor should preserve dtype through save/load."""
-        tensor = torch.randn(10, 2304, dtype=torch.float16)
+        tensor = torch.randn(10, DEFAULT_D_MODEL, dtype=torch.float16)
         path = tmp_path / "activation.safetensors"
 
         save_activation(tensor, path)
@@ -68,7 +69,7 @@ class TestSafetensorsRoundtrip:
 
     def test_single_activation_values(self, tmp_path):
         """Single activation values should be preserved exactly."""
-        tensor = torch.randn(1, 2304, dtype=torch.float32)
+        tensor = torch.randn(1, DEFAULT_D_MODEL, dtype=torch.float32)
         path = tmp_path / "activation.safetensors"
 
         save_activation(tensor, path)
@@ -79,9 +80,9 @@ class TestSafetensorsRoundtrip:
     def test_multi_layer_activations(self, tmp_path):
         """Multi-layer activations should be preserved."""
         activations = {
-            6: torch.randn(1, 2304, dtype=torch.bfloat16),
-            12: torch.randn(1, 2304, dtype=torch.bfloat16),
-            18: torch.randn(1, 2304, dtype=torch.bfloat16),
+            6: torch.randn(1, DEFAULT_D_MODEL, dtype=torch.bfloat16),
+            12: torch.randn(1, DEFAULT_D_MODEL, dtype=torch.bfloat16),
+            18: torch.randn(1, DEFAULT_D_MODEL, dtype=torch.bfloat16),
         }
         path = tmp_path / "multi_layer.safetensors"
 
@@ -95,9 +96,9 @@ class TestSafetensorsRoundtrip:
     def test_shape_preserved(self, tmp_path):
         """Tensor shape should be preserved through save/load."""
         shapes = [
-            (1, 2304),
-            (1, 1, 2304),
-            (4, 10, 2304),
+            (1, DEFAULT_D_MODEL),
+            (1, 1, DEFAULT_D_MODEL),
+            (4, 10, DEFAULT_D_MODEL),
         ]
 
         for i, shape in enumerate(shapes):
@@ -111,7 +112,7 @@ class TestSafetensorsRoundtrip:
 
     def test_device_transfer(self, tmp_path):
         """Should load to specified device."""
-        tensor = torch.randn(1, 2304)
+        tensor = torch.randn(1, DEFAULT_D_MODEL)
         path = tmp_path / "activation.safetensors"
 
         save_activation(tensor, path)
@@ -122,7 +123,7 @@ class TestSafetensorsRoundtrip:
     @pytest.mark.gpu
     def test_device_transfer_to_cuda(self, tmp_path):
         """Should load to CUDA device when specified."""
-        tensor = torch.randn(1, 2304)
+        tensor = torch.randn(1, DEFAULT_D_MODEL)
         path = tmp_path / "activation.safetensors"
 
         save_activation(tensor, path)
@@ -140,7 +141,7 @@ class TestToNumpyConversion:
 
     def test_bfloat16_to_float32(self):
         """bfloat16 should convert to float32 numpy array."""
-        tensor = torch.randn(10, 2304, dtype=torch.bfloat16)
+        tensor = torch.randn(10, DEFAULT_D_MODEL, dtype=torch.bfloat16)
         arr = to_numpy(tensor)
 
         assert isinstance(arr, np.ndarray)
@@ -148,14 +149,14 @@ class TestToNumpyConversion:
 
     def test_float32_stays_float32(self):
         """float32 tensor should stay float32 in numpy."""
-        tensor = torch.randn(10, 2304, dtype=torch.float32)
+        tensor = torch.randn(10, DEFAULT_D_MODEL, dtype=torch.float32)
         arr = to_numpy(tensor)
 
         assert arr.dtype == np.float32
 
     def test_float16_to_float32(self):
         """float16 should convert to float32 numpy array."""
-        tensor = torch.randn(10, 2304, dtype=torch.float16)
+        tensor = torch.randn(10, DEFAULT_D_MODEL, dtype=torch.float16)
         arr = to_numpy(tensor)
 
         assert arr.dtype == np.float32
@@ -163,7 +164,7 @@ class TestToNumpyConversion:
     def test_values_preserved(self):
         """Values should be preserved in conversion (within float32 precision)."""
         # Use float32 to avoid bfloat16 precision issues
-        tensor = torch.randn(10, 2304, dtype=torch.float32)
+        tensor = torch.randn(10, DEFAULT_D_MODEL, dtype=torch.float32)
         arr = to_numpy(tensor)
 
         # Convert back and compare
@@ -172,7 +173,7 @@ class TestToNumpyConversion:
 
     def test_gradient_detached(self):
         """Should handle tensors with gradients."""
-        tensor = torch.randn(10, 2304, requires_grad=True)
+        tensor = torch.randn(10, DEFAULT_D_MODEL, requires_grad=True)
         tensor = tensor * 2  # Create gradient
 
         # Should not raise
@@ -182,7 +183,7 @@ class TestToNumpyConversion:
     @pytest.mark.gpu
     def test_cuda_tensor_to_numpy(self):
         """CUDA tensor should be moved to CPU for numpy conversion."""
-        tensor = torch.randn(10, 2304, dtype=torch.float32, device="cuda")
+        tensor = torch.randn(10, DEFAULT_D_MODEL, dtype=torch.float32, device="cuda")
         arr = to_numpy(tensor)
 
         assert isinstance(arr, np.ndarray)
@@ -198,17 +199,17 @@ class TestTensorEdgeCases:
 
     def test_empty_tensor(self, tmp_path):
         """Empty tensor should save and load correctly."""
-        tensor = torch.empty(0, 2304)
+        tensor = torch.empty(0, DEFAULT_D_MODEL)
         path = tmp_path / "empty.safetensors"
 
         save_activation(tensor, path)
         loaded = load_activation(path)
 
-        assert loaded.shape == (0, 2304)
+        assert loaded.shape == (0, DEFAULT_D_MODEL)
 
     def test_scalar_like_tensor(self, tmp_path):
         """1D tensor should save and load correctly."""
-        tensor = torch.randn(2304)
+        tensor = torch.randn(DEFAULT_D_MODEL)
         path = tmp_path / "1d.safetensors"
 
         save_activation(tensor, path)
@@ -218,7 +219,7 @@ class TestTensorEdgeCases:
 
     def test_path_as_string(self, tmp_path):
         """Should accept path as string."""
-        tensor = torch.randn(1, 2304)
+        tensor = torch.randn(1, DEFAULT_D_MODEL)
         path = str(tmp_path / "activation.safetensors")
 
         save_activation(tensor, path)
@@ -228,7 +229,7 @@ class TestTensorEdgeCases:
 
     def test_path_as_pathlib(self, tmp_path):
         """Should accept path as Path object."""
-        tensor = torch.randn(1, 2304)
+        tensor = torch.randn(1, DEFAULT_D_MODEL)
         path = tmp_path / "activation.safetensors"
 
         save_activation(tensor, path)

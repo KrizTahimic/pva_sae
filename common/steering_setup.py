@@ -131,7 +131,8 @@ def load_probe_directions_for_predicting(
     """
     direction, best_layer, bias, phase_dir = _load_probe_base(config, device, method)
 
-    # Keep as float32 for scoring (no model dtype matching needed)
+    # No normalization needed for predicting: AUROC/F1 are threshold-independent metrics,
+    # so direction magnitude doesn't affect ranking. Steering path normalizes for coefficient interpretation.
     correct_direction = direction
     incorrect_direction = -direction  # Negate for incorrect prediction
 
@@ -196,6 +197,107 @@ def load_probe_directions_for_steering(
         phase_dir=phase_dir,
     )
 
+
+
+@dataclass
+class DualProbeDirections:
+    """Container for dual probe directions used by Phases 8.2 and 8.3.
+
+    Predicting probe (logreg) is used for threshold decisions.
+    Steering probe (mass_mean) is used for activation modification.
+    """
+    predicting_probe: ProbeDirections
+    steering_probe: ProbeDirections
+    predicting_direction: torch.Tensor
+    predicting_bias: float
+    predicting_layer: int
+    correct_latent_direction: torch.Tensor
+    incorrect_latent_direction: torch.Tensor
+    steering_layer: int
+
+
+def load_dual_probe_directions(
+    config: Config,
+    device: torch.device,
+    model: torch.nn.Module
+) -> DualProbeDirections:
+    """Load both predicting and steering probe directions for Phases 8.2/8.3.
+
+    These phases need two probes simultaneously:
+    - LogReg probe for threshold prediction (AUROC/F1 optimal)
+    - Mass-mean probe for steering intervention (causal optimal)
+
+    Args:
+        config: Configuration object
+        device: Target device for tensors
+        model: The language model (for dtype matching in steering probe)
+
+    Returns:
+        DualProbeDirections with both probe sets loaded
+    """
+    # Prediction: logreg (optimal for AUROC/F1)
+    predicting_probe = load_probe_directions_for_predicting(
+        config, device, method="logreg"
+    )
+
+    logger.info(f"Predicting probe: Layer {predicting_probe.layer}, "
+               f"bias={predicting_probe.bias:.4f}")
+
+    # Steering: mass_mean (optimal for causal intervention)
+    steering_probe = load_probe_directions_for_steering(
+        config, device, model, method="mass_mean"
+    )
+
+    logger.info(f"Steering probe: Layer {steering_probe.layer}")
+
+    return DualProbeDirections(
+        predicting_probe=predicting_probe,
+        steering_probe=steering_probe,
+        predicting_direction=predicting_probe.incorrect_direction,
+        predicting_bias=predicting_probe.bias,
+        predicting_layer=predicting_probe.layer,
+        correct_latent_direction=steering_probe.correct_direction,
+        incorrect_latent_direction=steering_probe.incorrect_direction,
+        steering_layer=steering_probe.layer,
+    )
+
+
+def score_activation(
+    activation: torch.Tensor,
+    use_probe: bool,
+    predicting_direction: torch.Tensor = None,
+    predicting_bias: float = 0.0,
+    predicting_sae: object = None,
+    latent_idx: int = None,
+    device: torch.device = None,
+) -> float:
+    """Score an activation using either probe or SAE mode.
+
+    Used by Phases 8.2 and 8.3 for threshold checking during generation.
+
+    Args:
+        activation: Raw activation tensor, shape (hidden_dim,) or (1, hidden_dim)
+        use_probe: If True, use probe dot-product scoring; if False, use SAE encoding
+        predicting_direction: Probe direction vector (required if use_probe=True)
+        predicting_bias: Probe bias term (used if use_probe=True)
+        predicting_sae: SAE model (required if use_probe=False)
+        latent_idx: SAE latent index (required if use_probe=False)
+        device: Target device for SAE encoding
+
+    Returns:
+        Float activation score
+    """
+    with torch.no_grad():
+        if use_probe:
+            activation_float = activation.to(dtype=predicting_direction.dtype)
+            score = (activation_float @ predicting_direction).item() + predicting_bias
+            return score
+        else:
+            activation_bf16 = activation.to(dtype=predicting_sae.W_enc.dtype, device=device)
+            if activation_bf16.ndim == 1:
+                activation_bf16 = activation_bf16.unsqueeze(0)
+            latent_activations = predicting_sae.encode(activation_bf16)
+            return latent_activations[0, latent_idx].item()
 
 
 def get_direction_source_info(config: Config) -> dict:

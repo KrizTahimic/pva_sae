@@ -138,6 +138,9 @@ def run_evaluation(config):
         probe_bias = probe.bias
         probe_direction = probe.correct_direction
 
+        device = detect_device()
+        probe_direction = probe_direction.to(device)
+
         logger.info(f"LogReg probe: layer {probe_layer}, bias {probe_bias:.4f}")
 
         # Set layer for logging (probe uses same layer for both)

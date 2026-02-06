@@ -379,7 +379,8 @@ class TemperatureRobustnessRunner:
             )
             
             task_failed = False
-            
+            task_error_msg = None
+
             # Process temperature 0 first (with activations, single generation)
             if 0.0 in self.config.temperature_variation_temps:
                 def generate_temp0():
@@ -409,7 +410,8 @@ class TemperatureRobustnessRunner:
                     timeout_seconds=self.config.timeout_per_record,  # 300 seconds (5 minutes)
                     operation_name="temperature 0 generation"
                 )
-                
+                task_error_msg = error_msg
+
                 if success:
                     # Save activations for this task (only if temp 0 succeeded)
                     self._save_task_activations(row['task_id'], temp0_result['task_activations'])
@@ -431,7 +433,7 @@ class TemperatureRobustnessRunner:
                         'generation_time': temp0_result['generation_time'],
                         'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
                         'generation_idx': 0,  # Only one generation for temp 0
-                        'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
+                        'test_list': row['test_list'] if isinstance(row['test_list'], str) else json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
                     })
                 else:
                     # Temperature 0 failed - exclude entire task
@@ -465,7 +467,7 @@ class TemperatureRobustnessRunner:
                 # Task failed at temperature 0 - skip all other temperatures and record exclusion
                 excluded_tasks.append({
                     'task_id': row['task_id'],
-                    'error': error_msg if 'error_msg' in locals() else 'Temperature 0 generation failed'
+                    'error': task_error_msg or 'Temperature 0 generation failed'
                 })
 
             # Increment task counter
@@ -584,7 +586,7 @@ class TemperatureRobustnessRunner:
             'generation_time': generation_time,
             'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
             'generation_idx': sample_idx,
-            'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
+            'test_list': row['test_list'] if isinstance(row['test_list'], str) else json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
         }
     
     def _save_task_activations(self, task_id: str, activations: dict[int, torch.Tensor]) -> None:
@@ -929,7 +931,7 @@ class TemperatureEvaluator:
                 'generation_time': generation_time,
                 'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
                 'generation_idx': 0,
-                'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
+                'test_list': row['test_list'] if isinstance(row['test_list'], str) else json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
             }
 
         finally:
@@ -978,7 +980,7 @@ class TemperatureEvaluator:
             'generation_time': generation_time,
             'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
             'generation_idx': sample_idx,
-            'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
+            'test_list': row['test_list'] if isinstance(row['test_list'], str) else json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
         }
 
     def _save_task_activations(self, task_id: str, activations: dict[int, torch.Tensor]) -> None:

@@ -692,9 +692,15 @@ def load_and_encode_activation(
     if raw_activation.ndim == 1:
         raw_activation = rearrange(raw_activation, 'd -> 1 d')
 
+    if raw_activation.ndim != 2 or raw_activation.shape[0] != 1:
+        raise ValueError(f"Expected shape [1, d_model], got {raw_activation.shape}")
+
     # Encode and extract latent activation
     with torch.no_grad():
         latent_activations = sae.encode(raw_activation)
+
+    if latent_idx >= latent_activations.shape[1]:
+        raise IndexError(f"latent_idx {latent_idx} >= SAE width {latent_activations.shape[1]}")
 
     return latent_activations[0, latent_idx].item()
 

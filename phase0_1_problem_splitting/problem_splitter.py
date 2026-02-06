@@ -100,7 +100,7 @@ class Phase01Runner:
                 sys.exit(1)
 
             # Verify required columns
-            required_columns = ['task_id', 'cyclomatic_complexity']
+            required_columns = ['task_id', 'cyclomatic_complexity', 'text', 'test_list', 'code']
             if not all(col in df.columns for col in required_columns):
                 self.logger.error(f"Difficulty mapping missing required columns: {required_columns}")
                 sys.exit(1)

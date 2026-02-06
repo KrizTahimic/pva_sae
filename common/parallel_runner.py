@@ -327,7 +327,8 @@ def run_phase_parallel(phase_id: str, config: Config, n_gpus: int) -> dict:
                 results.append({
                     'gpu_id': gpu_id,
                     'status': 'error',
-                    'error': f"Subprocess crashed: {exc}"
+                    'error': f"Subprocess crashed: {exc}",
+                    'traceback': ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__)) if hasattr(exc, '__traceback__') else str(exc)
                 })
                 continue
 

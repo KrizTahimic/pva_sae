@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from common.config import Config
+from tests.conftest import DEFAULT_D_MODEL
 
 
 # =============================================================================
@@ -179,13 +180,13 @@ class TestPhase45To48:
         from common.steering_metrics import create_last_position_steering_hook
         from common.direction_utils import normalize_direction
 
-        direction = normalize_direction(torch.randn(2304))
+        direction = normalize_direction(torch.randn(DEFAULT_D_MODEL))
         coefficient = 47.5
 
         hook = create_last_position_steering_hook(direction, coefficient)
 
         # Apply to residual
-        residual = torch.zeros(1, 5, 2304)
+        residual = torch.zeros(1, 5, DEFAULT_D_MODEL)
         output = hook(None, (residual,))
 
         # Check steering magnitude

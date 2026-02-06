@@ -32,6 +32,13 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from common.config import Config
+from common.model_registry import get_model
+
+# Default model dimensions (from model registry, not hardcoded)
+_default_model_info = get_model(Config().model_name)
+DEFAULT_D_MODEL = _default_model_info.hidden_size
+DEFAULT_N_LAYERS = _default_model_info.n_layers
+DEFAULT_SAE_WIDTH = _default_model_info.sae_width
 
 
 # =============================================================================
@@ -138,7 +145,7 @@ def mock_model():
 def mock_sae():
     """Mock SAE with known W_dec weights."""
     sae = MagicMock()
-    sae.W_dec = torch.randn(16384, 2304)  # 16k latents, d_model=2304
+    sae.W_dec = torch.randn(DEFAULT_SAE_WIDTH, DEFAULT_D_MODEL)
     return sae
 
 

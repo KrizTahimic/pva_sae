@@ -16,6 +16,7 @@ import torch.nn as nn
 
 from common.steering_metrics import create_last_position_steering_hook
 from common.direction_utils import normalize_direction
+from tests.conftest import DEFAULT_D_MODEL
 
 
 # =============================================================================
@@ -27,7 +28,7 @@ class TestHookModifiesLastPositionOnly:
 
     def test_last_position_modified(self):
         """Only the last position should be modified by steering."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         seq_len = 10
         batch_size = 1
 
@@ -58,7 +59,7 @@ class TestHookModifiesLastPositionOnly:
 
     def test_single_position_input(self):
         """Hook should work with single-position input (during generation)."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = normalize_direction(torch.randn(d_model))
         coefficient = 1.0
         hook_fn = create_last_position_steering_hook(direction, coefficient)
@@ -83,7 +84,7 @@ class TestHookCoefficientScaling:
 
     def test_coefficient_multiplies_direction(self):
         """Coefficient should scale the steering direction."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = normalize_direction(torch.randn(d_model))
         coefficient = 5.0
         hook_fn = create_last_position_steering_hook(direction, coefficient)
@@ -107,7 +108,7 @@ class TestHookCoefficientScaling:
 
     def test_zero_coefficient_no_change(self):
         """Zero coefficient should result in no change."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = normalize_direction(torch.randn(d_model))
         coefficient = 0.0
         hook_fn = create_last_position_steering_hook(direction, coefficient)
@@ -122,7 +123,7 @@ class TestHookCoefficientScaling:
 
     def test_negative_coefficient(self):
         """Negative coefficient should steer in opposite direction."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = normalize_direction(torch.randn(d_model))
         positive_hook = create_last_position_steering_hook(direction, 5.0)
         negative_hook = create_last_position_steering_hook(direction, -5.0)
@@ -148,7 +149,7 @@ class TestHookDtypeConversion:
 
     def test_float32_residual(self):
         """Direction should be converted to float32 residual dtype."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = normalize_direction(torch.randn(d_model))  # Default float32
         hook_fn = create_last_position_steering_hook(direction, 1.0)
 
@@ -159,7 +160,7 @@ class TestHookDtypeConversion:
 
     def test_bfloat16_residual(self):
         """Direction should be converted to bfloat16 residual dtype."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = normalize_direction(torch.randn(d_model))  # float32
         hook_fn = create_last_position_steering_hook(direction, 1.0)
 
@@ -170,7 +171,7 @@ class TestHookDtypeConversion:
 
     def test_float16_residual(self):
         """Direction should be converted to float16 residual dtype."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = normalize_direction(torch.randn(d_model))
         hook_fn = create_last_position_steering_hook(direction, 1.0)
 
@@ -189,7 +190,7 @@ class TestHookExceptionCleanup:
 
     def test_original_tensor_not_modified_inplace(self):
         """Hook should clone tensor, not modify original in-place."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = normalize_direction(torch.randn(d_model))
         hook_fn = create_last_position_steering_hook(direction, 1.0)
 
@@ -212,7 +213,7 @@ class TestMultipleHooksOrdering:
 
     def test_multiple_steering_hooks_stack(self):
         """Multiple steering hooks should stack their effects."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction1 = normalize_direction(torch.randn(d_model))
         direction2 = normalize_direction(torch.randn(d_model))
 
@@ -240,7 +241,7 @@ class TestMultipleHooksOrdering:
 
     def test_hook_preserves_other_inputs(self):
         """Hook should preserve other elements in input tuple."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = normalize_direction(torch.randn(d_model))
         hook_fn = create_last_position_steering_hook(direction, 1.0)
 
@@ -267,7 +268,7 @@ class TestBatchHandling:
 
     def test_batch_size_1(self):
         """Hook should work with batch size 1."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = normalize_direction(torch.randn(d_model))
         hook_fn = create_last_position_steering_hook(direction, 1.0)
 
@@ -278,7 +279,7 @@ class TestBatchHandling:
 
     def test_batch_size_larger(self):
         """Hook should work with larger batch sizes."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         batch_size = 4
         direction = normalize_direction(torch.randn(d_model))
         hook_fn = create_last_position_steering_hook(direction, 1.0)
@@ -305,7 +306,7 @@ class TestDeviceHandling:
 
     def test_cuda_residual(self):
         """Hook should work with CUDA tensors."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = normalize_direction(torch.randn(d_model))  # CPU
         hook_fn = create_last_position_steering_hook(direction, 1.0)
 
@@ -327,7 +328,7 @@ class TestNonNormalizedRejection:
 
     def test_rejects_non_unit_norm_direction(self):
         """Hook should raise ValueError for non-unit-norm direction."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = torch.randn(d_model) * 5.0  # Non-unit norm
 
         with pytest.raises(ValueError, match="not unit-normalized"):
@@ -335,7 +336,7 @@ class TestNonNormalizedRejection:
 
     def test_rejects_near_zero_norm_direction(self):
         """Hook should raise ValueError for near-zero direction."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = torch.randn(d_model) * 1e-10  # Near-zero norm
 
         with pytest.raises(ValueError, match="not unit-normalized"):
@@ -343,7 +344,7 @@ class TestNonNormalizedRejection:
 
     def test_accepts_unit_norm_direction(self):
         """Hook should accept properly normalized direction."""
-        d_model = 2304
+        d_model = DEFAULT_D_MODEL
         direction = normalize_direction(torch.randn(d_model))
 
         # Should not raise

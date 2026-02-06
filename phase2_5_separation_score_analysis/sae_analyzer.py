@@ -269,6 +269,8 @@ class SimplifiedSAEAnalyzer:
         # Apply pile filtering if enabled (load precomputed frequencies from Phase 2.3)
         if self.config.pile_filter_enabled:
             pile_frequencies = load_pile_frequencies(self.config)
+            if pile_frequencies is None:
+                raise FileNotFoundError("Pile frequencies not found. Run Phase 2.3 first.")
             top_latents = apply_pile_filter(
                 top_latents_unfiltered,
                 pile_frequencies,
