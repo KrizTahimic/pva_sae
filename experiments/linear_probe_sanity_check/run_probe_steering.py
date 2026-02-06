@@ -43,7 +43,7 @@ from common.logging import get_logger, tqdm_with_logging
 from common.utils import ensure_directory_exists, detect_device, load_json, save_json
 from common.phase_discovery import get_phase_output_dir, discover_latest_phase_output
 from common.model_loader import load_model_and_tokenizer
-from common.dataset_utils import evaluate_code, extract_code
+from common.dataset_utils import evaluate_code_with_error_type, extract_code
 from common.prompt_utils import PromptBuilder
 
 logger = get_logger("probe_steering")
@@ -213,7 +213,7 @@ def _run_steering_worker(args: tuple) -> list[dict]:
                 skip_special_tokens=True
             )
             generated_code = extract_code(generated_text, prompt)
-            steered_correct = evaluate_code(generated_code, test_cases)
+            steered_correct = evaluate_code_with_error_type(generated_code, test_cases).passed
 
             # Build result based on experiment type
             result = {
@@ -417,7 +417,7 @@ class ProbeSteeringExperiment:
                 skip_special_tokens=True
             )
             generated_code = extract_code(generated_text, prompt)
-            steered_correct = evaluate_code(generated_code, test_cases)
+            steered_correct = evaluate_code_with_error_type(generated_code, test_cases).passed
 
             return {
                 'generated_code': generated_code,

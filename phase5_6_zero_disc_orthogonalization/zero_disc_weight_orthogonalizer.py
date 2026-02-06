@@ -398,7 +398,7 @@ class ZeroDiscWeightOrthogonalizer:
                         'orthogonalized_correct': False,  # Conservative: assume failure on error
                         'baseline_code': row['generated_code'],
                         'orthogonalized_code': '',
-                        'similarity': 1.0,
+                        'similarity': float('nan'),
                         'error': error_msg
                     })
                     processed_correct_ids.add(str(row['task_id']))
@@ -423,7 +423,7 @@ class ZeroDiscWeightOrthogonalizer:
         
         # Calculate similarity scores
         similarity_scores = [r.get('similarity', 1.0) for r in correct_results]
-        avg_similarity = np.mean(similarity_scores) if similarity_scores else 1.0
+        avg_similarity = np.nanmean(similarity_scores) if similarity_scores else 1.0
         
         n_incorrect = len(incorrect_results)
         n_corrected = sum(1 for r in incorrect_results if r['orthogonalized_correct'])

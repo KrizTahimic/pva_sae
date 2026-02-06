@@ -108,8 +108,7 @@ class SteeringEffectAnalyzer:
     def _load_dependencies(self) -> None:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
-            load_steering_latents, load_sae_and_directions, load_baseline_data,
-            load_probe_directions_for_steering
+            load_baseline_data, load_probe_directions_for_steering
         )
         from common.phase_discovery import discover_top_n_steering_latents
 
@@ -129,9 +128,6 @@ class SteeringEffectAnalyzer:
             self.phase2_5_dir = self.probe.phase_dir  # Actually Phase 2.6
 
             # Probe mode doesn't use SAE or multi-candidate
-            self.top_latents = None
-            self.correct_sae = None
-            self.incorrect_sae = None
             self.correct_candidates = None
             self.incorrect_candidates = None
             self.sae_cache = {}
@@ -147,13 +143,7 @@ class SteeringEffectAnalyzer:
             candidates = discover_top_n_steering_latents(self.config)
             self.correct_candidates = candidates['correct']
             self.incorrect_candidates = candidates['incorrect']
-
-            # For backward compatibility, also set best_correct/incorrect_latent
-            latents = load_steering_latents(self.config)
-            self.top_latents = latents.top_latents
-            self.best_correct_latent = latents.best_correct_latent
-            self.best_incorrect_latent = latents.best_incorrect_latent
-            self.phase2_5_dir = latents.phase_dir
+            self.phase2_5_dir = get_phase_output_dir("2.5", self.config)
 
             # Cache SAEs by layer for multi-candidate mode
             self.sae_cache = {}
@@ -164,15 +154,11 @@ class SteeringEffectAnalyzer:
 
             logger.info(f"Loaded {len(self.sae_cache)} SAEs for layers: {all_layers}")
 
-            # Also load SAE for legacy mode compatibility
-            sae = load_sae_and_directions(
-                self.config, self.device, self.model,
-                self.best_correct_latent, self.best_incorrect_latent
-            )
-            self.correct_sae = sae.correct_sae
-            self.incorrect_sae = sae.incorrect_sae
-            self.correct_latent_direction = sae.correct_direction
-            self.incorrect_latent_direction = sae.incorrect_direction
+            # Set direction from top candidate for single-candidate steering path
+            top_correct = self.correct_candidates[0]
+            top_incorrect = self.incorrect_candidates[0]
+            self.correct_latent_direction = self._get_latent_direction(top_correct['layer'], top_correct['latent_idx'])
+            self.incorrect_latent_direction = self._get_latent_direction(top_incorrect['layer'], top_incorrect['latent_idx'])
 
         # Load baseline data from Phase 3.5
         self.baseline_data, self.phase3_5_dir = load_baseline_data(
@@ -384,14 +370,14 @@ class SteeringEffectAnalyzer:
             Tuple of (latent_direction, target_layer)
         """
         if steering_type == 'correct':
-            layer = self.probe_layer if self.use_probe else self.best_correct_latent['layer']
+            layer = self.probe_layer if self.use_probe else self.correct_candidates[0]['layer']
             return self.correct_latent_direction, layer
         elif steering_type == 'preservation':
             # Use same correct latent for preservation
-            layer = self.probe_layer if self.use_probe else self.best_correct_latent['layer']
+            layer = self.probe_layer if self.use_probe else self.correct_candidates[0]['layer']
             return self.correct_latent_direction, layer
         elif steering_type == 'incorrect':
-            layer = self.probe_layer if self.use_probe else self.best_incorrect_latent['layer']
+            layer = self.probe_layer if self.use_probe else self.incorrect_candidates[0]['layer']
             return self.incorrect_latent_direction, layer
         else:
             raise ValueError(f"Invalid steering_type: {steering_type}. Must be 'correct', 'preservation', or 'incorrect'")
@@ -1218,16 +1204,18 @@ class SteeringEffectAnalyzer:
                 'layer': self.probe.layer,
             }
         else:
+            top_correct = self.correct_candidates[0]
+            top_incorrect = self.incorrect_candidates[0]
             summary['latents_used'] = {
                 'correct': {
-                    'layer': self.best_correct_latent['layer'],
-                    'latent_idx': self.best_correct_latent['latent_idx'],
-                    'score': self.best_correct_latent.get('separation_score', self.best_correct_latent.get('t_statistic'))
+                    'layer': top_correct['layer'],
+                    'latent_idx': top_correct['latent_idx'],
+                    'score': top_correct.get('separation_score', top_correct.get('t_statistic'))
                 },
                 'incorrect': {
-                    'layer': self.best_incorrect_latent['layer'],
-                    'latent_idx': self.best_incorrect_latent['latent_idx'],
-                    'score': self.best_incorrect_latent.get('separation_score', self.best_incorrect_latent.get('t_statistic'))
+                    'layer': top_incorrect['layer'],
+                    'latent_idx': top_incorrect['latent_idx'],
+                    'score': top_incorrect.get('separation_score', top_incorrect.get('t_statistic'))
                 }
             }
 

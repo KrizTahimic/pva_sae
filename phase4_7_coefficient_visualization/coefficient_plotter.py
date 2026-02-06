@@ -53,7 +53,7 @@ class CoefficientVisualizer:
             with open(analysis_path) as f:
                 raw_data = json.load(f)
 
-            # Build backward-compatible structure using first candidate (rank 0)
+            # Format adaptation: extract first candidate (rank 0) for single-candidate plotting
             if 'correct_steering' in raw_data and raw_data['correct_steering'].get('candidates'):
                 top_correct = raw_data['correct_steering']['candidates'][0]
                 data['correct_steering'] = {
@@ -82,7 +82,7 @@ class CoefficientVisualizer:
             with open(refined_path) as f:
                 refined = json.load(f)
 
-            # Use first candidate (rank 0) for backward-compatible single-candidate plots
+            # Format adaptation: use first candidate (rank 0) for single-candidate plots
             if refined.get("correct"):
                 top_correct = refined["correct"][0]
                 data['correct_steering'] = {

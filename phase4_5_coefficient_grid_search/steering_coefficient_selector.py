@@ -1137,25 +1137,6 @@ class SteeringCoefficientSelector:
                 save_json(results['preservation'], self.output_dir / f"preservation_results_{coeff_str}{suffix}.json")
                 logger.info(f"Saved {len(results['preservation'])} preservation results to preservation_results_{coeff_str}{suffix}.json")
 
-        # Also save aggregated files (all_*_results.json) for backward compatibility
-        all_correction_results = []
-        all_corruption_results = []
-        all_preservation_results = []
-        for coeff_results in results_by_coefficient.values():
-            all_correction_results.extend(coeff_results['correction'])
-            all_corruption_results.extend(coeff_results['corruption'])
-            all_preservation_results.extend(coeff_results['preservation'])
-
-        if all_correction_results:
-            save_json(all_correction_results, self.output_dir / f"all_correction_results{suffix}.json")
-            logger.info(f"Saved {len(all_correction_results)} total correction results to all_correction_results{suffix}.json")
-        if all_corruption_results:
-            save_json(all_corruption_results, self.output_dir / f"all_corruption_results{suffix}.json")
-            logger.info(f"Saved {len(all_corruption_results)} total corruption results to all_corruption_results{suffix}.json")
-        if all_preservation_results:
-            save_json(all_preservation_results, self.output_dir / f"all_preservation_results{suffix}.json")
-            logger.info(f"Saved {len(all_preservation_results)} total preservation results to all_preservation_results{suffix}.json")
-
         # Compute error type distribution from all steered results
         all_steered_results = []
         for st, crs in all_candidate_results.items():

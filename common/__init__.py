@@ -90,7 +90,6 @@ from .dataset_utils import (
     discover_layer_indices,
     load_dataset_split,
     extract_code,
-    evaluate_code,
     load_and_encode_activation,
     load_raw_activation
 )

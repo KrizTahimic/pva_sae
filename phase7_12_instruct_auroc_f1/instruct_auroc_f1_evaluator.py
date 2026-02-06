@@ -483,8 +483,12 @@ def run_evaluation(config):
     # Auto-discover phase outputs (with dataset suffix support)
     if config.dataset_name == "humaneval":
         # HumanEval uses Phase 0.2
-        phase0_1_dir = Path("data/phase0_2_humaneval")
-        logger.info(f"Using HumanEval data from Phase 0.2: {phase0_1_dir}")
+        latest_output = discover_latest_phase_output("0.2", config=config)
+        if latest_output:
+            phase0_1_dir = Path(latest_output).parent
+            logger.info(f"Auto-discovered Phase 0.2 output: {phase0_1_dir}")
+        else:
+            raise FileNotFoundError("No Phase 0.2 output found. Please run Phase 0.2 first.")
     else:
         latest_output = discover_latest_phase_output("0.1", config=config)
         if latest_output:

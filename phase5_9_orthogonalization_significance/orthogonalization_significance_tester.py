@@ -647,7 +647,7 @@ class OrthogonalizationSignificanceTester:
             f"  Correction: Control {results['triangulation_results']['correction']['rates']['zero_discrimination']:.1%} vs PVA {results['triangulation_results']['correction']['rates']['pva']:.1%}",
             f"  Corruption: Control {results['triangulation_results']['corruption']['rates']['zero_discrimination']:.1%} vs PVA {results['triangulation_results']['corruption']['rates']['pva']:.1%}",
             "",
-            "PVA orthogonalization causes MUCH higher corruption (83.6%) than control (19.0%),",
+            f"PVA orthogonalization causes MUCH higher corruption ({results['triangulation_results']['corruption']['rates']['pva']:.1%}) than control ({results['triangulation_results']['corruption']['rates']['zero_discrimination']:.1%}),",
             "suggesting that targeted modifications to discriminative features have stronger",
             "disruptive effects on model behavior than random feature modifications.",
             "",

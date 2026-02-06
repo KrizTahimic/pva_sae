@@ -525,11 +525,7 @@ def _merge_phase4_5_json_results(
 
             per_coeff_files_to_cleanup.append(gpu_file)
 
-    # Save merged per-coefficient files and build aggregated lists
-    all_correction_results = []
-    all_corruption_results = []
-    all_preservation_results = []
-
+    # Save merged per-coefficient files
     for coeff, results in results_by_coefficient.items():
         coeff_str = f"coeff_{int(coeff)}" if coeff == int(coeff) else f"coeff_{coeff}"
 
@@ -542,26 +538,12 @@ def _merge_phase4_5_json_results(
         if results['correction']:
             save_json(results['correction'], output_path / f"correction_results_{coeff_str}.json")
             logger.info(f"Saved {len(results['correction'])} correction results to correction_results_{coeff_str}.json")
-            all_correction_results.extend(results['correction'])
         if results['corruption']:
             save_json(results['corruption'], output_path / f"corruption_results_{coeff_str}.json")
             logger.info(f"Saved {len(results['corruption'])} corruption results to corruption_results_{coeff_str}.json")
-            all_corruption_results.extend(results['corruption'])
         if results['preservation']:
             save_json(results['preservation'], output_path / f"preservation_results_{coeff_str}.json")
             logger.info(f"Saved {len(results['preservation'])} preservation results to preservation_results_{coeff_str}.json")
-            all_preservation_results.extend(results['preservation'])
-
-    # Save aggregated result files for backward compatibility
-    if all_correction_results:
-        save_json(all_correction_results, output_path / "all_correction_results.json")
-        logger.info(f"Saved {len(all_correction_results)} total correction results to all_correction_results.json")
-    if all_corruption_results:
-        save_json(all_corruption_results, output_path / "all_corruption_results.json")
-        logger.info(f"Saved {len(all_corruption_results)} total corruption results to all_corruption_results.json")
-    if all_preservation_results:
-        save_json(all_preservation_results, output_path / "all_preservation_results.json")
-        logger.info(f"Saved {len(all_preservation_results)} total preservation results to all_preservation_results.json")
 
     # Also merge and save selected/refined coefficients
     selected_files = sorted(output_path.glob(selected_pattern))

@@ -632,21 +632,6 @@ def evaluate_code_with_error_type(
         )
 
 
-def evaluate_code(code: str, test_list: list[str]) -> bool:
-    """
-    Evaluate generated code against test cases with timeout protection.
-
-    This is a backward-compatible wrapper around evaluate_code_with_error_type().
-
-    Args:
-        code: Generated code to test
-        test_list: List of test assertion strings
-
-    Returns:
-        True if all tests pass, False otherwise
-    """
-    return evaluate_code_with_error_type(code, test_list).passed
-
 
 # ============================================================================
 # Activation Loading and SAE Encoding
