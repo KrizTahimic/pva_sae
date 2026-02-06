@@ -77,7 +77,7 @@ class ZeroDiscriminationSelector:
         logger.warning("Phase 4.9 output not found, falling back to layer 15")
         return [15]
 
-    def load_phase1_activations(self) -> tuple[dict, dict]:
+    def load_phase1_activations(self) -> tuple[str, str, int, int]:
         """Load Phase 1 activation data for all features."""
         logger.info("Loading Phase 1 activations...")
         

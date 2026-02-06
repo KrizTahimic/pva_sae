@@ -55,6 +55,18 @@ from common.phase_discovery import write_phase_output
 logger = get_logger(__name__)
 
 
+def _dedup_by_task_id(results_list: list[dict]) -> list[dict]:
+    """Remove duplicate results keeping first occurrence per task_id."""
+    seen = set()
+    deduped = []
+    for r in results_list:
+        tid = r.get('task_id')
+        if tid not in seen:
+            seen.add(tid)
+            deduped.append(r)
+    return deduped
+
+
 # One-shot parallelization: distribute problems, merge at end
 # These phases iterate over tasks and can split work across GPUs
 DATA_PARALLEL_PHASES = {
@@ -489,16 +501,6 @@ def _merge_phase4_5_json_results(
     from common.utils import save_json
     import re
 
-    def dedupe_by_task_id(results_list):
-        seen = set()
-        deduped = []
-        for r in results_list:
-            tid = r.get('task_id')
-            if tid not in seen:
-                seen.add(tid)
-                deduped.append(r)
-        return deduped
-
     results_by_coefficient = {}  # {coefficient: {'correction': [], 'corruption': [], 'preservation': []}}
     per_coeff_files_to_cleanup = []
 
@@ -530,9 +532,9 @@ def _merge_phase4_5_json_results(
         coeff_str = f"coeff_{int(coeff)}" if coeff == int(coeff) else f"coeff_{coeff}"
 
         # Deduplicate each result type
-        results['correction'] = dedupe_by_task_id(results['correction'])
-        results['corruption'] = dedupe_by_task_id(results['corruption'])
-        results['preservation'] = dedupe_by_task_id(results['preservation'])
+        results['correction'] = _dedup_by_task_id(results['correction'])
+        results['corruption'] = _dedup_by_task_id(results['corruption'])
+        results['preservation'] = _dedup_by_task_id(results['preservation'])
 
         # Save per-coefficient files
         if results['correction']:
@@ -567,12 +569,7 @@ def _merge_phase4_5_json_results(
 
     # Write phase_output.json manifest with all output files
     outputs_dict = {"primary": output_filename}
-    if all_correction_results:
-        outputs_dict["correction_results"] = "all_correction_results.json"
-    if all_corruption_results:
-        outputs_dict["corruption_results"] = "all_corruption_results.json"
-    if all_preservation_results:
-        outputs_dict["preservation_results"] = "all_preservation_results.json"
+    # Per-coefficient result files are the preferred output format
     # Add per-coefficient result files to manifest
     for coeff in results_by_coefficient.keys():
         coeff_str = f"coeff_{int(coeff)}" if coeff == int(coeff) else f"coeff_{coeff}"
@@ -682,20 +679,10 @@ def _merge_phase5_6_json_results(
             all_corrupted.extend(cr.get('corrupted', []))
 
     # Deduplicate by task_id
-    def dedupe_by_task_id(results_list):
-        seen = set()
-        deduped = []
-        for r in results_list:
-            tid = r.get('task_id')
-            if tid not in seen:
-                seen.add(tid)
-                deduped.append(r)
-        return deduped
-
-    all_incorrect_results = dedupe_by_task_id(all_incorrect_results)
-    all_corrected = dedupe_by_task_id(all_corrected)
-    all_preserved = dedupe_by_task_id(all_preserved)
-    all_corrupted = dedupe_by_task_id(all_corrupted)
+    all_incorrect_results = _dedup_by_task_id(all_incorrect_results)
+    all_corrected = _dedup_by_task_id(all_corrected)
+    all_preserved = _dedup_by_task_id(all_preserved)
+    all_corrupted = _dedup_by_task_id(all_corrupted)
 
     # Recalculate metrics from merged data
     n_incorrect = len(all_incorrect_results)
@@ -1019,19 +1006,9 @@ def _merge_phase4_8_results(
         merged_preservation.extend(detailed.get('preservation', []))
 
     # Deduplicate by task_id within each experiment type
-    def dedup_by_task_id(results: list) -> list:
-        seen = set()
-        deduped = []
-        for r in results:
-            tid = r.get('task_id')
-            if tid not in seen:
-                seen.add(tid)
-                deduped.append(r)
-        return deduped
-
-    merged_correction = dedup_by_task_id(merged_correction)
-    merged_corruption = dedup_by_task_id(merged_corruption)
-    merged_preservation = dedup_by_task_id(merged_preservation)
+    merged_correction = _dedup_by_task_id(merged_correction)
+    merged_corruption = _dedup_by_task_id(merged_corruption)
+    merged_preservation = _dedup_by_task_id(merged_preservation)
 
     logger.info(f"Merged results: {len(merged_correction)} correction, "
                 f"{len(merged_corruption)} corruption, {len(merged_preservation)} preservation")
@@ -1562,19 +1539,9 @@ def _merge_phase7_6_json_results(
         merged_preservation.extend(detailed.get('preservation', []))
 
     # Deduplicate by task_id
-    def dedup_by_task_id(results):
-        seen = set()
-        deduped = []
-        for r in results:
-            tid = r.get('task_id')
-            if tid not in seen:
-                seen.add(tid)
-                deduped.append(r)
-        return deduped
-
-    merged_correction = dedup_by_task_id(merged_correction)
-    merged_corruption = dedup_by_task_id(merged_corruption)
-    merged_preservation = dedup_by_task_id(merged_preservation)
+    merged_correction = _dedup_by_task_id(merged_correction)
+    merged_corruption = _dedup_by_task_id(merged_corruption)
+    merged_preservation = _dedup_by_task_id(merged_preservation)
 
     logger.info(f"Merged results: {len(merged_correction)} correction, "
                 f"{len(merged_corruption)} corruption, {len(merged_preservation)} preservation")

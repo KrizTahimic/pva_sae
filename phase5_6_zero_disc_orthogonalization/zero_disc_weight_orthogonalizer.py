@@ -17,7 +17,6 @@ import torch
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from common.prompt_utils import PromptBuilder
 from common.logging import get_logger, tqdm_with_logging
 from common.viz_utils import handle_viz_only_mode
 from common.utils import ensure_directory_exists, detect_device

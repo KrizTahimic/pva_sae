@@ -66,6 +66,7 @@ class TestCalculateCorrectionMetrics:
         opt = object.__new__(SelectiveSteeringAnalyzer)
         opt.config = Config()
         opt.threshold = 0.5
+        opt.phase4_8_rates = None
         return opt
 
     def test_returns_all_expected_keys(self, analyzer):
@@ -201,6 +202,7 @@ class TestCalculatePreservationMetrics:
         opt = object.__new__(SelectiveSteeringAnalyzer)
         opt.config = Config()
         opt.threshold = 0.5
+        opt.phase4_8_rates = None
         return opt
 
     def test_returns_all_expected_keys(self, analyzer):
@@ -304,6 +306,7 @@ class TestCalculateCombinedMetrics:
         opt = object.__new__(SelectiveSteeringAnalyzer)
         opt.config = Config()
         opt.threshold = 0.5
+        opt.phase4_8_rates = None
         return opt
 
     def test_returns_all_expected_keys(self, analyzer):
@@ -371,8 +374,13 @@ class TestCalculateCombinedMetrics:
         assert metrics['total_problems'] == 0
         assert metrics['overall_steering_rate'] == 0
 
-    def test_includes_phase4_8_comparison(self, analyzer):
-        """Should include Phase 4.8 baseline comparison data."""
+    def test_includes_phase4_8_comparison_when_available(self, analyzer):
+        """Should include Phase 4.8 rates when loaded dynamically."""
+        analyzer.phase4_8_rates = {
+            'correction_rate': 4.04,
+            'corruption_rate': 14.66,
+            'preservation_rate': 85.34,
+        }
         metrics = analyzer._calculate_combined_metrics(
             [{'task_id': 't1', 'was_steered': True, 'baseline_passed': False}],
             [{'task_id': 'p1', 'was_steered': False, 'baseline_passed': True}],
@@ -381,6 +389,17 @@ class TestCalculateCombinedMetrics:
         comparison = metrics['comparison_to_phase4_8']
         assert 'phase4_8_correction_rate' in comparison
         assert 'phase4_8_corruption_rate' in comparison
+
+    def test_phase4_8_comparison_unavailable(self, analyzer):
+        """Should show unavailable note when Phase 4.8 not loaded."""
+        metrics = analyzer._calculate_combined_metrics(
+            [{'task_id': 't1', 'was_steered': True, 'baseline_passed': False}],
+            [{'task_id': 'p1', 'was_steered': False, 'baseline_passed': True}],
+        )
+
+        comparison = metrics['comparison_to_phase4_8']
+        assert 'note' in comparison
+        assert 'unavailable' in comparison['note']
 
 
 # =============================================================================

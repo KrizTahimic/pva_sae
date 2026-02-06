@@ -6,18 +6,16 @@ factor in steering success rates (correction, corruption, preservation).
 Uses chi-square tests to determine statistical significance.
 """
 
-import json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 from datetime import datetime
-from typing import Any
 from scipy.stats import chi2_contingency
 
 from common.logging import get_logger
 from common.config import Config, PLOT_DPI, PLOT_STYLE
-from common.utils import ensure_directory_exists
+from common.utils import ensure_directory_exists, load_json, save_json
 from common.phase_discovery import get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
 from phase3_12_difficulty_auroc_f1.difficulty_evaluator import group_by_difficulty
@@ -52,16 +50,6 @@ class Phase416Runner:
         self.logger.info("\n" + self.config.dump(phase="4.16"))
 
         return main(config=self.config)
-
-def load_json(path: Path) -> Any:
-    """Load JSON file."""
-    with open(path, 'r') as f:
-        return json.load(f)
-
-def save_json(data: Any, path: Path) -> None:
-    """Save data to JSON file."""
-    with open(path, 'w') as f:
-        json.dump(data, f, indent=2)
 
 def load_steering_results(config: Config) -> dict[str, list[dict]]:
     """Load steering results from Phase 4.8.

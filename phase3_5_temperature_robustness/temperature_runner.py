@@ -58,11 +58,12 @@ class TemperatureRobustnessRunner:
         self.checkpoint_frequency = CHECKPOINT_FREQUENCY_DEFAULT
         self.memory_warning_threshold = MEMORY_WARNING_PERCENT
 
-        # Load model and tokenizer
+        # Load model and tokenizer (eager attention for attention pattern extraction)
         logger.info(f"Loading model {config.model_name} on device: {self.device}")
         self.model, self.tokenizer = load_model_and_tokenizer(
             config.model_name,
-            device=self.device  # Pass device object, not string
+            device=self.device,  # Pass device object, not string
+            use_eager_attention=True
         )
 
         # Validate model is on correct device
@@ -742,10 +743,11 @@ class TemperatureEvaluator:
 
         logger.info(f"TemperatureEvaluator GPU {gpu_id}: Initializing...")
 
-        # Load model and tokenizer
+        # Load model and tokenizer (eager attention for attention pattern extraction)
         self.model, self.tokenizer = load_model_and_tokenizer(
             config.model_name,
-            device=self.device
+            device=self.device,
+            use_eager_attention=True
         )
 
         # Initialize seeds for deterministic generation
@@ -832,13 +834,15 @@ class TemperatureEvaluator:
 
             try:
                 if temperature == 0.0 and self.activation_extractor:
-                    # Generate with activation extraction
+                    # Generate with activation extraction (single sample)
                     result = self._generate_temp0_with_activations(row, prompt)
+                    results.append(result)
                 else:
-                    # Generate without activations
-                    result = self._generate_at_temperature(row, prompt, temperature)
-
-                results.append(result)
+                    # Generate multiple samples per temperature (matching sequential path)
+                    n_samples = self.config.temperature_samples_per_temp if temperature > 0 else 1
+                    for sample_idx in range(n_samples):
+                        result = self._generate_at_temperature(row, prompt, temperature, sample_idx)
+                        results.append(result)
 
             except Exception as e:
                 logger.error(f"GPU {self.gpu_id}: Task {row['task_id']} failed: {e}")
@@ -932,7 +936,7 @@ class TemperatureEvaluator:
             self.activation_extractor.remove_hooks()
             self.attention_extractor.remove_hooks()
 
-    def _generate_at_temperature(self, row, prompt: str, temperature: float) -> dict:
+    def _generate_at_temperature(self, row, prompt: str, temperature: float, sample_idx: int = 0) -> dict:
         """Generate at non-zero temperature."""
         start_time = time.time()
 
@@ -973,7 +977,7 @@ class TemperatureEvaluator:
             'error_message': None,
             'generation_time': generation_time,
             'cyclomatic_complexity': row.get('cyclomatic_complexity', 0.0),
-            'generation_idx': 0,
+            'generation_idx': sample_idx,
             'test_list': json.dumps(row['test_list'].tolist() if hasattr(row['test_list'], 'tolist') else row['test_list'])
         }
 

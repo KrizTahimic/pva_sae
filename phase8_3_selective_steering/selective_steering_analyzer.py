@@ -47,7 +47,6 @@ from common.phase_discovery import (
 from common.dataset_utils import extract_code, evaluate_code_with_error_type, compute_error_type_distribution
 from common.model_loader import load_model_and_tokenizer
 from common.steering_metrics import create_last_position_steering_hook
-from common.prompt_utils import PromptBuilder
 from common.sae_loader import load_sae_for_config
 from common.direction_utils import normalize_direction
 
@@ -390,6 +389,24 @@ class SelectiveSteeringAnalyzer:
             coefficients = discover_steering_coefficients(self.config)
             self.correct_coefficient = coefficients["correct"]
             logger.info(f"Loaded steering coefficient: {self.correct_coefficient}")
+
+        # === LOAD PHASE 4.8 COMPARISON RATES (for summary logging) ===
+        self.phase4_8_rates = None
+        try:
+            phase4_8_output = discover_latest_phase_output("4.8", config=self.config)
+            if phase4_8_output:
+                phase4_8_summary = load_json(Path(phase4_8_output).parent / "phase_4_8_summary.json")
+                results = phase4_8_summary.get('results', {})
+                self.phase4_8_rates = {
+                    'correction_rate': results.get('correction_rate', None),
+                    'corruption_rate': results.get('corruption_rate', None),
+                    'preservation_rate': results.get('preservation_rate', None),
+                }
+                logger.info(f"Loaded Phase 4.8 comparison rates: "
+                           f"correction={self.phase4_8_rates['correction_rate']}, "
+                           f"corruption={self.phase4_8_rates['corruption_rate']}")
+        except Exception as e:
+            logger.warning(f"Could not load Phase 4.8 summary for comparison: {e}")
 
         logger.info("Dependencies loaded successfully")
 
@@ -900,14 +917,20 @@ class SelectiveSteeringAnalyzer:
             'total_problems': total_problems,
             'total_steered': total_steered,
             'overall_steering_rate': round(overall_steering_rate, 4),
-            'comparison_to_phase4_8': {
-                'phase4_8_correction_rate': 0.0404,  # From Phase 4.8
-                'phase4_8_corruption_rate': 0.1466,  # From Phase 4.8
-                'note': 'Phase 4.8 values are from always-steering approach'
-            }
+            'comparison_to_phase4_8': self._get_phase4_8_comparison()
         }
 
         return metrics
+
+    def _get_phase4_8_comparison(self) -> dict:
+        """Get Phase 4.8 rates for comparison, loaded dynamically."""
+        if self.phase4_8_rates:
+            return {
+                'phase4_8_correction_rate': self.phase4_8_rates['correction_rate'],
+                'phase4_8_corruption_rate': self.phase4_8_rates['corruption_rate'],
+                'note': 'Phase 4.8 values are from always-steering approach'
+            }
+        return {'note': 'Phase 4.8 comparison unavailable (run Phase 4.8 first)'}
 
     def _save_example_comparisons(
         self,
@@ -1131,36 +1154,44 @@ class SelectiveSteeringAnalyzer:
 
         logger.info(f"\n{'COMPARISON TO PHASE 4.8 (Always-Steering Baseline)':-^80}")
         logger.info(f"")
-        logger.info(f"  {'Metric':<40} {'Phase 4.8':>15} {'Phase 8.3':>15}")
-        logger.info(f"  {'-'*70}")
-        logger.info(f"  {'Correction Rate':<40} {4.04:>14.2f}% {correction_metrics['correction_rate']*100:>14.2f}%")
-        logger.info(f"  {'Corruption Rate':<40} {14.66:>14.2f}% {preservation_metrics['corruption_rate']*100:>14.2f}%")
-        logger.info(f"  {'Preservation Rate':<40} {85.34:>14.2f}% {preservation_metrics['preservation_rate']*100:>14.2f}%")
-        logger.info(f"  {'Steering Rate':<40} {'100.00':>15} {combined_metrics['overall_steering_rate']*100:>14.1f}%")
-        logger.info(f"  {'-'*70}")
-        logger.info(f"")
-        logger.info(f"  Key Insights:")
 
-        # Calculate improvements
-        corruption_reduction = 14.66 - preservation_metrics['corruption_rate']*100
-        if corruption_reduction > 0:
-            logger.info(f"    ✓ Corruption reduced by {corruption_reduction:.2f} percentage points")
-        else:
-            logger.info(f"    ⚠ Corruption increased by {abs(corruption_reduction):.2f} percentage points")
+        if self.phase4_8_rates and self.phase4_8_rates.get('correction_rate') is not None:
+            p48_corr = self.phase4_8_rates['correction_rate']
+            p48_corrupt = self.phase4_8_rates['corruption_rate']
+            p48_preserve = self.phase4_8_rates.get('preservation_rate', 100.0 - p48_corrupt)
 
-        steering_reduction = 100.0 - combined_metrics['overall_steering_rate']*100
-        if steering_reduction > 0:
-            logger.info(f"    ✓ Steering rate reduced by {steering_reduction:.1f} percentage points")
-        else:
-            logger.info(f"    ⚠ Steering more frequently than Phase 4.8")
+            logger.info(f"  {'Metric':<40} {'Phase 4.8':>15} {'Phase 8.3':>15}")
+            logger.info(f"  {'-'*70}")
+            logger.info(f"  {'Correction Rate':<40} {p48_corr:>14.2f}% {correction_metrics['correction_rate']*100:>14.2f}%")
+            logger.info(f"  {'Corruption Rate':<40} {p48_corrupt:>14.2f}% {preservation_metrics['corruption_rate']*100:>14.2f}%")
+            logger.info(f"  {'Preservation Rate':<40} {p48_preserve:>14.2f}% {preservation_metrics['preservation_rate']*100:>14.2f}%")
+            logger.info(f"  {'Steering Rate':<40} {'100.00':>15} {combined_metrics['overall_steering_rate']*100:>14.1f}%")
+            logger.info(f"  {'-'*70}")
+            logger.info(f"")
+            logger.info(f"  Key Insights:")
 
-        correction_diff = correction_metrics['correction_rate']*100 - 4.04
-        if abs(correction_diff) < 1.0:
-            logger.info(f"    ≈ Correction rate similar to Phase 4.8 ({correction_diff:+.2f}pp)")
-        elif correction_diff > 0:
-            logger.info(f"    ✓ Correction rate improved by {correction_diff:.2f} percentage points")
+            # Calculate improvements
+            corruption_reduction = p48_corrupt - preservation_metrics['corruption_rate']*100
+            if corruption_reduction > 0:
+                logger.info(f"    ✓ Corruption reduced by {corruption_reduction:.2f} percentage points")
+            else:
+                logger.info(f"    ⚠ Corruption increased by {abs(corruption_reduction):.2f} percentage points")
+
+            steering_reduction = 100.0 - combined_metrics['overall_steering_rate']*100
+            if steering_reduction > 0:
+                logger.info(f"    ✓ Steering rate reduced by {steering_reduction:.1f} percentage points")
+            else:
+                logger.info(f"    ⚠ Steering more frequently than Phase 4.8")
+
+            correction_diff = correction_metrics['correction_rate']*100 - p48_corr
+            if abs(correction_diff) < 1.0:
+                logger.info(f"    ≈ Correction rate similar to Phase 4.8 ({correction_diff:+.2f}pp)")
+            elif correction_diff > 0:
+                logger.info(f"    ✓ Correction rate improved by {correction_diff:.2f} percentage points")
+            else:
+                logger.info(f"    ⚠ Correction rate decreased by {abs(correction_diff):.2f} percentage points")
         else:
-            logger.info(f"    ⚠ Correction rate decreased by {abs(correction_diff):.2f} percentage points")
+            logger.info(f"  Phase 4.8 comparison unavailable (run Phase 4.8 first)")
 
         logger.info(f"\n{'='*80}")
         logger.info(f"Output files saved to: {self.output_dir}")

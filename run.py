@@ -129,7 +129,7 @@ def setup_argument_parser():
     phase_parser.add_argument(
         '--parallel',
         type=int,
-        default=4,
+        default=4,  # Intentional: lab has 4 GPUs, sequential fallback if phase unsupported
         metavar='N',
         help='Number of GPUs for parallel execution (default: 4)'
     )

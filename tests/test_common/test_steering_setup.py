@@ -274,17 +274,16 @@ class TestSaeVsProbeLoading:
         assert info['is_probe'] is True
         assert info['probe_method'] == 'mass_mean'
 
-    def test_unknown_source_defaults_to_sae(self):
-        """Unknown direction source should default to SAE."""
+    def test_unknown_source_raises_valueerror(self):
+        """Unknown direction source should raise ValueError."""
         from common.steering_setup import get_direction_source_info
+        import pytest
 
         config = Config()
-        config.direction_source = "invalid_source"  # Bypass validation
+        config.direction_source = "invalid_source"
 
-        info = get_direction_source_info(config)
-
-        assert info['source'] == 'sae'
-        assert info['is_probe'] is False
+        with pytest.raises(ValueError, match="Unknown direction source"):
+            get_direction_source_info(config)
 
 
 # =============================================================================

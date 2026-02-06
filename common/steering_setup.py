@@ -213,8 +213,7 @@ def get_direction_source_info(config: Config) -> dict:
     elif source == 'probe_mass_mean':
         return {'source': 'probe', 'is_probe': True, 'probe_method': 'mass_mean'}
     else:
-        logger.warning(f"Unknown direction source: {source}, defaulting to SAE")
-        return {'source': 'sae', 'is_probe': False, 'probe_method': None}
+        raise ValueError(f"Unknown direction source: '{source}'. Valid options: 'sae', 'probe_logreg', 'probe_mass_mean'")
 
 
 def _load_latents_from_phase(config: Config, phase: str, purpose: str) -> PVALatents:

@@ -136,20 +136,13 @@ class TStatisticSelector:
                     equal_var=False,
                     nan_policy='omit'
                 ).statistic
-                
-                # Compute t-statistic for incorrect > correct direction (swapped order)
-                t_stat_incorrect = stats.ttest_ind(
-                    incorrect_acts,  # Note: arguments swapped
-                    correct_acts,
-                    equal_var=False,
-                    nan_policy='omit'
-                ).statistic
-                
+
                 # Handle NaN results
                 if np.isnan(t_stat_correct):
                     t_stat_correct = 0.0
-                if np.isnan(t_stat_incorrect):
-                    t_stat_incorrect = 0.0
+
+                # Swapping arguments negates the t-statistic (no need for second ttest_ind)
+                t_stat_incorrect = -t_stat_correct
                 
                 t_stats_correct.append(float(t_stat_correct))
                 t_stats_incorrect.append(float(t_stat_incorrect))
@@ -184,12 +177,12 @@ class TStatisticSelector:
             f"{len(incorrect_activations)} incorrect activations"
         )
         
-        # DEBUG: Check raw activation statistics
-        logger.info(f"Layer {layer_idx} raw activations:")
-        logger.info(f"  Correct: mean={correct_activations.mean():.6f}, std={correct_activations.std():.6f}")
-        logger.info(f"  Incorrect: mean={incorrect_activations.mean():.6f}, std={incorrect_activations.std():.6f}")
-        logger.info(f"  Non-zero correct: {(correct_activations != 0).sum()}/{correct_activations.numel()}")
-        logger.info(f"  Non-zero incorrect: {(incorrect_activations != 0).sum()}/{incorrect_activations.numel()}")
+        # Debug: raw activation statistics
+        logger.debug(f"Layer {layer_idx} raw activations:")
+        logger.debug(f"  Correct: mean={correct_activations.mean():.6f}, std={correct_activations.std():.6f}")
+        logger.debug(f"  Incorrect: mean={incorrect_activations.mean():.6f}, std={incorrect_activations.std():.6f}")
+        logger.debug(f"  Non-zero correct: {(correct_activations != 0).sum()}/{correct_activations.numel()}")
+        logger.debug(f"  Non-zero incorrect: {(incorrect_activations != 0).sum()}/{incorrect_activations.numel()}")
         
         # Ensure dtype matches SAE parameters for matrix multiplication
         correct_activations = correct_activations.to(sae.W_enc.dtype)
@@ -200,26 +193,26 @@ class TStatisticSelector:
             correct_latent_activations = sae.encode(correct_activations)
             incorrect_latent_activations = sae.encode(incorrect_activations)
 
-        # DEBUG: Check SAE latent statistics
-        logger.info(f"Layer {layer_idx} SAE latents:")
-        logger.info(f"  Correct latents: mean={correct_latent_activations.mean():.6f}, std={correct_latent_activations.std():.6f}")
-        logger.info(f"  Incorrect latents: mean={incorrect_latent_activations.mean():.6f}, std={incorrect_latent_activations.std():.6f}")
-        logger.info(f"  Active correct latents: {(correct_latent_activations > 0).sum()}/{correct_latent_activations.numel()}")
-        logger.info(f"  Active incorrect latents: {(incorrect_latent_activations > 0).sum()}/{incorrect_latent_activations.numel()}")
+        # Debug: SAE latent statistics
+        logger.debug(f"Layer {layer_idx} SAE latents:")
+        logger.debug(f"  Correct latents: mean={correct_latent_activations.mean():.6f}, std={correct_latent_activations.std():.6f}")
+        logger.debug(f"  Incorrect latents: mean={incorrect_latent_activations.mean():.6f}, std={incorrect_latent_activations.std():.6f}")
+        logger.debug(f"  Active correct latents: {(correct_latent_activations > 0).sum()}/{correct_latent_activations.numel()}")
+        logger.debug(f"  Active incorrect latents: {(incorrect_latent_activations > 0).sum()}/{incorrect_latent_activations.numel()}")
 
         # Compute t-statistics
         t_stats = self.compute_t_statistics(correct_latent_activations, incorrect_latent_activations)
 
-        # DEBUG: Check t-statistic results
+        # Debug: t-statistic results
         max_correct_t = max(t_stats['t_stats_correct']) if t_stats['t_stats_correct'] else 0
         max_incorrect_t = max(t_stats['t_stats_incorrect']) if t_stats['t_stats_incorrect'] else 0
         non_zero_correct = sum(1 for t in t_stats['t_stats_correct'] if abs(t) > 1e-6)
         non_zero_incorrect = sum(1 for t in t_stats['t_stats_incorrect'] if abs(t) > 1e-6)
-        logger.info(f"Layer {layer_idx} t-statistics:")
-        logger.info(f"  Max correct t-stat: {max_correct_t:.6f}")
-        logger.info(f"  Max incorrect t-stat: {max_incorrect_t:.6f}")
-        logger.info(f"  Non-zero correct t-stats: {non_zero_correct}/{len(t_stats['t_stats_correct'])}")
-        logger.info(f"  Non-zero incorrect t-stats: {non_zero_incorrect}/{len(t_stats['t_stats_incorrect'])}")
+        logger.debug(f"Layer {layer_idx} t-statistics:")
+        logger.debug(f"  Max correct t-stat: {max_correct_t:.6f}")
+        logger.debug(f"  Max incorrect t-stat: {max_incorrect_t:.6f}")
+        logger.debug(f"  Non-zero correct t-stats: {non_zero_correct}/{len(t_stats['t_stats_correct'])}")
+        logger.debug(f"  Non-zero incorrect t-stats: {non_zero_incorrect}/{len(t_stats['t_stats_incorrect'])}")
 
         # Store ALL latents for global selection
         num_latents = len(t_stats['t_stats_correct'])

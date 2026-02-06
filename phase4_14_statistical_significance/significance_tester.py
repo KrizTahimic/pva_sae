@@ -209,7 +209,8 @@ class SignificanceTester:
         # Get baseline incorrect problems
         baseline_incorrect = baseline_data[baseline_data['baseline_passed'] == False]
         baseline_n_incorrect = len(baseline_incorrect)
-        # Since baseline has no steering, correction rate is 0
+        # Baseline has no steering, so correction rate is 0.
+        # binomtest(p=0) is by design: tests raw improvement from no-steering baseline.
         baseline_correction_rate = 0.0
         
         # Extract targeted correction results from Phase 4.8
@@ -278,7 +279,8 @@ class SignificanceTester:
         # Get baseline correct problems
         baseline_correct = baseline_data[baseline_data['baseline_passed'] == True]
         baseline_n_correct = len(baseline_correct)
-        # Since baseline has no steering, corruption rate is 0
+        # Baseline has no steering, so corruption rate is 0.
+        # binomtest(p=0) is by design: tests raw improvement from no-steering baseline.
         baseline_corruption_rate = 0.0
         
         # Extract targeted corruption results from Phase 4.8

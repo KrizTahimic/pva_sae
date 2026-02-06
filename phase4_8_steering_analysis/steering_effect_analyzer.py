@@ -18,7 +18,6 @@ import torch
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from common.prompt_utils import PromptBuilder
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import ensure_directory_exists, detect_device
 from common.phase_discovery import (
@@ -81,12 +80,13 @@ class SteeringEffectAnalyzer:
         self.examples_dir = self.output_dir / "examples"
         ensure_directory_exists(self.examples_dir)
         
-        # Initialize model and tokenizer
+        # Initialize model and tokenizer (eager attention for attention pattern extraction)
         logger.info(f"Loading model: {config.model_name}")
         self.model, self.tokenizer = load_model_and_tokenizer(
             config.model_name,
             device=self.device,
-            trust_remote_code=config.model_trust_remote_code
+            trust_remote_code=config.model_trust_remote_code,
+            use_eager_attention=True
         )
         self.model.eval()
         

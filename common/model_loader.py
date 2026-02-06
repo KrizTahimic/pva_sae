@@ -13,17 +13,20 @@ def load_model_and_tokenizer(
     model_name: str,
     device: Optional[Union[str, torch.device]] = None,
     dtype: Optional[torch.dtype] = None,
-    trust_remote_code: bool = True
+    trust_remote_code: bool = True,
+    use_eager_attention: bool = False
 ) -> tuple[AutoModelForCausalLM, AutoTokenizer]:
     """
     Load model and tokenizer from HuggingFace.
-    
+
     Args:
         model_name: HuggingFace model identifier
         device: Device to load model on (auto-detect if None)
         dtype: Model dtype (auto-detect if None)
         trust_remote_code: Whether to trust remote code
-        
+        use_eager_attention: Force eager attention (needed for attention weight extraction
+            in Phases 3.5 and 4.8). Default uses HF auto selection (flash_attention_2/sdpa).
+
     Returns:
         Tuple of (model, tokenizer)
     """
@@ -56,15 +59,18 @@ def load_model_and_tokenizer(
     logger.info(f"Loading model to {device}...")
     
     # Use low_cpu_mem_usage for efficient loading
-    # Force eager attention to enable attention weight extraction (required for Phase 6.3)
-    # SDPA (Scaled Dot Product Attention) is faster but doesn't support attention extraction
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
+    load_kwargs = dict(
         torch_dtype=dtype,
         trust_remote_code=trust_remote_code,
         low_cpu_mem_usage=True,
-        attn_implementation="eager"
     )
+    if use_eager_attention:
+        # Eager attention needed for attention weight extraction (Phases 3.5, 4.8)
+        # SDPA/flash_attention_2 are faster but don't support attention extraction
+        load_kwargs["attn_implementation"] = "eager"
+        logger.info("Using eager attention implementation (attention extraction mode)")
+
+    model = AutoModelForCausalLM.from_pretrained(model_name, **load_kwargs)
     
     # Move to target device if not CPU
     if device.type != "cpu":

@@ -65,8 +65,7 @@ def calculate_correction_rate(results: Union[list[dict], pd.DataFrame]) -> float
     # Detect column/key name
     modified_col = _detect_modified_column(results)
     if modified_col is None:
-        logger.warning("Results missing 'steered_correct' or 'orthogonalized_correct'")
-        return 0.0
+        raise ValueError("Results missing 'steered_correct' or 'orthogonalized_correct' column")
 
     # Compute based on type - flat structure
     if isinstance(results, pd.DataFrame):
@@ -112,8 +111,7 @@ def calculate_corruption_rate(results: Union[list[dict], pd.DataFrame]) -> float
     # Detect column/key name
     modified_col = _detect_modified_column(results)
     if modified_col is None:
-        logger.warning("Results missing 'steered_correct' or 'orthogonalized_correct'")
-        return 0.0
+        raise ValueError("Results missing 'steered_correct' or 'orthogonalized_correct' column")
 
     # Compute based on type - flat structure
     if isinstance(results, pd.DataFrame):

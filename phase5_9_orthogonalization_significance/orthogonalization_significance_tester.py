@@ -139,7 +139,8 @@ class OrthogonalizationSignificanceTester:
     def perform_correction_triangulation(self, baseline_metrics: dict, 
                                        pva_results: dict, zero_disc_results: dict) -> dict:
         """Perform triangulation for correction experiments (incorrect→correct)."""
-        # Baseline has no orthogonalization, so correction rate is 0
+        # Baseline has no orthogonalization, so correction rate is 0.
+        # binomtest(p=0) is by design: tests raw improvement from no-steering baseline.
         baseline_n_incorrect = baseline_metrics['n_incorrect']
         baseline_correction_rate = 0.0
         
@@ -197,7 +198,8 @@ class OrthogonalizationSignificanceTester:
     def perform_corruption_triangulation(self, baseline_metrics: dict, 
                                        pva_results: dict, zero_disc_results: dict) -> dict:
         """Perform triangulation for corruption experiments (correct→incorrect)."""
-        # Baseline has no orthogonalization, so corruption rate is 0
+        # Baseline has no orthogonalization, so corruption rate is 0.
+        # binomtest(p=0) is by design: tests raw improvement from no-steering baseline.
         baseline_n_correct = baseline_metrics['n_correct']
         baseline_corruption_rate = 0.0
         

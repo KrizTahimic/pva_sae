@@ -29,7 +29,6 @@ class UniversalityAnalyzer:
 
     def __init__(self, config: Config):
         self.config = config
-        self.data_dir = Path("data")
 
         # Output directory with dataset suffix
         self.output_dir = Path(get_phase_output_dir('7.9', config))
@@ -61,15 +60,13 @@ class UniversalityAnalyzer:
         self.instruct_baseline = pd.read_parquet(self.phase7_3_dir / "dataset_instruct_temp_0_0.parquet")
 
         # Phase 4.8: Base model steering results
-        # Check if preservation-only results exist for accurate preservation rate
-        dataset_suffix = f"_{self.config.dataset_name}" if self.config.dataset_name != "mbpp" else ""
-        preserve_only_file = self.data_dir / f"phase4_8{dataset_suffix}_preserve_only/phase_4_8_summary.json"
-
         with open(self.phase4_8_dir / "phase_4_8_summary.json", 'r') as f:
             self.base_steering = json.load(f)
 
+        # Check if preservation-only results exist for accurate preservation rate
+        phase4_8_base = Path(get_phase_output_dir('4.8', self.config))
+        preserve_only_file = phase4_8_base.parent / (phase4_8_base.name + "_preserve_only") / "phase_4_8_summary.json"
         if preserve_only_file.exists():
-            # Use preservation-only results for accurate preservation rate
             with open(preserve_only_file, 'r') as f:
                 preserve_data = json.load(f)
             self.base_steering["results"]["preservation_rate"] = preserve_data["results"]["preservation_rate"]

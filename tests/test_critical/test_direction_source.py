@@ -197,18 +197,16 @@ class TestDirectionSourceSwitching:
         config = Config(direction_source='probe_mass_mean')
         assert config.direction_source == 'probe_mass_mean'
 
-    def test_invalid_source_handled_gracefully(self):
-        """Invalid direction source should be handled (defaults to SAE)."""
+    def test_invalid_source_raises_valueerror(self):
+        """Invalid direction source should raise ValueError."""
         from common.steering_setup import get_direction_source_info
+        import pytest
 
         config = Config()
-        config.direction_source = 'invalid_source'  # Bypass validation
+        config.direction_source = 'invalid_source'
 
-        info = get_direction_source_info(config)
-
-        # Should default to SAE
-        assert info['source'] == 'sae'
-        assert info['is_probe'] is False
+        with pytest.raises(ValueError, match="Unknown direction source"):
+            get_direction_source_info(config)
 
 
 # =============================================================================
