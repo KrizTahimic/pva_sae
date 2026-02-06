@@ -233,6 +233,22 @@ class TestSplitByCorrectness:
 
         assert 'new_col' not in df.columns
 
+    def test_delegation_matches_dataset_utils(self):
+        """steering_setup.split_by_correctness should produce same results as dataset_utils."""
+        from common.steering_setup import split_by_correctness
+        from common.dataset_utils import split_by_correctness as du_split
+
+        df = pd.DataFrame({
+            'task_id': ['t1', 't2', 't3', 't4', 't5'],
+            'baseline_passed': [True, False, True, False, True]
+        })
+
+        ss_correct, ss_incorrect = split_by_correctness(df)
+        du_correct, du_incorrect = du_split(df, correctness_col='baseline_passed')
+
+        assert set(ss_correct['task_id']) == set(du_correct['task_id'])
+        assert set(ss_incorrect['task_id']) == set(du_incorrect['task_id'])
+
 
 # =============================================================================
 # sae_vs_probe_loading Tests

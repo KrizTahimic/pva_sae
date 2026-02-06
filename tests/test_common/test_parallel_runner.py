@@ -4,10 +4,14 @@ Tests for common/parallel_runner.py
 Validates:
 - filter_dataframe_for_gpu: Round-robin distribution
 - Task distribution exhaustiveness and exclusivity
+- H1 regression: Phase 8.3 merge uses 'was_steered' key, not 'steered'
+- R3: Helper functions _load_gpu_json_files and _cleanup_gpu_files
 """
 
 import pytest
+import json
 import pandas as pd
+from pathlib import Path
 
 from common.parallel_runner import filter_dataframe_for_gpu
 
@@ -91,3 +95,82 @@ class TestFilterDataframeForGpu:
         # Modifying the result should not affect the original
         result.iloc[0, result.columns.get_loc('value')] = 999
         assert df.iloc[0]['value'] == 0
+
+
+# =============================================================================
+# H1 Regression: Phase 8.3 merge uses 'was_steered' key
+# =============================================================================
+
+class TestPhase83MergeUsesWasSteered:
+    """Regression test: Phase 8.3 records use 'was_steered' key, not 'steered'.
+
+    The merge function in parallel_runner.py was reading r.get('steered', False)
+    but Phase 8.2/8.3 records use the key 'was_steered'. This caused steering
+    trigger rates to always be reported as 0%.
+    """
+
+    def test_merge_code_references_was_steered(self):
+        """Source code should reference 'was_steered', not 'steered' for Phase 8.3 merge."""
+        import inspect
+        import common.parallel_runner as mod
+        source = inspect.getsource(mod)
+
+        # The old bug: using r.get('steered', False) in the merge function
+        # After fix: r.get('was_steered', False)
+        # Check that 'was_steered' is used in the merge context
+        assert "r.get('was_steered'" in source
+        # The old pattern should NOT exist (except possibly in other contexts)
+        assert "r.get('steered', False)" not in source
+
+
+# =============================================================================
+# R3: Helper function tests
+# =============================================================================
+
+class TestLoadGpuJsonFiles:
+    """Test _load_gpu_json_files helper."""
+
+    def test_loads_matching_files(self, tmp_path):
+        """Should load all files matching the glob pattern."""
+        from common.parallel_runner import _load_gpu_json_files
+
+        for i in range(3):
+            (tmp_path / f"results_gpu{i}.json").write_text(
+                json.dumps({"gpu_id": i, "data": [i]})
+            )
+
+        results = _load_gpu_json_files(tmp_path, "results_gpu*.json")
+        assert len(results) == 3
+        assert results[0]["gpu_id"] == 0
+        assert results[2]["gpu_id"] == 2
+
+    def test_raises_on_no_files(self, tmp_path):
+        """Should raise RuntimeError when no files match."""
+        from common.parallel_runner import _load_gpu_json_files
+
+        with pytest.raises(RuntimeError, match="No results_gpu"):
+            _load_gpu_json_files(tmp_path, "results_gpu*.json")
+
+
+class TestCleanupGpuFiles:
+    """Test _cleanup_gpu_files helper."""
+
+    def test_removes_matching_files(self, tmp_path):
+        """Should remove all files matching the patterns."""
+        from common.parallel_runner import _cleanup_gpu_files
+
+        for i in range(3):
+            (tmp_path / f"results_gpu{i}.json").write_text("{}")
+            (tmp_path / f"summary_gpu{i}.json").write_text("{}")
+        (tmp_path / "final_results.json").write_text("{}")
+
+        _cleanup_gpu_files(tmp_path, ["results_gpu*.json", "summary_gpu*.json"])
+
+        remaining = list(tmp_path.glob("*.json"))
+        assert len(remaining) == 1
+        assert remaining[0].name == "final_results.json"
+
+    def test_no_error_on_missing_pattern(self, tmp_path):
+        """Should not raise if no files match a pattern."""
+        from common.parallel_runner import _cleanup_gpu_files
+        _cleanup_gpu_files(tmp_path, ["nonexistent_*.json"])

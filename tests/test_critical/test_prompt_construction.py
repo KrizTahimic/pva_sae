@@ -130,3 +130,22 @@ class TestNoDoubleWrapping:
                 f"Phase {phase} {class_name}.{method_name}() should not call build_prompt() "
                 f"- the prompt is pre-built in Phase 1 and stored in row['prompt']"
             )
+
+    def test_phase_8_2_has_no_prompt_builder_import(self):
+        """Phase 8.2 should not import PromptBuilder (H2 fix).
+
+        Phase 8.2 merges Phase 0.1 with Phase 3.6 which provides the 'prompt' column.
+        It should use row['prompt'] directly, not re-build prompts.
+        """
+        import importlib
+        module = importlib.import_module(
+            'phase8_2_threshold_optimizer.threshold_optimizer'
+        )
+        source = inspect.getsource(module)
+
+        assert "from common.prompt_utils import PromptBuilder" not in source, (
+            "Phase 8.2 should not import PromptBuilder - prompts come from Phase 3.6 data"
+        )
+        assert "PromptBuilder.build_prompt" not in source, (
+            "Phase 8.2 should not call PromptBuilder.build_prompt()"
+        )

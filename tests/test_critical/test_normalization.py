@@ -394,3 +394,24 @@ class TestProbeDirectionNormalization:
 
         # Incorrect should be negation of correct
         assert torch.allclose(result.incorrect_direction, -result.correct_direction)
+
+
+# =============================================================================
+# M3 Regression: Phase 5.6 normalizes zero-disc direction
+# =============================================================================
+
+class TestPhase56NormalizesDirection:
+    """Regression test: Phase 5.6 should normalize its zero-disc latent direction."""
+
+    def test_source_calls_normalize_direction(self):
+        """Phase 5.6 source should import and call normalize_direction."""
+        import inspect
+        import phase5_6_zero_disc_orthogonalization.zero_disc_weight_orthogonalizer as mod
+        source = inspect.getsource(mod)
+
+        assert "from common.direction_utils import normalize_direction" in source, (
+            "Phase 5.6 must import normalize_direction from common.direction_utils"
+        )
+        assert "normalize_direction(self.zero_disc_latent_direction)" in source, (
+            "Phase 5.6 must call normalize_direction on the zero-disc direction"
+        )
