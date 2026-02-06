@@ -205,7 +205,7 @@ class AttentionAnalyzer:
         attention_data = {}
         
         # Get task IDs from analysis split
-        phase0_1_output = discover_latest_phase_output("0.1")
+        phase0_1_output = discover_latest_phase_output("0.1", config=self.config)
         if not phase0_1_output:
             raise FileNotFoundError("Phase 0.1 output not found")
 

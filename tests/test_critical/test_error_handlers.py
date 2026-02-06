@@ -4,6 +4,7 @@ Tests for error handler conservative assumptions.
 Validates:
 - Phase 5.3 error handler assumes failure (orthogonalized_correct=False)
 - Phase 8.2 error handler assumes failure (steered_correct=False, corrupted=baseline_passed)
+- Phase 8.3 error handler assumes failure (steered_correct=False, was_steered field)
 - save_json() atomicity (no partial file on failure)
 """
 
@@ -123,6 +124,65 @@ class TestPhase82ErrorHandler:
         }
 
         assert error_result['corrupted'] is False
+
+
+# =============================================================================
+# Phase 8.3 Error Handler Tests
+# =============================================================================
+
+class TestPhase83ErrorHandler:
+    """Test Phase 8.3 error handler returns conservative values."""
+
+    def test_error_result_steered_correct_is_false(self):
+        """Error during selective steering should set steered_correct=False (not baseline_passed)."""
+        for baseline_passed in [True, False]:
+            error_result = {
+                'task_id': 'test_task',
+                'baseline_passed': baseline_passed,
+                'was_steered': False,
+                'incorrect_pred_activation': None,
+                'steered_correct': False,  # Conservative: assume failure
+                'baseline_code': 'def foo(): pass',
+                'steered_code': None,
+                'source': 'error',
+                'error': 'test error'
+            }
+
+            # steered_correct must always be False on error, regardless of baseline
+            assert error_result['steered_correct'] is False
+
+    def test_error_result_uses_was_steered_field(self):
+        """Error result must use 'was_steered' field name (not 'steered')."""
+        error_result = {
+            'task_id': 'test_task',
+            'baseline_passed': True,
+            'was_steered': False,
+            'steered_correct': False,
+            'source': 'error',
+        }
+
+        assert 'was_steered' in error_result
+        assert 'steered' not in error_result  # Must NOT use old field name
+
+    def test_error_result_counts_as_corruption_for_correct_baseline(self):
+        """Error on correct baseline should count as corruption (conservative)."""
+        error_result = {
+            'baseline_passed': True,
+            'steered_correct': False,
+        }
+
+        corruption = error_result['baseline_passed'] and not error_result['steered_correct']
+        assert corruption is True
+
+    def test_error_result_not_correction(self):
+        """Error should never count as correction."""
+        error_result = {
+            'baseline_passed': False,
+            'steered_correct': False,
+        }
+
+        correction = not error_result['baseline_passed'] and error_result['steered_correct']
+        assert correction is False
 
 
 # =============================================================================

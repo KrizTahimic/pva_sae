@@ -329,7 +329,7 @@ class SelectiveSteeringAnalyzer:
 
             # Step 2: Load threshold from Phase 8.1 using the determined percentile
             logger.info(f"Loading p{percentile} threshold from Phase 8.1...")
-            phase8_1_output = discover_latest_phase_output("8.1")
+            phase8_1_output = discover_latest_phase_output("8.1", config=self.config)
 
             if phase8_1_output:
                 phase8_1_dir = Path(phase8_1_output).parent
@@ -550,7 +550,7 @@ class SelectiveSteeringAnalyzer:
                 return {
                     'task_id': task_id,
                     'baseline_passed': baseline_row['baseline_passed'],
-                    'steered': False,
+                    'was_steered': False,
                     'incorrect_pred_activation': state.incorrect_pred_activation,
                     'steered_correct': baseline_row['baseline_passed'],  # Passthrough baseline
                     'baseline_code': baseline_row['generated_code'],
@@ -574,7 +574,7 @@ class SelectiveSteeringAnalyzer:
             return {
                 'task_id': task_id,
                 'baseline_passed': baseline_row['baseline_passed'],
-                'steered': True,
+                'was_steered': True,
                 'incorrect_pred_activation': state.incorrect_pred_activation,
                 'steered_correct': eval_result.passed,
                 'steered_error_type': eval_result.error_type,
@@ -682,7 +682,7 @@ class SelectiveSteeringAnalyzer:
 
                 # Per-task status logging (every task for visibility)
                 status_emoji = "✓" if result['steered_correct'] else "✗"
-                steer_status = "STEERED" if result['steered'] else "BASELINE"
+                steer_status = "STEERED" if result['was_steered'] else "BASELINE"
                 logger.info(f"  [{enum_idx+1}/{total_problems}] Task {task_id}: {status_emoji} {steer_status} "
                            f"(L{self.incorrect_pred_layer}-{self.incorrect_pred_latent}: {result['incorrect_pred_activation']:.2f}, threshold: {self.threshold:.2f})")
 
@@ -696,9 +696,9 @@ class SelectiveSteeringAnalyzer:
                 results.append({
                     'task_id': task_id,
                     'baseline_passed': row['baseline_passed'],
-                    'steered': False,
+                    'was_steered': False,
                     'incorrect_pred_activation': None,
-                    'steered_correct': row['baseline_passed'],  # Keep baseline
+                    'steered_correct': False,  # Conservative: assume failure on error
                     'baseline_code': row['generated_code'],
                     'steered_code': None,  # Error occurred before steering
                     'source': 'error',
@@ -707,7 +707,7 @@ class SelectiveSteeringAnalyzer:
 
             # Running statistics every 10 tasks
             if (enum_idx + 1) % 10 == 0:
-                n_steered = sum(1 for r in results if r.get('steered', False))
+                n_steered = sum(1 for r in results if r.get('was_steered', False))
                 n_errors = sum(1 for r in results if r.get('source') == 'error')
                 activations = [r['incorrect_pred_activation'] for r in results if r.get('incorrect_pred_activation') is not None]
                 avg_activation = np.mean(activations) if activations else 0.0
@@ -746,7 +746,7 @@ class SelectiveSteeringAnalyzer:
         # Detailed results summary
         n_errors = len(excluded_task_ids)
         n_valid = len(results) - n_errors
-        n_steered = sum(1 for r in results if r.get('steered', False) and r.get('source') != 'error')
+        n_steered = sum(1 for r in results if r.get('was_steered', False) and r.get('source') != 'error')
         n_not_steered = n_valid - n_steered
 
         logger.info(f"\n{'='*60}")
@@ -801,7 +801,7 @@ class SelectiveSteeringAnalyzer:
         n_valid = len(valid_results)
 
         # Count steering decisions
-        n_steered = sum(1 for r in valid_results if r['steered'])
+        n_steered = sum(1 for r in valid_results if r['was_steered'])
         n_not_steered = n_valid - n_steered
 
         # Count outcomes
@@ -844,7 +844,7 @@ class SelectiveSteeringAnalyzer:
         n_valid = len(valid_results)
 
         # Count steering decisions
-        n_steered = sum(1 for r in valid_results if r['steered'])
+        n_steered = sum(1 for r in valid_results if r['was_steered'])
         n_not_steered = n_valid - n_steered
 
         # Count outcomes
@@ -890,8 +890,8 @@ class SelectiveSteeringAnalyzer:
 
         # Total steering count
         total_steered = (
-            sum(1 for r in correction_results if r.get('steered', False)) +
-            sum(1 for r in preservation_results if r.get('steered', False))
+            sum(1 for r in correction_results if r.get('was_steered', False)) +
+            sum(1 for r in preservation_results if r.get('was_steered', False))
         )
 
         overall_steering_rate = total_steered / total_problems if total_problems > 0 else 0
@@ -929,7 +929,7 @@ class SelectiveSteeringAnalyzer:
                 'threshold': self.threshold
             }
             for r in correction_results
-            if not r['baseline_passed'] and r['steered_correct'] and r.get('steered', False)
+            if not r['baseline_passed'] and r['steered_correct'] and r.get('was_steered', False)
         ]
 
         # Extract ALL preserved steered examples (correct → correct, with steering)
@@ -942,7 +942,7 @@ class SelectiveSteeringAnalyzer:
                 'threshold': self.threshold
             }
             for r in preservation_results
-            if r['baseline_passed'] and r['steered_correct'] and r.get('steered', False)
+            if r['baseline_passed'] and r['steered_correct'] and r.get('was_steered', False)
         ]
 
         # Save corrected examples

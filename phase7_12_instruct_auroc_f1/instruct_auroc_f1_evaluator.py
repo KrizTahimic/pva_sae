@@ -486,7 +486,7 @@ def run_evaluation(config):
         phase0_1_dir = Path("data/phase0_2_humaneval")
         logger.info(f"Using HumanEval data from Phase 0.2: {phase0_1_dir}")
     else:
-        latest_output = discover_latest_phase_output("0.1")
+        latest_output = discover_latest_phase_output("0.1", config=config)
         if latest_output:
             phase0_1_dir = Path(latest_output).parent
             logger.info(f"Auto-discovered Phase 0.1 output: {phase0_1_dir}")
@@ -543,7 +543,7 @@ def run_evaluation(config):
         logger.info("Loading best features from Phase 2.10...")
 
         # Auto-discover Phase 2.10 output
-        phase2_10_dir = discover_latest_phase_output("2.10")
+        phase2_10_dir = discover_latest_phase_output("2.10", config=config)
         if not phase2_10_dir:
             raise FileNotFoundError("No Phase 2.10 output found. Please run Phase 2.10 first.")
         phase2_10_dir = Path(phase2_10_dir).parent

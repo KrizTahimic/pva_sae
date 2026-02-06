@@ -197,35 +197,6 @@ def load_probe_directions_for_steering(
     )
 
 
-def load_probe_directions(
-    config: Config,
-    device: torch.device,
-    model: nn.Module,
-    method: str = "mass_mean"
-) -> ProbeDirections:
-    """Load probe directions from Phase 2.6.
-
-    DEPRECATED: Use load_probe_directions_for_steering() for steering tasks
-    or load_probe_directions_for_predicting() for detection/prediction tasks.
-
-    This function is kept for backward compatibility and delegates to
-    load_probe_directions_for_steering().
-
-    Args:
-        config: Configuration object
-        device: Target device for tensors
-        model: The language model (for dtype matching)
-        method: "mass_mean" (for steering) or "logreg" (for prediction)
-
-    Returns:
-        ProbeDirections dataclass with direction tensors
-    """
-    logger.warning(
-        "load_probe_directions() is deprecated. Use load_probe_directions_for_steering() "
-        "for steering tasks or load_probe_directions_for_predicting() for detection tasks."
-    )
-    return load_probe_directions_for_steering(config, device, model, method)
-
 
 def get_direction_source_info(config: Config) -> dict:
     """Get information about the configured direction source.

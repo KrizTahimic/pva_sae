@@ -151,7 +151,7 @@ class ZeroDiscSteeringGenerator:
         """Load zero-discrimination features and validation data."""
         # Load Phase 4.10 zero-discrimination features
         logger.info("Loading zero-discrimination features from Phase 4.10...")
-        phase4_10_output = discover_latest_phase_output("4.10")
+        phase4_10_output = discover_latest_phase_output("4.10", config=self.config)
         if not phase4_10_output:
             raise FileNotFoundError("Phase 4.10 output not found. Run Phase 4.10 first.")
 

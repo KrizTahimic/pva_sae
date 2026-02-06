@@ -116,30 +116,6 @@ class MBPPDifficultyAnalyzer:
         self.logger.info(f"Difficulty analysis completed: {len(enriched_df)} problems analyzed")
         return enriched_df
     
-    def _analyze_single_problem(self, record: dict[str, Any]) -> DifficultyMetrics:
-        """
-        Analyze difficulty metrics for a single MBPP problem
-        
-        Args:
-            record: MBPP dataset record
-            
-        Returns:
-            DifficultyMetrics: Computed difficulty metrics
-        """
-        task_id = record.get('task_id', -1)  # Use -1 as sentinel for missing task_id
-        reference_code = record.get('code', '')
-        test_list = record.get('test_list', [])
-        problem_text = record.get('text', '')
-        
-        # Calculate cyclomatic complexity
-        cyclomatic_complexity = get_cyclomatic_complexity(reference_code)
-        
-        return DifficultyMetrics(
-            task_id=task_id,
-            cyclomatic_complexity=cyclomatic_complexity
-        )
-    
-    
     
     def save_enriched_dataset(self, df: pd.DataFrame, filepath: Optional[str] = None) -> str:
         """

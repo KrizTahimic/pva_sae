@@ -182,7 +182,7 @@ class ThresholdOptimizer:
         else:
             # === SAE MODE: Load from Phase 3.8 + Phase 2.5 ===
             logger.info("SAE MODE: Loading feature info from Phase 3.8 and 2.5...")
-            phase3_8_output = discover_latest_phase_output("3.8")
+            phase3_8_output = discover_latest_phase_output("3.8", config=self.config)
             if not phase3_8_output:
                 raise FileNotFoundError("Phase 3.8 output not found. Run Phase 3.8 first.")
 
@@ -263,7 +263,7 @@ class ThresholdOptimizer:
 
         # === LOAD PHASE 0.1 PROBLEM SPECIFICATIONS ===
         logger.info("Loading MBPP problem specifications from Phase 0.1...")
-        phase0_1_output = discover_latest_phase_output("0.1")
+        phase0_1_output = discover_latest_phase_output("0.1", config=self.config)
         if not phase0_1_output:
             raise FileNotFoundError("Phase 0.1 output not found. Run Phase 0.1 first.")
 
@@ -287,7 +287,7 @@ class ThresholdOptimizer:
 
         # === LOAD PHASE 3.6 BASELINE CORRECTNESS LABELS ===
         logger.info("Loading baseline correctness labels from Phase 3.6...")
-        phase3_6_output = discover_latest_phase_output("3.6")
+        phase3_6_output = discover_latest_phase_output("3.6", config=self.config)
         if not phase3_6_output:
             raise FileNotFoundError(
                 "Phase 3.6 output not found. Run Phase 3.6 first.\n"
@@ -344,7 +344,7 @@ class ThresholdOptimizer:
 
         # === LOAD PHASE 8.1 PERCENTILE THRESHOLDS ===
         logger.info("Loading percentile thresholds from Phase 8.1...")
-        phase8_1_output = discover_latest_phase_output("8.1")
+        phase8_1_output = discover_latest_phase_output("8.1", config=self.config)
         if not phase8_1_output:
             raise FileNotFoundError(
                 "Phase 8.1 output not found. Run Phase 8.1 first.\n"
@@ -1235,7 +1235,7 @@ class ThresholdEvaluator:
             self.correct_steer_latent = None
         else:
             # SAE MODE
-            phase3_8_output = discover_latest_phase_output("3.8")
+            phase3_8_output = discover_latest_phase_output("3.8", config=self.config)
             phase3_8_results = load_json(Path(phase3_8_output).parent / "auroc_f1_results.json")
 
             incorrect_pred_info = phase3_8_results['incorrect_predicting_latent']
@@ -1271,7 +1271,7 @@ class ThresholdEvaluator:
         self.steering_coefficient = refined_coefficients['correct']['refined_coefficient']
 
         # Load Phase 0.1 problem specifications
-        phase0_1_output = discover_latest_phase_output("0.1")
+        phase0_1_output = discover_latest_phase_output("0.1", config=self.config)
         tuning_file = Path(phase0_1_output).parent / "tuning_mbpp.parquet"
         self.tuning_problems = pd.read_parquet(tuning_file)
 
@@ -1283,7 +1283,7 @@ class ThresholdEvaluator:
                 )
 
         # Load Phase 3.6 baseline - try expected filename, then merged pattern
-        phase3_6_output = discover_latest_phase_output("3.6")
+        phase3_6_output = discover_latest_phase_output("3.6", config=self.config)
         phase3_6_dir = Path(phase3_6_output).parent
         baseline_file = phase3_6_dir / "dataset_hyperparams_temp_0_0.parquet"
         if not baseline_file.exists():
@@ -1330,7 +1330,7 @@ class ThresholdEvaluator:
                    f"{len(self.incorrect_problems)} incorrect tasks")
 
         # Load Phase 8.1 percentile thresholds
-        phase8_1_output = discover_latest_phase_output("8.1")
+        phase8_1_output = discover_latest_phase_output("8.1", config=self.config)
         phase8_1_dir = Path(phase8_1_output).parent
         if self.use_probe:
             probe_dir = phase8_1_dir.parent / (phase8_1_dir.name + "_probe")
@@ -1570,7 +1570,7 @@ class ThresholdOrchestrator:
         ensure_directory_exists(self.output_dir)
 
         # Load percentile thresholds for orchestration
-        phase8_1_output = discover_latest_phase_output("8.1")
+        phase8_1_output = discover_latest_phase_output("8.1", config=self.config)
         phase8_1_dir = Path(phase8_1_output).parent
         if self.use_probe:
             probe_dir = phase8_1_dir.parent / (phase8_1_dir.name + "_probe")

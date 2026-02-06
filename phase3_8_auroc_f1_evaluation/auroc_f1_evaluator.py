@@ -150,7 +150,7 @@ def run_evaluation(config):
         from common.phase_discovery import discover_top_n_latents
         top_n = discover_top_n_latents(config, logger)
 
-        phase2_10_dir = discover_latest_phase_output("2.10")
+        phase2_10_dir = discover_latest_phase_output("2.10", config=config)
         if not phase2_10_dir:
             raise FileNotFoundError("No Phase 2.10 output found. Please run Phase 2.10 first.")
         phase2_10_dir = Path(phase2_10_dir).parent
@@ -389,7 +389,7 @@ def run_evaluation(config):
         dependencies={
             "3.5": str(phase3_5_dir),
             "3.6": str(phase3_6_dir),
-            "2.10": str(phase2_10_dir),
+            "2.6" if use_probe else "2.10": str(phase2_10_dir),
         },
         config_keys=['model_name', 'dataset_name', 'evaluation_random_seed']
     )

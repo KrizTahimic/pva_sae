@@ -95,7 +95,7 @@ class ThresholdCalculator:
             logger.info(f"Predicting probe: Layer {self.latent_layer}, bias={self.probe_bias:.4f}")
 
             # Load Phase 3.8 probe threshold for reference
-            phase3_8_output = discover_latest_phase_output("3.8")
+            phase3_8_output = discover_latest_phase_output("3.8", config=self.config)
             if phase3_8_output:
                 phase3_8_dir = Path(phase3_8_output).parent
                 probe_dir = phase3_8_dir.parent / (phase3_8_dir.name + "_probe")
@@ -115,7 +115,7 @@ class ThresholdCalculator:
         else:
             # === SAE MODE: Load from Phase 3.8 ===
             logger.info("SAE MODE: Loading incorrect-predicting latent info from Phase 3.8...")
-            phase3_8_output = discover_latest_phase_output("3.8")
+            phase3_8_output = discover_latest_phase_output("3.8", config=self.config)
             if not phase3_8_output:
                 raise FileNotFoundError("Phase 3.8 output not found. Run Phase 3.8 first.")
 
@@ -136,7 +136,7 @@ class ThresholdCalculator:
 
         # === LOAD PHASE 3.6 DATASET ===
         logger.info("Loading Phase 3.6 hyperparameter dataset...")
-        phase3_6_output = discover_latest_phase_output("3.6")
+        phase3_6_output = discover_latest_phase_output("3.6", config=self.config)
         if not phase3_6_output:
             raise FileNotFoundError(
                 "Phase 3.6 output not found. Run Phase 3.6 first.\n"

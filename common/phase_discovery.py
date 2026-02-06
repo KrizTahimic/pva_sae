@@ -471,7 +471,7 @@ def discover_top_n_latents(config: 'Config', log=None) -> dict:
     top_latents_file = phase_2_10_dir / "top_20_latents.json"
 
     if not top_latents_file.exists():
-        latest_output = discover_latest_phase_output("2.10")
+        latest_output = discover_latest_phase_output("2.10", config=config)
         if latest_output:
             top_latents_file = Path(latest_output).parent / "top_20_latents.json"
 

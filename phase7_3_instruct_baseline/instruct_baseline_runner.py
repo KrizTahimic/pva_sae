@@ -52,7 +52,7 @@ class InstructBaselineRunner:
 
         if not top_latents_file.exists():
             # Try auto-discovery for Phase 2.10
-            latest_output = discover_latest_phase_output("2.10")
+            latest_output = discover_latest_phase_output("2.10", config=self.config)
             if latest_output:
                 # Extract directory from the discovered file
                 output_dir = Path(latest_output).parent
@@ -66,7 +66,7 @@ class InstructBaselineRunner:
 
             if not top_latents_file.exists():
                 # Try auto-discovery for Phase 2.5
-                latest_output = discover_latest_phase_output("2.5")
+                latest_output = discover_latest_phase_output("2.5", config=self.config)
                 if latest_output:
                     # Extract directory from the discovered file
                     output_dir = Path(latest_output).parent

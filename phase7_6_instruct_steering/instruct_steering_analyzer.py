@@ -780,7 +780,7 @@ class InstructSteeringAnalyzer:
     def load_base_model_results(self) -> Optional[dict]:
         """Load Phase 4.8 base model results for comparison."""
         try:
-            phase4_8_output = discover_latest_phase_output("4.8")
+            phase4_8_output = discover_latest_phase_output("4.8", config=self.config)
             if not phase4_8_output:
                 logger.warning("Phase 4.8 output not found. Cross-model comparison will be skipped.")
                 return None

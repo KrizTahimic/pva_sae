@@ -98,7 +98,7 @@ class Config:
     activation_cleanup_after_batch: bool = True
     
     # === ROBUSTNESS SETTINGS ===
-    checkpoint_frequency: int = 50
+    checkpoint_frequency: int = CHECKPOINT_FREQUENCY_DEFAULT
     checkpoint_dir: str = "checkpoints"
     max_retries: int = 3
     retry_backoff: float = 1.0

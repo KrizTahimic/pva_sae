@@ -319,3 +319,17 @@ class TestModelRegistryNHeads:
         from common.model_registry import get_model
         info = get_model("meta-llama/Llama-3.1-8B-Instruct")
         assert info.n_heads == 32
+
+
+# =============================================================================
+# Checkpoint Frequency Tests
+# =============================================================================
+
+class TestCheckpointFrequency:
+    """Test checkpoint_frequency matches CHECKPOINT_FREQUENCY_DEFAULT constant."""
+
+    def test_checkpoint_frequency_matches_constant(self):
+        """Config().checkpoint_frequency must equal CHECKPOINT_FREQUENCY_DEFAULT."""
+        from common.config import CHECKPOINT_FREQUENCY_DEFAULT
+        config = Config()
+        assert config.checkpoint_frequency == CHECKPOINT_FREQUENCY_DEFAULT

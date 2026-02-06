@@ -71,7 +71,7 @@ class TestCalculateCorrectionMetrics:
     def test_returns_all_expected_keys(self, analyzer):
         """Should return all required metric keys."""
         results = [
-            {'task_id': 't1', 'steered': True, 'steered_correct': True,
+            {'task_id': 't1', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': False, 'incorrect_pred_activation': 0.8},
         ]
 
@@ -87,13 +87,13 @@ class TestCalculateCorrectionMetrics:
     def test_correction_rate_calculation(self, analyzer):
         """correction_rate = n_corrected / total_problems."""
         results = [
-            {'task_id': 't1', 'steered': True, 'steered_correct': True,
+            {'task_id': 't1', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': False, 'incorrect_pred_activation': 0.8},
-            {'task_id': 't2', 'steered': True, 'steered_correct': False,
+            {'task_id': 't2', 'was_steered': True, 'steered_correct': False,
              'baseline_passed': False, 'incorrect_pred_activation': 0.9},
-            {'task_id': 't3', 'steered': False, 'steered_correct': False,
+            {'task_id': 't3', 'was_steered': False, 'steered_correct': False,
              'baseline_passed': False, 'incorrect_pred_activation': 0.3},
-            {'task_id': 't4', 'steered': True, 'steered_correct': True,
+            {'task_id': 't4', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': False, 'incorrect_pred_activation': 0.7},
         ]
 
@@ -105,11 +105,11 @@ class TestCalculateCorrectionMetrics:
     def test_steering_trigger_rate(self, analyzer):
         """steering_trigger_rate = n_steered / total_problems."""
         results = [
-            {'task_id': 't1', 'steered': True, 'steered_correct': True,
+            {'task_id': 't1', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': False, 'incorrect_pred_activation': 0.8},
-            {'task_id': 't2', 'steered': False, 'steered_correct': False,
+            {'task_id': 't2', 'was_steered': False, 'steered_correct': False,
              'baseline_passed': False, 'incorrect_pred_activation': 0.3},
-            {'task_id': 't3', 'steered': True, 'steered_correct': False,
+            {'task_id': 't3', 'was_steered': True, 'steered_correct': False,
              'baseline_passed': False, 'incorrect_pred_activation': 0.7},
         ]
 
@@ -121,13 +121,13 @@ class TestCalculateCorrectionMetrics:
     def test_correction_efficiency(self, analyzer):
         """correction_efficiency = n_corrected / n_steered."""
         results = [
-            {'task_id': 't1', 'steered': True, 'steered_correct': True,
+            {'task_id': 't1', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': False, 'incorrect_pred_activation': 0.8},
-            {'task_id': 't2', 'steered': True, 'steered_correct': False,
+            {'task_id': 't2', 'was_steered': True, 'steered_correct': False,
              'baseline_passed': False, 'incorrect_pred_activation': 0.9},
-            {'task_id': 't3', 'steered': True, 'steered_correct': True,
+            {'task_id': 't3', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': False, 'incorrect_pred_activation': 0.7},
-            {'task_id': 't4', 'steered': True, 'steered_correct': False,
+            {'task_id': 't4', 'was_steered': True, 'steered_correct': False,
              'baseline_passed': False, 'incorrect_pred_activation': 0.6},
         ]
 
@@ -139,9 +139,9 @@ class TestCalculateCorrectionMetrics:
     def test_errors_excluded_from_valid_count(self, analyzer):
         """Results with 'error' key should be excluded from valid count."""
         results = [
-            {'task_id': 't1', 'steered': True, 'steered_correct': True,
+            {'task_id': 't1', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': False, 'incorrect_pred_activation': 0.8},
-            {'task_id': 't2', 'steered': False, 'steered_correct': False,
+            {'task_id': 't2', 'was_steered': False, 'steered_correct': False,
              'baseline_passed': False, 'incorrect_pred_activation': None,
              'error': 'timeout'},
         ]
@@ -162,7 +162,7 @@ class TestCalculateCorrectionMetrics:
     def test_zero_steered_efficiency(self, analyzer):
         """correction_efficiency should be 0 when no problems were steered."""
         results = [
-            {'task_id': 't1', 'steered': False, 'steered_correct': False,
+            {'task_id': 't1', 'was_steered': False, 'steered_correct': False,
              'baseline_passed': False, 'incorrect_pred_activation': 0.3},
         ]
 
@@ -173,9 +173,9 @@ class TestCalculateCorrectionMetrics:
     def test_activation_stats_present(self, analyzer):
         """Should include activation statistics."""
         results = [
-            {'task_id': 't1', 'steered': True, 'steered_correct': True,
+            {'task_id': 't1', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': False, 'incorrect_pred_activation': 0.5},
-            {'task_id': 't2', 'steered': True, 'steered_correct': False,
+            {'task_id': 't2', 'was_steered': True, 'steered_correct': False,
              'baseline_passed': False, 'incorrect_pred_activation': 0.9},
         ]
 
@@ -206,7 +206,7 @@ class TestCalculatePreservationMetrics:
     def test_returns_all_expected_keys(self, analyzer):
         """Should return all required metric keys."""
         results = [
-            {'task_id': 't1', 'steered': True, 'steered_correct': True,
+            {'task_id': 't1', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': True, 'incorrect_pred_activation': 0.8},
         ]
 
@@ -222,11 +222,11 @@ class TestCalculatePreservationMetrics:
     def test_preservation_rate_calculation(self, analyzer):
         """preservation_rate = n_preserved / total_problems."""
         results = [
-            {'task_id': 't1', 'steered': True, 'steered_correct': True,
+            {'task_id': 't1', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': True, 'incorrect_pred_activation': 0.8},
-            {'task_id': 't2', 'steered': True, 'steered_correct': False,
+            {'task_id': 't2', 'was_steered': True, 'steered_correct': False,
              'baseline_passed': True, 'incorrect_pred_activation': 0.9},
-            {'task_id': 't3', 'steered': False, 'steered_correct': True,
+            {'task_id': 't3', 'was_steered': False, 'steered_correct': True,
              'baseline_passed': True, 'incorrect_pred_activation': 0.3},
         ]
 
@@ -238,11 +238,11 @@ class TestCalculatePreservationMetrics:
     def test_corruption_rate_calculation(self, analyzer):
         """corruption_rate = n_corrupted / total_problems."""
         results = [
-            {'task_id': 't1', 'steered': True, 'steered_correct': True,
+            {'task_id': 't1', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': True, 'incorrect_pred_activation': 0.8},
-            {'task_id': 't2', 'steered': True, 'steered_correct': False,
+            {'task_id': 't2', 'was_steered': True, 'steered_correct': False,
              'baseline_passed': True, 'incorrect_pred_activation': 0.9},
-            {'task_id': 't3', 'steered': True, 'steered_correct': False,
+            {'task_id': 't3', 'was_steered': True, 'steered_correct': False,
              'baseline_passed': True, 'incorrect_pred_activation': 0.7},
         ]
 
@@ -254,13 +254,13 @@ class TestCalculatePreservationMetrics:
     def test_steering_avoidance_rate(self, analyzer):
         """steering_avoidance_rate = n_not_steered / total_problems."""
         results = [
-            {'task_id': 't1', 'steered': False, 'steered_correct': True,
+            {'task_id': 't1', 'was_steered': False, 'steered_correct': True,
              'baseline_passed': True, 'incorrect_pred_activation': 0.3},
-            {'task_id': 't2', 'steered': False, 'steered_correct': True,
+            {'task_id': 't2', 'was_steered': False, 'steered_correct': True,
              'baseline_passed': True, 'incorrect_pred_activation': 0.2},
-            {'task_id': 't3', 'steered': True, 'steered_correct': True,
+            {'task_id': 't3', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': True, 'incorrect_pred_activation': 0.8},
-            {'task_id': 't4', 'steered': True, 'steered_correct': False,
+            {'task_id': 't4', 'was_steered': True, 'steered_correct': False,
              'baseline_passed': True, 'incorrect_pred_activation': 0.9},
         ]
 
@@ -271,9 +271,9 @@ class TestCalculatePreservationMetrics:
     def test_errors_excluded_from_valid_count(self, analyzer):
         """Results with 'error' key should be excluded from valid count."""
         results = [
-            {'task_id': 't1', 'steered': True, 'steered_correct': True,
+            {'task_id': 't1', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': True, 'incorrect_pred_activation': 0.8},
-            {'task_id': 't2', 'steered': False, 'steered_correct': True,
+            {'task_id': 't2', 'was_steered': False, 'steered_correct': True,
              'baseline_passed': True, 'incorrect_pred_activation': None,
              'error': 'timeout'},
         ]
@@ -309,11 +309,11 @@ class TestCalculateCombinedMetrics:
     def test_returns_all_expected_keys(self, analyzer):
         """Should return all required combined metric keys."""
         correction_results = [
-            {'task_id': 't1', 'steered': True, 'steered_correct': True,
+            {'task_id': 't1', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': False},
         ]
         preservation_results = [
-            {'task_id': 't2', 'steered': False, 'steered_correct': True,
+            {'task_id': 't2', 'was_steered': False, 'steered_correct': True,
              'baseline_passed': True},
         ]
 
@@ -329,12 +329,12 @@ class TestCalculateCombinedMetrics:
     def test_total_problems_sum(self, analyzer):
         """total_problems should be sum of both experiments."""
         correction_results = [
-            {'task_id': f't{i}', 'steered': True, 'steered_correct': True,
+            {'task_id': f't{i}', 'was_steered': True, 'steered_correct': True,
              'baseline_passed': False}
             for i in range(3)
         ]
         preservation_results = [
-            {'task_id': f'p{i}', 'steered': False, 'steered_correct': True,
+            {'task_id': f'p{i}', 'was_steered': False, 'steered_correct': True,
              'baseline_passed': True}
             for i in range(5)
         ]
@@ -348,12 +348,12 @@ class TestCalculateCombinedMetrics:
     def test_overall_steering_rate(self, analyzer):
         """overall_steering_rate = total_steered / total_problems."""
         correction_results = [
-            {'task_id': 't1', 'steered': True, 'baseline_passed': False},
-            {'task_id': 't2', 'steered': True, 'baseline_passed': False},
+            {'task_id': 't1', 'was_steered': True, 'baseline_passed': False},
+            {'task_id': 't2', 'was_steered': True, 'baseline_passed': False},
         ]
         preservation_results = [
-            {'task_id': 'p1', 'steered': False, 'baseline_passed': True},
-            {'task_id': 'p2', 'steered': True, 'baseline_passed': True},
+            {'task_id': 'p1', 'was_steered': False, 'baseline_passed': True},
+            {'task_id': 'p2', 'was_steered': True, 'baseline_passed': True},
         ]
 
         metrics = analyzer._calculate_combined_metrics(
@@ -374,8 +374,8 @@ class TestCalculateCombinedMetrics:
     def test_includes_phase4_8_comparison(self, analyzer):
         """Should include Phase 4.8 baseline comparison data."""
         metrics = analyzer._calculate_combined_metrics(
-            [{'task_id': 't1', 'steered': True, 'baseline_passed': False}],
-            [{'task_id': 'p1', 'steered': False, 'baseline_passed': True}],
+            [{'task_id': 't1', 'was_steered': True, 'baseline_passed': False}],
+            [{'task_id': 'p1', 'was_steered': False, 'baseline_passed': True}],
         )
 
         comparison = metrics['comparison_to_phase4_8']

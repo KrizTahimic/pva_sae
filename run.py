@@ -224,7 +224,7 @@ def main():
         
         try:
             # Check for parallel execution
-            n_gpus = getattr(args, 'parallel', 1)
+            n_gpus = args.parallel
 
             if n_gpus > 1:
                 # Use parallel runner for multi-GPU execution
