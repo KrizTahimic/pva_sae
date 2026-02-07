@@ -24,6 +24,7 @@ from common.parallel_runner import (
     _merge_phase4_5_json_results,
     _merge_phase4_8_results,
     _merge_phase8_3_results,
+    _merge_parallel_results,
     run_phase_parallel,
 )
 from common.config import Config
@@ -900,3 +901,73 @@ class TestRunPhaseParallel:
 
         mock_merge.assert_called_once()
         assert result == {'merged': True}
+
+
+# =============================================================================
+# General Parquet Merge Router Tests (M3 from code review)
+# =============================================================================
+
+class TestMergeParallelResultsParquetPath:
+    """Test _merge_parallel_results general parquet merge edge cases."""
+
+    def test_missing_gpu_files_raises_error(self, tmp_path):
+        """If fewer GPU files than expected, should raise RuntimeError."""
+        # Create only 2 of 4 expected GPU files
+        for i in range(2):
+            df = pd.DataFrame({'task_id': [f't{i}_0', f't{i}_1'], 'score': [0.5, 0.6]})
+            df.to_parquet(tmp_path / f"results_gpu{i}.parquet", index=False)
+
+        config = Config()
+        with pytest.raises(RuntimeError, match="Only found 2/4 GPU result files"):
+            _merge_parallel_results("3.6", str(tmp_path), n_gpus=4, config=config)
+
+    def test_all_gpu_files_merge_correctly(self, tmp_path):
+        """All GPU files present should merge and deduplicate."""
+        for i in range(2):
+            df = pd.DataFrame({
+                'task_id': [f't{i}_0', f't{i}_1'],
+                'baseline_passed': [True, False],
+            })
+            df.to_parquet(tmp_path / f"results_gpu{i}.parquet", index=False)
+
+        config = Config()
+        with patch('common.parallel_runner.write_phase_output'):
+            result = _merge_parallel_results("3.6", str(tmp_path), n_gpus=2, config=config)
+
+        assert result['total_rows'] == 4
+
+    def test_old_merged_files_cleaned_up(self, tmp_path):
+        """Old dataset_merged_*.parquet files should be removed before new merge."""
+        # Create old merged file
+        old_merged = tmp_path / "dataset_merged_20260101_000000.parquet"
+        pd.DataFrame({'task_id': ['old']}).to_parquet(old_merged, index=False)
+
+        # Create GPU result files
+        for i in range(2):
+            df = pd.DataFrame({'task_id': [f't{i}'], 'score': [0.5]})
+            df.to_parquet(tmp_path / f"results_gpu{i}.parquet", index=False)
+
+        config = Config()
+        with patch('common.parallel_runner.write_phase_output'):
+            _merge_parallel_results("3.6", str(tmp_path), n_gpus=2, config=config)
+
+        # Old merged file should be gone
+        assert not old_merged.exists()
+        # New merged file should exist
+        new_merged = list(tmp_path.glob("dataset_merged_*.parquet"))
+        assert len(new_merged) == 1
+
+    def test_deduplication_by_task_id(self, tmp_path):
+        """Overlapping task_ids across GPUs should be deduplicated (keep last)."""
+        # Both GPUs have task t_overlap (simulates checkpoint overlap)
+        df0 = pd.DataFrame({'task_id': ['t_overlap', 't_0'], 'score': [0.1, 0.2]})
+        df1 = pd.DataFrame({'task_id': ['t_overlap', 't_1'], 'score': [0.9, 0.8]})
+        df0.to_parquet(tmp_path / "results_gpu0.parquet", index=False)
+        df1.to_parquet(tmp_path / "results_gpu1.parquet", index=False)
+
+        config = Config()
+        with patch('common.parallel_runner.write_phase_output'):
+            result = _merge_parallel_results("3.6", str(tmp_path), n_gpus=2, config=config)
+
+        # Should have 3 unique tasks (t_overlap deduplicated)
+        assert result['total_rows'] == 3

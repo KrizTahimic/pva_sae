@@ -153,19 +153,19 @@ def calculate_difficulty_metrics(
             # Success = initially incorrect, became correct (flipped from False to True)
             n_success = sum(
                 1 for r in group_results
-                if not r['baseline_passed'] and r.get('steered_correct', False)
+                if 'steered_correct' in r and not r['baseline_passed'] and r['steered_correct']
             )
         elif experiment_type == 'corruption':
             # Success = initially correct, became incorrect (flipped from True to False)
             n_success = sum(
                 1 for r in group_results
-                if r['baseline_passed'] and not r.get('steered_correct', True)
+                if 'steered_correct' in r and r['baseline_passed'] and not r['steered_correct']
             )
         elif experiment_type == 'preservation':
             # Success = initially correct, stayed correct
             n_success = sum(
                 1 for r in group_results
-                if r['baseline_passed'] and r.get('steered_correct', False)
+                if 'steered_correct' in r and r['baseline_passed'] and r['steered_correct']
             )
         else:
             raise ValueError(f"Unknown experiment type: {experiment_type}")

@@ -105,8 +105,10 @@ def check_json(filepath: Path, verbose: bool = False) -> dict:
     if 'correction_rate' in data and all_results:
         # Recalculate
         corrections = sum(1 for r in all_results
-                         if not r.get('baseline_passed', True) and r.get('steered_correct', False))
-        incorrect_baseline = sum(1 for r in all_results if not r.get('baseline_passed', True))
+                         if 'baseline_passed' in r and 'steered_correct' in r
+                         and not r['baseline_passed'] and r['steered_correct'])
+        incorrect_baseline = sum(1 for r in all_results
+                                if 'baseline_passed' in r and not r['baseline_passed'])
         expected_rate = (corrections / incorrect_baseline * 100) if incorrect_baseline > 0 else 0
 
         reported_rate = data['correction_rate']

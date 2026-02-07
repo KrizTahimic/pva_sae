@@ -85,7 +85,10 @@ class SteeringEffectAnalyzer:
         
         self.examples_dir = self.output_dir / "examples"
         ensure_directory_exists(self.examples_dir)
-        
+
+        # Pre-check: verify dependencies exist before loading model (fail fast)
+        self._validate_dependencies_exist()
+
         # Initialize model and tokenizer (eager attention for attention pattern extraction)
         logger.info(f"Loading model: {config.model_name}")
         self.model, self.tokenizer = load_model_and_tokenizer(
@@ -110,7 +113,41 @@ class SteeringEffectAnalyzer:
         self._checkpoint_managers: dict[str, CheckpointManager] = {}
 
         logger.info("SteeringEffectAnalyzer initialized successfully")
-        
+
+    def _validate_dependencies_exist(self) -> None:
+        """Lightweight pre-check that required phase outputs exist before loading model."""
+        from common.phase_discovery import get_phase_output_dir, discover_latest_phase_output
+
+        # Check baseline data (Phase 3.6 or 3.5)
+        baseline_phase = "3.6"
+        try:
+            baseline_output = discover_latest_phase_output(baseline_phase, config=self.config)
+            if not baseline_output:
+                raise FileNotFoundError(f"Phase {baseline_phase} output not found")
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"Phase {baseline_phase} output not found. Run Phase {baseline_phase} first "
+                f"before Phase 4.8. (Checked before model loading to avoid wasting VRAM.)"
+            )
+
+        if self.use_probe:
+            # Check probe directions (Phase 2.6)
+            phase_2_6_dir = Path(get_phase_output_dir("2.6", self.config))
+            probe_file = phase_2_6_dir / "best_probe_directions.json"
+            if not probe_file.exists():
+                raise FileNotFoundError(
+                    f"Phase 2.6 probe directions not found at {probe_file}. "
+                    f"Run Phase 2.6 first. (Checked before model loading to avoid wasting VRAM.)"
+                )
+        else:
+            # Check SAE latents (Phase 2.5)
+            phase_2_5_dir = Path(get_phase_output_dir("2.5", self.config))
+            if not phase_2_5_dir.exists():
+                raise FileNotFoundError(
+                    f"Phase 2.5 output not found at {phase_2_5_dir}. "
+                    f"Run Phase 2.5 first. (Checked before model loading to avoid wasting VRAM.)"
+                )
+
     def _load_dependencies(self) -> None:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (

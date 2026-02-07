@@ -197,10 +197,12 @@ class TestMergeLogicInvariants:
             {'baseline_passed': True, 'steered_correct': True},    # Not counted (was correct)
         ]
 
-        # Calculate correction rate (same formula as parallel_runner.py:462-468)
+        # Calculate correction rate (same formula as parallel_runner.py)
         corrections = sum(1 for r in results
-                         if not r.get('baseline_passed', True) and r.get('steered_correct', False))
-        incorrect_baseline = sum(1 for r in results if not r.get('baseline_passed', True))
+                         if 'baseline_passed' in r and 'steered_correct' in r
+                         and not r['baseline_passed'] and r['steered_correct'])
+        incorrect_baseline = sum(1 for r in results
+                                if 'baseline_passed' in r and not r['baseline_passed'])
         correction_rate = (corrections / incorrect_baseline * 100) if incorrect_baseline > 0 else 0
 
         assert corrections == 2
@@ -216,10 +218,12 @@ class TestMergeLogicInvariants:
             {'baseline_passed': False, 'steered_correct': False}, # Not counted (was incorrect)
         ]
 
-        # Calculate corruption rate (same formula as parallel_runner.py:472-477)
+        # Calculate corruption rate (same formula as parallel_runner.py)
         corruptions = sum(1 for r in results
-                         if r.get('baseline_passed', False) and not r.get('steered_correct', True))
-        correct_baseline = sum(1 for r in results if r.get('baseline_passed', False))
+                         if 'baseline_passed' in r and 'steered_correct' in r
+                         and r['baseline_passed'] and not r['steered_correct'])
+        correct_baseline = sum(1 for r in results
+                              if 'baseline_passed' in r and r['baseline_passed'])
         corruption_rate = (corruptions / correct_baseline * 100) if correct_baseline > 0 else 0
 
         assert corruptions == 1

@@ -1130,18 +1130,21 @@ class SteeringCoefficientSelector:
                         results_by_coefficient[coeff] = {'correction': [], 'corruption': [], 'preservation': []}
 
                     for r in hist_entry['results']:
+                        # Skip records missing required fields (defensive: corrupted data)
+                        if 'baseline_passed' not in r or 'steered_correct' not in r:
+                            continue
                         r_with_meta = {**r, 'candidate_id': cr['candidate_id'], 'coefficient': coeff}
 
                         if st == 'correct':
                             # Correction: incorrect baseline → correct steered
-                            if not r.get('baseline_passed', True) and r.get('steered_correct', False):
+                            if not r['baseline_passed'] and r['steered_correct']:
                                 results_by_coefficient[coeff]['correction'].append(r_with_meta)
                         else:
                             # Corruption: correct baseline → incorrect steered
-                            if r.get('baseline_passed', False) and not r.get('steered_correct', True):
+                            if r['baseline_passed'] and not r['steered_correct']:
                                 results_by_coefficient[coeff]['corruption'].append(r_with_meta)
                             # Preservation: correct baseline → correct steered
-                            elif r.get('baseline_passed', False) and r.get('steered_correct', True):
+                            elif r['baseline_passed'] and r['steered_correct']:
                                 results_by_coefficient[coeff]['preservation'].append(r_with_meta)
 
         # Save per-coefficient files

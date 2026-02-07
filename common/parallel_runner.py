@@ -1645,9 +1645,10 @@ def _merge_parallel_results(
         )
 
     if len(gpu_result_files) < n_gpus:
-        logger.warning(
+        raise RuntimeError(
             f"Only found {len(gpu_result_files)}/{n_gpus} GPU result files. "
-            f"Some workers may have failed."
+            f"Some workers may have failed. Re-run the same command to resume — "
+            f"successful GPUs' work is checkpointed."
         )
 
     logger.info(f"Found {len(gpu_result_files)} GPU result files to merge")
