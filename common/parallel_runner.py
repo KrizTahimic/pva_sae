@@ -118,7 +118,7 @@ def _cleanup_gpu_files(output_path: Path, patterns: list[str]) -> None:
     """
     for pattern in patterns:
         for f in sorted(output_path.glob(pattern)):
-            f.unlink()
+            f.unlink(missing_ok=True)
             logger.debug(f"Cleaned up {f.name}")
 
 
@@ -631,21 +631,26 @@ def _merge_phase4_5_json_results(
     selected_files = sorted(output_path.glob(selected_pattern))
     if selected_files:
         # Use the first GPU's selected coefficients as base, update with merged optimal
-        with open(selected_files[0]) as f:
-            selected = json.load(f)
+        try:
+            with open(selected_files[0]) as f:
+                selected = json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            logger.error(f"Failed to load selected coefficients from {selected_files[0].name}: {e}")
+            selected = None
 
-        # Update with merged optimal coefficients
-        for steering_type in ['correct', 'incorrect']:
-            steering_key = f'{steering_type}_steering'
-            if steering_key in merged and steering_type in selected:
-                selected[steering_type]['coefficient'] = merged[steering_key]['optimal_coefficient']
-                if merged[steering_key]['best_result']:
-                    selected[steering_type]['metrics'] = merged[steering_key]['best_result']['metrics']
+        if selected is not None:
+            # Update with merged optimal coefficients
+            for steering_type in ['correct', 'incorrect']:
+                steering_key = f'{steering_type}_steering'
+                if steering_key in merged and steering_type in selected:
+                    selected[steering_type]['coefficient'] = merged[steering_key]['optimal_coefficient']
+                    if merged[steering_key]['best_result']:
+                        selected[steering_type]['metrics'] = merged[steering_key]['best_result']['metrics']
 
-        selected_merged_file = output_path / selected_filename
-        with open(selected_merged_file, 'w') as f:
-            json.dump(selected, f, indent=2)
-        logger.info(f"Saved merged coefficients: {selected_merged_file}")
+            selected_merged_file = output_path / selected_filename
+            with open(selected_merged_file, 'w') as f:
+                json.dump(selected, f, indent=2)
+            logger.info(f"Saved merged coefficients: {selected_merged_file}")
 
     # Write phase_output.json manifest with all output files
     outputs_dict = {"primary": output_filename}
@@ -670,22 +675,21 @@ def _merge_phase4_5_json_results(
 
     # Clean up per-GPU files
     for f in json_files:
-        f.unlink()
+        f.unlink(missing_ok=True)
         logger.info(f"  Cleaned up {f.name}")
     for f in selected_files:
-        f.unlink()
+        f.unlink(missing_ok=True)
         logger.info(f"  Cleaned up {f.name}")
 
     # Also clean up per-GPU result files (aggregated + per-coefficient)
     for pattern in ["all_correction_results_gpu*.json", "all_corruption_results_gpu*.json", "all_preservation_results_gpu*.json"]:
         for f in output_path.glob(pattern):
-            f.unlink()
+            f.unlink(missing_ok=True)
             logger.info(f"  Cleaned up {f.name}")
     # Clean up per-coefficient per-GPU files
     for f in per_coeff_files_to_cleanup:
-        if f.exists():
-            f.unlink()
-            logger.info(f"  Cleaned up {f.name}")
+        f.unlink(missing_ok=True)
+        logger.info(f"  Cleaned up {f.name}")
 
     return {
         'merged_file': str(merged_file),
@@ -859,13 +863,19 @@ def _merge_phase8_3_results(
 
     logger.info(f"Found {len(gpu_files)} GPU parquet files to merge")
 
-    # Load and merge
+    # Load and merge (graceful degradation: skip corrupted files)
     dfs = []
+    corrupted_files = []
     for f in gpu_files:
         try:
             dfs.append(pd.read_parquet(f))
         except Exception as e:
-            raise RuntimeError(f"Corrupted GPU parquet file {f.name}: {e}")
+            logger.error(f"Corrupted GPU parquet file {f.name}: {e} — skipping")
+            corrupted_files.append(f.name)
+    if not dfs:
+        raise RuntimeError(f"All GPU parquet files corrupted in {output_path}: {corrupted_files}")
+    if corrupted_files:
+        logger.warning(f"Skipped {len(corrupted_files)} corrupted files, merging {len(dfs)} valid files")
     merged_df = pd.concat(dfs, ignore_index=True)
     logger.info(f"Merged {len(merged_df)} total results from {len(gpu_files)} GPUs")
 
@@ -1345,12 +1355,15 @@ def _merge_phase5_3_json_results(
     # Merge and save summary
     summary_files = sorted(output_path.glob("phase_5_3_summary_gpu*.json"))
     if summary_files:
-        with open(summary_files[0]) as f:
-            summary = json.load(f)
-        summary['parallel_merge'] = True
-        summary['n_gpus'] = n_gpus
-        save_json(summary, output_path / "phase_5_3_summary.json")
-        logger.info("Saved merged phase_5_3_summary.json")
+        try:
+            with open(summary_files[0]) as f:
+                summary = json.load(f)
+            summary['parallel_merge'] = True
+            summary['n_gpus'] = n_gpus
+            save_json(summary, output_path / "phase_5_3_summary.json")
+            logger.info("Saved merged phase_5_3_summary.json")
+        except (json.JSONDecodeError, IOError) as e:
+            logger.error(f"Failed to load summary from {summary_files[0].name}: {e} — skipping summary merge")
 
     # Write phase manifest
     write_phase_output(
@@ -1639,12 +1652,21 @@ def _merge_parallel_results(
 
     logger.info(f"Found {len(gpu_result_files)} GPU result files to merge")
 
-    # Merge parquet files
+    # Merge parquet files (graceful degradation: skip corrupted files)
     dfs = []
+    corrupted_files = []
     for result_file in gpu_result_files:
-        df = pd.read_parquet(result_file)
-        dfs.append(df)
-        logger.info(f"  Loaded {len(df)} rows from {result_file.name}")
+        try:
+            df = pd.read_parquet(result_file)
+            dfs.append(df)
+            logger.info(f"  Loaded {len(df)} rows from {result_file.name}")
+        except Exception as e:
+            logger.error(f"  Corrupted GPU parquet file {result_file.name}: {e} — skipping")
+            corrupted_files.append(result_file.name)
+    if not dfs:
+        raise RuntimeError(f"All GPU parquet files corrupted in {output_path}: {corrupted_files}")
+    if corrupted_files:
+        logger.warning(f"Skipped {len(corrupted_files)} corrupted files, merging {len(dfs)} valid files")
 
     merged_df = pd.concat(dfs, ignore_index=True)
 
@@ -1660,7 +1682,7 @@ def _merge_parallel_results(
     # Clean up old merged files before saving new one (prevents duplicate counts)
     old_merged_files = list(output_path.glob("dataset_merged_*.parquet"))
     for old_file in old_merged_files:
-        old_file.unlink()
+        old_file.unlink(missing_ok=True)
         logger.info(f"  Cleaned up old merged file: {old_file.name}")
 
     # Save merged result

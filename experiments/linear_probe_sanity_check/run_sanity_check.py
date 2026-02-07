@@ -370,7 +370,7 @@ def run_comparison(phase1_dir: Path, layer: int, phase25_dir: Path = None, model
         if phase25_dir and phase25_dir.exists():
             best_latent_info = get_best_latent_from_phase25(phase25_dir)
             if best_latent_info:
-                selected_idx = best_latent_info.get('latent_idx', best_latent_info.get('feature_idx'))
+                selected_idx = best_latent_info['latent_idx']
                 selected_layer = best_latent_info.get('layer')
                 print(f"\n  Phase 2.5 selected: layer {selected_layer}, latent {selected_idx}")
                 if selected_layer == layer:

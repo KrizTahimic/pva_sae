@@ -563,71 +563,75 @@ class SteeringEffectAnalyzer:
             attention_extractor.remove_hooks()
             return self._finalize_steering_results(results, excluded_tasks, original_problems_df, steering_type)
 
-        # Process each task with steering hooks
-        for enum_idx, (_, row) in enumerate(tqdm_with_logging(problems_to_process.iterrows(),
-                                                   logger, total=len(problems_to_process),
-                                                   desc=f"{steering_type.capitalize()} steering")):
+        # Register steering hook once (direction and coefficient are constant across all problems)
+        hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
+        target_module = self.model.model.layers[target_layer]
+        hook_handle = target_module.register_forward_pre_hook(hook_fn)
 
-            hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
-            target_module = self.model.model.layers[target_layer]
-            hook_handle = target_module.register_forward_pre_hook(hook_fn)
-            attention_extractor.setup_hooks()
+        try:
+            # Process each task with steering hooks
+            for enum_idx, (_, row) in enumerate(tqdm_with_logging(problems_to_process.iterrows(),
+                                                       logger, total=len(problems_to_process),
+                                                       desc=f"{steering_type.capitalize()} steering")):
 
-            try:
-                # Create closure for retry logic
-                def generate_steered_code(task_row=row):
-                    return self._generate_steered_output(task_row, attention_extractor)
+                attention_extractor.setup_hooks()
 
-                success, generation_result, error_msg = retry_with_timeout(
-                    generate_steered_code,
-                    row['task_id'],
-                    self.config,
-                    operation_name=f"{steering_type} steering"
-                )
+                try:
+                    # Create closure for retry logic
+                    def generate_steered_code(task_row=row):
+                        return self._generate_steered_output(task_row, attention_extractor)
 
-                if success:
-                    if generation_result.get('attention_patterns'):
-                        self._save_steered_attention(
-                            row['task_id'], steering_type,
-                            generation_result['attention_patterns'],
-                            generation_result['tokenized_prompt']
-                        )
+                    success, generation_result, error_msg = retry_with_timeout(
+                        generate_steered_code,
+                        row['task_id'],
+                        self.config,
+                        operation_name=f"{steering_type} steering"
+                    )
 
-                    baseline_passed = row['baseline_passed']
-                    steered_correct = generation_result['steered_correct']
-                    results.append({
-                        'task_id': row['task_id'],
-                        'baseline_passed': baseline_passed,
-                        'steered_correct': steered_correct,
-                        'steered_error_type': generation_result['steered_error_type'],
-                        'flipped': baseline_passed != steered_correct,
-                        'baseline_code': row['generated_code'],
-                        'steered_code': generation_result['generated_code'],
-                        'raw_output_steered': generation_result['raw_output'],
-                        'steering_type': steering_type,
-                        'coefficient': coefficient
-                    })
-                    processed_task_ids.add(str(row['task_id']))
-                else:
-                    excluded_tasks.append({'task_id': row['task_id'], 'error': error_msg})
-                    excluded_task_ids.add(str(row['task_id']))
-                    logger.warning(f"Excluding task {row['task_id']} from {steering_type} steering results")
+                    if success:
+                        if generation_result.get('attention_patterns'):
+                            self._save_steered_attention(
+                                row['task_id'], steering_type,
+                                generation_result['attention_patterns'],
+                                generation_result['tokenized_prompt']
+                            )
 
-            finally:
-                hook_handle.remove()
-                attention_extractor.remove_hooks()
+                        baseline_passed = row['baseline_passed']
+                        steered_correct = generation_result['steered_correct']
+                        results.append({
+                            'task_id': row['task_id'],
+                            'baseline_passed': baseline_passed,
+                            'steered_correct': steered_correct,
+                            'steered_error_type': generation_result['steered_error_type'],
+                            'flipped': baseline_passed != steered_correct,
+                            'baseline_code': row['generated_code'],
+                            'steered_code': generation_result['generated_code'],
+                            'raw_output_steered': generation_result['raw_output'],
+                            'steering_type': steering_type,
+                            'coefficient': coefficient
+                        })
+                        processed_task_ids.add(str(row['task_id']))
+                    else:
+                        excluded_tasks.append({'task_id': row['task_id'], 'error': error_msg})
+                        excluded_task_ids.add(str(row['task_id']))
+                        logger.warning(f"Excluding task {row['task_id']} from {steering_type} steering results")
 
-            # Periodic GPU cache cleanup and memory monitoring
-            if (enum_idx + 1) % 10 == 0:
-                if self.device.type == "cuda":
-                    torch.cuda.empty_cache()
-                elif self.device.type == "mps":
-                    torch.mps.synchronize()
-                check_memory_usage()
-                gc.collect()
+                finally:
+                    attention_extractor.remove_hooks()
 
-            if checkpoint_mgr.should_save(len(results), check_memory_usage()):
-                checkpoint_mgr.save(results, processed_task_ids, excluded_task_ids)
+                # Periodic GPU cache cleanup and memory monitoring
+                if (enum_idx + 1) % 50 == 0:
+                    if self.device.type == "cuda":
+                        torch.cuda.empty_cache()
+                    elif self.device.type == "mps":
+                        torch.mps.synchronize()
+                    check_memory_usage()
+                    gc.collect()
+
+                if checkpoint_mgr.should_save(len(results), check_memory_usage()):
+                    checkpoint_mgr.save(results, processed_task_ids, excluded_task_ids)
+        finally:
+            hook_handle.remove()
 
         attention_extractor.remove_hooks()
         return self._finalize_steering_results(results, excluded_tasks, original_problems_df, steering_type)
@@ -668,61 +672,60 @@ class SteeringEffectAnalyzer:
         results = []
         excluded_tasks = []
 
-        for _, row in tqdm_with_logging(problems_df.iterrows(), logger, total=len(problems_df),
-                                        desc=f"{steering_type} {candidate_id}"):
+        # Register steering hook once (direction and coefficient are constant for this candidate)
+        hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
+        target_module = self.model.model.layers[layer]
+        hook_handle = target_module.register_forward_pre_hook(hook_fn)
 
-            hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
-            target_module = self.model.model.layers[layer]
-            hook_handle = target_module.register_forward_pre_hook(hook_fn)
+        try:
+            for _, row in tqdm_with_logging(problems_df.iterrows(), logger, total=len(problems_df),
+                                            desc=f"{steering_type} {candidate_id}"):
 
-            try:
-                test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-                prompt = row['prompt']
+                try:
+                    test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                    prompt = row['prompt']
 
-                inputs = self.tokenizer(
-                    prompt,
-                    return_tensors="pt",
-                    truncation=True,
-                    max_length=self.config.activation_max_length
-                ).to(self.device)
+                    inputs = self.tokenizer(
+                        prompt,
+                        return_tensors="pt",
+                        truncation=True,
+                        max_length=self.config.activation_max_length
+                    ).to(self.device)
 
-                with torch.no_grad():
-                    outputs = self.model.generate(
-                        **inputs,
-                        max_new_tokens=self.config.model_max_new_tokens,
-                        temperature=0.0,
-                        do_sample=False,
-                        pad_token_id=self.tokenizer.pad_token_id,
-                        eos_token_id=self.tokenizer.eos_token_id
+                    with torch.no_grad():
+                        outputs = self.model.generate(
+                            **inputs,
+                            max_new_tokens=self.config.model_max_new_tokens,
+                            temperature=0.0,
+                            do_sample=False,
+                            pad_token_id=self.tokenizer.pad_token_id,
+                            eos_token_id=self.tokenizer.eos_token_id
+                        )
+
+                    generated_text = self.tokenizer.decode(
+                        outputs[0][inputs['input_ids'].shape[1]:],
+                        skip_special_tokens=True
                     )
+                    generated_code = extract_code(generated_text, prompt)
+                    eval_result = evaluate_code_with_error_type(generated_code, test_cases)
 
-                generated_text = self.tokenizer.decode(
-                    outputs[0][inputs['input_ids'].shape[1]:],
-                    skip_special_tokens=True
-                )
-                generated_code = extract_code(generated_text, prompt)
-                eval_result = evaluate_code_with_error_type(generated_code, test_cases)
+                    baseline_passed = row['baseline_passed']
+                    steered_correct = eval_result.passed
 
-                baseline_passed = row['baseline_passed']
-                steered_correct = eval_result.passed
+                    results.append({
+                        'task_id': row['task_id'],
+                        'baseline_passed': baseline_passed,
+                        'steered_correct': steered_correct,
+                        'flipped': baseline_passed != steered_correct,
+                        'steered_error_type': eval_result.error_type,
+                        'steered_code': generated_code,
+                    })
 
-                results.append({
-                    'task_id': row['task_id'],
-                    'baseline_passed': baseline_passed,
-                    'steered_correct': steered_correct,
-                    'flipped': baseline_passed != steered_correct,
-                    'steered_error_type': eval_result.error_type,
-                    'steered_code': generated_code,
-                })
-
-            except Exception as e:
-                excluded_tasks.append({'task_id': row['task_id'], 'error': str(e)})
-                logger.warning(f"Error processing {row['task_id']}: {e}")
-
-            finally:
-                hook_handle.remove()
-                if self.device.type == "cuda":
-                    torch.cuda.empty_cache()
+                except Exception as e:
+                    excluded_tasks.append({'task_id': row['task_id'], 'error': str(e)})
+                    logger.warning(f"Error processing {row['task_id']}: {e}")
+        finally:
+            hook_handle.remove()
 
         # Calculate metrics
         if steering_type == 'correct':
@@ -771,71 +774,70 @@ class SteeringEffectAnalyzer:
         total = 0
         detailed_results = []
 
-        for _, row in problems_df.iterrows():
-            hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
-            target_module = self.model.model.layers[target_layer]
-            hook_handle = target_module.register_forward_pre_hook(hook_fn)
+        # Register steering hook once (direction and coefficient are constant)
+        hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
+        target_module = self.model.model.layers[target_layer]
+        hook_handle = target_module.register_forward_pre_hook(hook_fn)
 
-            try:
-                test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
-                prompt = row['prompt']
+        try:
+            for _, row in problems_df.iterrows():
+                try:
+                    test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                    prompt = row['prompt']
 
-                inputs = self.tokenizer(
-                    prompt, return_tensors="pt", truncation=True,
-                    max_length=self.config.activation_max_length
-                ).to(self.device)
+                    inputs = self.tokenizer(
+                        prompt, return_tensors="pt", truncation=True,
+                        max_length=self.config.activation_max_length
+                    ).to(self.device)
 
-                with torch.no_grad():
-                    outputs = self.model.generate(
-                        **inputs,
-                        max_new_tokens=self.config.model_max_new_tokens,
-                        temperature=0.0,
-                        do_sample=False,
-                        pad_token_id=self.tokenizer.pad_token_id
+                    with torch.no_grad():
+                        outputs = self.model.generate(
+                            **inputs,
+                            max_new_tokens=self.config.model_max_new_tokens,
+                            temperature=0.0,
+                            do_sample=False,
+                            pad_token_id=self.tokenizer.pad_token_id
+                        )
+
+                    generated_text = self.tokenizer.decode(
+                        outputs[0][inputs['input_ids'].shape[1]:],
+                        skip_special_tokens=True
                     )
+                    generated_code = extract_code(generated_text, prompt)
+                    eval_result = evaluate_code_with_error_type(generated_code, test_cases)
 
-                generated_text = self.tokenizer.decode(
-                    outputs[0][inputs['input_ids'].shape[1]:],
-                    skip_special_tokens=True
-                )
-                generated_code = extract_code(generated_text, prompt)
-                eval_result = evaluate_code_with_error_type(generated_code, test_cases)
+                    baseline_passed = row['baseline_passed']
+                    steered_correct = eval_result.passed
+                    is_preserved = baseline_passed and steered_correct
 
-                baseline_passed = row['baseline_passed']
-                steered_correct = eval_result.passed
-                is_preserved = baseline_passed and steered_correct
+                    if is_preserved:
+                        preserved += 1
+                    total += 1
 
-                if is_preserved:
-                    preserved += 1
-                total += 1
+                    detailed_results.append({
+                        'task_id': row['task_id'],
+                        'baseline_passed': baseline_passed,
+                        'steered_correct': steered_correct,
+                        'steered_error_type': eval_result.error_type,
+                        'flipped': baseline_passed != steered_correct,
+                        'steered_code': generated_code,
+                    })
 
-                detailed_results.append({
-                    'task_id': row['task_id'],
-                    'baseline_passed': baseline_passed,
-                    'steered_correct': steered_correct,
-                    'steered_error_type': eval_result.error_type,
-                    'flipped': baseline_passed != steered_correct,
-                    'steered_code': generated_code,
-                })
-
-            except Exception as e:
-                logger.warning(f"Generation error for {row['task_id']}: {e}")
-                # Don't count generation errors in metrics - they are infrastructure
-                # failures, not meaningful signal about steering effectiveness
-                detailed_results.append({
-                    'task_id': row['task_id'],
-                    'baseline_passed': row['baseline_passed'],
-                    'steered_correct': None,
-                    'steered_error_type': 'generation_error',
-                    'flipped': False,
-                    'generation_error': True,
-                    'steered_code': None,
-                })
-
-            finally:
-                hook_handle.remove()
-                if self.device.type == "cuda":
-                    torch.cuda.empty_cache()
+                except Exception as e:
+                    logger.warning(f"Generation error for {row['task_id']}: {e}")
+                    # Don't count generation errors in metrics - they are infrastructure
+                    # failures, not meaningful signal about steering effectiveness
+                    detailed_results.append({
+                        'task_id': row['task_id'],
+                        'baseline_passed': row['baseline_passed'],
+                        'steered_correct': None,
+                        'steered_error_type': 'generation_error',
+                        'flipped': False,
+                        'generation_error': True,
+                        'steered_code': None,
+                    })
+        finally:
+            hook_handle.remove()
 
         preservation_rate = (preserved / total * 100) if total > 0 else 0.0
         return {
