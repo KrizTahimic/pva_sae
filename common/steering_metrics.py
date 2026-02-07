@@ -137,16 +137,35 @@ def calculate_corruption_rate(results: Union[list[dict], pd.DataFrame]) -> float
 def calculate_preservation_rate(results: Union[list[dict], pd.DataFrame]) -> float:
     """
     Calculate percentage of correct problems that remain correct after steering.
-    
-    Inverse of corruption rate. Used for evaluating if "correct" steering 
+
+    Inverse of corruption rate. Used for evaluating if "correct" steering
     preserves already-correct solutions.
-    
+
     Args:
         results: Either a list of dicts or DataFrame with steering results
-                
+
     Returns:
-        Preservation rate as percentage (0-100)
+        Preservation rate as percentage (0-100), or NaN if no correct problems exist
     """
+    # Check for zero correct problems (preservation is undefined in this case)
+    if isinstance(results, pd.DataFrame):
+        if results.empty:
+            return float('nan')
+        modified_col = _detect_modified_column(results)
+        if modified_col is None:
+            raise ValueError("Results missing 'steered_correct' or 'orthogonalized_correct' column")
+        total_correct = len(results[results['baseline_passed']])
+    elif isinstance(results, list):
+        if not results:
+            return float('nan')
+        total_correct = sum(1 for r in results if r.get('baseline_passed', False))
+    else:
+        raise TypeError(f"Expected list or DataFrame, got {type(results)}")
+
+    if total_correct == 0:
+        logger.warning("No initially correct problems found for preservation rate calculation")
+        return float('nan')
+
     corruption = calculate_corruption_rate(results)
     return 100 - corruption
 

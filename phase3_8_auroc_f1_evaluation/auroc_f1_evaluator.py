@@ -914,53 +914,54 @@ def load_split_activations(
     labels = []
     missing_tasks = []
 
-    # Iterate directly over temp_data (no Phase 0.1 needed)
-    for _, row in temp_data.iterrows():
-        task_id = row['task_id']
-        baseline_passed = row['baseline_passed']
+    try:
+        # Iterate directly over temp_data (no Phase 0.1 needed)
+        for _, row in temp_data.iterrows():
+            task_id = row['task_id']
+            baseline_passed = row['baseline_passed']
 
-        # Load raw activations from appropriate phase (preserves bfloat16)
-        act_file = activation_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.safetensors'
+            # Load raw activations from appropriate phase (preserves bfloat16)
+            act_file = activation_dir / f'activations/task_activations/{task_id}_layer_{layer_num}.safetensors'
 
-        if not act_file.exists():
-            missing_tasks.append(task_id)
-            continue
+            if not act_file.exists():
+                missing_tasks.append(task_id)
+                continue
 
-        # Load activation (preserves bfloat16)
-        raw_activation = load_activation(act_file, device)
+            # Load activation (preserves bfloat16)
+            raw_activation = load_activation(act_file, device)
 
-        # Ensure dtype matches SAE parameters for matrix multiplication
-        raw_activation = raw_activation.to(sae.W_enc.dtype)
+            # Ensure dtype matches SAE parameters for matrix multiplication
+            raw_activation = raw_activation.to(sae.W_enc.dtype)
 
-        # Encode through SAE to get latent activations
-        # Shape: (1, 16384) - SAE latent activations
-        with torch.no_grad():
-            latent_activations = sae.encode(raw_activation)
+            # Encode through SAE to get latent activations
+            # Shape: (1, 16384) - SAE latent activations
+            with torch.no_grad():
+                latent_activations = sae.encode(raw_activation)
 
-        # Extract specific latent value
-        latent_activation = latent_activations[0, latent_idx].item()
-        activations.append(latent_activation)
+            # Extract specific latent value
+            latent_activation = latent_activations[0, latent_idx].item()
+            activations.append(latent_activation)
 
-        # Create label based on what we're predicting
-        if latent_type == 'correct':
-            # Predicting correctness: 1=correct, 0=incorrect
-            label = 1 if baseline_passed else 0
-        else:
-            # Predicting incorrectness: 1=incorrect, 0=correct
-            label = 1 if not baseline_passed else 0
+            # Create label based on what we're predicting
+            if latent_type == 'correct':
+                # Predicting correctness: 1=correct, 0=incorrect
+                label = 1 if baseline_passed else 0
+            else:
+                # Predicting incorrectness: 1=incorrect, 0=correct
+                label = 1 if not baseline_passed else 0
 
-        labels.append(label)
+            labels.append(label)
 
-    if missing_tasks:
-        logger.warning(f"Missing activation files for {len(missing_tasks)} tasks: {missing_tasks[:5]}...")
+        if missing_tasks:
+            logger.warning(f"Missing activation files for {len(missing_tasks)} tasks: {missing_tasks[:5]}...")
 
-    logger.info(f"Loaded {len(labels)} samples for {split_name} split")
-    logger.info(f"Class distribution: {np.bincount(labels)}")
-
-    # Clean up SAE to free memory
-    del sae
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+        logger.info(f"Loaded {len(labels)} samples for {split_name} split")
+        logger.info(f"Class distribution: {np.bincount(labels)}")
+    finally:
+        # Ensure SAE is freed from GPU memory even on exception
+        del sae
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     return np.array(labels), np.array(activations)
 

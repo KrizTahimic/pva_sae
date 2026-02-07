@@ -264,7 +264,7 @@ class CheckpointManager:
 
         if len(files) > self.keep_last:
             for old_file in files[:-self.keep_last]:
-                old_file.unlink()
+                old_file.unlink(missing_ok=True)
                 logger.debug(f"Removed old checkpoint: {old_file.name}")
 
     def cleanup_all(self) -> None:
@@ -273,7 +273,7 @@ class CheckpointManager:
         files = list(self.checkpoint_dir.glob(pattern))
 
         for f in files:
-            f.unlink()
+            f.unlink(missing_ok=True)
 
         if files:
             logger.info(f"Cleaned up {len(files)} checkpoint file(s)")
@@ -470,20 +470,20 @@ class CheckpointManager:
         if len(files) > self.keep_last:
             for old_file in files[:-self.keep_last]:
                 # Remove parquet file
-                old_file.unlink()
+                old_file.unlink(missing_ok=True)
                 logger.debug(f"Removed old checkpoint: {old_file.name}")
 
                 # Remove metadata sidecar
                 metadata_file = old_file.with_suffix(".meta.json")
                 if metadata_file.exists():
-                    metadata_file.unlink()
+                    metadata_file.unlink(missing_ok=True)
 
         # Also cleanup old exclusion files
         excl_pattern = self._get_exclusion_pattern(for_glob=True)
         excl_files = sorted(self.checkpoint_dir.glob(excl_pattern))
         if len(excl_files) > self.keep_last:
             for old_excl in excl_files[:-self.keep_last]:
-                old_excl.unlink()
+                old_excl.unlink(missing_ok=True)
 
     def cleanup_all_parquet(self) -> None:
         """Remove all parquet checkpoints and metadata after successful completion."""
@@ -492,17 +492,17 @@ class CheckpointManager:
         parquet_files = list(self.checkpoint_dir.glob(parquet_pattern))
 
         for f in parquet_files:
-            f.unlink()
+            f.unlink(missing_ok=True)
             # Remove metadata sidecar
             metadata_file = f.with_suffix(".meta.json")
             if metadata_file.exists():
-                metadata_file.unlink()
+                metadata_file.unlink(missing_ok=True)
 
         # Remove exclusion files
         excl_pattern = self._get_exclusion_pattern(for_glob=True)
         excl_files = list(self.checkpoint_dir.glob(excl_pattern))
         for f in excl_files:
-            f.unlink()
+            f.unlink(missing_ok=True)
 
         total_cleaned = len(parquet_files) + len(excl_files)
         if total_cleaned:

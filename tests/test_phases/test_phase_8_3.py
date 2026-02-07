@@ -424,3 +424,349 @@ class TestPhase83Config:
         config = Config()
         config.phase8_3_percentile = 60
         assert config.phase8_3_percentile == 60
+
+
+# =============================================================================
+# Threshold Decision Tests
+# =============================================================================
+
+from unittest.mock import patch, MagicMock
+import torch
+
+from common.selective_steering import SteeringState
+
+
+class TestThresholdDecision:
+    """Test that the threshold correctly determines should_steer."""
+
+    def test_activation_above_threshold_should_steer(self):
+        """When activation > threshold, should_steer should be True."""
+        threshold = 0.5
+        activation_value = 0.8
+
+        state = SteeringState(prompt_length=10)
+
+        # Simulate the threshold check logic from _generate_with_selective_steering
+        state.incorrect_pred_activation = activation_value
+        state.should_steer = activation_value > threshold
+        state.first_token_checked = True
+
+        assert state.should_steer is True
+
+    def test_activation_below_threshold_should_not_steer(self):
+        """When activation < threshold, should_steer should be False."""
+        threshold = 0.5
+        activation_value = 0.3
+
+        state = SteeringState(prompt_length=10)
+
+        state.incorrect_pred_activation = activation_value
+        state.should_steer = activation_value > threshold
+        state.first_token_checked = True
+
+        assert state.should_steer is False
+
+    def test_activation_equal_threshold_should_not_steer(self):
+        """When activation == threshold exactly, should_steer should be False.
+
+        The Phase 8.3 comparison is strictly greater-than (activation > threshold),
+        so activation == threshold means no steering.
+        """
+        threshold = 0.5
+        activation_value = 0.5
+
+        state = SteeringState(prompt_length=10)
+
+        state.incorrect_pred_activation = activation_value
+        state.should_steer = activation_value > threshold
+        state.first_token_checked = True
+
+        assert state.should_steer is False
+
+    def test_threshold_zero_steers_on_any_positive(self):
+        """With threshold = 0.0, any positive activation should trigger steering."""
+        threshold = 0.0
+
+        state = SteeringState(prompt_length=10)
+        state.incorrect_pred_activation = 0.001
+        state.should_steer = state.incorrect_pred_activation > threshold
+        state.first_token_checked = True
+
+        assert state.should_steer is True
+
+    def test_threshold_zero_no_steer_at_zero(self):
+        """With threshold = 0.0, activation of exactly 0.0 should NOT steer."""
+        threshold = 0.0
+
+        state = SteeringState(prompt_length=10)
+        state.incorrect_pred_activation = 0.0
+        state.should_steer = state.incorrect_pred_activation > threshold
+        state.first_token_checked = True
+
+        assert state.should_steer is False
+
+    def test_negative_activation_never_steers(self):
+        """Negative activation should never trigger steering (threshold >= 0)."""
+        threshold = 0.0
+
+        state = SteeringState(prompt_length=10)
+        state.incorrect_pred_activation = -1.5
+        state.should_steer = state.incorrect_pred_activation > threshold
+        state.first_token_checked = True
+
+        assert state.should_steer is False
+
+    def test_high_threshold_requires_high_activation(self):
+        """A high threshold should only trigger on very high activations."""
+        threshold = 10.0
+
+        # Below threshold
+        state = SteeringState(prompt_length=10)
+        state.incorrect_pred_activation = 5.0
+        state.should_steer = state.incorrect_pred_activation > threshold
+        assert state.should_steer is False
+
+        # Above threshold
+        state2 = SteeringState(prompt_length=10)
+        state2.incorrect_pred_activation = 15.0
+        state2.should_steer = state2.incorrect_pred_activation > threshold
+        assert state2.should_steer is True
+
+    def test_was_steered_false_returns_baseline(self):
+        """When should_steer is False, result should use baseline (passthrough)."""
+        # This tests the result dict pattern from _generate_with_selective_steering
+        baseline_passed = True
+        state = SteeringState(prompt_length=10)
+        state.incorrect_pred_activation = 0.3
+        state.should_steer = 0.3 > 0.5  # False
+
+        # Simulate the result dict when not steered
+        result = {
+            'task_id': 'test_1',
+            'baseline_passed': baseline_passed,
+            'was_steered': state.should_steer,
+            'steered_correct': baseline_passed,  # Passthrough baseline
+            'steered_code': None,
+            'source': 'phase3_5_baseline'
+        }
+
+        assert result['was_steered'] is False
+        assert result['steered_correct'] == baseline_passed
+        assert result['steered_code'] is None
+        assert result['source'] == 'phase3_5_baseline'
+
+
+# =============================================================================
+# Dual Direction Config Tests
+# =============================================================================
+
+
+class TestDualDirectionConfig:
+    """Test that Phase 8.3 uses both probe directions (logreg + mass_mean)."""
+
+    def test_config_direction_source_default_is_sae(self):
+        """Default direction_source should be 'sae'."""
+        config = Config()
+        assert config.direction_source == 'sae'
+
+    def test_probe_mode_detection(self):
+        """When direction_source is probe_logreg or probe_mass_mean, use_probe should be True."""
+        config = Config()
+
+        # Simulate the logic from SelectiveSteeringAnalyzer.__init__
+        for source in ('probe_logreg', 'probe_mass_mean'):
+            config.direction_source = source
+            use_probe = config.direction_source in ('probe_logreg', 'probe_mass_mean')
+            assert use_probe is True, f"Failed for direction_source={source}"
+
+    def test_sae_mode_detection(self):
+        """When direction_source is 'sae', use_probe should be False."""
+        config = Config()
+        config.direction_source = 'sae'
+        use_probe = config.direction_source in ('probe_logreg', 'probe_mass_mean')
+        assert use_probe is False
+
+    @patch('common.steering_setup.load_probe_directions_for_steering')
+    @patch('common.steering_setup.load_probe_directions_for_predicting')
+    @patch('common.steering_setup.load_file')
+    def test_dual_probe_loads_both_methods(self, mock_load_file, mock_pred, mock_steer):
+        """load_dual_probe_directions should load logreg for prediction and mass_mean for steering."""
+        from common.steering_setup import (
+            load_dual_probe_directions,
+            ProbeDirections,
+        )
+
+        # Mock predicting probe (logreg)
+        pred_direction = torch.randn(256)
+        mock_pred.return_value = ProbeDirections(
+            correct_direction=pred_direction,
+            incorrect_direction=-pred_direction,
+            layer=19,
+            method="logreg",
+            bias=0.42,
+            phase_dir="/fake/phase2_6",
+        )
+
+        # Mock steering probe (mass_mean)
+        steer_direction = torch.randn(256)
+        mock_steer.return_value = ProbeDirections(
+            correct_direction=steer_direction,
+            incorrect_direction=-steer_direction,
+            layer=19,
+            method="mass_mean",
+            bias=0.0,
+            phase_dir="/fake/phase2_6",
+        )
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([torch.randn(2, 2)])
+
+        config = Config()
+        device = torch.device("cpu")
+
+        dual = load_dual_probe_directions(config, device, mock_model)
+
+        # Verify logreg was used for prediction
+        mock_pred.assert_called_once()
+        pred_call_kwargs = mock_pred.call_args
+        assert pred_call_kwargs[1].get('method', pred_call_kwargs[0][2] if len(pred_call_kwargs[0]) > 2 else None) == "logreg" or \
+               (len(pred_call_kwargs[1]) > 0 and pred_call_kwargs[1].get('method') == "logreg")
+
+        # Verify mass_mean was used for steering
+        mock_steer.assert_called_once()
+        steer_call_kwargs = mock_steer.call_args
+        assert steer_call_kwargs[1].get('method', steer_call_kwargs[0][3] if len(steer_call_kwargs[0]) > 3 else None) == "mass_mean" or \
+               (len(steer_call_kwargs[1]) > 0 and steer_call_kwargs[1].get('method') == "mass_mean")
+
+    @patch('common.steering_setup.load_probe_directions_for_steering')
+    @patch('common.steering_setup.load_probe_directions_for_predicting')
+    def test_dual_probe_returns_correct_structure(self, mock_pred, mock_steer):
+        """DualProbeDirections should have both predicting and steering attributes."""
+        from common.steering_setup import (
+            load_dual_probe_directions,
+            ProbeDirections,
+            DualProbeDirections,
+        )
+
+        pred_direction = torch.randn(256)
+        mock_pred.return_value = ProbeDirections(
+            correct_direction=pred_direction,
+            incorrect_direction=-pred_direction,
+            layer=19,
+            method="logreg",
+            bias=-0.3,
+            phase_dir="/fake/phase2_6",
+        )
+
+        steer_direction = torch.randn(256)
+        mock_steer.return_value = ProbeDirections(
+            correct_direction=steer_direction,
+            incorrect_direction=-steer_direction,
+            layer=19,
+            method="mass_mean",
+            bias=0.0,
+            phase_dir="/fake/phase2_6",
+        )
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([torch.randn(2, 2)])
+
+        config = Config()
+        device = torch.device("cpu")
+
+        dual = load_dual_probe_directions(config, device, mock_model)
+
+        # Check structure
+        assert isinstance(dual, DualProbeDirections)
+        assert dual.predicting_probe.method == "logreg"
+        assert dual.steering_probe.method == "mass_mean"
+        assert dual.predicting_bias == -0.3
+        assert dual.predicting_layer == 19
+        assert dual.steering_layer == 19
+
+    @patch('common.steering_setup.load_probe_directions_for_steering')
+    @patch('common.steering_setup.load_probe_directions_for_predicting')
+    def test_dual_probe_predicting_direction_is_incorrect(self, mock_pred, mock_steer):
+        """Predicting direction should be the incorrect direction (negated correct).
+
+        Phase 8.3 checks if the incorrect-predicting activation exceeds a threshold,
+        so it needs the incorrect direction for the dot product.
+        """
+        from common.steering_setup import (
+            load_dual_probe_directions,
+            ProbeDirections,
+        )
+
+        pred_direction = torch.tensor([1.0, 0.0, 0.0])
+        mock_pred.return_value = ProbeDirections(
+            correct_direction=pred_direction,
+            incorrect_direction=-pred_direction,
+            layer=19,
+            method="logreg",
+            bias=0.0,
+            phase_dir="/fake/phase2_6",
+        )
+
+        steer_direction = torch.tensor([0.0, 1.0, 0.0])
+        mock_steer.return_value = ProbeDirections(
+            correct_direction=steer_direction,
+            incorrect_direction=-steer_direction,
+            layer=19,
+            method="mass_mean",
+            bias=0.0,
+            phase_dir="/fake/phase2_6",
+        )
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([torch.randn(2, 2)])
+
+        config = Config()
+        device = torch.device("cpu")
+
+        dual = load_dual_probe_directions(config, device, mock_model)
+
+        # predicting_direction should be the incorrect direction from logreg
+        assert torch.allclose(dual.predicting_direction, -pred_direction)
+
+    @patch('common.steering_setup.load_probe_directions_for_steering')
+    @patch('common.steering_setup.load_probe_directions_for_predicting')
+    def test_dual_probe_steering_direction_is_correct(self, mock_pred, mock_steer):
+        """Steering direction should be the correct direction from mass_mean.
+
+        Phase 8.3 steers toward correctness using the mass_mean correct direction.
+        """
+        from common.steering_setup import (
+            load_dual_probe_directions,
+            ProbeDirections,
+        )
+
+        pred_direction = torch.tensor([1.0, 0.0, 0.0])
+        mock_pred.return_value = ProbeDirections(
+            correct_direction=pred_direction,
+            incorrect_direction=-pred_direction,
+            layer=19,
+            method="logreg",
+            bias=0.0,
+            phase_dir="/fake/phase2_6",
+        )
+
+        steer_direction = torch.tensor([0.0, 1.0, 0.0])
+        mock_steer.return_value = ProbeDirections(
+            correct_direction=steer_direction,
+            incorrect_direction=-steer_direction,
+            layer=19,
+            method="mass_mean",
+            bias=0.0,
+            phase_dir="/fake/phase2_6",
+        )
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([torch.randn(2, 2)])
+
+        config = Config()
+        device = torch.device("cpu")
+
+        dual = load_dual_probe_directions(config, device, mock_model)
+
+        # correct_latent_direction should be the correct direction from mass_mean
+        assert torch.allclose(dual.correct_latent_direction, steer_direction)

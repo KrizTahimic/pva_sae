@@ -199,7 +199,9 @@ def get_dataset_range(config, total_length: int) -> tuple[int, int]:
         start_idx, end_idx = get_dataset_range(self.config, len(data))
         data = data.iloc[start_idx:end_idx]
     """
-    start_idx = getattr(config, 'dataset_start_idx', None) or 0
+    start_idx = getattr(config, 'dataset_start_idx', None)
+    if start_idx is None:
+        start_idx = 0
     end_idx = getattr(config, 'dataset_end_idx', None)
     if end_idx is not None:
         # dataset_end_idx is inclusive, convert to exclusive for slicing

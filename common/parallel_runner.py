@@ -70,30 +70,42 @@ def _dedup_by_task_id(results_list: list[dict]) -> list[dict]:
 def _load_gpu_json_files(output_path: Path, pattern: str) -> list[dict]:
     """Load and parse GPU JSON result files matching a glob pattern.
 
+    Corrupted files are skipped with a warning rather than failing the
+    entire merge, so valid GPU results are preserved.
+
     Args:
         output_path: Directory containing GPU output files
         pattern: Glob pattern (e.g. "steering_effect_analysis_gpu*.json")
 
     Returns:
-        List of parsed JSON dicts, one per file
+        List of parsed JSON dicts, one per successfully loaded file
 
     Raises:
-        RuntimeError: If no files match the pattern
+        RuntimeError: If no files match the pattern or all files are corrupted
     """
     gpu_files = sorted(output_path.glob(pattern))
     if not gpu_files:
         raise RuntimeError(f"No {pattern} files found in {output_path}")
     logger.info(f"Found {len(gpu_files)} GPU files matching {pattern}")
     results = []
+    corrupted = []
     for f in gpu_files:
         try:
             with open(f) as fh:
                 results.append(json.load(fh))
         except (json.JSONDecodeError, IOError) as e:
-            raise RuntimeError(
-                f"Corrupted GPU result file {f.name}: {e}. "
-                f"Other GPU files may still be valid in {f.parent}"
-            )
+            logger.error(f"Corrupted GPU result file {f.name}: {e} — skipping")
+            corrupted.append(f.name)
+    if corrupted:
+        logger.warning(
+            f"Skipped {len(corrupted)} corrupted file(s): {corrupted}. "
+            f"Re-run the phase to regenerate missing GPU data."
+        )
+    if not results:
+        raise RuntimeError(
+            f"All GPU files corrupted for pattern {pattern} in {output_path}. "
+            f"Re-run the phase."
+        )
     return results
 
 
@@ -367,9 +379,12 @@ def run_phase_parallel(phase_id: str, config: Config, n_gpus: int) -> dict:
                     'error': str(e)
                 })
 
-    # Check for failures
+    # Check for failures — refuse to merge incomplete data
     if failed_gpus:
-        logger.warning(f"Some GPUs failed: {failed_gpus}")
+        raise RuntimeError(
+            f"GPU workers failed: {failed_gpus}. "
+            f"Re-run the same command to resume — successful GPUs' work is checkpointed."
+        )
 
     # Merge results
     logger.info("Merging results from all GPUs...")
@@ -424,12 +439,27 @@ def _merge_phase4_5_json_results(
 
     logger.info(f"Found {len(json_files)} GPU JSON files to merge")
 
-    # Load all per-GPU results
+    # Load all per-GPU results (skip corrupted files)
     gpu_results = []
+    corrupted_files = []
     for json_file in json_files:
-        with open(json_file) as f:
-            gpu_results.append(json.load(f))
-        logger.info(f"  Loaded {json_file.name}")
+        try:
+            with open(json_file) as f:
+                gpu_results.append(json.load(f))
+            logger.info(f"  Loaded {json_file.name}")
+        except (json.JSONDecodeError, IOError) as e:
+            logger.error(f"  Corrupted: {json_file.name}: {e} — skipping")
+            corrupted_files.append(json_file.name)
+    if corrupted_files:
+        logger.warning(
+            f"Skipped {len(corrupted_files)} corrupted file(s): {corrupted_files}. "
+            f"Re-run the phase to regenerate missing GPU data."
+        )
+    if not gpu_results:
+        raise RuntimeError(
+            f"All per-GPU coefficient_analysis files are corrupted in {output_path}. "
+            f"Re-run the phase."
+        )
 
     # Phase 4.5/4.6 merging - combine per-problem results across GPUs
     merged = {}
@@ -474,21 +504,27 @@ def _merge_phase4_5_json_results(
             if n_problems == 0:
                 continue
 
+            # Filter to records with required fields (skip incomplete records)
+            valid = [r for r in results if 'baseline_passed' in r and 'steered_correct' in r]
+            if len(valid) < len(results):
+                logger.warning(f"  Skipped {len(results) - len(valid)} records with missing fields "
+                              f"for coefficient {coeff}")
+
             # Calculate metrics based on steering type
             if steering_type == 'correct':
                 # Correction rate: incorrect baseline → correct steered
-                corrections = sum(1 for r in results
-                                 if not r.get('baseline_passed', True) and r.get('steered_correct', False))
-                incorrect_baseline = sum(1 for r in results if not r.get('baseline_passed', True))
+                corrections = sum(1 for r in valid
+                                 if not r['baseline_passed'] and r['steered_correct'])
+                incorrect_baseline = sum(1 for r in valid if not r['baseline_passed'])
                 correction_rate = (corrections / incorrect_baseline * 100) if incorrect_baseline > 0 else 0
 
                 metrics = {'correction_rate': correction_rate}
                 score = correction_rate
             else:
                 # Corruption rate: correct baseline → incorrect steered
-                corruptions = sum(1 for r in results
-                                 if r.get('baseline_passed', False) and not r.get('steered_correct', True))
-                correct_baseline = sum(1 for r in results if r.get('baseline_passed', False))
+                corruptions = sum(1 for r in valid
+                                 if r['baseline_passed'] and not r['steered_correct'])
+                correct_baseline = sum(1 for r in valid if r['baseline_passed'])
                 corruption_rate = (corruptions / correct_baseline * 100) if correct_baseline > 0 else 0
 
                 # Average similarity
@@ -860,7 +896,7 @@ def _merge_phase8_3_results(
     steering_trigger_rate = n_steered_correction / n_valid_correction if n_valid_correction > 0 else 0
 
     n_corrected = sum(1 for r in valid_correction
-                     if not r.get('baseline_passed', True) and r.get('steered_correct', False))
+                     if not r['baseline_passed'] and r['steered_correct'])
     correction_rate = n_corrected / n_valid_correction if n_valid_correction > 0 else 0
     correction_efficiency = n_corrected / n_steered_correction if n_steered_correction > 0 else 0
 
@@ -895,9 +931,9 @@ def _merge_phase8_3_results(
     steering_avoidance_rate = n_not_steered_preservation / n_valid_preservation if n_valid_preservation > 0 else 0
 
     n_preserved = sum(1 for r in valid_preservation
-                     if r.get('baseline_passed', False) and r.get('steered_correct', False))
+                     if r['baseline_passed'] and r['steered_correct'])
     n_corrupted = sum(1 for r in valid_preservation
-                     if r.get('baseline_passed', False) and not r.get('steered_correct', True))
+                     if r['baseline_passed'] and not r['steered_correct'])
     preservation_rate = n_preserved / n_valid_preservation if n_valid_preservation > 0 else 0
     corruption_rate = n_corrupted / n_valid_preservation if n_valid_preservation > 0 else 0
 
