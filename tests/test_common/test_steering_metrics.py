@@ -452,15 +452,15 @@ class TestBaselinePassedRequired:
             {'steered_correct': False},
         ])
 
-        with pytest.raises(KeyError):
+        with pytest.raises(ValueError, match="missing 'baseline_passed' column"):
             calculate_correction_rate(df)
 
     def test_corruption_rate_raises_on_missing_baseline_dataframe(self):
-        """calculate_corruption_rate should raise KeyError for DataFrame without baseline_passed."""
+        """calculate_corruption_rate should raise ValueError for DataFrame without baseline_passed."""
         df = pd.DataFrame([
             {'steered_correct': True},
             {'steered_correct': False},
         ])
 
-        with pytest.raises(KeyError):
+        with pytest.raises(ValueError, match="missing 'baseline_passed' column"):
             calculate_corruption_rate(df)

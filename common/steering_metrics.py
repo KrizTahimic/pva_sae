@@ -67,9 +67,16 @@ def calculate_correction_rate(results: Union[list[dict], pd.DataFrame]) -> float
     if modified_col is None:
         raise ValueError("Results missing 'steered_correct' or 'orthogonalized_correct' column")
 
+    # Validate required columns exist
+    if isinstance(results, pd.DataFrame) and 'baseline_passed' not in results.columns:
+        raise ValueError(
+            f"Results DataFrame missing 'baseline_passed' column. "
+            f"Available columns: {list(results.columns)}"
+        )
+
     # Compute based on type - flat structure
     if isinstance(results, pd.DataFrame):
-        corrected = len(results[(results['baseline_passed'] == False) & results[modified_col]])
+        corrected = len(results[(results['baseline_passed'] == False) & (results[modified_col] == True)])
         total_incorrect = len(results[results['baseline_passed'] == False])
     elif isinstance(results, list):
         corrected = sum(1 for r in results if not r['baseline_passed'] and r[modified_col])
@@ -113,10 +120,17 @@ def calculate_corruption_rate(results: Union[list[dict], pd.DataFrame]) -> float
     if modified_col is None:
         raise ValueError("Results missing 'steered_correct' or 'orthogonalized_correct' column")
 
+    # Validate required columns exist
+    if isinstance(results, pd.DataFrame) and 'baseline_passed' not in results.columns:
+        raise ValueError(
+            f"Results DataFrame missing 'baseline_passed' column. "
+            f"Available columns: {list(results.columns)}"
+        )
+
     # Compute based on type - flat structure
     if isinstance(results, pd.DataFrame):
-        corrupted = len(results[results['baseline_passed'] & (results[modified_col] == False)])
-        total_correct = len(results[results['baseline_passed']])
+        corrupted = len(results[(results['baseline_passed'] == True) & (results[modified_col] == False)])
+        total_correct = len(results[results['baseline_passed'] == True])
     elif isinstance(results, list):
         corrupted = sum(1 for r in results if r['baseline_passed'] and not r[modified_col])
         total_correct = sum(1 for r in results if r['baseline_passed'])
@@ -154,7 +168,7 @@ def calculate_preservation_rate(results: Union[list[dict], pd.DataFrame]) -> flo
         modified_col = _detect_modified_column(results)
         if modified_col is None:
             raise ValueError("Results missing 'steered_correct' or 'orthogonalized_correct' column")
-        total_correct = len(results[results['baseline_passed']])
+        total_correct = len(results[results['baseline_passed'] == True])
     elif isinstance(results, list):
         if not results:
             return float('nan')

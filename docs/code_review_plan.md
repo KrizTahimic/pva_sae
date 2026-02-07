@@ -1,56 +1,59 @@
 # Implementation Plan
 **Generated from code review**: 2026-02-07 (Final pre-production review)
 
-## Immediate Fixes
+## Immediate Fixes (ALL COMPLETED)
 
-### Fix 1: Graceful degradation in fallback parquet merge (M1)
-- **File**: `common/parallel_runner.py:1643-1648`
-- **Change**: Wrap `pd.read_parquet()` in try/except, log warning, skip corrupted files
-- **Test**: Verify merge succeeds when one GPU file is corrupted
+### Fix 1: L2 — Add `baseline_passed` column validation in steering_metrics.py
+- **File**: `common/steering_metrics.py:70-72, 120-122`
+- **Change**: Added explicit column existence check before accessing `baseline_passed`, raising descriptive `ValueError` instead of opaque `KeyError`
+- **Test**: Updated `test_steering_metrics.py` to expect `ValueError` with match pattern
+- **Status**: DONE
 
-### Fix 2: Graceful degradation in Phase 8.3 merge (M2)
-- **File**: `common/parallel_runner.py:864-868`
-- **Change**: Log error and skip corrupted file instead of re-raising RuntimeError
-- **Test**: Verify partial merge when one GPU file is bad
+### Fix 2: L2 — Explicit boolean comparisons in steering_metrics.py
+- **File**: `common/steering_metrics.py:76, 122, 175`
+- **Change**: Changed `results['baseline_passed']` to `results['baseline_passed'] == True` and `results[modified_col]` to `results[modified_col] == True` for consistency
+- **Test**: All 879 tests pass
+- **Status**: DONE
 
-### Fix 3: Add try/except to unguarded json.load() in merge paths (L2)
-- **File**: `common/parallel_runner.py:634` and `common/parallel_runner.py:1349`
-- **Change**: Wrap in try/except with error logging
-- **Test**: Minor -- verify graceful handling of corrupted JSON
+### Fix 3: L5 — Use heapq.nsmallest for top-K selection in Phase 2.5
+- **File**: `phase2_5_separation_score_analysis/sae_analyzer.py:223-231`
+- **Change**: Replaced `sorted(...)[:k]` with `heapq.nsmallest(k, ...)` for O(n log k) efficiency
+- **Test**: Produces identical output, ~10x faster for 416k items
+- **Status**: DONE
 
-### Fix 4: Add missing_ok=True to cleanup unlink calls (L4)
-- **File**: `common/parallel_runner.py:121, 673, 682`
-- **Change**: Change `f.unlink()` to `f.unlink(missing_ok=True)`
-- **Test**: None needed
+### Fix 4: L4 — Use color constants in Phase 7.12
+- **File**: `phase7_12_instruct_auroc_f1/instruct_auroc_f1_evaluator.py:227-263`
+- **Change**: Replaced hardcoded `#2ecc71`/`#e74c3c` with `COLOR_CORRECT_PREDICTING`/`COLOR_INCORRECT_PREDICTING`
+- **Test**: Visualization-only change
+- **Status**: DONE
 
-### Fix 5: Remove legacy feature_idx fallback (L5)
-- **File**: `experiments/linear_probe_sanity_check/run_sanity_check.py:373`
-- **Change**: Replace `best_latent_info.get('latent_idx', best_latent_info.get('feature_idx'))` with `best_latent_info['latent_idx']`
-- **Test**: None needed
+### Fix 5: L4 — Use color constants in Phase 7.9
+- **File**: `phase7_9_universality_analysis/universality_analysis.py:216,229,242`
+- **Change**: Replaced hardcoded hex colors with `COLOR_CORRECTION`, `COLOR_CORRUPTION`, `COLOR_PRESERVATION`, `COLOR_PRESERVATION_LIGHT`, `COLOR_CORRECT_DARK`, `COLOR_INCORRECT_DARK`
+- **Test**: Visualization-only change
+- **Status**: DONE
 
-### Fix 6: Hook registration optimization (L6)
-- **File**: `phase4_8_steering_analysis/steering_effect_analyzer.py:567-617`
-- **Change**: Move hook registration outside the per-problem loop where possible
-- **Test**: Verify steering results unchanged
+### Fix 6: L3 — Use phase discovery in reevaluate_phase3_6.py
+- **File**: `scripts/reevaluate_phase3_6.py:52-63`
+- **Change**: Replaced hardcoded `MODEL_DIRS` with `get_phase_output_dir()` lookups via `_get_model_dirs()` function
+- **Test**: Script is maintenance-only, already executed
+- **Status**: DONE
 
-### Fix 7: Reduce GPU cache cleanup frequency (L7/E7)
-- **File**: `phase4_8_steering_analysis/steering_effect_analyzer.py:621-627`
-- **Change**: Increase cleanup interval from every 10 to every 50 items
-- **Test**: Verify no OOM on production workloads
+## Backlog
 
-### Fix 8: Replace .iterrows() with .itertuples() (L8)
-- **File**: `phase4_8_steering_analysis/steering_effect_analyzer.py:567, 671, 774`
-- **Change**: Use `.itertuples()` or direct indexing
-- **Test**: Verify identical outputs
+### B1: L1 — Add integration test for partial GPU failure recovery
+- **File**: `common/parallel_runner.py:382-387`
+- **Change**: Add test that mocks multiprocessing GPU failure and verifies checkpoint-based recovery
+- **Priority**: LOW — defensive error path already works, just untested
 
-### Fix 9: Remove redundant .clone() in activation hooks (L9)
-- **File**: `common/activation_hooks.py:68`
-- **Change**: Change `.detach().clone().cpu()` to `.detach().cpu()`
-- **Test**: Verify activations unchanged
+### B2: M1 — Document prompt construction convention per data source
+- **File**: `CLAUDE.md` or phase docstrings
+- **Change**: Document that phases loading from analysis split (without `prompt` column) correctly rebuild prompts, while phases loading from Phase 1 output use `row['prompt']`
+- **Priority**: LOW — not a bug, just needs documentation
 
 ## Skipped
 
 | Finding | Reason |
 |---------|--------|
-| L1 (binomial null hypothesis) | Statistical interpretation issue, not code bug. Primary metrics (rates) unaffected. |
-| L3 (metadata corruption asymmetry) | Intentional design -- metadata is authority on processed tasks. |
+| Phase 6.3 color constants | Colors are for prompt sections (problem/tests/solution), not correction/corruption — no matching constant exists |
+| Other reevaluate scripts (3.5, 3.5_multi, 1_llama, 4_8) | Already run, serve their purpose, LOW priority |

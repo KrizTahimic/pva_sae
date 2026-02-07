@@ -45,22 +45,34 @@ sys.path.insert(0, str(project_root))
 import pandas as pd
 from tqdm import tqdm
 
+from common.config import Config
 from common.dataset_utils import evaluate_code_with_error_type
+from common.phase_discovery import get_phase_output_dir
+
+
+def _get_model_dirs() -> dict[str, tuple[str, str]]:
+    """Build model directory mapping using phase discovery."""
+    dirs = {}
+    for model_key, model_name in [
+        ('gemma2b', 'google/gemma-2-2b'),
+        ('gemma9b', 'google/gemma-2-9b'),
+        ('llama', 'meta-llama/Llama-3.1-8B'),
+    ]:
+        config = Config(model_name=model_name)
+        phase_dir = get_phase_output_dir("3.6", config)
+        dirs[model_key] = (phase_dir, phase_dir + '_corrected')
+    return dirs
 
 
 # Model to directory mapping (input -> output)
-MODEL_DIRS = {
-    'gemma2b': ('data/phase3_6', 'data/phase3_6_corrected'),
-    'gemma9b': ('data/phase3_6_gemma9b', 'data/phase3_6_gemma9b_corrected'),
-    'llama': ('data/phase3_6_llama', 'data/phase3_6_llama_corrected'),
-}
+MODEL_DIRS = _get_model_dirs()
 
 
 def load_test_cases() -> dict[str, list[str]]:
     """Load test cases from MBPP splits, keyed by task_id."""
     test_cases = {}
 
-    phase0_1_dir = Path("data/phase0_1")
+    phase0_1_dir = Path(get_phase_output_dir("0.1", Config()))
     splits = ["selection_mbpp.parquet", "tuning_mbpp.parquet", "analysis_mbpp.parquet"]
 
     for split_file in splits:

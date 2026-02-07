@@ -6,6 +6,7 @@ to identify PVA latent directions. Applies pile filtering to remove general
 language latents.
 """
 
+import heapq
 import json
 from collections import Counter
 from pathlib import Path
@@ -218,17 +219,17 @@ class SimplifiedSAEAnalyzer:
             for latent in layer_results['latents']['incorrect']
         ]
 
-        # Sort globally by separation score and take top k
+        # Select top k globally by separation score using heapq for O(n log k) efficiency
         # Use layer and latent_idx as secondary keys for deterministic ordering
-        top_correct = sorted(
-            all_latents_correct,
+        top_correct = heapq.nsmallest(
+            k, all_latents_correct,
             key=lambda x: (-x['separation_score'], x['layer'], x['latent_idx'])
-        )[:k]
+        )
 
-        top_incorrect = sorted(
-            all_latents_incorrect,
+        top_incorrect = heapq.nsmallest(
+            k, all_latents_incorrect,
             key=lambda x: (-x['separation_score'], x['layer'], x['latent_idx'])
-        )[:k]
+        )
 
         # Log distribution of top latents across layers
         correct_layer_counts = dict(Counter(lat['layer'] for lat in top_correct))

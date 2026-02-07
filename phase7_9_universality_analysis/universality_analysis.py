@@ -13,7 +13,9 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any
 
-from common.config import Config, PLOT_DPI, PLOT_STYLE, COLOR_CORRECTION
+from common.config import (Config, PLOT_DPI, PLOT_STYLE, COLOR_CORRECTION,
+                           COLOR_CORRECT_DARK, COLOR_CORRUPTION, COLOR_INCORRECT_DARK,
+                           COLOR_PRESERVATION, COLOR_PRESERVATION_LIGHT)
 from common.phase_discovery import get_phase_output_dir, write_phase_output
 from common.logging import get_logger
 from common.viz_utils import handle_viz_only_mode
@@ -213,7 +215,7 @@ class UniversalityAnalyzer:
         ax2 = fig.add_subplot(gs[0, 2])
         correction_rates = [metrics["steering_effectiveness"]["base_model"]["correction_rate"],
                            metrics["steering_effectiveness"]["instruction_tuned"]["correction_rate"]]
-        bars = ax2.bar(['Base', 'Instruct'], correction_rates, color=['#2ecc71', '#27ae60'], alpha=0.8, edgecolor='black')
+        bars = ax2.bar(['Base', 'Instruct'], correction_rates, color=[COLOR_CORRECTION, COLOR_CORRECT_DARK], alpha=0.8, edgecolor='black')
         ax2.set_ylabel('Correction Rate (%)', fontsize=11, fontweight='bold')
         ax2.set_title('Steering: Incorrect→Correct', fontsize=12, fontweight='bold')
         ax2.set_ylim(0, 10)
@@ -226,7 +228,7 @@ class UniversalityAnalyzer:
         ax3 = fig.add_subplot(gs[0, 3])
         corruption_rates = [metrics["steering_effectiveness"]["base_model"]["corruption_rate"],
                            metrics["steering_effectiveness"]["instruction_tuned"]["corruption_rate"]]
-        bars = ax3.bar(['Base', 'Instruct'], corruption_rates, color=['#e67e22', '#d35400'], alpha=0.8, edgecolor='black')
+        bars = ax3.bar(['Base', 'Instruct'], corruption_rates, color=[COLOR_CORRUPTION, COLOR_INCORRECT_DARK], alpha=0.8, edgecolor='black')
         ax3.set_ylabel('Corruption Rate (%)', fontsize=11, fontweight='bold')
         ax3.set_title('Steering: Correct→Incorrect', fontsize=12, fontweight='bold')
         ax3.set_ylim(0, 100)
@@ -239,7 +241,7 @@ class UniversalityAnalyzer:
         ax4 = fig.add_subplot(gs[1, 0])
         preservation_rates = [metrics["steering_effectiveness"]["base_model"]["preservation_rate"],
                              metrics["steering_effectiveness"]["instruction_tuned"]["preservation_rate"]]
-        bars = ax4.bar(['Base', 'Instruct'], preservation_rates, color=['khaki', 'gold'], alpha=0.8, edgecolor='black')
+        bars = ax4.bar(['Base', 'Instruct'], preservation_rates, color=[COLOR_PRESERVATION_LIGHT, COLOR_PRESERVATION], alpha=0.8, edgecolor='black')
         ax4.set_ylabel('Preservation Rate (%)', fontsize=11, fontweight='bold')
         ax4.set_title('Preservation During Incorrect Steering', fontsize=12, fontweight='bold')
         ax4.set_ylim(0, 100)
