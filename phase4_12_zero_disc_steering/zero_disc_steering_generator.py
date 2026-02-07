@@ -684,10 +684,19 @@ class ZeroDiscSteeringGenerator:
             'timestamp': datetime.now().isoformat()
         }
 
-        # Backward compatibility: aggregate all results into flat dicts
-        results['correction_results'] = {r['task_id']: r for r in all_correction_results}
-        results['corruption_results'] = {r['task_id']: r for r in all_corruption_results}
-        results['preservation_results'] = {r['task_id']: r for r in all_preservation_results}
+        # Backward compatibility: aggregate per-feature results into flat dicts.
+        # Use per_feature_results to avoid silent overwrites when multiple features
+        # test the same task_id (dict comprehension would keep only the last feature).
+        results['correction_results'] = {}
+        results['corruption_results'] = {}
+        results['preservation_results'] = {}
+        for fid, fdata in results['per_feature_results'].items():
+            for r in fdata.get('correction_results', []):
+                results['correction_results'].setdefault(r['task_id'], r)
+            for r in fdata.get('corruption_results', []):
+                results['corruption_results'].setdefault(r['task_id'], r)
+            for r in fdata.get('preservation_results', []):
+                results['preservation_results'].setdefault(r['task_id'], r)
 
         # Use averaged metrics for summary (backward compat)
         results['summary_metrics'] = {

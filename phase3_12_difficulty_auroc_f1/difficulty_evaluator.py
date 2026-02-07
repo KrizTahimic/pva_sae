@@ -207,7 +207,7 @@ def calculate_difficulty_metrics(
             auroc = roc_auc_score(y_true, scores)
         
         # Calculate F1 using global threshold from Phase 3.8
-        y_pred = (scores > global_threshold).astype(int)
+        y_pred = (scores >= global_threshold).astype(int)
         f1 = f1_score(y_true, y_pred, zero_division=0)
         precision = precision_score(y_true, y_pred, zero_division=0)
         recall = recall_score(y_true, y_pred, zero_division=0)

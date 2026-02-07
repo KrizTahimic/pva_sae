@@ -9,12 +9,9 @@ import importlib
 import sys
 from pathlib import Path
 
-import torch
-
 from common.phase_registry import get_phase, PhaseInfo
 from common.config import Config
 from common.logging import get_logger
-from common.gpu_utils import cleanup_gpu_memory, setup_cuda_environment
 
 
 # Phases that require special handling and cannot use the generic runner

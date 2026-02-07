@@ -75,7 +75,7 @@ def calculate_metrics(
     auroc = roc_auc_score(y_true, scores)
 
     # Apply threshold for binary predictions
-    y_pred = (scores > threshold).astype(int)
+    y_pred = (scores >= threshold).astype(int)
 
     # Calculate threshold-dependent metrics
     precision = precision_score(y_true, y_pred, zero_division=0)

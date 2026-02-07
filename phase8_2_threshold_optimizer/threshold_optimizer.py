@@ -41,6 +41,7 @@ from common.utils import (
 from common.phase_discovery import (
     discover_latest_phase_output,
     get_phase_output_dir,
+    get_probe_dir,
     write_phase_output,
     filter_by_range
 )
@@ -210,13 +211,13 @@ class ThresholdOptimizer:
 
         # In probe mode, look for _probe suffix on Phase 4.6 directory
         if self.use_probe:
-            probe_dir = phase4_6_dir.parent / (phase4_6_dir.name + "_probe")
-            if probe_dir.exists():
-                phase4_6_dir = probe_dir
-                logger.info(f"PROBE MODE: Using Phase 4.6 probe output at {probe_dir}")
+            probe_4_6 = get_probe_dir(phase4_6_dir)
+            if probe_4_6.exists():
+                phase4_6_dir = probe_4_6
+                logger.info(f"PROBE MODE: Using Phase 4.6 probe output at {probe_4_6}")
             else:
                 raise FileNotFoundError(
-                    f"Phase 4.6 probe output not found at {probe_dir}\n"
+                    f"Phase 4.6 probe output not found at {probe_4_6}\n"
                     f"Run: python3 run.py phase 4.6 --direction-source probe_mass_mean"
                 )
 
@@ -318,13 +319,13 @@ class ThresholdOptimizer:
 
         # In probe mode, look for _probe suffix on Phase 8.1 directory
         if self.use_probe:
-            probe_dir = phase8_1_dir.parent / (phase8_1_dir.name + "_probe")
-            if probe_dir.exists():
-                phase8_1_dir = probe_dir
-                logger.info(f"PROBE MODE: Using Phase 8.1 probe output at {probe_dir}")
+            probe_8_1 = get_probe_dir(phase8_1_dir)
+            if probe_8_1.exists():
+                phase8_1_dir = probe_8_1
+                logger.info(f"PROBE MODE: Using Phase 8.1 probe output at {probe_8_1}")
             else:
                 raise FileNotFoundError(
-                    f"Phase 8.1 probe output not found at {probe_dir}\n"
+                    f"Phase 8.1 probe output not found at {probe_8_1}\n"
                     f"Run: python3 run.py phase 8.1 --direction-source probe_logreg"
                 )
 
@@ -590,8 +591,6 @@ class ThresholdOptimizer:
         threshold: float,
         percentile: int,
         dataset_type: str,
-        start_idx: int = 0,
-        previous_results: list[dict] = None
     ) -> dict:
         """
         Run steering experiment with checkpoint support.
@@ -600,8 +599,6 @@ class ThresholdOptimizer:
             threshold: Threshold value to test
             percentile: Percentile this threshold represents
             dataset_type: 'correction' or 'preservation'
-            start_idx: Starting index for resume (deprecated, uses task IDs now)
-            previous_results: Previous results from checkpoint (deprecated)
 
         Returns:
             dict with metrics
@@ -1216,9 +1213,9 @@ class ThresholdEvaluator:
         phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
         phase4_6_dir = Path(phase4_6_output).parent
         if self.use_probe:
-            probe_dir = phase4_6_dir.parent / (phase4_6_dir.name + "_probe")
-            if probe_dir.exists():
-                phase4_6_dir = probe_dir
+            probe_4_6 = get_probe_dir(phase4_6_dir)
+            if probe_4_6.exists():
+                phase4_6_dir = probe_4_6
         refined_coefficients = load_json(phase4_6_dir / "refined_coefficients.json")
         self.steering_coefficient = refined_coefficients['correct']['refined_coefficient']
 
@@ -1285,9 +1282,9 @@ class ThresholdEvaluator:
         phase8_1_output = discover_latest_phase_output("8.1", config=self.config)
         phase8_1_dir = Path(phase8_1_output).parent
         if self.use_probe:
-            probe_dir = phase8_1_dir.parent / (phase8_1_dir.name + "_probe")
-            if probe_dir.exists():
-                phase8_1_dir = probe_dir
+            probe_8_1 = get_probe_dir(phase8_1_dir)
+            if probe_8_1.exists():
+                phase8_1_dir = probe_8_1
         phase8_1_results = load_json(phase8_1_dir / "percentile_thresholds.json")
         self.percentile_thresholds = phase8_1_results['percentile_thresholds']
 
@@ -1510,9 +1507,9 @@ class ThresholdOrchestrator:
         phase8_1_output = discover_latest_phase_output("8.1", config=self.config)
         phase8_1_dir = Path(phase8_1_output).parent
         if self.use_probe:
-            probe_dir = phase8_1_dir.parent / (phase8_1_dir.name + "_probe")
-            if probe_dir.exists():
-                phase8_1_dir = probe_dir
+            probe_8_1 = get_probe_dir(phase8_1_dir)
+            if probe_8_1.exists():
+                phase8_1_dir = probe_8_1
         phase8_1_results = load_json(phase8_1_dir / "percentile_thresholds.json")
         self.percentile_thresholds = phase8_1_results['percentile_thresholds']
 

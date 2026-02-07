@@ -55,6 +55,9 @@ def binomial_significance_test(
         >>> if result['significant']:
         ...     print(f"Significant improvement: p={result['p_value']:.4f}")
     """
+    if not (0 < expected_rate < 1):
+        raise ValueError(f"expected_rate must be in (0, 1), got {expected_rate}")
+
     if n_trials == 0:
         return {
             'n_successes': 0,

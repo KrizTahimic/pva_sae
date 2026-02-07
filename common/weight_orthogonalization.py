@@ -52,68 +52,57 @@ def orthogonalize_gemma_weights(
     
     # Orthogonalize embedding weights
     if 'embed' in target_weights:
-        try:
-            # Embedding weights: [vocab_size, d_model]
-            # No transposition needed as embeddings map tokens to vectors directly
-            original = model.model.embed_tokens.weight.data.clone()
-            model.model.embed_tokens.weight.data = get_orthogonalized_matrix(
-                model.model.embed_tokens.weight.data, direction
-            )
-            change = get_weight_change_magnitude(
-                original, model.model.embed_tokens.weight.data
-            )
-            changes['embedding'] = change
-            logger.info(f"Orthogonalized embeddings, change magnitude: {change:.4f}")
-        except Exception as e:
-            logger.error(f"Failed to orthogonalize embeddings: {e}")
+        # Embedding weights: [vocab_size, d_model]
+        # No transposition needed as embeddings map tokens to vectors directly
+        original = model.model.embed_tokens.weight.data.clone()
+        model.model.embed_tokens.weight.data = get_orthogonalized_matrix(
+            model.model.embed_tokens.weight.data, direction
+        )
+        change = get_weight_change_magnitude(
+            original, model.model.embed_tokens.weight.data
+        )
+        changes['embedding'] = change
+        logger.info(f"Orthogonalized embeddings, change magnitude: {change:.4f}")
     
     # Process each transformer layer
     for i, block in enumerate(model.model.layers):
         # Attention output projection
         if 'attn_o' in target_weights:
-            try:
-                # o_proj weight shape: [d_model, d_model] (transposed storage)
-                # We need to orthogonalize columns (output dimensions)
-                original = block.self_attn.o_proj.weight.data.clone()
-                
-                # Transpose, orthogonalize, transpose back
-                block.self_attn.o_proj.weight.data = get_orthogonalized_matrix(
-                    block.self_attn.o_proj.weight.data.T, direction
-                ).T
-                
-                change = get_weight_change_magnitude(
-                    original, block.self_attn.o_proj.weight.data
-                )
-                changes[f'layer_{i}_attn_o'] = change
-                
-                if i == 0:  # Log details for first layer only to avoid spam
-                    logger.debug(f"Layer {i} attention output projection: change {change:.4f}")
-                    
-            except Exception as e:
-                logger.error(f"Failed to orthogonalize layer {i} attention: {e}")
+            # o_proj weight shape: [d_model, d_model] (transposed storage)
+            # We need to orthogonalize columns (output dimensions)
+            original = block.self_attn.o_proj.weight.data.clone()
+
+            # Transpose, orthogonalize, transpose back
+            block.self_attn.o_proj.weight.data = get_orthogonalized_matrix(
+                block.self_attn.o_proj.weight.data.T, direction
+            ).T
+
+            change = get_weight_change_magnitude(
+                original, block.self_attn.o_proj.weight.data
+            )
+            changes[f'layer_{i}_attn_o'] = change
+
+            if i == 0:  # Log details for first layer only to avoid spam
+                logger.debug(f"Layer {i} attention output projection: change {change:.4f}")
         
         # MLP down projection
         if 'mlp_down' in target_weights:
-            try:
-                # down_proj weight shape: [d_model, d_intermediate] (transposed storage)
-                # We need to orthogonalize columns (output dimensions going to residual stream)
-                original = block.mlp.down_proj.weight.data.clone()
-                
-                # Transpose, orthogonalize, transpose back
-                block.mlp.down_proj.weight.data = get_orthogonalized_matrix(
-                    block.mlp.down_proj.weight.data.T, direction
-                ).T
-                
-                change = get_weight_change_magnitude(
-                    original, block.mlp.down_proj.weight.data
-                )
-                changes[f'layer_{i}_mlp_down'] = change
-                
-                if i == 0:  # Log details for first layer only
-                    logger.debug(f"Layer {i} MLP down projection: change {change:.4f}")
-                    
-            except Exception as e:
-                logger.error(f"Failed to orthogonalize layer {i} MLP: {e}")
+            # down_proj weight shape: [d_model, d_intermediate] (transposed storage)
+            # We need to orthogonalize columns (output dimensions going to residual stream)
+            original = block.mlp.down_proj.weight.data.clone()
+
+            # Transpose, orthogonalize, transpose back
+            block.mlp.down_proj.weight.data = get_orthogonalized_matrix(
+                block.mlp.down_proj.weight.data.T, direction
+            ).T
+
+            change = get_weight_change_magnitude(
+                original, block.mlp.down_proj.weight.data
+            )
+            changes[f'layer_{i}_mlp_down'] = change
+
+            if i == 0:  # Log details for first layer only
+                logger.debug(f"Layer {i} MLP down projection: change {change:.4f}")
     
     # Calculate and log total change
     total_change = sum(changes.values())
@@ -121,7 +110,6 @@ def orthogonalize_gemma_weights(
     logger.info(f"Modified {len(changes)} weight matrices")
     
     # Log per-component average changes
-    embedding_change = changes.get('embedding', 0.0)
     attn_changes = [v for k, v in changes.items() if 'attn_o' in k]
     mlp_changes = [v for k, v in changes.items() if 'mlp_down' in k]
     

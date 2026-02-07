@@ -41,6 +41,7 @@ from common.utils import detect_device, ensure_directory_exists, get_timestamp, 
 from common.phase_discovery import (
     discover_latest_phase_output,
     get_phase_output_dir,
+    get_probe_dir,
     write_phase_output,
     filter_by_range
 )
@@ -152,14 +153,14 @@ class SelectiveSteeringAnalyzer:
             phase3_8_output = discover_latest_phase_output("3.8", config=self.config)
             if phase3_8_output:
                 phase3_8_dir = Path(phase3_8_output).parent
-                probe_dir = phase3_8_dir.parent / (phase3_8_dir.name + "_probe")
-                if probe_dir.exists():
-                    phase3_8_results = load_json(probe_dir / "auroc_f1_results.json")
+                probe_3_8 = get_probe_dir(phase3_8_dir)
+                if probe_3_8.exists():
+                    phase3_8_results = load_json(probe_3_8 / "auroc_f1_results.json")
                     phase3_8_threshold = phase3_8_results['incorrect_predicting_latent']['hyperparameter_split']['threshold']
                     logger.info(f"Phase 3.8 probe threshold: {phase3_8_threshold:.4f}")
                 else:
                     phase3_8_threshold = 0.0
-                    logger.warning(f"Phase 3.8 probe output not found at {probe_dir}, using threshold 0.0")
+                    logger.warning(f"Phase 3.8 probe output not found at {probe_3_8}, using threshold 0.0")
             else:
                 phase3_8_threshold = 0.0
                 logger.warning("Phase 3.8 output not found, using threshold 0.0")
@@ -285,15 +286,15 @@ class SelectiveSteeringAnalyzer:
                         phase8_2_output = _discover("8.2", config=self.config)
                         if phase8_2_output:
                             phase8_2_dir = Path(phase8_2_output).parent
-                            probe_dir = phase8_2_dir.parent / (phase8_2_dir.name + "_probe")
-                            if probe_dir.exists():
-                                opt_data = _load_json(probe_dir / "optimization_results.json")
+                            probe_8_2 = get_probe_dir(phase8_2_dir)
+                            if probe_8_2.exists():
+                                opt_data = _load_json(probe_8_2 / "optimization_results.json")
                                 summary = opt_data["optimization_summary"]
                                 percentile = summary["optimal_percentile"]
-                                logger.info(f"PROBE MODE: Using Phase 8.2 probe output at {probe_dir}")
+                                logger.info(f"PROBE MODE: Using Phase 8.2 probe output at {probe_8_2}")
                             else:
                                 raise FileNotFoundError(
-                                    f"Phase 8.2 probe output not found at {probe_dir}\n"
+                                    f"Phase 8.2 probe output not found at {probe_8_2}\n"
                                     f"Run: python3 run.py phase 8.2 --direction-source probe_logreg"
                                 )
                         else:
@@ -321,13 +322,13 @@ class SelectiveSteeringAnalyzer:
 
                 # In probe mode, look for _probe suffix on Phase 8.1 directory
                 if self.use_probe:
-                    probe_dir = phase8_1_dir.parent / (phase8_1_dir.name + "_probe")
-                    if probe_dir.exists():
-                        phase8_1_dir = probe_dir
-                        logger.info(f"PROBE MODE: Using Phase 8.1 probe output at {probe_dir}")
+                    probe_8_1 = get_probe_dir(phase8_1_dir)
+                    if probe_8_1.exists():
+                        phase8_1_dir = probe_8_1
+                        logger.info(f"PROBE MODE: Using Phase 8.1 probe output at {probe_8_1}")
                     else:
                         raise FileNotFoundError(
-                            f"Phase 8.1 probe output not found at {probe_dir}\n"
+                            f"Phase 8.1 probe output not found at {probe_8_1}\n"
                             f"Run: python3 run.py phase 8.1 --direction-source probe_logreg"
                         )
 
@@ -359,17 +360,17 @@ class SelectiveSteeringAnalyzer:
             if not phase4_6_output:
                 raise FileNotFoundError("Phase 4.6 output not found. Run Phase 4.6 first.")
             phase4_6_dir = Path(phase4_6_output).parent
-            probe_dir = phase4_6_dir.parent / (phase4_6_dir.name + "_probe")
+            probe_4_6 = get_probe_dir(phase4_6_dir)
 
-            if not probe_dir.exists():
+            if not probe_4_6.exists():
                 raise FileNotFoundError(
-                    f"Phase 4.6 probe output not found at {probe_dir}\n"
+                    f"Phase 4.6 probe output not found at {probe_4_6}\n"
                     f"Run: python3 run.py phase 4.6 --direction-source probe_mass_mean"
                 )
 
-            refined_coefficients = load_json(probe_dir / "refined_coefficients.json")
+            refined_coefficients = load_json(probe_4_6 / "refined_coefficients.json")
             self.correct_coefficient = refined_coefficients['correct']['refined_coefficient']
-            logger.info(f"PROBE MODE: Loaded steering coefficient from {probe_dir}: {self.correct_coefficient}")
+            logger.info(f"PROBE MODE: Loaded steering coefficient from {probe_4_6}: {self.correct_coefficient}")
         else:
             # SAE mode: use discover_steering_coefficients which tries 4.9 first, then 4.6
             coefficients = discover_steering_coefficients(self.config)

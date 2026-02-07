@@ -193,15 +193,3 @@ class Phase87Runner:
         self.logger.info(f"Saved phase_output.json manifest to {self.output_dir}")
 
         self.logger.info("Phase 8.7 completed successfully")
-
-
-def main():
-    """Legacy entry point."""
-    from common.config import Config
-    config = Config()
-    runner = Phase87Runner(config)
-    runner.run()
-
-
-if __name__ == "__main__":
-    main()

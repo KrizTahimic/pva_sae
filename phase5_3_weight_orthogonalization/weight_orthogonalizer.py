@@ -404,11 +404,18 @@ class WeightOrthogonalizer:
         preservation_rate = calculate_preservation_rate(correct_results)
         
         # Statistical significance testing
+        # Correction null: baseline correction rate is ~0% (model already failed),
+        # so use 1/n as a minimal floor rate to avoid binomtest(p=0)
         n_incorrect = len(incorrect_results)
         n_corrected = sum(1 for r in incorrect_results if r['orthogonalized_correct'])
-        # Handle empty dataset case (e.g., in parallel mode when GPU gets 0 tasks)
-        correction_pvalue = binomtest(n_corrected, n_incorrect, p=0.5, alternative='greater').pvalue if n_incorrect > 0 else 1.0
+        if n_incorrect > 0:
+            correction_null_rate = max(1.0 / n_incorrect, 1e-10)
+            correction_pvalue = binomtest(n_corrected, n_incorrect, p=correction_null_rate, alternative='greater').pvalue
+        else:
+            correction_pvalue = 1.0
 
+        # Preservation null: baseline preservation rate is high (model already correct),
+        # so use 0.5 as a fair null (coin flip)
         n_correct = len(correct_results)
         n_preserved = sum(1 for r in correct_results if r['orthogonalized_correct'])
         preservation_pvalue = binomtest(n_preserved, n_correct, p=0.5, alternative='greater').pvalue if n_correct > 0 else 1.0

@@ -129,6 +129,22 @@ def get_dataset_suffix(config: 'Config') -> str:
     return registry_dataset_suffix(dataset_name).lstrip('_')
 
 
+def get_probe_dir(phase_dir: Path) -> Path:
+    """
+    Get the probe-mode output directory for a phase directory.
+
+    Probe-mode phases write to a sibling directory with '_probe' suffix.
+
+    Args:
+        phase_dir: Base phase output directory (e.g., data/phase4_6)
+
+    Returns:
+        Path with '_probe' suffix (e.g., data/phase4_6_probe)
+    """
+    phase_dir = Path(phase_dir)
+    return phase_dir.parent / (phase_dir.name + "_probe")
+
+
 def discover_latest_phase_output(phase: str, phase_dir: Optional[str] = None, config=None) -> Optional[str]:
     """
     Discover the latest output file from any phase.

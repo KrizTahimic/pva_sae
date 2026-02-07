@@ -146,17 +146,11 @@ def extract_activations_simple(
     # Tokenize input
     inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True)
     input_ids = inputs["input_ids"].to(device)
-    
-    # Create extractor and setup hooks
-    extractor = ActivationExtractor(model, layers, position)
-    extractor.setup_hooks()
-    
-    # Extract activations
-    activations = extractor.extract(input_ids)
-    
-    # Clean up
-    extractor.remove_hooks()
-    
+
+    # Use context manager to guarantee hook cleanup
+    with ActivationExtractor(model, layers, position) as extractor:
+        activations = extractor.extract(input_ids)
+
     return activations
 
 

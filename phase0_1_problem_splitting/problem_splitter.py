@@ -55,7 +55,7 @@ class Phase01Runner:
         # Dataset-specific source discovery
         if self.config.dataset_name == "humaneval":
             # HumanEval: Load from Phase 0.2 conversion output
-            humaneval_path = Path("data/phase0_2_humaneval/humaneval.parquet")
+            humaneval_path = Path(get_phase_output_dir("0.2", self.config)) / "humaneval.parquet"
             if not humaneval_path.exists():
                 self.logger.error(
                     f"HumanEval data not found at {humaneval_path}! "
