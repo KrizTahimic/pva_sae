@@ -14,7 +14,7 @@ from datetime import datetime
 from scipy.stats import chi2_contingency
 
 from common.logging import get_logger
-from common.config import Config, PLOT_DPI, PLOT_STYLE
+from common.config import Config, PLOT_DPI, PLOT_STYLE, COLOR_CORRECTION, COLOR_CORRUPTION, COLOR_PRESERVATION
 from common.utils import ensure_directory_exists, load_json, save_json
 from common.phase_discovery import get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
@@ -272,13 +272,13 @@ def plot_steering_trends(
              label='Correction Rate')
     plt.plot(x_pos, corruption_rates, 'r-s', linewidth=2, markersize=10,
              label='Corruption Rate')
-    plt.plot(x_pos, preservation_rates, color='gold', marker='^', linestyle='-', linewidth=2, markersize=10,
+    plt.plot(x_pos, preservation_rates, color=COLOR_PRESERVATION, marker='^', linestyle='-', linewidth=2, markersize=10,
              label='Preservation Rate')
 
     # Add value labels
     for i, (c, cr, p) in enumerate(zip(correction_rates, corruption_rates, preservation_rates)):
-        plt.text(i, c + 2, f'{c:.1f}%', ha='center', va='bottom', color='green', fontweight='bold')
-        plt.text(i, cr + 2, f'{cr:.1f}%', ha='center', va='bottom', color='red', fontweight='bold')
+        plt.text(i, c + 2, f'{c:.1f}%', ha='center', va='bottom', color=COLOR_CORRECTION, fontweight='bold')
+        plt.text(i, cr + 2, f'{cr:.1f}%', ha='center', va='bottom', color=COLOR_CORRUPTION, fontweight='bold')
         plt.text(i, p - 4, f'{p:.1f}%', ha='center', va='top', color='goldenrod', fontweight='bold')
 
     plt.xlabel('Difficulty Level (Cyclomatic Complexity)', fontsize=12)

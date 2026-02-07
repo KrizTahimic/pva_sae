@@ -86,8 +86,14 @@ def _load_gpu_json_files(output_path: Path, pattern: str) -> list[dict]:
     logger.info(f"Found {len(gpu_files)} GPU files matching {pattern}")
     results = []
     for f in gpu_files:
-        with open(f) as fh:
-            results.append(json.load(fh))
+        try:
+            with open(f) as fh:
+                results.append(json.load(fh))
+        except (json.JSONDecodeError, IOError) as e:
+            raise RuntimeError(
+                f"Corrupted GPU result file {f.name}: {e}. "
+                f"Other GPU files may still be valid in {f.parent}"
+            )
     return results
 
 
@@ -818,7 +824,12 @@ def _merge_phase8_3_results(
     logger.info(f"Found {len(gpu_files)} GPU parquet files to merge")
 
     # Load and merge
-    dfs = [pd.read_parquet(f) for f in gpu_files]
+    dfs = []
+    for f in gpu_files:
+        try:
+            dfs.append(pd.read_parquet(f))
+        except Exception as e:
+            raise RuntimeError(f"Corrupted GPU parquet file {f.name}: {e}")
     merged_df = pd.concat(dfs, ignore_index=True)
     logger.info(f"Merged {len(merged_df)} total results from {len(gpu_files)} GPUs")
 

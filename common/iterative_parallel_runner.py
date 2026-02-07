@@ -528,8 +528,8 @@ class IterativeParallelRunner:
         for q in task_queues:
             try:
                 q.put(('shutdown', None, None), timeout=5)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to send shutdown to worker queue: {e}")
 
         # Wait for workers to finish
         for p in workers:
@@ -577,7 +577,11 @@ class IterativeParallelRunner:
                     old_meta = json.load(f)
                 existing_task_ids = set(old_meta.get('processed_task_ids', []))
             except Exception as e:
-                logger.warning(f"Failed to load existing metadata: {e}")
+                raise RuntimeError(
+                    f"Corrupted checkpoint metadata at {meta_file}: {e}\n"
+                    f"To recover, delete the metadata file and restart:\n"
+                    f"  rm {meta_file}"
+                )
 
         if parquet_file.exists() and existing_task_ids:
             try:
@@ -671,19 +675,20 @@ class IterativeParallelRunner:
             return None
 
         # Load all parquet files for this value
-        all_results = []
-        seen_task_ids = set()
-
+        dfs = []
         for parquet_file in value_dir.glob("gpu_*_results.parquet"):
             try:
-                df = pd.read_parquet(parquet_file)
-                for _, row in df.iterrows():
-                    task_id = row.get('task_id')
-                    if task_id and task_id not in seen_task_ids:
-                        all_results.append(row.to_dict())
-                        seen_task_ids.add(task_id)
+                dfs.append(pd.read_parquet(parquet_file))
             except Exception as e:
                 logger.warning(f"Failed to load checkpoint {parquet_file}: {e}")
+
+        if not dfs:
+            return None
+
+        merged = pd.concat(dfs, ignore_index=True)
+        if 'task_id' in merged.columns:
+            merged = merged.drop_duplicates(subset=['task_id'], keep='last')
+        all_results = merged.to_dict('records')
 
         if not all_results:
             return None
@@ -734,7 +739,8 @@ class IterativeParallelRunner:
             try:
                 with open(state_file, 'r') as f:
                     data = json.load(f)
-            except Exception:
+            except (FileNotFoundError, IOError, json.JSONDecodeError) as e:
+                logger.warning(f"Could not load orchestrator state ({e}), starting fresh")
                 data = {'completed_values': [], 'results': {}}
         else:
             data = {'completed_values': [], 'results': {}}

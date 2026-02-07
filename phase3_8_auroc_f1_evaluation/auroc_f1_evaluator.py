@@ -21,7 +21,7 @@ from sklearn.metrics import (
 )
 
 from common.logging import get_logger
-from common.config import Config, PLOT_DPI, PLOT_STYLE
+from common.config import Config, PLOT_DPI, PLOT_STYLE, COLOR_CORRECT_PREDICTING, COLOR_INCORRECT_PREDICTING
 from common.utils import detect_device, ensure_directory_exists
 from common.phase_discovery import discover_latest_phase_output
 from common.viz_utils import handle_viz_only_mode
@@ -608,8 +608,8 @@ def plot_comparative_metrics(
     bar_positions = np.arange(len(metrics))
     width = 0.35
 
-    bars1 = ax1.bar(bar_positions - width/2, correct_vals, width, label='Correct-predicting', color='green')
-    bars2 = ax1.bar(bar_positions + width/2, incorrect_vals, width, label='Incorrect-predicting', color='red')
+    bars1 = ax1.bar(bar_positions - width/2, correct_vals, width, label='Correct-predicting', color=COLOR_CORRECT_PREDICTING)
+    bars2 = ax1.bar(bar_positions + width/2, incorrect_vals, width, label='Incorrect-predicting', color=COLOR_INCORRECT_PREDICTING)
 
     # Add value labels on bars
     for bars in [bars1, bars2]:
@@ -637,14 +637,14 @@ def plot_comparative_metrics(
     if y_true_val_correct is not None and scores_val_correct is not None:
         fpr_correct, tpr_correct, _ = roc_curve(y_true_val_correct, scores_val_correct)
         auc_correct = results['correct_predicting_latent']['validation_metrics']['metrics']['auroc']
-        ax2.plot(fpr_correct, tpr_correct, color='green', linewidth=2,
+        ax2.plot(fpr_correct, tpr_correct, color=COLOR_CORRECT_PREDICTING, linewidth=2,
                 label=f'Correct-predicting (AUC = {auc_correct:.3f})')
 
     # Plot ROC curve for incorrect-predicting latent if data provided
     if y_true_val_incorrect is not None and scores_val_incorrect is not None:
         fpr_incorrect, tpr_incorrect, _ = roc_curve(y_true_val_incorrect, scores_val_incorrect)
         auc_incorrect = results['incorrect_predicting_latent']['validation_metrics']['metrics']['auroc']
-        ax2.plot(fpr_incorrect, tpr_incorrect, color='red', linewidth=2,
+        ax2.plot(fpr_incorrect, tpr_incorrect, color=COLOR_INCORRECT_PREDICTING, linewidth=2,
                 label=f'Incorrect-predicting (AUC = {auc_incorrect:.3f})')
     
     ax2.legend(loc='lower right')

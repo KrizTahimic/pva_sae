@@ -22,7 +22,7 @@ from sklearn.metrics import (
 
 from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists
-from common.config import PLOT_DPI, PLOT_STYLE, Config
+from common.config import PLOT_DPI, PLOT_STYLE, Config, COLOR_CORRECT_PREDICTING, COLOR_INCORRECT_PREDICTING
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
 from common.utils import save_json, load_json
@@ -388,10 +388,10 @@ def plot_auroc_trends(
     # Plot valid points
     if valid_correct_aurocs:
         plt.plot(valid_correct_diff, valid_correct_aurocs, marker='o', linewidth=2, markersize=8,
-                 label='Correct-predicting', color='green')
+                 label='Correct-predicting', color=COLOR_CORRECT_PREDICTING)
     if valid_incorrect_aurocs:
         plt.plot(valid_incorrect_diff, valid_incorrect_aurocs, marker='s', linewidth=2, markersize=8,
-                 label='Incorrect-predicting', color='red')
+                 label='Incorrect-predicting', color=COLOR_INCORRECT_PREDICTING)
     
     # Mark NaN points
     for i, (c_auroc, i_auroc) in enumerate(zip(correct_aurocs, incorrect_aurocs)):
@@ -413,9 +413,9 @@ def plot_auroc_trends(
     # Add value labels for valid points
     for i, (c_auroc, i_auroc) in enumerate(zip(correct_aurocs, incorrect_aurocs)):
         if not np.isnan(c_auroc):
-            plt.text(i, c_auroc + 0.02, f'{c_auroc:.3f}', ha='center', va='bottom', color='green')
+            plt.text(i, c_auroc + 0.02, f'{c_auroc:.3f}', ha='center', va='bottom', color=COLOR_CORRECT_PREDICTING)
         if not np.isnan(i_auroc):
-            plt.text(i, i_auroc - 0.05, f'{i_auroc:.3f}', ha='center', va='top', color='red')
+            plt.text(i, i_auroc - 0.05, f'{i_auroc:.3f}', ha='center', va='top', color=COLOR_INCORRECT_PREDICTING)
     
     plt.tight_layout()
     plt.savefig(output_dir / 'auroc_trends_by_difficulty.png', dpi=PLOT_DPI, bbox_inches='tight')

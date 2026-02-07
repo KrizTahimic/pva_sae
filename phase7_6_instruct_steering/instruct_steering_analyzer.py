@@ -29,7 +29,11 @@ from common.phase_discovery import (
     write_phase_output,
     get_dataset_range
 )
-from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_HIGH_PERCENT, MEMORY_WARNING_PERCENT, PLOT_DPI, PLOT_STYLE
+from common.config import (
+    Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_HIGH_PERCENT, MEMORY_WARNING_PERCENT,
+    PLOT_DPI, PLOT_STYLE, COLOR_CORRECTION, COLOR_CORRUPTION, COLOR_PRESERVATION,
+    COLOR_PRESERVATION_LIGHT,
+)
 from common.checkpoint_manager import CheckpointManager
 from common.steering_metrics import (
     create_last_position_steering_hook,
@@ -856,43 +860,43 @@ class InstructSteeringAnalyzer:
             corruption_rate = metrics['statistical_tests']['corruption']['rate']
             preservation_rate = metrics['statistical_tests']['preservation']['rate']
             
-            ax1.bar(['Correction Rate'], [correction_rate], color='green', alpha=0.7)
+            ax1.bar(['Correction Rate'], [correction_rate], color=COLOR_CORRECTION, alpha=0.7)
             ax1.set_ylabel('Percentage (%)')
             ax1.set_title('Instruct Model - Correction Rate')
             ax1.set_ylim(0, 100)
             ax1.text(0, correction_rate + 2, f'{correction_rate:.1f}%', ha='center', va='bottom', fontweight='bold')
-            
-            ax2.bar(['Corruption Rate'], [corruption_rate], color='red', alpha=0.7)
+
+            ax2.bar(['Corruption Rate'], [corruption_rate], color=COLOR_CORRUPTION, alpha=0.7)
             ax2.set_ylabel('Percentage (%)')
             ax2.set_title('Instruct Model - Corruption Rate')
             ax2.set_ylim(0, 100)
             ax2.text(0, corruption_rate + 2, f'{corruption_rate:.1f}%', ha='center', va='bottom', fontweight='bold')
-            
-            ax3.bar(['Preservation Rate'], [preservation_rate], color='gold', alpha=0.7)
+
+            ax3.bar(['Preservation Rate'], [preservation_rate], color=COLOR_PRESERVATION, alpha=0.7)
             ax3.set_ylabel('Percentage (%)')
             ax3.set_title('Instruct Model - Preservation Rate')
             ax3.set_ylim(0, 100)
             ax3.text(0, preservation_rate + 2, f'{preservation_rate:.1f}%', ha='center', va='bottom', fontweight='bold')
-            
+
             # Bottom row: Cross-model comparison
             models = ['Base Model', 'Instruct Model']
             correction_values = [comp['base_model']['correction_rate'], comp['instruct_model']['correction_rate']]
             corruption_values = [comp['base_model']['corruption_rate'], comp['instruct_model']['corruption_rate']]
             preservation_values = [comp['base_model']['preservation_rate'], comp['instruct_model']['preservation_rate']]
-            
-            ax4.bar(models, correction_values, color=['lightblue', 'green'], alpha=0.7)
+
+            ax4.bar(models, correction_values, color=['lightblue', COLOR_CORRECTION], alpha=0.7)
             ax4.set_ylabel('Correction Rate (%)')
             ax4.set_title('Cross-Model Comparison - Correction')
             for i, v in enumerate(correction_values):
                 ax4.text(i, v + 1, f'{v:.1f}%', ha='center', va='bottom', fontweight='bold')
-            
-            ax5.bar(models, corruption_values, color=['lightcoral', 'red'], alpha=0.7)
+
+            ax5.bar(models, corruption_values, color=['lightcoral', COLOR_CORRUPTION], alpha=0.7)
             ax5.set_ylabel('Corruption Rate (%)')
             ax5.set_title('Cross-Model Comparison - Corruption')
             for i, v in enumerate(corruption_values):
                 ax5.text(i, v + 1, f'{v:.1f}%', ha='center', va='bottom', fontweight='bold')
-            
-            ax6.bar(models, preservation_values, color=['khaki', 'gold'], alpha=0.7)
+
+            ax6.bar(models, preservation_values, color=[COLOR_PRESERVATION_LIGHT, COLOR_PRESERVATION], alpha=0.7)
             ax6.set_ylabel('Preservation Rate (%)')
             ax6.set_title('Cross-Model Comparison - Preservation')
             for i, v in enumerate(preservation_values):
@@ -908,19 +912,19 @@ class InstructSteeringAnalyzer:
             corruption_rate = metrics['statistical_tests']['corruption']['rate']
             preservation_rate = metrics['statistical_tests']['preservation']['rate']
             
-            ax1.bar(['Correction Rate'], [correction_rate], color='green', alpha=0.7)
+            ax1.bar(['Correction Rate'], [correction_rate], color=COLOR_CORRECTION, alpha=0.7)
             ax1.set_ylabel('Percentage (%)')
             ax1.set_title('Correction Rate (Incorrect→Correct)')
             ax1.set_ylim(0, 100)
             ax1.text(0, correction_rate + 2, f'{correction_rate:.1f}%', ha='center', va='bottom', fontweight='bold')
-            
-            ax2.bar(['Corruption Rate'], [corruption_rate], color='red', alpha=0.7)
+
+            ax2.bar(['Corruption Rate'], [corruption_rate], color=COLOR_CORRUPTION, alpha=0.7)
             ax2.set_ylabel('Percentage (%)')
             ax2.set_title('Corruption Rate (Correct→Incorrect)')
             ax2.set_ylim(0, 100)
             ax2.text(0, corruption_rate + 2, f'{corruption_rate:.1f}%', ha='center', va='bottom', fontweight='bold')
-            
-            ax3.bar(['Preservation Rate'], [preservation_rate], color='gold', alpha=0.7)
+
+            ax3.bar(['Preservation Rate'], [preservation_rate], color=COLOR_PRESERVATION, alpha=0.7)
             ax3.set_ylabel('Percentage (%)')
             ax3.set_title('Preservation Rate (Correct→Correct)')
             ax3.set_ylim(0, 100)

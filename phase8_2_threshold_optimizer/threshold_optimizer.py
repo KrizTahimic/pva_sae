@@ -408,7 +408,7 @@ class ThresholdOptimizer:
         baseline_passed: bool
     ) -> dict:
         """
-        Generate code with conditional steering based on feature activation.
+        Generate code with conditional steering based on latent activation.
 
         Args:
             task_id: Problem task ID
@@ -1378,7 +1378,7 @@ class ThresholdEvaluator:
     def _generate_with_selective_steering(
         self, task_id: str, prompt: str, test_cases, threshold: float, baseline_passed: bool
     ) -> dict:
-        """Generate code with conditional steering based on feature activation."""
+        """Generate code with conditional steering based on latent activation."""
         inputs = self.tokenizer(
             prompt,
             return_tensors="pt",

@@ -28,7 +28,8 @@ from common.phase_discovery import (
 from common.viz_utils import handle_viz_only_mode
 from common.config import (
     Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_CRITICAL_PERCENT,
-    MIN_CORRECTION_EFFECT_PERCENT, MIN_PRESERVATION_EFFECT_PERCENT, PLOT_DPI, PLOT_STYLE
+    MIN_CORRECTION_EFFECT_PERCENT, MIN_PRESERVATION_EFFECT_PERCENT, PLOT_DPI, PLOT_STYLE,
+    COLOR_CORRECTION, COLOR_CORRUPTION, COLOR_PRESERVATION
 )
 from common.steering_metrics import (
     create_last_position_steering_hook,
@@ -153,6 +154,12 @@ class SteeringEffectAnalyzer:
                 self.sae_cache[layer] = load_sae_for_config(self.config, layer, self.device)
 
             logger.info(f"Loaded {len(self.sae_cache)} SAEs for layers: {all_layers}")
+
+            # Move SAEs to CPU to free VRAM - directions are extracted on CPU
+            # and moved to GPU individually in _get_latent_direction
+            for layer_idx in self.sae_cache:
+                self.sae_cache[layer_idx].cpu()
+            logger.info("Moved SAE cache to CPU to free VRAM")
 
             # Set direction from top candidate for single-candidate steering path
             top_correct = self.correct_candidates[0]
@@ -361,7 +368,7 @@ class SteeringEffectAnalyzer:
         # Normalize to unit L2 norm (required by steering hook)
         direction = normalize_direction(direction, name=f"L{layer}_{latent_idx}")
         model_dtype = next(self.model.parameters()).dtype
-        return direction.to(dtype=model_dtype)
+        return direction.to(dtype=model_dtype, device=self.device)
 
     def _get_steering_params(self, steering_type: str) -> tuple[torch.Tensor, int]:
         """Get latent direction and target layer for steering type.
@@ -791,14 +798,16 @@ class SteeringEffectAnalyzer:
                 })
 
             except Exception as e:
-                logger.warning(f"Error evaluating preservation for {row['task_id']}: {e}")
-                total += 1
+                logger.warning(f"Generation error for {row['task_id']}: {e}")
+                # Don't count generation errors in metrics - they are infrastructure
+                # failures, not meaningful signal about steering effectiveness
                 detailed_results.append({
                     'task_id': row['task_id'],
                     'baseline_passed': row['baseline_passed'],
-                    'steered_correct': False,
+                    'steered_correct': None,
                     'steered_error_type': 'generation_error',
-                    'flipped': True,
+                    'flipped': False,
+                    'generation_error': True,
                     'steered_code': None,
                 })
 
@@ -1030,7 +1039,7 @@ class SteeringEffectAnalyzer:
         # Plot correction rate
         correction_rate = metrics['correction_rate']
 
-        ax1.bar(['Correction Rate'], [correction_rate], color='green', alpha=0.7)
+        ax1.bar(['Correction Rate'], [correction_rate], color=COLOR_CORRECTION, alpha=0.7)
         ax1.set_ylabel('Percentage (%)')
         ax1.set_title('Correction Rate\n(Incorrect→Correct)')
         ax1.set_ylim(0, 100)
@@ -1046,7 +1055,7 @@ class SteeringEffectAnalyzer:
         # Plot corruption rate
         corruption_rate = metrics['corruption_rate']
 
-        ax2.bar(['Corruption Rate'], [corruption_rate], color='red', alpha=0.7)
+        ax2.bar(['Corruption Rate'], [corruption_rate], color=COLOR_CORRUPTION, alpha=0.7)
         ax2.set_ylabel('Percentage (%)')
         ax2.set_title('Corruption Rate\n(Correct→Incorrect)')
         ax2.set_ylim(0, 100)
@@ -1062,7 +1071,7 @@ class SteeringEffectAnalyzer:
         # Plot preservation rate
         preservation_rate = metrics['preservation_rate']
 
-        ax3.bar(['Preservation Rate'], [preservation_rate], color='gold', alpha=0.7)
+        ax3.bar(['Preservation Rate'], [preservation_rate], color=COLOR_PRESERVATION, alpha=0.7)
         ax3.set_ylabel('Percentage (%)')
         ax3.set_title('Preservation Rate\n(Correct→Correct)')
         ax3.set_ylim(0, 100)

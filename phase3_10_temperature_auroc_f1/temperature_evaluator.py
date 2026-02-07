@@ -19,7 +19,7 @@ from sklearn.metrics import roc_auc_score, f1_score, roc_curve, precision_recall
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-from common.config import Config, PLOT_DPI, PLOT_STYLE
+from common.config import Config, PLOT_DPI, PLOT_STYLE, COLOR_CORRECTION, COLOR_CORRUPTION
 from common.logging import get_logger, tqdm_with_logging
 from common.utils import detect_device, format_duration
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
@@ -301,14 +301,14 @@ class TemperatureAUROCEvaluator:
             results[temp] = {}
             
             # Process for both feature types
-            for feature_type in ['correct', 'incorrect']:
-                self.logger.info(f"Evaluating {feature_type}-predicting feature")
+            for latent_type in ['correct', 'incorrect']:
+                self.logger.info(f"Evaluating {latent_type}-predicting feature")
                 
-                sae = sae_correct if feature_type == 'correct' else sae_incorrect
+                sae = sae_correct if latent_type == 'correct' else sae_incorrect
                 
                 features, labels = self.process_temperature_data(
                     temp_data, 
-                    best_latents[feature_type],
+                    best_latents[latent_type],
                     sae,
                     temp
                 )
@@ -320,7 +320,7 @@ class TemperatureAUROCEvaluator:
                 # For AUROC: we want high feature values to predict class 1
                 # Correct-predicting: high activation = correct code (already label=1)
                 # Incorrect-predicting: high activation = incorrect code (need to flip)
-                if feature_type == 'incorrect':
+                if latent_type == 'incorrect':
                     labels = 1 - labels  # Flip so high activation → 1 (incorrect)
                 
                 # Calculate metrics with edge case handling
@@ -329,7 +329,7 @@ class TemperatureAUROCEvaluator:
                 
                 if n_positive < 2 or n_negative < 2:
                     # Not enough samples for AUROC
-                    self.logger.warning(f"Class imbalance at temp {temp} for {feature_type}: "
+                    self.logger.warning(f"Class imbalance at temp {temp} for {latent_type}: "
                                       f"pos={n_positive}, neg={n_negative}")
                     auroc = float('nan')
                     f1 = float('nan')
@@ -339,7 +339,7 @@ class TemperatureAUROCEvaluator:
                     recall = np.array([0, 1])
                 else:
                     auroc = roc_auc_score(labels, features)
-                    threshold = best_latents[feature_type]['threshold']
+                    threshold = best_latents[latent_type]['threshold']
                     predictions = (features > threshold).astype(int)
                     f1 = f1_score(labels, predictions)
                     # Calculate ROC curve
@@ -347,7 +347,7 @@ class TemperatureAUROCEvaluator:
                     # Calculate Precision-Recall curve
                     precision, recall, _ = precision_recall_curve(labels, features)
                 
-                results[temp][feature_type] = {
+                results[temp][latent_type] = {
                     'auroc': auroc,
                     'f1': f1,
                     'n_samples': len(features),  # Changed from n_tasks to n_samples
@@ -363,7 +363,7 @@ class TemperatureAUROCEvaluator:
                     'recall': recall.tolist()         # Store for PR curve plotting
                 }
                 
-                self.logger.info(f"Temperature {temp}, {feature_type}: "
+                self.logger.info(f"Temperature {temp}, {latent_type}: "
                                f"AUROC={auroc:.3f}, F1={f1:.3f}")
         
         # Clean up SAEs (if loaded)
@@ -415,8 +415,8 @@ class TemperatureAUROCEvaluator:
         bar_positions = np.arange(len(temperatures))
         width = 0.35
 
-        ax3.bar(bar_positions - width/2, n_correct, width, label='Correct (test passed)', alpha=0.7, color='green')
-        ax3.bar(bar_positions + width/2, n_incorrect, width, label='Incorrect (test failed)', alpha=0.7, color='red')
+        ax3.bar(bar_positions - width/2, n_correct, width, label='Correct (test passed)', alpha=0.7, color=COLOR_CORRECTION)
+        ax3.bar(bar_positions + width/2, n_incorrect, width, label='Incorrect (test failed)', alpha=0.7, color=COLOR_CORRUPTION)
         ax3.set_xlabel('Temperature')
         ax3.set_ylabel('Number of Samples')
         ax3.set_title('Original Sample Distribution')

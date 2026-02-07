@@ -13,7 +13,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any
 
-from common.config import Config, PLOT_DPI, PLOT_STYLE
+from common.config import Config, PLOT_DPI, PLOT_STYLE, COLOR_CORRECTION
 from common.phase_discovery import get_phase_output_dir, write_phase_output
 from common.logging import get_logger
 from common.viz_utils import handle_viz_only_mode
@@ -206,8 +206,8 @@ class UniversalityAnalyzer:
         
         # Add improvement annotation
         improvement = metrics["baseline_performance"]["improvement"]["absolute"] * 100
-        ax1.annotate(f'+{improvement:.1f}%', xy=(0.5, max(pass_rates) + 5), 
-                    fontsize=12, ha='center', color='green', fontweight='bold')
+        ax1.annotate(f'+{improvement:.1f}%', xy=(0.5, max(pass_rates) + 5),
+                    fontsize=12, ha='center', color=COLOR_CORRECTION, fontweight='bold')
         
         # Panel 2: Steering Correction Rates
         ax2 = fig.add_subplot(gs[0, 2])

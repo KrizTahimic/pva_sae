@@ -2,7 +2,7 @@
 Phase 8.3: Selective Steering Based on Threshold Analysis
 
 Implements selective steering that only intervenes when the incorrect-predicting
-feature activation exceeds the optimal threshold from Phase 3.8.
+latent activation exceeds the optimal threshold from Phase 3.8.
 
 Architecture (Option A):
 - Single-stage generation with conditional hooks

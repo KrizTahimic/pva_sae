@@ -1,7 +1,7 @@
 """
 Phase 2.3 Runner: Compute pile SAE frequencies.
 
-Entry point for computing per-feature activation frequencies on the pile dataset.
+Entry point for computing per-latent activation frequencies on the pile dataset.
 """
 
 from common.config import Config

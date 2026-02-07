@@ -7,7 +7,7 @@ are calculated on the hyperparameter tuning set, not the validation set.
 
 Key Design:
 - Loads Phase 3.6 data (hyperparams set with activations)
-- Extracts incorrect-predicting feature activations (L19-5441)
+- Extracts incorrect-predicting latent activations (L19-5441)
 - Calculates multiple percentiles (50, 75, 90, 95)
 - Saves thresholds for use in Phase 8.3 selective steering
 """

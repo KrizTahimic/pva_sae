@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from common.config import Config, PLOT_DPI, PLOT_STYLE
+from common.config import Config, PLOT_DPI, PLOT_STYLE, COLOR_CORRECTION, COLOR_CORRUPTION
 from common.logging import get_logger
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
@@ -105,8 +105,8 @@ class TemperatureTrendsVisualizer:
         bar_positions = np.arange(len(temperatures))
         width = 0.35
 
-        ax3.bar(bar_positions - width/2, n_correct, width, label='Correct (test passed)', alpha=0.7, color='green')
-        ax3.bar(bar_positions + width/2, n_incorrect, width, label='Incorrect (test failed)', alpha=0.7, color='red')
+        ax3.bar(bar_positions - width/2, n_correct, width, label='Correct (test passed)', alpha=0.7, color=COLOR_CORRECTION)
+        ax3.bar(bar_positions + width/2, n_incorrect, width, label='Incorrect (test failed)', alpha=0.7, color=COLOR_CORRUPTION)
         ax3.set_xlabel('Temperature')
         ax3.set_ylabel('Number of Samples')
         ax3.set_title('Original Sample Distribution')

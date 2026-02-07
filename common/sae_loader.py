@@ -39,6 +39,11 @@ class BaseSAE(ABC, torch.nn.Module):
 
     def get_decoder_weight(self, latent_idx: int) -> torch.Tensor:
         """Get the decoder weight vector for a specific latent (for steering)."""
+        if latent_idx < 0 or latent_idx >= self.W_dec.shape[0]:
+            raise IndexError(
+                f"latent_idx {latent_idx} out of range [0, {self.W_dec.shape[0] - 1}] "
+                f"for SAE with {self.W_dec.shape[0]} latents"
+            )
         return self.W_dec[latent_idx, :]
 
 
