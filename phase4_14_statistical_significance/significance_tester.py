@@ -18,7 +18,7 @@ import seaborn as sns
 from common.logging import get_logger
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.utils import ensure_directory_exists, load_json, save_json
-from common.config import Config, PLOT_DPI, PLOT_STYLE
+from common.config import Config, PLOT_DPI, PLOT_STYLE, COLOR_CORRECTION, COLOR_CORRUPTION, COLOR_PRESERVATION
 from common.viz_utils import handle_viz_only_mode
 
 logger = get_logger("phase4_14.significance_tester")
@@ -489,7 +489,7 @@ class SignificanceTester:
             correction_tri['rates']['targeted'] * 100
         ]
 
-        bars1 = ax1.bar(correction_conditions, correction_rates, color=['orange', 'green'])
+        bars1 = ax1.bar(correction_conditions, correction_rates, color=['orange', COLOR_CORRECTION])
         ax1.set_ylabel('Correction Rate (%)', fontsize=12)
         ax1.set_title('Correction Experiments (Incorrect→Correct)', fontsize=14)
         ax1.set_ylim(0, 105)
@@ -507,7 +507,7 @@ class SignificanceTester:
             corruption_tri['rates']['targeted'] * 100
         ]
 
-        bars2 = ax2.bar(corruption_conditions, corruption_rates, color=['orange', 'red'])
+        bars2 = ax2.bar(corruption_conditions, corruption_rates, color=['orange', COLOR_CORRUPTION])
         ax2.set_ylabel('Corruption Rate (%)', fontsize=12)
         ax2.set_title('Corruption Experiments (Correct→Incorrect)', fontsize=14)
         ax2.set_ylim(0, 105)
@@ -526,7 +526,7 @@ class SignificanceTester:
             preservation_tri['rates']['targeted'] * 100
         ]
 
-        bars3 = ax3.bar(preservation_conditions, preservation_rates, color=['gray', 'orange', 'gold'])
+        bars3 = ax3.bar(preservation_conditions, preservation_rates, color=['gray', 'orange', COLOR_PRESERVATION])
         ax3.set_ylabel('Preservation Rate (%)', fontsize=12)
         ax3.set_title('Preservation Experiments (Correct→Correct)', fontsize=14)
         ax3.set_ylim(0, 105)

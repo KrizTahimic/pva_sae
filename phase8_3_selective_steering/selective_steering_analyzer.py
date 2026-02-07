@@ -1060,7 +1060,7 @@ class SelectiveSteeringAnalyzer:
             'direction_source': self.direction_source,
             'threshold_info': {
                 'layer': self.incorrect_pred_layer,
-                'feature': self.incorrect_pred_latent,
+                'latent': self.incorrect_pred_latent,
                 'threshold': self.threshold,
                 'probe_bias': self.predicting_bias if self.use_probe else None
             },

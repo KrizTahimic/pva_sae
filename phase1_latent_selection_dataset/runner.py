@@ -297,12 +297,9 @@ class Phase1Runner:
 
         logger.info(f"Found {split_name} split ({self.config.dataset_name}): {sae_split_path}")
 
-        # Setup model and hooks
-        self.setup()
-
-        # Load split data using generic loader
+        # Load split data using generic loader (lightweight, no model needed)
         df = load_dataset_split(split_name, Path(phase0_1_dir), self.config)
-        
+
         # Apply start/end indices from config
         total_tasks = len(df)
         df = filter_by_range(df, self.config, f"{split_name} split tasks")
@@ -313,7 +310,7 @@ class Phase1Runner:
             from common.parallel_runner import filter_dataframe_for_gpu
             df = filter_dataframe_for_gpu(df, self.gpu_id, self.n_gpus)
             logger.info(f"GPU {self.gpu_id}/{self.n_gpus}: Processing {len(df)} tasks (parallel mode)")
-        
+
         # Create output directories
         # Use model/dataset-aware output directory
         # For LLAMA + MBPP: data/phase1_0_llama/
@@ -326,9 +323,9 @@ class Phase1Runner:
         else:
             output_dir = Path(get_phase_output_dir("1", self.config))
             logger.info(f"Output directory: {output_dir} (model: {self.config.model_name})")
-        
+
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         activation_dir = output_dir / "activations"
         (activation_dir / "correct").mkdir(parents=True, exist_ok=True)
         (activation_dir / "incorrect").mkdir(parents=True, exist_ok=True)
@@ -366,12 +363,14 @@ class Phase1Runner:
             df = df[~df['task_id'].isin(processed_task_ids)]
             logger.info(f"Remaining tasks to process: {len(df)}")
 
-            # Early exit if all tasks already processed
+            # Early exit if all tasks already processed (before expensive model loading)
             if len(df) == 0:
                 logger.info("All tasks already processed - nothing new to process")
                 logger.info("Cross-run checkpointing: skipping dataset creation (already exists)")
-                self.activation_extractor.remove_hooks()
                 return None
+
+        # Setup model and hooks (expensive — only done if there's work to do)
+        self.setup()
 
         # Process tasks with progress bar (uses tqdm_with_logging for milestone tracking)
         # Initialize with checkpoint data

@@ -22,7 +22,7 @@ from sklearn.metrics import (
 
 from common.logging import get_logger
 from common.utils import detect_device, ensure_directory_exists
-from common.config import PLOT_DPI, PLOT_STYLE, Config, COLOR_CORRECT_PREDICTING, COLOR_INCORRECT_PREDICTING
+from common.config import PLOT_DPI, PLOT_STYLE, Config, COLOR_CORRECT_PREDICTING, COLOR_INCORRECT_PREDICTING, COLOR_CORRECTION, COLOR_CORRUPTION
 from common.phase_discovery import discover_latest_phase_output, get_phase_output_dir
 from common.viz_utils import handle_viz_only_mode
 from common.utils import save_json, load_json
@@ -307,7 +307,7 @@ def plot_roc_curves_by_difficulty(
     """Plot ROC curves for each difficulty group on the same plot."""
     plt.figure(figsize=(10, 8))
     
-    colors = ['green', 'orange', 'red']
+    colors = [COLOR_CORRECTION, 'orange', COLOR_CORRUPTION]
     layer = best_latents[latent_type]
     latent_idx = best_latents[f'{latent_type}_latent_idx']
     

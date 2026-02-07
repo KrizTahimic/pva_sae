@@ -581,15 +581,17 @@ def get_phases_by_category(category: str) -> list[PhaseInfo]:
     return [p for p in PHASES.values() if p.category == category]
 
 
-def get_phase_output_dir(phase_id: str) -> str:
+def get_phase_base_dir(phase_id: str) -> str:
     """
-    Get output directory for a phase.
+    Get base output directory for a phase (without model/dataset suffixes).
+
+    For model/dataset-aware paths, use phase_discovery.get_phase_output_dir() instead.
 
     Args:
         phase_id: Phase ID as string
 
     Returns:
-        Output directory path
+        Base output directory path
     """
     return get_phase(phase_id).output_dir
 

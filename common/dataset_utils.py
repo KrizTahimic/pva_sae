@@ -447,8 +447,9 @@ def _get_import_code(dataset_name: Optional[str] = None) -> Optional[str]:
             with open(import_file) as f:
                 imports_data = json.load(f)
                 return '\n'.join(imports_data['imports'])
-    except Exception:
-        pass
+    except Exception as e:
+        from common.logging import get_logger
+        get_logger("common.dataset_utils").debug(f"Failed to load imports: {e}")
 
     return None
 

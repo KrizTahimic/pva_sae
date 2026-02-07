@@ -588,7 +588,12 @@ class IterativeParallelRunner:
                 old_df = pd.read_parquet(parquet_file)
                 existing_results = old_df.to_dict('records')
             except Exception as e:
-                logger.warning(f"Failed to load existing parquet: {e}")
+                logger.error(
+                    f"Corrupted parquet checkpoint at {parquet_file}: {e}\n"
+                    f"Metadata claims {len(existing_task_ids)} tasks processed, "
+                    f"but parquet data is unreadable. Clearing stale task IDs."
+                )
+                existing_task_ids = set()
 
         # Merge: old results + new results (deduplicate by task_id)
         combined_results = []

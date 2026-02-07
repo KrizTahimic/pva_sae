@@ -147,24 +147,40 @@ def retry_with_timeout(
 
     else:
         # In subprocess: signal.SIGALRM doesn't work, and threads can't interrupt CPU-bound code
-        # Use a shorter timeout and skip tasks that take too long
-        # We can't spawn nested subprocesses easily due to CUDA context issues
-        # Instead, use a best-effort approach with a warning
+        # Use a nested process with hard kill timeout to enforce the deadline
 
         def timed_generate_fn():
-            """Wrapper that runs generation with best-effort timeout tracking."""
+            """Wrapper that enforces timeout via a watchdog process."""
             import time
-            start_time = time.time()
+            result_queue = Queue(maxsize=1)
 
-            # Run the function directly - we can't interrupt it in subprocess
-            # but we track time and will skip if it takes too long
-            result = generate_fn()
+            def _run_in_nested_process(q):
+                try:
+                    result = generate_fn()
+                    q.put(('ok', result))
+                except Exception as e:
+                    q.put(('error', e))
 
-            elapsed = time.time() - start_time
-            if elapsed > timeout_seconds:
-                logger.warning(f"Task {task_id} took {elapsed:.1f}s (> {timeout_seconds}s timeout)")
+            proc = Process(target=_run_in_nested_process, args=(result_queue,))
+            proc.start()
+            proc.join(timeout=timeout_seconds)
 
-            return result
+            if proc.is_alive():
+                logger.warning(f"Task {task_id} exceeded {timeout_seconds}s timeout, killing")
+                proc.terminate()
+                proc.join(timeout=2)
+                if proc.is_alive():
+                    proc.kill()
+                    proc.join(timeout=1)
+                raise TimeoutError(f"Task {task_id} timed out after {timeout_seconds}s")
+
+            if result_queue.empty():
+                raise RuntimeError(f"Task {task_id}: nested process exited without result")
+
+            status, value = result_queue.get_nowait()
+            if status == 'error':
+                raise value
+            return value
 
         return retry_generation(timed_generate_fn, task_id, config, operation_name)
 

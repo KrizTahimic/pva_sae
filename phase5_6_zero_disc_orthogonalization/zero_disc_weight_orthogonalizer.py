@@ -26,7 +26,7 @@ from common.phase_discovery import (
     get_phase_output_dir,
     filter_by_range
 )
-from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_CRITICAL_PERCENT, PLOT_DPI, PLOT_STYLE
+from common.config import Config, CHECKPOINT_FREQUENCY_DEFAULT, MEMORY_CRITICAL_PERCENT, PLOT_DPI, PLOT_STYLE, COLOR_CORRECTION, COLOR_CORRUPTION, COLOR_PRESERVATION
 from common.steering_metrics import (
     calculate_correction_rate,
     calculate_corruption_rate,
@@ -502,7 +502,7 @@ class ZeroDiscWeightOrthogonalizer:
         ]
         
         # Create bars
-        bars = ax.bar(categories, values, color=['green', 'gold', 'red'], alpha=0.7)
+        bars = ax.bar(categories, values, color=[COLOR_CORRECTION, COLOR_PRESERVATION, COLOR_CORRUPTION], alpha=0.7)
         
         # Add value labels on bars
         for bar, value in zip(bars, values):

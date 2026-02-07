@@ -40,7 +40,7 @@ def get_phase_dir(phase: str) -> str:
         get_phase_dir("2.5") -> "data/phase2_5"
         get_phase_dir("3.5") -> "data/phase3_5"
     """
-    from common.phase_registry import get_phase_output_dir as registry_get_dir
+    from common.phase_registry import get_phase_base_dir as registry_get_dir
     return registry_get_dir(phase)
 
 
@@ -65,7 +65,7 @@ def get_phase_output_dir(phase: str, config: 'Config') -> str:
         # LLAMA + HumanEval: "data/phase1_0_llama_humaneval"
     """
     # Get base directory from registry (single source of truth)
-    from common.phase_registry import get_phase_output_dir as registry_get_dir
+    from common.phase_registry import get_phase_base_dir as registry_get_dir
     from common.model_registry import get_model_suffix as registry_model_suffix
     from common.dataset_registry import get_dataset_suffix as registry_dataset_suffix
 
@@ -335,7 +335,7 @@ def discover_phase_outputs(phase: str, phase_dir: Optional[str] = None, config=N
     elif config:
         directory = Path(get_phase_output_dir(phase, config))
     else:
-        from common.phase_registry import get_phase_output_dir as registry_get_dir
+        from common.phase_registry import get_phase_base_dir as registry_get_dir
         directory = Path(registry_get_dir(phase))
 
     manifest_path = directory / "phase_output.json"

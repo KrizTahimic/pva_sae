@@ -130,6 +130,13 @@ class ZeroDiscSteeringGenerator:
         selection = load_json(selection_file)
         self.phase4_9_dir = Path(phase4_9_output).parent
 
+        for key in ('correct', 'incorrect'):
+            if key not in selection:
+                raise ValueError(
+                    f"Phase 4.9 output missing '{key}' latent in {selection_file}. "
+                    f"Re-run Phase 4.9 with experiment_mode='all'."
+                )
+
         info = {
             'correct': {
                 'layer': selection['correct']['layer'],
@@ -514,14 +521,14 @@ class ZeroDiscSteeringGenerator:
         correction_features = zero_disc_features['correction']
         corruption_features = zero_disc_features['corruption']
 
-        # Use correction features for all experiments (they're matched to the correct latent's layer)
+        # Use correction latents for all experiments (they're matched to the correct latent's layer)
         # This ensures consistent layer matching across all three experiment types
-        all_features = correction_features
+        all_latents = correction_features
 
-        # Limit to configured number of features
-        n_features_to_test = min(self.config.phase4_12_n_features, len(all_features))
-        all_features = all_features[:n_features_to_test]
-        n_total = len(all_features)
+        # Limit to configured number of latents
+        n_latents_to_test = min(self.config.phase4_12_n_features, len(all_latents))
+        all_latents = all_latents[:n_latents_to_test]
+        n_total = len(all_latents)
 
         logger.info(f"\nWill test {n_total} zero-disc features (config: phase4_12_n_features={self.config.phase4_12_n_features})")
         logger.info(f"Already completed: {len(completed_ids)} features")
@@ -535,12 +542,12 @@ class ZeroDiscSteeringGenerator:
         all_corruption_results = []
         all_preservation_results = []
 
-        for feature_idx, feature in enumerate(all_features):
-            feature_id = f"L{feature['layer']}F{feature['latent_idx']}"
+        for latent_idx, latent in enumerate(all_latents):
+            feature_id = f"L{latent['layer']}F{latent['latent_idx']}"
 
             # Skip if already completed
             if feature_id in completed_ids:
-                logger.info(f"Skipping {feature_id} ({feature_idx + 1}/{n_total}) - already completed")
+                logger.info(f"Skipping {feature_id} ({latent_idx + 1}/{n_total}) - already completed")
                 # Load existing results for aggregation
                 existing = results['per_feature_results'].get(feature_id, {})
                 if 'correction_results' in existing:
@@ -552,8 +559,8 @@ class ZeroDiscSteeringGenerator:
                 continue
 
             logger.info("\n" + "="*50)
-            logger.info(f"Processing feature {feature_id} ({feature_idx + 1}/{n_total})")
-            logger.info(f"Separation score: {feature['separation_score']:.6f}")
+            logger.info(f"Processing latent {feature_id} ({latent_idx + 1}/{n_total})")
+            logger.info(f"Separation score: {latent['separation_score']:.6f}")
             logger.info("="*50)
 
             # Reset checkpoint managers for this feature
@@ -566,53 +573,53 @@ class ZeroDiscSteeringGenerator:
                     n_gpus=self.n_gpus
                 )
 
-            # Run CORRECTION experiment for this feature
+            # Run CORRECTION experiment for this latent
             logger.info(f"\n[{feature_id}] Running CORRECTION experiment")
             logger.info(f"Problems: {len(self.incorrect_problems)} initially incorrect")
             correction_results = self._apply_zero_disc_steering(
                 self.incorrect_problems,
-                feature,
+                latent,
                 self.correct_coefficient,
                 'correction'
             )
 
-            # Run CORRUPTION experiment for this feature
-            # Use the corresponding corruption feature if layers differ
-            corruption_feature = feature  # Same layer by default
+            # Run CORRUPTION experiment for this latent
+            # Use the corresponding corruption latent if layers differ
+            corruption_latent = latent  # Same layer by default
             if correction_features[0]['layer'] != corruption_features[0]['layer']:
-                # Find matching corruption feature by index
-                corruption_feature = corruption_features[min(feature_idx, len(corruption_features) - 1)]
+                # Find matching corruption latent by index
+                corruption_latent = corruption_features[min(latent_idx, len(corruption_features) - 1)]
 
             logger.info(f"\n[{feature_id}] Running CORRUPTION experiment")
             logger.info(f"Problems: {len(self.correct_problems)} initially correct")
             corruption_results = self._apply_zero_disc_steering(
                 self.correct_problems,
-                corruption_feature,
+                corruption_latent,
                 self.incorrect_coefficient,
                 'corruption'
             )
 
-            # Run PRESERVATION experiment for this feature
+            # Run PRESERVATION experiment for this latent
             logger.info(f"\n[{feature_id}] Running PRESERVATION experiment")
             logger.info(f"Problems: {len(self.correct_problems)} initially correct")
             preservation_results = self._apply_zero_disc_steering(
                 self.correct_problems,
-                feature,
+                latent,
                 self.correct_coefficient,
                 'preservation'
             )
 
-            # Calculate metrics for this feature
+            # Calculate metrics for this latent
             correction_rate = calculate_correction_rate(correction_results)
             corruption_rate = calculate_corruption_rate(corruption_results)
             preservation_rate = calculate_preservation_rate(preservation_results)
 
-            # Store per-feature results
+            # Store per-latent results
             results['per_feature_results'][feature_id] = {
-                'feature': {
-                    'layer': feature['layer'],
-                    'latent_idx': feature['latent_idx'],
-                    'separation_score': feature['separation_score']
+                'latent': {
+                    'layer': latent['layer'],
+                    'latent_idx': latent['latent_idx'],
+                    'separation_score': latent['separation_score']
                 },
                 'correction_rate': correction_rate,
                 'corruption_rate': corruption_rate,
@@ -634,16 +641,16 @@ class ZeroDiscSteeringGenerator:
             all_corruption_results.extend(corruption_results)
             all_preservation_results.extend(preservation_results)
 
-            # Clean up feature-specific checkpoints
+            # Clean up latent-specific checkpoints
             for steering_type in ['correction', 'corruption', 'preservation']:
                 self.checkpoint_managers[steering_type].cleanup_all()
 
-            # Save incremental checkpoint after each feature
+            # Save incremental checkpoint after each latent
             self._save_incremental_results(results)
-            logger.info(f"Checkpoint: {len(results['per_feature_results'])}/{n_total} features completed")
+            logger.info(f"Checkpoint: {len(results['per_feature_results'])}/{n_total} latents completed")
 
-            # Log feature summary
-            logger.info(f"\n[{feature_id}] Feature Summary:")
+            # Log latent summary
+            logger.info(f"\n[{feature_id}] Latent Summary:")
             logger.info(f"  Correction rate: {correction_rate:.2f}%")
             logger.info(f"  Corruption rate: {corruption_rate:.2f}%")
             logger.info(f"  Preservation rate: {preservation_rate:.2f}%")
@@ -652,9 +659,9 @@ class ZeroDiscSteeringGenerator:
         averaged_metrics = self._compute_averaged_metrics(results['per_feature_results'])
         results['averaged_metrics'] = averaged_metrics
 
-        # Backward compatibility: use first feature for primary results format
-        first_feature = all_features[0]
-        first_feature_id = f"L{first_feature['layer']}F{first_feature['latent_idx']}"
+        # Backward compatibility: use first latent for primary results format
+        first_latent = all_latents[0]
+        first_feature_id = f"L{first_latent['layer']}F{first_latent['latent_idx']}"
 
         # Build backward-compatible results structure
         results['metadata'] = {
@@ -673,7 +680,7 @@ class ZeroDiscSteeringGenerator:
                 'preservation': first_feature_id
             },
             'layer_matching': {
-                'correction_layer': first_feature['layer'],
+                'correction_layer': first_latent['layer'],
                 'corruption_layer': corruption_features[0]['layer']
             },
             'n_problems_tested': {
