@@ -135,6 +135,7 @@ class IterativeParallelRunner:
         timeout_per_iteration: int = DEFAULT_WORKER_TIMEOUT,
         checkpoint_dir: Path | None = None,
         all_task_ids: list[str] | None = None,
+        min_gpu_success_ratio: float = 0.75,
     ):
         """
         Initialize iterative parallel runner.
@@ -149,6 +150,8 @@ class IterativeParallelRunner:
             timeout_per_iteration: Max time per iteration in seconds
             checkpoint_dir: Optional directory for iteration checkpoints
             all_task_ids: Optional list of all task_ids to process (discovered from evaluator if not provided)
+            min_gpu_success_ratio: Minimum ratio of successful GPUs required (default 0.75).
+                If fewer GPUs succeed, the iteration is treated as a total failure.
         """
         self.evaluator_class = phase_evaluator_class
         self.config = config
@@ -159,6 +162,7 @@ class IterativeParallelRunner:
         self.timeout = timeout_per_iteration
         self.checkpoint_dir = checkpoint_dir
         self.all_task_ids = all_task_ids  # Will be discovered if not provided
+        self.min_gpu_success_ratio = min_gpu_success_ratio
 
     def run(self) -> dict:
         """
@@ -515,10 +519,29 @@ class IterativeParallelRunner:
                 had_errors = True
                 continue
 
-        if had_errors and not gpu_results:
+        if not gpu_results:
             return None  # Total failure
 
-        return gpu_results if gpu_results else None
+        # Check if enough GPUs succeeded to meet the minimum ratio
+        n_total = len(result_queues)
+        n_successful = len(gpu_results)
+        success_ratio = n_successful / n_total if n_total > 0 else 0.0
+
+        if success_ratio < self.min_gpu_success_ratio:
+            logger.error(
+                f"Only {n_successful}/{n_total} GPUs succeeded ({success_ratio:.0%}) "
+                f"for value={value}, below threshold {self.min_gpu_success_ratio:.0%}. "
+                f"Treating as total failure."
+            )
+            return None
+
+        if had_errors:
+            logger.warning(
+                f"{n_total - n_successful}/{n_total} GPUs failed for value={value}, "
+                f"but {success_ratio:.0%} meets threshold. Proceeding with partial data."
+            )
+
+        return gpu_results
 
     def _shutdown_workers(self, workers: list[Process], task_queues: list[Queue]):
         """Shutdown workers gracefully, with fallback to terminate."""
@@ -681,11 +704,21 @@ class IterativeParallelRunner:
 
         # Load all parquet files for this value
         dfs = []
-        for parquet_file in value_dir.glob("gpu_*_results.parquet"):
+        failed_files = []
+        parquet_files = sorted(value_dir.glob("gpu_*_results.parquet"))
+        for parquet_file in parquet_files:
             try:
                 dfs.append(pd.read_parquet(parquet_file))
             except Exception as e:
-                logger.warning(f"Failed to load checkpoint {parquet_file}: {e}")
+                logger.error(f"Failed to load checkpoint {parquet_file}: {e}")
+                failed_files.append(parquet_file.name)
+
+        if failed_files:
+            raise RuntimeError(
+                f"Corrupted checkpoint files for value={value}: {failed_files}. "
+                f"Loaded {len(dfs)}/{len(parquet_files)} files successfully. "
+                f"Delete corrupted files and re-run to recover."
+            )
 
         if not dfs:
             return None

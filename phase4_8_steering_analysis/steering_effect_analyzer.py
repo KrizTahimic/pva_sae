@@ -160,8 +160,20 @@ class SteeringEffectAnalyzer:
 
             logger.info(f"Loaded {len(self.sae_cache)} SAEs for layers: {all_layers}")
 
-            # Move SAEs to CPU to free VRAM - directions are extracted on CPU
-            # and moved to GPU individually in _get_latent_direction
+            # Pre-compute and cache normalized directions before moving SAEs to CPU
+            self._direction_cache = {}
+            model_dtype = next(self.model.parameters()).dtype
+            for candidate_list in (self.correct_candidates, self.incorrect_candidates):
+                for c in candidate_list:
+                    cache_key = (c['layer'], c['latent_idx'])
+                    if cache_key not in self._direction_cache:
+                        sae = self.sae_cache[c['layer']]
+                        direction = sae.W_dec[c['latent_idx']].detach()
+                        direction = normalize_direction(direction, name=f"L{c['layer']}_{c['latent_idx']}")
+                        self._direction_cache[cache_key] = direction.to(dtype=model_dtype, device=self.device)
+            logger.info(f"Pre-cached {len(self._direction_cache)} normalized directions")
+
+            # Move SAEs to CPU to free VRAM - directions are already cached
             for layer_idx in self.sae_cache:
                 self.sae_cache[layer_idx].cpu()
             logger.info("Moved SAE cache to CPU to free VRAM")
@@ -359,7 +371,7 @@ class SteeringEffectAnalyzer:
         logger.debug(f"Saved {steering_type} steering attention for task {task_id} in {len(attention_patterns)} layers")
         
     def _get_latent_direction(self, layer: int, latent_idx: int) -> torch.Tensor:
-        """Get the decoder direction for a latent from cached SAE.
+        """Get the decoder direction for a latent from cache or SAE.
 
         Args:
             layer: Layer number
@@ -368,9 +380,13 @@ class SteeringEffectAnalyzer:
         Returns:
             Latent direction tensor (unit normalized, in model dtype)
         """
+        cache_key = (layer, latent_idx)
+        if hasattr(self, '_direction_cache') and cache_key in self._direction_cache:
+            return self._direction_cache[cache_key]
+
+        # Fallback for probe mode or uncached directions
         sae = self.sae_cache[layer]
         direction = sae.W_dec[latent_idx].detach()
-        # Normalize to unit L2 norm (required by steering hook)
         direction = normalize_direction(direction, name=f"L{layer}_{latent_idx}")
         model_dtype = next(self.model.parameters()).dtype
         return direction.to(dtype=model_dtype, device=self.device)

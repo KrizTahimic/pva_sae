@@ -20,6 +20,7 @@ from unittest.mock import patch
 from common.parallel_runner import (
     filter_dataframe_for_gpu,
     _merge_phase4_5_json_results,
+    _merge_phase4_8_results,
     _merge_phase8_3_results,
 )
 from common.config import Config
@@ -706,3 +707,119 @@ class TestMergeWithMissingFields:
         assert history["metrics"]["corruption_rate"] == 50.0
         # n_problems should be total (all 4)
         assert history["n_problems"] == 4
+
+
+# =============================================================================
+# Fix 3: Multi-candidate merge by (layer, latent_idx) key
+# =============================================================================
+
+class TestMultiCandidateMergeByKey:
+    """Test that multi-candidate merge matches candidates by (layer, latent_idx)
+    rather than positional index, making it order-independent."""
+
+    def test_same_order_merges_correctly(self):
+        """Candidates in same order across GPUs should merge correctly."""
+        from common.parallel_runner import _merge_phase4_8_results
+
+        candidates = [
+            {"layer": 10, "latent_idx": 100, "n_total": 5},
+            {"layer": 12, "latent_idx": 200, "n_total": 3},
+        ]
+
+        gpu0 = {
+            "correct": [
+                {"layer": 10, "latent_idx": 100, "n_total": 5},
+                {"layer": 12, "latent_idx": 200, "n_total": 3},
+            ],
+            "incorrect": [],
+            "direction_source": "sae",
+            "coefficients": {},
+            "correction": [{"task_id": "t0", "baseline_passed": False, "steered_correct": True}],
+            "corruption": [],
+            "preservation": [],
+            "n_problems": {"initially_correct": 0, "initially_incorrect": 1, "total": 1},
+        }
+
+        gpu1 = {
+            "correct": [
+                {"layer": 10, "latent_idx": 100, "n_total": 7},
+                {"layer": 12, "latent_idx": 200, "n_total": 4},
+            ],
+            "incorrect": [],
+            "direction_source": "sae",
+            "coefficients": {},
+            "correction": [{"task_id": "t1", "baseline_passed": False, "steered_correct": False}],
+            "corruption": [],
+            "preservation": [],
+            "n_problems": {"initially_correct": 0, "initially_incorrect": 1, "total": 1},
+        }
+
+        # Write GPU files
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            for i, data in enumerate([gpu0, gpu1]):
+                (tmpdir / f"steering_effect_analysis_gpu{i}.json").write_text(json.dumps(data))
+
+            with patch("common.parallel_runner.write_phase_output"):
+                result = _merge_phase4_8_results(tmpdir, n_gpus=2, config=Config(), phase_id="4.8")
+
+            merged = json.loads((tmpdir / "steering_effect_analysis.json").read_text())
+
+            # n_total should be summed: 5+7=12 and 3+4=7
+            assert merged["correct"][0]["n_total"] == 12
+            assert merged["correct"][1]["n_total"] == 7
+
+    def test_different_order_merges_by_key(self):
+        """Candidates in different order across GPUs should still merge correctly by key."""
+        from common.parallel_runner import _merge_phase4_8_results
+
+        gpu0 = {
+            "correct": [
+                {"layer": 10, "latent_idx": 100, "n_total": 5},
+                {"layer": 12, "latent_idx": 200, "n_total": 3},
+            ],
+            "incorrect": [],
+            "direction_source": "sae",
+            "coefficients": {},
+            "correction": [{"task_id": "t0", "baseline_passed": False, "steered_correct": True}],
+            "corruption": [],
+            "preservation": [],
+            "n_problems": {"initially_correct": 0, "initially_incorrect": 1, "total": 1},
+        }
+
+        # GPU 1 has candidates in REVERSED order
+        gpu1 = {
+            "correct": [
+                {"layer": 12, "latent_idx": 200, "n_total": 4},
+                {"layer": 10, "latent_idx": 100, "n_total": 7},
+            ],
+            "incorrect": [],
+            "direction_source": "sae",
+            "coefficients": {},
+            "correction": [{"task_id": "t1", "baseline_passed": False, "steered_correct": False}],
+            "corruption": [],
+            "preservation": [],
+            "n_problems": {"initially_correct": 0, "initially_incorrect": 1, "total": 1},
+        }
+
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            for i, data in enumerate([gpu0, gpu1]):
+                (tmpdir / f"steering_effect_analysis_gpu{i}.json").write_text(json.dumps(data))
+
+            with patch("common.parallel_runner.write_phase_output"):
+                result = _merge_phase4_8_results(tmpdir, n_gpus=2, config=Config(), phase_id="4.8")
+
+            merged = json.loads((tmpdir / "steering_effect_analysis.json").read_text())
+
+            # Reference order is from GPU 0: L10_100 first, L12_200 second
+            # Even though GPU 1 has reversed order, should merge by key
+            assert merged["correct"][0]["layer"] == 10
+            assert merged["correct"][0]["latent_idx"] == 100
+            assert merged["correct"][0]["n_total"] == 12  # 5 + 7
+
+            assert merged["correct"][1]["layer"] == 12
+            assert merged["correct"][1]["latent_idx"] == 200
+            assert merged["correct"][1]["n_total"] == 7  # 3 + 4

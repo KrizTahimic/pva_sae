@@ -1128,16 +1128,22 @@ def _merge_phase4_8_results(
         }
     }
 
-    # Handle multi-candidate mode: merge candidate lists with updated counts
+    # Handle multi-candidate mode: merge candidate lists by (layer, latent_idx) key
     if is_multi_candidate:
         for candidate_key in ('correct', 'incorrect'):
+            # Build lookup from each GPU's candidates keyed by (layer, latent_idx)
+            candidate_totals = {}
+            for d in gpu_data:
+                for candidate in d.get(candidate_key, []):
+                    key = (candidate.get('layer'), candidate.get('latent_idx'))
+                    candidate_totals[key] = candidate_totals.get(key, 0) + candidate.get('n_total', 0)
+
+            # Merge using reference candidate order, matching by key
             merged_candidates = []
-            for i, candidate in enumerate(ref.get(candidate_key, [])):
+            for candidate in ref.get(candidate_key, []):
                 merged_candidate = candidate.copy()
-                merged_candidate['n_total'] = sum(
-                    d.get(candidate_key, [{}])[i].get('n_total', 0)
-                    for d in gpu_data if i < len(d.get(candidate_key, []))
-                )
+                key = (candidate.get('layer'), candidate.get('latent_idx'))
+                merged_candidate['n_total'] = candidate_totals.get(key, 0)
                 merged_candidates.append(merged_candidate)
             merged_metrics[candidate_key] = merged_candidates
 

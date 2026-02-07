@@ -591,7 +591,8 @@ class TestCollectResults:
         assert len(results) == 2
 
     def test_handles_worker_error(self, tmp_path):
-        """Should continue collecting after a worker error."""
+        """With 1/2 GPUs failing, result depends on min_gpu_success_ratio.
+        Default 0.75 means 50% success is below threshold -> returns None."""
         runner = _make_runner(tmp_path, n_gpus=2, timeout=5)
 
         q0 = queue.Queue()
@@ -602,13 +603,11 @@ class TestCollectResults:
 
         results = runner._collect_results([q0, q1], value=1.0)
 
-        # Should still get results from GPU 1
-        assert results is not None
-        assert len(results) == 1
-        assert results[0]["gpu_id"] == 1
+        # 1/2 = 50% < 75% threshold -> treated as failure
+        assert results is None
 
     def test_handles_fatal_error(self, tmp_path):
-        """Should handle fatal worker errors."""
+        """With 1/2 GPUs fatal error, 50% < 75% threshold -> returns None."""
         runner = _make_runner(tmp_path, n_gpus=2, timeout=5)
 
         q0 = queue.Queue()
@@ -619,8 +618,8 @@ class TestCollectResults:
 
         results = runner._collect_results([q0, q1], value=1.0)
 
-        assert results is not None
-        assert len(results) == 1
+        # 1/2 = 50% < 75% threshold
+        assert results is None
 
     def test_returns_none_on_total_failure(self, tmp_path):
         """Should return None when all workers fail."""
@@ -637,7 +636,7 @@ class TestCollectResults:
         assert results is None
 
     def test_handles_timeout(self, tmp_path):
-        """Should handle queue timeout (worker never responds)."""
+        """With 1/2 GPUs timing out, 50% < 75% threshold -> returns None."""
         runner = _make_runner(tmp_path, n_gpus=2, timeout=1)
 
         q0 = queue.Queue()
@@ -649,9 +648,8 @@ class TestCollectResults:
 
         results = runner._collect_results([q0, q1], value=1.0)
 
-        # Should still get GPU 0 results despite GPU 1 timeout
-        assert results is not None
-        assert len(results) == 1
+        # 1/2 = 50% < 75% threshold
+        assert results is None
 
     def test_returns_none_when_all_timeout(self, tmp_path):
         """Should return None when all workers timeout."""
@@ -1093,3 +1091,153 @@ class TestRunIterativeParallelEntryPoint:
             # but should not raise ValueError)
             with pytest.raises((ImportError, ModuleNotFoundError, Exception)):
                 run_iterative_parallel(phase_id, config, n_gpus=2)
+
+
+# =============================================================================
+# Fix 1: min_gpu_success_ratio threshold tests
+# =============================================================================
+
+class TestMinGpuSuccessRatio:
+    """Test that partial GPU failures are rejected when below the success threshold."""
+
+    def test_all_gpus_succeed(self, tmp_path):
+        """4/4 GPUs succeed -> proceeds normally."""
+        runner = _make_runner(tmp_path, n_gpus=4, timeout=5)
+
+        queues = [queue.Queue() for _ in range(4)]
+        for i, q in enumerate(queues):
+            q.put({"status": "success", "gpu_id": i, "results": [{"task_id": f"t{i}"}]})
+
+        results = runner._collect_results(queues, value=1.0)
+        assert results is not None
+        assert len(results) == 4
+
+    def test_three_of_four_gpus_succeed(self, tmp_path):
+        """3/4 GPUs succeed (75%) -> meets default 0.75 threshold."""
+        runner = _make_runner(tmp_path, n_gpus=4, timeout=5)
+
+        queues = [queue.Queue() for _ in range(4)]
+        queues[0].put({"status": "success", "gpu_id": 0, "results": [{"task_id": "t0"}]})
+        queues[1].put({"status": "success", "gpu_id": 1, "results": [{"task_id": "t1"}]})
+        queues[2].put({"status": "success", "gpu_id": 2, "results": [{"task_id": "t2"}]})
+        queues[3].put({"status": "error", "gpu_id": 3, "error": "OOM"})
+
+        results = runner._collect_results(queues, value=1.0)
+        assert results is not None
+        assert len(results) == 3
+
+    def test_one_of_four_gpus_succeed(self, tmp_path):
+        """1/4 GPUs succeed (25%) -> below 0.75 threshold, returns None."""
+        runner = _make_runner(tmp_path, n_gpus=4, timeout=5)
+
+        queues = [queue.Queue() for _ in range(4)]
+        queues[0].put({"status": "success", "gpu_id": 0, "results": [{"task_id": "t0"}]})
+        queues[1].put({"status": "error", "gpu_id": 1, "error": "OOM"})
+        queues[2].put({"status": "error", "gpu_id": 2, "error": "OOM"})
+        queues[3].put({"status": "fatal_error", "gpu_id": 3, "error": "crash"})
+
+        results = runner._collect_results(queues, value=1.0)
+        assert results is None
+
+    def test_zero_gpus_succeed(self, tmp_path):
+        """0/4 GPUs succeed -> returns None."""
+        runner = _make_runner(tmp_path, n_gpus=4, timeout=5)
+
+        queues = [queue.Queue() for _ in range(4)]
+        for i, q in enumerate(queues):
+            q.put({"status": "error", "gpu_id": i, "error": "OOM"})
+
+        results = runner._collect_results(queues, value=1.0)
+        assert results is None
+
+    def test_custom_threshold(self, tmp_path):
+        """Custom threshold of 0.5: 2/4 GPUs succeed -> proceeds."""
+        config = MagicMock()
+        config.model_name = "google/gemma-2-2b"
+        config.dataset_name = "mbpp"
+
+        runner = IterativeParallelRunner(
+            phase_evaluator_class=MagicMock,
+            config=config,
+            n_gpus=4,
+            values_to_test=[1.0],
+            timeout_per_iteration=5,
+            checkpoint_dir=tmp_path / "checkpoints",
+            all_task_ids=["t0", "t1", "t2", "t3"],
+            min_gpu_success_ratio=0.5,
+        )
+
+        queues = [queue.Queue() for _ in range(4)]
+        queues[0].put({"status": "success", "gpu_id": 0, "results": [{"task_id": "t0"}]})
+        queues[1].put({"status": "success", "gpu_id": 1, "results": [{"task_id": "t1"}]})
+        queues[2].put({"status": "error", "gpu_id": 2, "error": "OOM"})
+        queues[3].put({"status": "error", "gpu_id": 3, "error": "OOM"})
+
+        results = runner._collect_results(queues, value=1.0)
+        assert results is not None
+        assert len(results) == 2
+
+    def test_custom_threshold_below(self, tmp_path):
+        """Custom threshold of 0.5: 1/4 GPUs succeed -> returns None."""
+        config = MagicMock()
+        config.model_name = "google/gemma-2-2b"
+        config.dataset_name = "mbpp"
+
+        runner = IterativeParallelRunner(
+            phase_evaluator_class=MagicMock,
+            config=config,
+            n_gpus=4,
+            values_to_test=[1.0],
+            timeout_per_iteration=5,
+            checkpoint_dir=tmp_path / "checkpoints",
+            all_task_ids=["t0", "t1", "t2", "t3"],
+            min_gpu_success_ratio=0.5,
+        )
+
+        queues = [queue.Queue() for _ in range(4)]
+        queues[0].put({"status": "success", "gpu_id": 0, "results": [{"task_id": "t0"}]})
+        queues[1].put({"status": "error", "gpu_id": 1, "error": "OOM"})
+        queues[2].put({"status": "error", "gpu_id": 2, "error": "OOM"})
+        queues[3].put({"status": "error", "gpu_id": 3, "error": "OOM"})
+
+        results = runner._collect_results(queues, value=1.0)
+        assert results is None
+
+    def test_default_ratio_is_075(self, tmp_path):
+        """Default min_gpu_success_ratio should be 0.75."""
+        runner = _make_runner(tmp_path)
+        assert runner.min_gpu_success_ratio == 0.75
+
+
+# =============================================================================
+# Fix 2: Corrupted parquet fail-fast tests
+# =============================================================================
+
+class TestCorruptedParquetFailFast:
+    """Test that corrupted parquet checkpoints raise errors instead of silently skipping."""
+
+    def test_corrupted_parquet_raises_error(self, tmp_path):
+        """A corrupted parquet file should cause RuntimeError."""
+        runner = _make_runner(tmp_path, n_gpus=2)
+
+        # Save a valid checkpoint for GPU 0
+        runner._save_gpu_checkpoint(1.0, 0, _make_gpu_result(0, 1.0, ["t0", "t1"]))
+
+        # Corrupt GPU 1's parquet file
+        value_dir = runner._get_value_checkpoint_dir(1.0)
+        corrupted_path = value_dir / "gpu_1_results.parquet"
+        corrupted_path.write_text("not a valid parquet file")
+
+        with pytest.raises(RuntimeError, match="Corrupted checkpoint files"):
+            runner._merge_value_results(1.0)
+
+    def test_valid_parquets_still_merge(self, tmp_path):
+        """When all parquet files are valid, merge should succeed as before."""
+        runner = _make_runner(tmp_path, n_gpus=2)
+
+        runner._save_gpu_checkpoint(1.0, 0, _make_gpu_result(0, 1.0, ["t0"]))
+        runner._save_gpu_checkpoint(1.0, 1, _make_gpu_result(1, 1.0, ["t1"]))
+
+        merged = runner._merge_value_results(1.0)
+        assert merged is not None
+        assert merged["n_problems"] == 2

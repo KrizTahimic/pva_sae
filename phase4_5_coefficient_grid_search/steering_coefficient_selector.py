@@ -152,6 +152,19 @@ class SteeringCoefficientSelector:
             logger.info(f"Loaded {len(self.sae_cache)} SAEs for layers: {all_layers}")
             logger.info(f"Testing {n_candidates} correct and {n_candidates} incorrect candidates")
 
+            # Pre-compute and cache normalized directions for all candidates
+            self._direction_cache = {}
+            model_dtype = next(self.model.parameters()).dtype
+            for candidate_list in (self.correct_candidates, self.incorrect_candidates):
+                for c in candidate_list:
+                    cache_key = (c['layer'], c['latent_idx'])
+                    if cache_key not in self._direction_cache:
+                        sae = self.sae_cache[c['layer']]
+                        direction = sae.W_dec[c['latent_idx']].detach()
+                        direction = normalize_direction(direction, name=f"L{c['layer']}_{c['latent_idx']}")
+                        self._direction_cache[cache_key] = direction.to(dtype=model_dtype)
+            logger.info(f"Pre-cached {len(self._direction_cache)} normalized directions")
+
         # Load baseline data from Phase 3.6 (hyperparameter tuning set)
         self.baseline_data, self.phase3_6_output = load_baseline_data(
             self.config, "3.6", "dataset_hyperparams_temp_0_0.parquet"
@@ -185,7 +198,7 @@ class SteeringCoefficientSelector:
         return memory_percent
         
     def _get_latent_direction(self, latent: dict) -> torch.Tensor:
-        """Get the decoder direction for a latent from cached SAE.
+        """Get the decoder direction for a latent from cache or SAE.
 
         Args:
             latent: dict with 'layer' and 'latent_idx'
@@ -193,11 +206,14 @@ class SteeringCoefficientSelector:
         Returns:
             Latent direction tensor (unit normalized)
         """
+        cache_key = (latent['layer'], latent['latent_idx'])
+        if hasattr(self, '_direction_cache') and cache_key in self._direction_cache:
+            return self._direction_cache[cache_key]
+
+        # Fallback for probe mode or uncached directions
         sae = self.sae_cache[latent['layer']]
         direction = sae.W_dec[latent['latent_idx']].detach()
-        # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
         direction = normalize_direction(direction, name=f"L{latent['layer']}_{latent['latent_idx']}")
-        # Match model dtype
         model_dtype = next(self.model.parameters()).dtype
         return direction.to(dtype=model_dtype)
 
