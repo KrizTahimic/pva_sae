@@ -280,10 +280,10 @@ def load_sae(
     model_info = get_model(model_name)  # Raises ValueError if unknown
 
     # Validate layer index
-    if layer_idx >= model_info.n_layers:
+    if layer_idx < 0 or layer_idx >= model_info.n_layers:
         raise ValueError(
             f"Layer {layer_idx} out of range for {model_name} "
-            f"(max: {model_info.n_layers - 1})"
+            f"(valid: 0-{model_info.n_layers - 1})"
         )
 
     # Load appropriate SAE based on format

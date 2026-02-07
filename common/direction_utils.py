@@ -34,9 +34,13 @@ def normalize_direction(direction: Tensor, name: str = "direction") -> Tensor:
         Unit-normalized direction tensor (same device/dtype as input)
 
     Raises:
-        ValueError: If direction is all zeros (cannot normalize)
+        ValueError: If direction is all zeros or contains NaN (cannot normalize)
     """
     norm = direction.norm()
+    if torch.isnan(norm):
+        raise ValueError(
+            f"Cannot normalize {name}: direction contains NaN values"
+        )
     if norm < NORM_EPSILON:
         raise ValueError(
             f"Cannot normalize {name}: norm={norm.item():.2e} is effectively zero"

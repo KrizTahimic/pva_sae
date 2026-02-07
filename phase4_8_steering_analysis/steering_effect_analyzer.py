@@ -69,6 +69,11 @@ class SteeringEffectAnalyzer:
 
         # Determine direction source
         self.direction_source = getattr(config, 'direction_source', 'sae')
+        if self.direction_source == 'probe_logreg':
+            raise ValueError(
+                "Phase 4.8 is a steering phase — use '--direction-source probe_mass_mean' "
+                "(not probe_logreg). probe_logreg is for prediction phases (3.8, 3.10, 7.12)."
+            )
         self.use_probe = self.direction_source == 'probe_mass_mean'
 
         # Phase output directories with dataset suffix (add "_probe" suffix for probe mode)

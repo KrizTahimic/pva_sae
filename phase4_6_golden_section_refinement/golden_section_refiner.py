@@ -72,6 +72,11 @@ class GoldenSectionCoefficientRefiner:
 
         # Determine direction source
         self.direction_source = getattr(config, 'direction_source', 'sae')
+        if self.direction_source == 'probe_logreg':
+            raise ValueError(
+                "Phase 4.6 is a steering phase — use '--direction-source probe_mass_mean' "
+                "(not probe_logreg). probe_logreg is for prediction phases (3.8, 3.10, 7.12)."
+            )
         self.use_probe = self.direction_source == 'probe_mass_mean'
 
         # Phase output directories (add "_probe" suffix for probe mode)
@@ -1872,6 +1877,11 @@ class RefinementEvaluator:
 
         # Direction source
         self.direction_source = getattr(config, 'direction_source', 'sae')
+        if self.direction_source == 'probe_logreg':
+            raise ValueError(
+                "Phase 4.6 is a steering phase — use '--direction-source probe_mass_mean' "
+                "(not probe_logreg). probe_logreg is for prediction phases (3.8, 3.10, 7.12)."
+            )
         self.use_probe = self.direction_source == 'probe_mass_mean'
 
         # Multi-candidate mode: set by orchestrator before each candidate's search
@@ -2165,6 +2175,11 @@ class RefinementOrchestrator:
 
         # Direction source
         self.direction_source = getattr(config, 'direction_source', 'sae')
+        if self.direction_source == 'probe_logreg':
+            raise ValueError(
+                "Phase 4.6 is a steering phase — use '--direction-source probe_mass_mean' "
+                "(not probe_logreg). probe_logreg is for prediction phases (3.8, 3.10, 7.12)."
+            )
         self.use_probe = self.direction_source == 'probe_mass_mean'
 
         # Golden ratio constants

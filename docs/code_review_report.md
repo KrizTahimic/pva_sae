@@ -1,114 +1,99 @@
 # Code Review Report
+
 **Date**: 2026-02-07
 **Scope**: Full project
-**Findings**: 13 confirmed / 43 reviewed (51% false positive rate)
+**Findings**: 10 confirmed / 35 reviewed (71% false positive rate)
+
+---
+
+## CRITICAL
+
+### C1: Direction Source Detection Bug in 7 Steering Phases
+- **Location**: `phase4_8_steering_analysis/steering_effect_analyzer.py:72`, `phase4_5_coefficient_grid_search/steering_coefficient_selector.py:68`, `phase4_6_golden_section_refinement/golden_section_refiner.py:75`, `phase4_9_latent_selection/latent_selector.py:40`, `phase5_3_weight_orthogonalization/weight_orthogonalizer.py:66`, `phase7_6_instruct_steering/instruct_steering_analyzer.py:86`, `phase4_7_coefficient_visualization/coefficient_plotter.py:495`
+- **Root Cause**: All 7 phases check `self.direction_source == 'probe_mass_mean'` to detect probe mode, but the codebase supports TWO probe modes: `probe_mass_mean` and `probe_logreg`. Phases 8.1/8.2/8.3 correctly use `in ('probe_logreg', 'probe_mass_mean')`.
+- **Impact**: Running with `--direction-source probe_logreg` causes these phases to silently fall into SAE code path, loading wrong directions and potentially crashing or producing incorrect results.
+- **Suggested Fix**: Change to `self.use_probe = self.direction_source in ('probe_logreg', 'probe_mass_mean')` in all 7 files.
+- **Test Impact**: Add regression test verifying probe mode detection for both probe types.
+
+---
+
+## HIGH
+
+### H1: Phase 6.3 Hardcodes Probe Method Ignoring Direction Source
+- **Location**: `phase6_3_attention_analysis/attention_analyzer.py:77`
+- **Root Cause**: Line 42 correctly detects both probe types (`self.use_probe = self.direction_source in ('probe_logreg', 'probe_mass_mean')`), but line 77 hardcodes `method="mass_mean"` regardless of which probe was requested.
+- **Impact**: `--direction-source probe_logreg` enters probe mode but loads mass_mean directions. May use different layer than intended for analysis.
+- **Suggested Fix**: Extract method from `direction_source` or pass through explicitly.
+- **Test Impact**: Add test verifying correct method is loaded for each direction source.
+
+---
 
 ## MEDIUM
 
-### M1: Unsafe Dictionary Key Access in Phase 4.12
-- **Location**: `phase4_12_zero_disc_steering/zero_disc_steering_generator.py:135-140`
-- **Root Cause**: Phase 4.12 unconditionally accesses `selection['incorrect']`, but Phase 4.9 only populates this key when `experiment_mode` includes 'corruption'. Running Phase 4.9 in `correction`-only mode leaves `selection['incorrect']` missing.
-- **Impact**: `KeyError` crash when Phase 4.12 loads Phase 4.9 output from correction-only runs. Entire phase fails, losing any computed results.
-- **Suggested Fix**: Add validation before access:
-  ```python
-  for key in ('correct', 'incorrect'):
-      if key not in selection:
-          raise ValueError(f"Phase 4.9 output missing '{key}' latent. Re-run Phase 4.9 with experiment_mode='all'.")
-  ```
-- **Test Impact**: Add test in `tests/test_phases/` for Phase 4.12 initialization with missing keys.
+### M1: Prediction Phases Silently Fall to SAE Mode for probe_mass_mean
+- **Location**: `phase3_10_temperature_auroc_f1/temperature_evaluator.py:44`, `phase7_12_instruct_auroc_f1/instruct_auroc_f1_evaluator.py:475`
+- **Root Cause**: These check `== 'probe_logreg'` only (correct for prediction), but passing `--direction-source probe_mass_mean` silently falls to SAE mode instead of raising an error.
+- **Impact**: User gets SAE results when they expected probe results, with no warning.
+- **Suggested Fix**: Add explicit validation: `if direction_source == 'probe_mass_mean': raise ValueError("Use probe_logreg for prediction phases")`
+- **Test Impact**: Add test for invalid direction source rejection.
 
-### M2: Parquet Checkpoint Metadata/Data Mismatch
-- **Location**: `common/iterative_parallel_runner.py:586-612`
-- **Root Cause**: When a parquet checkpoint file is corrupted, the exception handler logs a warning and continues, but the metadata's `processed_task_ids` still includes the lost tasks. On restart, those tasks are skipped (considered "done") despite having no results.
-- **Impact**: Silent data loss — tasks appear completed but their results are missing from the final output. Undetectable without manual row-count verification.
-- **Suggested Fix**: On parquet load failure, clear the metadata's `existing_task_ids` for affected tasks, or raise an error forcing manual recovery.
-- **Test Impact**: Add test for corrupted-parquet-with-valid-metadata scenario.
+### M2: SAE Loader Missing Negative Layer Index Validation
+- **Location**: `common/sae_loader.py:283`
+- **Root Cause**: Only validates `layer_idx >= n_layers` but not `layer_idx < 0`. Negative indices pass validation.
+- **Impact**: Low practical impact (layer indices from config/discovery), but a defensive gap.
+- **Suggested Fix**: Add `if layer_idx < 0:` check alongside existing upper bound check.
+- **Test Impact**: Add test for negative layer index rejection.
 
-### M3: Multi-GPU Parquet Merge Crashes on Partial Failures
-- **Location**: `common/parallel_runner.py:862-868`
-- **Root Cause**: The parquet merge function raises `RuntimeError` on any single corrupted GPU file, aborting the entire merge. Compare to the JSON merge function (lines 92-108) which gracefully skips corrupted files and continues.
-- **Impact**: One corrupted GPU output file (out of 4-8) voids ALL other GPUs' valid results. With 4 GPUs, one failure loses 75% of good data.
-- **Suggested Fix**: Follow the JSON merge pattern — log corrupted files, skip them, continue with valid data:
-  ```python
-  for f in gpu_files:
-      try:
-          dfs.append(pd.read_parquet(f))
-      except Exception as e:
-          logger.error(f"Corrupted GPU parquet {f.name}: {e} — skipping")
-          corrupted.append(f.name)
-  ```
-- **Test Impact**: Add test for partial GPU file corruption in parquet merge.
+### M3: normalize_direction() Silently Passes NaN Input
+- **Location**: `common/direction_utils.py:39`
+- **Root Cause**: `NaN < NORM_EPSILON` evaluates to `False`, so NaN directions bypass the zero-check and return NaN silently.
+- **Impact**: Corrupted probe/SAE data would propagate NaN through steering pipeline undetected.
+- **Suggested Fix**: Add `if torch.isnan(norm): raise ValueError(f"Cannot normalize {name}: contains NaN")`
+- **Test Impact**: Add test for NaN input handling.
 
-### M4: Model Loaded Before Checkpoint Check in Phase 1
-- **Location**: `phase1_latent_selection_dataset/runner.py:301-374`
-- **Root Cause**: `self.setup()` (line 301) loads the model, tokenizer, and hooks before checking if all tasks are already processed (line 370). If all tasks are checkpointed from a previous run, the model was loaded for nothing.
-- **Impact**: Wastes 30-60 seconds loading a multi-GB model unnecessarily. Minor for single runs, annoying during development/debugging.
-- **Suggested Fix**: Move the checkpoint completeness check before `self.setup()`, or add a lightweight pre-check method.
-- **Test Impact**: None needed (optimization, not correctness).
+### M4: pile_filter_utils.py Completely Untested
+- **Location**: `common/pile_filter_utils.py` (114 lines, 0 test coverage)
+- **Root Cause**: No test file exists. Feature filtering logic untested.
+- **Impact**: Bugs in feature filtering would silently use wrong features for steering.
+- **Suggested Fix**: Create `tests/test_common/test_pile_filter_utils.py`.
+- **Test Impact**: New test file needed.
+
+### M5: initialization.py Deterministic Seeding Untested
+- **Location**: `common/initialization.py` (57 lines, 0 test coverage)
+- **Root Cause**: `setup_deterministic_generation()` has no tests.
+- **Impact**: Non-reproducibility across GPU runs would go undetected.
+- **Suggested Fix**: Create `tests/test_common/test_initialization.py`.
+- **Test Impact**: New test file needed.
+
+---
 
 ## LOW
 
-### L1: Silent Exception Swallowing in Import Loading
-- **Location**: `common/dataset_utils.py:434-451`
-- **Root Cause**: Bare `except Exception: pass` silently swallows ALL exceptions when loading import code — corrupted JSON, permission errors, missing keys all produce the same `None` result with no logging.
-- **Impact**: Debugging difficulty when import-dependent code fails with `NameError` instead of showing which import file was problematic.
-- **Suggested Fix**: Log the exception before returning None:
-  ```python
-  except Exception as e:
-      logger.debug(f"Failed to load imports: {e}")
-      return None
-  ```
-- **Test Impact**: None needed.
+### L1: Silent Error Conversion in Phase 5.3
+- **Location**: `phase5_3_weight_orthogonalization/weight_orthogonalizer.py:301-308`
+- **Root Cause**: Infrastructure errors recorded as `orthogonalized_correct=False`, conflating with genuine experiment failures. The `error` field IS preserved.
+- **Impact**: Error tasks inflate failure count in metrics. Follows project convention per MEMORY.md.
+- **Suggested Fix**: Track errors separately or exclude from metrics calculation.
+- **Test Impact**: Modify metrics calculation to filter `error` field.
 
-### L2: Subprocess Timeout Not Enforced in Workers
-- **Location**: `common/retry_utils.py:148-167`
-- **Root Cause**: `signal.SIGALRM` doesn't work in subprocess workers (Python limitation). The code falls back to time-tracking that only logs after completion — infinite loops are never killed.
-- **Impact**: A hanging code generation in a parallel worker wastes GPU time until the hard process timeout kicks in. Known architectural limitation documented in comments.
-- **Suggested Fix**: Consider using `multiprocessing.Process` with a separate watchdog, or rely on the subprocess_executor's hard timeout. Low priority since CUDA operations can't be interrupted anyway.
-- **Test Impact**: None needed.
+### L2: Checkpoint Frequency Documentation Mismatch
+- **Location**: `common/config.py:19` vs CLAUDE.md
+- **Root Cause**: Code uses `CHECKPOINT_FREQUENCY_DEFAULT = 10`, CLAUDE.md says "Checkpoints every 50 records."
+- **Impact**: Documentation is misleading.
+- **Suggested Fix**: Update CLAUDE.md to reflect actual value of 10.
+- **Test Impact**: None.
 
-### L3: Dual `get_phase_output_dir()` Definitions
-- **Location**: `common/phase_registry.py:584` and `common/phase_discovery.py:47`
-- **Root Cause**: Two functions with the same name but different signatures exist in different modules. The registry version returns base directory; the discovery version adds model/dataset suffixes.
-- **Impact**: Import confusion risk. Currently mitigated because `phase_discovery.py` renames the registry import as `registry_get_dir`.
-- **Suggested Fix**: Rename `phase_registry.get_phase_output_dir()` to `get_phase_base_dir()`.
-- **Test Impact**: None needed.
-
-### L4: Terminology 'feature' vs 'latent' in Output Keys
-- **Location**: `phase4_12_zero_disc_steering/zero_disc_steering_generator.py:612` and `phase8_3_selective_steering/selective_steering_analyzer.py:1063`
-- **Root Cause**: Output dictionaries use `'feature'` key instead of `'latent'`, violating project terminology standards in CLAUDE.md.
-- **Impact**: Inconsistent JSON output keys. Any downstream consumer expecting `'latent'` would fail.
-- **Suggested Fix**: Replace `'feature'` keys with `'latent'` in output dicts. Also rename variables: `feature_idx` → `latent_idx`, `all_features` → `all_latents` in Phase 4.12 loop (line 538).
-- **Test Impact**: None needed.
-
-### L5: Hardcoded Color Strings Instead of Config Constants
-- **Location**: `phase4_14_statistical_significance/significance_tester.py:492-529`, `phase6_3_attention_analysis/attention_analyzer.py`, `phase3_12_difficulty_auroc_f1/difficulty_evaluator.py`, `phase5_6_zero_disc_orthogonalization/zero_disc_weight_orthogonalizer.py`
-- **Root Cause**: Multiple visualization files use hardcoded color strings (`'green'`, `'red'`, `'gold'`) instead of importing `COLOR_CORRECTION`, `COLOR_CORRUPTION`, `COLOR_PRESERVATION` from `common/config.py`.
-- **Impact**: If color scheme changes, these files won't update. Cosmetic inconsistency only.
-- **Suggested Fix**: Replace hardcoded strings with config imports.
-- **Test Impact**: None needed.
+---
 
 ## Agent Accuracy
-| Agent | Findings | Confirmed | False Positive Rate |
-|-------|----------|-----------|---------------------|
-| Bug Hunter (A) | 5 | 1 | 80% |
-| Test Coverage (B) | 14 | N/A (coverage gaps, not bugs) | N/A |
-| Error Handling (C) | 15 | 4 | 53% |
-| Consistency (D) | 8 | 4 | 38% |
-| Performance (E) | 15 | 4 | 47% |
-| **Total** | **43** | **13** | **51%** |
 
-## Test Coverage Gaps (from Agent B — not individually verified)
+| Agent | Findings Checked | Confirmed | False Positive Rate |
+|-------|-----------------|-----------|---------------------|
+| Bug Hunter (A) | 7 | 3 | ~50% |
+| Test Coverage (B) | 6 | 2 | ~33% |
+| Error Handling (C) | 7 | 2 | ~57% |
+| Consistency (D) | 3 | 2 | ~0% |
+| Performance (E) | 6 | 1 | ~83% |
+| **Total** | **29** | **10** | **~66%** |
 
-The following critical modules lack adequate test coverage:
-
-| Module | Risk | Tests? | Key Gap |
-|--------|------|--------|---------|
-| `common/subprocess_executor.py` | HIGH | None | Exception classification, timeout, semaphore |
-| `common/weight_utils.py` | HIGH | Partial | Orthogonalization math verification |
-| `common/iterative_parallel_runner.py` | HIGH | Partial | Early stop exception handling, merge failures |
-| `common/parallel_runner.py` | HIGH | Partial | Phase 1/2.2/3.6/5.3/7.x merge functions |
-| `common/dataset_utils.py` | HIGH | Partial | Code evaluation, error type distribution |
-| `common/model_loader.py` | MEDIUM | None | Device detection, dtype selection |
-| `common/checkpoint_manager.py` | MEDIUM | Partial | Parquet sidecar, multi-checkpoint dedup |
-| `common/selective_steering.py` | MEDIUM | None | State management, should_steer flag |
+**Note**: Agent D (Consistency Checker) had the lowest false positive rate. Agent E (Performance) had the highest — most performance claims were disproven by reading the actual code (e.g., SAEs are cached, DataFrame copies are necessary, eager attention is required for attention extraction).

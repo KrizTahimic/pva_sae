@@ -492,6 +492,11 @@ class Phase47Runner:
 
         # Determine direction source
         direction_source = getattr(self.config, 'direction_source', 'sae')
+        if direction_source == 'probe_logreg':
+            raise ValueError(
+                "Phase 4.7 is a steering phase — use '--direction-source probe_mass_mean' "
+                "(not probe_logreg). probe_logreg is for prediction phases (3.8, 3.10, 7.12)."
+            )
         use_probe = direction_source == 'probe_mass_mean'
 
         # Discover Phase 4.5 and 4.6 directories

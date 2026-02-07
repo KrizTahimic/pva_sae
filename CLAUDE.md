@@ -48,7 +48,7 @@ Each phase is a **checkpoint boundary**. If Phase 4.5 fails, you don't lose Phas
 
 Key infrastructure:
 - `--start N --end M` flags: Test on subset before committing to 6-hour run
-- Checkpoints every 50 records: Resume after SSH disconnect
+- Checkpoints every 10 records: Resume after SSH disconnect
 - Auto-discovery: Phases find outputs from previous phases automatically
 
 ---
@@ -128,7 +128,7 @@ See `common/parallel_runner.py` and `common/iterative_parallel_runner.py` for im
 
 ### Checkpointing
 
-All generation phases checkpoint every 50 records. If interrupted, re-run the same command - it auto-resumes.
+All generation phases checkpoint every 10 records. If interrupted, re-run the same command - it auto-resumes.
 
 ---
 

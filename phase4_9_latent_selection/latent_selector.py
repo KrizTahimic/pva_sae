@@ -37,9 +37,7 @@ class LatentSelector:
 
         # Determine direction source
         self.direction_source = getattr(config, 'direction_source', 'sae')
-        self.use_probe = self.direction_source == 'probe_mass_mean'
-
-        if self.use_probe:
+        if self.direction_source in ('probe_logreg', 'probe_mass_mean'):
             raise ValueError("Phase 4.9 is for SAE multi-candidate mode only. "
                            "Probe mode doesn't need latent selection.")
 

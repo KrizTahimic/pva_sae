@@ -122,6 +122,11 @@ def run_evaluation(config):
 
     # Determine direction source (SAE or probe)
     direction_source = getattr(config, 'direction_source', 'sae')
+    if direction_source == 'probe_mass_mean':
+        raise ValueError(
+            "Phase 3.8 is a prediction phase — use '--direction-source probe_logreg' "
+            "(not probe_mass_mean). probe_mass_mean is for steering phases (4.x, 5.x, 7.6)."
+        )
     use_probe = direction_source == 'probe_logreg'
 
     if use_probe:

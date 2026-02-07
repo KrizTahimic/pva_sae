@@ -41,6 +41,11 @@ class TemperatureAUROCEvaluator:
 
         # Direction source: 'sae' (default) or 'probe_logreg'
         self.direction_source = getattr(config, 'direction_source', 'sae')
+        if self.direction_source == 'probe_mass_mean':
+            raise ValueError(
+                "Phase 3.10 is a prediction phase — use '--direction-source probe_logreg' "
+                "(not probe_mass_mean). probe_mass_mean is for steering phases (4.x, 5.x, 7.6)."
+            )
         self.use_probe = self.direction_source == 'probe_logreg'
         self.logger.info(f"Direction source: {self.direction_source}")
 
