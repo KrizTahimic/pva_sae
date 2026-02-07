@@ -205,6 +205,9 @@ class HyperparameterDataRunner:
 
             generation_time = time.time() - start_time
 
+            # NOTE: Phase 3.5 includes 'generation_idx' (multi-temperature/multi-generation).
+            # Phase 3.6 omits it because hyperparameter baseline uses single generation (temp=0.0).
+            # These outputs are never merged together (different splits: tuning vs analysis).
             return {
                 'task_id': row['task_id'],
                 'temperature': 0.0,

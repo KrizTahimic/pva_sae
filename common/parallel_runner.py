@@ -1614,8 +1614,13 @@ def _merge_parallel_results(
             activation_dir = output_path / "activations"
             correct_files = list((activation_dir / "correct").glob("*_layer_*.safetensors"))
             incorrect_files = list((activation_dir / "incorrect").glob("*_layer_*.safetensors"))
-            if correct_files or incorrect_files:
-                logger.info("All tasks already have activations - cross-run checkpointing detected")
+            n_activation_files = len(correct_files) + len(incorrect_files)
+            if n_activation_files > 0:
+                logger.info(
+                    f"Found {n_activation_files} activation files "
+                    f"({len(correct_files)} correct, {len(incorrect_files)} incorrect) - "
+                    f"cross-run checkpointing detected"
+                )
                 logger.info("No new results to merge. Using existing dataset.")
                 # Return indicator that nothing needed to be done
                 return {"checkpointed": True, "message": "All tasks already processed"}

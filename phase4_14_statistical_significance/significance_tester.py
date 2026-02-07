@@ -126,6 +126,10 @@ class SignificanceTester:
 
         observed_rate = n_successes / n_trials
 
+        # NOTE: When baseline_rate=0.0, effect_size is computed against the original
+        # baseline_rate (giving the raw observed rate), while p_value is computed against
+        # effective_rate (the adjusted null hypothesis). Both values are returned so
+        # callers can inspect the actual hypothesis tested via 'effective_rate'.
         return {
             'n_successes': n_successes,
             'n_trials': n_trials,

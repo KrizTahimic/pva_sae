@@ -348,8 +348,20 @@ def discover_phase_outputs(phase: str, phase_dir: Optional[str] = None, config=N
     with open(manifest_path) as f:
         manifest = json.load(f)
 
-    # Build output paths
-    outputs = {k: directory / v for k, v in manifest.get('outputs', {}).items()}
+    # Build output paths and validate they exist on disk
+    outputs = {}
+    missing_outputs = []
+    for k, v in manifest.get('outputs', {}).items():
+        output_path = directory / v
+        outputs[k] = output_path
+        if not output_path.exists():
+            missing_outputs.append(f"{k}: {output_path}")
+
+    if missing_outputs:
+        logger.warning(
+            f"Phase {phase} manifest references files not found on disk: "
+            + ", ".join(missing_outputs)
+        )
 
     return {
         'dir': str(directory),

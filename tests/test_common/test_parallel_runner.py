@@ -9,19 +9,22 @@ Validates:
 - Merge function behavioral tests: Phase 4.5, Phase 8.3
 - GPU failure prevention (Fix 5)
 - Missing field handling (Fix 2)
+- Subprocess orchestration: worker exception handling, timeout behavior
 """
 
 import pytest
 import json
 import pandas as pd
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
+from concurrent.futures import Future
 
 from common.parallel_runner import (
     filter_dataframe_for_gpu,
     _merge_phase4_5_json_results,
     _merge_phase4_8_results,
     _merge_phase8_3_results,
+    run_phase_parallel,
 )
 from common.config import Config
 
@@ -823,3 +826,77 @@ class TestMultiCandidateMergeByKey:
             assert merged["correct"][1]["layer"] == 12
             assert merged["correct"][1]["latent_idx"] == 200
             assert merged["correct"][1]["n_total"] == 7  # 3 + 4
+
+
+# =============================================================================
+# Subprocess Orchestration Tests (M3)
+# =============================================================================
+
+class TestRunPhaseParallel:
+    """Test run_phase_parallel orchestration logic."""
+
+    def test_non_parallelizable_phase_raises(self):
+        """Phases not in PARALLELIZABLE_PHASES should raise ValueError."""
+        config = Config()
+        with pytest.raises(ValueError, match="does not support parallel"):
+            run_phase_parallel("99.99", config, n_gpus=2)
+
+    @patch('common.parallel_runner._merge_parallel_results')
+    @patch('common.parallel_runner.ProcessPoolExecutor')
+    @patch('common.parallel_runner.mp')
+    @patch('common.phase_discovery.get_phase_output_dir', return_value='/tmp/test_phase')
+    def test_worker_exception_causes_failure(self, mock_get_dir, mock_mp, mock_executor_cls, mock_merge):
+        """If any GPU worker fails, run_phase_parallel should raise RuntimeError."""
+        # Setup mock context
+        mock_ctx = MagicMock()
+        mock_mp.get_context.return_value = mock_ctx
+        mock_manager = MagicMock()
+        mock_ctx.Manager.return_value = mock_manager
+
+        # Create futures that simulate one success and one failure
+        future_success = Future()
+        future_success.set_result({'gpu_id': 0, 'status': 'success', 'result': {}})
+
+        future_fail = Future()
+        future_fail.set_result({'gpu_id': 1, 'status': 'error', 'error': 'OOM'})
+
+        # Setup executor mock
+        mock_executor = MagicMock()
+        mock_executor_cls.return_value.__enter__ = MagicMock(return_value=mock_executor)
+        mock_executor_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_executor.submit.side_effect = [future_success, future_fail]
+
+        config = Config()
+        with patch('common.parallel_runner.Path.mkdir'):
+            with pytest.raises(RuntimeError, match="GPU workers failed"):
+                run_phase_parallel("1", config, n_gpus=2)
+
+    @patch('common.parallel_runner._merge_parallel_results')
+    @patch('common.parallel_runner.ProcessPoolExecutor')
+    @patch('common.parallel_runner.mp')
+    @patch('common.phase_discovery.get_phase_output_dir', return_value='/tmp/test_phase')
+    def test_all_workers_succeed_merges(self, mock_get_dir, mock_mp, mock_executor_cls, mock_merge):
+        """If all workers succeed, should proceed to merge."""
+        mock_ctx = MagicMock()
+        mock_mp.get_context.return_value = mock_ctx
+        mock_manager = MagicMock()
+        mock_ctx.Manager.return_value = mock_manager
+
+        future0 = Future()
+        future0.set_result({'gpu_id': 0, 'status': 'success', 'result': {}})
+        future1 = Future()
+        future1.set_result({'gpu_id': 1, 'status': 'success', 'result': {}})
+
+        mock_executor = MagicMock()
+        mock_executor_cls.return_value.__enter__ = MagicMock(return_value=mock_executor)
+        mock_executor_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_executor.submit.side_effect = [future0, future1]
+
+        mock_merge.return_value = {'merged': True}
+
+        config = Config()
+        with patch('common.parallel_runner.Path.mkdir'):
+            result = run_phase_parallel("1", config, n_gpus=2)
+
+        mock_merge.assert_called_once()
+        assert result == {'merged': True}

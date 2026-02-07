@@ -616,13 +616,13 @@ class SteeringEffectAnalyzer:
             finally:
                 hook_handle.remove()
                 attention_extractor.remove_hooks()
+
+            # Periodic GPU cache cleanup and memory monitoring
+            if (enum_idx + 1) % 10 == 0:
                 if self.device.type == "cuda":
                     torch.cuda.empty_cache()
                 elif self.device.type == "mps":
                     torch.mps.synchronize()
-
-            # Memory monitoring and checkpointing
-            if (enum_idx + 1) % 10 == 0:
                 check_memory_usage()
                 gc.collect()
 

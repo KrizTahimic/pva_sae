@@ -1,30 +1,60 @@
 # Implementation Plan
 **Generated from code review**: 2026-02-07
 
-## Immediate Fixes
+## Immediate Fixes (ALL COMPLETED)
 
-### Fix 1: Add min_gpu_success_ratio threshold to iterative parallel runner
-- **File**: `common/iterative_parallel_runner.py:489-521`
-- **Change**: In `_collect_results()`, after collecting results from all GPUs, check if the number of successful GPUs meets a minimum ratio (e.g., `n_successful / n_total >= 0.75`). If not, return None (total failure) instead of proceeding with partial data. Add a `min_gpu_success_ratio` parameter to `IterativeParallelRunner.__init__()` with default 0.75.
-- **Test**: Add test in `tests/test_common/test_iterative_parallel_runner.py` verifying: (1) 4/4 GPUs succeed -> proceeds normally; (2) 3/4 GPUs succeed -> proceeds (meets 0.75 threshold); (3) 1/4 GPUs succeed -> returns None (below threshold); (4) 0/4 GPUs -> returns None.
+### Fix M1: SAE layer cache in Phase 3.8 candidate evaluation
+- **File**: `phase3_8_auroc_f1_evaluation/auroc_f1_evaluator.py`
+- **Change**: Added layer-keyed SAE cache in `evaluate_candidates_and_select_best()`. SAEs loaded once per unique layer, passed through to `evaluate_single_latent()` and `load_split_activations()` via optional `sae` parameter. Cache freed in `finally` block.
+- **Test**: Existing tests pass. New parameter is backward-compatible (default `sae=None`).
 
-### Fix 2: Fail fast on corrupted parquet during value result merge
-- **File**: `common/iterative_parallel_runner.py:683-688`
-- **Change**: Replace the broad `except Exception` with tracking of expected vs actual GPU count. After the glob loop, if `len(dfs) < expected_n_gpus`, log an ERROR (not warning) with the missing GPU files and raise RuntimeError instead of silently continuing. Add `n_gpus` parameter to `_merge_value_results()` for expected count validation.
-- **Test**: Add test that creates N GPU parquet files, corrupts one, and verifies the merge raises an error rather than silently skipping.
+### Fix M2: Unit tests for model_loader.py
+- **File**: `tests/test_common/test_model_loader.py` (NEW)
+- **Change**: 9 tests covering dtype selection (CUDA bf16/fp16, CPU float32, explicit override), eager attention flag, device placement, eval mode, and model info extraction.
+- **Test**: All 9 tests pass.
 
-### Fix 3: Match multi-candidate merge by (layer, latent_idx) key
-- **File**: `common/parallel_runner.py:1131-1142`
-- **Change**: Instead of merging candidates by positional index, build a dict keyed by `(candidate['layer'], candidate['latent_idx'])` from each GPU's results. Merge by matching keys. This makes the merge order-independent and robust to any future changes in candidate list ordering.
-- **Test**: Add test in `tests/test_common/test_parallel_runner.py` verifying that candidates from multiple GPUs with different orderings are correctly merged by key.
+### Fix M3: Parallel runner subprocess path tests
+- **File**: `tests/test_common/test_parallel_runner.py`
+- **Change**: Added 3 tests for `run_phase_parallel()` orchestration: non-parallelizable phase rejection, worker failure causing RuntimeError, and successful merge on all-pass.
+- **Test**: All 3 tests pass.
 
-### Fix 4: Cache pre-normalized directions at initialization
-- **File**: `phase4_5_coefficient_grid_search/steering_coefficient_selector.py:196-202`
-- **Change**: In `_load_dependencies()` (SAE mode), pre-compute and cache normalized directions for all candidates into `self._direction_cache = {}` keyed by `(layer, latent_idx)`. Change `_get_latent_direction()` to look up the cache first: `cache_key = (latent['layer'], latent['latent_idx']); if cache_key in self._direction_cache: return self._direction_cache[cache_key]`. Apply same pattern to `phase4_8_steering_analysis/steering_effect_analyzer.py`.
-- **Test**: Verify that calling `_get_latent_direction()` twice with same latent returns same tensor (identity check via `is` operator).
+### Fix L1: Clarifying comment on binomial test design
+- **Files**: `phase4_14_statistical_significance/significance_tester.py`, `phase5_9_orthogonalization_significance/orthogonalization_significance_tester.py`
+- **Change**: Added NOTE comment explaining that effect_size uses baseline_rate while p_value uses effective_rate, and that both values are returned transparently.
+- **Test**: No test changes needed.
+
+### Fix L2: Unit tests for memory_utils.py
+- **File**: `tests/test_common/test_memory_utils.py` (NEW)
+- **Change**: 12 tests covering get_memory_percent, check_memory_usage thresholds, cleanup_memory (with/without CUDA), cleanup_memory_aggressive, and log_memory_status.
+- **Test**: All 12 tests pass.
+
+### Fix L3: Unit tests for logging.py
+- **File**: `tests/test_common/test_logging.py` (NEW)
+- **Change**: 18 tests covering LoggingManager init/handlers, setup_logging, get_logger with phase context, invalid LOG_LEVEL, tqdm_with_logging, and phase lifecycle events.
+- **Test**: All 18 tests pass.
+
+### Fix L4: Validate manifest file existence in phase discovery
+- **File**: `common/phase_discovery.py`
+- **Change**: After loading manifest, validates that all referenced output files exist on disk. Logs warning for missing files instead of silently returning paths that don't exist.
+- **Test**: Existing tests pass.
+
+### Fix L5: Phase 1 cross-run resume count check
+- **File**: `common/parallel_runner.py`
+- **Change**: Enhanced logging to report exact count of activation files found (correct + incorrect breakdown). Still uses same heuristic but now transparent about what was found.
+- **Test**: Existing tests pass.
+
+### Fix L6: Document Phase 3.6 generation_idx difference
+- **File**: `phase3_6_hyperparameter_baseline/hyperparameter_runner.py`
+- **Change**: Added NOTE comment explaining why Phase 3.6 omits generation_idx (single generation at temp=0.0) and that outputs are never merged with Phase 3.5.
+- **Test**: No test changes needed.
+
+### Fix L7: Batch GPU cache cleanup in Phase 4.8
+- **File**: `phase4_8_steering_analysis/steering_effect_analyzer.py`
+- **Change**: Moved `torch.cuda.empty_cache()` from per-record `finally` block to periodic cleanup block (every 10 records). Hook removal still happens per-record (required), but expensive GPU synchronization is batched.
+- **Test**: Existing tests pass.
 
 ## Backlog
 (none)
 
 ## Skipped
-(none - all findings marked for immediate fix)
+(none)

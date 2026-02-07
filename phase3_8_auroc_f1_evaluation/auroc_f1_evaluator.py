@@ -879,7 +879,8 @@ def load_split_activations(
     latent_type: str,
     phase3_5_dir: Path,
     phase3_6_dir: Path,
-    config: Config
+    config: Config,
+    sae=None
 ) -> tuple[np.ndarray, np.ndarray]:
     """Load activations for a specific latent from appropriate phase data.
 
@@ -890,6 +891,8 @@ def load_split_activations(
         latent_type: 'correct' or 'incorrect'
         phase3_5_dir: Directory containing Phase 3.5 outputs (analysis split)
         phase3_6_dir: Directory containing Phase 3.6 outputs (tuning split)
+        config: Configuration object
+        sae: Optional pre-loaded SAE instance to reuse (avoids reloading per candidate)
 
     Returns:
         Tuple of (labels, activations)
@@ -910,10 +913,14 @@ def load_split_activations(
         # Load temperature 0.0 dataset from Phase 3.5
         temp_data = pd.read_parquet(phase3_5_dir / 'dataset_temp_0_0.parquet')
 
-    # Detect device and load SAE for encoding
+    # Detect device and load SAE for encoding (reuse if provided)
     device = detect_device()
-    sae = load_sae_for_config(config, layer_num, device)
-    logger.info(f"Loaded SAE for layer {layer_num} with 16,384 latents on {device}")
+    sae_provided = sae is not None
+    if not sae_provided:
+        sae = load_sae_for_config(config, layer_num, device)
+        logger.info(f"Loaded SAE for layer {layer_num} with 16,384 latents on {device}")
+    else:
+        logger.info(f"Reusing pre-loaded SAE for layer {layer_num}")
 
     activations = []
     labels = []
@@ -963,10 +970,11 @@ def load_split_activations(
         logger.info(f"Loaded {len(labels)} samples for {split_name} split")
         logger.info(f"Class distribution: {np.bincount(labels)}")
     finally:
-        # Ensure SAE is freed from GPU memory even on exception
-        del sae
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        # Only free SAE if we loaded it ourselves (not when caller manages the cache)
+        if not sae_provided:
+            del sae
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     return np.array(labels), np.array(activations)
 
@@ -976,7 +984,8 @@ def evaluate_single_latent(
     latent_type: str,
     phase3_5_dir: Path,
     phase3_6_dir: Path,
-    config: Config
+    config: Config,
+    sae=None
 ) -> Optional[dict]:
     """Evaluate one latent candidate on tuning + analysis splits (no plots).
 
@@ -987,6 +996,7 @@ def evaluate_single_latent(
         phase3_5_dir: Phase 3.5 output directory (analysis split)
         phase3_6_dir: Phase 3.6 output directory (tuning split)
         config: Configuration object
+        sae: Optional pre-loaded SAE instance to reuse (avoids reloading per candidate)
 
     Returns:
         dict with metrics and raw data, or None if evaluation fails
@@ -995,7 +1005,7 @@ def evaluate_single_latent(
         # Tuning split: find optimal threshold
         y_true_hp, scores_hp = load_split_activations(
             'tuning', layer, latent_idx, latent_type,
-            phase3_5_dir, phase3_6_dir, config
+            phase3_5_dir, phase3_6_dir, config, sae=sae
         )
 
         if len(y_true_hp) == 0:
@@ -1027,7 +1037,7 @@ def evaluate_single_latent(
         # Analysis (validation) split
         y_true_val, scores_val = load_split_activations(
             'analysis', layer, latent_idx, latent_type,
-            phase3_5_dir, phase3_6_dir, config
+            phase3_5_dir, phase3_6_dir, config, sae=sae
         )
 
         if len(y_true_val) == 0:
@@ -1085,23 +1095,41 @@ def evaluate_candidates_and_select_best(
     """
     logger.info(f"Evaluating {len(candidates)} {latent_type}-predicting candidates:")
 
+    # Cache SAEs by layer to avoid redundant loads when candidates share layers
+    sae_cache = {}
+    device = detect_device()
+
     results = []
-    for rank, candidate in enumerate(candidates):
-        layer = candidate['layer']
-        latent_idx = candidate['latent_idx']
-        logger.info(f"  Candidate {rank}: L{layer}-{latent_idx}")
+    try:
+        for rank, candidate in enumerate(candidates):
+            layer = candidate['layer']
+            latent_idx = candidate['latent_idx']
+            logger.info(f"  Candidate {rank}: L{layer}-{latent_idx}")
 
-        result = evaluate_single_latent(
-            layer, latent_idx, latent_type,
-            phase3_5_dir, phase3_6_dir, config
-        )
+            # Load SAE once per unique layer
+            if layer not in sae_cache:
+                sae_cache[layer] = load_sae_for_config(config, layer, device)
+                logger.info(f"  Loaded SAE for layer {layer} (cached for reuse)")
 
-        if result is not None:
-            result['rank'] = rank
-            result['t_statistic'] = candidate.get('t_statistic')
-            results.append(result)
-        else:
-            logger.warning(f"  Candidate {rank} (L{layer}-{latent_idx}): SKIPPED (missing layer data)")
+            result = evaluate_single_latent(
+                layer, latent_idx, latent_type,
+                phase3_5_dir, phase3_6_dir, config,
+                sae=sae_cache[layer]
+            )
+
+            if result is not None:
+                result['rank'] = rank
+                result['t_statistic'] = candidate.get('t_statistic')
+                results.append(result)
+            else:
+                logger.warning(f"  Candidate {rank} (L{layer}-{latent_idx}): SKIPPED (missing layer data)")
+    finally:
+        # Free all cached SAEs from GPU
+        for layer_idx in list(sae_cache.keys()):
+            del sae_cache[layer_idx]
+        sae_cache.clear()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     if not results:
         raise RuntimeError(
