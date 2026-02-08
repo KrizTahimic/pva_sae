@@ -719,46 +719,93 @@ class TestMergeWithMissingFields:
 
 class TestMultiCandidateMergeByKey:
     """Test that multi-candidate merge matches candidates by (layer, latent_idx)
-    rather than positional index, making it order-independent."""
+    rather than positional index, making it order-independent.
+    Also verifies per-candidate rates are recalculated from merged per-problem data."""
 
-    def test_same_order_merges_correctly(self):
-        """Candidates in same order across GPUs should merge correctly."""
+    def _make_gpu_data(self, correct_candidates, incorrect_candidates,
+                       correction, corruption, preservation, n_problems):
+        """Helper to build a GPU data dict."""
+        return {
+            "correct": correct_candidates,
+            "incorrect": incorrect_candidates,
+            "direction_source": "sae",
+            "coefficients": {},
+            "correction": correction,
+            "corruption": corruption,
+            "preservation": preservation,
+            "n_problems": n_problems,
+        }
+
+    def test_same_order_merges_correctly_with_rates(self):
+        """Candidates in same order across GPUs: n_total summed and rates recalculated."""
         from common.parallel_runner import _merge_phase4_8_results
 
-        candidates = [
-            {"layer": 10, "latent_idx": 100, "n_total": 5},
-            {"layer": 12, "latent_idx": 200, "n_total": 3},
-        ]
-
-        gpu0 = {
-            "correct": [
-                {"layer": 10, "latent_idx": 100, "n_total": 5},
-                {"layer": 12, "latent_idx": 200, "n_total": 3},
+        # GPU 0: candidate L10_100 corrects 1/2, candidate L12_200 corrects 0/2
+        gpu0 = self._make_gpu_data(
+            correct_candidates=[
+                {
+                    "layer": 10, "latent_idx": 100, "n_total": 5,
+                    "correction_rate": 50.0, "preservation_rate": 100.0,
+                    "detailed_results": [
+                        {"task_id": "t0", "baseline_passed": False, "steered_correct": True},
+                        {"task_id": "t1", "baseline_passed": False, "steered_correct": False},
+                    ],
+                    "preservation_detailed": [
+                        {"task_id": "t10", "baseline_passed": True, "steered_correct": True},
+                    ],
+                },
+                {
+                    "layer": 12, "latent_idx": 200, "n_total": 3,
+                    "correction_rate": 0.0, "preservation_rate": 100.0,
+                    "detailed_results": [
+                        {"task_id": "t0", "baseline_passed": False, "steered_correct": False},
+                        {"task_id": "t1", "baseline_passed": False, "steered_correct": False},
+                    ],
+                    "preservation_detailed": [
+                        {"task_id": "t10", "baseline_passed": True, "steered_correct": True},
+                    ],
+                },
             ],
-            "incorrect": [],
-            "direction_source": "sae",
-            "coefficients": {},
-            "correction": [{"task_id": "t0", "baseline_passed": False, "steered_correct": True}],
-            "corruption": [],
-            "preservation": [],
-            "n_problems": {"initially_correct": 0, "initially_incorrect": 1, "total": 1},
-        }
+            incorrect_candidates=[],
+            correction=[{"task_id": "t0", "baseline_passed": False, "steered_correct": True}],
+            corruption=[],
+            preservation=[{"task_id": "t10", "baseline_passed": True, "steered_correct": True}],
+            n_problems={"initially_correct": 1, "initially_incorrect": 2, "total": 3},
+        )
 
-        gpu1 = {
-            "correct": [
-                {"layer": 10, "latent_idx": 100, "n_total": 7},
-                {"layer": 12, "latent_idx": 200, "n_total": 4},
+        # GPU 1: candidate L10_100 corrects 1/2, candidate L12_200 corrects 1/2
+        gpu1 = self._make_gpu_data(
+            correct_candidates=[
+                {
+                    "layer": 10, "latent_idx": 100, "n_total": 7,
+                    "correction_rate": 50.0, "preservation_rate": 50.0,
+                    "detailed_results": [
+                        {"task_id": "t2", "baseline_passed": False, "steered_correct": True},
+                        {"task_id": "t3", "baseline_passed": False, "steered_correct": False},
+                    ],
+                    "preservation_detailed": [
+                        {"task_id": "t11", "baseline_passed": True, "steered_correct": False},
+                    ],
+                },
+                {
+                    "layer": 12, "latent_idx": 200, "n_total": 4,
+                    "correction_rate": 50.0, "preservation_rate": 100.0,
+                    "detailed_results": [
+                        {"task_id": "t2", "baseline_passed": False, "steered_correct": False},
+                        {"task_id": "t3", "baseline_passed": False, "steered_correct": True},
+                    ],
+                    "preservation_detailed": [
+                        {"task_id": "t11", "baseline_passed": True, "steered_correct": True},
+                    ],
+                },
             ],
-            "incorrect": [],
-            "direction_source": "sae",
-            "coefficients": {},
-            "correction": [{"task_id": "t1", "baseline_passed": False, "steered_correct": False}],
-            "corruption": [],
-            "preservation": [],
-            "n_problems": {"initially_correct": 0, "initially_incorrect": 1, "total": 1},
-        }
+            incorrect_candidates=[],
+            correction=[{"task_id": "t2", "baseline_passed": False, "steered_correct": True}],
+            corruption=[],
+            preservation=[{"task_id": "t11", "baseline_passed": True, "steered_correct": False}],
+            n_problems={"initially_correct": 1, "initially_incorrect": 2, "total": 3},
+        )
 
-        # Write GPU files
         import tempfile
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -766,7 +813,7 @@ class TestMultiCandidateMergeByKey:
                 (tmpdir / f"steering_effect_analysis_gpu{i}.json").write_text(json.dumps(data))
 
             with patch("common.parallel_runner.write_phase_output"):
-                result = _merge_phase4_8_results(tmpdir, n_gpus=2, config=Config(), phase_id="4.8")
+                _merge_phase4_8_results(tmpdir, n_gpus=2, config=Config(), phase_id="4.8")
 
             merged = json.loads((tmpdir / "steering_effect_analysis.json").read_text())
 
@@ -774,38 +821,84 @@ class TestMultiCandidateMergeByKey:
             assert merged["correct"][0]["n_total"] == 12
             assert merged["correct"][1]["n_total"] == 7
 
+            # Per-candidate rates recalculated from merged per-problem data:
+            # L10_100: corrects t0,t2 out of t0,t1,t2,t3 => 2/4 = 50%
+            assert merged["correct"][0]["correction_rate"] == 50.0
+            # L12_200: corrects t3 out of t0,t1,t2,t3 => 1/4 = 25%
+            assert merged["correct"][1]["correction_rate"] == 25.0
+
+            # L10_100 preservation: t10 correct, t11 incorrect => 1/2 = 50%
+            assert merged["correct"][0]["preservation_rate"] == 50.0
+            # L12_200 preservation: t10 correct, t11 correct => 2/2 = 100%
+            assert merged["correct"][1]["preservation_rate"] == 100.0
+
+            # Top-level correction_rate should match best candidate (L10_100 at 50%)
+            assert merged["correction_rate"] == 50.0
+
+            # Per-candidate detail should be stripped from saved output
+            assert "detailed_results" not in merged["correct"][0]
+            assert "preservation_detailed" not in merged["correct"][0]
+
     def test_different_order_merges_by_key(self):
         """Candidates in different order across GPUs should still merge correctly by key."""
         from common.parallel_runner import _merge_phase4_8_results
 
-        gpu0 = {
-            "correct": [
-                {"layer": 10, "latent_idx": 100, "n_total": 5},
-                {"layer": 12, "latent_idx": 200, "n_total": 3},
+        gpu0 = self._make_gpu_data(
+            correct_candidates=[
+                {
+                    "layer": 10, "latent_idx": 100, "n_total": 5,
+                    "correction_rate": 50.0, "preservation_rate": 100.0,
+                    "detailed_results": [
+                        {"task_id": "t0", "baseline_passed": False, "steered_correct": True},
+                        {"task_id": "t1", "baseline_passed": False, "steered_correct": False},
+                    ],
+                    "preservation_detailed": [],
+                },
+                {
+                    "layer": 12, "latent_idx": 200, "n_total": 3,
+                    "correction_rate": 0.0, "preservation_rate": 100.0,
+                    "detailed_results": [
+                        {"task_id": "t0", "baseline_passed": False, "steered_correct": False},
+                        {"task_id": "t1", "baseline_passed": False, "steered_correct": False},
+                    ],
+                    "preservation_detailed": [],
+                },
             ],
-            "incorrect": [],
-            "direction_source": "sae",
-            "coefficients": {},
-            "correction": [{"task_id": "t0", "baseline_passed": False, "steered_correct": True}],
-            "corruption": [],
-            "preservation": [],
-            "n_problems": {"initially_correct": 0, "initially_incorrect": 1, "total": 1},
-        }
+            incorrect_candidates=[],
+            correction=[{"task_id": "t0", "baseline_passed": False, "steered_correct": True}],
+            corruption=[],
+            preservation=[],
+            n_problems={"initially_correct": 0, "initially_incorrect": 2, "total": 2},
+        )
 
         # GPU 1 has candidates in REVERSED order
-        gpu1 = {
-            "correct": [
-                {"layer": 12, "latent_idx": 200, "n_total": 4},
-                {"layer": 10, "latent_idx": 100, "n_total": 7},
+        gpu1 = self._make_gpu_data(
+            correct_candidates=[
+                {
+                    "layer": 12, "latent_idx": 200, "n_total": 4,
+                    "correction_rate": 50.0, "preservation_rate": 100.0,
+                    "detailed_results": [
+                        {"task_id": "t2", "baseline_passed": False, "steered_correct": True},
+                        {"task_id": "t3", "baseline_passed": False, "steered_correct": False},
+                    ],
+                    "preservation_detailed": [],
+                },
+                {
+                    "layer": 10, "latent_idx": 100, "n_total": 7,
+                    "correction_rate": 100.0, "preservation_rate": 100.0,
+                    "detailed_results": [
+                        {"task_id": "t2", "baseline_passed": False, "steered_correct": True},
+                        {"task_id": "t3", "baseline_passed": False, "steered_correct": True},
+                    ],
+                    "preservation_detailed": [],
+                },
             ],
-            "incorrect": [],
-            "direction_source": "sae",
-            "coefficients": {},
-            "correction": [{"task_id": "t1", "baseline_passed": False, "steered_correct": False}],
-            "corruption": [],
-            "preservation": [],
-            "n_problems": {"initially_correct": 0, "initially_incorrect": 1, "total": 1},
-        }
+            incorrect_candidates=[],
+            correction=[{"task_id": "t2", "baseline_passed": False, "steered_correct": True}],
+            corruption=[],
+            preservation=[],
+            n_problems={"initially_correct": 0, "initially_incorrect": 2, "total": 2},
+        )
 
         import tempfile
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -814,7 +907,7 @@ class TestMultiCandidateMergeByKey:
                 (tmpdir / f"steering_effect_analysis_gpu{i}.json").write_text(json.dumps(data))
 
             with patch("common.parallel_runner.write_phase_output"):
-                result = _merge_phase4_8_results(tmpdir, n_gpus=2, config=Config(), phase_id="4.8")
+                _merge_phase4_8_results(tmpdir, n_gpus=2, config=Config(), phase_id="4.8")
 
             merged = json.loads((tmpdir / "steering_effect_analysis.json").read_text())
 
@@ -827,6 +920,64 @@ class TestMultiCandidateMergeByKey:
             assert merged["correct"][1]["layer"] == 12
             assert merged["correct"][1]["latent_idx"] == 200
             assert merged["correct"][1]["n_total"] == 7  # 3 + 4
+
+            # L10_100: corrects t0,t2,t3 out of t0,t1,t2,t3 => 3/4 = 75%
+            assert merged["correct"][0]["correction_rate"] == 75.0
+            # L12_200: corrects t2 out of t0,t1,t2,t3 => 1/4 = 25%
+            assert merged["correct"][1]["correction_rate"] == 25.0
+
+            # Top-level rate should match best candidate (L10_100 at 75%)
+            assert merged["correction_rate"] == 75.0
+
+    def test_fallback_warns_when_detail_missing(self):
+        """When per-candidate detailed_results are missing, warn and use old behavior."""
+        from common.parallel_runner import _merge_phase4_8_results
+
+        # Old-format GPU data: no detailed_results in candidates
+        gpu0 = self._make_gpu_data(
+            correct_candidates=[
+                {"layer": 10, "latent_idx": 100, "n_total": 5, "correction_rate": 50.0},
+            ],
+            incorrect_candidates=[],
+            correction=[{"task_id": "t0", "baseline_passed": False, "steered_correct": True}],
+            corruption=[],
+            preservation=[],
+            n_problems={"initially_correct": 0, "initially_incorrect": 1, "total": 1},
+        )
+        gpu1 = self._make_gpu_data(
+            correct_candidates=[
+                {"layer": 10, "latent_idx": 100, "n_total": 7, "correction_rate": 100.0},
+            ],
+            incorrect_candidates=[],
+            correction=[{"task_id": "t1", "baseline_passed": False, "steered_correct": False}],
+            corruption=[],
+            preservation=[],
+            n_problems={"initially_correct": 0, "initially_incorrect": 1, "total": 1},
+        )
+
+        import tempfile
+        import logging
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            for i, data in enumerate([gpu0, gpu1]):
+                (tmpdir / f"steering_effect_analysis_gpu{i}.json").write_text(json.dumps(data))
+
+            with patch("common.parallel_runner.write_phase_output"):
+                with patch("common.parallel_runner.logger") as mock_logger:
+                    _merge_phase4_8_results(tmpdir, n_gpus=2, config=Config(), phase_id="4.8")
+
+            # Should have warned about missing detail
+            warning_calls = [str(c) for c in mock_logger.warning.call_args_list]
+            assert any("missing" in w.lower() or "old format" in w.lower() for w in warning_calls), \
+                f"Expected warning about missing detail, got: {warning_calls}"
+
+            merged = json.loads((tmpdir / "steering_effect_analysis.json").read_text())
+
+            # n_total should still be summed (old behavior works)
+            assert merged["correct"][0]["n_total"] == 12
+
+            # Rate should be from GPU 0 only (old/fallback behavior)
+            assert merged["correct"][0]["correction_rate"] == 50.0
 
 
 # =============================================================================

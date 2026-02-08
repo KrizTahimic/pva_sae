@@ -1553,11 +1553,14 @@ class SteeringEffectAnalyzer:
                 'total': len(self.baseline_data),
             },
         }
-        # Strip detailed_results from individual candidates to avoid duplication in saved file
-        for steering_type in ['correct', 'incorrect']:
-            for entry in output.get(steering_type, []):
-                entry.pop('detailed_results', None)
-                entry.pop('preservation_detailed', None)
+        # Strip per-candidate detailed_results in single-GPU mode to avoid duplication.
+        # In parallel mode, GPU files are temporary (deleted after merge) and the merge
+        # needs per-candidate detail to recalculate rates correctly.
+        if self.n_gpus <= 1:
+            for steering_type in ['correct', 'incorrect']:
+                for entry in output.get(steering_type, []):
+                    entry.pop('detailed_results', None)
+                    entry.pop('preservation_detailed', None)
 
         # Save results (use GPU-specific names in parallel mode)
         if self.n_gpus > 1:

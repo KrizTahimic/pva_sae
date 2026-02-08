@@ -1140,13 +1140,32 @@ def _merge_phase4_8_results(
 
     # Handle multi-candidate mode: merge candidate lists by (layer, latent_idx) key
     if is_multi_candidate:
+        # Check if per-candidate detailed_results are available (new parallel GPU files)
+        sample_candidate = next(
+            (c for d in gpu_data for c in d.get('correct', []) + d.get('incorrect', [])),
+            {}
+        )
+        has_candidate_detail = 'detailed_results' in sample_candidate
+
+        if not has_candidate_detail:
+            logger.warning(
+                "Per-candidate detailed_results missing from GPU files (old format). "
+                "Per-candidate rates will reflect GPU 0 only. "
+                "Re-run with updated code for accurate merged rates."
+            )
+
         for candidate_key in ('correct', 'incorrect'):
             # Build lookup from each GPU's candidates keyed by (layer, latent_idx)
             candidate_totals = {}
+            candidate_details = {}  # key -> list of per-task dicts
+            candidate_preservation = {}  # key -> list of per-task dicts
             for d in gpu_data:
                 for candidate in d.get(candidate_key, []):
                     key = (candidate.get('layer'), candidate.get('latent_idx'))
                     candidate_totals[key] = candidate_totals.get(key, 0) + candidate.get('n_total', 0)
+                    if has_candidate_detail:
+                        candidate_details.setdefault(key, []).extend(candidate.get('detailed_results', []))
+                        candidate_preservation.setdefault(key, []).extend(candidate.get('preservation_detailed', []))
 
             # Merge using reference candidate order, matching by key
             merged_candidates = []
@@ -1154,15 +1173,65 @@ def _merge_phase4_8_results(
                 merged_candidate = candidate.copy()
                 key = (candidate.get('layer'), candidate.get('latent_idx'))
                 merged_candidate['n_total'] = candidate_totals.get(key, 0)
+
+                if has_candidate_detail:
+                    # Dedup and recalculate rates from merged per-problem data
+                    deduped_detail = _dedup_by_task_id(candidate_details.get(key, []))
+                    deduped_preservation = _dedup_by_task_id(candidate_preservation.get(key, []))
+
+                    if candidate_key == 'correct':
+                        merged_candidate['correction_rate'] = calculate_correction_rate(deduped_detail)
+                        merged_candidate['preservation_rate'] = calculate_preservation_rate(deduped_preservation)
+                    else:
+                        merged_candidate['corruption_rate'] = calculate_corruption_rate(deduped_detail)
+
+                    # Store detail temporarily for best-candidate selection below
+                    merged_candidate['_detail'] = deduped_detail
+                    merged_candidate['_preservation'] = deduped_preservation
+
+                # Strip per-candidate detail from final output (not needed in saved file)
+                merged_candidate.pop('detailed_results', None)
+                merged_candidate.pop('preservation_detailed', None)
                 merged_candidates.append(merged_candidate)
+
             merged_metrics[candidate_key] = merged_candidates
 
+        # Rebuild top-level detailed_results from the properly-merged best candidate
+        if has_candidate_detail:
+            if merged_metrics.get('correct'):
+                best_correct = max(merged_metrics['correct'], key=lambda x: x.get('correction_rate', 0))
+                best_detail = best_correct.pop('_detail', [])
+                best_preservation = best_correct.pop('_preservation', [])
+                merged_metrics['detailed_results']['correction'] = best_detail
+                merged_metrics['detailed_results']['preservation'] = best_preservation
+                # Update top-level rates and local vars for summary/logging
+                correction_rate = best_correct['correction_rate']
+                preservation_rate = best_correct.get('preservation_rate', preservation_rate)
+                merged_metrics['correction_rate'] = correction_rate
+                merged_metrics['preservation_rate'] = preservation_rate
+                merged_correction = best_detail
+                merged_preservation = best_preservation
+
+            if merged_metrics.get('incorrect'):
+                best_incorrect = max(merged_metrics['incorrect'], key=lambda x: x.get('corruption_rate', 0))
+                best_corruption_detail = best_incorrect.pop('_detail', [])
+                merged_metrics['detailed_results']['corruption'] = best_corruption_detail
+                corruption_rate = best_incorrect['corruption_rate']
+                merged_metrics['corruption_rate'] = corruption_rate
+                merged_corruption = best_corruption_detail
+
+            # Clean up temporary _detail/_preservation from non-best candidates
+            for candidate_key in ('correct', 'incorrect'):
+                for c in merged_metrics.get(candidate_key, []):
+                    c.pop('_detail', None)
+                    c.pop('_preservation', None)
+
         merged_metrics['best_candidates'] = {
-            'correct': merged_metrics['correct'][0] if merged_metrics['correct'] else None,
-            'incorrect': merged_metrics['incorrect'][0] if merged_metrics['incorrect'] else None,
+            'correct': merged_metrics['correct'][0] if merged_metrics.get('correct') else None,
+            'incorrect': merged_metrics['incorrect'][0] if merged_metrics.get('incorrect') else None,
         }
-        logger.info(f"Multi-candidate mode: merged {len(merged_metrics['correct'])} correct, "
-                    f"{len(merged_metrics['incorrect'])} incorrect candidates")
+        logger.info(f"Multi-candidate mode: merged {len(merged_metrics.get('correct', []))} correct, "
+                    f"{len(merged_metrics.get('incorrect', []))} incorrect candidates")
 
     # Save merged analysis JSON
     save_json(merged_metrics, output_path / "steering_effect_analysis.json")
