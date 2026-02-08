@@ -1,14 +1,10 @@
 #!/bin/bash
-# Clean full rerun of Gemma-2-2B pipeline (SAE + Probe)
+# Full Gemma-2-2B pipeline (SAE + Probe) — all phases from scratch.
 #
-# Why: 50 commits / 130+ bug fixes since Phase 1 data was generated (Jan 25).
-# Code changes to evaluation logic, direction normalization, parallel merge,
-# and timeout handling make old data unreliable with current code.
-#
-# This script:
-#   1. Clears all __pycache__ (prevents stale bytecode)
-#   2. Backs up old data to data_backup_YYYYMMDD/
-#   3. Runs ALL phases from scratch (Phase 0 through Probe selective steering)
+# Prerequisites (do these BEFORE running):
+#   1. Clear __pycache__:  find . -type d -name __pycache__ -exec rm -rf {} +
+#   2. Back up old data:   mv data data_backup_$(date +%Y%m%d)
+#   3. Create fresh dir:   mkdir -p data
 #
 # Config: google/gemma-2-2b + mbpp (defaults, no flags needed)
 #
@@ -36,32 +32,7 @@ echo "Started: $(date)"
 echo "Git commit: $(git rev-parse --short HEAD)"
 echo "============================================================"
 
-# ============================================================
-# STEP 0: Clear stale bytecode cache
-# ============================================================
-echo ""
-echo "Clearing __pycache__ directories..."
-find /home/kriz.tahimic/sae-code-correctness -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-echo "Done."
-
-# ============================================================
-# STEP 1: Back up old data
-# ============================================================
-BACKUP_DIR="data_backup_$(date +%Y%m%d_%H%M%S)"
-if [ -d "data" ] && [ "$(ls -A data/)" ]; then
-    echo ""
-    echo "Backing up existing data to ${BACKUP_DIR}/..."
-    mv data "$BACKUP_DIR"
-    mkdir -p data
-    echo "Backup complete: $(du -sh "$BACKUP_DIR" | cut -f1)"
-else
-    echo "No existing data to back up."
-    mkdir -p data
-fi
-
-# ============================================================
-# Helper function
-# ============================================================
+# Helper: wraps `python3 run.py` with per-phase timing
 run_phase() {
     local description="$1"
     shift
@@ -315,7 +286,7 @@ TOTAL_SECS=$(( TOTAL_ELAPSED % 60 ))
 
 echo ""
 echo "============================================================"
-echo "Clean Full Rerun Complete!"
+echo "Full Pipeline Complete!"
 echo "Finished: $(date)"
 echo "Total elapsed: ${TOTAL_HOURS}h ${TOTAL_MINS}m ${TOTAL_SECS}s"
 echo "Git commit: $(git rev-parse --short HEAD)"
