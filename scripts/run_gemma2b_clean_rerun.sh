@@ -13,7 +13,7 @@
 #   bash scripts/run_gemma2b_clean_rerun.sh
 #
 # Estimated time: ~20-24 hours (Phase 1 ~6h, Phase 4.5/4.6 ~7h, rest ~8h)
-# Total: 48 phase runs (6 foundation + 31 SAE + 11 probe)
+# Total: 53 phase runs (6 foundation + 35 SAE + 12 probe)
 
 set -e
 
@@ -92,11 +92,17 @@ run_phase "Phase 2.5: SAE analysis + pile filtering" \
 run_phase "Phase 2.6: Probe training (logreg + mass_mean)" \
     phase 2.6
 
+run_phase "Phase 2.7: Direction similarity analysis" \
+    phase 2.7
+
 run_phase "Phase 2.10: T-statistic latent selection" \
     phase 2.10
 
 run_phase "Phase 2.13: Threshold sensitivity analysis" \
     phase 2.13
+
+run_phase "Phase 2.15: Layer-wise analysis visualization" \
+    phase 2.15
 
 run_phase "Phase 2.20: Latent landscape visualization" \
     phase 2.20
@@ -157,6 +163,9 @@ run_phase "Phase 4.14: Statistical significance" \
 
 run_phase "Phase 4.16: Difficulty-stratified steering" \
     phase 4.16
+
+run_phase "Phase 6.3: Attention pattern analysis" \
+    phase 6.3
 
 # ============================================================
 # STAGE 5: Weight Orthogonalization (SAE)
@@ -239,6 +248,9 @@ run_phase "Phase 4.6: Probe golden section (mass_mean)" \
 run_phase "Phase 4.8: Probe steering effect (mass_mean)" \
     phase 4.8 --direction-source probe_mass_mean --parallel 4
 
+run_phase "Phase 6.3: Probe attention pattern analysis (mass_mean)" \
+    phase 6.3 --direction-source probe_mass_mean
+
 # ============================================================
 # STAGE 10: Probe Orthogonalization
 # ============================================================
@@ -274,6 +286,15 @@ run_phase "Phase 8.2: Probe threshold optimizer (logreg)" \
 
 run_phase "Phase 8.3: Probe selective steering (logreg)" \
     phase 8.3 --direction-source probe_logreg --parallel 4
+
+# ============================================================
+# STAGE 13: Error Type Summary
+# ============================================================
+echo ""
+echo "############ STAGE 13: Error Type Summary ############"
+
+run_phase "Phase 9.5: Error type summary" \
+    phase 9.5
 
 # ============================================================
 # DONE
