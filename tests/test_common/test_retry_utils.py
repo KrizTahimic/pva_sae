@@ -209,11 +209,11 @@ class TestCreateExclusionSummary:
 
 
 # =============================================================================
-# retry_with_timeout Subprocess (Thread-Based) Tests
+# retry_with_timeout SIGALRM Tests
 # =============================================================================
 
-class TestRetryWithTimeoutSubprocess:
-    """Test retry_with_timeout thread-based path used in subprocess workers."""
+class TestRetryWithTimeoutSIGALRM:
+    """Test retry_with_timeout uses SIGALRM universally (main process and workers)."""
 
     @pytest.fixture
     def config(self):
@@ -224,69 +224,77 @@ class TestRetryWithTimeoutSubprocess:
         return config
 
     @patch('time.sleep')
-    def test_closure_works_in_subprocess_context(self, mock_sleep, config):
-        """Closure-based generate_fn should work without pickle errors in subprocess path."""
+    def test_closure_works_regardless_of_process_name(self, mock_sleep, config):
+        """SIGALRM path works with closures — no pickling, no process name dependency."""
         captured_value = {"key": "captured"}
 
         def closure_fn():
             return captured_value["key"]
 
-        with patch('multiprocessing.current_process') as mock_proc:
-            mock_proc.return_value.name = 'SpawnProcess-1'
-            success, result, error = retry_with_timeout(
-                closure_fn, "task_1", config, timeout_seconds=5.0
-            )
+        success, result, error = retry_with_timeout(
+            closure_fn, "task_1", config, timeout_seconds=5.0
+        )
 
         assert success is True
         assert result == "captured"
         assert error is None
 
-    @patch('time.sleep')
-    def test_timeout_fires_via_thread(self, mock_sleep, config):
-        """Should raise TimeoutError when function exceeds timeout."""
-        import threading
-        block_event = threading.Event()
+    def test_sigalrm_timeout_interrupts(self, config):
+        """SIGALRM should interrupt a hung function and raise TimeoutError."""
+        import time
 
         def slow_fn():
-            block_event.wait(timeout=30)  # Block until event set (unaffected by sleep mock)
+            time.sleep(10)  # Will be interrupted by SIGALRM after 1 second
             return "too late"
 
-        with patch('multiprocessing.current_process') as mock_proc:
-            mock_proc.return_value.name = 'SpawnProcess-1'
-            success, result, error = retry_with_timeout(
-                slow_fn, "task_1", config, timeout_seconds=0.1
-            )
+        success, result, error = retry_with_timeout(
+            slow_fn, "task_1", config, timeout_seconds=1
+        )
 
-        block_event.set()  # Unblock daemon threads for clean teardown
         assert success is False
         assert "timed out" in error
 
     @patch('time.sleep')
-    def test_normal_completion_via_thread(self, mock_sleep, config):
+    def test_normal_completion(self, mock_sleep, config):
         """Should return result when function completes within timeout."""
         def fast_fn():
             return {"code": "def foo(): pass", "passed": True}
 
-        with patch('multiprocessing.current_process') as mock_proc:
-            mock_proc.return_value.name = 'SpawnProcess-1'
-            success, result, error = retry_with_timeout(
-                fast_fn, "task_1", config, timeout_seconds=5.0
-            )
+        success, result, error = retry_with_timeout(
+            fast_fn, "task_1", config, timeout_seconds=5.0
+        )
 
         assert success is True
         assert result == {"code": "def foo(): pass", "passed": True}
 
     @patch('time.sleep')
-    def test_exception_propagation_via_thread(self, mock_sleep, config):
-        """Should propagate exceptions from generate_fn through thread path."""
+    def test_exception_propagation(self, mock_sleep, config):
+        """Should propagate exceptions from generate_fn through SIGALRM path."""
         def failing_fn():
             raise ValueError("model generation failed")
 
-        with patch('multiprocessing.current_process') as mock_proc:
-            mock_proc.return_value.name = 'SpawnProcess-1'
-            success, result, error = retry_with_timeout(
-                failing_fn, "task_1", config, timeout_seconds=5.0
-            )
+        success, result, error = retry_with_timeout(
+            failing_fn, "task_1", config, timeout_seconds=5.0
+        )
 
         assert success is False
         assert "model generation failed" in error
+
+    def test_rejects_non_main_thread(self, config):
+        """Should raise RuntimeError when called from a non-main thread."""
+        import threading
+
+        errors = []
+
+        def call_from_thread():
+            try:
+                retry_with_timeout(lambda: "x", "task_1", config, timeout_seconds=5.0)
+            except RuntimeError as e:
+                errors.append(str(e))
+
+        thread = threading.Thread(target=call_from_thread)
+        thread.start()
+        thread.join(timeout=5)
+
+        assert len(errors) == 1
+        assert "main thread" in errors[0]

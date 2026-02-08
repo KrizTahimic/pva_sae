@@ -88,9 +88,10 @@ def retry_with_timeout(
     """
     Retry a generation function with both exponential backoff and timeout.
 
-    Similar to retry_generation but adds a timeout per attempt to handle hung generations.
-    In subprocess workers, uses a daemon thread with join-based timeout (avoids pickle
-    errors from nested Process spawning).
+    Similar to retry_generation but adds a per-attempt SIGALRM timeout to handle
+    hung generations. Works in both the main orchestrator process and
+    ProcessPoolExecutor worker processes (tasks run in the worker's main thread,
+    where signal.signal() is valid).
 
     Args:
         generate_fn: Function to call
@@ -103,73 +104,42 @@ def retry_with_timeout(
         Tuple of (success: bool, result: Any or None, error_message: str or None)
     """
     import signal
-    import multiprocessing as mp
+    import threading
     from contextlib import contextmanager
 
     if timeout_seconds is None:
         timeout_seconds = config.timeout_per_record
 
-    # Check if we're in a subprocess (signal-based timeout doesn't work there)
-    is_main_process = mp.current_process().name == 'MainProcess'
+    # SIGALRM requires the main thread (not "MainProcess" — that was a wrong assumption).
+    # ProcessPoolExecutor workers run submitted tasks in their main thread, so SIGALRM
+    # works in both the orchestrator and all GPU worker processes.
+    if not hasattr(signal, 'SIGALRM') or threading.current_thread() is not threading.main_thread():
+        raise RuntimeError(
+            f"retry_with_timeout requires SIGALRM support and must run in the main thread. "
+            f"SIGALRM available: {hasattr(signal, 'SIGALRM')}, "
+            f"current thread: {threading.current_thread().name}"
+        )
 
-    if is_main_process:
-        # Use signal-based timeout (more reliable for CPU-bound operations)
-        @contextmanager
-        def timeout_context(seconds):
-            def timeout_handler(signum, frame):
-                raise TimeoutError(f"Operation timed out after {seconds} seconds")
+    @contextmanager
+    def timeout_context(seconds):
+        def timeout_handler(signum, frame):
+            raise TimeoutError(f"Operation timed out after {seconds} seconds")
 
-            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(int(seconds))
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(int(seconds))
 
-            try:
-                yield
-            finally:
-                signal.alarm(0)
-                signal.signal(signal.SIGALRM, old_handler)
+        try:
+            yield
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
 
-        def timed_generate_fn():
-            """Wrapper that adds timeout to the generation function."""
-            with timeout_context(timeout_seconds):
-                return generate_fn()
+    def timed_generate_fn():
+        """Wrapper that adds SIGALRM timeout to the generation function."""
+        with timeout_context(timeout_seconds):
+            return generate_fn()
 
-        return retry_generation(timed_generate_fn, task_id, config, operation_name)
-
-    else:
-        # In subprocess: signal.SIGALRM doesn't work.
-        # Use a daemon thread with join-based timeout. Threads share memory so
-        # closures work without pickling. model.generate() releases the GIL,
-        # so timeout detection via thread.join() works reliably.
-        import threading
-
-        def timed_generate_fn():
-            """Wrapper that enforces timeout via a daemon thread."""
-            result_holder = [None]  # [('ok', value)] or [('error', exception)]
-
-            def _run_in_thread():
-                try:
-                    result = generate_fn()
-                    result_holder[0] = ('ok', result)
-                except Exception as e:
-                    result_holder[0] = ('error', e)
-
-            thread = threading.Thread(target=_run_in_thread, daemon=True)
-            thread.start()
-            thread.join(timeout=timeout_seconds)
-
-            if thread.is_alive():
-                logger.warning(f"Task {task_id} exceeded {timeout_seconds}s timeout (daemon thread will be cleaned up on process exit)")
-                raise TimeoutError(f"Task {task_id} timed out after {timeout_seconds}s")
-
-            if result_holder[0] is None:
-                raise RuntimeError(f"Task {task_id}: thread exited without result")
-
-            status, value = result_holder[0]
-            if status == 'error':
-                raise value
-            return value
-
-        return retry_generation(timed_generate_fn, task_id, config, operation_name)
+    return retry_generation(timed_generate_fn, task_id, config, operation_name)
 
 
 def create_exclusion_summary(excluded_tasks: list, total_attempted: int) -> dict:
