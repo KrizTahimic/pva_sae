@@ -78,15 +78,6 @@ def retry_generation(
     return False, None, last_error
 
 
-def _run_with_process_timeout(generate_fn: Callable, timeout_seconds: float, result_queue, error_queue):
-    """Worker function for process-based timeout. Runs generate_fn and puts result in queue."""
-    try:
-        result = generate_fn()
-        result_queue.put(('success', result))
-    except Exception as e:
-        error_queue.put((type(e).__name__, str(e)))
-
-
 def retry_with_timeout(
     generate_fn: Callable[[], Any],
     task_id: str,
@@ -98,8 +89,8 @@ def retry_with_timeout(
     Retry a generation function with both exponential backoff and timeout.
 
     Similar to retry_generation but adds a timeout per attempt to handle hung generations.
-    In subprocess workers, uses a nested subprocess with hard kill timeout to handle
-    CPU-bound operations that can't be interrupted by threads.
+    In subprocess workers, uses a daemon thread with join-based timeout (avoids pickle
+    errors from nested Process spawning).
 
     Args:
         generate_fn: Function to call
@@ -113,7 +104,6 @@ def retry_with_timeout(
     """
     import signal
     import multiprocessing as mp
-    from multiprocessing import Process, Queue
     from contextlib import contextmanager
 
     if timeout_seconds is None:
@@ -146,38 +136,35 @@ def retry_with_timeout(
         return retry_generation(timed_generate_fn, task_id, config, operation_name)
 
     else:
-        # In subprocess: signal.SIGALRM doesn't work, and threads can't interrupt CPU-bound code
-        # Use a nested process with hard kill timeout to enforce the deadline
+        # In subprocess: signal.SIGALRM doesn't work.
+        # Use a daemon thread with join-based timeout. Threads share memory so
+        # closures work without pickling. model.generate() releases the GIL,
+        # so timeout detection via thread.join() works reliably.
+        import threading
 
         def timed_generate_fn():
-            """Wrapper that enforces timeout via a watchdog process."""
-            import time
-            result_queue = Queue(maxsize=1)
+            """Wrapper that enforces timeout via a daemon thread."""
+            result_holder = [None]  # [('ok', value)] or [('error', exception)]
 
-            def _run_in_nested_process(q):
+            def _run_in_thread():
                 try:
                     result = generate_fn()
-                    q.put(('ok', result))
+                    result_holder[0] = ('ok', result)
                 except Exception as e:
-                    q.put(('error', e))
+                    result_holder[0] = ('error', e)
 
-            proc = Process(target=_run_in_nested_process, args=(result_queue,))
-            proc.start()
-            proc.join(timeout=timeout_seconds)
+            thread = threading.Thread(target=_run_in_thread, daemon=True)
+            thread.start()
+            thread.join(timeout=timeout_seconds)
 
-            if proc.is_alive():
-                logger.warning(f"Task {task_id} exceeded {timeout_seconds}s timeout, killing")
-                proc.terminate()
-                proc.join(timeout=2)
-                if proc.is_alive():
-                    proc.kill()
-                    proc.join(timeout=1)
+            if thread.is_alive():
+                logger.warning(f"Task {task_id} exceeded {timeout_seconds}s timeout (daemon thread will be cleaned up on process exit)")
                 raise TimeoutError(f"Task {task_id} timed out after {timeout_seconds}s")
 
-            if result_queue.empty():
-                raise RuntimeError(f"Task {task_id}: nested process exited without result")
+            if result_holder[0] is None:
+                raise RuntimeError(f"Task {task_id}: thread exited without result")
 
-            status, value = result_queue.get_nowait()
+            status, value = result_holder[0]
             if status == 'error':
                 raise value
             return value
