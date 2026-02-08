@@ -690,7 +690,7 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
   **Core claim:** "Code correctness is linearly represented in LLMs"
 
   **Key experimental finding (2026-01-20):**
-  - Phase 2.7 direction similarity: **LOW cosine similarity** (directions are NOT similar)
+  - Phase 2.11 direction similarity: **LOW cosine similarity** (directions are NOT similar)
   - Probe steering: **13.3% correction rate** (4/30 problems, L11, coeff=34)
   - SAE steering: **0% correction rate** (0/30 problems, L16, coeff=30)
   - Probes OUTPERFORM SAE for steering
@@ -737,7 +737,7 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 | Steering | Mass-mean | L11 | Corr **13.3%** |
 | | SAE | L16 | Corr 0% |
 
-**Direction Similarity (Phase 2.7):** LOW cosine similarity → directions are different
+**Direction Similarity (Phase 2.11):** LOW cosine similarity → directions are different
 **Layer Convergence:** Both methods find middle layers (L11-L18) → validates linear representation
 
 #### Theoretical Pairing
@@ -751,7 +751,7 @@ Address reviewer concerns with minimal compute. **Run these AFTER refactoring ph
 
 **Infrastructure (DONE):**
 - [x] Phase 2.6: Probe Direction Computation (mass-mean + logreg per layer)
-- [x] Phase 2.7: Direction Similarity Analysis
+- [x] Phase 2.11: Direction Similarity Analysis
 - [x] `--direction-source` CLI flag in run.py
 - [x] `config.direction_source` field
 
@@ -1318,8 +1318,8 @@ python3 run.py phase 9.5
 - [ ] Test: `python3 run.py phase 2.6`
 - [ ] Verify: `probe_directions.safetensors` saved with mass_mean and logreg directions
 
-##### Phase 2.7: Direction Similarity Analysis
-- [ ] Test: `python3 run.py phase 2.7`
+##### Phase 2.11: Direction Similarity Analysis
+- [ ] Test: `python3 run.py phase 2.11`
 - [ ] Verify: Cosine similarity computed between SAE and probe directions
 
 ##### Phase 2.10: SAE t-statistic Analysis

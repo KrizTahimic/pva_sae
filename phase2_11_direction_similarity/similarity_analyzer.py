@@ -1,5 +1,5 @@
 """
-Phase 2.7: Direction Similarity Analysis
+Phase 2.11: Direction Similarity Analysis
 
 Computes cosine similarity between linear probe directions and SAE latent directions
 to validate that both methods identify similar representations.
@@ -16,7 +16,7 @@ Interpretation:
 | < 0.3      | Different representations |
 
 Usage:
-    python3 run.py phase 2.7
+    python3 run.py phase 2.11
 """
 
 import numpy as np
@@ -36,7 +36,7 @@ from common.phase_discovery import (
 )
 from common.sae_loader import load_sae_for_config
 
-logger = get_logger("phase2_7.similarity_analyzer")
+logger = get_logger("phase2_11.similarity_analyzer")
 
 
 class SimilarityAnalyzer:
@@ -46,10 +46,10 @@ class SimilarityAnalyzer:
         """Initialize with configuration."""
         self.config = config
         self.device = detect_device()
-        self.logger = get_logger("phase2_7.runner", phase="2.7")
+        self.logger = get_logger("phase2_11.runner", phase="2.11")
 
         # Output directory
-        self.output_dir = Path(get_phase_output_dir("2.7", config))
+        self.output_dir = Path(get_phase_output_dir("2.11", config))
         ensure_directory_exists(self.output_dir)
 
         # Load dependencies
@@ -279,9 +279,9 @@ class SimilarityAnalyzer:
             Summary dictionary
         """
         start_time = datetime.now()
-        self.logger.info("Starting Phase 2.7: Direction Similarity Analysis")
+        self.logger.info("Starting Phase 2.11: Direction Similarity Analysis")
         self.logger.info("Comparing linear probe directions with SAE latent directions")
-        self.logger.info("\n" + self.config.dump(phase="2.7"))
+        self.logger.info("\n" + self.config.dump(phase="2.11"))
 
         all_comparisons = {}
 
@@ -363,7 +363,7 @@ class SimilarityAnalyzer:
         # Create summary
         duration = (datetime.now() - start_time).total_seconds()
         summary = {
-            'phase': '2.7',
+            'phase': '2.11',
             'description': 'Direction Similarity Analysis',
             'timestamp': datetime.now().isoformat(),
             'duration_seconds': duration,
@@ -374,14 +374,14 @@ class SimilarityAnalyzer:
             'key_findings': key_findings,
             'all_comparisons': all_comparisons,
         }
-        save_json(summary, self.output_dir / "phase_2_7_summary.json")
+        save_json(summary, self.output_dir / "phase_2_11_summary.json")
 
         # Write phase_output.json manifest
         write_phase_output(
-            phase="2.7",
+            phase="2.11",
             outputs={
                 "primary": "similarity_analysis.json",
-                "summary": "phase_2_7_summary.json",
+                "summary": "phase_2_11_summary.json",
                 "heatmap": "similarity_heatmap.png",
             },
             config=self.config,
@@ -394,7 +394,7 @@ class SimilarityAnalyzer:
             config_keys=['model_name', 'dataset_name']
         )
 
-        self.logger.info(f"\nPhase 2.7 completed in {duration:.1f} seconds")
+        self.logger.info(f"\nPhase 2.11 completed in {duration:.1f} seconds")
         self.logger.info(f"Results saved to: {self.output_dir}")
         self.logger.info("="*60 + "\n")
 

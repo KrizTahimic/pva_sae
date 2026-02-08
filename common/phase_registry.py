@@ -131,11 +131,11 @@ PHASES: dict[str, PhaseInfo] = {
         category="feature_discovery",
         patterns=["best_probe_directions.json", "probe_directions/*.safetensors"],
     ),
-    "2.7": PhaseInfo(
-        id="2.7",
+    "2.11": PhaseInfo(
+        id="2.11",
         name="Direction Similarity Analysis",
-        output_dir="data/phase2_7",
-        module="phase2_7_direction_similarity.similarity_analyzer",
+        output_dir="data/phase2_11",
+        module="phase2_11_direction_similarity.similarity_analyzer",
         runner="SimilarityAnalyzer",
         runner_type="class",
         category="feature_discovery",

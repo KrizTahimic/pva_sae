@@ -92,11 +92,11 @@ run_phase "Phase 2.5: SAE analysis + pile filtering" \
 run_phase "Phase 2.6: Probe training (logreg + mass_mean)" \
     phase 2.6
 
-run_phase "Phase 2.7: Direction similarity analysis" \
-    phase 2.7
-
 run_phase "Phase 2.10: T-statistic latent selection" \
     phase 2.10
+
+run_phase "Phase 2.11: Direction similarity analysis" \
+    phase 2.11
 
 run_phase "Phase 2.13: Threshold sensitivity analysis" \
     phase 2.13
