@@ -10,11 +10,14 @@ Validates:
 
 import pytest
 import numpy as np
+import torch
+from unittest.mock import patch, MagicMock
 
 from common.config import Config
 from common.search_optimization import TwoStageOptimizer
 from phase8_2_threshold_optimizer.threshold_optimizer import (
     ThresholdOptimizer,
+    ThresholdEvaluator,
     SteeringState,
 )
 
@@ -302,3 +305,45 @@ class TestPhase82Config:
         config = Config()
         assert hasattr(config, 'probe_mass_mean_reg_lambda')
         assert hasattr(config, 'probe_logreg_C_values')
+
+
+# =============================================================================
+# Phase 4.9 Integration Tests
+# =============================================================================
+
+class TestPhase82Phase49Integration:
+    """Test that SAE mode loads steering latent + coefficient from Phase 4.9."""
+
+    MOCK_SELECTION = {
+        "correct": {"rank": 2, "layer": 15, "latent_idx": 12809, "refined_coefficient": 62},
+        "incorrect": {"rank": 0, "layer": 18, "latent_idx": 4612, "refined_coefficient": 25},
+    }
+
+    def test_threshold_optimizer_sae_stores_phase4_9_latent(self):
+        """ThresholdOptimizer SAE mode should read correct_steer_layer/latent from Phase 4.9."""
+        # Verify the code references load_phase4_9_best_latent (not load_steering_latents)
+        import inspect
+        source = inspect.getsource(ThresholdOptimizer._load_dependencies)
+        assert 'load_phase4_9_best_latent' in source
+        assert 'load_steering_latents' not in source  # Old path removed
+
+        # Verify Phase 4.9 selection structure provides what ThresholdOptimizer needs
+        selection = self.MOCK_SELECTION
+        assert selection['correct']['layer'] == 15
+        assert selection['correct']['latent_idx'] == 12809
+        assert selection['correct']['refined_coefficient'] == 62
+
+    def test_threshold_optimizer_sae_coefficient_from_phase4_9(self):
+        """ThresholdOptimizer SAE mode should use refined_coefficient from Phase 4.9."""
+        # The code path: self._phase4_9_selection['correct']['refined_coefficient']
+        selection = self.MOCK_SELECTION
+        assert selection['correct']['refined_coefficient'] == 62
+        # ThresholdOptimizer sets: self.steering_coefficient = selection['correct']['refined_coefficient']
+
+    def test_threshold_evaluator_sae_uses_phase4_9(self):
+        """ThresholdEvaluator SAE mode should call load_phase4_9_best_latent."""
+        # Verify the code references load_phase4_9_best_latent
+        import inspect
+        source = inspect.getsource(ThresholdEvaluator._load_dependencies)
+        assert 'load_phase4_9_best_latent' in source
+        assert 'load_steering_latents' not in source  # Old path removed

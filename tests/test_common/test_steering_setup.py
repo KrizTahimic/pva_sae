@@ -434,3 +434,97 @@ class TestBaselineDataLoading:
             result_df, _ = load_baseline_data(config, "3.5")
 
         assert len(result_df) == 2
+
+
+# =============================================================================
+# Phase 4.9 Best Latent Loading Tests
+# =============================================================================
+
+class TestLoadPhase49BestLatent:
+    """Test load_phase4_9_best_latent utility function."""
+
+    def test_missing_phase4_9_raises_error(self):
+        """Should raise FileNotFoundError when Phase 4.9 not found."""
+        from common.steering_setup import load_phase4_9_best_latent
+
+        config = Config()
+
+        with patch('common.steering_setup.discover_latest_phase_output', return_value=None):
+            with pytest.raises(FileNotFoundError, match="Phase 4.9 output not found"):
+                load_phase4_9_best_latent(config)
+
+    def test_valid_selection_returns_correct_structure(self, tmp_path):
+        """Should return dict with correct and incorrect entries."""
+        from common.steering_setup import load_phase4_9_best_latent
+
+        # Create mock Phase 4.9 output
+        phase_dir = tmp_path / "data" / "phase4_9"
+        phase_dir.mkdir(parents=True)
+
+        selection = {
+            "correct": {
+                "rank": 2,
+                "layer": 15,
+                "latent_idx": 12809,
+                "refined_coefficient": 62,
+                "correction_rate": 9.854,
+                "preservation_rate": 57.018,
+                "separation_score": None,
+                "selected_from_n": 5,
+                "selection_metric": "correction_rate"
+            },
+            "incorrect": {
+                "rank": 0,
+                "layer": 15,
+                "latent_idx": 4612,
+                "refined_coefficient": 25,
+                "corruption_rate": 14.912,
+                "composite_score": 14.912,
+                "separation_score": None,
+                "selected_from_n": 5,
+                "selection_metric": "composite_score"
+            }
+        }
+
+        # Create output file for discover_latest_phase_output
+        output_file = phase_dir / "phase_4_9_summary.json"
+        with open(output_file, 'w') as f:
+            json.dump({}, f)
+
+        # Create best_latent_selection.json
+        with open(phase_dir / "best_latent_selection.json", 'w') as f:
+            json.dump(selection, f)
+
+        config = Config()
+
+        with patch('common.steering_setup.discover_latest_phase_output',
+                  return_value=str(output_file)):
+            result = load_phase4_9_best_latent(config)
+
+        assert result['correct']['layer'] == 15
+        assert result['correct']['latent_idx'] == 12809
+        assert result['correct']['refined_coefficient'] == 62
+        assert result['correct']['rank'] == 2
+        assert result['incorrect']['layer'] == 15
+        assert result['incorrect']['latent_idx'] == 4612
+        assert result['incorrect']['refined_coefficient'] == 25
+        assert result['incorrect']['rank'] == 0
+
+    def test_missing_selection_file_raises_error(self, tmp_path):
+        """Should raise FileNotFoundError when best_latent_selection.json missing."""
+        from common.steering_setup import load_phase4_9_best_latent
+
+        # Create mock Phase 4.9 output directory without the selection file
+        phase_dir = tmp_path / "data" / "phase4_9"
+        phase_dir.mkdir(parents=True)
+
+        output_file = phase_dir / "phase_4_9_summary.json"
+        with open(output_file, 'w') as f:
+            json.dump({}, f)
+
+        config = Config()
+
+        with patch('common.steering_setup.discover_latest_phase_output',
+                  return_value=str(output_file)):
+            with pytest.raises(FileNotFoundError, match="best_latent_selection.json"):
+                load_phase4_9_best_latent(config)

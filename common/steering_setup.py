@@ -422,6 +422,46 @@ def load_steering_latents(config: Config) -> PVALatents:
     return _load_latents_from_phase(config, "2.5", "steering")
 
 
+def load_phase4_9_best_latent(config: Config) -> dict:
+    """Load the best latent selection from Phase 4.9.
+
+    Phase 4.9 selects the single best latent (per steering type) from
+    Phase 4.8's top-N evaluation. Returns dict with 'correct' and 'incorrect'
+    keys, each containing layer, latent_idx, refined_coefficient, and rank.
+
+    Args:
+        config: Configuration object
+
+    Returns:
+        dict with 'correct' and 'incorrect' entries from best_latent_selection.json
+
+    Raises:
+        FileNotFoundError: If Phase 4.9 output not found
+    """
+    phase4_9_output = discover_latest_phase_output("4.9", config=config)
+    if not phase4_9_output:
+        raise FileNotFoundError(
+            "Phase 4.9 output not found. Run Phase 4.9 first.\n"
+            "Phase 4.9 selects the best latent from Phase 4.8's top-N evaluation."
+        )
+
+    selection_file = Path(phase4_9_output).parent / "best_latent_selection.json"
+    if not selection_file.exists():
+        raise FileNotFoundError(
+            f"best_latent_selection.json not found in {Path(phase4_9_output).parent}\n"
+            "Run Phase 4.9 to generate best latent selection."
+        )
+
+    selection = load_json(selection_file)
+    logger.info(f"Loaded Phase 4.9 best latent selection: "
+               f"correct=L{selection['correct']['layer']}F{selection['correct']['latent_idx']} "
+               f"(rank {selection['correct']['rank']}, coeff={selection['correct']['refined_coefficient']}), "
+               f"incorrect=L{selection['incorrect']['layer']}F{selection['incorrect']['latent_idx']} "
+               f"(rank {selection['incorrect']['rank']}, coeff={selection['incorrect']['refined_coefficient']})")
+
+    return selection
+
+
 def load_sae_and_directions(
     config: Config,
     device: torch.device,

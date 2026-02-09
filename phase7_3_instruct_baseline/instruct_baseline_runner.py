@@ -40,67 +40,26 @@ class InstructBaselineRunner:
     
     def _discover_best_layers(self) -> dict[str, int]:
         """
-        Discover best layers from Phase 2.10 or Phase 2.5 output.
-        
+        Discover best layers from Phase 4.9 (best latent selection).
+
         Returns:
-            dict with 'correct' and 'incorrect' best layers
+            dict with 'correct' and 'incorrect' best layers and latent indices
         """
-        # Try Phase 2.10 first (t-statistic selection)
-        phase_2_10_dir = Path(get_phase_output_dir("2.10", self.config))
-        top_latents_file = phase_2_10_dir / "top_20_latents.json"
-        phase_source = "2.10"
+        from common.steering_setup import load_phase4_9_best_latent
 
-        if not top_latents_file.exists():
-            # Try auto-discovery for Phase 2.10
-            latest_output = discover_latest_phase_output("2.10", config=self.config)
-            if latest_output:
-                # Extract directory from the discovered file
-                output_dir = Path(latest_output).parent
-                top_latents_file = output_dir / "top_20_latents.json"
+        selection = load_phase4_9_best_latent(self.config)
 
-        # Fall back to Phase 2.5 if Phase 2.10 not found
-        if not top_latents_file.exists():
-            phase_2_5_dir = Path(get_phase_output_dir("2.5", self.config))
-            top_latents_file = phase_2_5_dir / "top_20_latents.json"
-            phase_source = "2.5"
+        best_layers = {
+            'correct': selection['correct']['layer'],
+            'correct_latent_idx': selection['correct']['latent_idx'],
+            'incorrect': selection['incorrect']['layer'],
+            'incorrect_latent_idx': selection['incorrect']['latent_idx'],
+        }
 
-            if not top_latents_file.exists():
-                # Try auto-discovery for Phase 2.5
-                latest_output = discover_latest_phase_output("2.5", config=self.config)
-                if latest_output:
-                    # Extract directory from the discovered file
-                    output_dir = Path(latest_output).parent
-                    top_latents_file = output_dir / "top_20_latents.json"
+        logger.info(f"Discovered best layers from Phase 4.9 - "
+                    f"Correct: layer {best_layers['correct']} (latent {best_layers['correct_latent_idx']}), "
+                    f"Incorrect: layer {best_layers['incorrect']} (latent {best_layers['incorrect_latent_idx']})")
 
-        if not top_latents_file.exists():
-            raise FileNotFoundError(
-                f"top_20_latents.json not found. "
-                "Please run Phase 2.10 or Phase 2.5 first."
-            )
-
-        logger.info(f"Using latents from Phase {phase_source}: {top_latents_file}")
-
-        # Read top latents
-        with open(top_latents_file, 'r') as f:
-            top_latents = json.load(f)
-
-        # Extract best layers (first entry in each list)
-        best_layers = {}
-
-        if top_latents.get('correct') and len(top_latents['correct']) > 0:
-            best_layers['correct'] = top_latents['correct'][0]['layer']
-            best_layers['correct_latent_idx'] = top_latents['correct'][0]['latent_idx']
-        else:
-            raise ValueError("No correct latents found in top_20_latents.json")
-
-        if top_latents.get('incorrect') and len(top_latents['incorrect']) > 0:
-            best_layers['incorrect'] = top_latents['incorrect'][0]['layer']
-            best_layers['incorrect_latent_idx'] = top_latents['incorrect'][0]['latent_idx']
-        else:
-            raise ValueError("No incorrect latents found in top_20_latents.json")
-        
-        logger.info(f"Discovered best layers - Correct: layer {best_layers['correct']}, Incorrect: layer {best_layers['incorrect']}")
-        
         return best_layers
     
     def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):

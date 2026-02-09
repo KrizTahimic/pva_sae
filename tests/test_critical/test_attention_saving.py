@@ -226,7 +226,7 @@ class TestPhase48AttentionSaving:
 
         for kw in call_kwargs:
             assert kw['task_id'] == 'task_001'
-            assert kw['output_dir'] == tmp_path / "attention_patterns" / "correct_steering"
+            assert kw['output_dir'] == tmp_path / "attention_patterns" / "correct_steering" / "rank_0"
 
     def test_steering_type_in_directory_path(self, tmp_path):
         """Different steering types should use different subdirectories."""
@@ -247,8 +247,8 @@ class TestPhase48AttentionSaving:
 
         dirs_used = {c.kwargs['output_dir'] for c in mock_save.call_args_list}
         assert dirs_used == {
-            tmp_path / "attention_patterns" / "correct_steering",
-            tmp_path / "attention_patterns" / "incorrect_steering",
+            tmp_path / "attention_patterns" / "correct_steering" / "rank_0",
+            tmp_path / "attention_patterns" / "incorrect_steering" / "rank_0",
         }
 
 

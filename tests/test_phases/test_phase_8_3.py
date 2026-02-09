@@ -770,3 +770,27 @@ class TestDualDirectionConfig:
 
         # correct_latent_direction should be the correct direction from mass_mean
         assert torch.allclose(dual.correct_latent_direction, steer_direction)
+
+
+# =============================================================================
+# Phase 4.9 Integration Tests
+# =============================================================================
+
+class TestPhase83Phase49Integration:
+    """Test that SAE mode loads latent + coefficient from Phase 4.9."""
+
+    def test_sae_mode_uses_phase4_9_for_latent(self):
+        """SAE mode should use load_phase4_9_best_latent (not load_steering_latents)."""
+        import inspect
+        source = inspect.getsource(SelectiveSteeringAnalyzer._load_dependencies)
+        assert 'load_phase4_9_best_latent' in source
+        assert 'load_steering_latents' not in source
+
+    def test_sae_mode_coefficient_from_phase4_9(self):
+        """SAE mode should read refined_coefficient directly from Phase 4.9."""
+        import inspect
+        source = inspect.getsource(SelectiveSteeringAnalyzer._load_dependencies)
+        # Should reference _phase4_9_selection for coefficient
+        assert "_phase4_9_selection['correct']['refined_coefficient']" in source
+        # Should NOT use discover_steering_coefficients anymore
+        assert 'discover_steering_coefficients' not in source

@@ -8,9 +8,11 @@ Validates:
 """
 
 import pytest
+import torch
 import pandas as pd
+from unittest.mock import patch, MagicMock
 from common.config import Config
-from phase7_6_instruct_steering.instruct_steering_analyzer import _format_effect_log
+from phase7_6_instruct_steering.instruct_steering_analyzer import InstructSteeringAnalyzer, _format_effect_log
 
 
 # =============================================================================
@@ -244,3 +246,77 @@ class TestFormatEffectLog:
         )
 
         assert isinstance(result, str)
+
+
+# =============================================================================
+# Phase 4.9 Integration Tests (SAE mode)
+# =============================================================================
+
+class TestPhase76Phase49Integration:
+    """Test that SAE mode loads latent + coefficient from Phase 4.9."""
+
+    def test_sae_mode_loads_latent_from_phase4_9(self):
+        """SAE mode should use load_phase4_9_best_latent for latent identity."""
+        from common.steering_setup import SAEDirections
+
+        selection = {
+            "correct": {"rank": 2, "layer": 15, "latent_idx": 12809, "refined_coefficient": 62},
+            "incorrect": {"rank": 0, "layer": 18, "latent_idx": 4612, "refined_coefficient": 25},
+        }
+
+        mock_sae_dirs = SAEDirections(
+            correct_sae=MagicMock(),
+            incorrect_sae=MagicMock(),
+            correct_direction=torch.randn(2304),
+            incorrect_direction=torch.randn(2304),
+        )
+
+        analyzer = object.__new__(InstructSteeringAnalyzer)
+        analyzer.config = Config()
+        analyzer.use_probe = False
+        analyzer.device = torch.device("cpu")
+        analyzer.model = MagicMock()
+        analyzer.model.parameters.return_value = iter([torch.zeros(1, dtype=torch.bfloat16)])
+
+        with patch('common.steering_setup.load_phase4_9_best_latent', return_value=selection), \
+             patch('common.steering_setup.load_sae_and_directions', return_value=mock_sae_dirs), \
+             patch('common.steering_setup.load_baseline_data',
+                   return_value=(pd.DataFrame({'task_id': [], 'baseline_passed': []}), "/fake")):
+            InstructSteeringAnalyzer._load_dependencies(analyzer)
+
+        assert analyzer.best_correct_latent['layer'] == 15
+        assert analyzer.best_correct_latent['latent_idx'] == 12809
+        assert analyzer.best_incorrect_latent['layer'] == 18
+        assert analyzer.best_incorrect_latent['latent_idx'] == 4612
+
+    def test_sae_mode_coefficient_from_phase4_9(self):
+        """SAE mode should read refined_coefficient directly from Phase 4.9 selection."""
+        from common.steering_setup import SAEDirections
+
+        selection = {
+            "correct": {"rank": 2, "layer": 15, "latent_idx": 12809, "refined_coefficient": 62},
+            "incorrect": {"rank": 0, "layer": 18, "latent_idx": 4612, "refined_coefficient": 25},
+        }
+
+        mock_sae_dirs = SAEDirections(
+            correct_sae=MagicMock(),
+            incorrect_sae=MagicMock(),
+            correct_direction=torch.randn(2304),
+            incorrect_direction=torch.randn(2304),
+        )
+
+        analyzer = object.__new__(InstructSteeringAnalyzer)
+        analyzer.config = Config()
+        analyzer.use_probe = False
+        analyzer.device = torch.device("cpu")
+        analyzer.model = MagicMock()
+        analyzer.model.parameters.return_value = iter([torch.zeros(1, dtype=torch.bfloat16)])
+
+        with patch('common.steering_setup.load_phase4_9_best_latent', return_value=selection), \
+             patch('common.steering_setup.load_sae_and_directions', return_value=mock_sae_dirs), \
+             patch('common.steering_setup.load_baseline_data',
+                   return_value=(pd.DataFrame({'task_id': [], 'baseline_passed': []}), "/fake")):
+            InstructSteeringAnalyzer._load_dependencies(analyzer)
+
+        assert analyzer.correct_coefficient == 62
+        assert analyzer.incorrect_coefficient == 25

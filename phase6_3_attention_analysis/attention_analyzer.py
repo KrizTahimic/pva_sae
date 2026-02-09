@@ -69,7 +69,11 @@ class AttentionAnalyzer:
         logger.info("AttentionAnalyzer initialized successfully")
         
     def _load_pva_features(self) -> None:
-        """Load steering latents from Phase 2.5 or probe layer from Phase 2.6."""
+        """Load steering latents from Phase 4.9/2.5 or probe layer from Phase 2.6."""
+        # Default ranks (used by single-latent paths and fallback)
+        self.best_correct_rank = 0
+        self.best_incorrect_rank = 0
+
         if self.use_probe:
             # Probe mode: Load probe layer from Phase 2.6
             from common.steering_setup import load_probe_directions_for_predicting
@@ -79,18 +83,19 @@ class AttentionAnalyzer:
             self.best_incorrect_layer = probe.layer  # Same layer for probes
             logger.info(f"PROBE MODE: Using probe layer {probe.layer} for attention analysis")
         else:
-            # SAE mode: Load from Phase 2.5
-            from common.steering_setup import load_steering_latents
-            pva_latents = load_steering_latents(self.config)
+            # SAE mode: Load from Phase 4.9 (required)
+            from common.steering_setup import load_phase4_9_best_latent
 
-            self.best_correct_latent = pva_latents.top_latents['correct'][0]
-            self.best_incorrect_latent = pva_latents.top_latents['incorrect'][0]
-
-            # Extract layer indices
-            self.best_correct_layer = self.best_correct_latent['layer']
-            self.best_incorrect_layer = self.best_incorrect_latent['layer']
-
-            logger.info(f"SAE MODE: Correct Layer {self.best_correct_layer}, Incorrect Layer {self.best_incorrect_layer}")
+            selection = load_phase4_9_best_latent(self.config)
+            self.best_correct_layer = selection['correct']['layer']
+            self.best_incorrect_layer = selection['incorrect']['layer']
+            self.best_correct_rank = selection['correct']['rank']
+            self.best_incorrect_rank = selection['incorrect']['rank']
+            correct_id = f"L{self.best_correct_layer}_{selection['correct']['latent_idx']}"
+            incorrect_id = f"L{self.best_incorrect_layer}_{selection['incorrect']['latent_idx']}"
+            logger.info(f"SAE MODE: Using Phase 4.9 best latent: "
+                       f"correct={correct_id} (rank {self.best_correct_rank}), "
+                       f"incorrect={incorrect_id} (rank {self.best_incorrect_rank})")
         
     def _discover_phase_directories(self) -> None:
         """Discover Phase 3.5 and Phase 4.8 output directories."""
@@ -225,8 +230,10 @@ class AttentionAnalyzer:
             if baseline_attention:
                 task_data['baseline'] = baseline_attention
             
-            # Load steered attention from Phase 4.8 (both correct and incorrect)
-            correct_dir = self.steered_attention_dir / "correct_steering"
+            # Load steered attention from Phase 4.8 (rank-specific subdirectory, with flat fallback)
+            correct_dir = self.steered_attention_dir / "correct_steering" / f"rank_{self.best_correct_rank}"
+            if not correct_dir.exists():
+                correct_dir = self.steered_attention_dir / "correct_steering"  # flat fallback (old runs)
             if correct_dir.exists():
                 steered_correct = self._load_task_attention(
                     correct_dir,
@@ -235,8 +242,10 @@ class AttentionAnalyzer:
                 )
                 if steered_correct:
                     task_data['steered_correct'] = steered_correct
-            
-            incorrect_dir = self.steered_attention_dir / "incorrect_steering"
+
+            incorrect_dir = self.steered_attention_dir / "incorrect_steering" / f"rank_{self.best_incorrect_rank}"
+            if not incorrect_dir.exists():
+                incorrect_dir = self.steered_attention_dir / "incorrect_steering"  # flat fallback (old runs)
             if incorrect_dir.exists():
                 steered_incorrect = self._load_task_attention(
                     incorrect_dir,

@@ -105,9 +105,11 @@ class WeightOrthogonalizer:
     def _load_dependencies(self) -> None:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
-            load_steering_latents, load_sae_and_directions, load_baseline_data,
+            load_sae_and_directions, load_baseline_data,
             load_probe_directions_for_steering
         )
+        from common.phase_discovery import discover_top_n_steering_latents
+        from common.direction_utils import normalize_direction
 
         if self.use_probe:
             # === PROBE MODE ===
@@ -124,30 +126,60 @@ class WeightOrthogonalizer:
             self.probe_layer = self.probe.layer
             self.phase2_5_dir = self.probe.phase_dir  # Actually Phase 2.6
 
-            # Probe mode doesn't use SAE
-            self.top_latents = None
-            self.correct_sae = None
-            self.incorrect_sae = None
+            # Probe mode doesn't use multi-candidate
+            self.correct_candidates = None
+            self.incorrect_candidates = None
+            self.sae_cache = None
+            self._direction_cache = None
 
             logger.info(f"Mass-mean probe layer: {self.probe.layer}")
         else:
-            # === SAE MODE ===
-            # Load steering latents from Phase 2.5 (separation score selection)
-            latents = load_steering_latents(self.config)
-            self.top_latents = latents.top_latents
-            self.best_correct_latent = latents.best_correct_latent
-            self.best_incorrect_latent = latents.best_incorrect_latent
-            self.phase2_5_dir = latents.phase_dir
+            # === SAE MODE - Multi-Candidate ===
+            logger.info("=" * 60)
+            logger.info("SAE MODE: Testing top-N latent candidates")
+            logger.info("=" * 60)
 
-            # Load SAE models and extract latent directions (uses self.model for dtype)
-            sae = load_sae_and_directions(
-                self.config, self.device, self.model,
-                self.best_correct_latent, self.best_incorrect_latent
-            )
-            self.correct_sae = sae.correct_sae
-            self.incorrect_sae = sae.incorrect_sae
-            self.correct_latent_direction = sae.correct_direction
-            self.incorrect_latent_direction = sae.incorrect_direction
+            # Load top-N candidates from Phase 2.5
+            candidates = discover_top_n_steering_latents(self.config)
+            self.correct_candidates = candidates['correct']
+            self.incorrect_candidates = candidates['incorrect']
+            self.phase2_5_dir = None  # Set below from phase discovery
+
+            # Discover Phase 2.5 dir for manifest
+            from common.phase_discovery import get_phase_output_dir
+            self.phase2_5_dir = Path(get_phase_output_dir("2.5", self.config))
+
+            # Cache SAEs by layer to avoid reloading
+            self.sae_cache = {}
+            all_layers = candidates['all_layers']
+            for layer in all_layers:
+                logger.info(f"Loading SAE for layer {layer}...")
+                self.sae_cache[layer] = load_sae_for_config(self.config, layer, self.device)
+            logger.info(f"Loaded {len(self.sae_cache)} SAEs for layers: {all_layers}")
+
+            # Pre-compute and cache normalized directions for all candidates
+            self._direction_cache = {}
+            model_dtype = next(self.model.parameters()).dtype
+            for candidate_list in (self.correct_candidates, self.incorrect_candidates):
+                for c in candidate_list:
+                    cache_key = (c['layer'], c['latent_idx'])
+                    if cache_key not in self._direction_cache:
+                        sae = self.sae_cache[c['layer']]
+                        direction = sae.W_dec[c['latent_idx']].detach()
+                        direction = normalize_direction(direction, name=f"L{c['layer']}_{c['latent_idx']}")
+                        self._direction_cache[cache_key] = direction.to(dtype=model_dtype)
+            logger.info(f"Pre-cached {len(self._direction_cache)} normalized directions")
+
+            n_candidates = len(self.correct_candidates)
+            logger.info(f"Testing {n_candidates} correct and {len(self.incorrect_candidates)} incorrect candidates")
+
+            # Set first candidates as default directions for backward compatibility
+            first_correct = self.correct_candidates[0]
+            first_incorrect = self.incorrect_candidates[0]
+            self.best_correct_latent = first_correct
+            self.best_incorrect_latent = first_incorrect
+            self.correct_latent_direction = self._direction_cache[(first_correct['layer'], first_correct['latent_idx'])]
+            self.incorrect_latent_direction = self._direction_cache[(first_incorrect['layer'], first_incorrect['latent_idx'])]
 
         # Load baseline data from Phase 3.5
         self.baseline_data, self.phase3_5_dir = load_baseline_data(
@@ -190,14 +222,44 @@ class WeightOrthogonalizer:
 
     def _cleanup_all_checkpoints(self) -> None:
         """Remove all checkpoint files after successful completion."""
-        for key in ['incorrect_ortho_incorrect', 'incorrect_ortho_correct',
-                    'correct_ortho_correct', 'correct_ortho_incorrect']:
+        for key in list(self._checkpoint_managers.keys()):
             try:
-                manager = self._get_checkpoint_manager(*key.rsplit('_', 1))
-                manager.cleanup_all()
+                self._checkpoint_managers[key].cleanup_all()
             except FileNotFoundError:
-                # In parallel mode, files may already be cleaned up
                 logger.debug(f"Checkpoint cleanup for {key}: files already removed")
+
+    def _load_partial_results(self) -> dict:
+        """Load existing partial results for candidate-level checkpointing."""
+        if self.n_gpus > 1:
+            results_file = self.output_dir / f"orthogonalization_results_gpu{self.gpu_id}.json"
+        else:
+            results_file = self.output_dir / "orthogonalization_results.json"
+
+        if results_file.exists():
+            try:
+                existing = load_json(results_file)
+                if existing and 'per_candidate_results' in existing:
+                    n_completed = len(existing['per_candidate_results'])
+                    logger.info(f"Loaded partial results: {n_completed} candidates completed")
+                    return existing
+            except Exception as e:
+                logger.warning(f"Could not load partial results: {e}")
+
+        return {'per_candidate_results': {}}
+
+    def _get_completed_candidate_ids(self, partial_results: dict) -> set:
+        """Get set of candidate IDs that are already completed."""
+        return set(partial_results.get('per_candidate_results', {}).keys())
+
+    def _save_incremental_results(self, results: dict) -> None:
+        """Save results incrementally after each candidate completes."""
+        if self.n_gpus > 1:
+            results_file = self.output_dir / f"orthogonalization_results_gpu{self.gpu_id}.json"
+        else:
+            results_file = self.output_dir / "orthogonalization_results.json"
+        save_json(results, results_file)
+        n_completed = len(results.get('per_candidate_results', {}))
+        logger.info(f"Saved incremental checkpoint: {n_completed} candidates completed")
                    
     def _generate_with_model(self, model, tokenizer, prompt: str) -> str:
         """Generate code using the model."""
@@ -220,6 +282,341 @@ class WeightOrthogonalizer:
         )
         return generated_text
     
+    def _test_incorrect_ortho(self, model, tokenizer, candidate_id: str) -> tuple[list, list]:
+        """Test incorrect-direction orthogonalization on both baselines.
+
+        Args:
+            model: Orthogonalized model
+            tokenizer: Tokenizer
+            candidate_id: Identifier for checkpointing (e.g., "L15F12809")
+
+        Returns:
+            (incorrect_results, correct_results) tuple
+        """
+        # Test on incorrect baseline (expect corrections)
+        checkpoint_mgr = self._get_checkpoint_manager(f'incorrect_ortho_{candidate_id}', 'incorrect')
+        checkpoint = checkpoint_mgr.load()
+        if checkpoint:
+            incorrect_results = checkpoint.results
+            processed_ids = checkpoint.processed_task_ids
+        else:
+            incorrect_results = []
+            processed_ids = set()
+
+        problems = self.incorrect_baseline[
+            ~self.incorrect_baseline['task_id'].astype(str).isin(processed_ids)
+        ]
+        if len(problems) > 0:
+            for enum_idx, (_, row) in enumerate(tqdm_with_logging(problems.iterrows(),
+                                                       logger, total=len(problems),
+                                                       desc=f"[{candidate_id}] incorrect→correct")):
+                def generate_and_evaluate():
+                    prompt = row['prompt']
+                    generated = self._generate_with_model(model, tokenizer, prompt)
+                    code = extract_code(generated, prompt)
+                    test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                    eval_result = evaluate_code_with_error_type(code, test_cases)
+                    return {
+                        'task_id': row['task_id'], 'baseline_passed': False,
+                        'orthogonalized_correct': eval_result.passed,
+                        'orthogonalized_error_type': eval_result.error_type,
+                        'baseline_code': row['generated_code'],
+                        'orthogonalized_code': code, 'raw_output_orthogonalized': generated
+                    }
+
+                success, result, error_msg = retry_with_timeout(
+                    generate_and_evaluate, row['task_id'], self.config,
+                    operation_name=f"incorrect_ortho_{candidate_id} generation"
+                )
+                if success:
+                    incorrect_results.append(result)
+                else:
+                    incorrect_results.append({
+                        'task_id': row['task_id'], 'baseline_passed': False,
+                        'orthogonalized_correct': False, 'baseline_code': row['generated_code'],
+                        'orthogonalized_code': '', 'error': error_msg
+                    })
+                processed_ids.add(str(row['task_id']))
+
+                if (enum_idx + 1) % 10 == 0:
+                    check_memory_usage(); gc.collect()
+                    if self.device.type == "cuda": torch.cuda.empty_cache()
+                if checkpoint_mgr.should_save(len(incorrect_results), check_memory_usage()):
+                    checkpoint_mgr.save(incorrect_results, processed_ids)
+
+        # Test on correct baseline (expect preservation)
+        checkpoint_mgr_c = self._get_checkpoint_manager(f'incorrect_ortho_{candidate_id}', 'correct')
+        checkpoint_c = checkpoint_mgr_c.load()
+        if checkpoint_c:
+            correct_results = checkpoint_c.results
+            processed_correct_ids = checkpoint_c.processed_task_ids
+        else:
+            correct_results = []
+            processed_correct_ids = set()
+
+        correct_problems = self.correct_baseline[
+            ~self.correct_baseline['task_id'].astype(str).isin(processed_correct_ids)
+        ]
+        if len(correct_problems) > 0:
+            for enum_idx, (_, row) in enumerate(tqdm_with_logging(correct_problems.iterrows(),
+                                                       logger, total=len(correct_problems),
+                                                       desc=f"[{candidate_id}] correct→correct")):
+                def generate_and_evaluate():
+                    prompt = row['prompt']
+                    generated = self._generate_with_model(model, tokenizer, prompt)
+                    code = extract_code(generated, prompt)
+                    test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                    eval_result = evaluate_code_with_error_type(code, test_cases)
+                    return {
+                        'task_id': row['task_id'], 'baseline_passed': True,
+                        'orthogonalized_correct': eval_result.passed,
+                        'orthogonalized_error_type': eval_result.error_type,
+                        'baseline_code': row['generated_code'],
+                        'orthogonalized_code': code, 'raw_output_orthogonalized': generated
+                    }
+
+                success, result, error_msg = retry_with_timeout(
+                    generate_and_evaluate, row['task_id'], self.config,
+                    operation_name=f"incorrect_ortho_{candidate_id} preservation"
+                )
+                if success:
+                    correct_results.append(result)
+                else:
+                    correct_results.append({
+                        'task_id': row['task_id'], 'baseline_passed': True,
+                        'orthogonalized_correct': False, 'baseline_code': row['generated_code'],
+                        'orthogonalized_code': '', 'error': error_msg
+                    })
+                processed_correct_ids.add(str(row['task_id']))
+
+                if (enum_idx + 1) % 10 == 0:
+                    check_memory_usage(); gc.collect()
+                    if self.device.type == "cuda": torch.cuda.empty_cache()
+                if checkpoint_mgr_c.should_save(len(correct_results), check_memory_usage()):
+                    checkpoint_mgr_c.save(correct_results, processed_correct_ids)
+
+        # Clean up per-candidate checkpoints
+        checkpoint_mgr.cleanup_all()
+        checkpoint_mgr_c.cleanup_all()
+
+        return incorrect_results, correct_results
+
+    def _test_correct_ortho(self, model, tokenizer, candidate_id: str) -> list:
+        """Test correct-direction orthogonalization on correct baseline.
+
+        Args:
+            model: Orthogonalized model
+            tokenizer: Tokenizer
+            candidate_id: Identifier for checkpointing
+
+        Returns:
+            correct_results list (corruption test)
+        """
+        checkpoint_mgr = self._get_checkpoint_manager(f'correct_ortho_{candidate_id}', 'correct')
+        checkpoint = checkpoint_mgr.load()
+        if checkpoint:
+            correct_results = checkpoint.results
+            processed_ids = checkpoint.processed_task_ids
+        else:
+            correct_results = []
+            processed_ids = set()
+
+        problems = self.correct_baseline[
+            ~self.correct_baseline['task_id'].astype(str).isin(processed_ids)
+        ]
+        if len(problems) > 0:
+            for enum_idx, (_, row) in enumerate(tqdm_with_logging(problems.iterrows(),
+                                                       logger, total=len(problems),
+                                                       desc=f"[{candidate_id}] correct→incorrect")):
+                def generate_and_evaluate():
+                    prompt = row['prompt']
+                    generated = self._generate_with_model(model, tokenizer, prompt)
+                    code = extract_code(generated, prompt)
+                    test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
+                    eval_result = evaluate_code_with_error_type(code, test_cases)
+                    similarity = calculate_code_similarity(row['generated_code'], code)
+                    return {
+                        'task_id': row['task_id'], 'baseline_passed': True,
+                        'orthogonalized_correct': eval_result.passed,
+                        'orthogonalized_error_type': eval_result.error_type,
+                        'baseline_code': row['generated_code'],
+                        'orthogonalized_code': code, 'similarity': similarity,
+                        'raw_output_orthogonalized': generated
+                    }
+
+                success, result, error_msg = retry_with_timeout(
+                    generate_and_evaluate, row['task_id'], self.config,
+                    operation_name=f"correct_ortho_{candidate_id} corruption"
+                )
+                if success:
+                    correct_results.append(result)
+                else:
+                    correct_results.append({
+                        'task_id': row['task_id'], 'baseline_passed': True,
+                        'orthogonalized_correct': False, 'baseline_code': row['generated_code'],
+                        'orthogonalized_code': '', 'similarity': 0.0, 'error': error_msg
+                    })
+                processed_ids.add(str(row['task_id']))
+
+                if (enum_idx + 1) % 10 == 0:
+                    check_memory_usage(); gc.collect()
+                    if self.device.type == "cuda": torch.cuda.empty_cache()
+                if checkpoint_mgr.should_save(len(correct_results), check_memory_usage()):
+                    checkpoint_mgr.save(correct_results, processed_ids)
+
+        checkpoint_mgr.cleanup_all()
+        return correct_results
+
+    def multi_candidate_orthogonalization(self, steering_type: str) -> dict:
+        """Run orthogonalization for all candidates of a given type.
+
+        Args:
+            steering_type: 'incorrect' or 'correct'
+
+        Returns:
+            dict with per_candidate_results and best candidate selection
+        """
+        candidates = self.incorrect_candidates if steering_type == 'incorrect' else self.correct_candidates
+        n_candidates = len(candidates)
+
+        logger.info(f"\n{'='*60}")
+        logger.info(f"Multi-candidate {steering_type} orthogonalization ({n_candidates} candidates)")
+        logger.info("="*60)
+
+        per_candidate = {}
+
+        for idx, candidate in enumerate(candidates):
+            candidate_id = f"L{candidate['layer']}F{candidate['latent_idx']}"
+
+            logger.info(f"\n{'='*50}")
+            logger.info(f"Candidate {candidate_id} ({idx + 1}/{n_candidates})")
+            logger.info(f"Separation score: {candidate.get('separation_score', 'N/A')}")
+            logger.info("="*50)
+
+            # Get cached direction
+            direction = self._direction_cache[(candidate['layer'], candidate['latent_idx'])]
+
+            # Load fresh model (orthogonalization is destructive)
+            logger.info(f"Loading fresh model for {candidate_id}...")
+            model, tokenizer = load_model_and_tokenizer(
+                self.config.model_name,
+                device=self.device,
+                trust_remote_code=self.config.model_trust_remote_code
+            )
+            model.eval()
+
+            # Ensure direction is on correct device and dtype
+            model_dtype = next(model.parameters()).dtype
+            direction_on_device = direction.to(device=model.device, dtype=model_dtype)
+
+            # Apply orthogonalization
+            weight_changes = orthogonalize_gemma_weights(
+                model, direction_on_device,
+                target_weights=self.config.orthogonalization_target_weights
+            )
+
+            if steering_type == 'incorrect':
+                incorrect_results, correct_results = self._test_incorrect_ortho(
+                    model, tokenizer, candidate_id
+                )
+                correction_rate = calculate_correction_rate(incorrect_results)
+                preservation_rate = calculate_preservation_rate(correct_results)
+                n_incorrect = len(incorrect_results)
+                n_corrected = sum(1 for r in incorrect_results if r['orthogonalized_correct'])
+                n_correct = len(correct_results)
+                n_preserved = sum(1 for r in correct_results if r['orthogonalized_correct'])
+
+                # Use 1/n floor for correction null
+                if n_incorrect > 0:
+                    correction_null_rate = max(1.0 / n_incorrect, 1e-10)
+                    correction_pvalue = binomtest(n_corrected, n_incorrect, p=correction_null_rate, alternative='greater').pvalue
+                else:
+                    correction_pvalue = 1.0
+                preservation_pvalue = binomtest(n_preserved, n_correct, p=0.5, alternative='greater').pvalue if n_correct > 0 else 1.0
+
+                candidate_result = {
+                    'candidate': candidate,
+                    'direction': 'incorrect',
+                    'weight_changes': weight_changes,
+                    'metrics': {
+                        'correction_rate': correction_rate,
+                        'preservation_rate': preservation_rate,
+                        'n_incorrect_baseline': n_incorrect,
+                        'n_corrected': n_corrected,
+                        'n_correct_baseline': n_correct,
+                        'n_preserved': n_preserved
+                    },
+                    'statistical_tests': {
+                        'correction_pvalue': correction_pvalue,
+                        'correction_significant': correction_pvalue < 0.05,
+                        'preservation_pvalue': preservation_pvalue,
+                        'preservation_significant': preservation_pvalue < 0.05
+                    },
+                    'examples': {
+                        'corrected': [r for r in incorrect_results if r['orthogonalized_correct']][:5],
+                        'not_corrected': [r for r in incorrect_results if not r['orthogonalized_correct']][:5],
+                        'preserved': [r for r in correct_results if r['orthogonalized_correct']][:5],
+                        'corrupted': [r for r in correct_results if not r['orthogonalized_correct']][:5]
+                    }
+                }
+                logger.info(f"[{candidate_id}] Correction: {correction_rate:.1f}% ({n_corrected}/{n_incorrect}), "
+                           f"Preservation: {preservation_rate:.1f}% ({n_preserved}/{n_correct})")
+
+            else:  # correct
+                correct_results = self._test_correct_ortho(model, tokenizer, candidate_id)
+                corruption_rate = calculate_corruption_rate(correct_results)
+                similarity_scores = [r.get('similarity', 0) for r in correct_results]
+                avg_similarity = np.mean(similarity_scores) if similarity_scores else 0.0
+                n_correct = len(correct_results)
+                n_corrupted = sum(1 for r in correct_results if not r['orthogonalized_correct'])
+                corruption_pvalue = binomtest(n_corrupted, n_correct, p=0.5, alternative='greater').pvalue if n_correct > 0 else 1.0
+
+                candidate_result = {
+                    'candidate': candidate,
+                    'direction': 'correct',
+                    'weight_changes': weight_changes,
+                    'metrics': {
+                        'corruption_rate': corruption_rate,
+                        'avg_similarity_score': avg_similarity,
+                        'n_correct_baseline': n_correct,
+                        'n_corrupted': n_corrupted
+                    },
+                    'statistical_tests': {
+                        'corruption_pvalue': corruption_pvalue,
+                        'corruption_significant': corruption_pvalue < 0.05
+                    },
+                    'examples': {
+                        'corrupted': [r for r in correct_results if not r['orthogonalized_correct']][:5],
+                        'preserved': [r for r in correct_results if r['orthogonalized_correct']][:5]
+                    }
+                }
+                logger.info(f"[{candidate_id}] Corruption: {corruption_rate:.1f}% ({n_corrupted}/{n_correct}), "
+                           f"Similarity: {avg_similarity:.3f}")
+
+            per_candidate[candidate_id] = candidate_result
+
+            # Clean up model
+            del model
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        # Select best candidate
+        if steering_type == 'incorrect':
+            best_id = max(per_candidate.keys(),
+                         key=lambda k: per_candidate[k]['metrics']['correction_rate'])
+        else:
+            best_id = max(per_candidate.keys(),
+                         key=lambda k: per_candidate[k]['metrics']['corruption_rate'])
+
+        logger.info(f"\nBest {steering_type} candidate: {best_id}")
+
+        return {
+            'per_candidate': per_candidate,
+            'best_candidate_id': best_id,
+            'best_candidate': per_candidate[best_id]
+        }
+
     def apply_incorrect_orthogonalization(self) -> dict:
         """
         Apply orthogonalization using incorrect latent direction.
@@ -753,82 +1150,120 @@ class WeightOrthogonalizer:
         logger.info("\n" + "="*60)
         logger.info("Starting Phase 5.3: Weight Orthogonalization Analysis")
         logger.info("="*60)
-        
-        start_time = time.time()
-        
-        # Apply incorrect orthogonalization
-        self.incorrect_results = self.apply_incorrect_orthogonalization()
-        
-        # Apply correct orthogonalization
-        self.correct_results = self.apply_correct_orthogonalization()
-        
-        # Clean up checkpoints after successful completion
-        self._cleanup_all_checkpoints()
-        
-        # Create visualizations
-        self.create_visualizations()
-        
-        # Save examples
-        self.save_examples()
-        
-        # Compile final results
-        results = {
-            'timestamp': datetime.now().isoformat(),
-            'direction_source': self.direction_source,
-            'config': {
-                'model': self.config.model_name,
-                'target_weights': self.config.orthogonalization_target_weights,
-                'n_validation_problems': len(self.baseline_data),
-                'n_correct_baseline': len(self.correct_baseline),
-                'n_incorrect_baseline': len(self.incorrect_baseline)
-            },
-            'incorrect_orthogonalization': self.incorrect_results,
-            'correct_orthogonalization': self.correct_results,
-            'runtime_seconds': time.time() - start_time
-        }
 
-        # Add direction info based on mode
-        if self.use_probe:
-            results['probe_info'] = {
-                'method': 'mass_mean',
-                'layer': self.probe.layer,
+        start_time = time.time()
+
+        if not self.use_probe and self.correct_candidates is not None:
+            # === SAE MULTI-CANDIDATE MODE ===
+            logger.info("SAE multi-candidate mode: testing all candidates")
+
+            # Run multi-candidate for incorrect direction
+            incorrect_multi = self.multi_candidate_orthogonalization('incorrect')
+            # Use best candidate as the primary result
+            self.incorrect_results = incorrect_multi['best_candidate']
+
+            # Run multi-candidate for correct direction
+            correct_multi = self.multi_candidate_orthogonalization('correct')
+            self.correct_results = correct_multi['best_candidate']
+
+            # Clean up checkpoints
+            self._cleanup_all_checkpoints()
+
+            # Create visualizations using best candidates
+            self.create_visualizations()
+            self.save_examples()
+
+            # Compile final results
+            results = {
+                'timestamp': datetime.now().isoformat(),
+                'direction_source': self.direction_source,
+                'config': {
+                    'model': self.config.model_name,
+                    'target_weights': self.config.orthogonalization_target_weights,
+                    'n_validation_problems': len(self.baseline_data),
+                    'n_correct_baseline': len(self.correct_baseline),
+                    'n_incorrect_baseline': len(self.incorrect_baseline),
+                    'n_candidates': len(self.correct_candidates)
+                },
+                # Best candidate results (backward compatible)
+                'incorrect_orthogonalization': self.incorrect_results,
+                'correct_orthogonalization': self.correct_results,
+                # Multi-candidate details
+                'multi_candidate': {
+                    'incorrect': incorrect_multi,
+                    'correct': correct_multi
+                },
+                'best_selection': {
+                    'incorrect': incorrect_multi['best_candidate_id'],
+                    'correct': correct_multi['best_candidate_id']
+                },
+                'runtime_seconds': time.time() - start_time
             }
-        else:
+
+            # Latents used - best from multi-candidate
+            best_incorrect_candidate = incorrect_multi['best_candidate']['candidate']
+            best_correct_candidate = correct_multi['best_candidate']['candidate']
             results['latents_used'] = {
                 'correct': {
-                    'layer': self.best_correct_latent['layer'],
-                    'latent_idx': self.best_correct_latent['latent_idx'],
-                    'score': self.best_correct_latent.get('separation_score', self.best_correct_latent.get('t_statistic'))
+                    'layer': best_correct_candidate['layer'],
+                    'latent_idx': best_correct_candidate['latent_idx'],
+                    'score': best_correct_candidate.get('separation_score')
                 },
                 'incorrect': {
-                    'layer': self.best_incorrect_latent['layer'],
-                    'latent_idx': self.best_incorrect_latent['latent_idx'],
-                    'score': self.best_incorrect_latent.get('separation_score', self.best_incorrect_latent.get('t_statistic'))
+                    'layer': best_incorrect_candidate['layer'],
+                    'latent_idx': best_incorrect_candidate['latent_idx'],
+                    'score': best_incorrect_candidate.get('separation_score')
                 }
             }
-        
-        # Save main results (use GPU-specific names in parallel mode)
+        else:
+            # === PROBE MODE or single-candidate fallback ===
+            # Apply incorrect orthogonalization
+            self.incorrect_results = self.apply_incorrect_orthogonalization()
+
+            # Apply correct orthogonalization
+            self.correct_results = self.apply_correct_orthogonalization()
+
+            # Clean up checkpoints
+            self._cleanup_all_checkpoints()
+
+            # Create visualizations
+            self.create_visualizations()
+            self.save_examples()
+
+            # Compile final results
+            results = {
+                'timestamp': datetime.now().isoformat(),
+                'direction_source': self.direction_source,
+                'config': {
+                    'model': self.config.model_name,
+                    'target_weights': self.config.orthogonalization_target_weights,
+                    'n_validation_problems': len(self.baseline_data),
+                    'n_correct_baseline': len(self.correct_baseline),
+                    'n_incorrect_baseline': len(self.incorrect_baseline)
+                },
+                'incorrect_orthogonalization': self.incorrect_results,
+                'correct_orthogonalization': self.correct_results,
+                'runtime_seconds': time.time() - start_time
+            }
+
+            if self.use_probe:
+                results['probe_info'] = {
+                    'method': 'mass_mean',
+                    'layer': self.probe.layer,
+                }
+
+        # Save main results
         if self.n_gpus > 1:
             save_json(results, self.output_dir / f"orthogonalization_results_gpu{self.gpu_id}.json")
         else:
             save_json(results, self.output_dir / "orthogonalization_results.json")
-        
+
         # Save weight changes separately
         weight_changes = {
             'incorrect_latent_direction': self.incorrect_results['weight_changes'],
             'correct_latent_direction': self.correct_results['weight_changes']
         }
         save_json(weight_changes, self.output_dir / "weight_changes.json")
-        
-        
-        # Collect all orthogonalized results for error distribution
-        all_orthogonalized_results = []
-        for examples_key in ['corrected', 'not_corrected', 'preserved', 'corrupted']:
-            if examples_key in self.incorrect_results.get('examples', {}):
-                all_orthogonalized_results.extend(self.incorrect_results['examples'][examples_key])
-        for examples_key in ['corrupted', 'preserved', 'high_similarity', 'low_similarity']:
-            if examples_key in self.correct_results.get('examples', {}):
-                all_orthogonalized_results.extend(self.correct_results['examples'][examples_key])
 
         # Create summary
         summary = {
@@ -837,7 +1272,7 @@ class WeightOrthogonalizer:
             'key_findings': {
                 'incorrect_orthogonalization': {
                     'correction_rate': f"{self.incorrect_results['metrics']['correction_rate']:.1f}%",
-                    'preservation_rate': f"{self.incorrect_results['metrics']['preservation_rate']:.1f}%",
+                    'preservation_rate': f"{self.incorrect_results['metrics'].get('preservation_rate', 0):.1f}%",
                     'statistically_significant': self.incorrect_results['statistical_tests']['correction_significant']
                 },
                 'correct_orthogonalization': {
@@ -847,38 +1282,30 @@ class WeightOrthogonalizer:
                 }
             },
             'validation': 'Both orthogonalization directions show expected effects, validating PVA features are encoded in weights',
-            'output_files': [
-                'orthogonalization_results.json',
-                'weight_changes.json',
-                'phase_5_3_summary.json',
-                'visualizations/orthogonalization_effects.png',
-                'examples/'
-            ],
-            'orthogonalized_error_type_distribution': compute_error_type_distribution(
-                all_orthogonalized_results, 'orthogonalized_error_type'
-            ) if all_orthogonalized_results else None
         }
-        # Save summary (use GPU-specific name in parallel mode)
         if self.n_gpus > 1:
             save_json(summary, self.output_dir / f"phase_5_3_summary_gpu{self.gpu_id}.json")
         else:
             save_json(summary, self.output_dir / "phase_5_3_summary.json")
-        
+
         # Log summary
         logger.info("\n" + "="*60)
         logger.info("PHASE 5.3 SUMMARY")
         logger.info("="*60)
         logger.info(f"Incorrect orthogonalization:")
         logger.info(f"  - Correction rate: {self.incorrect_results['metrics']['correction_rate']:.1f}%")
-        logger.info(f"  - Preservation rate: {self.incorrect_results['metrics']['preservation_rate']:.1f}%")
+        logger.info(f"  - Preservation rate: {self.incorrect_results['metrics'].get('preservation_rate', 0):.1f}%")
         logger.info(f"Correct orthogonalization:")
         logger.info(f"  - Corruption rate: {self.correct_results['metrics']['corruption_rate']:.1f}%")
         logger.info(f"  - Similarity score: {self.correct_results['metrics']['avg_similarity_score']:.3f}")
+        if not self.use_probe and self.correct_candidates is not None:
+            logger.info(f"Best incorrect candidate: {results['best_selection']['incorrect']}")
+            logger.info(f"Best correct candidate: {results['best_selection']['correct']}")
         logger.info(f"Runtime: {time.time() - start_time:.1f} seconds")
         logger.info(f"Results saved to: {self.output_dir}")
         logger.info("="*60)
 
-        # Write phase_output.json manifest (skip in parallel mode - orchestrator handles it)
+        # Write phase_output.json manifest (skip in parallel mode)
         if self.n_gpus == 1:
             from common.phase_discovery import write_phase_output
 

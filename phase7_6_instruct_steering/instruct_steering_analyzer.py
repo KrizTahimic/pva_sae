@@ -137,8 +137,8 @@ class InstructSteeringAnalyzer:
     def _load_dependencies(self) -> None:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
-            load_steering_latents, load_sae_and_directions, load_baseline_data,
-            load_probe_directions_for_steering
+            load_sae_and_directions, load_baseline_data,
+            load_probe_directions_for_steering, load_phase4_9_best_latent
         )
 
         if self.use_probe:
@@ -162,12 +162,17 @@ class InstructSteeringAnalyzer:
 
             logger.info(f"Mass-mean probe layer: {self.probe.layer}")
         else:
-            # === SAE MODE ===
-            # Load steering latents from Phase 2.5 (separation score selection)
-            latents = load_steering_latents(self.config)
-            self.top_latents = latents.top_latents
-            self.best_correct_latent = latents.best_correct_latent
-            self.best_incorrect_latent = latents.best_incorrect_latent
+            # === SAE MODE: Load from Phase 4.9 ===
+            selection = load_phase4_9_best_latent(self.config)
+            self.best_correct_latent = {
+                'layer': selection['correct']['layer'],
+                'latent_idx': selection['correct']['latent_idx'],
+            }
+            self.best_incorrect_latent = {
+                'layer': selection['incorrect']['layer'],
+                'latent_idx': selection['incorrect']['latent_idx'],
+            }
+            self.top_latents = None  # Not needed, Phase 4.9 already selected best
 
             # Load SAE models and extract latent directions
             sae = load_sae_and_directions(
@@ -179,19 +184,22 @@ class InstructSteeringAnalyzer:
             self.correct_latent_direction = sae.correct_direction
             self.incorrect_latent_direction = sae.incorrect_direction
 
+            # Store coefficients from Phase 4.9
+            self._phase4_9_selection = selection
+
         # Load baseline data from Phase 7.3 (instruction-tuned baseline)
         self.baseline_data, _ = load_baseline_data(
             self.config, "7.3", "dataset_instruct_temp_0_0.parquet"
         )
 
-        # Load steering coefficients from Phase 4.6
+        # Load steering coefficients
         self._load_steering_coefficients()
 
         logger.info("Dependencies loaded successfully")
 
     def _load_steering_coefficients(self) -> None:
-        """Load steering coefficients from Phase 4.6."""
-        from common.phase_discovery import discover_steering_coefficients, discover_latest_phase_output
+        """Load steering coefficients from Phase 4.9 (SAE) or Phase 4.6 (probe)."""
+        from common.phase_discovery import discover_latest_phase_output
 
         if self.use_probe:
             # For probe mode, look in the _probe directory
@@ -217,10 +225,10 @@ class InstructSteeringAnalyzer:
             self.incorrect_coefficient = coefficients_data.get("incorrect", {}).get("refined_coefficient", 100)
             logger.info(f"Loaded probe coefficients from {probe_dir}: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
         else:
-            coefficients = discover_steering_coefficients(self.config)
-            self.correct_coefficient = coefficients["correct"]
-            self.incorrect_coefficient = coefficients["incorrect"]
-            logger.info(f"Loaded SAE coefficients: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
+            # SAE mode: use Phase 4.9 refined coefficients directly
+            self.correct_coefficient = self._phase4_9_selection['correct']['refined_coefficient']
+            self.incorrect_coefficient = self._phase4_9_selection['incorrect']['refined_coefficient']
+            logger.info(f"Loaded SAE coefficients from Phase 4.9: correct={self.correct_coefficient}, incorrect={self.incorrect_coefficient}")
 
     def check_memory_usage(self) -> None:
         """Check current memory usage and log warnings if high."""

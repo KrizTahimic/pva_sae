@@ -94,20 +94,45 @@ class ZeroDiscWeightOrthogonalizer:
         features_file = self.phase4_10_dir / "zero_discrimination_features.json"
         if not features_file.exists():
             raise FileNotFoundError(f"Zero-discrimination features not found: {features_file}")
-        
+
         zero_disc_data = load_json(features_file)
         self.zero_disc_features = zero_disc_data['features']
-        
+
         if len(self.zero_disc_features) == 0:
             raise ValueError("No zero-discrimination features found")
-        
-        # Select the best zero-disc latent (lowest separation score)
-        self.best_zero_disc = min(self.zero_disc_features, key=lambda x: x['separation_score'])
-        
-        logger.info(f"Selected zero-disc latent: Layer {self.best_zero_disc['layer']}, "
-                   f"Index {self.best_zero_disc['latent_idx']}, "
-                   f"Separation {self.best_zero_disc['separation_score']:.6f}")
-        
+
+        # Limit to configured number of features
+        n_features = getattr(self.config, 'phase4_12_n_features', len(self.zero_disc_features))
+        self.zero_disc_features = self.zero_disc_features[:n_features]
+
+        logger.info(f"Will test {len(self.zero_disc_features)} zero-disc features")
+        for f in self.zero_disc_features[:5]:
+            logger.info(f"  L{f['layer']}F{f['latent_idx']} (separation={f['separation_score']:.6f})")
+        if len(self.zero_disc_features) > 5:
+            logger.info(f"  ... and {len(self.zero_disc_features) - 5} more")
+
+        # Cache SAEs by layer to avoid reloading
+        self.sae_cache = {}
+        all_layers = sorted(set(f['layer'] for f in self.zero_disc_features))
+        for layer in all_layers:
+            logger.info(f"Loading SAE for layer {layer}...")
+            self.sae_cache[layer] = load_sae_for_config(self.config, layer, "cpu")
+        logger.info(f"Loaded {len(self.sae_cache)} SAEs for layers: {all_layers}")
+
+        # Pre-compute and cache normalized directions for all features
+        self._direction_cache = {}
+        for f in self.zero_disc_features:
+            cache_key = (f['layer'], f['latent_idx'])
+            if cache_key not in self._direction_cache:
+                sae = self.sae_cache[f['layer']]
+                direction = sae.W_dec[f['latent_idx']].detach()
+                if self.device.type == "mps":
+                    direction = direction.to("mps")
+                else:
+                    direction = direction.to(self.device)
+                self._direction_cache[cache_key] = normalize_direction(direction)
+        logger.info(f"Pre-cached {len(self._direction_cache)} normalized directions")
+
         # Load Phase 3.5 baseline data
         logger.info("Loading baseline data from Phase 3.5...")
         phase3_5_output = discover_latest_phase_output("3.5", config=self.config)
@@ -120,31 +145,12 @@ class ZeroDiscWeightOrthogonalizer:
         baseline_file = self.phase3_5_dir / "dataset_temp_0_0.parquet"
         if not baseline_file.exists():
             raise FileNotFoundError(f"Baseline dataset not found: {baseline_file}")
-        
+
         self.baseline_data = pd.read_parquet(baseline_file)
         logger.info(f"Loaded {len(self.baseline_data)} problems from Phase 3.5 baseline")
 
         # Apply --start and --end arguments if provided
         self.baseline_data = filter_by_range(self.baseline_data, self.config, "baseline data")
-        
-        # Load SAE for the zero-disc latent
-        logger.info("Loading SAE model for zero-disc latent...")
-        # Use CPU first then move to device
-        self.sae = load_sae_for_config(
-            self.config,
-            self.best_zero_disc['layer'],
-            "cpu"
-        )
-
-        # Extract latent direction and move to device
-        self.zero_disc_latent_direction = self.sae.W_dec[self.best_zero_disc['latent_idx']].detach()
-        if self.device.type == "mps":
-            self.zero_disc_latent_direction = self.zero_disc_latent_direction.to("mps")
-        else:
-            self.zero_disc_latent_direction = self.zero_disc_latent_direction.to(self.device)
-        self.zero_disc_latent_direction = normalize_direction(self.zero_disc_latent_direction)
-
-        logger.info("Zero-disc SAE decoder direction extracted successfully")
         
     def _split_baseline_by_correctness(self) -> None:
         """Split baseline data into correct and incorrect subsets."""
@@ -183,12 +189,10 @@ class ZeroDiscWeightOrthogonalizer:
 
     def _cleanup_all_checkpoints(self) -> None:
         """Remove all checkpoint files after successful completion."""
-        for key in ['zero_disc_ortho_incorrect', 'zero_disc_ortho_correct']:
+        for key in list(self._checkpoint_managers.keys()):
             try:
-                manager = self._get_checkpoint_manager(*key.rsplit('_', 1))
-                manager.cleanup_all()
+                self._checkpoint_managers[key].cleanup_all()
             except FileNotFoundError:
-                # In parallel mode, files may already be cleaned up
                 logger.debug(f"Checkpoint cleanup for {key}: files already removed")
                    
     def _generate_with_model(self, model, tokenizer, prompt: str) -> str:
@@ -212,47 +216,98 @@ class ZeroDiscWeightOrthogonalizer:
         )
         return generated_text
     
-    def apply_zero_disc_orthogonalization(self) -> dict:
-        """
-        Apply orthogonalization using zero-discrimination latent.
+    def _load_partial_results(self) -> dict:
+        """Load existing partial results for feature-level checkpointing."""
+        if self.n_gpus > 1:
+            results_file = self.output_dir / f"zero_disc_orthogonalization_results_gpu{self.gpu_id}.json"
+        else:
+            results_file = self.output_dir / "zero_disc_orthogonalization_results.json"
 
-        Expected effects (control baseline):
-        - Minimal correction: Zero-disc latents should not help incorrect problems
-        - Minimal corruption: Zero-disc latents should not harm correct problems
+        if results_file.exists():
+            try:
+                existing = load_json(results_file)
+                if existing and 'per_feature_results' in existing:
+                    n_completed = len(existing['per_feature_results'])
+                    logger.info(f"Loaded partial results: {n_completed} features completed")
+                    return existing
+            except Exception as e:
+                logger.warning(f"Could not load partial results: {e}")
+
+        return {'per_feature_results': {}}
+
+    def _get_completed_feature_ids(self, partial_results: dict) -> set:
+        """Get set of feature IDs that are already completed."""
+        return set(partial_results.get('per_feature_results', {}).keys())
+
+    def _save_incremental_results(self, results: dict) -> None:
+        """Save results incrementally after each feature completes."""
+        if self.n_gpus > 1:
+            results_file = self.output_dir / f"zero_disc_orthogonalization_results_gpu{self.gpu_id}.json"
+        else:
+            results_file = self.output_dir / "zero_disc_orthogonalization_results.json"
+        save_json(results, results_file)
+        n_completed = len(results.get('per_feature_results', {}))
+        logger.info(f"Saved incremental checkpoint: {n_completed} features completed")
+
+    def _compute_averaged_metrics(self, per_feature_results: dict) -> dict:
+        """Compute averaged metrics across all features."""
+        if not per_feature_results:
+            return {}
+
+        correction_rates = []
+        corruption_rates = []
+        preservation_rates = []
+
+        for feature_data in per_feature_results.values():
+            metrics = feature_data.get('metrics', {})
+            correction_rates.append(metrics.get('correction_rate', 0))
+            corruption_rates.append(metrics.get('corruption_rate', 0))
+            preservation_rates.append(metrics.get('preservation_rate', 0))
+
+        return {
+            'correction_rate': float(np.mean(correction_rates)),
+            'corruption_rate': float(np.mean(corruption_rates)),
+            'preservation_rate': float(np.mean(preservation_rates)),
+            'std_correction': float(np.std(correction_rates)),
+            'std_corruption': float(np.std(corruption_rates)),
+            'std_preservation': float(np.std(preservation_rates)),
+            'n_features': len(per_feature_results)
+        }
+
+    def apply_zero_disc_orthogonalization_for_feature(self, feature: dict) -> dict:
         """
-        logger.info("\n" + "="*60)
-        logger.info("Applying ZERO-DISCRIMINATION latent orthogonalization")
-        logger.info("="*60)
-        
-        # Load fresh model
-        logger.info("Loading fresh model for zero-disc orthogonalization...")
+        Apply orthogonalization using a single zero-discrimination latent.
+
+        Args:
+            feature: dict with 'layer', 'latent_idx', 'separation_score'
+
+        Returns:
+            dict with metrics and examples for this feature
+        """
+        feature_id = f"L{feature['layer']}F{feature['latent_idx']}"
+        logger.info(f"\nApplying ZERO-DISC orthogonalization for {feature_id}")
+
+        # Load fresh model (orthogonalization is destructive)
         model, tokenizer = load_model_and_tokenizer(
             self.config.model_name,
             device=self.device,
             trust_remote_code=self.config.model_trust_remote_code
         )
         model.eval()
-        
+
+        # Get cached direction
+        direction = self._direction_cache[(feature['layer'], feature['latent_idx'])]
+        if model.device.type != direction.device.type:
+            direction = direction.to(model.device)
+
         # Apply orthogonalization
-        logger.info("Orthogonalizing weights to remove zero-disc latent...")
-        logger.info(f"Latent: Layer {self.best_zero_disc['layer']}, "
-                   f"Index {self.best_zero_disc['latent_idx']}")
-        
-        # Ensure direction is on correct device
-        if model.device.type != self.zero_disc_latent_direction.device.type:
-            self.zero_disc_latent_direction = self.zero_disc_latent_direction.to(model.device)
-        
         weight_changes = orthogonalize_gemma_weights(
-            model, 
-            self.zero_disc_latent_direction,
+            model, direction,
             target_weights=self.config.orthogonalization_target_weights
         )
-        
-        # Test on incorrect baseline (expect minimal corrections)
-        logger.info("\nTesting on initially incorrect problems...")
 
-        # Get checkpoint manager and load existing checkpoint
-        checkpoint_mgr_incorrect = self._get_checkpoint_manager('zero_disc_ortho', 'incorrect')
+        # Test on incorrect baseline (expect minimal corrections)
+        checkpoint_mgr_incorrect = self._get_checkpoint_manager(f'zero_disc_{feature_id}', 'incorrect')
         checkpoint_incorrect = checkpoint_mgr_incorrect.load()
         if checkpoint_incorrect:
             incorrect_results = checkpoint_incorrect.results
@@ -261,28 +316,20 @@ class ZeroDiscWeightOrthogonalizer:
             incorrect_results = []
             processed_incorrect_ids = set()
 
-        # Filter to unprocessed tasks
         incorrect_to_process = self.incorrect_baseline[
             ~self.incorrect_baseline['task_id'].astype(str).isin(processed_incorrect_ids)
         ]
-        total_incorrect_remaining = len(incorrect_to_process)
 
-        if total_incorrect_remaining == 0:
-            logger.info("All incorrect baseline tasks already processed from checkpoint")
-        else:
+        if len(incorrect_to_process) > 0:
             for enum_idx, (_, row) in enumerate(tqdm_with_logging(incorrect_to_process.iterrows(),
-                                                       logger, total=total_incorrect_remaining,
-                                                       desc="Evaluating incorrect baseline")):
-                # Define generation function for retry
+                                                       logger, total=len(incorrect_to_process),
+                                                       desc=f"[{feature_id}] Incorrect baseline")):
                 def generate_and_evaluate():
                     prompt = row['prompt']
-
-                    # Generate with orthogonalized model
                     generated = self._generate_with_model(model, tokenizer, prompt)
                     code = extract_code(generated, prompt)
                     test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
                     eval_result = evaluate_code_with_error_type(code, test_cases)
-
                     return {
                         'task_id': row['task_id'],
                         'baseline_passed': False,
@@ -293,48 +340,29 @@ class ZeroDiscWeightOrthogonalizer:
                         'raw_output_orthogonalized': generated
                     }
 
-                # Attempt generation with retry and timeout
                 success, result, error_msg = retry_with_timeout(
-                    generate_and_evaluate,
-                    row['task_id'],
-                    self.config,
-                    operation_name="zero_disc_ortho generation"
+                    generate_and_evaluate, row['task_id'], self.config,
+                    operation_name=f"zero_disc_ortho_{feature_id} generation"
                 )
-
                 if success:
                     incorrect_results.append(result)
-                    processed_incorrect_ids.add(str(row['task_id']))
                 else:
-                    logger.warning(f"Skipping task {row['task_id']} due to error: {error_msg}")
-                    # Append a failed result to maintain consistency
                     incorrect_results.append({
-                        'task_id': row['task_id'],
-                        'baseline_passed': False,
-                        'orthogonalized_correct': False,
-                        'baseline_code': row['generated_code'],
-                        'orthogonalized_code': '',
-                        'error': error_msg
+                        'task_id': row['task_id'], 'baseline_passed': False,
+                        'orthogonalized_correct': False, 'baseline_code': row['generated_code'],
+                        'orthogonalized_code': '', 'error': error_msg
                     })
-                    processed_incorrect_ids.add(str(row['task_id']))
+                processed_incorrect_ids.add(str(row['task_id']))
 
-                # Memory monitoring every 10 tasks
                 if (enum_idx + 1) % 10 == 0:
-                    check_memory_usage()
-                    gc.collect()
-                    if self.device.type == "cuda":
-                        torch.cuda.empty_cache()
-                    elif self.device.type == "mps":
-                        torch.mps.empty_cache()
-
-                # Checkpoint using CheckpointManager
+                    check_memory_usage(); gc.collect()
+                    if self.device.type == "cuda": torch.cuda.empty_cache()
+                    elif self.device.type == "mps": torch.mps.empty_cache()
                 if checkpoint_mgr_incorrect.should_save(len(incorrect_results), check_memory_usage()):
                     checkpoint_mgr_incorrect.save(incorrect_results, processed_incorrect_ids)
 
         # Test on correct baseline (expect minimal corruptions)
-        logger.info("\nTesting on initially correct problems...")
-
-        # Get checkpoint manager and load existing checkpoint
-        checkpoint_mgr_correct = self._get_checkpoint_manager('zero_disc_ortho', 'correct')
+        checkpoint_mgr_correct = self._get_checkpoint_manager(f'zero_disc_{feature_id}', 'correct')
         checkpoint_correct = checkpoint_mgr_correct.load()
         if checkpoint_correct:
             correct_results = checkpoint_correct.results
@@ -343,31 +371,21 @@ class ZeroDiscWeightOrthogonalizer:
             correct_results = []
             processed_correct_ids = set()
 
-        # Filter to unprocessed tasks
         correct_to_process = self.correct_baseline[
             ~self.correct_baseline['task_id'].astype(str).isin(processed_correct_ids)
         ]
-        total_correct_remaining = len(correct_to_process)
 
-        if total_correct_remaining == 0:
-            logger.info("All correct baseline tasks already processed from checkpoint")
-        else:
+        if len(correct_to_process) > 0:
             for enum_idx, (_, row) in enumerate(tqdm_with_logging(correct_to_process.iterrows(),
-                                                       logger, total=total_correct_remaining,
-                                                       desc="Evaluating correct baseline")):
-                # Define generation function for retry
+                                                       logger, total=len(correct_to_process),
+                                                       desc=f"[{feature_id}] Correct baseline")):
                 def generate_and_evaluate():
                     prompt = row['prompt']
-
-                    # Generate with orthogonalized model
                     generated = self._generate_with_model(model, tokenizer, prompt)
                     code = extract_code(generated, prompt)
                     test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
                     eval_result = evaluate_code_with_error_type(code, test_cases)
-
-                    # Calculate code similarity
                     similarity = calculate_code_similarity(row['generated_code'], code)
-
                     return {
                         'task_id': row['task_id'],
                         'baseline_passed': True,
@@ -379,66 +397,47 @@ class ZeroDiscWeightOrthogonalizer:
                         'raw_output_orthogonalized': generated
                     }
 
-                # Attempt generation with retry and timeout
                 success, result, error_msg = retry_with_timeout(
-                    generate_and_evaluate,
-                    row['task_id'],
-                    self.config,
-                    operation_name="zero_disc_ortho preservation"
+                    generate_and_evaluate, row['task_id'], self.config,
+                    operation_name=f"zero_disc_ortho_{feature_id} preservation"
                 )
-
                 if success:
                     correct_results.append(result)
-                    processed_correct_ids.add(str(row['task_id']))
                 else:
-                    logger.warning(f"Skipping task {row['task_id']} due to error: {error_msg}")
-                    # Append a failed result
                     correct_results.append({
-                        'task_id': row['task_id'],
-                        'baseline_passed': True,
-                        'orthogonalized_correct': False,  # Conservative: assume failure on error
-                        'baseline_code': row['generated_code'],
-                        'orthogonalized_code': '',
-                        'similarity': float('nan'),
-                        'error': error_msg
+                        'task_id': row['task_id'], 'baseline_passed': True,
+                        'orthogonalized_correct': False, 'baseline_code': row['generated_code'],
+                        'orthogonalized_code': '', 'similarity': float('nan'), 'error': error_msg
                     })
-                    processed_correct_ids.add(str(row['task_id']))
+                processed_correct_ids.add(str(row['task_id']))
 
-                # Memory monitoring every 10 tasks
                 if (enum_idx + 1) % 10 == 0:
-                    check_memory_usage()
-                    gc.collect()
-                    if self.device.type == "cuda":
-                        torch.cuda.empty_cache()
-                    elif self.device.type == "mps":
-                        torch.mps.empty_cache()
-
-                # Checkpoint using CheckpointManager
+                    check_memory_usage(); gc.collect()
+                    if self.device.type == "cuda": torch.cuda.empty_cache()
+                    elif self.device.type == "mps": torch.mps.empty_cache()
                 if checkpoint_mgr_correct.should_save(len(correct_results), check_memory_usage()):
                     checkpoint_mgr_correct.save(correct_results, processed_correct_ids)
-        
+
         # Calculate metrics
         correction_rate = calculate_correction_rate(incorrect_results)
         preservation_rate = calculate_preservation_rate(correct_results)
         corruption_rate = calculate_corruption_rate(correct_results)
-        
-        # Calculate similarity scores
         similarity_scores = [r.get('similarity', 1.0) for r in correct_results]
         avg_similarity = np.nanmean(similarity_scores) if similarity_scores else 1.0
-        
+
         n_incorrect = len(incorrect_results)
         n_corrected = sum(1 for r in incorrect_results if r['orthogonalized_correct'])
         n_correct = len(correct_results)
         n_preserved = sum(1 for r in correct_results if r['orthogonalized_correct'])
         n_corrupted = n_correct - n_preserved
-        
+
         results = {
             'latent': {
-                'layer': self.best_zero_disc['layer'],
-                'latent_idx': self.best_zero_disc['latent_idx'],
-                'separation_score': self.best_zero_disc['separation_score'],
-                'freq_correct': self.best_zero_disc.get('freq_correct', 0),
-                'freq_incorrect': self.best_zero_disc.get('freq_incorrect', 0)
+                'layer': feature['layer'],
+                'latent_idx': feature['latent_idx'],
+                'separation_score': feature['separation_score'],
+                'freq_correct': feature.get('freq_correct', 0),
+                'freq_incorrect': feature.get('freq_incorrect', 0)
             },
             'weight_changes': weight_changes,
             'metrics': {
@@ -458,7 +457,6 @@ class ZeroDiscWeightOrthogonalizer:
                 'preserved': [r for r in correct_results if r['orthogonalized_correct']][:5],
                 'corrupted': [r for r in correct_results if not r['orthogonalized_correct']][:5]
             },
-            # Full results for parallel merge (only included in parallel mode)
             'incorrect_results': incorrect_results if self.n_gpus > 1 else [],
             'correct_results': {
                 'corrected': [r for r in incorrect_results if r['orthogonalized_correct']],
@@ -466,20 +464,25 @@ class ZeroDiscWeightOrthogonalizer:
                 'corrupted': [r for r in correct_results if not r['orthogonalized_correct']]
             } if self.n_gpus > 1 else {}
         }
-        
-        logger.info(f"\nResults for ZERO-DISC orthogonalization:")
+
+        logger.info(f"\n[{feature_id}] Results:")
         logger.info(f"  Correction rate: {correction_rate:.1f}% ({n_corrected}/{n_incorrect})")
         logger.info(f"  Preservation rate: {preservation_rate:.1f}% ({n_preserved}/{n_correct})")
         logger.info(f"  Corruption rate: {corruption_rate:.1f}% ({n_corrupted}/{n_correct})")
         logger.info(f"  Average similarity: {avg_similarity:.3f}")
-        
-        # Clean up
+
+        # Clean up model
         del model
+        gc.collect()
         if self.device.type == "cuda":
             torch.cuda.empty_cache()
         elif self.device.type == "mps":
             torch.mps.empty_cache()
-        
+
+        # Clean up per-feature checkpoints
+        checkpoint_mgr_incorrect.cleanup_all()
+        checkpoint_mgr_correct.cleanup_all()
+
         return results
     
     def create_visualizations(self) -> None:
@@ -577,34 +580,69 @@ class ZeroDiscWeightOrthogonalizer:
         logger.info(f"Saved examples to {self.examples_dir}")
     
     def run(self) -> dict:
-        """Main execution pipeline."""
+        """Main execution pipeline - iterates over ALL zero-disc features."""
         # Handle --viz-only mode
         def viz_from_data(data):
-            self.results = data['zero_disc_orthogonalization']
+            self.results = data.get('zero_disc_orthogonalization', data.get('averaged_metrics', {}))
             self.create_visualizations()
 
         if handle_viz_only_mode(self, "zero_disc_orthogonalization_results.json", viz_from_data):
             return {}
 
         logger.info("\n" + "="*60)
-        logger.info("Starting Phase 5.6: Zero-Discrimination Weight Orthogonalization")
+        logger.info("Starting Phase 5.6: Zero-Discrimination Weight Orthogonalization (Multi-Feature)")
         logger.info("Control experiment to validate Phase 5.3 specificity")
         logger.info("="*60)
-        
-        start_time = time.time()
-        
-        # Apply zero-disc orthogonalization
-        self.results = self.apply_zero_disc_orthogonalization()
 
-        # Clean up checkpoints after successful completion
+        start_time = time.time()
+
+        # Load partial results for feature-level resumability
+        results = self._load_partial_results()
+        completed_ids = self._get_completed_feature_ids(results)
+        if 'per_feature_results' not in results:
+            results['per_feature_results'] = {}
+
+        n_total = len(self.zero_disc_features)
+        logger.info(f"Will test {n_total} zero-disc features")
+        logger.info(f"Already completed: {len(completed_ids)} features")
+
+        for feat_idx, feature in enumerate(self.zero_disc_features):
+            feature_id = f"L{feature['layer']}F{feature['latent_idx']}"
+
+            if feature_id in completed_ids:
+                logger.info(f"Skipping {feature_id} ({feat_idx + 1}/{n_total}) - already completed")
+                continue
+
+            logger.info("\n" + "="*50)
+            logger.info(f"Processing feature {feature_id} ({feat_idx + 1}/{n_total})")
+            logger.info(f"Separation score: {feature['separation_score']:.6f}")
+            logger.info("="*50)
+
+            feature_results = self.apply_zero_disc_orthogonalization_for_feature(feature)
+            results['per_feature_results'][feature_id] = feature_results
+
+            # Save incremental checkpoint
+            self._save_incremental_results(results)
+            logger.info(f"Checkpoint: {len(results['per_feature_results'])}/{n_total} features completed")
+
+        # Compute averaged metrics across all features
+        averaged_metrics = self._compute_averaged_metrics(results['per_feature_results'])
+        results['averaged_metrics'] = averaged_metrics
+
+        # Use averaged metrics as self.results for visualization
+        # Pick first feature for backward-compatible visualization
+        first_feature_id = list(results['per_feature_results'].keys())[0]
+        self.results = results['per_feature_results'][first_feature_id]
+
+        # Clean up checkpoints
         self._cleanup_all_checkpoints()
 
         # Create visualizations
         self.create_visualizations()
 
-        # Save examples
+        # Save examples from first feature
         self.save_examples()
-        
+
         # Compile final results
         final_results = {
             'timestamp': datetime.now().isoformat(),
@@ -613,73 +651,69 @@ class ZeroDiscWeightOrthogonalizer:
                 'target_weights': self.config.orthogonalization_target_weights,
                 'n_validation_problems': len(self.baseline_data),
                 'n_correct_baseline': len(self.correct_baseline),
-                'n_incorrect_baseline': len(self.incorrect_baseline)
+                'n_incorrect_baseline': len(self.incorrect_baseline),
+                'n_features_tested': len(results['per_feature_results'])
             },
+            'per_feature_results': results['per_feature_results'],
+            'averaged_metrics': averaged_metrics,
+            # Backward compatibility: use first feature as primary result
             'zero_disc_orthogonalization': self.results,
             'runtime_seconds': time.time() - start_time
         }
-        
-        # Save main results (per-GPU in parallel mode, single file otherwise)
+
+        # Save main results
         if self.n_gpus > 1:
             results_filename = f"zero_disc_orthogonalization_results_gpu{self.gpu_id}.json"
         else:
             results_filename = "zero_disc_orthogonalization_results.json"
         save_json(final_results, self.output_dir / results_filename)
-        
-        # Save weight changes separately
-        weight_changes = {
-            'zero_disc_feature': self.results['latent'],
-            'weight_changes': self.results['weight_changes']
-        }
-        save_json(weight_changes, self.output_dir / "weight_changes.json")
-        
-        # Collect all orthogonalized results for error distribution
-        all_orthogonalized_results = []
-        for examples_key in ['corrected', 'not_corrected', 'preserved', 'corrupted']:
-            if examples_key in self.results.get('examples', {}):
-                all_orthogonalized_results.extend(self.results['examples'][examples_key])
 
         # Create summary
         summary = {
             'phase': '5.6',
-            'description': 'Zero-Discrimination Weight Orthogonalization (Control)',
+            'description': 'Zero-Discrimination Weight Orthogonalization (Multi-Feature Control)',
             'key_findings': {
-                'correction_rate': f"{self.results['metrics']['correction_rate']:.1f}%",
-                'preservation_rate': f"{self.results['metrics']['preservation_rate']:.1f}%",
-                'corruption_rate': f"{self.results['metrics']['corruption_rate']:.1f}%",
-                'avg_similarity': f"{self.results['metrics']['avg_similarity_score']:.3f}",
-                'latent_used': f"L{self.results['latent']['layer']}F{self.results['latent']['latent_idx']}",
-                'separation_score': self.results['latent']['separation_score']
+                'n_features_tested': averaged_metrics.get('n_features', 0),
+                'avg_correction_rate': f"{averaged_metrics.get('correction_rate', 0):.1f}% (+/-{averaged_metrics.get('std_correction', 0):.1f}%)",
+                'avg_preservation_rate': f"{averaged_metrics.get('preservation_rate', 0):.1f}% (+/-{averaged_metrics.get('std_preservation', 0):.1f}%)",
+                'avg_corruption_rate': f"{averaged_metrics.get('corruption_rate', 0):.1f}% (+/-{averaged_metrics.get('std_corruption', 0):.1f}%)",
+                'features_tested': list(results['per_feature_results'].keys())
             },
             'interpretation': 'Zero-disc features show minimal effects as expected for control baseline',
             'output_files': [
                 'zero_disc_orthogonalization_results.json',
-                'weight_changes.json',
                 'phase_5_6_summary.json',
                 'visualizations/zero_disc_orthogonalization_effects.png',
                 'examples/'
-            ],
-            'orthogonalized_error_type_distribution': compute_error_type_distribution(
-                all_orthogonalized_results, 'orthogonalized_error_type'
-            ) if all_orthogonalized_results else None
+            ]
         }
         save_json(summary, self.output_dir / "phase_5_6_summary.json")
-        
+
         # Log summary
         logger.info("\n" + "="*60)
-        logger.info("PHASE 5.6 SUMMARY")
+        logger.info("PHASE 5.6 SUMMARY (MULTI-FEATURE)")
         logger.info("="*60)
-        logger.info(f"Zero-disc feature: L{self.results['latent']['layer']}F{self.results['latent']['latent_idx']}")
-        logger.info(f"Separation score: {self.results['latent']['separation_score']:.6f}")
-        logger.info(f"Correction rate: {self.results['metrics']['correction_rate']:.1f}%")
-        logger.info(f"Preservation rate: {self.results['metrics']['preservation_rate']:.1f}%")
-        logger.info(f"Corruption rate: {self.results['metrics']['corruption_rate']:.1f}%")
-        logger.info(f"Similarity score: {self.results['metrics']['avg_similarity_score']:.3f}")
+        logger.info(f"Features tested: {averaged_metrics.get('n_features', 0)}")
+        logger.info(f"Avg correction rate: {averaged_metrics.get('correction_rate', 0):.1f}% "
+                    f"(+/-{averaged_metrics.get('std_correction', 0):.1f}%)")
+        logger.info(f"Avg preservation rate: {averaged_metrics.get('preservation_rate', 0):.1f}% "
+                    f"(+/-{averaged_metrics.get('std_preservation', 0):.1f}%)")
+        logger.info(f"Avg corruption rate: {averaged_metrics.get('corruption_rate', 0):.1f}% "
+                    f"(+/-{averaged_metrics.get('std_corruption', 0):.1f}%)")
+
+        # Per-feature breakdown
+        logger.info("\nPer-feature breakdown:")
+        for fid, fdata in results['per_feature_results'].items():
+            metrics = fdata.get('metrics', {})
+            logger.info(f"  {fid}: correction={metrics.get('correction_rate', 0):.1f}%, "
+                       f"corruption={metrics.get('corruption_rate', 0):.1f}%, "
+                       f"preservation={metrics.get('preservation_rate', 0):.1f}%")
+
         logger.info(f"Runtime: {time.time() - start_time:.1f} seconds")
         logger.info(f"Results saved to: {self.output_dir}")
         logger.info("="*60)
 
-        # Write phase_output.json manifest (skip in parallel mode - orchestrator handles it)
+        # Write phase_output.json manifest (skip in parallel mode)
         if self.n_gpus == 1:
             from common.phase_discovery import write_phase_output
 
@@ -688,7 +722,6 @@ class ZeroDiscWeightOrthogonalizer:
                 outputs={
                     "primary": "phase_5_6_summary.json",
                     "orthogonalization_results": "zero_disc_orthogonalization_results.json",
-                    "weight_changes": "weight_changes.json",
                 },
                 config=self.config,
                 output_dir=str(self.output_dir),

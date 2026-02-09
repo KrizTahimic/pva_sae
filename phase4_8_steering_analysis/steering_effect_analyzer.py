@@ -388,10 +388,11 @@ class SteeringEffectAnalyzer:
     
     def _save_steered_attention(self, task_id: str, steering_type: str,
                                 attention_patterns: dict[int, torch.Tensor],
-                                tokenized_prompt: torch.Tensor) -> None:
+                                tokenized_prompt: torch.Tensor,
+                                rank: int = 0) -> None:
         """Save attention patterns from steered generation."""
-        # Create attention directory for this steering type
-        attention_dir = self.output_dir / "attention_patterns" / f"{steering_type}_steering"
+        # Create attention directory for this steering type and rank
+        attention_dir = self.output_dir / "attention_patterns" / f"{steering_type}_steering" / f"rank_{rank}"
         attention_dir.mkdir(parents=True, exist_ok=True)
         
         # Save attention for each layer
@@ -678,7 +679,8 @@ class SteeringEffectAnalyzer:
         candidate: dict,
         steering_type: str,
         coefficient: float,
-        save_attention: bool = False
+        save_attention: bool = False,
+        rank: int = 0
     ) -> dict:
         """
         Evaluate a single candidate latent for steering.
@@ -688,6 +690,7 @@ class SteeringEffectAnalyzer:
             steering_type: 'correct' or 'incorrect'
             coefficient: Steering coefficient
             save_attention: If True, capture and save attention patterns for Phase 6.3
+            rank: Candidate rank (for attention save path subdirectory)
 
         Returns:
             Dict with candidate info and evaluation metrics
@@ -772,7 +775,8 @@ class SteeringEffectAnalyzer:
                         if attention_patterns:
                             self._save_steered_attention(
                                 row['task_id'], steering_type,
-                                attention_patterns, inputs['input_ids']
+                                attention_patterns, inputs['input_ids'],
+                                rank=rank
                             )
 
                     baseline_passed = row['baseline_passed']
@@ -1514,8 +1518,8 @@ class SteeringEffectAnalyzer:
 
                 logger.info(f"\n--- Candidate {rank+1}/{n_candidates}: {candidate_id} (coeff={coefficient}) ---")
 
-                # Save attention only for rank 0 (best candidate) — Phase 6.3 needs it
-                capture_attention = (rank == 0)
+                # Save attention for all candidates — Phase 6.3 uses Phase 4.9 best latent (may not be rank 0)
+                capture_attention = True
 
                 # Evaluate this candidate
                 result = self.evaluate_candidate(
@@ -1523,7 +1527,8 @@ class SteeringEffectAnalyzer:
                               'separation_score': candidate_entry.get('separation_score')},
                     steering_type=steering_type,
                     coefficient=coefficient,
-                    save_attention=capture_attention
+                    save_attention=capture_attention,
+                    rank=rank
                 )
 
                 # Add rank to result

@@ -144,15 +144,15 @@ class ThresholdOptimizer:
             self.incorrect_pred_latent = None
             self.correct_steer_latent = None
         else:
-            # === SAE MODE: Load from Phase 3.8 + Phase 2.5 ===
-            logger.info("SAE MODE: Loading feature info from Phase 3.8 and 2.5...")
+            # === SAE MODE: Load from Phase 3.8 (predicting) + Phase 4.9 (steering) ===
+            logger.info("SAE MODE: Loading feature info from Phase 3.8 and 4.9...")
             phase3_8_output = discover_latest_phase_output("3.8", config=self.config)
             if not phase3_8_output:
                 raise FileNotFoundError("Phase 3.8 output not found. Run Phase 3.8 first.")
 
             phase3_8_results = load_json(Path(phase3_8_output).parent / "auroc_f1_results.json")
 
-            # Extract incorrect-predicting latent info
+            # Extract incorrect-predicting latent info (from Phase 3.8 — separate from steering)
             incorrect_pred_info = phase3_8_results['incorrect_predicting_latent']
             self.incorrect_pred_layer = incorrect_pred_info['layer']
             self.incorrect_pred_latent = incorrect_pred_info['latent_idx']
@@ -160,20 +160,15 @@ class ThresholdOptimizer:
             logger.info(f"Incorrect-predicting latent: Layer {self.incorrect_pred_layer}, "
                        f"Latent {self.incorrect_pred_latent}")
 
-            # === LOAD STEERING LATENTS (for correct-steering direction) ===
-            from common.steering_setup import load_steering_latents
-            pva_latents = load_steering_latents(self.config)
-            top_latents = pva_latents.top_latents
+            # === LOAD STEERING LATENT FROM PHASE 4.9 ===
+            from common.steering_setup import load_phase4_9_best_latent
+            selection = load_phase4_9_best_latent(self.config)
 
-            # Get best correct-steering latent
-            self.best_correct_latent = top_latents['correct'][0]
-            self.correct_steer_layer = self.best_correct_latent['layer']
-            self.correct_steer_latent = self.best_correct_latent['latent_idx']
+            self.correct_steer_layer = selection['correct']['layer']
+            self.correct_steer_latent = selection['correct']['latent_idx']
 
-            correct_score = self.best_correct_latent.get('separation_score', self.best_correct_latent.get('t_statistic', 0))
-            logger.info(f"Correct-steering latent: Layer {self.correct_steer_layer}, "
-                       f"Latent {self.correct_steer_latent}, "
-                       f"Score {correct_score:.4f}")
+            logger.info(f"Correct-steering latent (Phase 4.9): Layer {self.correct_steer_layer}, "
+                       f"Latent {self.correct_steer_latent}")
 
             # === LOAD SAEs ===
             logger.info("Loading SAE models...")
@@ -188,12 +183,10 @@ class ThresholdOptimizer:
 
             # Extract latent direction for steering
             self.correct_latent_direction = self.steering_sae.W_dec[self.correct_steer_latent].detach()
-            # Normalize to unit L2 norm (consistent coefficient interpretation across SAEs)
             self.correct_latent_direction = normalize_direction(
                 self.correct_latent_direction, name="correct_latent_direction"
             )
 
-            # Ensure latent direction is in the same dtype as the model
             model_dtype = next(self.model.parameters()).dtype
             self.correct_latent_direction = self.correct_latent_direction.to(dtype=model_dtype)
             logger.info(f"Latent direction normalized to unit norm, converted to model dtype: {model_dtype}")
@@ -202,15 +195,16 @@ class ThresholdOptimizer:
             self.predicting_direction = None
             self.predicting_bias = 0.0
 
-        # === LOAD PHASE 4.6 REFINED COEFFICIENT ===
-        phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
-        if not phase4_6_output:
-            raise FileNotFoundError("Phase 4.6 output not found. Run Phase 4.6 first.")
+            # Store Phase 4.9 selection for coefficient
+            self._phase4_9_selection = selection
 
-        phase4_6_dir = Path(phase4_6_output).parent
-
-        # In probe mode, look for _probe suffix on Phase 4.6 directory
+        # === LOAD STEERING COEFFICIENT ===
         if self.use_probe:
+            phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
+            if not phase4_6_output:
+                raise FileNotFoundError("Phase 4.6 output not found. Run Phase 4.6 first.")
+
+            phase4_6_dir = Path(phase4_6_output).parent
             probe_4_6 = get_probe_dir(phase4_6_dir)
             if probe_4_6.exists():
                 phase4_6_dir = probe_4_6
@@ -221,9 +215,12 @@ class ThresholdOptimizer:
                     f"Run: python3 run.py phase 4.6 --direction-source probe_mass_mean"
                 )
 
-        refined_coefficients = load_json(phase4_6_dir / "refined_coefficients.json")
-        self.steering_coefficient = refined_coefficients['correct']['refined_coefficient']
-        logger.info(f"Using Phase 4.6 refined coefficient: {self.steering_coefficient}")
+            refined_coefficients = load_json(phase4_6_dir / "refined_coefficients.json")
+            self.steering_coefficient = refined_coefficients['correct']['refined_coefficient']
+            logger.info(f"Using Phase 4.6 probe refined coefficient: {self.steering_coefficient}")
+        else:
+            self.steering_coefficient = self._phase4_9_selection['correct']['refined_coefficient']
+            logger.info(f"Using Phase 4.9 refined coefficient: {self.steering_coefficient}")
 
         # === LOAD PHASE 0.1 PROBLEM SPECIFICATIONS ===
         logger.info("Loading MBPP problem specifications from Phase 0.1...")
@@ -1183,7 +1180,7 @@ class ThresholdEvaluator:
             self.incorrect_pred_latent = None
             self.correct_steer_latent = None
         else:
-            # SAE MODE
+            # SAE MODE: Phase 3.8 for predicting, Phase 4.9 for steering
             phase3_8_output = discover_latest_phase_output("3.8", config=self.config)
             phase3_8_results = load_json(Path(phase3_8_output).parent / "auroc_f1_results.json")
 
@@ -1191,11 +1188,10 @@ class ThresholdEvaluator:
             self.incorrect_pred_layer = incorrect_pred_info['layer']
             self.incorrect_pred_latent = incorrect_pred_info['latent_idx']
 
-            from common.steering_setup import load_steering_latents
-            pva_latents = load_steering_latents(self.config)
-            self.best_correct_latent = pva_latents.top_latents['correct'][0]
-            self.correct_steer_layer = self.best_correct_latent['layer']
-            self.correct_steer_latent = self.best_correct_latent['latent_idx']
+            from common.steering_setup import load_phase4_9_best_latent
+            selection = load_phase4_9_best_latent(self.config)
+            self.correct_steer_layer = selection['correct']['layer']
+            self.correct_steer_latent = selection['correct']['latent_idx']
 
             self.predicting_sae = load_sae_for_config(self.config, self.incorrect_pred_layer, self.device)
             self.steering_sae = load_sae_for_config(self.config, self.correct_steer_layer, self.device)
@@ -1209,15 +1205,20 @@ class ThresholdEvaluator:
             self.predicting_direction = None
             self.predicting_bias = 0.0
 
-        # Load Phase 4.6 coefficient
-        phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
-        phase4_6_dir = Path(phase4_6_output).parent
+            # Store Phase 4.9 selection for coefficient
+            self._phase4_9_selection = selection
+
+        # Load steering coefficient
         if self.use_probe:
+            phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
+            phase4_6_dir = Path(phase4_6_output).parent
             probe_4_6 = get_probe_dir(phase4_6_dir)
             if probe_4_6.exists():
                 phase4_6_dir = probe_4_6
-        refined_coefficients = load_json(phase4_6_dir / "refined_coefficients.json")
-        self.steering_coefficient = refined_coefficients['correct']['refined_coefficient']
+            refined_coefficients = load_json(phase4_6_dir / "refined_coefficients.json")
+            self.steering_coefficient = refined_coefficients['correct']['refined_coefficient']
+        else:
+            self.steering_coefficient = self._phase4_9_selection['correct']['refined_coefficient']
 
         # Load Phase 0.1 problem specifications
         phase0_1_output = discover_latest_phase_output("0.1", config=self.config)

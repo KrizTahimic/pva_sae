@@ -165,7 +165,7 @@ class SelectiveSteeringAnalyzer:
                 phase3_8_threshold = 0.0
                 logger.warning("Phase 3.8 output not found, using threshold 0.0")
         else:
-            # === SAE MODE: Load from Phase 3.8 + Phase 2.5 ===
+            # === SAE MODE: Load from Phase 3.8 (predicting) + Phase 4.9 (steering) ===
             logger.info("SAE MODE: Loading threshold from Phase 3.8...")
             phase3_8_output = discover_latest_phase_output("3.8", config=self.config)
             if not phase3_8_output:
@@ -173,7 +173,7 @@ class SelectiveSteeringAnalyzer:
 
             phase3_8_results = load_json(Path(phase3_8_output).parent / "auroc_f1_results.json")
 
-            # Extract incorrect-predicting latent info
+            # Extract incorrect-predicting latent info (from Phase 3.8 — separate from steering)
             incorrect_pred_info = phase3_8_results['incorrect_predicting_latent']
             self.incorrect_pred_layer = incorrect_pred_info['layer']
             self.incorrect_pred_latent = incorrect_pred_info['latent_idx']
@@ -185,20 +185,15 @@ class SelectiveSteeringAnalyzer:
                        f"Latent {self.incorrect_pred_latent}")
             logger.info(f"Phase 3.8 optimal threshold: {phase3_8_threshold:.4f}")
 
-            # === LOAD STEERING LATENTS (for correct-steering direction) ===
-            from common.steering_setup import load_steering_latents
-            pva_latents = load_steering_latents(self.config)
-            top_latents = pva_latents.top_latents
+            # === LOAD STEERING LATENT FROM PHASE 4.9 ===
+            from common.steering_setup import load_phase4_9_best_latent
+            self._phase4_9_selection = load_phase4_9_best_latent(self.config)
 
-            # Get best correct-steering latent
-            self.best_correct_latent = top_latents['correct'][0]
-            self.correct_steer_layer = self.best_correct_latent['layer']
-            self.correct_steer_latent = self.best_correct_latent['latent_idx']
+            self.correct_steer_layer = self._phase4_9_selection['correct']['layer']
+            self.correct_steer_latent = self._phase4_9_selection['correct']['latent_idx']
 
-            correct_score = self.best_correct_latent.get('separation_score', self.best_correct_latent.get('t_statistic', 0))
-            logger.info(f"Correct-steering latent: Layer {self.correct_steer_layer}, "
-                       f"Latent {self.correct_steer_latent}, "
-                       f"Score {correct_score:.4f}")
+            logger.info(f"Correct-steering latent (Phase 4.9): Layer {self.correct_steer_layer}, "
+                       f"Latent {self.correct_steer_latent}")
 
             # === LOAD SAEs ===
             logger.info("Loading SAE models...")
@@ -351,9 +346,7 @@ class SelectiveSteeringAnalyzer:
             self.threshold = phase3_8_threshold
             logger.info(f"Using Phase 3.8 classification threshold: {self.threshold:.4f}")
 
-        # === LOAD STEERING COEFFICIENTS FROM PHASE 4.9/4.6 ===
-        from common.phase_discovery import discover_steering_coefficients
-
+        # === LOAD STEERING COEFFICIENT ===
         if self.use_probe:
             # For probe mode, look in the _probe directory
             phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
@@ -372,10 +365,9 @@ class SelectiveSteeringAnalyzer:
             self.correct_coefficient = refined_coefficients['correct']['refined_coefficient']
             logger.info(f"PROBE MODE: Loaded steering coefficient from {probe_4_6}: {self.correct_coefficient}")
         else:
-            # SAE mode: use discover_steering_coefficients which tries 4.9 first, then 4.6
-            coefficients = discover_steering_coefficients(self.config)
-            self.correct_coefficient = coefficients["correct"]
-            logger.info(f"Loaded steering coefficient: {self.correct_coefficient}")
+            # SAE mode: use Phase 4.9 directly
+            self.correct_coefficient = self._phase4_9_selection['correct']['refined_coefficient']
+            logger.info(f"Loaded steering coefficient from Phase 4.9: {self.correct_coefficient}")
 
         # === LOAD PHASE 4.8 COMPARISON RATES (for summary logging) ===
         self.phase4_8_rates = None

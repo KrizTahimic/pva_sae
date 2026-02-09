@@ -7,11 +7,14 @@ analyzer should produce valid plots with baseline-only data instead of
 crashing on NaN/Inf axis limits.
 """
 
+import json
 import numpy as np
 import pytest
 from unittest.mock import MagicMock, patch
+from pathlib import Path
 
 from phase6_3_attention_analysis.attention_analyzer import AttentionAnalyzer
+from common.config import Config
 
 
 def _make_analyzer(tmp_path, n_heads=8):
@@ -110,3 +113,45 @@ class TestCreateHeadAttentionChangeBarsNoSteered:
 
         plot_path = analyzer.visualizations_dir / 'head_attention_changes_correct.png'
         assert plot_path.exists()
+
+
+class TestPhase63LoadsPvaFeatures:
+    """SAE mode should call load_phase4_9_best_latent and set rank/layer from result."""
+
+    def test_sae_mode_calls_phase4_9(self):
+        """SAE mode should use load_phase4_9_best_latent and set best_correct_rank/best_incorrect_rank."""
+        selection = {
+            "correct": {"rank": 2, "layer": 15, "latent_idx": 12809, "refined_coefficient": 62},
+            "incorrect": {"rank": 1, "layer": 18, "latent_idx": 4612, "refined_coefficient": 25},
+        }
+
+        analyzer = AttentionAnalyzer.__new__(AttentionAnalyzer)
+        analyzer.config = Config()
+        analyzer.device = "cpu"
+        analyzer.use_probe = False
+        analyzer.best_correct_rank = 0
+        analyzer.best_incorrect_rank = 0
+
+        with patch('common.steering_setup.load_phase4_9_best_latent',
+                   return_value=selection) as mock_load:
+            AttentionAnalyzer._load_pva_features(analyzer)
+            mock_load.assert_called_once_with(analyzer.config)
+
+        assert analyzer.best_correct_layer == 15
+        assert analyzer.best_incorrect_layer == 18
+        assert analyzer.best_correct_rank == 2
+        assert analyzer.best_incorrect_rank == 1
+
+    def test_sae_mode_missing_phase4_9_raises(self):
+        """SAE mode should raise FileNotFoundError when Phase 4.9 not found."""
+        analyzer = AttentionAnalyzer.__new__(AttentionAnalyzer)
+        analyzer.config = Config()
+        analyzer.device = "cpu"
+        analyzer.use_probe = False
+        analyzer.best_correct_rank = 0
+        analyzer.best_incorrect_rank = 0
+
+        with patch('common.steering_setup.load_phase4_9_best_latent',
+                   side_effect=FileNotFoundError("Phase 4.9 output not found")):
+            with pytest.raises(FileNotFoundError, match="Phase 4.9"):
+                AttentionAnalyzer._load_pva_features(analyzer)
