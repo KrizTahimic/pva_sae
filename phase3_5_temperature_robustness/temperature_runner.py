@@ -910,6 +910,11 @@ class TemperatureEvaluator:
             if len(task_activations) > 0:
                 self._save_task_activations(row['task_id'], task_activations)
 
+            # Capture and save attention patterns
+            attention_patterns = self.attention_extractor.get_attention_patterns()
+            if attention_patterns:
+                self._save_task_attention(row['task_id'], attention_patterns, inputs['input_ids'])
+
             generated_text = self.tokenizer.decode(
                 outputs.sequences[0][inputs['input_ids'].shape[1]:],
                 skip_special_tokens=True
@@ -988,6 +993,23 @@ class TemperatureEvaluator:
         for layer_num, layer_activations in activations.items():
             save_path = self.activation_dir / f"{task_id}_layer_{layer_num}.safetensors"
             save_activation(layer_activations, save_path)
+
+    def _save_task_attention(self, task_id: str, attention_patterns: dict[int, torch.Tensor], tokenized_prompt) -> None:
+        """Save raw attention patterns with section boundaries."""
+        attention_dir = self.output_dir / "activations" / "attention_patterns"
+        attention_dir.mkdir(parents=True, exist_ok=True)
+
+        for layer_idx, attention_tensor in attention_patterns.items():
+            save_raw_attention_with_boundaries(
+                task_id=task_id,
+                attention_tensor=attention_tensor,
+                tokenized_prompt=tokenized_prompt,
+                tokenizer=self.tokenizer,
+                output_dir=attention_dir,
+                layer_idx=layer_idx
+            )
+
+        logger.debug(f"Saved attention patterns for task {task_id} in {len(attention_patterns)} layers")
 
 
 class TemperatureOrchestrator:
