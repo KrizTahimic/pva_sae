@@ -63,7 +63,21 @@ run_phase "Phase 3.5: Temperature robustness (with attention patterns)" \
     phase 3.5 --parallel 4
 
 # ============================================================
-# Phase 6.3: Attention Analysis (depends on 3.5 attention data)
+# Phase 4.8 re-run: Save steered attention for Phase 6.3
+# Old run used multi-candidate mode without attention saving.
+# Must clear old data so checkpointing doesn't skip generation.
+# ============================================================
+echo ""
+echo "############ Phase 4.8 Re-run (attention saving fix) ############"
+
+echo "Clearing Phase 4.8 data to force regeneration with attention saving..."
+rm -rf data/phase4_8/
+
+run_phase "Phase 4.8: Steering effect analysis (with attention saving)" \
+    phase 4.8 --parallel 4
+
+# ============================================================
+# Phase 6.3: Attention Analysis (depends on 3.5 + 4.8 attention data)
 # ============================================================
 echo ""
 echo "############ Attention Analysis (SAE) ############"

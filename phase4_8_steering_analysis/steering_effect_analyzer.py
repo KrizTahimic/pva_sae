@@ -677,7 +677,8 @@ class SteeringEffectAnalyzer:
         self,
         candidate: dict,
         steering_type: str,
-        coefficient: float
+        coefficient: float,
+        save_attention: bool = False
     ) -> dict:
         """
         Evaluate a single candidate latent for steering.
@@ -686,6 +687,7 @@ class SteeringEffectAnalyzer:
             candidate: Dict with 'layer', 'latent_idx', etc.
             steering_type: 'correct' or 'incorrect'
             coefficient: Steering coefficient
+            save_attention: If True, capture and save attention patterns for Phase 6.3
 
         Returns:
             Dict with candidate info and evaluation metrics
@@ -714,9 +716,18 @@ class SteeringEffectAnalyzer:
         target_module = self.model.model.layers[layer]
         hook_handle = target_module.register_forward_pre_hook(hook_fn)
 
+        # Optionally capture attention for Phase 6.3 (only for best candidate)
+        attention_extractor = None
+        if save_attention:
+            attention_extractor = AttentionExtractor(self.model, layers=[layer], position=-1)
+            logger.info(f"Capturing attention for {steering_type} candidate {candidate_id} on layer {layer}")
+
         try:
             for _, row in tqdm_with_logging(problems_df.iterrows(), logger, total=len(problems_df),
                                             desc=f"{steering_type} {candidate_id}"):
+
+                if attention_extractor:
+                    attention_extractor.setup_hooks()
 
                 try:
                     test_cases = json.loads(row['test_list']) if isinstance(row['test_list'], str) else row['test_list']
@@ -729,22 +740,40 @@ class SteeringEffectAnalyzer:
                         max_length=self.config.activation_max_length
                     ).to(self.device)
 
+                    generate_kwargs = dict(
+                        max_new_tokens=self.config.model_max_new_tokens,
+                        temperature=0.0,
+                        do_sample=False,
+                        pad_token_id=self.tokenizer.pad_token_id,
+                        eos_token_id=self.tokenizer.eos_token_id,
+                    )
+                    if save_attention:
+                        generate_kwargs['output_attentions'] = True
+                        generate_kwargs['return_dict_in_generate'] = True
+
                     with torch.no_grad():
-                        outputs = self.model.generate(
-                            **inputs,
-                            max_new_tokens=self.config.model_max_new_tokens,
-                            temperature=0.0,
-                            do_sample=False,
-                            pad_token_id=self.tokenizer.pad_token_id,
-                            eos_token_id=self.tokenizer.eos_token_id
-                        )
+                        outputs = self.model.generate(**inputs, **generate_kwargs)
+
+                    if save_attention:
+                        sequences = outputs.sequences
+                    else:
+                        sequences = outputs
 
                     generated_text = self.tokenizer.decode(
-                        outputs[0][inputs['input_ids'].shape[1]:],
+                        sequences[0][inputs['input_ids'].shape[1]:],
                         skip_special_tokens=True
                     )
                     generated_code = extract_code(generated_text, prompt)
                     eval_result = evaluate_code_with_error_type(generated_code, test_cases)
+
+                    # Save attention patterns if capturing
+                    if attention_extractor:
+                        attention_patterns = attention_extractor.get_attention_patterns()
+                        if attention_patterns:
+                            self._save_steered_attention(
+                                row['task_id'], steering_type,
+                                attention_patterns, inputs['input_ids']
+                            )
 
                     baseline_passed = row['baseline_passed']
                     steered_correct = eval_result.passed
@@ -761,6 +790,9 @@ class SteeringEffectAnalyzer:
                 except Exception as e:
                     excluded_tasks.append({'task_id': row['task_id'], 'error': str(e)})
                     logger.warning(f"Error processing {row['task_id']}: {e}")
+                finally:
+                    if attention_extractor:
+                        attention_extractor.remove_hooks()
         finally:
             hook_handle.remove()
 
@@ -1482,12 +1514,16 @@ class SteeringEffectAnalyzer:
 
                 logger.info(f"\n--- Candidate {rank+1}/{n_candidates}: {candidate_id} (coeff={coefficient}) ---")
 
+                # Save attention only for rank 0 (best candidate) — Phase 6.3 needs it
+                capture_attention = (rank == 0)
+
                 # Evaluate this candidate
                 result = self.evaluate_candidate(
                     candidate={'layer': layer, 'latent_idx': latent_idx,
                               'separation_score': candidate_entry.get('separation_score')},
                     steering_type=steering_type,
-                    coefficient=coefficient
+                    coefficient=coefficient,
+                    save_attention=capture_attention
                 )
 
                 # Add rank to result
