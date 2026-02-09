@@ -554,8 +554,12 @@ class AttentionAnalyzer:
         all_values.extend([m - s for m, s in zip(incorrect_deltas['means'], incorrect_deltas['stds'])])
 
         # Set symmetric limits around zero with some padding
-        y_max = max(abs(min(all_values)), abs(max(all_values))) * 1.1
-        y_limits = (-y_max, y_max)
+        all_finite = [v for v in all_values if np.isfinite(v)]
+        if not all_finite or max(abs(v) for v in all_finite) == 0:
+            y_limits = (-1, 1)
+        else:
+            y_max = max(abs(min(all_finite)), abs(max(all_finite))) * 1.1
+            y_limits = (-y_max, y_max)
 
         # Plot correct steering effects
         colors = ['blue' if d > 0 else 'red' for d in correct_deltas['means']]
@@ -917,6 +921,10 @@ class AttentionAnalyzer:
                 y_min_global = min(y_min_global, mean - std)
                 y_max_global = max(y_max_global, mean + std)
         
+        # Guard against uninitialized limits (no steered data found)
+        if y_min_global == float('inf') or y_max_global == float('-inf'):
+            y_min_global, y_max_global = -1.0, 1.0
+
         # Add padding to y-axis range
         y_padding = (y_max_global - y_min_global) * 0.1
         y_limits = (y_min_global - y_padding, y_max_global + y_padding)
@@ -1127,10 +1135,13 @@ class AttentionAnalyzer:
         
     def _calculate_average_deltas(self, differences: dict) -> dict:
         """Calculate average attention changes across tasks."""
+        if not differences:
+            return {'means': [0.0, 0.0, 0.0], 'stds': [0.0, 0.0, 0.0]}
+
         all_problem = []
         all_tests = []
         all_solution = []
-        
+
         for task_diffs in differences.values():
             # Average across heads for each task
             all_problem.append(np.mean(task_diffs['problem']))
