@@ -1,17 +1,16 @@
 #!/bin/bash
-# Resume Gemma-2-2B pipeline from Phase 5.3 onward (SAE + Probe).
-# Phases 0 through 4.16 already completed.
-# Phase 3.5 re-run first to regenerate with attention pattern saving (bug fix).
+# Resume Gemma-2-2B pipeline from Phase 7.3 onward (SAE + Probe).
+# Phases 0 through 5.9, 6.3 already completed.
 #
 # Config: google/gemma-2-2b + mbpp (defaults, no flags needed)
 #
 # Usage:
 #   screen -S gemma2b
-#   bash scripts/run_gemma2b_resume_from_5_3.sh
+#   bash scripts/run_gemma2b_resume_from_7_3.sh
 
 set -e
 
-LOG_FILE="scripts/gemma2b_resume_from_5_3.log"
+LOG_FILE="scripts/gemma2b_resume_from_7_3.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 # Activate conda
@@ -21,11 +20,10 @@ conda activate sae_cc
 PIPELINE_START=$(date +%s)
 
 echo "============================================================"
-echo "Gemma-2-2B Pipeline — Resume from Phase 5.3"
+echo "Gemma-2-2B Pipeline — Resume from Phase 7.3"
 echo "Started: $(date)"
 echo "Git commit: $(git rev-parse --short HEAD)"
-echo "Skipped: Phases 0-4.16 (already completed)"
-echo "Note: Phase 3.5 re-run first to generate attention patterns"
+echo "Skipped: Phases 0-5.9, 6.3 (already completed)"
 echo "============================================================"
 
 # Helper: wraps `python3 run.py` with per-phase timing
@@ -48,57 +46,6 @@ run_phase() {
     local secs=$(( elapsed % 60 ))
     echo "Completed in ${mins}m ${secs}s"
 }
-
-# ============================================================
-# Phase 3.5 re-run: Generate attention patterns (bug fix)
-# Must clear old data so checkpointing doesn't skip generation
-# ============================================================
-echo ""
-echo "############ Phase 3.5 Re-run (attention pattern fix) ############"
-
-echo "Clearing Phase 3.5 data to force regeneration with attention saving..."
-rm -rf data/phase3_5/
-
-run_phase "Phase 3.5: Temperature robustness (with attention patterns)" \
-    phase 3.5 --parallel 4
-
-# ============================================================
-# Phase 4.8 re-run: Save steered attention for Phase 6.3
-# Old run used multi-candidate mode without attention saving.
-# Must clear old data so checkpointing doesn't skip generation.
-# ============================================================
-echo ""
-echo "############ Phase 4.8 Re-run (attention saving fix) ############"
-
-echo "Clearing Phase 4.8 data to force regeneration with attention saving..."
-rm -rf data/phase4_8/
-
-run_phase "Phase 4.8: Steering effect analysis (with attention saving)" \
-    phase 4.8 --parallel 4
-
-# ============================================================
-# Phase 6.3: Attention Analysis (depends on 3.5 + 4.8 attention data)
-# ============================================================
-echo ""
-echo "############ Attention Analysis (SAE) ############"
-
-run_phase "Phase 6.3: Attention pattern analysis" \
-    phase 6.3
-
-# ============================================================
-# STAGE 5: Weight Orthogonalization (SAE)
-# ============================================================
-echo ""
-echo "############ STAGE 5: Weight Orthogonalization (SAE) ############"
-
-run_phase "Phase 5.3: Weight orthogonalization" \
-    phase 5.3 --parallel 4
-
-run_phase "Phase 5.6: Zero-disc orthogonalization (SAE-only)" \
-    phase 5.6 --parallel 4
-
-run_phase "Phase 5.9: Orthogonalization significance" \
-    phase 5.9
 
 # ============================================================
 # STAGE 6: Instruction-Tuned Model (SAE)
@@ -222,7 +169,7 @@ TOTAL_SECS=$(( TOTAL_ELAPSED % 60 ))
 
 echo ""
 echo "============================================================"
-echo "Pipeline Complete! (resumed from Phase 5.3, with 3.5 re-run)"
+echo "Pipeline Complete! (resumed from Phase 7.3)"
 echo "Finished: $(date)"
 echo "Total elapsed: ${TOTAL_HOURS}h ${TOTAL_MINS}m ${TOTAL_SECS}s"
 echo "Git commit: $(git rev-parse --short HEAD)"

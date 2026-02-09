@@ -483,11 +483,14 @@ class InstructBaselineRunner:
     def _save_results(self, results: list[dict]) -> None:
         """Save results to parquet file."""
         df = pd.DataFrame(results)
-        
-        # Save to parquet file with instruction-tuned naming
-        output_file = self.output_dir / "dataset_instruct_temp_0_0.parquet"
+
+        # Use GPU-specific filename in parallel mode for later merging
+        if self.n_gpus > 1:
+            output_file = self.output_dir / f"results_gpu{self.gpu_id}.parquet"
+        else:
+            output_file = self.output_dir / "dataset_instruct_temp_0_0.parquet"
         df.to_parquet(output_file, index=False)
-        
+
         logger.info(f"Saved {len(results)} results to {output_file}")
     
     def _create_metadata(

@@ -835,6 +835,113 @@ def _merge_phase5_6_json_results(
     }
 
 
+def _merge_phase7_3_results(
+    output_path: Path,
+    n_gpus: int,
+    config: Config
+) -> dict:
+    """
+    Merge Phase 7.3 instruct baseline results from parallel workers.
+
+    Phase 7.3 produces results_gpu{N}.parquet files. This function:
+    1. Loads all per-GPU parquet files
+    2. Deduplicates by task_id
+    3. Saves merged result as dataset_instruct_temp_0_0.parquet (required by 7.6, 7.9, 7.12)
+    4. Rebuilds metadata.json from merged data
+    5. Writes phase_output.json manifest
+    6. Cleans up per-GPU files
+    """
+    from datetime import datetime
+    from common.dataset_utils import compute_error_type_distribution
+    from common.utils import save_json
+
+    # Find per-GPU parquet files
+    gpu_files = sorted(output_path.glob("results_gpu*.parquet"))
+    if not gpu_files:
+        raise RuntimeError(f"No results_gpu*.parquet files found in {output_path}")
+
+    logger.info(f"Found {len(gpu_files)} GPU parquet files to merge")
+
+    # Load and merge (graceful degradation: skip corrupted files)
+    dfs = []
+    corrupted_files = []
+    for f in gpu_files:
+        try:
+            df = pd.read_parquet(f)
+            dfs.append(df)
+            logger.info(f"  Loaded {len(df)} rows from {f.name}")
+        except Exception as e:
+            logger.error(f"  Corrupted GPU parquet file {f.name}: {e} — skipping")
+            corrupted_files.append(f.name)
+    if not dfs:
+        raise RuntimeError(f"All GPU parquet files corrupted in {output_path}: {corrupted_files}")
+    if corrupted_files:
+        logger.warning(f"Skipped {len(corrupted_files)} corrupted files, merging {len(dfs)} valid files")
+
+    merged_df = pd.concat(dfs, ignore_index=True)
+    logger.info(f"Merged {len(merged_df)} total results from {len(gpu_files)} GPUs")
+
+    # Deduplicate by task_id (handles cross-run checkpointing)
+    if 'task_id' in merged_df.columns:
+        before_dedup = len(merged_df)
+        merged_df = merged_df.drop_duplicates(subset=['task_id'], keep='last')
+        merged_df = merged_df.sort_values('task_id').reset_index(drop=True)
+        if before_dedup != len(merged_df):
+            logger.info(f"  Deduplicated: {before_dedup} -> {len(merged_df)} rows")
+
+    # Save as expected downstream filename
+    merged_file = output_path / "dataset_instruct_temp_0_0.parquet"
+    merged_df.to_parquet(merged_file, index=False)
+    logger.info(f"Saved merged dataset: {merged_file} ({len(merged_df)} rows)")
+
+    # Rebuild metadata.json from merged data
+    correct_count = int(merged_df['baseline_passed'].sum()) if 'baseline_passed' in merged_df.columns else 0
+    n_total = len(merged_df)
+    metadata = {
+        "creation_timestamp": datetime.now().isoformat(),
+        "model_name": config.model_name,
+        "model_type": "instruction-tuned",
+        "temperature": 0.0,
+        "n_total_samples": n_total,
+        "n_gpus_merged": len(gpu_files),
+        "stats": {
+            "n_correct": correct_count,
+            "n_incorrect": n_total - correct_count,
+            "pass_rate": correct_count / n_total if n_total > 0 else 0.0,
+        },
+        "baseline_error_type_distribution": compute_error_type_distribution(
+            merged_df.to_dict('records'), "baseline_error_type"
+        ) if 'baseline_error_type' in merged_df.columns else None
+    }
+    save_json(metadata, output_path / "metadata.json")
+    logger.info("Rebuilt metadata.json from merged data")
+
+    # Write phase_output.json manifest for downstream discovery
+    write_phase_output(
+        phase="7.3",
+        outputs={
+            "primary": "dataset_instruct_temp_0_0.parquet",
+            "metadata": "metadata.json"
+        },
+        config=config,
+        output_dir=str(output_path)
+    )
+    logger.info("Wrote phase_output.json manifest")
+
+    # Clean up per-GPU files
+    for f in gpu_files:
+        f.unlink()
+        logger.info(f"  Cleaned up {f.name}")
+
+    return {
+        'merged_file': str(merged_file),
+        'n_total': n_total,
+        'n_correct': correct_count,
+        'pass_rate': correct_count / n_total if n_total > 0 else 0.0,
+        'n_gpus': len(gpu_files)
+    }
+
+
 def _merge_phase8_3_results(
     output_path: Path,
     n_gpus: int,
@@ -1666,6 +1773,10 @@ def _merge_parallel_results(
     # Phase 4.8 and 7.6 use same JSON format (steering effect analysis)
     if phase_id in ("4.8", "7.6"):
         return _merge_phase4_8_results(output_path, n_gpus, config, phase_id=phase_id)
+
+    # Phase 7.3 needs custom merge (saves as dataset_instruct_temp_0_0.parquet + metadata)
+    if phase_id == "7.3":
+        return _merge_phase7_3_results(output_path, n_gpus, config)
 
     # Phase 8.3 needs custom merge (JSON summary recalculated from parquet)
     if phase_id == "8.3":
