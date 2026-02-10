@@ -1,16 +1,17 @@
 #!/bin/bash
-# Resume Gemma-2-2B pipeline from Phase 8.1 onward (SAE + Probe).
-# Phases 0 through 7.9 already completed.
+# Resume Gemma-2-2B pipeline from Phase 3.5 onward (SAE + Probe).
+# Phases 0 through 2.20 already completed.
+# Phases 3.10, 3.11 skipped (require multi-temperature data from 3.5).
 #
 # Config: google/gemma-2-2b + mbpp (defaults, no flags needed)
 #
 # Usage:
 #   screen -S gemma2b
-#   bash scripts/run_gemma2b_resume_from_7_3.sh
+#   bash scripts/run_gemma2b_resume_from_2_11.sh
 
 set -e
 
-LOG_FILE="scripts/gemma2b_resume_from_7_3.log"
+LOG_FILE="scripts/gemma2b_clean_rerun.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 # Activate conda
@@ -20,10 +21,10 @@ conda activate sae_cc
 PIPELINE_START=$(date +%s)
 
 echo "============================================================"
-echo "Gemma-2-2B Pipeline — Resume from Phase 8.1"
+echo "Gemma-2-2B Pipeline — Resume from Phase 3.5"
 echo "Started: $(date)"
 echo "Git commit: $(git rev-parse --short HEAD)"
-echo "Skipped: Phases 0-7.9 (already completed)"
+echo "Skipped: Phases 0-2.20 (already completed), 3.10/3.11 (need multi-temp)"
 echo "============================================================"
 
 # Helper: wraps `python3 run.py` with per-phase timing
@@ -46,6 +47,103 @@ run_phase() {
     local secs=$(( elapsed % 60 ))
     echo "Completed in ${mins}m ${secs}s"
 }
+
+# ============================================================
+# STAGE 3: Statistical Validation (SAE)
+# ============================================================
+echo ""
+echo "############ STAGE 3: Statistical Validation (SAE) ############"
+
+run_phase "Phase 3.5: Temperature robustness" \
+    phase 3.5 --parallel 4
+
+run_phase "Phase 3.6: Hyperparameter baseline" \
+    phase 3.6 --parallel 4
+
+run_phase "Phase 3.8: AUROC/F1 evaluation" \
+    phase 3.8
+
+# Skipped: 3.10 and 3.11 require multi-temperature data (config only has temp=0.0)
+# run_phase "Phase 3.10: Temperature-based AUROC" \
+#     phase 3.10
+#
+# run_phase "Phase 3.11: Temperature trends visualization" \
+#     phase 3.11
+
+run_phase "Phase 3.12: Difficulty-based AUROC" \
+    phase 3.12
+
+# ============================================================
+# STAGE 4: Steering Pipeline (SAE)
+# ============================================================
+echo ""
+echo "############ STAGE 4: Steering Pipeline (SAE) ############"
+
+run_phase "Phase 4.5: Coefficient grid search" \
+    phase 4.5 --parallel 4
+
+run_phase "Phase 4.6: Golden section refinement" \
+    phase 4.6 --parallel 4
+
+run_phase "Phase 4.7: Coefficient visualization" \
+    phase 4.7
+
+run_phase "Phase 4.8: Steering effect analysis" \
+    phase 4.8 --parallel 4
+
+run_phase "Phase 4.9: Best latent selection (SAE-only)" \
+    phase 4.9
+
+run_phase "Phase 4.10: Zero-disc feature selection" \
+    phase 4.10
+
+run_phase "Phase 4.12: Zero-disc steering" \
+    phase 4.12 --parallel 4
+
+run_phase "Phase 4.14: Statistical significance" \
+    phase 4.14
+
+run_phase "Phase 4.16: Difficulty-stratified steering" \
+    phase 4.16
+
+run_phase "Phase 6.3: Attention pattern analysis" \
+    phase 6.3
+
+# ============================================================
+# STAGE 5: Weight Orthogonalization (SAE)
+# ============================================================
+echo ""
+echo "############ STAGE 5: Weight Orthogonalization (SAE) ############"
+
+run_phase "Phase 5.3: Weight orthogonalization" \
+    phase 5.3 --parallel 4
+
+run_phase "Phase 5.6: Zero-disc orthogonalization (SAE-only)" \
+    phase 5.6 --parallel 4
+
+run_phase "Phase 5.9: Orthogonalization significance" \
+    phase 5.9
+
+# ============================================================
+# STAGE 6: Instruction-Tuned Model (SAE)
+# ============================================================
+echo ""
+echo "############ STAGE 6: Instruction-Tuned Model (SAE) ############"
+
+run_phase "Phase 7.3: Instruct baseline" \
+    phase 7.3 --parallel 4
+
+run_phase "Phase 7.6: Instruct steering" \
+    phase 7.6 --parallel 4
+
+run_phase "Phase 7.7: Instruct zero-disc (SAE-only)" \
+    phase 7.7 --parallel 4
+
+run_phase "Phase 7.9: Universality analysis" \
+    phase 7.9
+
+run_phase "Phase 7.12: Instruct AUROC/F1" \
+    phase 7.12
 
 # ============================================================
 # STAGE 7: Selective Steering (SAE)
@@ -73,6 +171,10 @@ echo "############ STAGE 8: Probe Prediction ############"
 
 run_phase "Phase 3.8: Probe AUROC/F1 (logreg)" \
     phase 3.8 --direction-source probe_logreg
+
+# Skipped: Probe 3.10 requires multi-temperature data
+# run_phase "Phase 3.10: Probe temperature AUROC (logreg)" \
+#     phase 3.10 --direction-source probe_logreg
 
 # ============================================================
 # STAGE 9: Probe Steering (probe_mass_mean)
@@ -148,7 +250,7 @@ TOTAL_SECS=$(( TOTAL_ELAPSED % 60 ))
 
 echo ""
 echo "============================================================"
-echo "Pipeline Complete! (resumed from Phase 8.1)"
+echo "Pipeline Complete! (resumed from Phase 3.5)"
 echo "Finished: $(date)"
 echo "Total elapsed: ${TOTAL_HOURS}h ${TOTAL_MINS}m ${TOTAL_SECS}s"
 echo "Git commit: $(git rev-parse --short HEAD)"

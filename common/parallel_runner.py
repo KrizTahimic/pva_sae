@@ -291,7 +291,7 @@ def run_phase_parallel(phase_id: str, config: Config, n_gpus: int) -> dict:
 
     # Add _probe suffix for probe-based steering phases
     direction_source = getattr(config, 'direction_source', 'sae')
-    if phase_id in ("4.5", "4.6", "4.7", "4.8", "8.2", "8.3") and direction_source in ('probe_mass_mean', 'probe_logreg'):
+    if phase_id in ("4.5", "4.6", "4.7", "4.8", "5.3", "5.6", "7.6", "8.2", "8.3") and direction_source in ('probe_mass_mean', 'probe_logreg'):
         output_dir = str(Path(output_dir).parent / (Path(output_dir).name + "_probe"))
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -1386,6 +1386,37 @@ def _merge_phase4_8_results(
         summary['mode'] = 'multi_candidate' if is_multi_candidate else 'probe'
         summary['results']['correct_candidates'] = len(merged_metrics.get('correct', [])) if is_multi_candidate else 0
         summary['results']['incorrect_candidates'] = len(merged_metrics.get('incorrect', [])) if is_multi_candidate else 0
+
+    # Phase 7.6: recompute statistical_tests from merged result lists
+    # (per-GPU tests are on partial data — must recalculate from full merge)
+    if phase_id == "7.6":
+        from scipy.stats import binomtest
+
+        stat_tests = {}
+        for test_name, results, success_fn in [
+            ("correction", merged_correction,
+             lambda r: not r.get('baseline_passed') and r.get('steered_correct')),
+            ("corruption", merged_corruption,
+             lambda r: r.get('baseline_passed') and not r.get('steered_correct')),
+            ("preservation", merged_preservation,
+             lambda r: r.get('baseline_passed') and r.get('steered_correct')),
+        ]:
+            successes = sum(1 for r in results if success_fn(r))
+            trials = len(results)
+            if trials > 0:
+                null_p = max(1.0 / trials, 1e-10) if test_name != "preservation" else 0.5
+                test_result = binomtest(successes, trials, p=null_p, alternative='greater')
+                stat_tests[test_name] = {
+                    'successes': successes, 'trials': trials,
+                    'rate': successes / trials * 100,
+                    'pvalue': float(test_result.pvalue), 'significant': bool(test_result.pvalue < 0.05)
+                }
+            else:
+                stat_tests[test_name] = {
+                    'successes': 0, 'trials': 0, 'rate': 0.0,
+                    'pvalue': 1.0, 'significant': False
+                }
+        summary['results']['statistical_tests'] = stat_tests
 
     # Carry over latent/probe info from reference GPU
     if 'latents_used' in ref:

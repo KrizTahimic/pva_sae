@@ -114,6 +114,59 @@ class UniversalityAnalyzer:
         with open(self.phase7_6_dir / "phase_7_6_summary.json", 'r') as f:
             self.instruct_steering = json.load(f)
 
+        # Reconstruct statistical_tests if missing (parallel merge didn't include them)
+        if "statistical_tests" not in self.instruct_steering.get("results", {}):
+            from scipy.stats import binomtest
+            stat_tests = {}
+            for test_name, filename, success_fn in [
+                ("correction", "all_correction_results.json",
+                 lambda r: not r.get('baseline_passed') and r.get('steered_correct')),
+                ("corruption", "all_corruption_results.json",
+                 lambda r: r.get('baseline_passed') and not r.get('steered_correct')),
+                ("preservation", "all_preservation_results.json",
+                 lambda r: r.get('baseline_passed') and r.get('steered_correct')),
+            ]:
+                results_file = self.phase7_6_dir / filename
+                if results_file.exists():
+                    with open(results_file, 'r') as f:
+                        results = json.load(f)
+                    successes = sum(1 for r in results if success_fn(r))
+                    trials = len(results)
+                    if trials > 0:
+                        null_p = max(1.0 / trials, 1e-10) if test_name != "preservation" else 0.5
+                        test_result = binomtest(successes, trials, p=null_p, alternative='greater')
+                        stat_tests[test_name] = {
+                            'successes': successes, 'trials': trials,
+                            'rate': successes / trials * 100,
+                            'pvalue': float(test_result.pvalue), 'significant': bool(test_result.pvalue < 0.05)
+                        }
+                    else:
+                        stat_tests[test_name] = {
+                            'successes': 0, 'trials': 0, 'rate': 0.0,
+                            'pvalue': 1.0, 'significant': False
+                        }
+                else:
+                    stat_tests[test_name] = {
+                        'successes': 0, 'trials': 0, 'rate': 0.0,
+                        'pvalue': 1.0, 'significant': False
+                    }
+            self.instruct_steering["results"]["statistical_tests"] = stat_tests
+            logger.info("Reconstructed statistical_tests from Phase 7.6 result files")
+
+        # Load steering analysis files for coefficient data
+        with open(self.phase4_8_dir / "steering_effect_analysis.json", 'r') as f:
+            base_analysis = json.load(f)
+        self.base_coefficients = {
+            "correct_coefficient": base_analysis.get("best_candidates", {}).get("correct", {}).get("coefficient", 0),
+            "incorrect_coefficient": base_analysis.get("best_candidates", {}).get("incorrect", {}).get("coefficient", 0),
+        }
+        with open(self.phase7_6_dir / "steering_effect_analysis.json", 'r') as f:
+            instruct_analysis = json.load(f)
+        self.instruct_coefficients = {
+            "correct_coefficient": instruct_analysis.get("coefficients", {}).get("correct", 0),
+            "incorrect_coefficient": instruct_analysis.get("coefficients", {}).get("incorrect", 0),
+        }
+
         with open(self.phase7_6_dir / "cross_model_comparison.json", 'r') as f:
             self.cross_model = json.load(f)
 
@@ -155,13 +208,13 @@ class UniversalityAnalyzer:
                     "correction_rate": self.base_steering["results"]["correction_rate"],
                     "corruption_rate": self.base_steering["results"]["corruption_rate"],
                     "preservation_rate": self.base_steering["results"]["preservation_rate"],
-                    "coefficients": self.base_steering["config"]
+                    "coefficients": self.base_coefficients
                 },
                 "instruction_tuned": {
                     "correction_rate": self.instruct_steering["results"]["correction_rate"],
                     "corruption_rate": self.instruct_steering["results"]["corruption_rate"],
                     "preservation_rate": self.instruct_steering["results"]["preservation_rate"],
-                    "coefficients": self.instruct_steering["config"]
+                    "coefficients": self.instruct_coefficients
                 },
                 "differences": self.cross_model["differences"]
             },

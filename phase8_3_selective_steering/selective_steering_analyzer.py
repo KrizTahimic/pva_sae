@@ -1018,8 +1018,8 @@ class SelectiveSteeringAnalyzer:
             logger.info(f"GPU {self.gpu_id}: Saved {len(results_df)} results to {parquet_file.name}")
 
             # Clean up JSON files (orchestrator will recreate from merged data)
-            correction_file.unlink()
-            preservation_file.unlink()
+            correction_file.unlink(missing_ok=True)
+            preservation_file.unlink(missing_ok=True)
 
             # Cleanup checkpoints for this GPU
             for experiment_type in ['correction', 'preservation']:

@@ -1,16 +1,16 @@
 #!/bin/bash
-# Resume Gemma-2-2B pipeline from Phase 8.1 onward (SAE + Probe).
-# Phases 0 through 7.9 already completed.
+# Resume Gemma-2-2B pipeline from Phase 4.14 onward (SAE + Probe).
+# Phases 0 through 4.12, 3.5, 4.8, 6.3, 5.3 already completed.
 #
 # Config: google/gemma-2-2b + mbpp (defaults, no flags needed)
 #
 # Usage:
 #   screen -S gemma2b
-#   bash scripts/run_gemma2b_resume_from_7_3.sh
+#   bash scripts/run_gemma2b_resume_from_4_14.sh
 
 set -e
 
-LOG_FILE="scripts/gemma2b_resume_from_7_3.log"
+LOG_FILE="scripts/gemma2b_resume_from_4_14.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 # Activate conda
@@ -20,10 +20,10 @@ conda activate sae_cc
 PIPELINE_START=$(date +%s)
 
 echo "============================================================"
-echo "Gemma-2-2B Pipeline — Resume from Phase 8.1"
+echo "Gemma-2-2B Pipeline — Resume from Phase 4.14"
 echo "Started: $(date)"
 echo "Git commit: $(git rev-parse --short HEAD)"
-echo "Skipped: Phases 0-7.9 (already completed)"
+echo "Skipped: Phases 0-4.12, 3.5, 4.8, 6.3, 5.3 (already completed)"
 echo "============================================================"
 
 # Helper: wraps `python3 run.py` with per-phase timing
@@ -46,6 +46,54 @@ run_phase() {
     local secs=$(( elapsed % 60 ))
     echo "Completed in ${mins}m ${secs}s"
 }
+
+# ============================================================
+# STAGE 4: Statistical Significance + Difficulty Analysis (SAE)
+# ============================================================
+echo ""
+echo "############ STAGE 4: Significance & Difficulty (SAE) ############"
+
+run_phase "Phase 4.14: Statistical significance testing" \
+    phase 4.14
+
+run_phase "Phase 4.16: Difficulty-stratified steering analysis" \
+    phase 4.16
+
+# ============================================================
+# STAGE 5: Weight Orthogonalization (SAE)
+# ============================================================
+echo ""
+echo "############ STAGE 5: Weight Orthogonalization (SAE) ############"
+
+run_phase "Phase 5.3: Weight orthogonalization" \
+    phase 5.3 --parallel 4
+
+run_phase "Phase 5.6: Zero-disc orthogonalization (SAE-only)" \
+    phase 5.6 --parallel 4
+
+run_phase "Phase 5.9: Orthogonalization significance" \
+    phase 5.9
+
+# ============================================================
+# STAGE 6: Instruction-Tuned Model (SAE)
+# ============================================================
+echo ""
+echo "############ STAGE 6: Instruction-Tuned Model (SAE) ############"
+
+run_phase "Phase 7.3: Instruct baseline" \
+    phase 7.3 --parallel 4
+
+run_phase "Phase 7.6: Instruct steering" \
+    phase 7.6 --parallel 4
+
+run_phase "Phase 7.7: Instruct zero-disc (SAE-only)" \
+    phase 7.7 --parallel 4
+
+run_phase "Phase 7.9: Universality analysis" \
+    phase 7.9
+
+run_phase "Phase 7.12: Instruct AUROC/F1" \
+    phase 7.12
 
 # ============================================================
 # STAGE 7: Selective Steering (SAE)
@@ -148,7 +196,7 @@ TOTAL_SECS=$(( TOTAL_ELAPSED % 60 ))
 
 echo ""
 echo "============================================================"
-echo "Pipeline Complete! (resumed from Phase 8.1)"
+echo "Pipeline Complete! (resumed from Phase 4.14)"
 echo "Finished: $(date)"
 echo "Total elapsed: ${TOTAL_HOURS}h ${TOTAL_MINS}m ${TOTAL_SECS}s"
 echo "Git commit: $(git rev-parse --short HEAD)"

@@ -1576,3 +1576,18 @@ After standardizing checkpointing across all 13 parallel phases (commit `1da0e17
 - The new CheckpointManager uses task ID-based tracking (not index-based)
 - Checkpoints are now stored in `<phase_dir>/checkpoints/` subdirectory
 - Each checkpoint has a `.meta.json` sidecar with version and task ID tracking
+
+---
+
+## Phase 7.12: Layer Mismatch Bug
+
+- [ ] Fix Phase 7.12 layer source mismatch with Phase 7.3
+
+**Problem:** Phase 7.12 uses Phase 2.10's best *predicting* latents (layer 21 correct, layer 19 incorrect) but Phase 7.3 only saves activations for Phase 4.9's best *steering* latents (layer 15 for both). Result: `load_instruct_activations()` finds 0 activation files → crash on zero-size array.
+
+**Root cause:** Phase 7.3 discovers layers via `load_phase4_9_best_latent()` (steering selection), while Phase 7.12 discovers layers from `top_20_latents.json` (Phase 2.10, predicting selection). These are different latents at different layers.
+
+**Options:**
+1. Change Phase 7.12 to use Phase 4.9 latent selection (matching Phase 7.3's activations)
+2. Change Phase 7.3 to also save activations for Phase 2.10 layers
+3. Have Phase 7.12 load the model and extract activations itself (like Phase 3.8 does for base model)
