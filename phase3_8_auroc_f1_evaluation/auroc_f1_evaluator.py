@@ -28,6 +28,7 @@ from common.viz_utils import handle_viz_only_mode
 from common.utils import save_json, load_json
 from common.sae_loader import load_sae_for_config
 from common.tensor_utils import load_activation
+from safetensors.torch import load_file
 
 logger = get_logger("phase3_8.auroc_f1_evaluator")
 
@@ -130,28 +131,20 @@ def run_evaluation(config):
     use_probe = direction_source == 'probe_logreg'
 
     if use_probe:
-        # === PROBE BASELINE MODE ===
+        # === PROBE BASELINE MODE — Top-N layer selection ===
         logger.info("=" * 60)
-        logger.info("PROBE BASELINE MODE: Using LogReg probe from Phase 2.6")
+        logger.info("PROBE BASELINE MODE: Top-N LogReg probe layers from Phase 2.6")
         logger.info("=" * 60)
 
-        # Load probe directions using shared utility
-        from common.steering_setup import load_probe_directions_for_predicting
-        probe = load_probe_directions_for_predicting(config, detect_device(), method="logreg")
+        from common.phase_discovery import discover_top_n_probe_layers, get_phase_output_dir
+        probe_layer_candidates = discover_top_n_probe_layers(config, logger)
+        if not probe_layer_candidates:
+            raise FileNotFoundError(
+                "No Phase 2.6 layer metrics found. Please run Phase 2.6 first."
+            )
 
-        probe_layer = probe.layer
-        probe_bias = probe.bias
-        probe_direction = probe.correct_direction
-
-        device = detect_device()
-        probe_direction = probe_direction.to(device)
-
-        logger.info(f"LogReg probe: layer {probe_layer}, bias {probe_bias:.4f}")
-
-        # Set layer for logging (probe uses same layer for both)
-        correct_layer = probe_layer
-        incorrect_layer = probe_layer
-        phase2_10_dir = Path(probe.phase_dir)  # For dependency tracking
+        phase2_6_dir = Path(get_phase_output_dir("2.6", config))
+        phase2_10_dir = phase2_6_dir  # For dependency tracking (probe replaces 2.10)
 
     else:
         # === SAE MODE (default) — Top-N candidate evaluation ===
@@ -168,72 +161,68 @@ def run_evaluation(config):
     all_incorrect_candidates = None
 
     if use_probe:
-        # === PROBE EVALUATION (single direction per category) ===
+        # === PROBE EVALUATION — Top-N layer candidate selection ===
         logger.info("\n" + "="*60)
-        logger.info("EVALUATING CORRECT-PREDICTING PROBE")
+        logger.info("EVALUATING CORRECT-PREDICTING PROBE LAYER CANDIDATES")
         logger.info("="*60)
 
-        y_true_hp_correct, scores_hp_correct = load_split_probe_activations(
-            'tuning', probe_layer, probe_direction, probe_bias, 'correct',
-            phase3_5_dir, phase3_6_dir, config
+        best_correct_result, all_correct_candidates = evaluate_probe_candidates_and_select_best(
+            probe_layer_candidates, 'correct',
+            phase3_5_dir, phase3_6_dir, phase2_6_dir, config
         )
 
-        logger.info(f"Correct-predicting probe (tuning split):")
-        logger.info(f"  Total samples: {len(y_true_hp_correct)}")
-        logger.info(f"  Positive class (correct code): {sum(y_true_hp_correct == 1)}")
-        logger.info(f"  Negative class (incorrect code): {sum(y_true_hp_correct == 0)}")
+        correct_layer = best_correct_result['layer']
+        probe_direction = best_correct_result['_direction']
+        probe_bias = best_correct_result['_bias']
+        hp_metrics_correct = best_correct_result['hyperparameter_split']
+        val_metrics_correct = best_correct_result['validation_split']
+        y_true_val_correct = best_correct_result['_y_true_val']
+        scores_val_correct = best_correct_result['_scores_val']
 
-        optimal_threshold_correct, hp_metrics_correct = find_optimal_threshold(
-            y_true_hp_correct, scores_hp_correct, 'correct', output_dir
+        plot_confusion_matrix(
+            best_correct_result['_y_true_hp'],
+            (best_correct_result['_scores_hp'] >= hp_metrics_correct['threshold']).astype(int),
+            'correct', output_dir
+        )
+        plot_confusion_matrix(
+            y_true_val_correct,
+            (scores_val_correct >= val_metrics_correct['threshold']).astype(int),
+            'correct_validation', output_dir
         )
 
-        y_true_val_correct, scores_val_correct = load_split_probe_activations(
-            'analysis', probe_layer, probe_direction, probe_bias, 'correct',
-            phase3_5_dir, phase3_6_dir, config
-        )
-
-        logger.info(f"\nCorrect-predicting probe (analysis split):")
-        logger.info(f"  Total samples: {len(y_true_val_correct)}")
-        logger.info(f"  Positive class (correct code): {sum(y_true_val_correct == 1)}")
-        logger.info(f"  Negative class (incorrect code): {sum(y_true_val_correct == 0)}")
-
-        val_metrics_correct = calculate_metrics(
-            y_true_val_correct, scores_val_correct,
-            optimal_threshold_correct, 'correct_validation', output_dir
-        )
+        logger.info(f"\nSelected best correct-predicting probe: L{correct_layer} "
+                    f"(tuning AUROC={hp_metrics_correct['auroc']:.4f}, "
+                    f"val AUROC={val_metrics_correct['auroc']:.4f})")
 
         logger.info("\n" + "="*60)
-        logger.info("EVALUATING INCORRECT-PREDICTING PROBE")
+        logger.info("EVALUATING INCORRECT-PREDICTING PROBE LAYER CANDIDATES")
         logger.info("="*60)
 
-        y_true_hp_incorrect, scores_hp_incorrect = load_split_probe_activations(
-            'tuning', probe_layer, -probe_direction, -probe_bias, 'incorrect',
-            phase3_5_dir, phase3_6_dir, config
+        best_incorrect_result, all_incorrect_candidates = evaluate_probe_candidates_and_select_best(
+            probe_layer_candidates, 'incorrect',
+            phase3_5_dir, phase3_6_dir, phase2_6_dir, config
         )
 
-        logger.info(f"Incorrect-predicting probe (tuning split):")
-        logger.info(f"  Total samples: {len(y_true_hp_incorrect)}")
-        logger.info(f"  Positive class (incorrect code): {sum(y_true_hp_incorrect == 1)}")
-        logger.info(f"  Negative class (correct code): {sum(y_true_hp_incorrect == 0)}")
+        incorrect_layer = best_incorrect_result['layer']
+        hp_metrics_incorrect = best_incorrect_result['hyperparameter_split']
+        val_metrics_incorrect = best_incorrect_result['validation_split']
+        y_true_val_incorrect = best_incorrect_result['_y_true_val']
+        scores_val_incorrect = best_incorrect_result['_scores_val']
 
-        optimal_threshold_incorrect, hp_metrics_incorrect = find_optimal_threshold(
-            y_true_hp_incorrect, scores_hp_incorrect, 'incorrect', output_dir
+        plot_confusion_matrix(
+            best_incorrect_result['_y_true_hp'],
+            (best_incorrect_result['_scores_hp'] >= hp_metrics_incorrect['threshold']).astype(int),
+            'incorrect', output_dir
+        )
+        plot_confusion_matrix(
+            y_true_val_incorrect,
+            (scores_val_incorrect >= val_metrics_incorrect['threshold']).astype(int),
+            'incorrect_validation', output_dir
         )
 
-        y_true_val_incorrect, scores_val_incorrect = load_split_probe_activations(
-            'analysis', probe_layer, -probe_direction, -probe_bias, 'incorrect',
-            phase3_5_dir, phase3_6_dir, config
-        )
-
-        logger.info(f"\nIncorrect-predicting probe (analysis split):")
-        logger.info(f"  Total samples: {len(y_true_val_incorrect)}")
-        logger.info(f"  Positive class (incorrect code): {sum(y_true_val_incorrect == 1)}")
-        logger.info(f"  Negative class (correct code): {sum(y_true_val_incorrect == 0)}")
-
-        val_metrics_incorrect = calculate_metrics(
-            y_true_val_incorrect, scores_val_incorrect,
-            optimal_threshold_incorrect, 'incorrect_validation', output_dir
-        )
+        logger.info(f"\nSelected best incorrect-predicting probe: L{incorrect_layer} "
+                    f"(tuning AUROC={hp_metrics_incorrect['auroc']:.4f}, "
+                    f"val AUROC={val_metrics_incorrect['auroc']:.4f})")
 
     else:
         # === SAE TOP-N CANDIDATE EVALUATION ===
@@ -348,18 +337,19 @@ def run_evaluation(config):
         'candidate_evaluation': {
             'correct': all_correct_candidates,
             'incorrect': all_incorrect_candidates,
-            'selection_criterion': 'validation_auroc',
+            'selection_criterion': 'tuning_auroc' if use_probe else 'validation_auroc',
             'n_candidates': getattr(config, 'phase3_8_n_candidates', 5)
         } if all_correct_candidates is not None else None
     }
     if use_probe:
         results['probe_info'] = {
             'method': 'logreg',
-            'layer': probe_layer,
+            'correct_layer': correct_layer,
+            'incorrect_layer': incorrect_layer,
             'bias': probe_bias,
         }
 
-    # Plot candidate comparison chart (SAE mode only)
+    # Plot candidate comparison chart
     if results.get('candidate_evaluation') is not None:
         plot_candidate_comparison(results['candidate_evaluation'], output_dir)
 
@@ -870,6 +860,159 @@ def load_split_probe_activations(
     logger.info(f"Class distribution: {np.bincount(labels)}")
 
     return np.array(labels), np.array(scores)
+
+
+def load_probe_direction_for_layer(
+    layer: int, phase2_6_dir: Path, device: torch.device
+) -> tuple[torch.Tensor, float]:
+    """Load logreg probe direction + bias for a specific layer from Phase 2.6.
+
+    Returns:
+        (direction tensor [d_model], bias float)
+    """
+    probe_file = phase2_6_dir / "probe_directions" / f"layer_{layer}_probes.safetensors"
+    if not probe_file.exists():
+        raise FileNotFoundError(f"Probe file not found: {probe_file}")
+    tensors = load_file(str(probe_file))
+    direction = tensors["logreg_direction"].to(device)
+    bias = tensors["logreg_bias"].item() if "logreg_bias" in tensors else 0.0
+    return direction, bias
+
+
+def evaluate_probe_candidates_and_select_best(
+    probe_layer_candidates: list,
+    latent_type: str,
+    phase3_5_dir: Path,
+    phase3_6_dir: Path,
+    phase2_6_dir: Path,
+    config: Config,
+) -> tuple[dict, list]:
+    """Evaluate top-N probe layer candidates, select best by tuning AUROC.
+
+    Mirrors evaluate_candidates_and_select_best() for SAE latents.
+
+    Args:
+        probe_layer_candidates: List from discover_top_n_probe_layers()
+        latent_type: 'correct' or 'incorrect' (incorrect = negated direction)
+        phase3_5_dir: Phase 3.5 output directory (analysis split)
+        phase3_6_dir: Phase 3.6 output directory (tuning split)
+        phase2_6_dir: Phase 2.6 output directory (probe directions)
+        config: Configuration object
+
+    Returns:
+        (best_result, all_results_for_json)  — same shape as SAE equivalent
+    """
+    device = detect_device()
+    phase2_6_dir = Path(phase2_6_dir)
+    results = []
+
+    logger.info(f"Evaluating {len(probe_layer_candidates)} probe layer candidates "
+                f"({latent_type}-predicting):")
+
+    for rank, candidate in enumerate(probe_layer_candidates):
+        layer = candidate['layer']
+        logger.info(f"  Candidate {rank}: Layer {layer} (CV AUROC={candidate['cv_auroc']:.3f})")
+        try:
+            direction, bias = load_probe_direction_for_layer(layer, phase2_6_dir, device)
+            if latent_type == 'incorrect':
+                direction = -direction
+                bias = -bias
+
+            # Tuning split: find F1-optimal threshold (no plots)
+            y_true_hp, scores_hp = load_split_probe_activations(
+                'tuning', layer, direction, bias, latent_type,
+                phase3_5_dir, phase3_6_dir, config
+            )
+            thresholds_hp = np.linspace(scores_hp.min(), scores_hp.max(), 102)[1:-1]
+            f1_scores_hp = [
+                f1_score(y_true_hp, (scores_hp >= t).astype(int), zero_division=0)
+                for t in thresholds_hp
+            ]
+            optimal_idx = np.argmax(f1_scores_hp)
+            optimal_threshold = float(thresholds_hp[optimal_idx])
+            y_pred_hp = (scores_hp >= optimal_threshold).astype(int)
+            hp_metrics = {
+                'auroc': float(roc_auc_score(y_true_hp, scores_hp)),
+                'f1': float(f1_score(y_true_hp, y_pred_hp, zero_division=0)),
+                'precision': float(precision_score(y_true_hp, y_pred_hp, zero_division=0)),
+                'recall': float(recall_score(y_true_hp, y_pred_hp, zero_division=0)),
+                'threshold': optimal_threshold,
+                'threshold_range': (float(scores_hp.min()), float(scores_hp.max())),
+                'f1_curve': {'thresholds': thresholds_hp.tolist(), 'f1_scores': f1_scores_hp},
+            }
+
+            # Analysis split: held-out validation (no plots)
+            y_true_val, scores_val = load_split_probe_activations(
+                'analysis', layer, direction, bias, latent_type,
+                phase3_5_dir, phase3_6_dir, config
+            )
+            y_pred_val = (scores_val >= optimal_threshold).astype(int)
+            val_metrics = {
+                'auroc': float(roc_auc_score(y_true_val, scores_val)),
+                'f1': float(f1_score(y_true_val, y_pred_val, zero_division=0)),
+                'precision': float(precision_score(y_true_val, y_pred_val, zero_division=0)),
+                'recall': float(recall_score(y_true_val, y_pred_val, zero_division=0)),
+                'threshold': optimal_threshold,
+            }
+            logger.info(f"    hp AUROC={hp_metrics['auroc']:.4f}, "
+                        f"val AUROC={val_metrics['auroc']:.4f}")
+
+            result = {
+                'rank': rank,
+                'layer': layer,
+                'latent_idx': None,
+                'cv_auroc': candidate['cv_auroc'],
+                't_statistic': candidate.get('t_statistic'),
+                'hyperparameter_split': hp_metrics,
+                'validation_split': val_metrics,
+                '_y_true_hp': y_true_hp,
+                '_scores_hp': scores_hp,
+                '_y_true_val': y_true_val,
+                '_scores_val': scores_val,
+                '_threshold': optimal_threshold,
+                '_direction': direction,
+                '_bias': bias,
+            }
+            results.append(result)
+
+        except Exception as e:
+            logger.warning(f"  Layer {layer}: SKIPPED ({e})")
+
+    if not results:
+        raise RuntimeError(
+            f"All {len(probe_layer_candidates)} probe layer candidates failed. "
+            "Re-run Phase 2.6 to generate probe directions."
+        )
+
+    best = max(results, key=lambda r: r['hyperparameter_split']['auroc'])
+
+    # Log comparison table
+    logger.info(f"\n{latent_type.upper()}-PREDICTING PROBE LAYER COMPARISON:")
+    logger.info(f"{'Rank':<6} {'Layer':<8} {'Tuning AUROC':<14} {'Val AUROC':<12} {'Selected'}")
+    logger.info("-" * 55)
+    for r in results:
+        sel = " <-- BEST" if r is best else ""
+        logger.info(
+            f"{r['rank']:<6} L{r['layer']:<7} "
+            f"{r['hyperparameter_split']['auroc']:<14.4f} "
+            f"{r['validation_split']['auroc']:<12.4f}{sel}"
+        )
+
+    all_for_json = [
+        {
+            'rank': r['rank'],
+            'layer': r['layer'],
+            'latent_idx': None,
+            'cv_auroc': r['cv_auroc'],
+            't_statistic': r.get('t_statistic'),
+            'hyperparameter_split': r['hyperparameter_split'],
+            'validation_split': r['validation_split'],
+            'selected': (r is best),
+        }
+        for r in results
+    ]
+
+    return best, all_for_json
 
 
 def load_split_activations(

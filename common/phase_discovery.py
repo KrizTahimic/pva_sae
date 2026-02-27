@@ -474,6 +474,57 @@ def _discover_probe_best_layers(config: 'Config', log=None) -> list[int]:
         return []
 
 
+def discover_top_n_probe_layers(config: 'Config', log=None) -> list:
+    """Return top-N layers ranked by logreg CV AUROC from Phase 2.6.
+
+    Reads phase_2_6_summary.json layer_metrics and returns the top
+    config.phase3_8_n_candidates layers as candidate dicts.
+
+    Returns:
+        List of dicts: [{'layer': int, 'cv_auroc': float, 'cv_std': float}, ...]
+        Empty list if Phase 2.6 hasn't been run.
+    """
+    from common.utils import load_json
+
+    log = log or logger
+    n = getattr(config, 'phase3_8_n_candidates', 5)
+
+    try:
+        phase_2_6_dir = Path(get_phase_output_dir("2.6", config))
+        summary_file = phase_2_6_dir / "phase_2_6_summary.json"
+        if not summary_file.exists():
+            return []
+
+        summary = load_json(summary_file)
+        layer_metrics = summary.get('layer_metrics', {})
+        if not layer_metrics:
+            return []
+
+        # Rank layers by logreg CV AUROC (descending)
+        ranked = sorted(
+            [
+                {
+                    'layer': int(layer),
+                    'cv_auroc': m['logreg_cv_auroc'],
+                    'cv_std': m.get('logreg_cv_std', 0.0),
+                    't_statistic': m.get('logreg_t_statistic', 0.0),
+                }
+                for layer, m in layer_metrics.items()
+            ],
+            key=lambda x: x['cv_auroc'],
+            reverse=True,
+        )
+
+        top_n = ranked[:n]
+        log.info(f"Top-{n} probe layers by logreg CV AUROC: "
+                 + ", ".join(f"L{c['layer']} ({c['cv_auroc']:.3f})" for c in top_n))
+        return top_n
+
+    except Exception as e:
+        log.warning(f"Could not load Phase 2.6 layer ranking: {e}")
+        return []
+
+
 def discover_top_n_latents(config: 'Config', log=None) -> dict:
     """
     Discover top-N latent candidates from Phase 2.10 (t-statistic selection).
