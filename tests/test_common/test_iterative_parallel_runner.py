@@ -1241,3 +1241,133 @@ class TestCorruptedParquetFailFast:
         merged = runner._merge_value_results(1.0)
         assert merged is not None
         assert merged["n_problems"] == 2
+
+
+# =============================================================================
+# Fix 3: Partial GPU Failure Merge Tests
+# =============================================================================
+
+class TestPartialGpuFailureMerge:
+    """Test that partial GPU failures merge available data instead of discarding.
+
+    Bug: When 1 of 4 GPUs times out, the runner used to discard ALL data for
+    that temperature — even though 3 successful GPUs saved checkpoints to disk.
+    Fix: Merge whatever checkpoint data exists, marking result as partial.
+    """
+
+    def test_partial_failure_merges_available_data(self, tmp_path):
+        """3/4 GPUs saved checkpoints, 1 timed out -> merge 3 GPUs' data with partial=True."""
+        all_tasks = [f"t{i}" for i in range(8)]
+        runner = _make_runner(tmp_path, n_gpus=4, all_task_ids=all_tasks)
+
+        # Simulate: GPUs 0-2 saved checkpoints, GPU 3 timed out (no checkpoint)
+        runner._save_gpu_checkpoint(1.0, 0, _make_gpu_result(0, 1.0, ["t0", "t4"]))
+        runner._save_gpu_checkpoint(1.0, 1, _make_gpu_result(1, 1.0, ["t1", "t5"]))
+        runner._save_gpu_checkpoint(1.0, 2, _make_gpu_result(2, 1.0, ["t2", "t6"]))
+        # GPU 3 did NOT save (timed out) — tasks t3, t7 missing
+
+        # The merge should still work with 6/8 tasks
+        merged = runner._merge_value_results(1.0)
+        assert merged is not None
+        assert merged["n_problems"] == 6
+
+        # Simulate the orchestrator loop logic: detect partial and annotate
+        remaining = runner._get_remaining_tasks_for_value(1.0)
+        is_partial = bool(remaining)
+        assert is_partial is True
+        assert sorted(remaining) == ["t3", "t7"]
+
+        merged['partial'] = is_partial
+        merged['n_tasks_completed'] = len(all_tasks) - len(remaining)
+        merged['n_tasks_total'] = len(all_tasks)
+
+        assert merged['partial'] is True
+        assert merged['n_tasks_completed'] == 6
+        assert merged['n_tasks_total'] == 8
+
+    def test_total_failure_skips_merge(self, tmp_path):
+        """0/4 GPUs saved checkpoints -> merge returns None (no regression)."""
+        all_tasks = [f"t{i}" for i in range(8)]
+        runner = _make_runner(tmp_path, n_gpus=4, all_task_ids=all_tasks)
+
+        # No checkpoints saved at all
+        merged = runner._merge_value_results(1.0)
+        assert merged is None
+
+        # All tasks remain
+        remaining = runner._get_remaining_tasks_for_value(1.0)
+        assert len(remaining) == 8
+
+    def test_all_gpus_succeed_not_partial(self, tmp_path):
+        """4/4 GPUs saved checkpoints -> partial=False (no regression)."""
+        all_tasks = [f"t{i}" for i in range(8)]
+        runner = _make_runner(tmp_path, n_gpus=4, all_task_ids=all_tasks)
+
+        runner._save_gpu_checkpoint(1.0, 0, _make_gpu_result(0, 1.0, ["t0", "t4"]))
+        runner._save_gpu_checkpoint(1.0, 1, _make_gpu_result(1, 1.0, ["t1", "t5"]))
+        runner._save_gpu_checkpoint(1.0, 2, _make_gpu_result(2, 1.0, ["t2", "t6"]))
+        runner._save_gpu_checkpoint(1.0, 3, _make_gpu_result(3, 1.0, ["t3", "t7"]))
+
+        merged = runner._merge_value_results(1.0)
+        assert merged is not None
+        assert merged["n_problems"] == 8
+
+        remaining = runner._get_remaining_tasks_for_value(1.0)
+        is_partial = bool(remaining)
+        assert is_partial is False
+
+    def test_orchestrator_state_stores_partial_flag(self, tmp_path):
+        """Orchestrator state JSON should contain the partial flag."""
+        runner = _make_runner(tmp_path)
+        runner.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save a partial result
+        runner._save_orchestrator_state(1.0, {
+            "score": 0.5, "n_problems": 6, "partial": True
+        })
+
+        state_file = runner.checkpoint_dir / "orchestrator_state.json"
+        with open(state_file, "r") as f:
+            data = json.load(f)
+
+        assert data["results"]["1.0"]["partial"] is True
+
+    def test_orchestrator_state_defaults_partial_false(self, tmp_path):
+        """Old results without 'partial' key should default to False."""
+        runner = _make_runner(tmp_path)
+        runner.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save result WITHOUT partial key (simulates old state files)
+        runner._save_orchestrator_state(1.0, {"score": 0.5, "n_problems": 10})
+
+        state_file = runner.checkpoint_dir / "orchestrator_state.json"
+        with open(state_file, "r") as f:
+            data = json.load(f)
+
+        assert data["results"]["1.0"]["partial"] is False
+
+    def test_resume_after_partial_detects_remaining(self, tmp_path):
+        """After a partial merge, restarting should detect remaining tasks for completion."""
+        all_tasks = [f"t{i}" for i in range(8)]
+        runner = _make_runner(
+            tmp_path, n_gpus=4, all_task_ids=all_tasks, values_to_test=[1.0]
+        )
+
+        # Simulate partial: GPUs 0-2 completed, GPU 3 did not
+        runner._save_gpu_checkpoint(1.0, 0, _make_gpu_result(0, 1.0, ["t0", "t4"]))
+        runner._save_gpu_checkpoint(1.0, 1, _make_gpu_result(1, 1.0, ["t1", "t5"]))
+        runner._save_gpu_checkpoint(1.0, 2, _make_gpu_result(2, 1.0, ["t2", "t6"]))
+
+        # On restart, remaining tasks should be detected
+        remaining = runner._get_remaining_tasks_for_value(1.0)
+        assert sorted(remaining) == ["t3", "t7"]
+
+        # After completing the remaining tasks
+        runner._save_gpu_checkpoint(1.0, 3, _make_gpu_result(3, 1.0, ["t3", "t7"]))
+
+        remaining_after = runner._get_remaining_tasks_for_value(1.0)
+        assert remaining_after == []
+
+        # Full merge should now have all 8 tasks
+        merged = runner._merge_value_results(1.0)
+        assert merged["n_problems"] == 8

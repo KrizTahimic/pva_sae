@@ -1579,6 +1579,18 @@ After standardizing checkpointing across all 13 parallel phases (commit `1da0e17
 
 ---
 
+## Iterative Parallel Runner: Partial GPU Failure Bug (Fixed 2026-02-27)
+
+- [x] Fix `common/iterative_parallel_runner.py` discarding partial GPU data
+
+**Problem:** When running Phase 3.5 (temperature sweep) with `--parallel 4`, if 1 of 4 GPUs times out, the runner discarded ALL data for that temperature — even though the 3 successful GPUs already saved their checkpoints to disk. This caused both the Gemma 2B and LLAMA Phase 3.5 runs to produce only 1-2 of 8 expected temperature parquet files, crashing Phase 3.10 downstream.
+
+**Root cause:** Lines 299-303 had a `continue` statement that skipped merge+save whenever any tasks remained incomplete, even if 75% of GPUs succeeded and saved checkpoints.
+
+**Fix:** Remove the `continue` that skipped merge on partial completion. Now merges whatever checkpoint data exists, annotating the result with `partial=True`, `n_tasks_completed`, and `n_tasks_total`. Total-failure path (`gpu_results is None` with remaining tasks) still skips correctly. Orchestrator state JSON now persists the `partial` flag.
+
+---
+
 ## Phase 7.12: Layer Mismatch Bug
 
 - [ ] Fix Phase 7.12 layer source mismatch with Phase 7.3

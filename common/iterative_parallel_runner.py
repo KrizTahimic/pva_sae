@@ -283,32 +283,39 @@ class IterativeParallelRunner:
                 gpu_results = self._collect_results(result_queues, value)
 
                 if gpu_results is None:
-                    # One or more workers failed - but we have checkpoints, so continue
-                    logger.warning(f"Some workers failed during value={value}, checking checkpoints")
-                    # Check if we now have all tasks complete
+                    # All workers failed or below success threshold
+                    logger.warning(f"Workers failed during value={value}, checking checkpoints")
                     remaining_after_failure = self._get_remaining_tasks_for_value(value)
                     if remaining_after_failure:
                         logger.error(f"Still {len(remaining_after_failure)} tasks incomplete for value={value}")
                         logger.error("Run will resume these on restart")
-                        # Don't break - save what we have and continue to next value
-                        # Or you could choose to retry here
+                        # Total failure with incomplete tasks — skip to next value
+                        continue
                     else:
                         logger.info(f"Despite failures, all tasks are complete for value={value}")
 
-                # Check if all tasks now complete
+                # Check remaining tasks — merge even if partial
                 remaining_check = self._get_remaining_tasks_for_value(value)
-                if remaining_check:
-                    logger.warning(f"Value {value}: {len(remaining_check)} tasks still incomplete")
-                    # Continue to next value - incomplete values will be retried on restart
-                    continue
+                is_partial = bool(remaining_check)
+                if is_partial:
+                    n_total = len(self.all_task_ids)
+                    n_complete = n_total - len(remaining_check)
+                    logger.warning(
+                        f"Value {value}: {n_complete}/{n_total} tasks complete — "
+                        f"merging partial results (remaining will be retried on restart)"
+                    )
 
-                # Merge results from all GPU checkpoints
+                # Merge results from all GPU checkpoints (partial or full)
                 merged = self._merge_value_results(value)
                 if merged is None:
                     logger.error(f"Failed to merge results for value={value}")
                     continue
 
                 merged['value'] = value
+                merged['partial'] = is_partial
+                if is_partial:
+                    merged['n_tasks_completed'] = n_complete
+                    merged['n_tasks_total'] = n_total
 
                 # Extract score (support both 'score' and 'net_benefit')
                 score = merged.get('score', merged.get('net_benefit', 0.0))
@@ -791,6 +798,7 @@ class IterativeParallelRunner:
         data['results'][str(value)] = {
             'score': result.get('score', 0),
             'n_problems': result.get('n_problems', 0),
+            'partial': result.get('partial', False),
             'timestamp': datetime.now().isoformat()
         }
 
