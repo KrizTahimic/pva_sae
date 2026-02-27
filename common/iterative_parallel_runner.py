@@ -55,10 +55,6 @@ from common.logging import get_logger
 logger = get_logger(__name__)
 
 
-# Timeout for worker operations (10 minutes per value evaluation)
-DEFAULT_WORKER_TIMEOUT = 600
-
-
 def _no_early_stop(*args) -> bool:
     """Default early stop function that never stops."""
     return False
@@ -106,7 +102,6 @@ class PhaseEvaluator(Protocol):
 class IterativeParallelConfig:
     """Configuration for iterative parallel execution."""
     n_gpus: int
-    timeout_per_iteration: int = DEFAULT_WORKER_TIMEOUT
     checkpoint_dir: Path | None = None
 
 
@@ -132,7 +127,6 @@ class IterativeParallelRunner:
         values_to_test: list[Any],
         early_stop_fn: Callable[[dict, list[dict]], bool] | None = None,
         merge_fn: Callable[[list[dict]], dict] | None = None,
-        timeout_per_iteration: int = DEFAULT_WORKER_TIMEOUT,
         checkpoint_dir: Path | None = None,
         all_task_ids: list[str] | None = None,
         min_gpu_success_ratio: float = 0.75,
@@ -147,7 +141,6 @@ class IterativeParallelRunner:
             values_to_test: List of values to test (percentiles, coefficients, etc.)
             early_stop_fn: Optional function(current_result, history) -> bool for early stopping
             merge_fn: Optional function(gpu_results) -> merged_result
-            timeout_per_iteration: Max time per iteration in seconds
             checkpoint_dir: Optional directory for iteration checkpoints
             all_task_ids: Optional list of all task_ids to process (discovered from evaluator if not provided)
             min_gpu_success_ratio: Minimum ratio of successful GPUs required (default 0.75).
@@ -159,7 +152,6 @@ class IterativeParallelRunner:
         self.values_to_test = values_to_test
         self.early_stop_fn = early_stop_fn or _no_early_stop
         self.merge_fn = merge_fn or _default_merge_fn
-        self.timeout = timeout_per_iteration
         self.checkpoint_dir = checkpoint_dir
         self.all_task_ids = all_task_ids  # Will be discovered if not provided
         self.min_gpu_success_ratio = min_gpu_success_ratio
@@ -381,7 +373,7 @@ class IterativeParallelRunner:
             # Process tasks until shutdown
             while True:
                 try:
-                    msg = task_queue.get(timeout=self.timeout)
+                    msg = task_queue.get()
 
                     # Handle different message formats
                     if isinstance(msg, tuple) and len(msg) == 2:
@@ -488,43 +480,34 @@ class IterativeParallelRunner:
         # Ask first worker for task_ids
         task_queues[0].put(('get_task_ids', None, None))
 
-        try:
-            result = result_queues[0].get(timeout=self.timeout)
-            if result.get('status') == 'task_ids':
-                return result['task_ids']
-        except queue.Empty:
-            logger.warning("Timeout getting task_ids from worker")
+        result = result_queues[0].get()
+        if result.get('status') == 'task_ids':
+            return result['task_ids']
 
         return []
 
     def _collect_results(self, result_queues: list[Queue], value: Any) -> list[dict] | None:
-        """Collect results from all workers with timeout and error handling."""
+        """Collect results from all workers (blocks until each GPU finishes)."""
         gpu_results = []
         had_errors = False
 
         for i, rq in enumerate(result_queues):
-            try:
-                result = rq.get(timeout=self.timeout)
+            result = rq.get()
 
-                if result.get('status') == 'error':
-                    logger.error(f"GPU {i} error on value={value}: {result.get('error')}")
-                    if 'traceback' in result:
-                        logger.error(f"Traceback: {result['traceback']}")
-                    had_errors = True
-                    continue  # Continue collecting other GPUs' results
+            if result.get('status') == 'error':
+                logger.error(f"GPU {i} error on value={value}: {result.get('error')}")
+                if 'traceback' in result:
+                    logger.error(f"Traceback: {result['traceback']}")
+                had_errors = True
+                continue  # Continue collecting other GPUs' results
 
-                if result.get('status') == 'fatal_error':
-                    logger.error(f"GPU {i} fatal error: {result.get('error')}")
-                    had_errors = True
-                    continue
-
-                gpu_results.append(result)
-                logger.info(f"GPU {i}: Received results for value={value}")
-
-            except queue.Empty:
-                logger.error(f"GPU {i} timed out on value={value}")
+            if result.get('status') == 'fatal_error':
+                logger.error(f"GPU {i} fatal error: {result.get('error')}")
                 had_errors = True
                 continue
+
+            gpu_results.append(result)
+            logger.info(f"GPU {i}: Received results for value={value}")
 
         if not gpu_results:
             return None  # Total failure

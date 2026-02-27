@@ -2637,7 +2637,6 @@ class RefinementOrchestrator:
             values_to_test=[(coefficient, steering_type)],
             merge_fn=self._merge_refinement_results,
             checkpoint_dir=self.output_dir / f"parallel_checkpoints_{ckpt_suffix}",
-            timeout_per_iteration=1200,  # 20 minutes (some GPUs are slower)
         )
 
         result = runner.run()

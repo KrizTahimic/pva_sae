@@ -20,7 +20,6 @@ from common.iterative_parallel_runner import (
     IterativeParallelRunner,
     _default_merge_fn,
     _no_early_stop,
-    DEFAULT_WORKER_TIMEOUT,
 )
 
 
@@ -35,7 +34,6 @@ def _make_runner(
     early_stop_fn=None,
     merge_fn=None,
     all_task_ids=None,
-    timeout=10,
 ):
     """Create an IterativeParallelRunner with mocked dependencies."""
     config = MagicMock()
@@ -49,7 +47,6 @@ def _make_runner(
         values_to_test=values_to_test or [1.0, 2.0, 3.0],
         early_stop_fn=early_stop_fn,
         merge_fn=merge_fn,
-        timeout_per_iteration=timeout,
         checkpoint_dir=tmp_path / "checkpoints",
         all_task_ids=all_task_ids or [f"task_{i}" for i in range(10)],
     )
@@ -577,7 +574,7 @@ class TestCollectResults:
 
     def test_collects_successful_results(self, tmp_path):
         """Should collect results from all GPU queues."""
-        runner = _make_runner(tmp_path, n_gpus=2, timeout=5)
+        runner = _make_runner(tmp_path, n_gpus=2)
 
         q0 = queue.Queue()
         q1 = queue.Queue()
@@ -593,7 +590,7 @@ class TestCollectResults:
     def test_handles_worker_error(self, tmp_path):
         """With 1/2 GPUs failing, result depends on min_gpu_success_ratio.
         Default 0.75 means 50% success is below threshold -> returns None."""
-        runner = _make_runner(tmp_path, n_gpus=2, timeout=5)
+        runner = _make_runner(tmp_path, n_gpus=2)
 
         q0 = queue.Queue()
         q1 = queue.Queue()
@@ -608,7 +605,7 @@ class TestCollectResults:
 
     def test_handles_fatal_error(self, tmp_path):
         """With 1/2 GPUs fatal error, 50% < 75% threshold -> returns None."""
-        runner = _make_runner(tmp_path, n_gpus=2, timeout=5)
+        runner = _make_runner(tmp_path, n_gpus=2)
 
         q0 = queue.Queue()
         q1 = queue.Queue()
@@ -623,41 +620,13 @@ class TestCollectResults:
 
     def test_returns_none_on_total_failure(self, tmp_path):
         """Should return None when all workers fail."""
-        runner = _make_runner(tmp_path, n_gpus=2, timeout=5)
+        runner = _make_runner(tmp_path, n_gpus=2)
 
         q0 = queue.Queue()
         q1 = queue.Queue()
 
         q0.put({"status": "error", "gpu_id": 0, "error": "OOM"})
         q1.put({"status": "fatal_error", "gpu_id": 1, "error": "Crash"})
-
-        results = runner._collect_results([q0, q1], value=1.0)
-
-        assert results is None
-
-    def test_handles_timeout(self, tmp_path):
-        """With 1/2 GPUs timing out, 50% < 75% threshold -> returns None."""
-        runner = _make_runner(tmp_path, n_gpus=2, timeout=1)
-
-        q0 = queue.Queue()
-        q1 = queue.Queue()
-
-        # Only GPU 0 responds; GPU 1 times out
-        q0.put({"status": "success", "gpu_id": 0, "results": [{"task_id": "t0"}]})
-        # q1 is empty - will timeout
-
-        results = runner._collect_results([q0, q1], value=1.0)
-
-        # 1/2 = 50% < 75% threshold
-        assert results is None
-
-    def test_returns_none_when_all_timeout(self, tmp_path):
-        """Should return None when all workers timeout."""
-        runner = _make_runner(tmp_path, n_gpus=2, timeout=1)
-
-        q0 = queue.Queue()
-        q1 = queue.Queue()
-        # Both empty - will timeout
 
         results = runner._collect_results([q0, q1], value=1.0)
 
@@ -967,7 +936,7 @@ class TestDiscoverTaskIds:
 
     def test_discovers_from_first_worker(self, tmp_path):
         """Should ask GPU 0 for task_ids and return them."""
-        runner = _make_runner(tmp_path, timeout=5)
+        runner = _make_runner(tmp_path)
 
         task_queues = [queue.Queue(), queue.Queue()]
         result_queues = [queue.Queue(), queue.Queue()]
@@ -987,20 +956,9 @@ class TestDiscoverTaskIds:
         msg = task_queues[0].get_nowait()
         assert msg[0] == "get_task_ids"
 
-    def test_returns_empty_on_timeout(self, tmp_path):
-        """Should return empty list if worker doesn't respond."""
-        runner = _make_runner(tmp_path, timeout=1)
-
-        task_queues = [queue.Queue()]
-        result_queues = [queue.Queue()]  # Empty - will timeout
-
-        discovered = runner._discover_task_ids(task_queues, result_queues)
-
-        assert discovered == []
-
     def test_returns_empty_on_unexpected_response(self, tmp_path):
         """Should return empty list if worker sends unexpected response."""
-        runner = _make_runner(tmp_path, timeout=5)
+        runner = _make_runner(tmp_path)
 
         task_queues = [queue.Queue()]
         result_queues = [queue.Queue()]
@@ -1018,10 +976,6 @@ class TestDiscoverTaskIds:
 
 class TestRunnerConfiguration:
     """Test IterativeParallelRunner initialization and defaults."""
-
-    def test_default_timeout(self):
-        """Default timeout should match the module constant."""
-        assert DEFAULT_WORKER_TIMEOUT == 600
 
     def test_default_early_stop_is_noop(self, tmp_path):
         """Runner should use _no_early_stop by default."""
@@ -1102,7 +1056,7 @@ class TestMinGpuSuccessRatio:
 
     def test_all_gpus_succeed(self, tmp_path):
         """4/4 GPUs succeed -> proceeds normally."""
-        runner = _make_runner(tmp_path, n_gpus=4, timeout=5)
+        runner = _make_runner(tmp_path, n_gpus=4)
 
         queues = [queue.Queue() for _ in range(4)]
         for i, q in enumerate(queues):
@@ -1114,7 +1068,7 @@ class TestMinGpuSuccessRatio:
 
     def test_three_of_four_gpus_succeed(self, tmp_path):
         """3/4 GPUs succeed (75%) -> meets default 0.75 threshold."""
-        runner = _make_runner(tmp_path, n_gpus=4, timeout=5)
+        runner = _make_runner(tmp_path, n_gpus=4)
 
         queues = [queue.Queue() for _ in range(4)]
         queues[0].put({"status": "success", "gpu_id": 0, "results": [{"task_id": "t0"}]})
@@ -1128,7 +1082,7 @@ class TestMinGpuSuccessRatio:
 
     def test_one_of_four_gpus_succeed(self, tmp_path):
         """1/4 GPUs succeed (25%) -> below 0.75 threshold, returns None."""
-        runner = _make_runner(tmp_path, n_gpus=4, timeout=5)
+        runner = _make_runner(tmp_path, n_gpus=4)
 
         queues = [queue.Queue() for _ in range(4)]
         queues[0].put({"status": "success", "gpu_id": 0, "results": [{"task_id": "t0"}]})
@@ -1141,7 +1095,7 @@ class TestMinGpuSuccessRatio:
 
     def test_zero_gpus_succeed(self, tmp_path):
         """0/4 GPUs succeed -> returns None."""
-        runner = _make_runner(tmp_path, n_gpus=4, timeout=5)
+        runner = _make_runner(tmp_path, n_gpus=4)
 
         queues = [queue.Queue() for _ in range(4)]
         for i, q in enumerate(queues):
@@ -1161,7 +1115,7 @@ class TestMinGpuSuccessRatio:
             config=config,
             n_gpus=4,
             values_to_test=[1.0],
-            timeout_per_iteration=5,
+
             checkpoint_dir=tmp_path / "checkpoints",
             all_task_ids=["t0", "t1", "t2", "t3"],
             min_gpu_success_ratio=0.5,
@@ -1188,7 +1142,7 @@ class TestMinGpuSuccessRatio:
             config=config,
             n_gpus=4,
             values_to_test=[1.0],
-            timeout_per_iteration=5,
+
             checkpoint_dir=tmp_path / "checkpoints",
             all_task_ids=["t0", "t1", "t2", "t3"],
             min_gpu_success_ratio=0.5,

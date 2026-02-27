@@ -1549,7 +1549,6 @@ class ThresholdOrchestrator:
             early_stop_fn=self._should_early_stop,
             merge_fn=self._merge_percentile_results,
             checkpoint_dir=self.output_dir / "parallel_checkpoints",
-            timeout_per_iteration=1200,  # 20 minutes (some GPUs are slower)
         )
 
         result = runner.run()
