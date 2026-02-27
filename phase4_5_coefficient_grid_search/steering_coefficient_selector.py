@@ -1528,7 +1528,10 @@ class CoefficientEvaluator:
 
         results = []
 
-        for _, row in problems_df.iterrows():
+        for _, row in tqdm_with_logging(
+            problems_df.iterrows(), logger, total=len(problems_df),
+            desc=f"GPU {self.gpu_id} coeff={coefficient} {steering_type}"
+        ):
             hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
             target_module = self.model.model.layers[target_layer]
             hook_handle = target_module.register_forward_pre_hook(hook_fn)

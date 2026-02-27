@@ -2100,7 +2100,10 @@ class RefinementEvaluator:
 
         results = []
 
-        for _, row in eval_data.iterrows():
+        for _, row in tqdm_with_logging(
+            eval_data.iterrows(), logger, total=len(eval_data),
+            desc=f"GPU {self.gpu_id} coeff={coefficient} {steering_type}"
+        ):
             hook_fn = create_last_position_steering_hook(latent_direction, coefficient)
             target_module = self.model.model.layers[target_layer]
             hook_handle = target_module.register_forward_pre_hook(hook_fn)

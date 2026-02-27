@@ -823,7 +823,10 @@ class TemperatureEvaluator:
         results = []
         excluded_tasks = []
 
-        for _, row in data.iterrows():
+        for _, row in tqdm_with_logging(
+            data.iterrows(), logger, total=len(data),
+            desc=f"GPU {self.gpu_id} temp={temperature}"
+        ):
             # Build prompt
             test_cases_str = "\n".join([
                 test.strip() if test.strip().startswith('assert ') else f"assert {test.strip()}"

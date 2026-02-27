@@ -1349,7 +1349,10 @@ class ThresholdEvaluator:
         """Run steering experiment on problems."""
         results = []
 
-        for _, row in problems_df.iterrows():
+        for _, row in tqdm_with_logging(
+            problems_df.iterrows(), logger, total=len(problems_df),
+            desc=f"GPU {self.gpu_id} threshold={threshold:.4f} {dataset_type}"
+        ):
             task_id = row['task_id']
             baseline_passed = row['baseline_passed']
 
