@@ -94,9 +94,10 @@ class TemperatureRobustnessRunner:
         # Only setup extraction if temperature 0.0 is in config
         if 0.0 in config.temperature_variation_temps:
             # Discover top-N latent candidates from Phase 2.10
-            from common.phase_discovery import discover_top_n_latents
+            from common.phase_discovery import discover_top_n_latents, discover_top_n_probe_layers
             self.best_latents = discover_top_n_latents(config, logger)
-            self.extraction_layers = self.best_latents['all_layers']
+            probe_layers = [c['layer'] for c in discover_top_n_probe_layers(config, logger)]
+            self.extraction_layers = sorted(set(self.best_latents['all_layers']) | set(probe_layers))
 
             # Initialize activation extractor but don't setup hooks yet
             # We'll only setup hooks when generating at temperature 0
@@ -762,9 +763,10 @@ class TemperatureEvaluator:
 
         # Discover top-N latent candidates from Phase 2.10 (if temp 0.0 in config)
         if 0.0 in config.temperature_variation_temps:
-            from common.phase_discovery import discover_top_n_latents
+            from common.phase_discovery import discover_top_n_latents, discover_top_n_probe_layers
             self.best_latents = discover_top_n_latents(config, logger)
-            self.extraction_layers = self.best_latents['all_layers']
+            probe_layers = [c['layer'] for c in discover_top_n_probe_layers(config, logger)]
+            self.extraction_layers = sorted(set(self.best_latents['all_layers']) | set(probe_layers))
             self.activation_extractor = ActivationExtractor(self.model, layers=self.extraction_layers)
             self.attention_extractor = AttentionExtractor(self.model, layers=self.extraction_layers, position=-1)
         else:

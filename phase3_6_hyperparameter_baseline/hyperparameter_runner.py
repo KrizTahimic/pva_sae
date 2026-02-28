@@ -80,7 +80,9 @@ class HyperparameterDataRunner:
         """
         Setup activation extraction layers for all top-N candidate layers.
         """
-        self.extraction_layers = self.best_latents['all_layers']
+        from common.phase_discovery import discover_top_n_probe_layers
+        probe_layers = [c['layer'] for c in discover_top_n_probe_layers(self.config, logger)]
+        self.extraction_layers = sorted(set(self.best_latents['all_layers']) | set(probe_layers))
         logger.info(f"Extracting activations from {len(self.extraction_layers)} layers: {self.extraction_layers}")
         
         # Initialize activation extractor for unique layers only
