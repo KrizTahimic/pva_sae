@@ -2288,11 +2288,23 @@ class RefinementOrchestrator:
     def _load_phase4_5_results(self):
         """Load Phase 4.5 results for search bounds."""
         phase4_5_output = discover_latest_phase_output("4.5", config=self.config)
-        phase4_5_dir = Path(phase4_5_output).parent
-        if self.use_probe:
-            probe_dir = phase4_5_dir.parent / (phase4_5_dir.name + "_probe")
-            if probe_dir.exists():
-                phase4_5_dir = probe_dir
+        if not phase4_5_output:
+            if not self.use_probe:
+                raise FileNotFoundError("Phase 4.5 output not found. Run Phase 4.5 first.")
+            # Probe-only model (no SAE Phase 4.5 run): look directly in probe dir
+            phase4_5_base = Path(get_phase_output_dir("4.5", self.config))
+            phase4_5_dir = phase4_5_base.parent / (phase4_5_base.name + "_probe")
+            if not phase4_5_dir.exists():
+                raise FileNotFoundError(
+                    f"Phase 4.5 probe output not found at {phase4_5_dir}. "
+                    "Run Phase 4.5 with --direction-source probe_mass_mean first."
+                )
+        else:
+            phase4_5_dir = Path(phase4_5_output).parent
+            if self.use_probe:
+                probe_dir = phase4_5_dir.parent / (phase4_5_dir.name + "_probe")
+                if probe_dir.exists():
+                    phase4_5_dir = probe_dir
 
         self.phase4_5_dir = phase4_5_dir
         self.selected_coefficients = load_json(phase4_5_dir / "selected_coefficients.json")
