@@ -131,13 +131,16 @@ class SteeringEffectAnalyzer:
             )
 
         if self.use_probe:
-            # Check probe directions (Phase 2.6)
-            phase_2_6_dir = Path(get_phase_output_dir("2.6", self.config))
-            probe_file = phase_2_6_dir / "best_probe_directions.json"
-            if not probe_file.exists():
+            # Check Phase 4.5 probe output (which depends on Phase 2.6)
+            phase4_5_base = Path(get_phase_output_dir("4.5", self.config))
+            phase4_5_probe_dir = phase4_5_base.parent / (phase4_5_base.name + "_probe")
+            probe_coeff_file = phase4_5_probe_dir / "selected_coefficients.json"
+            if not probe_coeff_file.exists():
                 raise FileNotFoundError(
-                    f"Phase 2.6 probe directions not found at {probe_file}. "
-                    f"Run Phase 2.6 first. (Checked before model loading to avoid wasting VRAM.)"
+                    f"Phase 4.5 probe output not found: {probe_coeff_file}. "
+                    f"Run Phase 4.5 --direction-source probe_mass_mean "
+                    f"and Phase 4.6 --direction-source probe_mass_mean "
+                    f"before Phase 4.8. (Checked before model loading to avoid wasting VRAM.)"
                 )
         else:
             # Check SAE latents (Phase 2.5)
@@ -150,32 +153,63 @@ class SteeringEffectAnalyzer:
 
     def _load_dependencies(self) -> None:
         """Load all dependencies from previous phases using shared utilities."""
-        from common.steering_setup import (
-            load_baseline_data, load_probe_directions_for_steering
-        )
+        from common.steering_setup import load_baseline_data
         from common.phase_discovery import discover_top_n_steering_latents
 
         if self.use_probe:
-            # === PROBE MODE ===
+            # === PROBE MODE: Load winning layer from Phase 4.5 ===
             logger.info("=" * 60)
-            logger.info("PROBE BASELINE MODE: Using Mass-Mean probe from Phase 2.6")
+            logger.info("PROBE BASELINE MODE: Loading winning layer from Phase 4.5")
             logger.info("=" * 60)
 
-            # Load probe directions from Phase 2.6
-            self.probe = load_probe_directions_for_steering(
-                self.config, self.device, self.model, method="mass_mean"
+            from common.steering_setup import load_mass_mean_direction_for_layer, ProbeDirections
+
+            # Locate Phase 4.5 probe output
+            phase4_5_base = Path(get_phase_output_dir("4.5", self.config))
+            phase4_5_probe_dir = phase4_5_base.parent / (phase4_5_base.name + "_probe")
+            selected_coeff_file = phase4_5_probe_dir / "selected_coefficients.json"
+            if not selected_coeff_file.exists():
+                raise FileNotFoundError(
+                    f"Phase 4.5 probe output not found: {selected_coeff_file}. "
+                    "Run Phase 4.5 with --direction-source probe_mass_mean first."
+                )
+            phase4_5_selected_probe = load_json(selected_coeff_file)
+
+            correct_layer = phase4_5_selected_probe.get('correct', {}).get('layer')
+            incorrect_layer = phase4_5_selected_probe.get('incorrect', {}).get('layer')
+            primary_layer = correct_layer or incorrect_layer
+            if primary_layer is None:
+                raise ValueError("Could not determine winning probe layer from Phase 4.5 output")
+
+            model_dtype = next(self.model.parameters()).dtype
+            phase2_6_dir = Path(get_phase_output_dir("2.6", self.config))
+
+            correct_dir = load_mass_mean_direction_for_layer(primary_layer, phase2_6_dir, self.device, model_dtype)
+            if incorrect_layer and incorrect_layer != correct_layer:
+                incorrect_dir = -load_mass_mean_direction_for_layer(incorrect_layer, phase2_6_dir, self.device, model_dtype)
+            else:
+                incorrect_dir = -correct_dir
+
+            self.correct_latent_direction = correct_dir
+            self.incorrect_latent_direction = incorrect_dir
+            self.probe_correct_layer = correct_layer or primary_layer
+            self.probe_incorrect_layer = incorrect_layer or primary_layer
+            self.probe_layer = primary_layer  # backward compat
+
+            self.probe = ProbeDirections(
+                correct_direction=correct_dir,
+                incorrect_direction=incorrect_dir,
+                layer=primary_layer,
+                method="mass_mean",
+                bias=0.0,
+                phase_dir=str(phase2_6_dir)
             )
-            self.correct_latent_direction = self.probe.correct_direction
-            self.incorrect_latent_direction = self.probe.incorrect_direction
-            self.probe_layer = self.probe.layer
-            self.phase2_5_dir = self.probe.phase_dir  # Actually Phase 2.6
+            self.phase2_5_dir = str(phase2_6_dir)
 
-            # Probe mode doesn't use SAE or multi-candidate
             self.correct_candidates = None
             self.incorrect_candidates = None
-            self.sae_cache = {}
 
-            logger.info(f"Mass-mean probe layer: {self.probe.layer}")
+            logger.info(f"Winning layers: correct={correct_layer}, incorrect={incorrect_layer}")
         else:
             # === SAE MODE (default) - Multi-Candidate ===
             logger.info("=" * 60)
@@ -436,14 +470,14 @@ class SteeringEffectAnalyzer:
             Tuple of (latent_direction, target_layer)
         """
         if steering_type == 'correct':
-            layer = self.probe_layer if self.use_probe else self.correct_candidates[0]['layer']
+            layer = self.probe_correct_layer if self.use_probe else self.correct_candidates[0]['layer']
             return self.correct_latent_direction, layer
         elif steering_type == 'preservation':
             # Use same correct latent for preservation
-            layer = self.probe_layer if self.use_probe else self.correct_candidates[0]['layer']
+            layer = self.probe_correct_layer if self.use_probe else self.correct_candidates[0]['layer']
             return self.correct_latent_direction, layer
         elif steering_type == 'incorrect':
-            layer = self.probe_layer if self.use_probe else self.incorrect_candidates[0]['layer']
+            layer = self.probe_incorrect_layer if self.use_probe else self.incorrect_candidates[0]['layer']
             return self.incorrect_latent_direction, layer
         else:
             raise ValueError(f"Invalid steering_type: {steering_type}. Must be 'correct', 'preservation', or 'incorrect'")
@@ -1315,7 +1349,7 @@ class SteeringEffectAnalyzer:
         if self.use_probe:
             summary['probe_info'] = {
                 'method': 'mass_mean',
-                'layer': self.probe.layer,
+                'layer': self.probe_correct_layer,
             }
         else:
             top_correct = self.correct_candidates[0]

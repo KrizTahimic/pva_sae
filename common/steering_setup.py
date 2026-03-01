@@ -107,6 +107,31 @@ def _load_probe_base(
     return direction, best_layer, bias, phase_dir
 
 
+def load_mass_mean_direction_for_layer(
+    layer: int, phase2_6_dir, device: torch.device, model_dtype=None
+) -> torch.Tensor:
+    """Load and normalize mass_mean probe direction for a specific layer.
+
+    Args:
+        layer: Layer number
+        phase2_6_dir: Phase 2.6 output directory (Path or str)
+        device: Target device
+        model_dtype: Optional model dtype to cast to
+
+    Returns:
+        Normalized mass_mean direction tensor [d_model]
+    """
+    probe_file = Path(phase2_6_dir) / "probe_directions" / f"layer_{layer}_probes.safetensors"
+    if not probe_file.exists():
+        raise FileNotFoundError(f"Probe file not found: {probe_file}")
+    tensors = load_file(str(probe_file))
+    direction = tensors["mass_mean_direction"].to(device)
+    direction = normalize_direction(direction)
+    if model_dtype is not None:
+        direction = direction.to(dtype=model_dtype)
+    return direction
+
+
 def load_probe_directions_for_predicting(
     config: Config,
     device: torch.device,

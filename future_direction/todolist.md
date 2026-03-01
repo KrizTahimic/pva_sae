@@ -1591,6 +1591,23 @@ After standardizing checkpointing across all 13 parallel phases (commit `1da0e17
 
 ---
 
+## Pending: Probe Pipeline Reruns
+
+**Prerequisite:** Add top-N probe candidate support to Phase 5.3 — **DONE**.
+
+### Gemma-2B remainder
+- [ ] Run `scripts/run_gemma_probe_remainder.sh` (3.8p → 5.3p → 6.3p, ~2–3 hrs)
+
+### LLAMA full probe pipeline
+- [ ] Run `scripts/run_llama_probe_full.sh` (2.6 → 3.6 → 3.8p → 4.5p → 4.6p → 4.8p → 5.3p → 6.3p, ~8–12 hrs)
+
+**What was deleted (safe to delete again if re-needed):**
+- `data/phase5_3_probe`, `data/phase6_3_probe` — stale Gemma (pre-valid 4.8 probe)
+- `data/phase2_6_llama` — missing `top_n_probe_directions.json`
+- `data/phase3_6_llama` — missing probe layers 18/19/20
+
+---
+
 ## Phase 7.12: Layer Mismatch Bug
 
 - [ ] Fix Phase 7.12 layer source mismatch with Phase 7.3

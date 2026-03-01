@@ -174,29 +174,64 @@ class GoldenSectionCoefficientRefiner:
 
     def _load_dependencies(self) -> None:
         """Load features from Phase 2.5/2.6 and baseline data from Phase 3.6."""
-        from common.steering_setup import load_probe_directions_for_steering
         from common.phase_discovery import discover_top_n_steering_latents
 
         if self.use_probe:
-            # === PROBE MODE ===
+            # === PROBE MODE: Load winning layer from Phase 4.5 ===
             logger.info("=" * 60)
-            logger.info("PROBE BASELINE MODE: Using Mass-Mean probe from Phase 2.6")
+            logger.info("PROBE BASELINE MODE: Loading winning layer from Phase 4.5")
             logger.info("=" * 60)
 
-            # Load probe directions from Phase 2.6
-            self.probe = load_probe_directions_for_steering(
-                self.config, self.device, self.model, method="mass_mean"
+            from common.steering_setup import load_mass_mean_direction_for_layer, ProbeDirections
+
+            # Locate Phase 4.5 probe output
+            phase4_5_base = Path(get_phase_output_dir("4.5", self.config))
+            phase4_5_probe_dir = phase4_5_base.parent / (phase4_5_base.name + "_probe")
+            selected_coeff_file = phase4_5_probe_dir / "selected_coefficients.json"
+            if not selected_coeff_file.exists():
+                raise FileNotFoundError(
+                    f"Phase 4.5 probe output not found: {selected_coeff_file}. "
+                    "Run Phase 4.5 with --direction-source probe_mass_mean first."
+                )
+            phase4_5_selected_probe = load_json(selected_coeff_file)
+
+            # Get winning layers per steering type
+            correct_layer = phase4_5_selected_probe.get('correct', {}).get('layer')
+            incorrect_layer = phase4_5_selected_probe.get('incorrect', {}).get('layer')
+            primary_layer = correct_layer or incorrect_layer
+            if primary_layer is None:
+                raise ValueError("Could not determine winning probe layer from Phase 4.5 output")
+
+            model_dtype = next(self.model.parameters()).dtype
+            phase2_6_dir = Path(get_phase_output_dir("2.6", self.config))
+
+            correct_dir = load_mass_mean_direction_for_layer(primary_layer, phase2_6_dir, self.device, model_dtype)
+            if incorrect_layer and incorrect_layer != correct_layer:
+                incorrect_dir = -load_mass_mean_direction_for_layer(incorrect_layer, phase2_6_dir, self.device, model_dtype)
+            else:
+                incorrect_dir = -correct_dir
+
+            self.correct_latent_direction = correct_dir
+            self.incorrect_latent_direction = incorrect_dir
+            self.probe_correct_layer = correct_layer or primary_layer
+            self.probe_incorrect_layer = incorrect_layer or primary_layer
+            self.probe_layer = primary_layer  # backward compat
+
+            # Create ProbeDirections for backward compat (probe.layer used in _run_probe_mode)
+            self.probe = ProbeDirections(
+                correct_direction=correct_dir,
+                incorrect_direction=incorrect_dir,
+                layer=primary_layer,
+                method="mass_mean",
+                bias=0.0,
+                phase_dir=str(phase2_6_dir)
             )
-            self.correct_latent_direction = self.probe.correct_direction
-            self.incorrect_latent_direction = self.probe.incorrect_direction
-            self.probe_layer = self.probe.layer
 
-            # Probe mode doesn't use SAE or multi-candidate
             self.correct_candidates = None
             self.incorrect_candidates = None
             self.sae_cache = {}
 
-            logger.info(f"Mass-mean probe layer: {self.probe.layer}")
+            logger.info(f"Winning layers: correct={correct_layer}, incorrect={incorrect_layer}")
         else:
             # === SAE MODE (default) - Multi-Candidate ===
             logger.info("=" * 60)
@@ -1410,7 +1445,7 @@ class GoldenSectionCoefficientRefiner:
 
                 # Get layer/latent info based on mode
                 if self.use_probe:
-                    layer = self.probe.layer
+                    layer = self.probe_correct_layer if steering_type == 'correct' else self.probe_incorrect_layer
                     latent_idx = None
                 else:
                     if steering_type == 'correct':
@@ -1483,7 +1518,7 @@ class GoldenSectionCoefficientRefiner:
 
             # Get layer/latent info for metadata
             if self.use_probe:
-                layer = self.probe.layer
+                layer = self.probe_correct_layer if steering_type == 'correct' else self.probe_incorrect_layer
                 latent_idx = None
             else:
                 if steering_type == 'correct':
@@ -1910,16 +1945,47 @@ class RefinementEvaluator:
 
     def _load_dependencies(self):
         """Load steering directions, SAEs, and baseline data."""
-        from common.steering_setup import load_probe_directions_for_steering
         from common.phase_discovery import discover_top_n_steering_latents
 
         if self.use_probe:
-            self.probe = load_probe_directions_for_steering(
-                self.config, self.device, self.model, method="mass_mean"
+            from common.steering_setup import load_mass_mean_direction_for_layer, ProbeDirections
+
+            # Load winning layer from Phase 4.5
+            phase4_5_base = Path(get_phase_output_dir("4.5", self.config))
+            phase4_5_probe_dir = phase4_5_base.parent / (phase4_5_base.name + "_probe")
+            selected_coeff_file = phase4_5_probe_dir / "selected_coefficients.json"
+            if not selected_coeff_file.exists():
+                raise FileNotFoundError(
+                    f"Phase 4.5 probe output not found: {selected_coeff_file}."
+                )
+            phase4_5_selected_probe = load_json(selected_coeff_file)
+
+            correct_layer = phase4_5_selected_probe.get('correct', {}).get('layer')
+            incorrect_layer = phase4_5_selected_probe.get('incorrect', {}).get('layer')
+            primary_layer = correct_layer or incorrect_layer
+
+            model_dtype = next(self.model.parameters()).dtype
+            phase2_6_dir = Path(get_phase_output_dir("2.6", self.config))
+
+            correct_dir = load_mass_mean_direction_for_layer(primary_layer, phase2_6_dir, self.device, model_dtype)
+            if incorrect_layer and incorrect_layer != correct_layer:
+                incorrect_dir = -load_mass_mean_direction_for_layer(incorrect_layer, phase2_6_dir, self.device, model_dtype)
+            else:
+                incorrect_dir = -correct_dir
+
+            self.correct_latent_direction = correct_dir
+            self.incorrect_latent_direction = incorrect_dir
+            self.probe_correct_layer = correct_layer or primary_layer
+            self.probe_incorrect_layer = incorrect_layer or primary_layer
+            self.probe_layer = primary_layer
+            self.probe = ProbeDirections(
+                correct_direction=correct_dir,
+                incorrect_direction=incorrect_dir,
+                layer=primary_layer,
+                method="mass_mean",
+                bias=0.0,
+                phase_dir=str(phase2_6_dir)
             )
-            self.correct_latent_direction = self.probe.correct_direction
-            self.incorrect_latent_direction = self.probe.incorrect_direction
-            self.probe_layer = self.probe.layer
             self.best_correct_latent = None
             self.best_incorrect_latent = None
             self.sae_cache = {}

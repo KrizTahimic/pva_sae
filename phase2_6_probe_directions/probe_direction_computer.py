@@ -528,7 +528,10 @@ class ProbeDirectionComputer:
         for layer, result in results.items():
             layer_metrics[str(layer)] = {
                 'mass_mean_cv_auroc': result.mass_mean_cv_auroc,
+                'mass_mean_cv_std': result.mass_mean_cv_std,
+                'mass_mean_separation': result.mass_mean_separation,
                 'logreg_cv_auroc': result.logreg_cv_auroc,
+                'logreg_cv_std': result.logreg_cv_std,
                 'mass_mean_t_statistic': result.mass_mean_t_statistic,
                 'logreg_t_statistic': result.logreg_t_statistic,
                 'n_samples': result.n_samples,
@@ -553,6 +556,37 @@ class ProbeDirectionComputer:
             'n_layers_processed': len(results),
         }
         save_json(summary, self.output_dir / "phase_2_6_summary.json")
+
+        # Generate top-N probe directions file for downstream discovery
+        n = getattr(self.config, 'phase3_8_n_candidates', 5)
+        logreg_ranked = sorted(results.items(), key=lambda x: x[1].logreg_cv_auroc, reverse=True)
+        mass_mean_ranked = sorted(results.items(), key=lambda x: x[1].mass_mean_separation, reverse=True)
+        top_n_probe = {
+            'n': n,
+            'logreg_top_n': [
+                {
+                    'rank': i,
+                    'layer': int(layer),
+                    'cv_auroc': r.logreg_cv_auroc,
+                    'cv_std': r.logreg_cv_std,
+                    't_statistic': r.logreg_t_statistic,
+                    'bias': r.logreg_bias,
+                }
+                for i, (layer, r) in enumerate(logreg_ranked[:n])
+            ],
+            'mass_mean_top_n': [
+                {
+                    'rank': i,
+                    'layer': int(layer),
+                    'separation': r.mass_mean_separation,
+                    'cv_auroc': r.mass_mean_cv_auroc,
+                    'cv_std': r.mass_mean_cv_std,
+                    't_statistic': r.mass_mean_t_statistic,
+                }
+                for i, (layer, r) in enumerate(mass_mean_ranked[:n])
+            ],
+        }
+        save_json(top_n_probe, self.output_dir / "top_n_probe_directions.json")
 
         # Write phase_output.json manifest
         write_phase_output(

@@ -491,6 +491,17 @@ def discover_top_n_probe_layers(config: 'Config', log=None) -> list:
 
     try:
         phase_2_6_dir = Path(get_phase_output_dir("2.6", config))
+
+        # Try top_n_probe_directions.json first (has pre-ranked data)
+        top_n_file = phase_2_6_dir / "top_n_probe_directions.json"
+        if top_n_file.exists():
+            data = load_json(top_n_file)
+            top_n = data.get('logreg_top_n', [])[:n]
+            log.info(f"Top-{n} probe layers by logreg CV AUROC: "
+                     + ", ".join(f"L{c['layer']} ({c['cv_auroc']:.3f})" for c in top_n))
+            return top_n
+
+        # Fallback: read from phase_2_6_summary.json
         summary_file = phase_2_6_dir / "phase_2_6_summary.json"
         if not summary_file.exists():
             return []
@@ -522,6 +533,71 @@ def discover_top_n_probe_layers(config: 'Config', log=None) -> list:
 
     except Exception as e:
         log.warning(f"Could not load Phase 2.6 layer ranking: {e}")
+        return []
+
+
+def discover_top_n_mass_mean_layers(config: 'Config', log=None) -> list:
+    """Return top-N layers ranked by mass_mean separation score from Phase 2.6.
+
+    Returns:
+        List of dicts: [{'rank', 'layer', 'separation', 'cv_auroc', 'cv_std', 't_statistic'}, ...]
+        Empty list if Phase 2.6 hasn't been run.
+    """
+    from common.utils import load_json
+
+    log = log or logger
+    n = getattr(config, 'phase3_8_n_candidates', 5)
+
+    try:
+        phase_2_6_dir = Path(get_phase_output_dir("2.6", config))
+        top_n_file = phase_2_6_dir / "top_n_probe_directions.json"
+
+        if top_n_file.exists():
+            data = load_json(top_n_file)
+            top_n = data.get('mass_mean_top_n', [])[:n]
+            log.info(f"Top-{n} mass_mean layers by separation: "
+                     + ", ".join(f"L{c['layer']} ({c['separation']:.3f})" for c in top_n))
+            return top_n
+
+        # Fallback: read from phase_2_6_summary.json (if it has mass_mean_separation)
+        summary_file = phase_2_6_dir / "phase_2_6_summary.json"
+        if not summary_file.exists():
+            return []
+
+        summary = load_json(summary_file)
+        layer_metrics = summary.get('layer_metrics', {})
+        if not layer_metrics:
+            return []
+
+        # Only layers with mass_mean_separation field
+        ranked = sorted(
+            [
+                {
+                    'rank': 0,
+                    'layer': int(layer),
+                    'separation': m['mass_mean_separation'],
+                    'cv_auroc': m.get('mass_mean_cv_auroc', 0.0),
+                    'cv_std': m.get('mass_mean_cv_std', 0.0),
+                    't_statistic': m.get('mass_mean_t_statistic', 0.0),
+                }
+                for layer, m in layer_metrics.items()
+                if 'mass_mean_separation' in m
+            ],
+            key=lambda x: x['separation'],
+            reverse=True,
+        )
+        # Fix ranks
+        for i, r in enumerate(ranked):
+            r['rank'] = i
+
+        top_n = ranked[:n]
+        if top_n:
+            log.info(f"Top-{n} mass_mean layers by separation (from summary): "
+                     + ", ".join(f"L{c['layer']} ({c['separation']:.3f})" for c in top_n))
+        return top_n
+
+    except Exception as e:
+        log.warning(f"Could not load Phase 2.6 mass_mean layer ranking: {e}")
         return []
 
 

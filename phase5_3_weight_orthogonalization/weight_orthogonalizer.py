@@ -106,33 +106,42 @@ class WeightOrthogonalizer:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
             load_sae_and_directions, load_baseline_data,
-            load_probe_directions_for_steering
         )
         from common.phase_discovery import discover_top_n_steering_latents
         from common.direction_utils import normalize_direction
 
         if self.use_probe:
-            # === PROBE MODE ===
+            # === PROBE MODE — Multi-Candidate ===
             logger.info("=" * 60)
-            logger.info("PROBE MODE: Using Mass-Mean probe from Phase 2.6")
+            logger.info("PROBE MODE: Testing top-N mass-mean probe layers from Phase 2.6")
             logger.info("=" * 60)
 
-            # Load probe directions from Phase 2.6
-            self.probe = load_probe_directions_for_steering(
-                self.config, self.device, self.model, method="mass_mean"
-            )
-            self.correct_latent_direction = self.probe.correct_direction
-            self.incorrect_latent_direction = self.probe.incorrect_direction
-            self.probe_layer = self.probe.layer
-            self.phase2_5_dir = self.probe.phase_dir  # Actually Phase 2.6
+            from common.phase_discovery import discover_top_n_probe_layers
+            from common.steering_setup import load_mass_mean_direction_for_layer
 
-            # Probe mode doesn't use multi-candidate
-            self.correct_candidates = None
+            phase2_6_dir = Path(get_phase_output_dir("2.6", self.config))
+            self.phase2_5_dir = str(phase2_6_dir)  # keep attribute name for compat
+
+            probe_layers = discover_top_n_probe_layers(self.config, logger)
+            model_dtype = next(self.model.parameters()).dtype
+
+            self.probe_candidates = []
+            for c in probe_layers:
+                direction = load_mass_mean_direction_for_layer(
+                    c['layer'], phase2_6_dir, self.device, model_dtype
+                )
+                self.probe_candidates.append({**c, 'direction': direction})
+
+            logger.info(f"Probe candidates: {[c['layer'] for c in self.probe_candidates]}")
+
+            # Keep single-direction attributes for apply_*_orthogonalization() fallback
+            self.correct_latent_direction  = self.probe_candidates[0]['direction']
+            self.incorrect_latent_direction = -self.probe_candidates[0]['direction']
+            self.probe_layer = self.probe_candidates[0]['layer']
+            self.correct_candidates = None  # SAE candidates — still None
             self.incorrect_candidates = None
             self.sae_cache = None
             self._direction_cache = None
-
-            logger.info(f"Mass-mean probe layer: {self.probe.layer}")
         else:
             # === SAE MODE - Multi-Candidate ===
             logger.info("=" * 60)
@@ -610,6 +619,162 @@ class WeightOrthogonalizer:
                          key=lambda k: per_candidate[k]['metrics']['corruption_rate'])
 
         logger.info(f"\nBest {steering_type} candidate: {best_id}")
+
+        return {
+            'per_candidate': per_candidate,
+            'best_candidate_id': best_id,
+            'best_candidate': per_candidate[best_id]
+        }
+
+    def multi_candidate_probe_orthogonalization(self, steering_type: str) -> dict:
+        """Run orthogonalization for all probe layer candidates of a given type.
+
+        Mirrors multi_candidate_orthogonalization() for probe mode. Tries every
+        probe layer in self.probe_candidates, selects best by correction/corruption rate.
+
+        Args:
+            steering_type: 'incorrect' or 'correct'
+
+        Returns:
+            dict with per_candidate results and best candidate selection
+        """
+        n_candidates = len(self.probe_candidates)
+
+        logger.info(f"\n{'='*60}")
+        logger.info(f"Multi-candidate probe {steering_type} orthogonalization ({n_candidates} candidates)")
+        logger.info("="*60)
+
+        per_candidate = {}
+
+        for idx, candidate in enumerate(self.probe_candidates):
+            candidate_id = f"L{candidate['layer']}P"
+
+            logger.info(f"\n{'='*50}")
+            logger.info(f"Probe candidate {candidate_id} ({idx + 1}/{n_candidates})")
+            logger.info(f"CV AUROC: {candidate.get('cv_auroc', 'N/A')}")
+            logger.info("="*50)
+
+            # probe 'direction' is the correct-predicting direction;
+            # negate for incorrect-direction orthogonalization
+            base_direction = candidate['direction']
+            direction = base_direction if steering_type == 'correct' else -base_direction
+
+            # Load fresh model (orthogonalization is destructive)
+            logger.info(f"Loading fresh model for {candidate_id}...")
+            model, tokenizer = load_model_and_tokenizer(
+                self.config.model_name,
+                device=self.device,
+                trust_remote_code=self.config.model_trust_remote_code
+            )
+            model.eval()
+
+            # Ensure direction is on correct device and dtype
+            model_dtype = next(model.parameters()).dtype
+            direction_on_device = direction.to(device=model.device, dtype=model_dtype)
+
+            # Apply orthogonalization
+            weight_changes = orthogonalize_gemma_weights(
+                model, direction_on_device,
+                target_weights=self.config.orthogonalization_target_weights
+            )
+
+            # Candidate info without tensor (for JSON serialization)
+            candidate_info = {k: v for k, v in candidate.items() if k != 'direction'}
+
+            if steering_type == 'incorrect':
+                incorrect_results, correct_results = self._test_incorrect_ortho(
+                    model, tokenizer, candidate_id
+                )
+                correction_rate = calculate_correction_rate(incorrect_results)
+                preservation_rate = calculate_preservation_rate(correct_results)
+                n_incorrect = len(incorrect_results)
+                n_corrected = sum(1 for r in incorrect_results if r['orthogonalized_correct'])
+                n_correct = len(correct_results)
+                n_preserved = sum(1 for r in correct_results if r['orthogonalized_correct'])
+
+                if n_incorrect > 0:
+                    correction_null_rate = max(1.0 / n_incorrect, 1e-10)
+                    correction_pvalue = binomtest(n_corrected, n_incorrect, p=correction_null_rate, alternative='greater').pvalue
+                else:
+                    correction_pvalue = 1.0
+                preservation_pvalue = binomtest(n_preserved, n_correct, p=0.5, alternative='greater').pvalue if n_correct > 0 else 1.0
+
+                candidate_result = {
+                    'candidate': candidate_info,
+                    'direction': 'incorrect',
+                    'weight_changes': weight_changes,
+                    'metrics': {
+                        'correction_rate': correction_rate,
+                        'preservation_rate': preservation_rate,
+                        'n_incorrect_baseline': n_incorrect,
+                        'n_corrected': n_corrected,
+                        'n_correct_baseline': n_correct,
+                        'n_preserved': n_preserved
+                    },
+                    'statistical_tests': {
+                        'correction_pvalue': correction_pvalue,
+                        'correction_significant': correction_pvalue < 0.05,
+                        'preservation_pvalue': preservation_pvalue,
+                        'preservation_significant': preservation_pvalue < 0.05
+                    },
+                    'examples': {
+                        'corrected': [r for r in incorrect_results if r['orthogonalized_correct']][:5],
+                        'not_corrected': [r for r in incorrect_results if not r['orthogonalized_correct']][:5],
+                        'preserved': [r for r in correct_results if r['orthogonalized_correct']][:5],
+                        'corrupted': [r for r in correct_results if not r['orthogonalized_correct']][:5]
+                    }
+                }
+                logger.info(f"[{candidate_id}] Correction: {correction_rate:.1f}% ({n_corrected}/{n_incorrect}), "
+                           f"Preservation: {preservation_rate:.1f}% ({n_preserved}/{n_correct})")
+
+            else:  # correct
+                correct_results = self._test_correct_ortho(model, tokenizer, candidate_id)
+                corruption_rate = calculate_corruption_rate(correct_results)
+                similarity_scores = [r.get('similarity', 0) for r in correct_results]
+                avg_similarity = np.mean(similarity_scores) if similarity_scores else 0.0
+                n_correct = len(correct_results)
+                n_corrupted = sum(1 for r in correct_results if not r['orthogonalized_correct'])
+                corruption_pvalue = binomtest(n_corrupted, n_correct, p=0.5, alternative='greater').pvalue if n_correct > 0 else 1.0
+
+                candidate_result = {
+                    'candidate': candidate_info,
+                    'direction': 'correct',
+                    'weight_changes': weight_changes,
+                    'metrics': {
+                        'corruption_rate': corruption_rate,
+                        'avg_similarity_score': avg_similarity,
+                        'n_correct_baseline': n_correct,
+                        'n_corrupted': n_corrupted
+                    },
+                    'statistical_tests': {
+                        'corruption_pvalue': corruption_pvalue,
+                        'corruption_significant': corruption_pvalue < 0.05
+                    },
+                    'examples': {
+                        'corrupted': [r for r in correct_results if not r['orthogonalized_correct']][:5],
+                        'preserved': [r for r in correct_results if r['orthogonalized_correct']][:5]
+                    }
+                }
+                logger.info(f"[{candidate_id}] Corruption: {corruption_rate:.1f}% ({n_corrupted}/{n_correct}), "
+                           f"Similarity: {avg_similarity:.3f}")
+
+            per_candidate[candidate_id] = candidate_result
+
+            # Clean up model
+            del model
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        # Select best candidate
+        if steering_type == 'incorrect':
+            best_id = max(per_candidate.keys(),
+                         key=lambda k: per_candidate[k]['metrics']['correction_rate'])
+        else:
+            best_id = max(per_candidate.keys(),
+                         key=lambda k: per_candidate[k]['metrics']['corruption_rate'])
+
+        logger.info(f"\nBest probe {steering_type} candidate: {best_id}")
 
         return {
             'per_candidate': per_candidate,
@@ -1216,17 +1381,19 @@ class WeightOrthogonalizer:
                 }
             }
         else:
-            # === PROBE MODE or single-candidate fallback ===
-            # Apply incorrect orthogonalization
-            self.incorrect_results = self.apply_incorrect_orthogonalization()
+            # === PROBE MULTI-CANDIDATE MODE ===
+            logger.info("Probe multi-candidate mode: testing all probe layer candidates")
 
-            # Apply correct orthogonalization
-            self.correct_results = self.apply_correct_orthogonalization()
+            incorrect_multi = self.multi_candidate_probe_orthogonalization('incorrect')
+            self.incorrect_results = incorrect_multi['best_candidate']
+
+            correct_multi = self.multi_candidate_probe_orthogonalization('correct')
+            self.correct_results = correct_multi['best_candidate']
 
             # Clean up checkpoints
             self._cleanup_all_checkpoints()
 
-            # Create visualizations
+            # Create visualizations using best candidates
             self.create_visualizations()
             self.save_examples()
 
@@ -1239,18 +1406,39 @@ class WeightOrthogonalizer:
                     'target_weights': self.config.orthogonalization_target_weights,
                     'n_validation_problems': len(self.baseline_data),
                     'n_correct_baseline': len(self.correct_baseline),
-                    'n_incorrect_baseline': len(self.incorrect_baseline)
+                    'n_incorrect_baseline': len(self.incorrect_baseline),
+                    'n_candidates': len(self.probe_candidates)
                 },
+                # Best candidate results (backward compatible)
                 'incorrect_orthogonalization': self.incorrect_results,
                 'correct_orthogonalization': self.correct_results,
+                # Multi-candidate details
+                'multi_candidate': {
+                    'incorrect': incorrect_multi,
+                    'correct': correct_multi
+                },
+                'best_selection': {
+                    'incorrect': incorrect_multi['best_candidate_id'],
+                    'correct': correct_multi['best_candidate_id']
+                },
                 'runtime_seconds': time.time() - start_time
             }
 
-            if self.use_probe:
-                results['probe_info'] = {
-                    'method': 'mass_mean',
-                    'layer': self.probe.layer,
+            results['probe_info'] = {
+                'method': 'mass_mean',
+                'best_incorrect_layer': incorrect_multi['best_candidate_id'],
+                'best_correct_layer':   correct_multi['best_candidate_id'],
+                'candidate_evaluation': {
+                    'incorrect': [
+                        {'candidate_id': k, **v['metrics']}
+                        for k, v in incorrect_multi['per_candidate'].items()
+                    ],
+                    'correct': [
+                        {'candidate_id': k, **v['metrics']}
+                        for k, v in correct_multi['per_candidate'].items()
+                    ],
                 }
+            }
 
         # Save main results
         if self.n_gpus > 1:
@@ -1298,7 +1486,7 @@ class WeightOrthogonalizer:
         logger.info(f"Correct orthogonalization:")
         logger.info(f"  - Corruption rate: {self.correct_results['metrics']['corruption_rate']:.1f}%")
         logger.info(f"  - Similarity score: {self.correct_results['metrics']['avg_similarity_score']:.3f}")
-        if not self.use_probe and self.correct_candidates is not None:
+        if (not self.use_probe and self.correct_candidates is not None) or self.use_probe:
             logger.info(f"Best incorrect candidate: {results['best_selection']['incorrect']}")
             logger.info(f"Best correct candidate: {results['best_selection']['correct']}")
         logger.info(f"Runtime: {time.time() - start_time:.1f} seconds")

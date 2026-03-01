@@ -99,31 +99,21 @@ class SteeringCoefficientSelector:
         """Load all dependencies from previous phases using shared utilities."""
         from common.steering_setup import (
             load_steering_latents, load_baseline_data, split_by_correctness,
-            load_probe_directions_for_steering
         )
         from common.phase_discovery import discover_top_n_steering_latents
 
         if self.use_probe:
-            # === PROBE MODE ===
-            logger.info("=" * 60)
-            logger.info("PROBE BASELINE MODE: Using Mass-Mean probe from Phase 2.6")
-            logger.info("=" * 60)
-
-            # Load probe directions from Phase 2.6
-            self.probe = load_probe_directions_for_steering(
-                self.config, self.device, self.model, method="mass_mean"
-            )
-            self.correct_latent_direction = self.probe.correct_direction
-            self.incorrect_latent_direction = self.probe.incorrect_direction
-            self.probe_layer = self.probe.layer
-            self.phase2_5_output = self.probe.phase_dir  # For manifest (actually Phase 2.6)
-
-            # Probe mode doesn't use SAE or multi-candidate selection
+            logger.info("PROBE BASELINE MODE: Mass-Mean top-N candidates (loaded per-candidate in run)")
+            # Directions loaded per-candidate in _run_probe_mode(); set placeholders
+            self.probe = None
+            self.correct_latent_direction = None
+            self.incorrect_latent_direction = None
+            self.probe_layer = None
+            self.phase2_5_output = str(Path(get_phase_output_dir("2.6", self.config)))
             self.correct_candidates = None
             self.incorrect_candidates = None
             self.sae_cache = {}
-
-            logger.info(f"Mass-mean probe layer: {self.probe.layer}")
+            logger.info("Mass-mean directions will be loaded per layer during grid search")
         else:
             # === SAE MODE (default) - Multi-Candidate Selection ===
             logger.info("=" * 60)
@@ -980,9 +970,11 @@ class SteeringCoefficientSelector:
             return self._run_multi_candidate_mode()
 
     def _run_probe_mode(self) -> dict:
-        """Run single-candidate grid search for probe mode."""
-        start_time = time.time()
+        """Run top-N mass-mean candidate grid search for probe mode."""
+        from common.phase_discovery import discover_top_n_mass_mean_layers
+        from common.steering_setup import load_mass_mean_direction_for_layer
 
+        start_time = time.time()
         experiment_mode = self.config.phase4_5_experiment_mode
         logger.info(f"Running experiments in '{experiment_mode}' mode")
 
@@ -993,45 +985,100 @@ class SteeringCoefficientSelector:
         else:
             steering_types = ['correct', 'incorrect']
 
+        candidates = discover_top_n_mass_mean_layers(self.config)
+        if not candidates:
+            raise FileNotFoundError(
+                "No Phase 2.6 top-N mass_mean data found. Run Phase 2.6 first."
+            )
+
+        phase2_6_dir = Path(get_phase_output_dir("2.6", self.config))
+        model_dtype = next(self.model.parameters()).dtype
         all_results = {}
         selected_coefficients = {}
+        all_candidate_eval = {}
 
         for steering_type in steering_types:
-            optimal_coeff, search_results = self.simple_grid_search(steering_type)
-            all_results[f'{steering_type}_steering'] = search_results
+            logger.info(f"\n{'='*60}")
+            logger.info(f"TOP-N MASS_MEAN CANDIDATES: {steering_type.upper()} steering")
+            logger.info(f"Testing {len(candidates)} candidates")
+            logger.info(f"{'='*60}")
 
+            candidate_results = []
+
+            for candidate in candidates:
+                layer = candidate['layer']
+                sep = candidate.get('separation', 'N/A')
+                logger.info(f"\nCandidate layer {layer} (separation={sep})")
+
+                direction = load_mass_mean_direction_for_layer(
+                    layer, phase2_6_dir, self.device, model_dtype
+                )
+                self.correct_latent_direction = direction
+                self.incorrect_latent_direction = -direction
+                self.probe_layer = layer
+
+                optimal_coeff, search_results = self.simple_grid_search(steering_type)
+
+                if steering_type == 'correct':
+                    primary_metric = 'correction_rate'
+                    metric_value = search_results['best_result']['metrics']['correction_rate']
+                else:
+                    primary_metric = 'composite_score'
+                    metric_value = search_results['best_result']['metrics']['composite_score']
+
+                candidate_results.append({
+                    'layer': layer,
+                    'separation': sep,
+                    'coefficient': optimal_coeff,
+                    primary_metric: metric_value,
+                    'metrics': search_results['best_result']['metrics'],
+                })
+
+            # Select best candidate
             if steering_type == 'correct':
-                primary_metric = 'correction_rate'
-                metric_value = search_results['best_result']['metrics']['correction_rate']
+                best = max(candidate_results, key=lambda r: r['correction_rate'])
             else:
-                primary_metric = 'composite_score'
-                metric_value = search_results['best_result']['metrics']['composite_score']
+                best = max(candidate_results, key=lambda r: r['composite_score'])
 
-            selected_coefficients[steering_type] = {
-                'coefficient': optimal_coeff,
-                'layer': self.probe.layer,
-                'latent_idx': None,
-                primary_metric: metric_value,
-                'metrics': search_results['best_result']['metrics'],
+            # Log comparison table
+            logger.info(f"\nMASS_MEAN CANDIDATE COMPARISON ({steering_type.upper()} steering):")
+            logger.info(f"{'Layer':<8} {'Coeff':<8} {primary_metric.upper():<18} {'Selected'}")
+            logger.info("-" * 50)
+            for r in candidate_results:
+                sel = " <-- BEST" if r is best else ""
+                logger.info(
+                    f"L{r['layer']:<7} {r['coefficient']:<8.1f} {r[primary_metric]:<18.1f}{sel}"
+                )
+
+            all_results[f'{steering_type}_steering'] = {
+                'candidates': candidate_results,
+                'best': best,
             }
+            selected_coefficients[steering_type] = {
+                'coefficient': best['coefficient'],
+                'layer': best['layer'],
+                'latent_idx': None,
+                primary_metric: best[primary_metric],
+                'metrics': best['metrics'],
+            }
+            all_candidate_eval[steering_type] = candidate_results
 
-        # Save results
         save_json(all_results, self.output_dir / "coefficient_analysis.json")
         save_json(selected_coefficients, self.output_dir / "selected_coefficients.json")
 
         summary = {
             'phase': '4.5',
-            'description': 'Probe Grid Search Coefficient Selection',
+            'description': 'Probe Top-N Mass-Mean Grid Search',
             'timestamp': datetime.now().isoformat(),
             'duration_seconds': time.time() - start_time,
-            'method': 'probe_grid_search',
+            'method': 'probe_grid_search_top_n',
             'direction_source': self.direction_source,
-            'probe_info': {'method': 'mass_mean', 'layer': self.probe.layer},
+            'n_candidates': len(candidates),
+            'candidate_evaluation': all_candidate_eval,
             'results': {'selected_coefficients': selected_coefficients},
         }
         save_json(summary, self.output_dir / "phase_4_5_summary.json")
 
-        # Write manifest
         from common.phase_discovery import write_phase_output
         write_phase_output(
             phase="4.5",
@@ -1311,23 +1358,35 @@ class CoefficientEvaluator:
         from common.steering_setup import (
             load_steering_latents, load_sae_and_directions,
             load_baseline_data, split_by_correctness,
-            load_probe_directions_for_steering
         )
         from common.phase_discovery import discover_top_n_steering_latents
 
         if self.use_probe:
-            self.probe = load_probe_directions_for_steering(
-                self.config, self.device, self.model, method="mass_mean"
-            )
-            self.correct_latent_direction = self.probe.correct_direction
-            self.incorrect_latent_direction = self.probe.incorrect_direction
-            self.probe_layer = self.probe.layer
-            self.top_latents = None
-            self.best_correct_latent = None
-            self.best_incorrect_latent = None
+            # Load direction from probe_current_candidate.json written by orchestrator
+            from common.steering_setup import load_mass_mean_direction_for_layer
+            output_dir_for_file = Path(get_phase_output_dir("4.5", self.config))
+            output_dir_for_file = output_dir_for_file.parent / (output_dir_for_file.name + "_probe")
+            probe_candidate_file = output_dir_for_file / "probe_current_candidate.json"
+            if not probe_candidate_file.exists():
+                raise FileNotFoundError(
+                    f"probe_current_candidate.json not found at {probe_candidate_file}. "
+                    "Orchestrator must write it before spawning workers."
+                )
+            probe_candidate_info = load_json(probe_candidate_file)
+            layer = probe_candidate_info['layer']
+            phase2_6_dir = Path(get_phase_output_dir("2.6", self.config))
+            model_dtype = next(self.model.parameters()).dtype
+            direction = load_mass_mean_direction_for_layer(layer, phase2_6_dir, self.device, model_dtype)
+            self.correct_latent_direction = direction
+            self.incorrect_latent_direction = -direction
+            self.probe_layer = layer
             self.sae_cache = {}
             self.correct_candidates = None
             self.incorrect_candidates = None
+            self.top_latents = None
+            self.best_correct_latent = None
+            self.best_incorrect_latent = None
+            logger.info(f"GPU {self.gpu_id}: Probe mode - loaded mass_mean direction for layer {layer}")
         else:
             # Load top-N candidates for multi-candidate mode
             n_candidates = getattr(self.config, 'phase4_n_candidates', 5)
@@ -1647,60 +1706,149 @@ class CoefficientOrchestrator:
         return selector.run()
 
     def _run_parallel_single_latent(self) -> dict:
-        """Parallel execution for probe mode (single latent per steering type)."""
-        from common.iterative_parallel_runner import IterativeParallelRunner
-        from common.phase_discovery import write_phase_output
+        """Parallel execution for probe mode: top-N mass_mean candidate loop.
 
-        logger.info(f"Starting parallel coefficient search (single-latent mode) with {self.n_gpus} GPUs")
+        For each candidate layer, writes probe_current_candidate.json so workers
+        can load the correct direction at init time, then runs a fresh
+        IterativeParallelRunner for that candidate's coefficient grid search.
+        """
+        from common.iterative_parallel_runner import IterativeParallelRunner
+        from common.phase_discovery import write_phase_output, discover_top_n_mass_mean_layers
+
+        logger.info(f"Starting parallel probe coefficient search (top-N mass_mean) with {self.n_gpus} GPUs")
+
+        candidates = discover_top_n_mass_mean_layers(self.config, log=logger)
+        if not candidates:
+            raise FileNotFoundError(
+                "No Phase 2.6 top-N mass_mean data found. Run Phase 2.6 first."
+            )
+        logger.info(f"Testing {len(candidates)} mass_mean layer candidates: "
+                    + ", ".join(f"L{c['layer']} (sep={c['separation']:.3f})" for c in candidates))
 
         mode = getattr(self.config, 'phase4_5_experiment_mode', 'all')
         all_results = {}
-        selected_coefficients = {}
+        candidate_evaluation = {}
+        probe_candidate_file = self.output_dir / "probe_current_candidate.json"
 
+        # --- Correction candidates ---
         if mode in ('all', 'correction'):
-            runner = IterativeParallelRunner(
-                phase_evaluator_class=CoefficientEvaluator,
-                config=self.config,
-                n_gpus=self.n_gpus,
-                values_to_test=self.correct_coefficients,
-                early_stop_fn=self._should_early_stop_correction,
-                merge_fn=self._merge_correction_results,
-                checkpoint_dir=self.output_dir / "parallel_checkpoints_correct",
-            )
-            result = runner.run()
-            all_results['correct_steering'] = self._format_history(result, 'correct')
-            selected_coefficients['correct'] = {
-                'coefficient': result['optimal_value'],
-                'correction_rate': result['optimal_score']
-            }
+            correction_candidate_results = []
+            logger.info(f"\n{'='*60}")
+            logger.info("CORRECTION steering: evaluating top-N mass_mean candidates")
+            logger.info(f"{'='*60}")
+            for rank, candidate in enumerate(candidates):
+                layer = candidate['layer']
+                logger.info(f"\n  Candidate {rank+1}/{len(candidates)}: Layer {layer} "
+                            f"(separation={candidate['separation']:.3f})")
+                save_json({'layer': layer, 'separation': candidate['separation']}, probe_candidate_file)
+                runner = IterativeParallelRunner(
+                    phase_evaluator_class=CoefficientEvaluator,
+                    config=self.config,
+                    n_gpus=self.n_gpus,
+                    values_to_test=self.correct_coefficients,
+                    early_stop_fn=self._should_early_stop_correction,
+                    merge_fn=self._merge_correction_results,
+                    checkpoint_dir=self.output_dir / f"parallel_checkpoints_correct_L{layer}",
+                )
+                result = runner.run()
+                correction_candidate_results.append({
+                    'rank': rank,
+                    'layer': layer,
+                    'separation': candidate['separation'],
+                    'optimal_coefficient': result['optimal_value'],
+                    'correction_rate': result['optimal_score'],
+                    'history': self._format_history(result, 'correct'),
+                })
 
+            # Select best correction candidate by correction_rate
+            best_correct = max(correction_candidate_results, key=lambda r: r['correction_rate'])
+            candidate_evaluation['correct'] = correction_candidate_results
+
+            # Log comparison table
+            logger.info(f"\nCORRECTION CANDIDATE COMPARISON:")
+            logger.info(f"{'Rank':<6} {'Layer':<8} {'Coeff':<10} {'CorrRate':<12} {'Selected'}")
+            logger.info("-" * 50)
+            for r in correction_candidate_results:
+                sel = " <-- BEST" if r is best_correct else ""
+                logger.info(f"{r['rank']:<6} L{r['layer']:<7} {r['optimal_coefficient']:<10.1f} "
+                            f"{r['correction_rate']:<12.4f}{sel}")
+
+            all_results['correct_steering'] = best_correct['history']
+
+        # --- Corruption candidates ---
         if mode in ('all', 'corruption'):
-            runner = IterativeParallelRunner(
-                phase_evaluator_class=CoefficientEvaluator,
-                config=self.config,
-                n_gpus=self.n_gpus,
-                values_to_test=self.incorrect_coefficients,
-                early_stop_fn=self._should_early_stop_corruption,
-                merge_fn=self._merge_corruption_results,
-                checkpoint_dir=self.output_dir / "parallel_checkpoints_incorrect",
-            )
-            result = runner.run()
-            all_results['incorrect_steering'] = self._format_history(result, 'incorrect')
+            corruption_candidate_results = []
+            logger.info(f"\n{'='*60}")
+            logger.info("CORRUPTION steering: evaluating top-N mass_mean candidates")
+            logger.info(f"{'='*60}")
+            for rank, candidate in enumerate(candidates):
+                layer = candidate['layer']
+                logger.info(f"\n  Candidate {rank+1}/{len(candidates)}: Layer {layer} "
+                            f"(separation={candidate['separation']:.3f})")
+                save_json({'layer': layer, 'separation': candidate['separation']}, probe_candidate_file)
+                runner = IterativeParallelRunner(
+                    phase_evaluator_class=CoefficientEvaluator,
+                    config=self.config,
+                    n_gpus=self.n_gpus,
+                    values_to_test=self.incorrect_coefficients,
+                    early_stop_fn=self._should_early_stop_corruption,
+                    merge_fn=self._merge_corruption_results,
+                    checkpoint_dir=self.output_dir / f"parallel_checkpoints_incorrect_L{layer}",
+                )
+                result = runner.run()
+                corruption_candidate_results.append({
+                    'rank': rank,
+                    'layer': layer,
+                    'separation': candidate['separation'],
+                    'optimal_coefficient': result['optimal_value'],
+                    'composite_score': result['optimal_score'],
+                    'history': self._format_history(result, 'incorrect'),
+                })
+
+            # Select best corruption candidate by composite_score
+            best_incorrect = max(corruption_candidate_results, key=lambda r: r['composite_score'])
+            candidate_evaluation['incorrect'] = corruption_candidate_results
+
+            # Log comparison table
+            logger.info(f"\nCORRUPTION CANDIDATE COMPARISON:")
+            logger.info(f"{'Rank':<6} {'Layer':<8} {'Coeff':<10} {'CompScore':<12} {'Selected'}")
+            logger.info("-" * 50)
+            for r in corruption_candidate_results:
+                sel = " <-- BEST" if r is best_incorrect else ""
+                logger.info(f"{r['rank']:<6} L{r['layer']:<7} {r['optimal_coefficient']:<10.1f} "
+                            f"{r['composite_score']:<12.4f}{sel}")
+
+            all_results['incorrect_steering'] = best_incorrect['history']
+
+        # Build selected_coefficients with layer field (required by Phase 4.6/4.8)
+        selected_coefficients = {}
+        if mode in ('all', 'correction'):
+            selected_coefficients['correct'] = {
+                'coefficient': best_correct['optimal_coefficient'],
+                'layer': best_correct['layer'],
+                'latent_idx': None,
+                'correction_rate': best_correct['correction_rate'],
+            }
+        if mode in ('all', 'corruption'):
             selected_coefficients['incorrect'] = {
-                'coefficient': result['optimal_value'],
-                'composite_score': result['optimal_score']
+                'coefficient': best_incorrect['optimal_coefficient'],
+                'layer': best_incorrect['layer'],
+                'latent_idx': None,
+                'composite_score': best_incorrect['composite_score'],
             }
 
         # Save results
         save_json(all_results, self.output_dir / "coefficient_analysis.json")
         save_json(selected_coefficients, self.output_dir / "selected_coefficients.json")
+        save_json(candidate_evaluation, self.output_dir / "candidate_evaluation.json")
 
         # Write manifest
         write_phase_output(
             phase="4.5",
             outputs={
                 "primary": "coefficient_analysis.json",
-                "selected_coefficients": "selected_coefficients.json"
+                "selected_coefficients": "selected_coefficients.json",
+                "candidate_evaluation": "candidate_evaluation.json",
             },
             config=self.config,
             output_dir=str(self.output_dir)
