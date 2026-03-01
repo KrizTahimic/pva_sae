@@ -155,7 +155,6 @@ class WeightOrthogonalizer:
             self.phase2_5_dir = None  # Set below from phase discovery
 
             # Discover Phase 2.5 dir for manifest
-            from common.phase_discovery import get_phase_output_dir
             self.phase2_5_dir = Path(get_phase_output_dir("2.5", self.config))
 
             # Cache SAEs by layer to avoid reloading
