@@ -549,36 +549,16 @@ def run_evaluation(config):
         logger.info(f"LogReg probe: layer {probe_layer}, bias {probe_bias:.4f}")
     else:
         # === SAE MODE ===
-        logger.info("Loading best features from Phase 2.10...")
+        # Use Phase 4.9 best latent (empirically validated by steering effectiveness),
+        # consistent with Phase 7.3 activation capture and Phases 7.6/7.7 steering.
+        logger.info("Loading best latents from Phase 4.9...")
+        from common.steering_setup import load_phase4_9_best_latent
+        selection = load_phase4_9_best_latent(config)
 
-        # Auto-discover Phase 2.10 output
-        phase2_10_dir = discover_latest_phase_output("2.10", config=config)
-        if not phase2_10_dir:
-            raise FileNotFoundError("No Phase 2.10 output found. Please run Phase 2.10 first.")
-        phase2_10_dir = Path(phase2_10_dir).parent
-
-        # Load best latents from Phase 2.10
-        top_latents_file = phase2_10_dir / 'top_20_latents.json'
-        if not top_latents_file.exists():
-            raise FileNotFoundError(f"top_20_latents.json not found in {phase2_10_dir}. Please run Phase 2.10 first.")
-
-        top_latents = load_json(top_latents_file)
-
-        # Validate structure
-        if 'correct' not in top_latents or 'incorrect' not in top_latents:
-            raise ValueError("Missing 'correct' or 'incorrect' in top_20_latents.json")
-
-        if not top_latents['correct'] or not top_latents['incorrect']:
-            raise ValueError("Empty latent list in top_20_latents.json")
-
-        # Get the best (index 0) latents
-        best_correct = top_latents['correct'][0]
-        best_incorrect = top_latents['incorrect'][0]
-
-        correct_layer = best_correct['layer']
-        correct_latent_idx = best_correct['latent_idx']
-        incorrect_layer = best_incorrect['layer']
-        incorrect_latent_idx = best_incorrect['latent_idx']
+        correct_layer = selection['correct']['layer']
+        correct_latent_idx = selection['correct']['latent_idx']
+        incorrect_layer = selection['incorrect']['layer']
+        incorrect_latent_idx = selection['incorrect']['latent_idx']
 
         logger.info(f"Best correct-predicting latent: idx {correct_latent_idx} at layer {correct_layer}")
         logger.info(f"Best incorrect-predicting latent: idx {incorrect_latent_idx} at layer {incorrect_layer}")

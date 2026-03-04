@@ -841,22 +841,23 @@ class AttentionAnalyzer:
                 steered_plot = steered_values[:n_points]
                 
                 # Plot all individual data points
-                ax.scatter(baseline_plot, steered_plot, alpha=0.6, s=20, 
-                          c=colors[head_idx], label=f'Head {head_idx}')
-                
+                color = colors[head_idx % len(colors)]
+                ax.scatter(baseline_plot, steered_plot, alpha=0.6, s=20,
+                          c=color, label=f'Head {head_idx}')
+
                 # Add diagonal reference line
                 all_values = baseline_plot + steered_plot
                 if all_values:
                     max_val = max(all_values) * 1.1
                     min_val = min(all_values) * 0.9
                     ax.plot([min_val, max_val], [min_val, max_val], 'k--', alpha=0.3, linewidth=1)
-                
+
                 # Add trend line (optional - using numpy polyfit)
                 if len(baseline_plot) > 1:
                     poly_coefficients = np.polyfit(baseline_plot, steered_plot, 1)
                     trend_line = np.poly1d(poly_coefficients)
                     x_trend = np.linspace(min(baseline_plot), max(baseline_plot), 100)
-                    ax.plot(x_trend, trend_line(x_trend), color=colors[head_idx], alpha=0.5, linewidth=2)
+                    ax.plot(x_trend, trend_line(x_trend), color=color, alpha=0.5, linewidth=2)
             
             # Formatting
             ax.set_xlabel('Baseline Attention', fontsize=9)

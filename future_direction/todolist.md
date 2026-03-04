@@ -1596,10 +1596,17 @@ After standardizing checkpointing across all 13 parallel phases (commit `1da0e17
 **Prerequisite:** Add top-N probe candidate support to Phase 5.3 — **DONE**.
 
 ### Gemma-2B remainder
-- [ ] Run `scripts/run_gemma_probe_remainder.sh` (3.8p → 5.3p → 6.3p, ~2–3 hrs)
+- [x] Run `scripts/run_gemma_probe_remainder.sh` (3.8p → 5.3p → 6.3p) — **DONE**
+- [ ] Run Gemma-2B instruct probe stages (7.3 probe → 7.6 probe → 7.12 probe)
+    - Phase 7.3 probe: generate instruct baseline with probe-layer activations
+    - Phase 7.6 probe: instruct steering (probe_mass_mean)
+    - Phase 7.12 probe: instruct AUROC/F1 (probe_logreg)
+    - These were never included in `run_gemma_probe_remainder.sh`
+    - Need to create a new script or extend the existing Gemma pipeline
 
 ### LLAMA full probe pipeline
-- [ ] Run `scripts/run_llama_probe_full.sh` (2.6 → 3.6 → 3.8p → 4.5p → 4.6p → 4.8p → 5.3p → 6.3p, ~8–12 hrs)
+- [x] Run `scripts/run_llama_probe_full.sh` (2.6 → 3.6 → 3.8p → 4.5p → 4.6p → 4.8p → 5.3p → 6.3p) — **DONE**
+- [ ] LLAMA instruct probe stages currently running via `run_llama_resume_stage7.sh` (Stages 11–16)
 
 **What was deleted (safe to delete again if re-needed):**
 - `data/phase5_3_probe`, `data/phase6_3_probe` — stale Gemma (pre-valid 4.8 probe)
@@ -1610,13 +1617,10 @@ After standardizing checkpointing across all 13 parallel phases (commit `1da0e17
 
 ## Phase 7.12: Layer Mismatch Bug
 
-- [ ] Fix Phase 7.12 layer source mismatch with Phase 7.3
+- [x] Fix Phase 7.12 layer source mismatch with Phase 7.3 — **FIXED**
 
-**Problem:** Phase 7.12 uses Phase 2.10's best *predicting* latents (layer 21 correct, layer 19 incorrect) but Phase 7.3 only saves activations for Phase 4.9's best *steering* latents (layer 15 for both). Result: `load_instruct_activations()` finds 0 activation files → crash on zero-size array.
+**Problem:** Phase 7.12 used Phase 2.10's best *predicting* latents but Phase 7.3 only saved activations for Phase 4.9's best *steering* latents. For LLAMA these are different layers (26 vs 21), causing 0 activation files → crash.
 
-**Root cause:** Phase 7.3 discovers layers via `load_phase4_9_best_latent()` (steering selection), while Phase 7.12 discovers layers from `top_20_latents.json` (Phase 2.10, predicting selection). These are different latents at different layers.
+**Fix applied (2026-03-04):** Changed Phase 7.12 SAE mode to use Phase 4.9 latent selection, consistent with Phase 7.3 activation capture and Phases 7.6/7.7 steering.
 
-**Options:**
-1. Change Phase 7.12 to use Phase 4.9 latent selection (matching Phase 7.3's activations)
-2. Change Phase 7.3 to also save activations for Phase 2.10 layers
-3. Have Phase 7.12 load the model and extract activations itself (like Phase 3.8 does for base model)
+**Gemma 2B:** Phase 7.12 SAE ran successfully after fix. Probe version pending (see Gemma instruct probe stages above).

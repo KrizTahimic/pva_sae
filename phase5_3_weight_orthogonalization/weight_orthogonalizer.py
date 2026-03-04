@@ -1321,6 +1321,14 @@ class WeightOrthogonalizer:
             # === SAE MULTI-CANDIDATE MODE ===
             logger.info("SAE multi-candidate mode: testing all candidates")
 
+            # Free self.model — multi_candidate_orthogonalization loads its own
+            # fresh model per candidate (orthogonalization is destructive).
+            # Keeping self.model alive would cause OOM on 22GB GPUs (LLAMA 8B ~16GB).
+            del self.model
+            del self.tokenizer
+            torch.cuda.empty_cache()
+            logger.info("Freed self.model from GPU memory before multi-candidate loop")
+
             # Run multi-candidate for incorrect direction
             incorrect_multi = self.multi_candidate_orthogonalization('incorrect')
             # Use best candidate as the primary result
@@ -1382,6 +1390,13 @@ class WeightOrthogonalizer:
         else:
             # === PROBE MULTI-CANDIDATE MODE ===
             logger.info("Probe multi-candidate mode: testing all probe layer candidates")
+
+            # Free self.model — multi_candidate_probe_orthogonalization loads its own
+            # fresh model per candidate (orthogonalization is destructive).
+            del self.model
+            del self.tokenizer
+            torch.cuda.empty_cache()
+            logger.info("Freed self.model from GPU memory before probe multi-candidate loop")
 
             incorrect_multi = self.multi_candidate_probe_orthogonalization('incorrect')
             self.incorrect_results = incorrect_multi['best_candidate']
