@@ -283,7 +283,7 @@ class SelectiveSteeringAnalyzer:
                             phase8_2_dir = Path(phase8_2_output).parent
                             probe_8_2 = get_probe_dir(phase8_2_dir)
                             if probe_8_2.exists():
-                                opt_data = _load_json(probe_8_2 / "optimization_results.json")
+                                opt_data = _load_json(probe_8_2 / "optimal_percentile.json")
                                 summary = opt_data["optimization_summary"]
                                 percentile = summary["optimal_percentile"]
                                 logger.info(f"PROBE MODE: Using Phase 8.2 probe output at {probe_8_2}")
