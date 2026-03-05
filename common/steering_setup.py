@@ -487,6 +487,30 @@ def load_phase4_9_best_latent(config: Config) -> dict:
     return selection
 
 
+def load_phase3_8_best_latent_sae(config: Config) -> dict:
+    """Load the best SAE latent from Phase 3.8 AUROC/F1 evaluation.
+
+    Phase 3.8 selects the best latent for PREDICTION (highest AUROC/F1 on analysis split).
+    Use this for prediction/evaluation phases (7.12). Use load_phase4_9_best_latent() for
+    steering phases (7.6, 7.7) which optimize correction/corruption rates instead.
+    """
+    phase3_8_output = discover_latest_phase_output("3.8", config=config)
+    if not phase3_8_output:
+        raise FileNotFoundError("Phase 3.8 output not found. Run Phase 3.8 first.")
+
+    results = load_json(Path(phase3_8_output).parent / "auroc_f1_results.json")
+    return {
+        'correct': {
+            'layer': results['correct_predicting_latent']['layer'],
+            'latent_idx': results['correct_predicting_latent']['latent_idx'],
+        },
+        'incorrect': {
+            'layer': results['incorrect_predicting_latent']['layer'],
+            'latent_idx': results['incorrect_predicting_latent']['latent_idx'],
+        }
+    }
+
+
 def load_sae_and_directions(
     config: Config,
     device: torch.device,

@@ -38,29 +38,49 @@ logger = get_logger("instruct_baseline_runner", phase="7.3")
 class InstructBaselineRunner:
     """Instruction-tuned model baseline generation with best layer activation extraction."""
     
-    def _discover_best_layers(self) -> dict[str, int]:
+    def _discover_best_layers(self) -> dict:
         """
-        Discover best layers from Phase 4.9 (best latent selection).
+        Discover best layers from Phase 4.9 (steering-best) and Phase 3.8 (AUROC-best).
 
         Returns:
-            dict with 'correct' and 'incorrect' best layers and latent indices
+            dict with Phase 4.9 layers (for 7.6/7.7 steering) and Phase 3.8 layers (for 7.12 eval)
         """
-        from common.steering_setup import load_phase4_9_best_latent
+        from common.steering_setup import load_phase4_9_best_latent, load_phase3_8_best_latent_sae
+        from common.phase_discovery import get_probe_dir
+        from common.utils import load_json
 
+        # Phase 4.9 layers: steering-best (for Phase 7.6/7.7)
         selection = load_phase4_9_best_latent(self.config)
-
-        best_layers = {
+        result = {
             'correct': selection['correct']['layer'],
             'correct_latent_idx': selection['correct']['latent_idx'],
             'incorrect': selection['incorrect']['layer'],
             'incorrect_latent_idx': selection['incorrect']['latent_idx'],
         }
+        logger.info(f"Phase 4.9 layers — correct: {result['correct']}, incorrect: {result['incorrect']}")
 
-        logger.info(f"Discovered best layers from Phase 4.9 - "
-                    f"Correct: layer {best_layers['correct']} (latent {best_layers['correct_latent_idx']}), "
-                    f"Incorrect: layer {best_layers['incorrect']} (latent {best_layers['incorrect_latent_idx']})")
+        # Phase 3.8 SAE layers: AUROC-best (for Phase 7.12 SAE)
+        try:
+            sae = load_phase3_8_best_latent_sae(self.config)
+            result['phase3_8_correct_layer'] = sae['correct']['layer']
+            result['phase3_8_correct_latent_idx'] = sae['correct']['latent_idx']
+            result['phase3_8_incorrect_layer'] = sae['incorrect']['layer']
+            result['phase3_8_incorrect_latent_idx'] = sae['incorrect']['latent_idx']
+            logger.info(f"Phase 3.8 SAE layers — correct: {sae['correct']['layer']}, incorrect: {sae['incorrect']['layer']}")
+        except FileNotFoundError:
+            logger.warning("Phase 3.8 SAE output not found — skipping Phase 3.8 SAE layer capture")
 
-        return best_layers
+        # Phase 3.8 probe layer: AUROC-best probe layer (for Phase 7.12 probe)
+        try:
+            phase3_8_out = discover_latest_phase_output("3.8", config=self.config)
+            probe_dir = get_probe_dir(Path(phase3_8_out).parent)
+            probe_results = load_json(probe_dir / "auroc_f1_results.json")
+            result['phase3_8_probe_layer'] = probe_results['probe_info']['correct_layer']
+            logger.info(f"Phase 3.8 probe layer: {result['phase3_8_probe_layer']}")
+        except (FileNotFoundError, KeyError):
+            logger.warning("Phase 3.8 probe output not found — skipping probe layer capture")
+
+        return result
     
     def __init__(self, config: Config, gpu_id: int = 0, n_gpus: int = 1):
         """Initialize with configuration for instruction-tuned model.
@@ -103,21 +123,21 @@ class InstructBaselineRunner:
 
     def _setup_activation_extraction(self):
         """
-        Setup activation extraction layers, handling same/different layer cases.
+        Setup activation extraction layers: union of Phase 4.9 and Phase 3.8 layers.
         """
-        # Determine unique layers to extract from (same logic as Phase 3.5)
-        unique_layers = list(set([self.best_layers['correct'], self.best_layers['incorrect']]))
-        self.extraction_layers = unique_layers
-        
-        if len(unique_layers) == 1:
-            logger.info(f"Both correct and incorrect features use the same layer: {unique_layers[0]}")
-        else:
-            logger.info(f"Using different layers - Correct: {self.best_layers['correct']}, Incorrect: {self.best_layers['incorrect']}")
-        
-        # Initialize activation extractor for unique layers only
+        layers_to_capture = {
+            self.best_layers['correct'],
+            self.best_layers['incorrect'],
+        }
+        for key in ('phase3_8_correct_layer', 'phase3_8_incorrect_layer', 'phase3_8_probe_layer'):
+            if key in self.best_layers:
+                layers_to_capture.add(self.best_layers[key])
+
+        self.extraction_layers = sorted(layers_to_capture)
+        logger.info(f"Capturing activations at layers: {self.extraction_layers}")
         self.activation_extractor = ActivationExtractor(
             self.model,
-            layers=self.extraction_layers  # Extract from unique layers only
+            layers=self.extraction_layers
         )
     
     def _load_analysis_data(self) -> pd.DataFrame:

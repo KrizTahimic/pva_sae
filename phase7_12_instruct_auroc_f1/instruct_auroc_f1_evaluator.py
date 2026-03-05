@@ -537,23 +537,39 @@ def run_evaluation(config):
     # Phase 1: Load best features/probe directions
     if use_probe:
         # === PROBE MODE ===
-        logger.info("Loading probe directions from Phase 2.6...")
-        from common.steering_setup import load_probe_directions_for_predicting
-        probe = load_probe_directions_for_predicting(config, device, method="logreg")
+        # Use Phase 3.8 probe layer (AUROC-validated), not Phase 2.6's cross-val best layer.
+        logger.info("Loading probe directions using Phase 3.8 best layer...")
+        from common.phase_discovery import get_probe_dir
+        from common.utils import load_json as _load_json
+        from pathlib import Path as _Path
+        from safetensors.torch import load_file as _load_file
 
-        probe_layer = probe.layer
-        correct_direction = probe.correct_direction
-        incorrect_direction = probe.incorrect_direction
-        probe_bias = probe.bias
+        # Get best layer from Phase 3.8 probe results (AUROC-validated)
+        phase3_8_out = discover_latest_phase_output("3.8", config=config)
+        probe_3_8_dir = get_probe_dir(_Path(phase3_8_out).parent)
+        probe_results = _load_json(probe_3_8_dir / "auroc_f1_results.json")
+        phase3_8_probe_layer = probe_results["probe_info"]["correct_layer"]
 
-        logger.info(f"LogReg probe: layer {probe_layer}, bias {probe_bias:.4f}")
+        # Load probe direction from Phase 2.6 at Phase 3.8's best layer
+        phase2_6_out = discover_latest_phase_output("2.6", config=config)
+        phase2_6_dir = _Path(phase2_6_out).parent
+        probe_file = phase2_6_dir / "probe_directions" / f"layer_{phase3_8_probe_layer}_probes.safetensors"
+        tensors = _load_file(str(probe_file))
+        probe_direction = tensors["logreg_direction"].to(device)
+        probe_bias = probe_results["probe_info"]["bias"]
+
+        probe_layer = phase3_8_probe_layer
+        correct_direction = probe_direction
+        incorrect_direction = -probe_direction
+
+        logger.info(f"Phase 3.8 probe layer: {probe_layer}, bias {probe_bias:.4f}")
     else:
         # === SAE MODE ===
-        # Use Phase 4.9 best latent (empirically validated by steering effectiveness),
-        # consistent with Phase 7.3 activation capture and Phases 7.6/7.7 steering.
-        logger.info("Loading best latents from Phase 4.9...")
-        from common.steering_setup import load_phase4_9_best_latent
-        selection = load_phase4_9_best_latent(config)
+        # Use Phase 3.8 best latent (AUROC-optimized for prediction).
+        # Phase 7.12 evaluates prediction quality, not steering — use AUROC-best, not steering-best.
+        logger.info("Loading best latents from Phase 3.8...")
+        from common.steering_setup import load_phase3_8_best_latent_sae
+        selection = load_phase3_8_best_latent_sae(config)
 
         correct_layer = selection['correct']['layer']
         correct_latent_idx = selection['correct']['latent_idx']
