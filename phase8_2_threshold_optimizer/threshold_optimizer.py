@@ -129,14 +129,35 @@ class ThresholdOptimizer:
             # === PROBE MODE: Load probe directions from Phase 2.6 ===
             logger.info("PROBE MODE: Loading probe directions from Phase 2.6")
 
-            from common.steering_setup import load_dual_probe_directions
+            from common.steering_setup import load_dual_probe_directions, load_mass_mean_direction_for_layer
 
             dual = load_dual_probe_directions(self.config, self.device, self.model)
             self.incorrect_pred_layer = dual.predicting_layer
             self.predicting_direction = dual.predicting_direction
             self.predicting_bias = dual.predicting_bias
-            self.correct_steer_layer = dual.steering_layer
-            self.correct_latent_direction = dual.correct_latent_direction
+
+            # Override correct steering layer with Phase 4.5/4.6 steering-validated layer
+            # (Phase 2.6 cross-val layer mismatches the coefficient from Phase 4.6)
+            phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
+            if not phase4_6_output:
+                raise FileNotFoundError("Phase 4.6 output not found. Run Phase 4.6 first.")
+            phase4_6_dir = Path(phase4_6_output).parent
+            probe_4_6_dir = get_probe_dir(phase4_6_dir)
+            if not probe_4_6_dir.exists():
+                raise FileNotFoundError(
+                    f"Phase 4.6 probe output not found at {probe_4_6_dir}\n"
+                    f"Run: python3 run.py phase 4.6 --direction-source probe_mass_mean"
+                )
+            self._refined_coefficients = load_json(probe_4_6_dir / "refined_coefficients.json")
+            correct_steer_layer = self._refined_coefficients["correct"]["layer"]
+
+            phase2_6_dir = Path(get_phase_output_dir("2.6", self.config))
+            model_dtype = next(self.model.parameters()).dtype
+            self.correct_steer_layer = correct_steer_layer
+            self.correct_latent_direction = load_mass_mean_direction_for_layer(
+                correct_steer_layer, phase2_6_dir, self.device, model_dtype=model_dtype
+            )
+            logger.info(f"PROBE MODE: Using Phase 4.5/4.6 steering-validated layer: {correct_steer_layer}")
 
             # No SAE needed in probe mode
             self.predicting_sae = None
@@ -200,23 +221,8 @@ class ThresholdOptimizer:
 
         # === LOAD STEERING COEFFICIENT ===
         if self.use_probe:
-            phase4_6_output = discover_latest_phase_output("4.6", config=self.config)
-            if not phase4_6_output:
-                raise FileNotFoundError("Phase 4.6 output not found. Run Phase 4.6 first.")
-
-            phase4_6_dir = Path(phase4_6_output).parent
-            probe_4_6 = get_probe_dir(phase4_6_dir)
-            if probe_4_6.exists():
-                phase4_6_dir = probe_4_6
-                logger.info(f"PROBE MODE: Using Phase 4.6 probe output at {probe_4_6}")
-            else:
-                raise FileNotFoundError(
-                    f"Phase 4.6 probe output not found at {probe_4_6}\n"
-                    f"Run: python3 run.py phase 4.6 --direction-source probe_mass_mean"
-                )
-
-            refined_coefficients = load_json(phase4_6_dir / "refined_coefficients.json")
-            self.steering_coefficient = refined_coefficients['correct']['refined_coefficient']
+            # self._refined_coefficients already loaded above alongside the layer
+            self.steering_coefficient = self._refined_coefficients['correct']['refined_coefficient']
             logger.info(f"Using Phase 4.6 probe refined coefficient: {self.steering_coefficient}")
         else:
             self.steering_coefficient = self._phase4_9_selection['correct']['refined_coefficient']
