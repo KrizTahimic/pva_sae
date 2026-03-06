@@ -134,7 +134,7 @@ class Config:
     split_ratio_tolerance: float = 0.02  # Fixed from separate config (was 0.1)
     
     # === TEMPERATURE VARIATION (Phase 3.5) ===
-    temperature_variation_temps: list[float] = field(default_factory=lambda: [0.0])  # Full sweep: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
+    temperature_variation_temps: list[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])
 
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
 
