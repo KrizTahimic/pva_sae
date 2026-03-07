@@ -12,7 +12,7 @@ from typing import Optional
 from common.direction_utils import normalize_direction
 
 
-def get_orthogonalized_matrix(matrix: FloatTensor, vec: FloatTensor) -> FloatTensor:
+def get_orthogonalized_matrix(matrix: FloatTensor, vec: FloatTensor, chunk_size: int = 8192) -> FloatTensor:
     """
     Remove projection of matrix rows onto direction vector.
 
@@ -23,6 +23,7 @@ def get_orthogonalized_matrix(matrix: FloatTensor, vec: FloatTensor) -> FloatTen
     Args:
         matrix: Weight matrix to orthogonalize [..., d_model]
         vec: Direction to project out [d_model]
+        chunk_size: Number of rows to process at once (reduces peak GPU memory)
 
     Returns:
         Orthogonalized matrix with same shape as input
@@ -32,19 +33,22 @@ def get_orthogonalized_matrix(matrix: FloatTensor, vec: FloatTensor) -> FloatTen
     """
     # Normalize direction vector to unit length for numerical stability
     vec = normalize_direction(vec, name="orthogonalization_direction")
-    
+
     # Match device and dtype of the matrix
     vec = vec.to(matrix.device).to(matrix.dtype)
-    
-    # Compute projection of matrix onto direction
-    # Using einsum for clarity and efficiency
-    proj = einops.einsum(
-        matrix, vec.unsqueeze(-1), 
-        '... d_model, d_model single -> ... single'
-    ) * vec
-    
-    # Subtract projection to get orthogonalized matrix
-    return matrix - proj
+
+    # 1D case: no chunking needed
+    if matrix.dim() == 1:
+        proj = einops.einsum(matrix, vec.unsqueeze(-1), 'd, d s -> s') * vec
+        return matrix - proj.squeeze(-1)
+
+    # 2D case: process in chunks to avoid OOM on large matrices (e.g. embed_tokens [256k, 3584])
+    result = matrix.clone()
+    for i in range(0, matrix.shape[0], chunk_size):
+        chunk = matrix[i:i + chunk_size]
+        proj = einops.einsum(chunk, vec.unsqueeze(-1), '... d, d s -> ... s') * vec
+        result[i:i + chunk_size] = chunk - proj
+    return result
 
 
 def get_weight_change_magnitude(original: FloatTensor, modified: FloatTensor) -> float:

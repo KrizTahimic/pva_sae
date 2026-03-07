@@ -159,6 +159,19 @@ class Phase87Runner:
         self.phase8_2_dir = Path(phase8_2_output).parent
         self.output_dir = Path(get_phase_output_dir("8.7", self.config))
 
+        # Redirect to probe directories if a probe direction source is selected
+        use_probe = getattr(self.config, 'direction_source', 'sae') in ('probe_logreg', 'probe_mass_mean')
+        if use_probe:
+            probe_8_2 = self.phase8_2_dir.parent / (self.phase8_2_dir.name + "_probe")
+            if not probe_8_2.exists():
+                raise FileNotFoundError(
+                    f"Phase 8.2 probe output not found at {probe_8_2}\n"
+                    f"Run: python3 run.py phase 8.2 --direction-source probe_mass_mean"
+                )
+            self.phase8_2_dir = probe_8_2
+            self.output_dir = self.output_dir.parent / (self.output_dir.name + "_probe")
+            ensure_directory_exists(self.output_dir)
+
         # Handle --viz-only mode
         def viz_from_data(data):
             visualizer = ThresholdVisualizer(self.phase8_2_dir, self.output_dir)

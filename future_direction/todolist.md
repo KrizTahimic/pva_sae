@@ -1624,3 +1624,11 @@ After standardizing checkpointing across all 13 parallel phases (commit `1da0e17
 **Fix applied (2026-03-04):** Changed Phase 7.12 SAE mode to use Phase 4.9 latent selection, consistent with Phase 7.3 activation capture and Phases 7.6/7.7 steering.
 
 **Gemma 2B:** Phase 7.12 SAE ran successfully after fix. Probe version pending (see Gemma instruct probe stages above).
+
+---
+
+## Phase 9: Error Summary
+
+- [ ] Test Phase 9.5 (`phase9_5_error_summary/error_summary_visualizer.py`) — run `python3 run.py phase 9.5`
+    - Phase 9 data was deleted (stale); needs a clean re-run
+    - If broken, fix before marking done

@@ -1,18 +1,6 @@
 #!/bin/bash
-# Re-run Phase 7.3, 7.12, and 7.6 probe for Gemma and LLAMA after fixing layer selection.
-#
-# Fixes applied:
-#   Phase 7.3:  now captures Phase 3.8 AUROC-best layers (not just Phase 4.9).
-#   Phase 7.12: now uses Phase 3.8 latent/layer (not Phase 4.9/2.6).
-#   Phase 7.6 probe: now uses Phase 4.5/4.6 steering-validated layers (not Phase 2.6 cross-val L23).
-#
-# Prerequisite: data/phase7_3/, data/phase7_3_llama/, data/phase7_12/,
-#               data/phase7_12_llama/, data/phase7_12_llama_probe/,
-#               data/phase7_6_llama_probe/ deleted.
-#
-# Usage:
-#   screen -S phase7_rerun
-#   bash scripts/run_phase7_rerun.sh
+# Resume from Phase 7.6 Gemma probe (Phase 7.3 + 7.12 Gemma already done).
+# Fixes: also patches phase7_6_model_name to Gemma instruct (was missing in original script).
 
 set -e
 
@@ -25,7 +13,7 @@ conda activate sae_cc
 PIPELINE_START=$(date +%s)
 
 echo "============================================================"
-echo "Phase 7.3 + 7.12 Re-run (Gemma + LLAMA)"
+echo "Phase 7 Resume (from 7.6 Gemma probe)"
 echo "Started: $(date)"
 echo "Git commit: $(git rev-parse --short HEAD)"
 echo "============================================================"
@@ -48,46 +36,32 @@ run_phase() {
     echo "Completed in $(( elapsed / 60 ))m $(( elapsed % 60 ))s"
 }
 
-# ============================================================
-# GEMMA (google/gemma-2-2b + google/gemma-2-2b-it)
-# ============================================================
-echo ""
-echo "############ GEMMA ############"
-
-# Patch phase7_3_model_name and phase7_6_model_name to Gemma instruct (committed default is llama)
-echo "Patching config.py for Gemma instruct..."
-sed -i 's|phase7_3_model_name: str = "meta-llama/Llama-3.1-8B-Instruct"|phase7_3_model_name: str = "google/gemma-2-2b-it"|' common/config.py
-sed -i 's|phase7_6_model_name: str = "meta-llama/Llama-3.1-8B-Instruct"|phase7_6_model_name: str = "google/gemma-2-2b-it"|' common/config.py
-
 restore_config() {
     echo "Restoring config.py..."
     git checkout common/config.py
 }
+
+# ============================================================
+# GEMMA — Phase 7.6 probe only (7.3 + 7.12 already done)
+# ============================================================
+echo ""
+echo "############ GEMMA — Phase 7.6 probe ############"
+
+echo "Patching config.py for Gemma instruct..."
+sed -i 's|phase7_6_model_name: str = "meta-llama/Llama-3.1-8B-Instruct"|phase7_6_model_name: str = "google/gemma-2-2b-it"|' common/config.py
 trap restore_config EXIT
-
-run_phase "Phase 7.3: Gemma instruct baseline (captures Phase 4.9 + Phase 3.8 layers)" \
-    phase 7.3 --parallel 4
-
-# Restore before 7.12 (7.12 reads only from saved activations, no model load)
-restore_config
-trap - EXIT
-
-run_phase "Phase 7.12: Gemma instruct AUROC/F1 (SAE, Phase 3.8 latent)" \
-    phase 7.12
-
-run_phase "Phase 7.12: Gemma instruct AUROC/F1 (probe, Phase 3.8 layer)" \
-    phase 7.12 --direction-source probe_logreg
 
 run_phase "Phase 7.6 probe: Gemma instruct steering (mass_mean, Phase 4.5/4.6 layers)" \
     phase 7.6 --direction-source probe_mass_mean --parallel 4
+
+restore_config
+trap - EXIT
 
 # ============================================================
 # LLAMA (meta-llama/Llama-3.1-8B + meta-llama/Llama-3.1-8B-Instruct)
 # ============================================================
 echo ""
 echo "############ LLAMA ############"
-
-# phase7_3_model_name = "meta-llama/Llama-3.1-8B-Instruct" is already the committed default
 
 run_phase "Phase 7.3: LLAMA instruct baseline (captures Phase 4.9 + Phase 3.8 layers)" \
     phase 7.3 --model meta-llama/Llama-3.1-8B --parallel 4
@@ -127,7 +101,7 @@ TOTAL_ELAPSED=$(( PIPELINE_END - PIPELINE_START ))
 
 echo ""
 echo "============================================================"
-echo "Re-run complete!"
+echo "Resume complete!"
 echo "Finished: $(date)"
 echo "Total elapsed: $(( TOTAL_ELAPSED / 3600 ))h $(( (TOTAL_ELAPSED % 3600) / 60 ))m $(( TOTAL_ELAPSED % 60 ))s"
 echo "Git commit: $(git rev-parse --short HEAD)"
