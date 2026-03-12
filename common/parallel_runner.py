@@ -136,6 +136,7 @@ DATA_PARALLEL_PHASES = {
     "7.6",   # Instruct steering
     "7.7",   # Instruct zero-disc control
     "8.3",   # Selective steering (outputs parquet in parallel mode)
+    "9.5",   # Combined orthogonalization + steering
 }
 
 # Iterative parallelization: distribute problems, merge after each value
@@ -291,7 +292,7 @@ def run_phase_parallel(phase_id: str, config: Config, n_gpus: int) -> dict:
 
     # Add _probe suffix for probe-based steering phases
     direction_source = getattr(config, 'direction_source', 'sae')
-    if phase_id in ("4.5", "4.6", "4.7", "4.8", "5.3", "5.6", "7.6", "8.2", "8.3") and direction_source in ('probe_mass_mean', 'probe_logreg'):
+    if phase_id in ("4.5", "4.6", "4.7", "4.8", "5.3", "5.6", "7.6", "8.2", "8.3", "9.5") and direction_source in ('probe_mass_mean', 'probe_logreg'):
         output_dir = str(Path(output_dir).parent / (Path(output_dir).name + "_probe"))
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -1593,6 +1594,132 @@ def _merge_phase5_3_json_results(
     return merged
 
 
+def _merge_phase9_5_results(
+    output_path: Path,
+    n_gpus: int,
+    config: Config,
+) -> dict:
+    """
+    Merge Phase 9.5 combined orthogonalization+steering results from parallel workers.
+
+    Phase 9.5 produces correction_results_gpu{N}.json and corruption_results_gpu{N}.json.
+    """
+    from common.utils import save_json
+    from common.phase_discovery import write_phase_output
+    from datetime import datetime
+
+    # Merge correction results
+    correction_gpu_files = sorted(output_path.glob("correction_results_gpu*.json"))
+    corruption_gpu_files = sorted(output_path.glob("corruption_results_gpu*.json"))
+
+    if not correction_gpu_files:
+        logger.warning("No correction GPU result files found — parallel merge skipped")
+        return {}
+
+    all_correction = []
+    for f in correction_gpu_files:
+        try:
+            data = load_json(f)
+            if isinstance(data, dict):
+                all_correction.extend(data.values())
+            else:
+                all_correction.extend(data)
+        except Exception as e:
+            logger.warning(f"Could not load {f.name}: {e}")
+
+    all_corruption = []
+    for f in corruption_gpu_files:
+        try:
+            data = load_json(f)
+            if isinstance(data, dict):
+                all_corruption.extend(data.values())
+            else:
+                all_corruption.extend(data)
+        except Exception as e:
+            logger.warning(f"Could not load {f.name}: {e}")
+
+    # Deduplicate by task_id
+    correction_results = list({r['task_id']: r for r in all_correction}.values())
+    corruption_results = list({r['task_id']: r for r in all_corruption}.values())
+
+    # Recalculate metrics
+    n_incorrect = len([r for r in correction_results if not r['baseline_passed']])
+    n_corrected = len([r for r in correction_results if not r['baseline_passed'] and r['combined_correct']])
+    correction_rate = (n_corrected / n_incorrect * 100) if n_incorrect > 0 else 0.0
+
+    n_correct = len([r for r in corruption_results if r['baseline_passed']])
+    n_corrupted = len([r for r in corruption_results if r['baseline_passed'] and not r['combined_correct']])
+    corruption_rate = (n_corrupted / n_correct * 100) if n_correct > 0 else 0.0
+
+    sims = [r.get('code_similarity', 1.0) for r in corruption_results if r['baseline_passed']]
+    avg_similarity = sum(sims) / len(sims) if sims else 1.0
+    composite_score = (corruption_rate + avg_similarity * 100) / 2
+
+    logger.info(f"Phase 9.5 merged: correction={correction_rate:.1f}% ({n_corrected}/{n_incorrect}), "
+                f"corruption={corruption_rate:.1f}% ({n_corrupted}/{n_correct})")
+
+    # Save merged results
+    save_json(correction_results, output_path / "correction_results.json")
+    save_json(corruption_results, output_path / "corruption_results.json")
+
+    # Build summary from first GPU's summary (for metadata) + recalculated metrics
+    summary = None
+    summary_gpu_files = sorted(output_path.glob("phase_9_5_summary_gpu*.json"))
+    if summary_gpu_files:
+        try:
+            summary = load_json(summary_gpu_files[0])
+        except Exception as e:
+            logger.warning(f"Could not load GPU summary: {e}")
+
+    if summary is None:
+        summary = {
+            "phase": "9.5",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    summary['correction_experiment'] = {
+        'correction_rate': correction_rate,
+        'n_incorrect_baseline': n_incorrect,
+        'n_corrected': n_corrected,
+    }
+    summary['corruption_experiment'] = {
+        'corruption_rate': corruption_rate,
+        'composite_score': composite_score,
+        'avg_code_similarity': avg_similarity,
+        'n_correct_baseline': n_correct,
+        'n_corrupted': n_corrupted,
+    }
+    summary['parallel_merge'] = True
+    summary['n_gpus'] = n_gpus
+
+    save_json(summary, output_path / "phase_9_5_summary.json")
+
+    # Write phase manifest
+    write_phase_output(
+        phase="9.5",
+        outputs={
+            "primary": "phase_9_5_summary.json",
+            "correction_results": "correction_results.json",
+            "corruption_results": "corruption_results.json",
+        },
+        config=config,
+        output_dir=str(output_path),
+        config_keys=["model_name", "dataset_name", "direction_source"],
+    )
+
+    # Cleanup GPU-specific files
+    _cleanup_gpu_files(output_path, [
+        "correction_results_gpu*.json",
+        "corruption_results_gpu*.json",
+        "phase_9_5_summary_gpu*.json",
+        "correction_checkpoint_gpu*.json",
+        "corruption_checkpoint_gpu*.json",
+    ])
+
+    logger.info("PHASE 9.5 PARALLEL MERGE COMPLETE")
+    return summary
+
+
 def _merge_phase4_12_json_results(
     output_path: Path,
     n_gpus: int,
@@ -1821,6 +1948,10 @@ def _merge_parallel_results(
     if phase_id == "5.3":
         return _merge_phase5_3_json_results(output_path, n_gpus, config)
 
+    # Phase 9.5: combined orthogonalization + steering
+    if phase_id == "9.5":
+        return _merge_phase9_5_results(output_path, n_gpus, config)
+
     # Phase 4.12 and 7.7 use JSON output format (zero-disc steering)
     if phase_id in ("4.12", "7.7"):
         return _merge_phase4_12_json_results(output_path, n_gpus, config, phase_id=phase_id)
@@ -1912,7 +2043,7 @@ def _merge_parallel_results(
     )
     logger.info("Wrote phase_output.json manifest")
 
-    # Phase 1: Create summary JSON (required by Phase 9.5)
+    # Phase 1: Create summary JSON (required by Phase 11.5)
     if phase_id == "1":
         from datetime import datetime
         from common.dataset_utils import compute_error_type_distribution

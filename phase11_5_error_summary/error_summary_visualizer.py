@@ -1,5 +1,5 @@
 """
-Phase 9.5: Error Type Summary Aggregator
+Phase 11.5: Error Type Summary Aggregator
 
 Aggregates and visualizes error type distributions from all generation phases.
 Uses the standardized error distribution format added to phase summaries.
@@ -23,7 +23,7 @@ from common.phase_discovery import get_phase_output_dir, discover_latest_phase_o
 from common.utils import save_json, load_json
 from common.dataset_utils import ERROR_TYPES
 
-logger = get_logger("phase9_5.error_summary_visualizer", phase="9.5")
+logger = get_logger("phase11_5.error_summary_visualizer", phase="11.5")
 
 # Color scheme for error types (preserved from Phase 9.1)
 ERROR_TYPE_COLORS = {
@@ -68,7 +68,7 @@ class ErrorSummaryVisualizer:
 
     def __init__(self, config: Config):
         self.config = config
-        self.output_dir = Path(get_phase_output_dir("9.5", config))
+        self.output_dir = Path(get_phase_output_dir("11.5", config))
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Storage for loaded distributions
@@ -275,7 +275,7 @@ class ErrorSummaryVisualizer:
     def run(self) -> dict:
         """Run the full error summary analysis."""
         logger.info("="*60)
-        logger.info("PHASE 9.5: ERROR TYPE SUMMARY AGGREGATOR")
+        logger.info("PHASE 11.5: ERROR TYPE SUMMARY AGGREGATOR")
         logger.info("="*60)
 
         # Load all distributions
@@ -295,7 +295,7 @@ class ErrorSummaryVisualizer:
 
         # Compile summary
         summary = {
-            "phase": "9.5",
+            "phase": "11.5",
             "timestamp": datetime.now().isoformat(),
             "dataset": self.config.dataset_name,
             "model": self.config.model_name,
@@ -316,7 +316,7 @@ class ErrorSummaryVisualizer:
         # Write phase output manifest
         from common.phase_discovery import write_phase_output
         write_phase_output(
-            phase="9.5",
+            phase="11.5",
             outputs={
                 "primary": "error_summary.json",
                 "baseline_distribution": "baseline_error_distribution.png",
@@ -329,7 +329,7 @@ class ErrorSummaryVisualizer:
         )
 
         logger.info("\n" + "="*60)
-        logger.info("Phase 9.5 completed successfully")
+        logger.info("Phase 11.5 completed successfully")
         logger.info("="*60)
 
         return summary
@@ -349,7 +349,7 @@ class ErrorSummaryVisualizer:
                     logger.info(f"  {et:10s}: {count:5d} ({pct:5.1f}%)")
 
 
-def run_phase_9_5(config: Config) -> dict:
-    """Entry point for Phase 9.5."""
+def run_phase_11_5(config: Config) -> dict:
+    """Entry point for Phase 11.5."""
     visualizer = ErrorSummaryVisualizer(config)
     return visualizer.run()

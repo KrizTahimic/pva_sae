@@ -159,8 +159,19 @@ class InstructSteeringAnalyzer:
             if not coefficients_file.exists():
                 raise FileNotFoundError(f"Phase 4.6 probe refined_coefficients.json not found: {coefficients_file}")
             coefficients_data = load_json(coefficients_file)
-            correct_layer = coefficients_data["correct"]["layer"]
-            incorrect_layer = coefficients_data["incorrect"]["layer"]
+            if "layer" in coefficients_data["correct"]:
+                # SAE mode: layer stored directly in refined_coefficients.json
+                correct_layer = coefficients_data["correct"]["layer"]
+                incorrect_layer = coefficients_data["incorrect"]["layer"]
+            else:
+                # Probe mode: layer not in Phase 4.6 output — read from Phase 4.5 probe selected_coefficients.json
+                phase4_5_probe_dir = probe_dir.parent / probe_dir.name.replace("phase4_6", "phase4_5")
+                selected_file = phase4_5_probe_dir / "selected_coefficients.json"
+                if not selected_file.exists():
+                    raise FileNotFoundError(f"Phase 4.5 probe selected_coefficients.json not found: {selected_file}")
+                selected_data = load_json(selected_file)
+                correct_layer = selected_data["correct"]["layer"]
+                incorrect_layer = selected_data["incorrect"]["layer"]
             logger.info(f"Using Phase 4.5/4.6 steering-validated layers: correct={correct_layer}, incorrect={incorrect_layer}")
 
             phase2_6_dir = Path(get_phase_output_dir("2.6", self.config))

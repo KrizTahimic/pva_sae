@@ -42,13 +42,13 @@ def get_orthogonalized_matrix(matrix: FloatTensor, vec: FloatTensor, chunk_size:
         proj = einops.einsum(matrix, vec.unsqueeze(-1), 'd, d s -> s') * vec
         return matrix - proj.squeeze(-1)
 
-    # 2D case: process in chunks to avoid OOM on large matrices (e.g. embed_tokens [256k, 3584])
-    result = matrix.clone()
+    # 2D case: modify in-place chunk by chunk to avoid OOM on large matrices (e.g. embed_tokens [256k, 3584]).
+    # No full-matrix clone — peak allocation per iteration is ~2 * chunk_size * d_model (~120 MB at chunk_size=8192).
     for i in range(0, matrix.shape[0], chunk_size):
-        chunk = matrix[i:i + chunk_size]
+        chunk = matrix[i:i + chunk_size]  # view, no copy
         proj = einops.einsum(chunk, vec.unsqueeze(-1), '... d, d s -> ... s') * vec
-        result[i:i + chunk_size] = chunk - proj
-    return result
+        matrix[i:i + chunk_size] = chunk - proj
+    return matrix
 
 
 def get_weight_change_magnitude(original: FloatTensor, modified: FloatTensor) -> float:

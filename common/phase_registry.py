@@ -509,14 +509,28 @@ PHASES: dict[str, PhaseInfo] = {
     ),
 
     # =========================================================================
-    # Phase 9.x: Error Type Analysis
+    # Phase 9.x: Combined Methods
     # =========================================================================
     "9.5": PhaseInfo(
         id="9.5",
-        name="Error Type Summary",
+        name="Combined Orthogonalization + Steering",
         output_dir="data/phase9_5",
-        module="phase9_5_error_summary.error_summary_visualizer",
-        runner="run_phase_9_5",
+        module="phase9_5_combined_analysis.combined_analyzer",
+        runner="CombinedOrthogonalSteeringAnalyzer",
+        runner_type="class",
+        category="analysis",
+        patterns=["phase_9_5_summary.json"],
+    ),
+
+    # =========================================================================
+    # Phase 11.x: Error Type Analysis
+    # =========================================================================
+    "11.5": PhaseInfo(
+        id="11.5",
+        name="Error Type Summary",
+        output_dir="data/phase11_5",
+        module="phase11_5_error_summary.error_summary_visualizer",
+        runner="run_phase_11_5",
         runner_type="function",
         category="analysis",
         patterns=["error_summary.json", "baseline_error_distribution.png", "steered_error_distribution.png", "baseline_vs_steered_comparison.png"],

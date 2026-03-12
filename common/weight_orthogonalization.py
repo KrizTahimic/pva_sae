@@ -44,22 +44,27 @@ def orthogonalize_gemma_weights(
     """
     if target_weights is None:
         target_weights = ['embed', 'attn_o', 'mlp_down']
-    
+
     changes = {}
-    
+
     # Ensure direction is on the correct device
     direction = direction.to(model.device)
-    
+
+    # Normalized direction for change magnitude computation (unit vector)
+    direction_norm = direction / direction.norm()
+
     # Orthogonalize embedding weights
     if 'embed' in target_weights:
-        # Embedding weights: [vocab_size, d_model]
-        # No transposition needed as embeddings map tokens to vectors directly
-        original = model.model.embed_tokens.weight.data.clone()
+        # Embedding weights: [vocab_size, d_model] — up to 1.71 GiB for Gemma 9B.
+        # Avoid cloning the full matrix: compute change magnitude as ||(W @ d_norm)||
+        # (mathematically equivalent to Frobenius norm of the removed projection)
+        # then orthogonalize in-place via chunked loop in get_orthogonalized_matrix.
+        with torch.no_grad():
+            dots = model.model.embed_tokens.weight.data @ direction_norm  # [vocab_size]
+            change = dots.norm().item()
+            del dots
         model.model.embed_tokens.weight.data = get_orthogonalized_matrix(
             model.model.embed_tokens.weight.data, direction
-        )
-        change = get_weight_change_magnitude(
-            original, model.model.embed_tokens.weight.data
         )
         changes['embedding'] = change
         logger.info(f"Orthogonalized embeddings, change magnitude: {change:.4f}")

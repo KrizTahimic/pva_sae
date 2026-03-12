@@ -1604,7 +1604,7 @@ class SteeringEffectAnalyzer:
         else:
             best_corruption_rate = 0.0
 
-        # Compute error type distribution for Phase 9.5
+        # Compute error type distribution for Phase 11.5
         steered_error_distribution = {'total': 0}
         for exp_type in ['correction', 'corruption', 'preservation']:
             for r in detailed_results.get(exp_type, []):
