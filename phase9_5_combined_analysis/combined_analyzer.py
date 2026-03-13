@@ -17,6 +17,7 @@ from typing import Optional
 from datetime import datetime
 from difflib import SequenceMatcher
 
+import numpy as np
 import pandas as pd
 import torch
 import matplotlib.pyplot as plt
@@ -42,6 +43,22 @@ from common.weight_orthogonalization import orthogonalize_gemma_weights
 from common.direction_utils import normalize_direction
 
 logger = get_logger("phase9_5.combined_analyzer", phase="9.5")
+
+
+def _annotate_bars(ax, bars, vals):
+    """Annotate bars with percentage values; flip inside if bar > 90%."""
+    for bar, val in zip(bars, vals):
+        if val < 90:
+            ax.text(
+                bar.get_x() + bar.get_width() / 2, val + 1.5,
+                f'{val:.1f}%', ha='center', va='bottom', fontsize=9, fontweight='bold',
+            )
+        else:
+            ax.text(
+                bar.get_x() + bar.get_width() / 2, val - 4,
+                f'{val:.1f}%', ha='center', va='top', fontsize=9,
+                fontweight='bold', color='white',
+            )
 
 
 class CombinedOrthogonalSteeringAnalyzer:
@@ -111,6 +128,14 @@ class CombinedOrthogonalSteeringAnalyzer:
         logger.info(f"Ortho correct candidate: layer={self.ortho_correct_candidate.get('layer')}, "
                     f"latent_idx={self.ortho_correct_candidate.get('latent_idx')}")
 
+        # Store ortho-only rates for comparison viz
+        ortho_incorrect_metrics = ortho_data['incorrect_orthogonalization'].get('metrics', {})
+        ortho_correct_metrics = ortho_data['correct_orthogonalization'].get('metrics', {})
+        self.ortho_correction_rate = ortho_incorrect_metrics.get('correction_rate', 0.0)
+        self.ortho_corruption_rate = ortho_correct_metrics.get('corruption_rate', 0.0)
+        ortho_avg_sim = ortho_correct_metrics.get('avg_similarity_score', 0.0)
+        self.ortho_composite_score = (self.ortho_corruption_rate + ortho_avg_sim * 100) / 2
+
         # Phase 4.9 best steering latents (SAE) or derive from Phase 5.3 candidate (probe)
         if self.direction_source == 'sae':
             phase4_9_dir = Path(get_phase_output_dir("4.9", self.config))
@@ -155,9 +180,9 @@ class CombinedOrthogonalSteeringAnalyzer:
                     f"coeff={self.steering_incorrect.get('refined_coefficient')}")
 
         # Phase 3.5 dataset
-        dataset_path = discover_latest_phase_output("3.5", config=self.config)
-        self.dataset = pd.read_parquet(dataset_path)
-        logger.info(f"Loaded dataset: {len(self.dataset)} rows from {dataset_path}")
+        from common.steering_setup import load_baseline_data
+        self.dataset, _ = load_baseline_data(self.config, "3.5", "dataset_temp_0_0.parquet")
+        logger.info(f"Loaded dataset: {len(self.dataset)} rows")
 
     def _load_direction(
         self,
@@ -459,40 +484,94 @@ class CombinedOrthogonalSteeringAnalyzer:
         }
 
     def _create_visualization(self, summary: dict) -> None:
-        """Create grouped bar chart of combined effects."""
-        from common.config import COLOR_CORRECTION, COLOR_CORRUPTION
-
-        correction_rate = summary['correction_experiment']['correction_rate']
-        corruption_rate = summary['corruption_experiment']['corruption_rate']
-
-        fig, ax = plt.subplots(figsize=(7, 5))
-        bars = ax.bar(
-            ['Correction Rate', 'Corruption Rate'],
-            [correction_rate, corruption_rate],
-            color=[COLOR_CORRECTION, COLOR_CORRUPTION],
-            width=0.5,
-            edgecolor='white',
+        """Create 3-panel comparison chart: combined vs steer-only vs ortho-only."""
+        from common.config import (
+            COLOR_CORRECTION, COLOR_CORRUPTION, COLOR_PRESERVATION,
+            COLOR_CORRECT_DARK, COLOR_INCORRECT_DARK, COLOR_PRESERVATION_DARK,
         )
-        for bar, val in zip(bars, [correction_rate, corruption_rate]):
-            ax.text(
-                bar.get_x() + bar.get_width() / 2,
-                bar.get_height() + 0.5,
-                f'{val:.1f}%',
-                ha='center',
-                va='bottom',
-                fontsize=12,
-                fontweight='bold',
-            )
-        ax.set_ylim(0, max(correction_rate, corruption_rate) * 1.25 + 5)
-        ax.set_ylabel('Rate (%)', fontsize=12)
-        ax.set_title('Combined Orthogonalization + Steering Effects', fontsize=13)
+
+        plt.style.use(PLOT_STYLE)
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
+
+        # ── data ──────────────────────────────────────────────────────────────
+        combined_corr   = summary['correction_experiment']['correction_rate']
+        combined_corrup = summary['corruption_experiment']['corruption_rate']
+        combined_comp   = summary['corruption_experiment']['composite_score']
+        n_incorrect     = summary['correction_experiment']['n_incorrect_baseline']
+        n_correct       = summary['corruption_experiment']['n_correct_baseline']
+
+        steer_corr   = summary.get('steering_correct', {}).get('correction_rate', 0.0)
+        steer_corrup = summary.get('steering_incorrect', {}).get('corruption_rate', 0.0)
+        steer_comp   = summary.get('steering_incorrect', {}).get('composite_score', 0.0)
+
+        ortho = summary.get('ortho_only_rates', {})
+        ortho_corr   = ortho.get('correction_rate', 0.0)
+        ortho_corrup = ortho.get('corruption_rate', 0.0)
+        ortho_comp   = ortho.get('composite_score', 0.0)
+
+        labels = ['Combined\n(Ortho+Steer)', 'Steer-only\n(Phase 4.8)', 'Ortho-only\n(Phase 5.3)']
+        x = np.arange(len(labels))
+        width = 0.55
+        hatches = ['', '///', '\\\\\\']
+
+        # ── Panel 1: Correction ───────────────────────────────────────────────
+        vals1 = [combined_corr, steer_corr, ortho_corr]
+        colors1 = [COLOR_CORRECT_DARK, COLOR_CORRECTION, 'lightgreen']
+        bars1 = ax1.bar(x, vals1, width, color=colors1, edgecolor='white')
+        for bar, h in zip(bars1, hatches):
+            bar.set_hatch(h)
+        _annotate_bars(ax1, bars1, vals1)
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(labels, fontsize=9)
+        ax1.set_ylim(0, 100)
+        ax1.set_ylabel('Rate (%)')
+        ax1.set_title(f'Correction Rate\n(Incorrect→Correct, n={n_incorrect})')
+        ax1.axhline(y=10, color='black', linestyle='--', alpha=0.5, label='10% threshold')
+        ax1.legend(fontsize=8)
+
+        # ── Panel 2: Corruption ───────────────────────────────────────────────
+        vals2 = [combined_corrup, steer_corrup, ortho_corrup]
+        colors2 = [COLOR_INCORRECT_DARK, COLOR_CORRUPTION, 'lightsalmon']
+        bars2 = ax2.bar(x, vals2, width, color=colors2, edgecolor='white')
+        for bar, h in zip(bars2, hatches):
+            bar.set_hatch(h)
+        _annotate_bars(ax2, bars2, vals2)
+        ax2.set_xticks(x)
+        ax2.set_xticklabels(labels, fontsize=9)
+        ax2.set_ylim(0, 100)
+        ax2.set_ylabel('Rate (%)')
+        ax2.set_title(f'Corruption Rate\n(Correct→Incorrect, n={n_correct})')
+        ax2.axhline(y=10, color='black', linestyle='--', alpha=0.5, label='10% threshold')
+        ax2.legend(fontsize=8)
+
+        # ── Panel 3: Composite Score ───────────────────────────────────────────
+        vals3 = [combined_comp, steer_comp, ortho_comp]
+        colors3 = [COLOR_PRESERVATION_DARK, COLOR_PRESERVATION, 'khaki']
+        bars3 = ax3.bar(x, vals3, width, color=colors3, edgecolor='white')
+        for bar, h in zip(bars3, hatches):
+            bar.set_hatch(h)
+        _annotate_bars(ax3, bars3, vals3)
+        ax3.set_xticks(x)
+        ax3.set_xticklabels(labels, fontsize=9)
+        ax3.set_ylim(0, 100)
+        ax3.set_ylabel('Score')
+        ax3.set_title('Composite Score\n(Corruption + Similarity) / 2')
+
+        fig.suptitle(
+            'Combined Orthogonalization + Steering vs Individual Methods',
+            fontsize=14, fontweight='bold', y=1.02,
+        )
         plt.tight_layout()
-        plt.savefig(self.output_dir / "combined_effects.png", dpi=PLOT_DPI, bbox_inches='tight')
+        plt.savefig(self.output_dir / 'combined_effects.png', dpi=PLOT_DPI, bbox_inches='tight')
         plt.close()
         logger.info("Saved visualization: combined_effects.png")
 
     def run(self) -> dict:
         """Run Phase 9.5: correction + corruption experiments."""
+        from common.viz_utils import handle_viz_only_mode
+        if handle_viz_only_mode(self, "phase_9_5_summary.json", self._create_visualization):
+            return {}
+
         logger.info("=" * 60)
         logger.info("PHASE 9.5: COMBINED ORTHOGONALIZATION + STEERING")
         logger.info("=" * 60)
@@ -565,6 +644,11 @@ class CombinedOrthogonalSteeringAnalyzer:
                 "avg_code_similarity": metrics['avg_similarity'],
                 "n_correct_baseline": metrics['n_correct'],
                 "n_corrupted": metrics['n_corrupted'],
+            },
+            "ortho_only_rates": {
+                "correction_rate": self.ortho_correction_rate,
+                "corruption_rate": self.ortho_corruption_rate,
+                "composite_score": self.ortho_composite_score,
             },
         }
 

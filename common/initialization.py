@@ -5,6 +5,7 @@ This module provides utilities for:
 - Setting up deterministic generation across all random number sources
 """
 
+import os
 import random
 
 import numpy as np
@@ -45,6 +46,12 @@ def setup_deterministic_generation(seed: int = 42) -> None:
     # PyTorch CUDA (if available)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
+    # Force deterministic CuBLAS workspace layout (must be set before any CUDA op).
+    # Without this, CuBLAS silently uses non-deterministic workspaces across process
+    # restarts even with warn_only=True — causing ~3% of problems to flip baseline_passed
+    # between independent runs of the same phase.
+    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 
     # Enable deterministic algorithms
     torch.use_deterministic_algorithms(True, warn_only=True)

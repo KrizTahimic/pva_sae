@@ -1604,7 +1604,7 @@ def _merge_phase9_5_results(
 
     Phase 9.5 produces correction_results_gpu{N}.json and corruption_results_gpu{N}.json.
     """
-    from common.utils import save_json
+    from common.utils import save_json, load_json
     from common.phase_discovery import write_phase_output
     from datetime import datetime
 
@@ -1693,6 +1693,16 @@ def _merge_phase9_5_results(
     summary['n_gpus'] = n_gpus
 
     save_json(summary, output_path / "phase_9_5_summary.json")
+
+    # Regenerate visualization from merged summary
+    try:
+        from phase9_5_combined_analysis.combined_analyzer import CombinedOrthogonalSteeringAnalyzer
+        viz_runner = object.__new__(CombinedOrthogonalSteeringAnalyzer)
+        viz_runner.output_dir = output_path
+        viz_runner._create_visualization(summary)
+        logger.info("Saved combined_effects.png from merged summary")
+    except Exception as e:
+        logger.warning(f"Could not regenerate viz after merge: {e}")
 
     # Write phase manifest
     write_phase_output(

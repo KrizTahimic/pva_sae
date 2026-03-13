@@ -34,6 +34,7 @@ def _make_runner(
     early_stop_fn=None,
     merge_fn=None,
     all_task_ids=None,
+    **kwargs,
 ):
     """Create an IterativeParallelRunner with mocked dependencies."""
     config = MagicMock()
@@ -49,6 +50,7 @@ def _make_runner(
         merge_fn=merge_fn,
         checkpoint_dir=tmp_path / "checkpoints",
         all_task_ids=all_task_ids or [f"task_{i}" for i in range(10)],
+        **kwargs,
     )
     return runner
 
@@ -486,7 +488,6 @@ class TestOrchestratorState:
     def test_save_and_load_completed_values(self, tmp_path):
         """Should persist completed values across save/load cycles."""
         runner = _make_runner(tmp_path)
-        runner.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
         runner._save_orchestrator_state(1.0, {"score": 0.5, "n_problems": 10})
         runner._save_orchestrator_state(2.0, {"score": 0.8, "n_problems": 10})
@@ -507,7 +508,6 @@ class TestOrchestratorState:
     def test_state_file_stores_result_summaries(self, tmp_path):
         """State file should include per-value score and n_problems."""
         runner = _make_runner(tmp_path)
-        runner.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
         runner._save_orchestrator_state(1.5, {"score": 0.75, "n_problems": 20})
 
@@ -522,7 +522,6 @@ class TestOrchestratorState:
     def test_no_duplicate_values_in_completed_list(self, tmp_path):
         """Saving the same value twice should not duplicate it."""
         runner = _make_runner(tmp_path)
-        runner.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
         runner._save_orchestrator_state(1.0, {"score": 0.5})
         runner._save_orchestrator_state(1.0, {"score": 0.6})  # Updated score
@@ -660,15 +659,6 @@ class TestEarlyStoppingDecision:
         for value in [1.0, 2.0]:
             runner._save_gpu_checkpoint(value, 0, _make_gpu_result(0, value, ["t0"]))
             runner._save_gpu_checkpoint(value, 1, _make_gpu_result(1, value, ["t1"]))
-
-        # Patch out worker spawning entirely since all tasks are pre-checkpointed
-        with patch.object(runner, '_load_orchestrator_state', return_value=set()):
-            with patch('multiprocessing.Manager'):
-                with patch.object(runner, '_shutdown_workers'):
-                    # We need to simulate the run without actual multiprocessing.
-                    # Since all tasks are checkpointed, the run loop should skip to merge.
-                    # But run() spawns workers. Let's test the early_stop_fn in isolation.
-                    pass
 
         # Test directly: simulate what run() does after merging
         history = []
@@ -1106,19 +1096,9 @@ class TestMinGpuSuccessRatio:
 
     def test_custom_threshold(self, tmp_path):
         """Custom threshold of 0.5: 2/4 GPUs succeed -> proceeds."""
-        config = MagicMock()
-        config.model_name = "google/gemma-2-2b"
-        config.dataset_name = "mbpp"
-
-        runner = IterativeParallelRunner(
-            phase_evaluator_class=MagicMock,
-            config=config,
-            n_gpus=4,
-            values_to_test=[1.0],
-
-            checkpoint_dir=tmp_path / "checkpoints",
-            all_task_ids=["t0", "t1", "t2", "t3"],
-            min_gpu_success_ratio=0.5,
+        runner = _make_runner(
+            tmp_path, n_gpus=4, values_to_test=[1.0],
+            all_task_ids=["t0", "t1", "t2", "t3"], min_gpu_success_ratio=0.5,
         )
 
         queues = [queue.Queue() for _ in range(4)]
@@ -1133,19 +1113,9 @@ class TestMinGpuSuccessRatio:
 
     def test_custom_threshold_below(self, tmp_path):
         """Custom threshold of 0.5: 1/4 GPUs succeed -> returns None."""
-        config = MagicMock()
-        config.model_name = "google/gemma-2-2b"
-        config.dataset_name = "mbpp"
-
-        runner = IterativeParallelRunner(
-            phase_evaluator_class=MagicMock,
-            config=config,
-            n_gpus=4,
-            values_to_test=[1.0],
-
-            checkpoint_dir=tmp_path / "checkpoints",
-            all_task_ids=["t0", "t1", "t2", "t3"],
-            min_gpu_success_ratio=0.5,
+        runner = _make_runner(
+            tmp_path, n_gpus=4, values_to_test=[1.0],
+            all_task_ids=["t0", "t1", "t2", "t3"], min_gpu_success_ratio=0.5,
         )
 
         queues = [queue.Queue() for _ in range(4)]

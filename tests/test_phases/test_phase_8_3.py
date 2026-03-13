@@ -11,11 +11,13 @@ Validates:
 
 import pytest
 import numpy as np
+import torch
+from unittest.mock import patch, MagicMock
 
 from common.config import Config
+from common.selective_steering import SteeringState
 from phase8_3_selective_steering.selective_steering_analyzer import (
     SelectiveSteeringAnalyzer,
-    SteeringState,
 )
 
 
@@ -54,20 +56,25 @@ class TestSteeringState:
 
 
 # =============================================================================
+# Shared fixture
+# =============================================================================
+
+@pytest.fixture
+def analyzer():
+    """Create a SelectiveSteeringAnalyzer with mocked dependencies."""
+    opt = object.__new__(SelectiveSteeringAnalyzer)
+    opt.config = Config()
+    opt.threshold = 0.5
+    opt.phase4_8_rates = None
+    return opt
+
+
+# =============================================================================
 # _calculate_correction_metrics Tests
 # =============================================================================
 
 class TestCalculateCorrectionMetrics:
     """Test _calculate_correction_metrics with mock result dicts."""
-
-    @pytest.fixture
-    def analyzer(self):
-        """Create a SelectiveSteeringAnalyzer with mocked dependencies."""
-        opt = object.__new__(SelectiveSteeringAnalyzer)
-        opt.config = Config()
-        opt.threshold = 0.5
-        opt.phase4_8_rates = None
-        return opt
 
     def test_returns_all_expected_keys(self, analyzer):
         """Should return all required metric keys."""
@@ -196,15 +203,6 @@ class TestCalculateCorrectionMetrics:
 class TestCalculatePreservationMetrics:
     """Test _calculate_preservation_metrics with mock result dicts."""
 
-    @pytest.fixture
-    def analyzer(self):
-        """Create a SelectiveSteeringAnalyzer with mocked dependencies."""
-        opt = object.__new__(SelectiveSteeringAnalyzer)
-        opt.config = Config()
-        opt.threshold = 0.5
-        opt.phase4_8_rates = None
-        return opt
-
     def test_returns_all_expected_keys(self, analyzer):
         """Should return all required metric keys."""
         results = [
@@ -299,15 +297,6 @@ class TestCalculatePreservationMetrics:
 
 class TestCalculateCombinedMetrics:
     """Test _calculate_combined_metrics across both experiments."""
-
-    @pytest.fixture
-    def analyzer(self):
-        """Create a SelectiveSteeringAnalyzer with mocked dependencies."""
-        opt = object.__new__(SelectiveSteeringAnalyzer)
-        opt.config = Config()
-        opt.threshold = 0.5
-        opt.phase4_8_rates = None
-        return opt
 
     def test_returns_all_expected_keys(self, analyzer):
         """Should return all required combined metric keys."""
@@ -429,12 +418,6 @@ class TestPhase83Config:
 # =============================================================================
 # Threshold Decision Tests
 # =============================================================================
-
-from unittest.mock import patch, MagicMock
-import torch
-
-from common.selective_steering import SteeringState
-
 
 class TestThresholdDecision:
     """Test that the threshold correctly determines should_steer."""
@@ -626,17 +609,12 @@ class TestDualDirectionConfig:
 
         dual = load_dual_probe_directions(config, device, mock_model)
 
-        # Verify logreg was used for prediction
+        # Verify logreg was used for prediction, mass_mean for steering
         mock_pred.assert_called_once()
-        pred_call_kwargs = mock_pred.call_args
-        assert pred_call_kwargs[1].get('method', pred_call_kwargs[0][2] if len(pred_call_kwargs[0]) > 2 else None) == "logreg" or \
-               (len(pred_call_kwargs[1]) > 0 and pred_call_kwargs[1].get('method') == "logreg")
+        assert mock_pred.call_args.kwargs.get('method') == "logreg"
 
-        # Verify mass_mean was used for steering
         mock_steer.assert_called_once()
-        steer_call_kwargs = mock_steer.call_args
-        assert steer_call_kwargs[1].get('method', steer_call_kwargs[0][3] if len(steer_call_kwargs[0]) > 3 else None) == "mass_mean" or \
-               (len(steer_call_kwargs[1]) > 0 and steer_call_kwargs[1].get('method') == "mass_mean")
+        assert mock_steer.call_args.kwargs.get('method') == "mass_mean"
 
     @patch('common.steering_setup.load_probe_directions_for_steering')
     @patch('common.steering_setup.load_probe_directions_for_predicting')
@@ -686,11 +664,11 @@ class TestDualDirectionConfig:
 
     @patch('common.steering_setup.load_probe_directions_for_steering')
     @patch('common.steering_setup.load_probe_directions_for_predicting')
-    def test_dual_probe_predicting_direction_is_incorrect(self, mock_pred, mock_steer):
-        """Predicting direction should be the incorrect direction (negated correct).
+    def test_dual_probe_directions(self, mock_pred, mock_steer):
+        """predicting_direction = logreg incorrect; correct_latent_direction = mass_mean correct.
 
         Phase 8.3 checks if the incorrect-predicting activation exceeds a threshold,
-        so it needs the incorrect direction for the dot product.
+        then steers toward correctness using the mass_mean correct direction.
         """
         from common.steering_setup import (
             load_dual_probe_directions,
@@ -720,55 +698,9 @@ class TestDualDirectionConfig:
         mock_model = MagicMock()
         mock_model.parameters.return_value = iter([torch.randn(2, 2)])
 
-        config = Config()
-        device = torch.device("cpu")
+        dual = load_dual_probe_directions(Config(), torch.device("cpu"), mock_model)
 
-        dual = load_dual_probe_directions(config, device, mock_model)
-
-        # predicting_direction should be the incorrect direction from logreg
         assert torch.allclose(dual.predicting_direction, -pred_direction)
-
-    @patch('common.steering_setup.load_probe_directions_for_steering')
-    @patch('common.steering_setup.load_probe_directions_for_predicting')
-    def test_dual_probe_steering_direction_is_correct(self, mock_pred, mock_steer):
-        """Steering direction should be the correct direction from mass_mean.
-
-        Phase 8.3 steers toward correctness using the mass_mean correct direction.
-        """
-        from common.steering_setup import (
-            load_dual_probe_directions,
-            ProbeDirections,
-        )
-
-        pred_direction = torch.tensor([1.0, 0.0, 0.0])
-        mock_pred.return_value = ProbeDirections(
-            correct_direction=pred_direction,
-            incorrect_direction=-pred_direction,
-            layer=19,
-            method="logreg",
-            bias=0.0,
-            phase_dir="/fake/phase2_6",
-        )
-
-        steer_direction = torch.tensor([0.0, 1.0, 0.0])
-        mock_steer.return_value = ProbeDirections(
-            correct_direction=steer_direction,
-            incorrect_direction=-steer_direction,
-            layer=19,
-            method="mass_mean",
-            bias=0.0,
-            phase_dir="/fake/phase2_6",
-        )
-
-        mock_model = MagicMock()
-        mock_model.parameters.return_value = iter([torch.randn(2, 2)])
-
-        config = Config()
-        device = torch.device("cpu")
-
-        dual = load_dual_probe_directions(config, device, mock_model)
-
-        # correct_latent_direction should be the correct direction from mass_mean
         assert torch.allclose(dual.correct_latent_direction, steer_direction)
 
 
