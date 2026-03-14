@@ -139,9 +139,9 @@ class Config:
     temperature_samples_per_temp: int = 3  # Number of samples to generate per temperature
 
     # === INSTRUCTION-TUNED MODEL SETTINGS ===
-    phase7_3_model_name: str = "meta-llama/Llama-3.1-8B-Instruct"
-    phase7_6_model_name: str = "meta-llama/Llama-3.1-8B-Instruct"
-    phase7_7_model_name: str = "meta-llama/Llama-3.1-8B-Instruct"
+    phase7_3_model_name: str = "google/gemma-2-2b-it"
+    phase7_6_model_name: str = "google/gemma-2-2b-it"
+    phase7_7_model_name: str = "google/gemma-2-2b-it"
 
     # === TEMPERATURE-BASED AUROC ANALYSIS (Phase 3.10) ===
     phase3_10_temperatures: list[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4])

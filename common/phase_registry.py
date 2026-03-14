@@ -523,6 +523,20 @@ PHASES: dict[str, PhaseInfo] = {
     ),
 
     # =========================================================================
+    # Phase 10.x: Selective Combined Methods
+    # =========================================================================
+    "10.5": PhaseInfo(
+        id="10.5",
+        name="Selective Orthogonalization + Selective Steering",
+        output_dir="data/phase10_5",
+        module="phase10_5_selective_ortho_plus_steering.selective_combined_analyzer",
+        runner="SelectiveCombinedAnalyzer",
+        runner_type="class",
+        category="analysis",
+        patterns=["phase_10_5_summary.json"],
+    ),
+
+    # =========================================================================
     # Phase 11.x: Error Type Analysis
     # =========================================================================
     "11.5": PhaseInfo(
