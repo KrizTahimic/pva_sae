@@ -21,11 +21,29 @@ import re
 import time
 from pathlib import Path
 
+import requests as _requests
+
+# Monkey-patch requests.Session.send to add a default read timeout.
+# HF's upload_folder -> create_commit() uses requests with no timeout, causing
+# infinite hangs on slow commits. 120s read timeout converts hangs to retryable
+# ReadTimeout exceptions.
+_orig_send = _requests.Session.send
+
+
+def _send_with_timeout(self, request, **kwargs):
+    kwargs.setdefault("timeout", (10, 120))  # (connect_timeout, read_timeout) seconds
+    return _orig_send(self, request, **kwargs)
+
+
+_requests.Session.send = _send_with_timeout
+
 # Threshold for "large" phase dirs that need chunking
 # HF commit API times out at ~15-20k files; 8k gives safe margin
 LARGE_PHASE_THRESHOLD = 8_000
-# How many files per chunk for large dirs
-FILES_PER_CHUNK = 5_000
+# How many files per chunk for large dirs.
+# 1k files × ~500B LFS pointer ≈ 500KB commit payload → completes well within
+# the 120s read timeout. Trades more commits for per-commit reliability.
+FILES_PER_CHUNK = 1_000
 # Preemptive pause after this many commits
 COMMITS_BEFORE_PAUSE = 100
 # Pause duration in seconds (60 minutes)
