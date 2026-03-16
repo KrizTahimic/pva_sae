@@ -1631,7 +1631,8 @@ def _merge_phase9_5_results(
     """
     Merge Phase 9.5 combined orthogonalization+steering results from parallel workers.
 
-    Phase 9.5 produces correction_results_gpu{N}.json and corruption_results_gpu{N}.json.
+    Phase 9.5 produces correction_results_gpu{N}.json, preservation_results_gpu{N}.json,
+    and corruption_results_gpu{N}.json.
     """
     from common.utils import save_json, load_json
     from common.phase_discovery import write_phase_output
@@ -1639,6 +1640,7 @@ def _merge_phase9_5_results(
 
     # Merge correction results
     correction_gpu_files = sorted(output_path.glob("correction_results_gpu*.json"))
+    preservation_gpu_files = sorted(output_path.glob("preservation_results_gpu*.json"))
     corruption_gpu_files = sorted(output_path.glob("corruption_results_gpu*.json"))
 
     if not correction_gpu_files:
@@ -1656,6 +1658,17 @@ def _merge_phase9_5_results(
         except Exception as e:
             logger.warning(f"Could not load {f.name}: {e}")
 
+    all_preservation = []
+    for f in preservation_gpu_files:
+        try:
+            data = load_json(f)
+            if isinstance(data, dict):
+                all_preservation.extend(data.values())
+            else:
+                all_preservation.extend(data)
+        except Exception as e:
+            logger.warning(f"Could not load {f.name}: {e}")
+
     all_corruption = []
     for f in corruption_gpu_files:
         try:
@@ -1669,12 +1682,17 @@ def _merge_phase9_5_results(
 
     # Deduplicate by task_id
     correction_results = list({r['task_id']: r for r in all_correction}.values())
+    preservation_results = list({r['task_id']: r for r in all_preservation}.values())
     corruption_results = list({r['task_id']: r for r in all_corruption}.values())
 
     # Recalculate metrics
     n_incorrect = len([r for r in correction_results if not r['baseline_passed']])
     n_corrected = len([r for r in correction_results if not r['baseline_passed'] and r['combined_correct']])
     correction_rate = (n_corrected / n_incorrect * 100) if n_incorrect > 0 else 0.0
+
+    n_correct_pres = len([r for r in preservation_results if r['baseline_passed']])
+    n_preserved = len([r for r in preservation_results if r['baseline_passed'] and r['combined_correct']])
+    preservation_rate = (n_preserved / n_correct_pres * 100) if n_correct_pres > 0 else 0.0
 
     n_correct = len([r for r in corruption_results if r['baseline_passed']])
     n_corrupted = len([r for r in corruption_results if r['baseline_passed'] and not r['combined_correct']])
@@ -1685,10 +1703,12 @@ def _merge_phase9_5_results(
     composite_score = (corruption_rate + avg_similarity * 100) / 2
 
     logger.info(f"Phase 9.5 merged: correction={correction_rate:.1f}% ({n_corrected}/{n_incorrect}), "
+                f"preservation={preservation_rate:.1f}% ({n_preserved}/{n_correct_pres}), "
                 f"corruption={corruption_rate:.1f}% ({n_corrupted}/{n_correct})")
 
     # Save merged results
     save_json(correction_results, output_path / "correction_results.json")
+    save_json(preservation_results, output_path / "preservation_results.json")
     save_json(corruption_results, output_path / "corruption_results.json")
 
     # Build summary from first GPU's summary (for metadata) + recalculated metrics
@@ -1710,6 +1730,11 @@ def _merge_phase9_5_results(
         'correction_rate': correction_rate,
         'n_incorrect_baseline': n_incorrect,
         'n_corrected': n_corrected,
+    }
+    summary['preservation_experiment'] = {
+        'preservation_rate': preservation_rate,
+        'n_correct_baseline': n_correct_pres,
+        'n_preserved': n_preserved,
     }
     summary['corruption_experiment'] = {
         'corruption_rate': corruption_rate,
@@ -1739,6 +1764,7 @@ def _merge_phase9_5_results(
         outputs={
             "primary": "phase_9_5_summary.json",
             "correction_results": "correction_results.json",
+            "preservation_results": "preservation_results.json",
             "corruption_results": "corruption_results.json",
         },
         config=config,
@@ -1749,9 +1775,11 @@ def _merge_phase9_5_results(
     # Cleanup GPU-specific files
     _cleanup_gpu_files(output_path, [
         "correction_results_gpu*.json",
+        "preservation_results_gpu*.json",
         "corruption_results_gpu*.json",
         "phase_9_5_summary_gpu*.json",
         "correction_checkpoint_gpu*.json",
+        "preservation_checkpoint_gpu*.json",
         "corruption_checkpoint_gpu*.json",
     ])
 

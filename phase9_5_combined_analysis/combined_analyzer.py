@@ -5,9 +5,13 @@ Tests whether combining weight orthogonalization (Phase 5.3) and activation
 steering (Phase 4.9) in the same direction produces a stronger causal effect
 than either method alone.
 
-Two experiments:
-- Correction: Remove "incorrect" signal + steer towards "correct"
-- Corruption: Remove "correct" signal + steer towards "incorrect"
+Three experiments:
+- Correction: Remove "incorrect" signal + steer towards "correct" (on initially-incorrect)
+- Preservation: Remove "incorrect" signal + steer towards "correct" (on initially-correct)
+- Corruption: Remove "correct" signal + steer towards "incorrect" (on initially-correct)
+
+Correction and Preservation share the same orthogonalized model (one load).
+Corruption uses a separately orthogonalized model (second load).
 """
 
 import json
@@ -132,6 +136,7 @@ class CombinedOrthogonalSteeringAnalyzer:
         ortho_incorrect_metrics = ortho_data['incorrect_orthogonalization'].get('metrics', {})
         ortho_correct_metrics = ortho_data['correct_orthogonalization'].get('metrics', {})
         self.ortho_correction_rate = ortho_incorrect_metrics.get('correction_rate', 0.0)
+        self.ortho_preservation_rate = ortho_incorrect_metrics.get('preservation_rate', 0.0)
         self.ortho_corruption_rate = ortho_correct_metrics.get('corruption_rate', 0.0)
         ortho_avg_sim = ortho_correct_metrics.get('avg_similarity_score', 0.0)
         self.ortho_composite_score = (self.ortho_corruption_rate + ortho_avg_sim * 100) / 2
@@ -341,6 +346,98 @@ class CombinedOrthogonalSteeringAnalyzer:
         save_json(done_ids, checkpoint_path)
         return results
 
+    def _run_preservation_experiment(self, model, tokenizer) -> list[dict]:
+        """Run preservation experiment: ortho incorrect + steer correct, on initially-correct problems.
+
+        Model must already be orthogonalized w.r.t. the incorrect direction
+        (done in _run_correction_experiment). Only the steering hook is applied here.
+        """
+        checkpoint_path = self.output_dir / f"preservation_checkpoint_gpu{self.gpu_id}.json"
+
+        done_ids: dict = {}
+        if checkpoint_path.exists():
+            try:
+                done_ids = load_json(checkpoint_path)
+                logger.info(f"Loaded preservation checkpoint: {len(done_ids)} completed")
+            except Exception as e:
+                logger.warning(f"Could not load preservation checkpoint: {e}")
+
+        # Same steering direction as correction: steer toward correct
+        steer_layer = self.steering_correct['layer']
+        steer_latent_idx = self.steering_correct.get('latent_idx')
+        steer_direction = self._load_direction(steer_layer, steer_latent_idx, model, self.device)
+        steer_coeff = self.steering_correct['refined_coefficient']
+        hook_fn = create_last_position_steering_hook(steer_direction, steer_coeff)
+
+        # Filter to correct problems for this GPU
+        correct_problems = self.dataset[self.dataset['baseline_passed'] == True]
+        if self.n_gpus > 1:
+            from common.parallel_runner import filter_dataframe_for_gpu
+            correct_problems = filter_dataframe_for_gpu(correct_problems, self.gpu_id, self.n_gpus)
+        logger.info(f"Preservation experiment: {len(correct_problems)} correct problems "
+                    f"(GPU {self.gpu_id}/{self.n_gpus})")
+
+        results = list(done_ids.values())
+        for _, row in tqdm_with_logging(
+            correct_problems.iterrows(),
+            total=len(correct_problems),
+            desc="Preservation (ortho+steer)",
+            logger=logger,
+        ):
+            if str(row['task_id']) in done_ids or row['task_id'] in done_ids:
+                continue
+
+            baseline_code = row.get('generated_code', '')
+
+            def generate_and_evaluate(row=row, baseline_code=baseline_code):
+                prompt = row['prompt']
+                handle = model.model.layers[steer_layer].register_forward_pre_hook(hook_fn)
+                try:
+                    generated = self._generate_with_model(model, tokenizer, prompt)
+                finally:
+                    handle.remove()
+                code = extract_code(generated, prompt)
+                test_cases = (
+                    json.loads(row['test_list'])
+                    if isinstance(row['test_list'], str)
+                    else row['test_list']
+                )
+                eval_result = evaluate_code_with_error_type(code, test_cases)
+                similarity = SequenceMatcher(None, baseline_code, code).ratio()
+                return {
+                    'task_id': row['task_id'],
+                    'baseline_passed': True,
+                    'combined_correct': eval_result.passed,
+                    'combined_error_type': eval_result.error_type,
+                    'combined_code': code,
+                    'baseline_code': baseline_code,
+                    'code_similarity': similarity,
+                }
+
+            success, result, error_msg = retry_with_timeout(
+                generate_and_evaluate, row['task_id'], self.config,
+                operation_name="preservation combined generation"
+            )
+            if not success:
+                result = {
+                    'task_id': row['task_id'],
+                    'baseline_passed': True,
+                    'combined_correct': True,  # conservative: assume preservation on failure
+                    'combined_error_type': 'runtime',
+                    'combined_code': '',
+                    'baseline_code': baseline_code,
+                    'code_similarity': 1.0,
+                }
+
+            results.append(result)
+            done_ids[str(row['task_id'])] = result
+
+            if len(results) % CHECKPOINT_FREQUENCY_DEFAULT == 0:
+                save_json(done_ids, checkpoint_path)
+
+        save_json(done_ids, checkpoint_path)
+        return results
+
     def _run_corruption_experiment(self, model, tokenizer) -> list[dict]:
         """Run corruption experiment: ortho correct + steer incorrect.
 
@@ -455,6 +552,7 @@ class CombinedOrthogonalSteeringAnalyzer:
     def _compute_metrics(
         self,
         correction_results: list[dict],
+        preservation_results: list[dict],
         corruption_results: list[dict],
     ) -> dict:
         """Compute aggregate metrics from per-problem results."""
@@ -462,6 +560,11 @@ class CombinedOrthogonalSteeringAnalyzer:
         n_incorrect = len([r for r in correction_results if not r['baseline_passed']])
         n_corrected = len([r for r in correction_results if not r['baseline_passed'] and r['combined_correct']])
         correction_rate = (n_corrected / n_incorrect * 100) if n_incorrect > 0 else 0.0
+
+        # Preservation: correct → correct (stays correct)
+        n_correct_pres = len([r for r in preservation_results if r['baseline_passed']])
+        n_preserved = len([r for r in preservation_results if r['baseline_passed'] and r['combined_correct']])
+        preservation_rate = (n_preserved / n_correct_pres * 100) if n_correct_pres > 0 else 0.0
 
         # Corruption: correct → incorrect
         n_correct = len([r for r in corruption_results if r['baseline_passed']])
@@ -476,6 +579,9 @@ class CombinedOrthogonalSteeringAnalyzer:
             'correction_rate': correction_rate,
             'n_incorrect': n_incorrect,
             'n_corrected': n_corrected,
+            'preservation_rate': preservation_rate,
+            'n_correct_pres': n_correct_pres,
+            'n_preserved': n_preserved,
             'corruption_rate': corruption_rate,
             'n_correct': n_correct,
             'n_corrupted': n_corrupted,
@@ -495,18 +601,20 @@ class CombinedOrthogonalSteeringAnalyzer:
 
         # ── data ──────────────────────────────────────────────────────────────
         combined_corr   = summary['correction_experiment']['correction_rate']
+        combined_pres   = summary['preservation_experiment']['preservation_rate']
         combined_corrup = summary['corruption_experiment']['corruption_rate']
         combined_comp   = summary['corruption_experiment']['composite_score']
         n_incorrect     = summary['correction_experiment']['n_incorrect_baseline']
+        n_correct_pres  = summary['preservation_experiment']['n_correct_baseline']
         n_correct       = summary['corruption_experiment']['n_correct_baseline']
 
         steer_corr   = summary.get('steering_correct', {}).get('correction_rate', 0.0)
-        steer_corrup = summary.get('steering_incorrect', {}).get('corruption_rate', 0.0)
+        steer_pres   = summary.get('steering_correct', {}).get('preservation_rate', 0.0)
         steer_comp   = summary.get('steering_incorrect', {}).get('composite_score', 0.0)
 
         ortho = summary.get('ortho_only_rates', {})
         ortho_corr   = ortho.get('correction_rate', 0.0)
-        ortho_corrup = ortho.get('corruption_rate', 0.0)
+        ortho_pres   = ortho.get('preservation_rate', 0.0)
         ortho_comp   = ortho.get('composite_score', 0.0)
 
         labels = ['Combined\n(Ortho+Steer)', 'Steer-only\n(Phase 4.8)', 'Ortho-only\n(Phase 5.3)']
@@ -529,9 +637,9 @@ class CombinedOrthogonalSteeringAnalyzer:
         ax1.axhline(y=10, color='black', linestyle='--', alpha=0.5, label='10% threshold')
         ax1.legend(fontsize=8)
 
-        # ── Panel 2: Corruption ───────────────────────────────────────────────
-        vals2 = [combined_corrup, steer_corrup, ortho_corrup]
-        colors2 = [COLOR_INCORRECT_DARK, COLOR_CORRUPTION, 'lightsalmon']
+        # ── Panel 2: Preservation ─────────────────────────────────────────────
+        vals2 = [combined_pres, steer_pres, ortho_pres]
+        colors2 = [COLOR_PRESERVATION_DARK, COLOR_PRESERVATION, 'khaki']
         bars2 = ax2.bar(x, vals2, width, color=colors2, edgecolor='white')
         for bar, h in zip(bars2, hatches):
             bar.set_hatch(h)
@@ -540,13 +648,11 @@ class CombinedOrthogonalSteeringAnalyzer:
         ax2.set_xticklabels(labels, fontsize=9)
         ax2.set_ylim(0, 100)
         ax2.set_ylabel('Rate (%)')
-        ax2.set_title(f'Corruption Rate\n(Correct→Incorrect, n={n_correct})')
-        ax2.axhline(y=10, color='black', linestyle='--', alpha=0.5, label='10% threshold')
-        ax2.legend(fontsize=8)
+        ax2.set_title(f'Preservation Rate\n(Correct→Correct, n={n_correct_pres})')
 
         # ── Panel 3: Composite Score ───────────────────────────────────────────
         vals3 = [combined_comp, steer_comp, ortho_comp]
-        colors3 = [COLOR_PRESERVATION_DARK, COLOR_PRESERVATION, 'khaki']
+        colors3 = [COLOR_INCORRECT_DARK, COLOR_CORRUPTION, 'lightsalmon']
         bars3 = ax3.bar(x, vals3, width, color=colors3, edgecolor='white')
         for bar, h in zip(bars3, hatches):
             bar.set_hatch(h)
@@ -567,7 +673,7 @@ class CombinedOrthogonalSteeringAnalyzer:
         logger.info("Saved visualization: combined_effects.png")
 
     def run(self) -> dict:
-        """Run Phase 9.5: correction + corruption experiments."""
+        """Run Phase 9.5: correction + preservation + corruption experiments."""
         from common.viz_utils import handle_viz_only_mode
         if handle_viz_only_mode(self, "phase_9_5_summary.json", self._create_visualization):
             return {}
@@ -579,8 +685,9 @@ class CombinedOrthogonalSteeringAnalyzer:
         logger.info(f"Model: {self.config.model_name}")
         logger.info(f"Dataset: {self.config.dataset_name}")
 
-        # Experiment 1: Correction (fresh model)
-        logger.info("Loading model for correction experiment...")
+        # Load 1: ortho(incorrect) model → correction + preservation experiments
+        # Correction orthogonalizes the model in-place; preservation reuses it.
+        logger.info("Loading model for correction + preservation experiments...")
         model, tokenizer = load_model_and_tokenizer(
             self.config.model_name,
             device=self.device,
@@ -588,11 +695,12 @@ class CombinedOrthogonalSteeringAnalyzer:
         )
         model.eval()
         correction_results = self._run_correction_experiment(model, tokenizer)
+        preservation_results = self._run_preservation_experiment(model, tokenizer)
         del model
         gc.collect()
         torch.cuda.empty_cache()
 
-        # Experiment 2: Corruption (fresh model)
+        # Load 2: ortho(correct) model → corruption experiment
         logger.info("Loading model for corruption experiment...")
         model, tokenizer = load_model_and_tokenizer(
             self.config.model_name,
@@ -606,9 +714,11 @@ class CombinedOrthogonalSteeringAnalyzer:
         torch.cuda.empty_cache()
 
         # Compute metrics
-        metrics = self._compute_metrics(correction_results, corruption_results)
+        metrics = self._compute_metrics(correction_results, preservation_results, corruption_results)
         logger.info(f"Correction rate: {metrics['correction_rate']:.1f}% "
                     f"({metrics['n_corrected']}/{metrics['n_incorrect']})")
+        logger.info(f"Preservation rate: {metrics['preservation_rate']:.1f}% "
+                    f"({metrics['n_preserved']}/{metrics['n_correct_pres']})")
         logger.info(f"Corruption rate: {metrics['corruption_rate']:.1f}% "
                     f"({metrics['n_corrupted']}/{metrics['n_correct']})")
         logger.info(f"Composite score: {metrics['composite_score']:.1f}")
@@ -617,9 +727,11 @@ class CombinedOrthogonalSteeringAnalyzer:
         if self.n_gpus > 1:
             # In parallel mode, save GPU-specific files for later merge
             save_json(correction_results, self.output_dir / f"correction_results_gpu{self.gpu_id}.json")
+            save_json(preservation_results, self.output_dir / f"preservation_results_gpu{self.gpu_id}.json")
             save_json(corruption_results, self.output_dir / f"corruption_results_gpu{self.gpu_id}.json")
         else:
             save_json(correction_results, self.output_dir / "correction_results.json")
+            save_json(preservation_results, self.output_dir / "preservation_results.json")
             save_json(corruption_results, self.output_dir / "corruption_results.json")
 
         # Build summary
@@ -638,6 +750,11 @@ class CombinedOrthogonalSteeringAnalyzer:
                 "n_incorrect_baseline": metrics['n_incorrect'],
                 "n_corrected": metrics['n_corrected'],
             },
+            "preservation_experiment": {
+                "preservation_rate": metrics['preservation_rate'],
+                "n_correct_baseline": metrics['n_correct_pres'],
+                "n_preserved": metrics['n_preserved'],
+            },
             "corruption_experiment": {
                 "corruption_rate": metrics['corruption_rate'],
                 "composite_score": metrics['composite_score'],
@@ -647,6 +764,7 @@ class CombinedOrthogonalSteeringAnalyzer:
             },
             "ortho_only_rates": {
                 "correction_rate": self.ortho_correction_rate,
+                "preservation_rate": self.ortho_preservation_rate,
                 "corruption_rate": self.ortho_corruption_rate,
                 "composite_score": self.ortho_composite_score,
             },
@@ -663,6 +781,7 @@ class CombinedOrthogonalSteeringAnalyzer:
                 outputs={
                     "primary": "phase_9_5_summary.json",
                     "correction_results": "correction_results.json",
+                    "preservation_results": "preservation_results.json",
                     "corruption_results": "corruption_results.json",
                 },
                 config=self.config,

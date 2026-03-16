@@ -250,28 +250,29 @@ class SelectiveCombinedAnalyzer:
             logger.warning(f"Could not load Phase 4.8 rates: {e}")
 
         # Phase 5.3: weight orthogonalization only
+        # Both correction_rate and preservation_rate live in incorrect_orthogonalization.metrics
         try:
             phase5_3_dir = Path(get_phase_output_dir("5.3", self.config))
             if self.direction_source != 'sae':
                 phase5_3_dir = phase5_3_dir.parent / (phase5_3_dir.name + "_probe")
             ortho_data = load_json(phase5_3_dir / "orthogonalization_results.json")
             ortho_incorrect = ortho_data.get('incorrect_orthogonalization', {})
-            ortho_correct = ortho_data.get('correct_orthogonalization', {})
             rates['phase5_3'] = {
                 'correction_rate': ortho_incorrect.get('metrics', {}).get('correction_rate', 0.0),
-                'preservation_rate': ortho_correct.get('metrics', {}).get('preservation_rate', 0.0),
+                'preservation_rate': ortho_incorrect.get('metrics', {}).get('preservation_rate', 0.0),
             }
         except Exception as e:
             logger.warning(f"Could not load Phase 5.3 rates: {e}")
 
         # Phase 8.3: selective steering
+        # Keys: correction_experiment / preservation_experiment; rates are decimals (0–1)
         try:
             phase8_3_output = discover_latest_phase_output("8.3", config=self.config)
             if phase8_3_output:
                 summary = load_json(Path(phase8_3_output).parent / "selective_steering_summary.json")
                 rates['phase8_3'] = {
-                    'correction_rate': summary.get('correction_metrics', {}).get('correction_rate', 0.0) * 100,
-                    'preservation_rate': summary.get('preservation_metrics', {}).get('preservation_rate', 0.0) * 100,
+                    'correction_rate': summary.get('correction_experiment', {}).get('correction_rate', 0.0) * 100,
+                    'preservation_rate': summary.get('preservation_experiment', {}).get('preservation_rate', 0.0) * 100,
                 }
         except Exception as e:
             logger.warning(f"Could not load Phase 8.3 rates: {e}")
@@ -283,8 +284,7 @@ class SelectiveCombinedAnalyzer:
                 summary = load_json(Path(phase9_5_output).parent / "phase_9_5_summary.json")
                 rates['phase9_5'] = {
                     'correction_rate': summary.get('correction_experiment', {}).get('correction_rate', 0.0),
-                    # Phase 9.5 has corruption, not preservation — use 100 - corruption as proxy
-                    'preservation_rate': 100.0 - summary.get('corruption_experiment', {}).get('corruption_rate', 0.0),
+                    'preservation_rate': summary.get('preservation_experiment', {}).get('preservation_rate', 0.0),
                 }
         except Exception as e:
             logger.warning(f"Could not load Phase 9.5 rates: {e}")
