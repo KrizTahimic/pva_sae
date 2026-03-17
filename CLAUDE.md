@@ -371,6 +371,19 @@ If OOM:
 2. `--start 0 --end 10` to test subset first
 3. `python3 run.py cleanup-gpu --aggressive`
 
+### HuggingFace Upload/Download
+
+| Task | Command |
+|------|---------|
+| Upload normal phases | `python3 scripts/upload_to_hf.py` (resumable) |
+| Upload large phases as archives | `python3 scripts/archive_upload.py` (resumable) |
+| Restore on new machine | `python3 scripts/download_from_hf.py` (see `docs/laptop_setup.md`) |
+| Repo | `kriztahimic/sae-code-correctness-data` |
+
+**When to tar vs upload individually:** HF's LFS has per-file overhead that doesn't scale.
+- Few large files (safetensors, parquet) → upload individually ✓
+- Many small files (per-problem/per-latent activations) → **tar first**, then upload as single file
+
 ### Maintaining This File
 
 When adding to CLAUDE.md:
