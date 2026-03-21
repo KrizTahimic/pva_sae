@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
-Upload large phase directories to HuggingFace as tar archives.
+Upload ALL phase directories to HuggingFace as tar archives.
 
-Instead of per-file LFS uploads (which take 40+ days for ~730k files),
-each large phase is tarred into a single file and uploaded in one API call.
-
-8 tar uploads (~11GB) ≈ 1-3 hours vs 40 days for individual files.
+Instead of per-file LFS uploads (which exhausts HF's API rate limits with
+98k+ files), each phase is tarred into a single file and uploaded in one
+API call. ~30 tar uploads ≈ 1-3 hours; enables O(N_phases) download.
 
 Resumable: tracks completed archives in data/.upload_progress.json under
 "archived_phases" key.
@@ -40,7 +39,8 @@ _requests.Session.send = _send_with_timeout
 
 DEFAULT_REPO_ID = "kriztahimic/sae-code-correctness-data"
 
-# Large phases to archive (these are the 8 remaining phases not yet on HF)
+# Phases already archived (8 large phases). Listed to document history; no
+# longer used to restrict which phases get archived — all phases are archived.
 LARGE_PHASES = [
     "phase1_0_gemma9b",
     "phase1_0_llama",
@@ -51,6 +51,18 @@ LARGE_PHASES = [
     "phase2_2_gemma9b",
     "phase2_2_llama",
 ]
+
+
+def discover_all_phases(data_dir: Path) -> list[str]:
+    """Return sorted list of all phase directories in data_dir."""
+    if not data_dir.exists():
+        return []
+    phases = sorted(
+        d.name
+        for d in data_dir.iterdir()
+        if d.is_dir() and d.name.startswith("phase")
+    )
+    return phases
 
 
 def format_size(size_bytes: int) -> str:
@@ -273,7 +285,7 @@ Examples:
         print(f"Error: Data directory not found: {args.data_dir}")
         return 1
 
-    phases = [args.phase] if args.phase else LARGE_PHASES
+    phases = [args.phase] if args.phase else discover_all_phases(args.data_dir)
 
     if args.dry_run:
         dry_run_report(args.data_dir, phases)
